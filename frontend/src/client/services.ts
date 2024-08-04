@@ -4,20 +4,23 @@ import { request as __request } from "./core/request"
 
 import type {
   Body_login_login_access_token,
-  ItemCreate,
-  ItemPublic,
-  ItemUpdate,
-  ItemsPublic,
   Message,
   NewPassword,
   Token,
+  UserPublic,
   UpdatePassword,
   UserCreate,
-  UserPublic,
   UserRegister,
+  UsersPublic,
   UserUpdate,
   UserUpdateMe,
-  UsersPublic,
+  ItemCreate,
+  ItemPublic,
+  ItemsPublic,
+  ItemUpdate,
+  Project,
+  ProjectCreate,
+  ProjectsPublic,
 } from "./models"
 
 export type TDataLoginAccessToken = {
@@ -50,7 +53,7 @@ export class LoginService {
       formData: formData,
       mediaType: "application/x-www-form-urlencoded",
       errors: {
-        422: "Validation Error",
+        422: `Validation Error`,
       },
     })
   }
@@ -85,7 +88,7 @@ export class LoginService {
         email,
       },
       errors: {
-        422: "Validation Error",
+        422: `Validation Error`,
       },
     })
   }
@@ -106,7 +109,7 @@ export class LoginService {
       body: requestBody,
       mediaType: "application/json",
       errors: {
-        422: "Validation Error",
+        422: `Validation Error`,
       },
     })
   }
@@ -128,7 +131,7 @@ export class LoginService {
         email,
       },
       errors: {
-        422: "Validation Error",
+        422: `Validation Error`,
       },
     })
   }
@@ -180,7 +183,7 @@ export class UsersService {
         limit,
       },
       errors: {
-        422: "Validation Error",
+        422: `Validation Error`,
       },
     })
   }
@@ -201,7 +204,7 @@ export class UsersService {
       body: requestBody,
       mediaType: "application/json",
       errors: {
-        422: "Validation Error",
+        422: `Validation Error`,
       },
     })
   }
@@ -248,7 +251,7 @@ export class UsersService {
       body: requestBody,
       mediaType: "application/json",
       errors: {
-        422: "Validation Error",
+        422: `Validation Error`,
       },
     })
   }
@@ -269,7 +272,7 @@ export class UsersService {
       body: requestBody,
       mediaType: "application/json",
       errors: {
-        422: "Validation Error",
+        422: `Validation Error`,
       },
     })
   }
@@ -290,7 +293,7 @@ export class UsersService {
       body: requestBody,
       mediaType: "application/json",
       errors: {
-        422: "Validation Error",
+        422: `Validation Error`,
       },
     })
   }
@@ -312,7 +315,7 @@ export class UsersService {
         user_id: userId,
       },
       errors: {
-        422: "Validation Error",
+        422: `Validation Error`,
       },
     })
   }
@@ -336,7 +339,7 @@ export class UsersService {
       body: requestBody,
       mediaType: "application/json",
       errors: {
-        422: "Validation Error",
+        422: `Validation Error`,
       },
     })
   }
@@ -356,7 +359,7 @@ export class UsersService {
         user_id: userId,
       },
       errors: {
-        422: "Validation Error",
+        422: `Validation Error`,
       },
     })
   }
@@ -382,7 +385,7 @@ export class UtilsService {
         email_to: emailTo,
       },
       errors: {
-        422: "Validation Error",
+        422: `Validation Error`,
       },
     })
   }
@@ -425,7 +428,7 @@ export class ItemsService {
         limit,
       },
       errors: {
-        422: "Validation Error",
+        422: `Validation Error`,
       },
     })
   }
@@ -446,7 +449,7 @@ export class ItemsService {
       body: requestBody,
       mediaType: "application/json",
       errors: {
-        422: "Validation Error",
+        422: `Validation Error`,
       },
     })
   }
@@ -466,7 +469,7 @@ export class ItemsService {
         id,
       },
       errors: {
-        422: "Validation Error",
+        422: `Validation Error`,
       },
     })
   }
@@ -490,7 +493,7 @@ export class ItemsService {
       body: requestBody,
       mediaType: "application/json",
       errors: {
-        422: "Validation Error",
+        422: `Validation Error`,
       },
     })
   }
@@ -510,7 +513,60 @@ export class ItemsService {
         id,
       },
       errors: {
-        422: "Validation Error",
+        422: `Validation Error`,
+      },
+    })
+  }
+}
+
+export type TDataGetOwnedProjects = {
+  limit?: number
+  offset?: number
+}
+export type TDataCreateProject = {
+  requestBody: ProjectCreate
+}
+
+export class ProjectsService {
+  /**
+   * Get Owned Projects
+   * @returns ProjectsPublic Successful Response
+   * @throws ApiError
+   */
+  public static getOwnedProjects(
+    data: TDataGetOwnedProjects = {},
+  ): CancelablePromise<ProjectsPublic> {
+    const { limit = 100, offset = 0 } = data
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/api/v1/projects/owned",
+      query: {
+        limit,
+        offset,
+      },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Create Project
+   * Create new project.
+   * @returns Project Successful Response
+   * @throws ApiError
+   */
+  public static createProject(
+    data: TDataCreateProject,
+  ): CancelablePromise<Project> {
+    const { requestBody } = data
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/api/v1/projects/",
+      body: requestBody,
+      mediaType: "application/json",
+      errors: {
+        422: `Validation Error`,
       },
     })
   }

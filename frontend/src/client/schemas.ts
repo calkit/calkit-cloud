@@ -186,6 +186,113 @@ export const $NewPassword = {
   },
 } as const
 
+export const $Project = {
+  properties: {
+    name: {
+      type: "string",
+      isRequired: true,
+      maxLength: 255,
+      minLength: 4,
+    },
+    description: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          maxLength: 2048,
+          minLength: 0,
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    id: {
+      type: "string",
+      format: "uuid",
+    },
+    owner_user_id: {
+      type: "string",
+      isRequired: true,
+      format: "uuid",
+    },
+  },
+} as const
+
+export const $ProjectCreate = {
+  properties: {
+    name: {
+      type: "string",
+      isRequired: true,
+      maxLength: 255,
+      minLength: 4,
+    },
+    description: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          maxLength: 2048,
+          minLength: 0,
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+  },
+} as const
+
+export const $ProjectPublic = {
+  properties: {
+    name: {
+      type: "string",
+      isRequired: true,
+      maxLength: 255,
+      minLength: 4,
+    },
+    description: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          maxLength: 2048,
+          minLength: 0,
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    id: {
+      type: "string",
+      isRequired: true,
+      format: "uuid",
+    },
+    owner_user_id: {
+      type: "string",
+      isRequired: true,
+      format: "uuid",
+    },
+  },
+} as const
+
+export const $ProjectsPublic = {
+  properties: {
+    data: {
+      type: "array",
+      contains: {
+        type: "ProjectPublic",
+      },
+      isRequired: true,
+    },
+    count: {
+      type: "number",
+      isRequired: true,
+    },
+  },
+} as const
+
 export const $Token = {
   properties: {
     access_token: {
@@ -244,6 +351,18 @@ export const $UserCreate = {
         },
       ],
     },
+    github_username: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          maxLength: 255,
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
     password: {
       type: "string",
       isRequired: true,
@@ -270,6 +389,18 @@ export const $UserPublic = {
       default: false,
     },
     full_name: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          maxLength: 255,
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    github_username: {
       type: "any-of",
       contains: [
         {
@@ -353,6 +484,18 @@ export const $UserUpdate = {
         },
       ],
     },
+    github_username: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          maxLength: 255,
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
     password: {
       type: "any-of",
       contains: [
@@ -389,6 +532,18 @@ export const $UserUpdateMe = {
         {
           type: "string",
           format: "email",
+          maxLength: 255,
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    github_username: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
           maxLength: 255,
         },
         {

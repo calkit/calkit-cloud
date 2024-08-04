@@ -42,6 +42,30 @@ export type NewPassword = {
   new_password: string
 }
 
+export type Project = {
+  name: string
+  description?: string | null
+  id?: string
+  owner_user_id: string
+}
+
+export type ProjectCreate = {
+  name: string
+  description?: string | null
+}
+
+export type ProjectPublic = {
+  name: string
+  description?: string | null
+  id: string
+  owner_user_id: string
+}
+
+export type ProjectsPublic = {
+  data: Array<ProjectPublic>
+  count: number
+}
+
 export type Token = {
   access_token: string
   token_type?: string
@@ -57,6 +81,7 @@ export type UserCreate = {
   is_active?: boolean
   is_superuser?: boolean
   full_name?: string | null
+  github_username?: string | null
   password: string
 }
 
@@ -65,6 +90,7 @@ export type UserPublic = {
   is_active?: boolean
   is_superuser?: boolean
   full_name?: string | null
+  github_username?: string | null
   id: string
 }
 
@@ -79,12 +105,14 @@ export type UserUpdate = {
   is_active?: boolean
   is_superuser?: boolean
   full_name?: string | null
+  github_username?: string | null
   password?: string | null
 }
 
 export type UserUpdateMe = {
   full_name?: string | null
   email?: string | null
+  github_username?: string | null
 }
 
 export type UsersPublic = {
