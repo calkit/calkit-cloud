@@ -5,3 +5,7 @@ api-dev:
 .PHONY: local-api
 local-api:
 	cd backend && make local-api
+
+.PHONY: dev
+dev:
+	docker compose -f docker-compose.yml -f docker-compose.override.yml up
