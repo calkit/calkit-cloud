@@ -17,7 +17,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { useEffect } from "react"
 import { z } from "zod"
 
-import { ItemsService } from "../../client"
+import { ProjectsService } from "../../client"
 import ActionsMenu from "../../components/Common/ActionsMenu"
 import Navbar from "../../components/Common/Navbar"
 import CreateProject from "../../components/Projects/CreateProject"
@@ -36,7 +36,10 @@ const PER_PAGE = 5
 function getItemsQueryOptions({ page }: { page: number }) {
   return {
     queryFn: () =>
-      ItemsService.readItems({ skip: (page - 1) * PER_PAGE, limit: PER_PAGE }),
+      ProjectsService.getOwnedProjects({
+        offset: (page - 1) * PER_PAGE,
+        limit: PER_PAGE,
+      }),
     queryKey: ["items", { page }],
   }
 }
@@ -73,7 +76,7 @@ function ItemsTable() {
           <Thead>
             <Tr>
               <Th>ID</Th>
-              <Th>Title</Th>
+              <Th>Name</Th>
               <Th>Description</Th>
               <Th>Actions</Th>
             </Tr>
@@ -92,9 +95,9 @@ function ItemsTable() {
             <Tbody>
               {items?.data.map((item) => (
                 <Tr key={item.id} opacity={isPlaceholderData ? 0.5 : 1}>
-                  <Td>{item.id}</Td>
+                  <Td isTruncated maxWidth="160px">{item.id}</Td>
                   <Td isTruncated maxWidth="150px">
-                    {item.title}
+                    {item.name}
                   </Td>
                   <Td
                     color={!item.description ? "ui.dim" : "inherit"}
