@@ -93,7 +93,7 @@ const Sidebar = () => {
           borderRadius={12}
         >
           <Box>
-            <Image src={Logo} alt="Logo" w="180px" maxW="2xs" p={6} />
+            <Image src={Logo} alt="Logo" w="100px" maxW="2xs" p={1} />
             <SidebarItems />
           </Box>
           {currentUser?.email && (
