@@ -4,3 +4,8 @@ client:
 	wget http://localhost/api/v1/openapi.json
 	node modify-openapi-operationids.js
 	npm run generate-client
+
+
+.PHONY: format
+format:
+	npx biome format --write ./src
