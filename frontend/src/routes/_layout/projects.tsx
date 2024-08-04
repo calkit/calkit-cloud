@@ -95,7 +95,9 @@ function ItemsTable() {
             <Tbody>
               {items?.data.map((item) => (
                 <Tr key={item.id} opacity={isPlaceholderData ? 0.5 : 1}>
-                  <Td isTruncated maxWidth="160px">{item.id}</Td>
+                  <Td isTruncated maxWidth="160px">
+                    {item.id}
+                  </Td>
                   <Td isTruncated maxWidth="150px">
                     {item.name}
                   </Td>
@@ -107,7 +109,7 @@ function ItemsTable() {
                     {item.description || "N/A"}
                   </Td>
                   <Td>
-                    <ActionsMenu type={"Item"} value={item} />
+                    <ActionsMenu type={"Project"} value={item} />
                   </Td>
                 </Tr>
               ))}

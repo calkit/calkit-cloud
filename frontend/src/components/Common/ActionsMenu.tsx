@@ -9,14 +9,14 @@ import {
 import { BsThreeDotsVertical } from "react-icons/bs"
 import { FiEdit, FiTrash } from "react-icons/fi"
 
-import type { ItemPublic, UserPublic } from "../../client"
+import type { UserPublic, ProjectPublic } from "../../client"
 import EditUser from "../Admin/EditUser"
 import EditProject from "../Projects/EditProject"
 import Delete from "./DeleteAlert"
 
 interface ActionsMenuProps {
   type: string
-  value: ItemPublic | UserPublic
+  value: UserPublic | ProjectPublic
   disabled?: boolean
 }
 
@@ -56,7 +56,7 @@ const ActionsMenu = ({ type, value, disabled }: ActionsMenuProps) => {
           />
         ) : (
           <EditProject
-            item={value as ItemPublic}
+            item={value as ProjectPublic}
             isOpen={editUserModal.isOpen}
             onClose={editUserModal.onClose}
           />
