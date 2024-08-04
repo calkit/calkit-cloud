@@ -11,7 +11,7 @@ import { FiEdit, FiTrash } from "react-icons/fi"
 
 import type { ItemPublic, UserPublic } from "../../client"
 import EditUser from "../Admin/EditUser"
-import EditItem from "../Items/EditItem"
+import EditProject from "../Projects/EditProject"
 import Delete from "./DeleteAlert"
 
 interface ActionsMenuProps {
@@ -55,7 +55,7 @@ const ActionsMenu = ({ type, value, disabled }: ActionsMenuProps) => {
             onClose={editUserModal.onClose}
           />
         ) : (
-          <EditItem
+          <EditProject
             item={value as ItemPublic}
             isOpen={editUserModal.isOpen}
             onClose={editUserModal.onClose}
