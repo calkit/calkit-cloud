@@ -37,7 +37,7 @@ function UserSettings() {
   return (
     <Container maxW="90%">
       <Heading size="lg" textAlign={{ base: "center", md: "left" }} py={12}>
-        User Settings
+        Settings
       </Heading>
       <Tabs variant="enclosed">
         <TabList>
