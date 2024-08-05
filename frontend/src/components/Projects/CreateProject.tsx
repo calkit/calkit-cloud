@@ -15,7 +15,11 @@ import {
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { type SubmitHandler, useForm } from "react-hook-form"
 
-import { type ApiError, type ItemCreate, ItemsService } from "../../client"
+import {
+  type ApiError,
+  ProjectsService,
+  type ProjectCreate,
+} from "../../client"
 import useCustomToast from "../../hooks/useCustomToast"
 import { handleError } from "../../utils"
 
@@ -32,20 +36,21 @@ const AddItem = ({ isOpen, onClose }: AddItemProps) => {
     handleSubmit,
     reset,
     formState: { errors, isSubmitting },
-  } = useForm<ItemCreate>({
+  } = useForm<ProjectCreate>({
     mode: "onBlur",
     criteriaMode: "all",
     defaultValues: {
-      title: "",
+      name: "",
       description: "",
+      git_repo_url: "",
     },
   })
 
   const mutation = useMutation({
-    mutationFn: (data: ItemCreate) =>
-      ItemsService.createItem({ requestBody: data }),
+    mutationFn: (data: ProjectCreate) =>
+      ProjectsService.createProject({ requestBody: data }),
     onSuccess: () => {
-      showToast("Success!", "Item created successfully.", "success")
+      showToast("Success!", "Project created successfully.", "success")
       reset()
       onClose()
     },
@@ -57,7 +62,7 @@ const AddItem = ({ isOpen, onClose }: AddItemProps) => {
     },
   })
 
-  const onSubmit: SubmitHandler<ItemCreate> = (data) => {
+  const onSubmit: SubmitHandler<ProjectCreate> = (data) => {
     mutation.mutate(data)
   }
 
@@ -71,21 +76,37 @@ const AddItem = ({ isOpen, onClose }: AddItemProps) => {
       >
         <ModalOverlay />
         <ModalContent as="form" onSubmit={handleSubmit(onSubmit)}>
-          <ModalHeader>Create project</ModalHeader>
+          <ModalHeader>Add project</ModalHeader>
           <ModalCloseButton />
           <ModalBody pb={6}>
-            <FormControl isRequired isInvalid={!!errors.title}>
-              <FormLabel htmlFor="title">Title</FormLabel>
+            <FormControl isRequired isInvalid={!!errors.name}>
+              <FormLabel htmlFor="name">Name</FormLabel>
               <Input
-                id="title"
-                {...register("title", {
-                  required: "Title is required.",
+                id="name"
+                {...register("name", {
+                  required: "Name is required.",
                 })}
-                placeholder="Title"
+                placeholder="Name"
                 type="text"
               />
-              {errors.title && (
-                <FormErrorMessage>{errors.title.message}</FormErrorMessage>
+              {errors.name && (
+                <FormErrorMessage>{errors.name.message}</FormErrorMessage>
+              )}
+            </FormControl>
+            <FormControl mt={4} isRequired isInvalid={!!errors.git_repo_url}>
+              <FormLabel htmlFor="git_repo_url">GitHub repo URL</FormLabel>
+              <Input
+                id="git_repo_url"
+                {...register("git_repo_url", {
+                  required: "GitHub repo URL is required.",
+                })}
+                placeholder="https://github.com/your_name/your_repo"
+                type="text"
+              />
+              {errors.git_repo_url && (
+                <FormErrorMessage>
+                  {errors.git_repo_url.message}
+                </FormErrorMessage>
               )}
             </FormControl>
             <FormControl mt={4}>
