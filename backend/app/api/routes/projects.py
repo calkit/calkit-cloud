@@ -1,8 +1,8 @@
 import logging
+import os
 import uuid
-from typing import Any
 
-import aiofiles
+import s3fs
 from app.api.deps import CurrentUser, SessionDep
 from app.models import Message, Project, ProjectCreate, ProjectsPublic
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile
@@ -11,7 +11,6 @@ from sqlmodel import col, delete, func, select
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-import os
 
 router = APIRouter()
 
@@ -57,6 +56,18 @@ def create_project(
     return project
 
 
+def _get_minio_fs() -> s3fs.S3FileSystem:
+    return s3fs.S3FileSystem(
+        endpoint_url="http://minio:9000",
+        key=os.getenv("MINIO_KEY"),
+        secret=os.getenv("MINIO_SECRET"),
+    )
+
+
+def _make_data_fpath(project_id: str, idx: str, md5: str) -> str:
+    return f"data/project_id={project_id}/{idx}/{md5}"
+
+
 @router.post("/{project_id}/data/files/md5/{idx}/{md5}")
 async def post_project_data(
     *,
@@ -68,12 +79,13 @@ async def post_project_data(
     req: Request,
 ) -> Message:
     logger.info(f"{current_user.email} requesting to POST data")
-    # TODO: Put this in object storage
+    # TODO: Check if this user has write access to this project
     # https://stackoverflow.com/q/73322065/2284865
-    async with aiofiles.open(f"/tmp/{md5}", 'wb') as f:
+    fs = _get_minio_fs()
+    fpath = _make_data_fpath(project_id, idx, md5)
+    with fs.open(fpath, "wb") as f:
         async for chunk in req.stream():
-            await f.write(chunk)
-    # Check if this user has write access to this project
+            f.write(chunk)
     return Message(message="Success")
 
 
@@ -88,7 +100,11 @@ def get_project_data(
 ) -> Message:
     logger.info(f"{current_user.email} requesting to GET data")
     # If file doesn't exist, return 404
-    if not os.path.isfile(f"/tmp/{md5}"):
+    fs = _get_minio_fs()
+    fpath = _make_data_fpath(project_id, idx, md5)
+    logger.info(f"Checking for {fpath}")
+    if not fs.exists(fpath):
+        logger.info(f"{fpath} does not exist")
         raise HTTPException(404)
     # TODO: Check if this user has read access to this project
     # TODO: Stream the file contents back to the user
