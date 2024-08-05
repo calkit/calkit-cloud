@@ -146,12 +146,21 @@ function ItemsTable() {
 
 function Items() {
   return (
-    <Container maxW="full">
+    <Container maxW="90%">
       <Heading size="lg" textAlign={{ base: "center", md: "left" }} pt={12}>
-        Projects
+        Your projects
       </Heading>
-
       <Navbar type={"project"} addModalAs={CreateProject} />
+      <ItemsTable />
+      {/* TODO: This should be public projects */}
+      <Heading
+        size="lg"
+        textAlign={{ base: "center", md: "left" }}
+        pt={10}
+        pb={5}
+      >
+        Other public projects
+      </Heading>
       <ItemsTable />
     </Container>
   )

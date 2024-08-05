@@ -158,9 +158,9 @@ function UsersTable() {
 
 function Admin() {
   return (
-    <Container maxW="full">
+    <Container maxW="90%">
       <Heading size="lg" textAlign={{ base: "center", md: "left" }} pt={12}>
-        Users Management
+        User management
       </Heading>
 
       <Navbar type={"User"} addModalAs={AddUser} />

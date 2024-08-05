@@ -12,7 +12,7 @@ function Dashboard() {
 
   return (
     <>
-      <Container maxW="full">
+      <Container maxW="90%">
         <Box pt={12} m={4}>
           <Text fontSize="2xl">
             Hi, {currentUser?.full_name || currentUser?.email} 👋🏼
