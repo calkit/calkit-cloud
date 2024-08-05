@@ -526,6 +526,16 @@ export type TDataGetOwnedProjects = {
 export type TDataCreateProject = {
   requestBody: ProjectCreate
 }
+export type TDataPostProjectData = {
+  idx: string
+  md5: string
+  projectId: string
+}
+export type TDataGetProjectData = {
+  idx: string
+  md5: string
+  projectId: string
+}
 
 export class ProjectsService {
   /**
@@ -565,6 +575,52 @@ export class ProjectsService {
       url: "/api/v1/projects/",
       body: requestBody,
       mediaType: "application/json",
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Post Project Data
+   * @returns Message Successful Response
+   * @throws ApiError
+   */
+  public static postProjectData(
+    data: TDataPostProjectData,
+  ): CancelablePromise<Message> {
+    const { idx, md5, projectId } = data
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/api/v1/projects/{project_id}/data/files/md5/{idx}/{md5}",
+      path: {
+        project_id: projectId,
+        idx,
+        md5,
+      },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Get Project Data
+   * @returns Message Successful Response
+   * @throws ApiError
+   */
+  public static getProjectData(
+    data: TDataGetProjectData,
+  ): CancelablePromise<Message> {
+    const { idx, md5, projectId } = data
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/api/v1/projects/{project_id}/data/files/md5/{idx}/{md5}",
+      path: {
+        project_id: projectId,
+        idx,
+        md5,
+      },
       errors: {
         422: `Validation Error`,
       },

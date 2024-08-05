@@ -45,6 +45,7 @@ export type NewPassword = {
 export type Project = {
   name: string
   description?: string | null
+  git_repo_url: string
   id?: string
   owner_user_id: string
 }
@@ -52,11 +53,13 @@ export type Project = {
 export type ProjectCreate = {
   name: string
   description?: string | null
+  git_repo_url: string
 }
 
 export type ProjectPublic = {
   name: string
   description?: string | null
+  git_repo_url: string
   id: string
   owner_user_id: string
 }

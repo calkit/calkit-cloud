@@ -207,6 +207,11 @@ export const $Project = {
         },
       ],
     },
+    git_repo_url: {
+      type: "string",
+      isRequired: true,
+      maxLength: 2048,
+    },
     id: {
       type: "string",
       format: "uuid",
@@ -240,6 +245,11 @@ export const $ProjectCreate = {
         },
       ],
     },
+    git_repo_url: {
+      type: "string",
+      isRequired: true,
+      maxLength: 2048,
+    },
   },
 } as const
 
@@ -263,6 +273,11 @@ export const $ProjectPublic = {
           type: "null",
         },
       ],
+    },
+    git_repo_url: {
+      type: "string",
+      isRequired: true,
+      maxLength: 2048,
     },
     id: {
       type: "string",
