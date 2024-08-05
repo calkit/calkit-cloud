@@ -121,8 +121,24 @@ services:
       # Enable www redirection for HTTP and HTTPS
       - traefik.http.routers.${STACK_NAME?Variable not set}-frontend-https.middlewares=${STACK_NAME?Variable not set}-www-redirect
       - traefik.http.routers.${STACK_NAME?Variable not set}-frontend-http.middlewares=https-redirect,${STACK_NAME?Variable not set}-www-redirect
+
+  minio:
+    image: quay.io/minio/minio
+    command: server /data --console-address ":9001"
+    ports:
+      - '9000:9000'
+      - '9001:9001'
+    volumes:
+      - 'minio-data:/data'
+    environment:
+      - MINIO_ROOT_USER=root
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD?Variable not set}
+      - MINIO_DEFAULT_BUCKETS=data
+
 volumes:
   app-db-data:
+  minio-data:
+    driver: local
 
 networks:
   traefik-public:
