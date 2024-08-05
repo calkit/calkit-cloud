@@ -123,6 +123,7 @@ class ProjectBase(SQLModel):
     description: str | None = Field(
         default=None, min_length=0, max_length=2048
     )
+    git_repo_url: str = Field(max_length=2048)
 
 
 class Project(ProjectBase, table=True):
