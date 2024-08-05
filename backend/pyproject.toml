@@ -26,7 +26,6 @@ bcrypt = "4.0.1"
 pydantic-settings = "^2.2.1"
 sentry-sdk = {extras = ["fastapi"], version = "^1.40.6"}
 pyjwt = "^2.8.0"
-aiofiles = "^24.1.0"
 s3fs = "^2024.6.1"
 
 [tool.poetry.group.dev.dependencies]
