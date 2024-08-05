@@ -39,7 +39,7 @@ const UserMenu = () => {
           />
           <MenuList>
             <MenuItem icon={<FiUser fontSize="18px" />} as={Link} to="settings">
-              My profile
+              Settings
             </MenuItem>
             <MenuItem
               icon={<FiLogOut fontSize="18px" />}
