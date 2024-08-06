@@ -27,6 +27,7 @@ pydantic-settings = "^2.2.1"
 sentry-sdk = {extras = ["fastapi"], version = "^1.40.6"}
 pyjwt = "^2.8.0"
 s3fs = "^2024.6.1"
+python-slugify = "^8.0.4"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.4.3"
