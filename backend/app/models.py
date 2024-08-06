@@ -124,6 +124,7 @@ class ProjectBase(SQLModel):
         default=None, min_length=0, max_length=2048
     )
     git_repo_url: str = Field(max_length=2048)
+    is_public: bool = Field(default=False)
 
 
 class Project(ProjectBase, table=True):
