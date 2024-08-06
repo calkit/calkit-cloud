@@ -18,8 +18,8 @@ import { Route as LoginImport } from './routes/login'
 import { Route as LayoutImport } from './routes/_layout'
 import { Route as LayoutIndexImport } from './routes/_layout/index'
 import { Route as LayoutSettingsImport } from './routes/_layout/settings'
+import { Route as LayoutBrowseImport } from './routes/_layout/browse'
 import { Route as LayoutAdminImport } from './routes/_layout/admin'
-import { Route as LayoutProjectsBrowseImport } from './routes/_layout/projects.browse'
 
 // Create/Update Routes
 
@@ -58,13 +58,13 @@ const LayoutSettingsRoute = LayoutSettingsImport.update({
   getParentRoute: () => LayoutRoute,
 } as any)
 
-const LayoutAdminRoute = LayoutAdminImport.update({
-  path: '/admin',
+const LayoutBrowseRoute = LayoutBrowseImport.update({
+  path: '/browse',
   getParentRoute: () => LayoutRoute,
 } as any)
 
-const LayoutProjectsBrowseRoute = LayoutProjectsBrowseImport.update({
-  path: '/projects/browse',
+const LayoutAdminRoute = LayoutAdminImport.update({
+  path: '/admin',
   getParentRoute: () => LayoutRoute,
 } as any)
 
@@ -96,16 +96,16 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutAdminImport
       parentRoute: typeof LayoutImport
     }
+    '/_layout/browse': {
+      preLoaderRoute: typeof LayoutBrowseImport
+      parentRoute: typeof LayoutImport
+    }
     '/_layout/settings': {
       preLoaderRoute: typeof LayoutSettingsImport
       parentRoute: typeof LayoutImport
     }
     '/_layout/': {
       preLoaderRoute: typeof LayoutIndexImport
-      parentRoute: typeof LayoutImport
-    }
-    '/_layout/projects/browse': {
-      preLoaderRoute: typeof LayoutProjectsBrowseImport
       parentRoute: typeof LayoutImport
     }
   }
@@ -116,9 +116,9 @@ declare module '@tanstack/react-router' {
 export const routeTree = rootRoute.addChildren([
   LayoutRoute.addChildren([
     LayoutAdminRoute,
+    LayoutBrowseRoute,
     LayoutSettingsRoute,
     LayoutIndexRoute,
-    LayoutProjectsBrowseRoute,
   ]),
   LoginRoute,
   RecoverPasswordRoute,

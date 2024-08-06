@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router"
 import { Box, Container, Heading } from "@chakra-ui/react"
 
-export const Route = createFileRoute("/_layout/projects/browse")({
+export const Route = createFileRoute("/_layout/browse")({
   component: PublicProjects,
 })
 
