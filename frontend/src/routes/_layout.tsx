@@ -1,6 +1,10 @@
 import { Flex, Spinner, Box, Link, Image } from "@chakra-ui/react"
-import { Outlet, createFileRoute, redirect } from "@tanstack/react-router"
-import { Link as RouterLink } from "@tanstack/react-router"
+import {
+  Outlet,
+  createFileRoute,
+  redirect,
+  Link as RouterLink,
+} from "@tanstack/react-router"
 import UserMenu from "../components/Common/UserMenu"
 import useAuth, { isLoggedIn } from "../hooks/useAuth"
 
