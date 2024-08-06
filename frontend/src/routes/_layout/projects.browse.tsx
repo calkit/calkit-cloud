@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router"
-import { Container, Heading } from "@chakra-ui/react"
+import { Box, Container, Heading } from "@chakra-ui/react"
 
 export const Route = createFileRoute("/_layout/projects/browse")({
   component: PublicProjects,
@@ -11,6 +11,7 @@ function PublicProjects() {
       <Heading size="lg" textAlign={{ base: "center", md: "left" }} pt={12}>
         Public projects
       </Heading>
+      <Box pt={5}>Coming soon!</Box>
     </Container>
   )
 }
