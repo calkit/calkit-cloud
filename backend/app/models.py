@@ -1,6 +1,7 @@
 import uuid
 
-from pydantic import EmailStr
+from pydantic import EmailStr, computed_field
+from slugify import slugify
 from sqlmodel import Field, Relationship, SQLModel
 
 
@@ -135,6 +136,11 @@ class Project(ProjectBase, table=True):
 class ProjectPublic(ProjectBase):
     id: uuid.UUID
     owner_user_id: uuid.UUID
+
+    @computed_field
+    @property
+    def name_slug(self) -> str:
+        return slugify(self.name)
 
 
 class ProjectsPublic(SQLModel):
