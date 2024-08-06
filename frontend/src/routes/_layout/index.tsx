@@ -227,7 +227,7 @@ function PublicProjectsTable() {
         direction="row"
         justifyContent="flex-end"
       >
-        <Link as={RouterLink} to="/projects/browse">
+        <Link as={RouterLink} to="/browse">
           <Button rightIcon={<ArrowForwardIcon />}>Browse more</Button>
         </Link>
       </Flex>
