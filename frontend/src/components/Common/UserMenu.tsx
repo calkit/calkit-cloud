@@ -8,12 +8,16 @@ import {
 } from "@chakra-ui/react"
 import { Link } from "@tanstack/react-router"
 import { FaUserAstronaut } from "react-icons/fa"
-import { FiLogOut, FiUser } from "react-icons/fi"
+import { FiLogOut, FiUser, FiUsers } from "react-icons/fi"
+import { useQueryClient } from "@tanstack/react-query"
+import { type UserPublic } from "../../client"
 
 import useAuth from "../../hooks/useAuth"
 
 const UserMenu = () => {
   const { logout } = useAuth()
+  const queryClient = useQueryClient()
+  const currentUser = queryClient.getQueryData<UserPublic>(["currentUser"])
 
   const handleLogout = async () => {
     logout()
@@ -38,6 +42,11 @@ const UserMenu = () => {
             data-testid="user-menu"
           />
           <MenuList>
+            {currentUser?.is_superuser && (
+              <MenuItem icon={<FiUsers fontSize="18px" />} as={Link} to="admin">
+                Admin
+              </MenuItem>
+            )}
             <MenuItem icon={<FiUser fontSize="18px" />} as={Link} to="settings">
               Settings
             </MenuItem>
