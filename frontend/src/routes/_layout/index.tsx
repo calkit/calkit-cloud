@@ -29,7 +29,7 @@ const itemsSearchSchema = z.object({
 })
 
 export const Route = createFileRoute("/_layout/")({
-  component: Items,
+  component: Projects,
   validateSearch: (search) => itemsSearchSchema.parse(search),
 })
 
@@ -46,7 +46,7 @@ function getItemsQueryOptions({ page }: { page: number }) {
   }
 }
 
-function ItemsTable() {
+function ProjectsTable() {
   const queryClient = useQueryClient()
   const { page } = Route.useSearch()
   const navigate = useNavigate({ from: Route.fullPath })
@@ -144,14 +144,14 @@ function ItemsTable() {
   )
 }
 
-function Items() {
+function Projects() {
   return (
     <Container maxW="90%">
       <Heading size="lg" textAlign={{ base: "center", md: "left" }} pt={12}>
         Your projects
       </Heading>
       <Navbar type={"project"} addModalAs={CreateProject} />
-      <ItemsTable />
+      <ProjectsTable />
       {/* TODO: This should be public projects */}
       <Heading
         size="lg"
@@ -161,7 +161,7 @@ function Items() {
       >
         Other public projects
       </Heading>
-      <ItemsTable />
+      <ProjectsTable />
     </Container>
   )
 }
