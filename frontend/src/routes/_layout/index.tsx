@@ -17,20 +17,14 @@ import { ExternalLinkIcon } from "@chakra-ui/icons"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { useEffect } from "react"
-import { z } from "zod"
 
 import { ProjectsService } from "../../client"
 import ActionsMenu from "../../components/Common/ActionsMenu"
 import Navbar from "../../components/Common/Navbar"
 import CreateProject from "../../components/Projects/CreateProject"
 
-const itemsSearchSchema = z.object({
-  page: z.number().catch(1),
-})
-
 export const Route = createFileRoute("/_layout/")({
   component: Projects,
-  validateSearch: (search) => itemsSearchSchema.parse(search),
 })
 
 const PER_PAGE = 5
@@ -48,7 +42,7 @@ function getItemsQueryOptions({ page }: { page: number }) {
 
 function ProjectsTable() {
   const queryClient = useQueryClient()
-  const { page } = Route.useSearch()
+  const page = 1
   const navigate = useNavigate({ from: Route.fullPath })
   const setPage = (page: number) =>
     navigate({ search: (prev) => ({ ...prev, page }) })
