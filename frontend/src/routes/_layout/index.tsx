@@ -30,7 +30,6 @@ const itemsSearchSchema = z.object({
 
 export const Route = createFileRoute("/_layout/")({
   component: Projects,
-  validateSearch: (search) => itemsSearchSchema.parse(search),
 })
 
 const PER_PAGE = 5
@@ -48,7 +47,7 @@ function getItemsQueryOptions({ page }: { page: number }) {
 
 function ProjectsTable() {
   const queryClient = useQueryClient()
-  const { page } = Route.useSearch()
+  const { page } = itemsSearchSchema.parse(Route.useSearch())
   const navigate = useNavigate({ from: Route.fullPath })
   const setPage = (page: number) =>
     navigate({ search: (prev) => ({ ...prev, page }) })
