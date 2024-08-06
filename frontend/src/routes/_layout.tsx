@@ -29,11 +29,7 @@ function Layout() {
         h={20}
       >
         <Link as={RouterLink} to="/">
-          <Image
-            width={10}
-            src="/public/assets/images/kdot.svg"
-            alt="Home"
-          ></Image>
+          <Image width={10} src="/assets/images/kdot.svg" alt="Home"></Image>
         </Link>
       </Box>
       {isLoading ? (
