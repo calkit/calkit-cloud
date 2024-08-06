@@ -13,9 +13,13 @@ import {
   Thead,
   Tr,
 } from "@chakra-ui/react"
-import { ExternalLinkIcon } from "@chakra-ui/icons"
+import { ArrowForwardIcon, ExternalLinkIcon } from "@chakra-ui/icons"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { createFileRoute, useNavigate } from "@tanstack/react-router"
+import {
+  createFileRoute,
+  useNavigate,
+  Link as RouterLink,
+} from "@tanstack/react-router"
 import { useEffect } from "react"
 import { z } from "zod"
 
@@ -143,6 +147,94 @@ function ProjectsTable() {
   )
 }
 
+function PublicProjectsTable() {
+  const queryClient = useQueryClient()
+  const page = 1
+
+  // TODO: Get public projects from API
+
+  const {
+    data: items,
+    isPending,
+    isPlaceholderData,
+  } = useQuery({
+    ...getItemsQueryOptions({ page }),
+    placeholderData: (prevData) => prevData,
+  })
+
+  const hasNextPage = !isPlaceholderData && items?.data.length === PER_PAGE
+
+  useEffect(() => {
+    if (hasNextPage) {
+      queryClient.prefetchQuery(getItemsQueryOptions({ page }))
+    }
+  }, [page, queryClient, hasNextPage])
+
+  return (
+    <>
+      <TableContainer>
+        <Table size={{ base: "sm", md: "md" }}>
+          <Thead>
+            <Tr>
+              <Th>ID</Th>
+              <Th>Name</Th>
+              <Th>GitHub URL</Th>
+              <Th>Description</Th>
+            </Tr>
+          </Thead>
+          {isPending ? (
+            <Tbody>
+              <Tr>
+                {new Array(4).fill(null).map((_, index) => (
+                  <Td key={index}>
+                    <SkeletonText noOfLines={1} paddingBlock="16px" />
+                  </Td>
+                ))}
+              </Tr>
+            </Tbody>
+          ) : (
+            <Tbody>
+              {items?.data.map((item) => (
+                <Tr key={item.id} opacity={isPlaceholderData ? 0.5 : 1}>
+                  <Td isTruncated maxWidth="60px">
+                    {item.id}
+                  </Td>
+                  <Td isTruncated maxWidth="150px">
+                    {item.name}
+                  </Td>
+                  <Td isTruncated maxWidth="150px">
+                    <Link href={item.git_repo_url} isExternal>
+                      <ExternalLinkIcon mx="2px" /> {item.git_repo_url}
+                    </Link>
+                  </Td>
+                  <Td
+                    color={!item.description ? "ui.dim" : "inherit"}
+                    isTruncated
+                    maxWidth="150px"
+                  >
+                    {item.description || "N/A"}
+                  </Td>
+                </Tr>
+              ))}
+            </Tbody>
+          )}
+        </Table>
+      </TableContainer>
+      <Flex
+        gap={4}
+        alignItems="center"
+        mt={4}
+        direction="row"
+        justifyContent="flex-end"
+      >
+        <Link as={RouterLink} to="/projects/browse">
+          <Button rightIcon={<ArrowForwardIcon />}>Browse more</Button>
+        </Link>
+      </Flex>
+    </>
+  )
+}
+
 function Projects() {
   return (
     <Container maxW="90%">
@@ -160,7 +252,7 @@ function Projects() {
       >
         Other public projects
       </Heading>
-      <ProjectsTable />
+      <PublicProjectsTable />
     </Container>
   )
 }
