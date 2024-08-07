@@ -43,7 +43,6 @@ services:
       - default
     depends_on:
       - db
-      - minio
     env_file:
       - .env
     environment:
