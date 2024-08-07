@@ -46,6 +46,7 @@ export type Project = {
   name: string
   description?: string | null
   git_repo_url: string
+  is_public?: boolean
   id?: string
   owner_user_id: string
 }
@@ -54,14 +55,17 @@ export type ProjectCreate = {
   name: string
   description?: string | null
   git_repo_url: string
+  is_public?: boolean
 }
 
 export type ProjectPublic = {
   name: string
   description?: string | null
   git_repo_url: string
+  is_public?: boolean
   id: string
   owner_user_id: string
+  readonly name_slug: string
 }
 
 export type ProjectsPublic = {

@@ -8,6 +8,8 @@ import {
   ModalBody,
   ModalCloseButton,
   ModalContent,
+  Flex,
+  Checkbox,
   ModalFooter,
   ModalHeader,
   ModalOverlay,
@@ -19,18 +21,25 @@ import {
   type ApiError,
   ProjectsService,
   type ProjectCreate,
+  type UserPublic,
 } from "../../client"
 import useCustomToast from "../../hooks/useCustomToast"
 import { handleError } from "../../utils"
 
-interface AddItemProps {
+interface AddProjectProps {
   isOpen: boolean
   onClose: () => void
 }
 
-const AddItem = ({ isOpen, onClose }: AddItemProps) => {
+const AddProject = ({ isOpen, onClose }: AddProjectProps) => {
   const queryClient = useQueryClient()
   const showToast = useCustomToast()
+  const currentUser = queryClient.getQueryData<UserPublic>(["currentUser"])
+  var githubUsername = currentUser?.github_username
+  if (githubUsername === null) {
+    githubUsername = "your-name"
+  }
+
   const {
     register,
     handleSubmit,
@@ -42,7 +51,8 @@ const AddItem = ({ isOpen, onClose }: AddItemProps) => {
     defaultValues: {
       name: "",
       description: "",
-      git_repo_url: "",
+      git_repo_url: `https://github.com/${githubUsername}/`,
+      is_public: false,
     },
   })
 
@@ -86,7 +96,7 @@ const AddItem = ({ isOpen, onClose }: AddItemProps) => {
                 {...register("name", {
                   required: "Name is required.",
                 })}
-                placeholder="Name"
+                placeholder="Ex: Coherent structures in high Reynolds number boundary layers"
                 type="text"
               />
               {errors.name && (
@@ -100,7 +110,7 @@ const AddItem = ({ isOpen, onClose }: AddItemProps) => {
                 {...register("git_repo_url", {
                   required: "GitHub repo URL is required.",
                 })}
-                placeholder="https://github.com/your_name/your_repo"
+                placeholder="Ex: https://github.com/your_name/your_repo"
                 type="text"
               />
               {errors.git_repo_url && (
@@ -118,6 +128,13 @@ const AddItem = ({ isOpen, onClose }: AddItemProps) => {
                 type="text"
               />
             </FormControl>
+            <Flex mt={4}>
+              <FormControl>
+                <Checkbox {...register("is_public")} colorScheme="teal">
+                  Public?
+                </Checkbox>
+              </FormControl>
+            </Flex>
           </ModalBody>
 
           <ModalFooter gap={3}>
@@ -132,4 +149,4 @@ const AddItem = ({ isOpen, onClose }: AddItemProps) => {
   )
 }
 
-export default AddItem
+export default AddProject

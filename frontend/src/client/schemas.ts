@@ -212,6 +212,10 @@ export const $Project = {
       isRequired: true,
       maxLength: 2048,
     },
+    is_public: {
+      type: "boolean",
+      default: false,
+    },
     id: {
       type: "string",
       format: "uuid",
@@ -250,6 +254,10 @@ export const $ProjectCreate = {
       isRequired: true,
       maxLength: 2048,
     },
+    is_public: {
+      type: "boolean",
+      default: false,
+    },
   },
 } as const
 
@@ -279,6 +287,10 @@ export const $ProjectPublic = {
       isRequired: true,
       maxLength: 2048,
     },
+    is_public: {
+      type: "boolean",
+      default: false,
+    },
     id: {
       type: "string",
       isRequired: true,
@@ -288,6 +300,11 @@ export const $ProjectPublic = {
       type: "string",
       isRequired: true,
       format: "uuid",
+    },
+    name_slug: {
+      type: "string",
+      isReadOnly: true,
+      isRequired: true,
     },
   },
 } as const
