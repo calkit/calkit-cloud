@@ -26,11 +26,11 @@ function Layout() {
     <Flex maxW="large" h="auto" position="relative">
       <Box
         display="block"
-        position="relative"
+        position="fixed"
         top={4}
         left={4}
         alignItems="baseline"
-        h={20}
+        h={8}
       >
         <Link as={RouterLink} to="/">
           <Image
@@ -45,12 +45,11 @@ function Layout() {
           <Spinner size="xl" color="ui.main" />
         </Flex>
       ) : (
-        <Container maxW="88%" pt={10}>
+        <Container maxW="85%" pt={15} mt={5}>
           <Outlet />
         </Container>
       )}
       <UserMenu />
-      {/* TODO: Show the logo in the upper left */}
     </Flex>
   )
 }
