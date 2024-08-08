@@ -5,12 +5,23 @@ This module contains helper functions that may be used in the tests.
 
 import random
 import string
+import uuid
 
-from app import crud
+from app import users
 from app.config import settings
 from app.models import Item, ItemCreate, User, UserCreate, UserUpdate
 from fastapi.testclient import TestClient
 from sqlmodel import Session
+
+
+def create_item(
+    *, session: Session, item_in: ItemCreate, owner_id: uuid.UUID
+) -> Item:
+    db_item = Item.model_validate(item_in, update={"owner_id": owner_id})
+    session.add(db_item)
+    session.commit()
+    session.refresh(db_item)
+    return db_item
 
 
 def create_random_item(db: Session) -> Item:
@@ -20,7 +31,7 @@ def create_random_item(db: Session) -> Item:
     title = random_lower_string()
     description = random_lower_string()
     item_in = ItemCreate(title=title, description=description)
-    return crud.create_item(session=db, item_in=item_in, owner_id=owner_id)
+    return create_item(session=db, item_in=item_in, owner_id=owner_id)
 
 
 def user_authentication_headers(
@@ -39,7 +50,7 @@ def create_random_user(db: Session) -> User:
     email = random_email()
     password = random_lower_string()
     user_in = UserCreate(email=email, password=password)
-    user = crud.create_user(session=db, user_create=user_in)
+    user = users.create_user(session=db, user_create=user_in)
     return user
 
 
@@ -52,17 +63,21 @@ def authentication_token_from_email(
     If the user doesn't exist it is created first.
     """
     password = random_lower_string()
-    user = crud.get_user_by_email(session=db, email=email)
+    user = users.get_user_by_email(session=db, email=email)
     if not user:
         user_in_create = UserCreate(email=email, password=password)
-        user = crud.create_user(session=db, user_create=user_in_create)
+        user = users.create_user(session=db, user_create=user_in_create)
     else:
         user_in_update = UserUpdate(password=password)
         if not user.id:
             raise Exception("User id not set")
-        user = crud.update_user(session=db, db_user=user, user_in=user_in_update)
+        user = users.update_user(
+            session=db, db_user=user, user_in=user_in_update
+        )
 
-    return user_authentication_headers(client=client, email=email, password=password)
+    return user_authentication_headers(
+        client=client, email=email, password=password
+    )
 
 
 def random_lower_string() -> str:
@@ -78,7 +93,9 @@ def get_superuser_token_headers(client: TestClient) -> dict[str, str]:
         "username": settings.FIRST_SUPERUSER,
         "password": settings.FIRST_SUPERUSER_PASSWORD,
     }
-    r = client.post(f"{settings.API_V1_STR}/login/access-token", data=login_data)
+    r = client.post(
+        f"{settings.API_V1_STR}/login/access-token", data=login_data
+    )
     tokens = r.json()
     a_token = tokens["access_token"]
     headers = {"Authorization": f"Bearer {a_token}"}
