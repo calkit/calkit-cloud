@@ -80,4 +80,5 @@ def router_func_src(route) -> str:
 
 def generate():
     """Create a client directory at the top of the repo."""
+    # First create all models
     raise NotImplementedError

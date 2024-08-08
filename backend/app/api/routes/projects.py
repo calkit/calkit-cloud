@@ -1,3 +1,5 @@
+"""Routes for projects."""
+
 import logging
 import os
 import uuid
