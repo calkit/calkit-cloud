@@ -56,6 +56,17 @@ def create_project(
     return project
 
 
+@router.get("/{project_id}")
+def get_project(
+    *, project_id: uuid.UUID, current_user: CurrentUser, session: SessionDep
+) -> Project:
+    project = session.get(Project, project_id)
+    # TODO: Check for collaborator access
+    if project.owner_user_id != current_user.id:
+        raise HTTPException(401)
+    return project
+
+
 def _get_minio_fs() -> s3fs.S3FileSystem:
     return s3fs.S3FileSystem(
         endpoint_url="http://minio:9000",
