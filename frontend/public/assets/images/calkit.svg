@@ -31,7 +31,7 @@
      inkscape:window-x="0"
      inkscape:window-y="38"
      inkscape:window-maximized="1"
-     inkscape:current-layer="layer1" />
+     inkscape:current-layer="svg11" />
   <defs
      id="defs1">
     <path
@@ -61,11 +61,11 @@
      id="layer1"
      inkscape:label="Layer 1">
     <rect
-       style="display:inline;fill:#009688;fill-opacity:0.972549;stroke:#ffffff;stroke-width:0;stroke-linecap:butt;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:0.870091"
+       style="display:inline;fill:#499688;fill-opacity:0.84592146;stroke:#535353;stroke-width:0;stroke-linecap:butt;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:0.963746"
        id="rect11"
        width="2400.9854"
        height="927.09668"
-       x="33.779362"
+       x="44.854061"
        y="-962.27374"
        rx="446.14825" />
   </g>
@@ -73,77 +73,77 @@
      stroke="#000000"
      fill="#000000"
      stroke-width="0"
-     transform="matrix(0.82644172,0,0,-0.82644172,235.96331,-128.58504)"
+     transform="matrix(0.82644172,0,0,-0.82644172,235.96331,-123.05929)"
      id="g11"
-     style="display:inline;stroke-width:26.74478367;stroke-dasharray:none;stroke-linejoin:bevel;stroke:#ffffff;stroke-opacity:0.91540784"
+     style="display:inline;stroke:#ffffff;stroke-width:33.43097958;stroke-linejoin:bevel;stroke-dasharray:none;stroke-opacity:0.75226587;fill:#ffffff;fill-opacity:0.90332323"
      inkscape:label="g11">
     <g
        data-mml-node="math"
        id="g10"
-       style="display:inline;fill:#fefdff;fill-opacity:0.963746;stroke:#ffffff;stroke-opacity:0.91540784;stroke-width:32.29656282;stroke-dasharray:none;stroke-linejoin:bevel"
+       style="display:inline;fill:#ffffff;fill-opacity:0.90332323;stroke:#ffffff;stroke-width:40.37070352;stroke-linejoin:bevel;stroke-dasharray:none;stroke-opacity:0.75226587"
        transform="matrix(0.8281,0,0,0.8281,174.73584,126.02815)">
       <g
          data-mml-node="mi"
          id="g1"
-         style="fill:#fefdff;fill-opacity:0.963746;stroke:#ffffff;stroke-opacity:0.91540784;stroke-width:32.29656282;stroke-dasharray:none;stroke-linejoin:bevel">
+         style="fill:#ffffff;fill-opacity:0.90332323;stroke:#ffffff;stroke-width:40.37070352;stroke-linejoin:bevel;stroke-dasharray:none;stroke-opacity:0.75226587">
         <use
            data-c="1D450"
            xlink:href="#MJX-9-TEX-I-1D450"
            id="use1"
-           style="fill:#fefdff;fill-opacity:0.963746;stroke:#ffffff;stroke-opacity:0.91540784;stroke-width:32.29656282;stroke-dasharray:none;stroke-linejoin:bevel" />
+           style="fill:#ffffff;fill-opacity:0.90332323;stroke:#ffffff;stroke-width:40.37070352;stroke-linejoin:bevel;stroke-dasharray:none;stroke-opacity:0.75226587" />
       </g>
       <g
          data-mml-node="mi"
          transform="translate(433)"
          id="g2"
-         style="fill:#fefdff;fill-opacity:0.963746;stroke:#ffffff;stroke-opacity:0.91540784;stroke-width:32.29656282;stroke-dasharray:none;stroke-linejoin:bevel">
+         style="fill:#ffffff;fill-opacity:0.90332323;stroke:#ffffff;stroke-width:40.37070352;stroke-linejoin:bevel;stroke-dasharray:none;stroke-opacity:0.75226587">
         <use
            data-c="1D44E"
            xlink:href="#MJX-9-TEX-I-1D44E"
            id="use2"
-           style="fill:#fefdff;fill-opacity:0.963746;stroke:#ffffff;stroke-opacity:0.91540784;stroke-width:32.29656282;stroke-dasharray:none;stroke-linejoin:bevel" />
+           style="fill:#ffffff;fill-opacity:0.90332323;stroke:#ffffff;stroke-width:40.37070352;stroke-linejoin:bevel;stroke-dasharray:none;stroke-opacity:0.75226587" />
       </g>
       <g
          data-mml-node="mi"
          transform="translate(962)"
          id="g3"
-         style="fill:#fefdff;fill-opacity:0.963746;stroke:#ffffff;stroke-opacity:0.91540784;stroke-width:32.29656282;stroke-dasharray:none;stroke-linejoin:bevel">
+         style="fill:#ffffff;fill-opacity:0.90332323;stroke:#ffffff;stroke-width:40.37070352;stroke-linejoin:bevel;stroke-dasharray:none;stroke-opacity:0.75226587">
         <use
            data-c="1D459"
            xlink:href="#MJX-9-TEX-I-1D459"
            id="use3"
-           style="fill:#fefdff;fill-opacity:0.963746;stroke:#ffffff;stroke-opacity:0.91540784;stroke-width:32.29656282;stroke-dasharray:none;stroke-linejoin:bevel" />
+           style="fill:#ffffff;fill-opacity:0.90332323;stroke:#ffffff;stroke-width:40.37070352;stroke-linejoin:bevel;stroke-dasharray:none;stroke-opacity:0.75226587" />
       </g>
       <g
          data-mml-node="TeXAtom"
          data-mjx-texclass="ORD"
          transform="translate(1260)"
          id="g7"
-         style="fill:#fefdff;fill-opacity:0.963746;stroke:#ffffff;stroke-opacity:0.91540784;stroke-width:32.29656282;stroke-dasharray:none;stroke-linejoin:bevel">
+         style="fill:#ffffff;fill-opacity:0.90332323;stroke:#ffffff;stroke-width:40.37070352;stroke-linejoin:bevel;stroke-dasharray:none;stroke-opacity:0.75226587">
         <g
            data-mml-node="mover"
            id="g6"
-           style="fill:#fefdff;fill-opacity:0.963746;stroke:#ffffff;stroke-opacity:0.91540784;stroke-width:32.29656282;stroke-dasharray:none;stroke-linejoin:bevel">
+           style="fill:#ffffff;fill-opacity:0.90332323;stroke:#ffffff;stroke-width:40.37070352;stroke-linejoin:bevel;stroke-dasharray:none;stroke-opacity:0.75226587">
           <g
              data-mml-node="mi"
              id="g4"
-             style="fill:#fefdff;fill-opacity:0.963746;stroke:#ffffff;stroke-opacity:0.91540784;stroke-width:32.29656282;stroke-dasharray:none;stroke-linejoin:bevel">
+             style="fill:#ffffff;fill-opacity:0.90332323;stroke:#ffffff;stroke-width:40.37070352;stroke-linejoin:bevel;stroke-dasharray:none;stroke-opacity:0.75226587">
             <use
                data-c="1D458"
                xlink:href="#MJX-9-TEX-I-1D458"
                id="use4"
-               style="fill:#fefdff;fill-opacity:0.963746;stroke:#ffffff;stroke-opacity:0.91540784;stroke-width:32.29656282;stroke-dasharray:none;stroke-linejoin:bevel" />
+               style="fill:#ffffff;fill-opacity:0.90332323;stroke:#ffffff;stroke-width:40.37070352;stroke-linejoin:bevel;stroke-dasharray:none;stroke-opacity:0.75226587" />
           </g>
           <g
              data-mml-node="mo"
              transform="translate(10.5,250)"
              id="g5"
-             style="fill:#fefdff;fill-opacity:0.963746;stroke:#ffffff;stroke-opacity:0.91540784;stroke-width:32.29656282;stroke-dasharray:none;stroke-linejoin:bevel">
+             style="fill:#ffffff;fill-opacity:0.90332323;stroke:#ffffff;stroke-width:40.37070352;stroke-linejoin:bevel;stroke-dasharray:none;stroke-opacity:0.75226587">
             <use
                data-c="2D9"
                xlink:href="#MJX-9-TEX-N-2D9"
                id="use5"
-               style="fill:#fefdff;fill-opacity:0.963746;stroke:#ffffff;stroke-opacity:0.91540784;stroke-width:32.29656282;stroke-dasharray:none;stroke-linejoin:bevel" />
+               style="fill:#ffffff;fill-opacity:0.90332323;stroke:#ffffff;stroke-width:40.37070352;stroke-linejoin:bevel;stroke-dasharray:none;stroke-opacity:0.75226587" />
           </g>
         </g>
       </g>
@@ -151,23 +151,23 @@
          data-mml-node="mi"
          transform="translate(1781)"
          id="g8"
-         style="fill:#fefdff;fill-opacity:0.963746;stroke:#ffffff;stroke-opacity:0.91540784;stroke-width:32.29656282;stroke-dasharray:none;stroke-linejoin:bevel">
+         style="fill:#ffffff;fill-opacity:0.90332323;stroke:#ffffff;stroke-width:40.37070352;stroke-linejoin:bevel;stroke-dasharray:none;stroke-opacity:0.75226587">
         <use
            data-c="1D456"
            xlink:href="#MJX-9-TEX-I-1D456"
            id="use7"
-           style="fill:#fefdff;fill-opacity:0.963746;stroke:#ffffff;stroke-opacity:0.91540784;stroke-width:32.29656282;stroke-dasharray:none;stroke-linejoin:bevel" />
+           style="fill:#ffffff;fill-opacity:0.90332323;stroke:#ffffff;stroke-width:40.37070352;stroke-linejoin:bevel;stroke-dasharray:none;stroke-opacity:0.75226587" />
       </g>
       <g
          data-mml-node="mi"
          transform="translate(2126)"
          id="g9"
-         style="display:inline;fill:#fefdff;fill-opacity:0.963746;stroke:#ffffff;stroke-opacity:0.91540784;stroke-width:32.29656282;stroke-dasharray:none;stroke-linejoin:bevel">
+         style="display:inline;fill:#ffffff;fill-opacity:0.90332323;stroke:#ffffff;stroke-width:40.37070352;stroke-linejoin:bevel;stroke-dasharray:none;stroke-opacity:0.75226587">
         <use
            data-c="1D461"
            xlink:href="#MJX-9-TEX-I-1D461"
            id="use8"
-           style="fill:#fefdff;fill-opacity:0.963746;stroke:#ffffff;stroke-opacity:0.91540784;stroke-width:32.29656282;stroke-dasharray:none;stroke-linejoin:bevel" />
+           style="fill:#ffffff;fill-opacity:0.90332323;stroke:#ffffff;stroke-width:40.37070352;stroke-linejoin:bevel;stroke-dasharray:none;stroke-opacity:0.75226587" />
       </g>
     </g>
   </g>
