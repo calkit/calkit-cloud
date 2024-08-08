@@ -1,10 +1,10 @@
 #! /usr/bin/env bash
 
 # Let the DB start
-python /app/app/backend_pre_start.py
+python /app/scripts/backend-pre-start.py
 
 # Run migrations
 alembic upgrade head
 
 # Create initial data in DB
-python /app/app/initial_data.py
+python /app/scripts/create-initial-data.py
