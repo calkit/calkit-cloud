@@ -74,10 +74,7 @@ def create_user(*, session: SessionDep, user_in: UserCreate) -> Any:
 def update_user_me(
     *, session: SessionDep, user_in: UserUpdateMe, current_user: CurrentUser
 ) -> Any:
-    """
-    Update own user.
-    """
-
+    """Update own user."""
     if user_in.email:
         existing_user = users.get_user_by_email(
             session=session, email=user_in.email
@@ -94,13 +91,11 @@ def update_user_me(
     return current_user
 
 
-@router.patch("/me/password", response_model=Message)
+@router.patch("/me/password")
 def update_password_me(
     *, session: SessionDep, body: UpdatePassword, current_user: CurrentUser
-) -> Any:
-    """
-    Update own password.
-    """
+) -> Message:
+    """Update own password."""
     if not verify_password(
         body.current_password, current_user.hashed_password
     ):
@@ -119,22 +114,19 @@ def update_password_me(
 
 @router.get("/me", response_model=UserPublic)
 def read_user_me(current_user: CurrentUser) -> Any:
-    """
-    Get current user.
-    """
+    """Get current user."""
     return current_user
 
 
 @router.delete("/me", response_model=Message)
 def delete_user_me(session: SessionDep, current_user: CurrentUser) -> Any:
-    """
-    Delete own user.
-    """
+    """Delete own user."""
     if current_user.is_superuser:
         raise HTTPException(
             status_code=403,
             detail="Super users are not allowed to delete themselves",
         )
+    # Delete all this user's items
     statement = delete(Item).where(col(Item.owner_id) == current_user.id)
     session.exec(statement)  # type: ignore
     session.delete(current_user)
