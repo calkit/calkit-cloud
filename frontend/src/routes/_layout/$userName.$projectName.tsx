@@ -1,45 +1,36 @@
-import {
-  Box,
-  Button,
-  Container,
-  Flex,
-  Heading,
-  Link,
-  SkeletonText,
-  Table,
-  TableContainer,
-  Tbody,
-  Td,
-  Th,
-  Thead,
-  Tr,
-} from "@chakra-ui/react"
-import { ArrowForwardIcon, ExternalLinkIcon } from "@chakra-ui/icons"
-import { useQuery, useQueryClient } from "@tanstack/react-query"
-import {
-  createFileRoute,
-  useNavigate,
-  Link as RouterLink,
-} from "@tanstack/react-router"
-import { useEffect } from "react"
-import { z } from "zod"
+import { Box, Container, Heading, Spinner, Flex } from "@chakra-ui/react"
+import { useQuery } from "@tanstack/react-query"
+import { createFileRoute } from "@tanstack/react-router"
 
 import { ProjectsService } from "../../client"
-import ActionsMenu from "../../components/Common/ActionsMenu"
-import Navbar from "../../components/Common/Navbar"
-import CreateProject from "../../components/Projects/CreateProject"
 
 export const Route = createFileRoute("/_layout/$userName/$projectName")({
   component: Project,
 })
 
 function ProjectView() {
-  const queryClient = useQueryClient()
-  const isPending = false
+  const { isPending, data: project } = useQuery({
+    queryKey: ["projects", "d57bda04-0f73-46d8-a465-3b3663856dc8"],
+    queryFn: () =>
+      ProjectsService.getProject({
+        projectId: "d57bda04-0f73-46d8-a465-3b3663856dc8",
+      }),
+  })
 
   return (
     <>
-      <Box pt={5}>TODO: Add project information here</Box>
+      {isPending ? (
+        <Flex justify="center" align="center" height="100vh" width="full">
+          <Spinner size="xl" color="ui.main" />
+        </Flex>
+      ) : (
+        <Box>
+          <Heading size="lg" textAlign={{ base: "center", md: "left" }} pt={12}>
+            {project?.name}
+          </Heading>
+          <Box pt={5}>{project?.git_repo_url}</Box>
+        </Box>
+      )}
     </>
   )
 }
@@ -47,9 +38,6 @@ function ProjectView() {
 function Project() {
   return (
     <Container maxW="full">
-      <Heading size="lg" textAlign={{ base: "center", md: "left" }} pt={12}>
-        Project name here
-      </Heading>
       <ProjectView />
     </Container>
   )
