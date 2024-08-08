@@ -79,8 +79,8 @@ def _make_data_fpath(project_id: str, idx: str, md5: str) -> str:
     return f"data/project_id={project_id}/{idx}/{md5}"
 
 
-@router.post("/{project_id}/data/files/md5/{idx}/{md5}")
-async def post_project_data(
+@router.post("/{project_id}/dvc/files/md5/{idx}/{md5}")
+async def post_project_dvc_file(
     *,
     project_id: uuid.UUID,
     idx: str,
@@ -100,8 +100,8 @@ async def post_project_data(
     return Message(message="Success")
 
 
-@router.get("/{project_id}/data/files/md5/{idx}/{md5}")
-def get_project_data(
+@router.get("/{project_id}/dvc/files/md5/{idx}/{md5}")
+def get_project_dvc_file(
     *,
     project_id: uuid.UUID,
     idx: str,
