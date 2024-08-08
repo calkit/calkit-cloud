@@ -27,13 +27,13 @@ function Layout() {
       <Box
         display="block"
         position="relative"
-        top={2}
+        top={5}
         left={6}
         alignItems="baseline"
         h={20}
       >
         <Link as={RouterLink} to="/">
-          <Image width={10} src="/assets/images/kdot.svg" alt="Home"></Image>
+          <Image width={20} src="/assets/images/calkit.svg" alt="Calkit logo"></Image>
         </Link>
       </Box>
       {isLoading ? (
