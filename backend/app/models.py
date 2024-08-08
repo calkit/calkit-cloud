@@ -46,9 +46,11 @@ class UpdatePassword(SQLModel):
 class User(UserBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     hashed_password: str
+    # Relationships
     items: list["Item"] = Relationship(
         back_populates="owner", cascade_delete=True
     )
+    owned_projects: list["Project"] = Relationship(back_populates="owner")
 
 
 # Properties to return via API, id is always required
@@ -131,11 +133,19 @@ class ProjectBase(SQLModel):
 class Project(ProjectBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     owner_user_id: uuid.UUID = Field(foreign_key="user.id")
+    # Relationships
+    owner: User | None = Relationship(back_populates="owned_projects")
+
+    @computed_field
+    @property
+    def owner_github_username(self) -> str:
+        return self.owner.github_username
 
 
 class ProjectPublic(ProjectBase):
     id: uuid.UUID
     owner_user_id: uuid.UUID
+    owner_github_username: str | None
 
     @computed_field
     @property
