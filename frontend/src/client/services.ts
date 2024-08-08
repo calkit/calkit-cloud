@@ -39,7 +39,7 @@ export type TDataRecoverPasswordHtmlContent = {
 export class LoginService {
   /**
    * Login Access Token
-   * OAuth2 compatible token login, get an access token for future requests
+   * Get an access token for future requests.
    * @returns Token Successful Response
    * @throws ApiError
    */
@@ -60,7 +60,7 @@ export class LoginService {
 
   /**
    * Test Token
-   * Test access token
+   * Test access token.
    * @returns UserPublic Successful Response
    * @throws ApiError
    */
@@ -73,7 +73,6 @@ export class LoginService {
 
   /**
    * Recover Password
-   * Password Recovery
    * @returns Message Successful Response
    * @throws ApiError
    */
@@ -95,7 +94,7 @@ export class LoginService {
 
   /**
    * Reset Password
-   * Reset password
+   * Reset password.
    * @returns Message Successful Response
    * @throws ApiError
    */
@@ -116,7 +115,7 @@ export class LoginService {
 
   /**
    * Recover Password Html Content
-   * HTML Content for Password Recovery
+   * Get HTML content for password recovery.
    * @returns string Successful Response
    * @throws ApiError
    */
@@ -369,7 +368,7 @@ export type TDataTestEmail = {
   emailTo: string
 }
 
-export class UtilsService {
+export class MiscService {
   /**
    * Test Email
    * Test emails.
@@ -380,7 +379,7 @@ export class UtilsService {
     const { emailTo } = data
     return __request(OpenAPI, {
       method: "POST",
-      url: "/api/v1/utils/test-email/",
+      url: "/api/v1/test-email/",
       query: {
         email_to: emailTo,
       },
@@ -526,12 +525,15 @@ export type TDataGetOwnedProjects = {
 export type TDataCreateProject = {
   requestBody: ProjectCreate
 }
-export type TDataPostProjectData = {
+export type TDataGetProject = {
+  projectId: string
+}
+export type TDataPostProjectDvcFile = {
   idx: string
   md5: string
   projectId: string
 }
-export type TDataGetProjectData = {
+export type TDataGetProjectDvcFile = {
   idx: string
   md5: string
   projectId: string
@@ -582,17 +584,36 @@ export class ProjectsService {
   }
 
   /**
-   * Post Project Data
+   * Get Project
+   * @returns Project Successful Response
+   * @throws ApiError
+   */
+  public static getProject(data: TDataGetProject): CancelablePromise<Project> {
+    const { projectId } = data
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/api/v1/projects/{project_id}",
+      path: {
+        project_id: projectId,
+      },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Post Project Dvc File
    * @returns Message Successful Response
    * @throws ApiError
    */
-  public static postProjectData(
-    data: TDataPostProjectData,
+  public static postProjectDvcFile(
+    data: TDataPostProjectDvcFile,
   ): CancelablePromise<Message> {
     const { idx, md5, projectId } = data
     return __request(OpenAPI, {
       method: "POST",
-      url: "/api/v1/projects/{project_id}/data/files/md5/{idx}/{md5}",
+      url: "/api/v1/projects/{project_id}/dvc/files/md5/{idx}/{md5}",
       path: {
         project_id: projectId,
         idx,
@@ -605,17 +626,17 @@ export class ProjectsService {
   }
 
   /**
-   * Get Project Data
+   * Get Project Dvc File
    * @returns Message Successful Response
    * @throws ApiError
    */
-  public static getProjectData(
-    data: TDataGetProjectData,
+  public static getProjectDvcFile(
+    data: TDataGetProjectDvcFile,
   ): CancelablePromise<Message> {
     const { idx, md5, projectId } = data
     return __request(OpenAPI, {
       method: "GET",
-      url: "/api/v1/projects/{project_id}/data/files/md5/{idx}/{md5}",
+      url: "/api/v1/projects/{project_id}/dvc/files/md5/{idx}/{md5}",
       path: {
         project_id: projectId,
         idx,

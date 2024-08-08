@@ -49,6 +49,7 @@ export type Project = {
   is_public?: boolean
   id?: string
   owner_user_id: string
+  readonly owner_github_username: string
 }
 
 export type ProjectCreate = {
@@ -65,6 +66,7 @@ export type ProjectPublic = {
   is_public?: boolean
   id: string
   owner_user_id: string
+  owner_github_username: string | null
   readonly name_slug: string
 }
 

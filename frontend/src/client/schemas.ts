@@ -225,6 +225,11 @@ export const $Project = {
       isRequired: true,
       format: "uuid",
     },
+    owner_github_username: {
+      type: "string",
+      isReadOnly: true,
+      isRequired: true,
+    },
   },
 } as const
 
@@ -300,6 +305,18 @@ export const $ProjectPublic = {
       type: "string",
       isRequired: true,
       format: "uuid",
+    },
+    owner_github_username: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      isRequired: true,
     },
     name_slug: {
       type: "string",

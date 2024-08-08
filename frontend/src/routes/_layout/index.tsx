@@ -105,7 +105,13 @@ function ProjectsTable() {
                     {item.id}
                   </Td>
                   <Td isTruncated maxWidth="150px">
-                    {item.name}
+                    {/* TODO: Project paths should be forced to match GitHub URL? */}
+                    <Link
+                      as={RouterLink}
+                      to={item.owner_github_username + "/" + item.name_slug}
+                    >
+                      {item.name}
+                    </Link>
                   </Td>
                   <Td isTruncated maxWidth="150px">
                     <Link href={item.git_repo_url} isExternal>
