@@ -1,4 +1,4 @@
-import { Flex, Spinner, Box, Link, Image } from "@chakra-ui/react"
+import { Flex, Spinner, Box, Link, Image, Container } from "@chakra-ui/react"
 import {
   Outlet,
   createFileRoute,
@@ -27,13 +27,17 @@ function Layout() {
       <Box
         display="block"
         position="relative"
-        top={5}
-        left={6}
+        top={4}
+        left={4}
         alignItems="baseline"
         h={20}
       >
         <Link as={RouterLink} to="/">
-          <Image width={20} src="/assets/images/calkit.svg" alt="Calkit logo"></Image>
+          <Image
+            width={20}
+            src="/assets/images/calkit.svg"
+            alt="Calkit logo"
+          ></Image>
         </Link>
       </Box>
       {isLoading ? (
@@ -41,7 +45,9 @@ function Layout() {
           <Spinner size="xl" color="ui.main" />
         </Flex>
       ) : (
-        <Outlet />
+        <Container maxW="88%" pt={10}>
+          <Outlet />
+        </Container>
       )}
       <UserMenu />
       {/* TODO: Show the logo in the upper left */}

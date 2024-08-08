@@ -7,7 +7,7 @@ export const Route = createFileRoute("/_layout/browse")({
 
 function PublicProjects() {
   return (
-    <Container maxW="90%">
+    <Container maxW="full">
       <Heading size="lg" textAlign={{ base: "center", md: "left" }} pt={12}>
         Public projects
       </Heading>
