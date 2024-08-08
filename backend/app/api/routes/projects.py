@@ -63,6 +63,8 @@ def get_project(
     *, project_id: uuid.UUID, current_user: CurrentUser, session: SessionDep
 ) -> Project:
     project = session.get(Project, project_id)
+    if project is None:
+        raise HTTPException(404)
     # TODO: Check for collaborator access
     if project.owner_user_id != current_user.id:
         raise HTTPException(401)
