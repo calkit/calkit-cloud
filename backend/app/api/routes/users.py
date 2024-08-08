@@ -154,10 +154,10 @@ def register_user(session: SessionDep, user_in: UserRegister) -> Any:
 def read_user_by_id(
     user_id: uuid.UUID, session: SessionDep, current_user: CurrentUser
 ) -> Any:
-    """
-    Get a specific user by id.
-    """
+    """Get a specific user by ID."""
     user = session.get(User, user_id)
+    if user is None:
+        raise HTTPException(404)
     if user == current_user:
         return user
     if not current_user.is_superuser:
