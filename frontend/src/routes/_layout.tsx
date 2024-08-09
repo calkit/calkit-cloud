@@ -40,6 +40,8 @@ function Layout() {
           ></Image>
         </Link>
       </Box>
+      {/* TODO: Add other menu items, e.g.:
+      https://chakra-templates.vercel.app/navigation/navbar */}
       {isLoading ? (
         <Flex justify="center" align="center" height="100vh" width="full">
           <Spinner size="xl" color="ui.main" />
