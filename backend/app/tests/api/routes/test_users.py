@@ -14,7 +14,7 @@ def test_get_users_superuser_me(
     client: TestClient, superuser_token_headers: dict[str, str]
 ) -> None:
     r = client.get(
-        f"{settings.API_V1_STR}/users/me", headers=superuser_token_headers
+        f"{settings.API_V1_STR}/user", headers=superuser_token_headers
     )
     current_user = r.json()
     assert current_user
@@ -27,7 +27,7 @@ def test_get_users_normal_user_me(
     client: TestClient, normal_user_token_headers: dict[str, str]
 ) -> None:
     r = client.get(
-        f"{settings.API_V1_STR}/users/me", headers=normal_user_token_headers
+        f"{settings.API_V1_STR}/user", headers=normal_user_token_headers
     )
     current_user = r.json()
     assert current_user
@@ -48,7 +48,7 @@ def test_create_user_new_email(
         password = random_lower_string()
         data = {"email": username, "password": password}
         r = client.post(
-            f"{settings.API_V1_STR}/users/",
+            f"{settings.API_V1_STR}/users",
             headers=superuser_token_headers,
             json=data,
         )
@@ -86,7 +86,6 @@ def test_get_existing_user_current_user(
     user_in = UserCreate(email=username, password=password)
     user = users.create_user(session=db, user_create=user_in)
     user_id = user.id
-
     login_data = {
         "username": username,
         "password": password,
@@ -97,7 +96,6 @@ def test_get_existing_user_current_user(
     tokens = r.json()
     a_token = tokens["access_token"]
     headers = {"Authorization": f"Bearer {a_token}"}
-
     r = client.get(
         f"{settings.API_V1_STR}/users/{user_id}",
         headers=headers,
@@ -130,7 +128,7 @@ def test_create_user_existing_username(
     users.create_user(session=db, user_create=user_in)
     data = {"email": username, "password": password}
     r = client.post(
-        f"{settings.API_V1_STR}/users/",
+        f"{settings.API_V1_STR}/users",
         headers=superuser_token_headers,
         json=data,
     )
@@ -146,7 +144,7 @@ def test_create_user_by_normal_user(
     password = random_lower_string()
     data = {"email": username, "password": password}
     r = client.post(
-        f"{settings.API_V1_STR}/users/",
+        f"{settings.API_V1_STR}/users",
         headers=normal_user_token_headers,
         json=data,
     )
@@ -160,17 +158,14 @@ def test_retrieve_users(
     password = random_lower_string()
     user_in = UserCreate(email=username, password=password)
     users.create_user(session=db, user_create=user_in)
-
     username2 = random_email()
     password2 = random_lower_string()
     user_in2 = UserCreate(email=username2, password=password2)
     users.create_user(session=db, user_create=user_in2)
-
     r = client.get(
         f"{settings.API_V1_STR}/users/", headers=superuser_token_headers
     )
     all_users = r.json()
-
     assert len(all_users["data"]) > 1
     assert "count" in all_users
     for item in all_users["data"]:
@@ -184,7 +179,7 @@ def test_update_user_me(
     email = random_email()
     data = {"full_name": full_name, "email": email}
     r = client.patch(
-        f"{settings.API_V1_STR}/users/me",
+        f"{settings.API_V1_STR}/user",
         headers=normal_user_token_headers,
         json=data,
     )
@@ -209,27 +204,25 @@ def test_update_password_me(
         "new_password": new_password,
     }
     r = client.patch(
-        f"{settings.API_V1_STR}/users/me/password",
+        f"{settings.API_V1_STR}/user/password",
         headers=superuser_token_headers,
         json=data,
     )
     assert r.status_code == 200
     updated_user = r.json()
     assert updated_user["message"] == "Password updated successfully"
-
     user_query = select(User).where(User.email == settings.FIRST_SUPERUSER)
     user_db = db.exec(user_query).first()
     assert user_db
     assert user_db.email == settings.FIRST_SUPERUSER
     assert verify_password(new_password, user_db.hashed_password)
-
     # Revert to the old password to keep consistency in test
     old_data = {
         "current_password": new_password,
         "new_password": settings.FIRST_SUPERUSER_PASSWORD,
     }
     r = client.patch(
-        f"{settings.API_V1_STR}/users/me/password",
+        f"{settings.API_V1_STR}/user/password",
         headers=superuser_token_headers,
         json=old_data,
     )
@@ -247,7 +240,7 @@ def test_update_password_me_incorrect_password(
     new_password = random_lower_string()
     data = {"current_password": new_password, "new_password": new_password}
     r = client.patch(
-        f"{settings.API_V1_STR}/users/me/password",
+        f"{settings.API_V1_STR}/user/password",
         headers=superuser_token_headers,
         json=data,
     )
@@ -263,10 +256,9 @@ def test_update_user_me_email_exists(
     password = random_lower_string()
     user_in = UserCreate(email=username, password=password)
     user = users.create_user(session=db, user_create=user_in)
-
     data = {"email": user.email}
     r = client.patch(
-        f"{settings.API_V1_STR}/users/me",
+        f"{settings.API_V1_STR}/user",
         headers=normal_user_token_headers,
         json=data,
     )
@@ -282,7 +274,7 @@ def test_update_password_me_same_password_error(
         "new_password": settings.FIRST_SUPERUSER_PASSWORD,
     }
     r = client.patch(
-        f"{settings.API_V1_STR}/users/me/password",
+        f"{settings.API_V1_STR}/user/password",
         headers=superuser_token_headers,
         json=data,
     )
@@ -384,12 +376,10 @@ def test_update_user_email_exists(
     password = random_lower_string()
     user_in = UserCreate(email=username, password=password)
     user = users.create_user(session=db, user_create=user_in)
-
     username2 = random_email()
     password2 = random_lower_string()
     user_in2 = UserCreate(email=username2, password=password2)
     user2 = users.create_user(session=db, user_create=user_in2)
-
     data = {"email": user2.email}
     r = client.patch(
         f"{settings.API_V1_STR}/users/{user.id}",
@@ -406,7 +396,6 @@ def test_delete_user_me(client: TestClient, db: Session) -> None:
     user_in = UserCreate(email=username, password=password)
     user = users.create_user(session=db, user_create=user_in)
     user_id = user.id
-
     login_data = {
         "username": username,
         "password": password,
@@ -417,9 +406,8 @@ def test_delete_user_me(client: TestClient, db: Session) -> None:
     tokens = r.json()
     a_token = tokens["access_token"]
     headers = {"Authorization": f"Bearer {a_token}"}
-
     r = client.delete(
-        f"{settings.API_V1_STR}/users/me",
+        f"{settings.API_V1_STR}/user",
         headers=headers,
     )
     assert r.status_code == 200
@@ -437,7 +425,7 @@ def test_delete_user_me_as_superuser(
     client: TestClient, superuser_token_headers: dict[str, str]
 ) -> None:
     r = client.delete(
-        f"{settings.API_V1_STR}/users/me",
+        f"{settings.API_V1_STR}/user",
         headers=superuser_token_headers,
     )
     assert r.status_code == 403
@@ -486,7 +474,6 @@ def test_delete_user_current_super_user_error(
     )
     assert super_user
     user_id = super_user.id
-
     r = client.delete(
         f"{settings.API_V1_STR}/users/{user_id}",
         headers=superuser_token_headers,
@@ -505,7 +492,6 @@ def test_delete_user_without_privileges(
     password = random_lower_string()
     user_in = UserCreate(email=username, password=password)
     user = users.create_user(session=db, user_create=user_in)
-
     r = client.delete(
         f"{settings.API_V1_STR}/users/{user.id}",
         headers=normal_user_token_headers,

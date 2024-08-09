@@ -4,7 +4,11 @@ import uuid
 from typing import Any
 
 from app import users
-from app.api.deps import CurrentUser, SessionDep, get_current_active_superuser
+from app.api.deps import (
+    CurrentUser,
+    SessionDep,
+    get_current_active_superuser,
+)
 from app.config import settings
 from app.messaging import generate_new_account_email, send_email
 from app.models import (
@@ -26,12 +30,10 @@ from sqlmodel import col, delete, func, select
 router = APIRouter()
 
 
-@router.get(
-    "/",
-    dependencies=[Depends(get_current_active_superuser)],
-    response_model=UsersPublic,
-)
-def read_users(session: SessionDep, skip: int = 0, limit: int = 100) -> Any:
+@router.get("/users", dependencies=[Depends(get_current_active_superuser)])
+def read_users(
+    session: SessionDep, skip: int = 0, limit: int = 100
+) -> UsersPublic:
     """Retrieve users."""
     count_statement = select(func.count()).select_from(User)
     count = session.exec(count_statement).one()
@@ -40,15 +42,9 @@ def read_users(session: SessionDep, skip: int = 0, limit: int = 100) -> Any:
     return UsersPublic(data=users, count=count)
 
 
-@router.post(
-    "/",
-    dependencies=[Depends(get_current_active_superuser)],
-    response_model=UserPublic,
-)
-def create_user(*, session: SessionDep, user_in: UserCreate) -> Any:
-    """
-    Create new user.
-    """
+@router.post("/users", dependencies=[Depends(get_current_active_superuser)])
+def create_user(*, session: SessionDep, user_in: UserCreate) -> UserPublic:
+    """Create new user."""
     user = users.get_user_by_email(session=session, email=user_in.email)
     if user:
         raise HTTPException(
@@ -70,10 +66,10 @@ def create_user(*, session: SessionDep, user_in: UserCreate) -> Any:
     return user
 
 
-@router.patch("/me", response_model=UserPublic)
-def update_user_me(
+@router.patch("/user")
+def update_current_user(
     *, session: SessionDep, user_in: UserUpdateMe, current_user: CurrentUser
-) -> Any:
+) -> UserPublic:
     """Update own user."""
     if user_in.email:
         existing_user = users.get_user_by_email(
@@ -91,8 +87,8 @@ def update_user_me(
     return current_user
 
 
-@router.patch("/me/password")
-def update_password_me(
+@router.patch("/user/password")
+def update_current_user_password(
     *, session: SessionDep, body: UpdatePassword, current_user: CurrentUser
 ) -> Message:
     """Update own password."""
@@ -112,14 +108,16 @@ def update_password_me(
     return Message(message="Password updated successfully")
 
 
-@router.get("/me", response_model=UserPublic)
-def read_user_me(current_user: CurrentUser) -> Any:
+@router.get("/user")
+def get_current_user(current_user: CurrentUser) -> UserPublic:
     """Get current user."""
     return current_user
 
 
-@router.delete("/me", response_model=Message)
-def delete_user_me(session: SessionDep, current_user: CurrentUser) -> Any:
+@router.delete("/user")
+def delete_current_user(
+    session: SessionDep, current_user: CurrentUser
+) -> Message:
     """Delete own user."""
     if current_user.is_superuser:
         raise HTTPException(
@@ -134,26 +132,24 @@ def delete_user_me(session: SessionDep, current_user: CurrentUser) -> Any:
     return Message(message="User deleted successfully")
 
 
-@router.post("/signup", response_model=UserPublic)
-def register_user(session: SessionDep, user_in: UserRegister) -> Any:
-    """
-    Create new user without the need to be logged in.
-    """
+@router.post("/users/signup")
+def register_user(session: SessionDep, user_in: UserRegister) -> UserPublic:
+    """Create new user without the need to be logged in."""
     user = users.get_user_by_email(session=session, email=user_in.email)
     if user:
         raise HTTPException(
             status_code=400,
-            detail="The user with this email already exists in the system",
+            detail="A user with this email already exists in the system",
         )
     user_create = UserCreate.model_validate(user_in)
     user = users.create_user(session=session, user_create=user_create)
     return user
 
 
-@router.get("/{user_id}", response_model=UserPublic)
+@router.get("/users/{user_id}")
 def read_user_by_id(
     user_id: uuid.UUID, session: SessionDep, current_user: CurrentUser
-) -> Any:
+) -> UserPublic:
     """Get a specific user by ID."""
     user = session.get(User, user_id)
     if user is None:
@@ -169,7 +165,7 @@ def read_user_by_id(
 
 
 @router.patch(
-    "/{user_id}",
+    "/users/{user_id}",
     dependencies=[Depends(get_current_active_superuser)],
     response_model=UserPublic,
 )
@@ -178,11 +174,8 @@ def update_user(
     session: SessionDep,
     user_id: uuid.UUID,
     user_in: UserUpdate,
-) -> Any:
-    """
-    Update a user.
-    """
-
+) -> UserPublic:
+    """Update a user."""
     db_user = session.get(User, user_id)
     if not db_user:
         raise HTTPException(
@@ -197,7 +190,6 @@ def update_user(
             raise HTTPException(
                 status_code=409, detail="User with this email already exists"
             )
-
     db_user = users.update_user(
         session=session, db_user=db_user, user_in=user_in
     )
@@ -205,14 +197,12 @@ def update_user(
 
 
 @router.delete(
-    "/{user_id}", dependencies=[Depends(get_current_active_superuser)]
+    "/users/{user_id}", dependencies=[Depends(get_current_active_superuser)]
 )
 def delete_user(
     session: SessionDep, current_user: CurrentUser, user_id: uuid.UUID
 ) -> Message:
-    """
-    Delete a user.
-    """
+    """Delete a user."""
     user = session.get(User, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
