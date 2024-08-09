@@ -147,7 +147,7 @@ def login_with_github(code: str, session: SessionDep) -> Token:
             out[key] = value
         return out
 
-    logger.info("Requesting GitHub access token")
+    logger.info(f"Requesting GitHub access token with code: {code}")
     resp = requests.get(
         "https://github.com/login/oauth/access_token",
         params=dict(
@@ -159,8 +159,13 @@ def login_with_github(code: str, session: SessionDep) -> Token:
     # Make sure we got a 200 response, and if so, use the token to fetch
     # user details
     if not resp.status_code == 200:
-        raise HTTPException(401, "GitHub authentication failed")
+        raise HTTPException(400, "GitHub authentication failed")
     out = resp_text_to_dict(resp.text)
+    if "access_token" not in out:
+        raise HTTPException(
+            400, f"GitHub authentication failed: {out['error']}"
+        )
+    logger.info(f"Data from GitHub: {out}")
     # TODO: Store this token for the user so we can make requests on their
     # behalf later, e.g., to get repo contents?
     # Get user information from GitHub
@@ -169,8 +174,10 @@ def login_with_github(code: str, session: SessionDep) -> Token:
         "https://api.github.com/user",
         headers={"Authorization": f"Bearer {out['access_token']}"},
     ).json()
+    logger.info(f"Received GitHub user: {gh_user}")
     user = users.get_user_by_email(session=session, email=gh_user["email"])
     if user is None:
+        logger.info("Creating new user")
         user = users.create_user(
             session=session,
             user_create=UserCreate(
@@ -183,13 +190,18 @@ def login_with_github(code: str, session: SessionDep) -> Token:
             ),
         )
     if user.github_username != gh_user["login"]:
+        logger.info("GitHub usernames do not match")
         # Check that GitHub username matches, else fail?
-        raise HTTPException(401, "GitHub usernames do not match")
+        raise HTTPException(400, "GitHub usernames do not match")
     if not user.is_active:
+        logger.info("User is not active")
         raise HTTPException(401, "User is not active")
     # Lastly, generate an access token for this user
     return Token(
         access_token=security.create_access_token(
-            user.id, expires_delta=settings.ACCESS_TOKEN_EXPIRE_MINUTES
+            user.id,
+            expires_delta=timedelta(
+                minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
+            ),
         )
     )
