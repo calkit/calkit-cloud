@@ -35,6 +35,9 @@ export type TDataResetPassword = {
 export type TDataRecoverPasswordHtmlContent = {
   email: string
 }
+export type TDataLoginWithGithub = {
+  code: string
+}
 
 export class LoginService {
   /**
@@ -134,6 +137,41 @@ export class LoginService {
       },
     })
   }
+
+  /**
+   * Login With Github
+   * Log in a user from GitHub authentication, creating a new account if
+   * necessary.
+   *
+   * The response from GitHub, after parsing into a dictionary, will look
+   * something like:
+   *
+   * ```
+   * {'access_token': '...',
+   * 'expires_in': '28800',
+   * 'refresh_token': '...',
+   * 'refresh_token_expires_in': '15897600',
+   * 'scope': '',
+   * 'token_type': 'bearer'}
+   * ```
+   * @returns Token Successful Response
+   * @throws ApiError
+   */
+  public static loginWithGithub(
+    data: TDataLoginWithGithub,
+  ): CancelablePromise<Token> {
+    const { code } = data
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/api/v1/login/github",
+      query: {
+        code,
+      },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
 }
 
 export type TDataReadUsers = {
@@ -143,10 +181,10 @@ export type TDataReadUsers = {
 export type TDataCreateUser = {
   requestBody: UserCreate
 }
-export type TDataUpdateUserMe = {
+export type TDataUpdateCurrentUser = {
   requestBody: UserUpdateMe
 }
-export type TDataUpdatePasswordMe = {
+export type TDataUpdateCurrentUserPassword = {
   requestBody: UpdatePassword
 }
 export type TDataRegisterUser = {
@@ -176,7 +214,7 @@ export class UsersService {
     const { limit = 100, skip = 0 } = data
     return __request(OpenAPI, {
       method: "GET",
-      url: "/api/v1/users/",
+      url: "/api/v1/users",
       query: {
         skip,
         limit,
@@ -199,7 +237,7 @@ export class UsersService {
     const { requestBody } = data
     return __request(OpenAPI, {
       method: "POST",
-      url: "/api/v1/users/",
+      url: "/api/v1/users",
       body: requestBody,
       mediaType: "application/json",
       errors: {
@@ -209,44 +247,44 @@ export class UsersService {
   }
 
   /**
-   * Read User Me
+   * Get Current User
    * Get current user.
    * @returns UserPublic Successful Response
    * @throws ApiError
    */
-  public static readUserMe(): CancelablePromise<UserPublic> {
+  public static getCurrentUser(): CancelablePromise<UserPublic> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/api/v1/users/me",
+      url: "/api/v1/user",
     })
   }
 
   /**
-   * Delete User Me
+   * Delete Current User
    * Delete own user.
    * @returns Message Successful Response
    * @throws ApiError
    */
-  public static deleteUserMe(): CancelablePromise<Message> {
+  public static deleteCurrentUser(): CancelablePromise<Message> {
     return __request(OpenAPI, {
       method: "DELETE",
-      url: "/api/v1/users/me",
+      url: "/api/v1/user",
     })
   }
 
   /**
-   * Update User Me
+   * Update Current User
    * Update own user.
    * @returns UserPublic Successful Response
    * @throws ApiError
    */
-  public static updateUserMe(
-    data: TDataUpdateUserMe,
+  public static updateCurrentUser(
+    data: TDataUpdateCurrentUser,
   ): CancelablePromise<UserPublic> {
     const { requestBody } = data
     return __request(OpenAPI, {
       method: "PATCH",
-      url: "/api/v1/users/me",
+      url: "/api/v1/user",
       body: requestBody,
       mediaType: "application/json",
       errors: {
@@ -256,18 +294,18 @@ export class UsersService {
   }
 
   /**
-   * Update Password Me
+   * Update Current User Password
    * Update own password.
    * @returns Message Successful Response
    * @throws ApiError
    */
-  public static updatePasswordMe(
-    data: TDataUpdatePasswordMe,
+  public static updateCurrentUserPassword(
+    data: TDataUpdateCurrentUserPassword,
   ): CancelablePromise<Message> {
     const { requestBody } = data
     return __request(OpenAPI, {
       method: "PATCH",
-      url: "/api/v1/users/me/password",
+      url: "/api/v1/user/password",
       body: requestBody,
       mediaType: "application/json",
       errors: {
@@ -299,7 +337,7 @@ export class UsersService {
 
   /**
    * Read User By Id
-   * Get a specific user by id.
+   * Get a specific user by ID.
    * @returns UserPublic Successful Response
    * @throws ApiError
    */

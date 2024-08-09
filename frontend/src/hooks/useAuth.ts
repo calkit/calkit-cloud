@@ -24,7 +24,7 @@ const useAuth = () => {
   const queryClient = useQueryClient()
   const { data: user, isLoading } = useQuery<UserPublic | null, Error>({
     queryKey: ["currentUser"],
-    queryFn: UsersService.readUserMe,
+    queryFn: UsersService.getCurrentUser,
     enabled: isLoggedIn(),
   })
 
@@ -81,6 +81,30 @@ const useAuth = () => {
     },
   })
 
+  const loginGithub = async (code: string) => {
+    const response = await LoginService.loginWithGithub({
+      code,
+    })
+    localStorage.setItem("access_token", response.access_token)
+  }
+
+  const loginGitHubMutation = useMutation({
+    mutationFn: loginGithub,
+    onSuccess: () => {
+      navigate({ to: "/" })
+    },
+    onError: (err: ApiError) => {
+      let errDetail = (err.body as any)?.detail
+      if (err instanceof AxiosError) {
+        errDetail = err.message
+      }
+      if (Array.isArray(errDetail)) {
+        errDetail = "Something went wrong"
+      }
+      setError(errDetail)
+    },
+  })
+
   const logout = () => {
     localStorage.removeItem("access_token")
     navigate({ to: "/login" })
@@ -89,6 +113,7 @@ const useAuth = () => {
   return {
     signUpMutation,
     loginMutation,
+    loginGitHubMutation,
     logout,
     user,
     isLoading,
