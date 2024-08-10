@@ -8,6 +8,8 @@ from app.config import settings
 from jwt.exceptions import InvalidTokenError
 from passlib.context import CryptContext
 
+from cryptography.fernet import Fernet
+
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 ALGORITHM = "HS256"
@@ -51,3 +53,19 @@ def verify_password_reset_token(token: str) -> str | None:
         return str(decoded_token["sub"])
     except InvalidTokenError:
         return None
+
+
+def encrypt_secret(value: str) -> str:
+    return (
+        Fernet(key=settings.FERNET_KEY)
+        .encrypt(value.encode())
+        .decode()
+    )
+
+
+def decrypt_secret(value: str) -> str:
+    return (
+        Fernet(key=settings.FERNET_KEY)
+        .decrypt(value.encode())
+        .decode()
+    )

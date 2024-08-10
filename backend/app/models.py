@@ -1,8 +1,15 @@
+"""Database/request models."""
+
 import uuid
+from datetime import UTC, datetime
 
 from pydantic import EmailStr, computed_field
 from slugify import slugify
 from sqlmodel import Field, Relationship, SQLModel
+
+
+def utcnow():
+    return datetime.now(UTC)
 
 
 # Shared properties
@@ -42,6 +49,15 @@ class UpdatePassword(SQLModel):
     new_password: str = Field(min_length=8, max_length=40)
 
 
+class UserGitHubToken(SQLModel, table=True):
+    user_id: uuid.UUID = Field(foreign_key="user.id", primary_key=True)
+    updated_ts: datetime = Field(default_factory=utcnow)
+    access_token: str  # These should be encrypted
+    refresh_token: str
+    expires_in: int
+    refresh_token_expires_in: int
+
+
 # Database model, database table inferred from class name
 class User(UserBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
@@ -51,6 +67,7 @@ class User(UserBase, table=True):
         back_populates="owner", cascade_delete=True
     )
     owned_projects: list["Project"] = Relationship(back_populates="owner")
+    github_token: UserGitHubToken | None = Relationship()
 
 
 # Properties to return via API, id is always required
@@ -61,14 +78,6 @@ class UserPublic(UserBase):
 class UsersPublic(SQLModel):
     data: list[UserPublic]
     count: int
-
-
-class UserGitHubToken(SQLModel, table=True):
-    user_id: uuid.UUID = Field(foreign_key="user.id", primary_key=True)
-    access_token: str  # These should be encrypted
-    refresh_token: str
-    expires_in: int
-    refresh_token_expires_in: int
 
 
 # Shared properties
