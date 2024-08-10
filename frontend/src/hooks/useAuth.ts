@@ -68,15 +68,12 @@ const useAuth = () => {
     },
     onError: (err: ApiError) => {
       let errDetail = (err.body as any)?.detail
-
       if (err instanceof AxiosError) {
         errDetail = err.message
       }
-
       if (Array.isArray(errDetail)) {
         errDetail = "Something went wrong"
       }
-
       setError(errDetail)
     },
   })

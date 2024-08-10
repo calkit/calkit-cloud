@@ -1,29 +1,15 @@
-import { ViewIcon, ViewOffIcon } from "@chakra-ui/icons"
-import {
-  Button,
-  Container,
-  FormControl,
-  FormErrorMessage,
-  Icon,
-  Image,
-  Input,
-  InputGroup,
-  InputRightElement,
-  Link,
-  Text,
-  useBoolean,
-} from "@chakra-ui/react"
-import {
-  Link as RouterLink,
-  createFileRoute,
-  redirect,
-} from "@tanstack/react-router"
-import { type SubmitHandler, useForm } from "react-hook-form"
+import { Button, Container, Image } from "@chakra-ui/react"
+import { createFileRoute, redirect } from "@tanstack/react-router"
 
 import Logo from "/assets/images/kdot.svg"
-import type { Body_login_login_access_token as AccessToken } from "../client"
 import useAuth, { isLoggedIn } from "../hooks/useAuth"
-import { emailPattern } from "../utils"
+import { z } from "zod"
+import { useEffect } from "react"
+
+const githubAuthParamsSchema = z.object({
+  code: z.string().optional(),
+  state: z.string().optional(),
+})
 
 export const Route = createFileRoute("/login")({
   component: Login,
@@ -34,43 +20,32 @@ export const Route = createFileRoute("/login")({
       })
     }
   },
+  validateSearch: (search) => githubAuthParamsSchema.parse(search),
 })
 
 function Login() {
-  const [show, setShow] = useBoolean()
-  const { loginMutation, error, resetError } = useAuth()
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-  } = useForm<AccessToken>({
-    mode: "onBlur",
-    criteriaMode: "all",
-    defaultValues: {
-      username: "",
-      password: "",
-    },
-  })
+  const { loginGitHubMutation } = useAuth()
 
-  const onSubmit: SubmitHandler<AccessToken> = async (data) => {
-    if (isSubmitting) return
+  const clientId = "Iv23li37fyOhqbAYUDZ1"
+  const ghAuthStateParam = "dfjkhskdjfhsdf" // TODO: Generate random and store
 
-    resetError()
+  const { code: ghAuthCode, state: ghAuthStateRecv } = Route.useSearch()
 
-    try {
-      await loginMutation.mutateAsync(data)
-    } catch {
-      // error is handled by useAuth hook
+  useEffect(() => {
+    if (ghAuthCode != undefined && ghAuthStateRecv === ghAuthStateParam) {
+      try {
+        loginGitHubMutation.mutate(ghAuthCode)
+      } catch {
+        // Error should be handled in the mutation
+      }
     }
-  }
+  }, [loginGitHubMutation])
 
   return (
     <>
       <Container
-        as="form"
-        onSubmit={handleSubmit(onSubmit)}
         h="100vh"
-        maxW="sm"
+        maxW="xs"
         alignItems="stretch"
         justifyContent="center"
         gap={4}
@@ -78,66 +53,20 @@ function Login() {
       >
         <Image
           src={Logo}
-          alt="FastAPI logo"
+          alt="Logo"
           height="10%"
           maxW="2xs"
           alignSelf="center"
           mb={4}
         />
-        <FormControl id="username" isInvalid={!!errors.username || !!error}>
-          <Input
-            id="username"
-            {...register("username", {
-              required: "Username is required",
-              pattern: emailPattern,
-            })}
-            placeholder="Email"
-            type="email"
-            required
-          />
-          {errors.username && (
-            <FormErrorMessage>{errors.username.message}</FormErrorMessage>
-          )}
-        </FormControl>
-        <FormControl id="password" isInvalid={!!error}>
-          <InputGroup>
-            <Input
-              {...register("password", {
-                required: "Password is required",
-              })}
-              type={show ? "text" : "password"}
-              placeholder="Password"
-              required
-            />
-            <InputRightElement
-              color="ui.dim"
-              _hover={{
-                cursor: "pointer",
-              }}
-            >
-              <Icon
-                as={show ? ViewOffIcon : ViewIcon}
-                onClick={setShow.toggle}
-                aria-label={show ? "Hide password" : "Show password"}
-              >
-                {show ? <ViewOffIcon /> : <ViewIcon />}
-              </Icon>
-            </InputRightElement>
-          </InputGroup>
-          {error && <FormErrorMessage>{error}</FormErrorMessage>}
-        </FormControl>
-        <Link as={RouterLink} to="/recover-password" color="blue.500">
-          Forgot password?
-        </Link>
-        <Button variant="primary" type="submit" isLoading={isSubmitting}>
-          Log In
+        <Button
+          variant="primary"
+          onClick={() =>
+            (location.href = `https://github.com/login/oauth/authorize?client_id=${clientId}&state=${ghAuthStateParam}`)
+          }
+        >
+          Sign in with GitHub
         </Button>
-        <Text>
-          Don't have an account?{" "}
-          <Link as={RouterLink} to="/signup" color="blue.500">
-            Sign up
-          </Link>
-        </Text>
       </Container>
     </>
   )
