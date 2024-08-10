@@ -4,7 +4,7 @@ import { createFileRoute, redirect } from "@tanstack/react-router"
 import Logo from "/assets/images/kdot.svg"
 import useAuth, { isLoggedIn } from "../hooks/useAuth"
 import { z } from "zod"
-import { useEffect } from "react"
+import { useEffect, useRef } from "react"
 
 const githubAuthParamsSchema = z.object({
   code: z.string().optional(),
@@ -25,21 +25,28 @@ export const Route = createFileRoute("/login")({
 
 function Login() {
   const { loginGitHubMutation } = useAuth()
+  const { code: ghAuthCode, state: ghAuthStateRecv } = Route.useSearch()
+  const isMounted = useRef(false)
 
   const clientId = "Iv23li37fyOhqbAYUDZ1"
-  const ghAuthStateParam = "dfjkhskdjfhsdf" // TODO: Generate random and store
-
-  const { code: ghAuthCode, state: ghAuthStateRecv } = Route.useSearch()
+  const ghAuthStateParam = "sdkjh4e0934t" // TODO: Generate randomly
 
   useEffect(() => {
-    if (ghAuthCode != undefined && ghAuthStateRecv === ghAuthStateParam) {
-      try {
-        loginGitHubMutation.mutate(ghAuthCode)
-      } catch {
-        // Error should be handled in the mutation
+    if (!isMounted.current) {
+      isMounted.current = true
+      if (ghAuthCode && ghAuthStateRecv === ghAuthStateParam) {
+        try {
+          loginGitHubMutation.mutate(ghAuthCode)
+        } catch {
+          // Error should be handled in the mutation
+        }
+      } else if (ghAuthCode && ghAuthStateRecv != ghAuthStateParam) {
+        console.error(
+          `Received state parameter does not match sent (${ghAuthStateParam})`,
+        )
       }
     }
-  }, [loginGitHubMutation])
+  }, [])
 
   return (
     <>
