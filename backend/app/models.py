@@ -63,6 +63,14 @@ class UsersPublic(SQLModel):
     count: int
 
 
+class UserGitHubToken(SQLModel, table=True):
+    user_id: uuid.UUID = Field(foreign_key="user.id", primary_key=True)
+    access_token: str  # These should be encrypted
+    refresh_token: str
+    expires_in: int
+    refresh_token_expires_in: int
+
+
 # Shared properties
 class ItemBase(SQLModel):
     title: str = Field(min_length=1, max_length=255)
