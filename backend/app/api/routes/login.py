@@ -174,7 +174,7 @@ def login_with_github(code: str, session: SessionDep) -> Token:
         "https://api.github.com/user",
         headers={"Authorization": f"Bearer {out['access_token']}"},
     ).json()
-    logger.info(f"Received GitHub user: {gh_user}")
+    logger.debug(f"Received GitHub user: {gh_user}")
     user = users.get_user_by_email(session=session, email=gh_user["email"])
     if user is None:
         logger.info("Creating new user")
