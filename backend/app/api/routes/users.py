@@ -1,14 +1,10 @@
 """Routes for users."""
 
 import uuid
-from typing import Any
 
+import requests
 from app import users
-from app.api.deps import (
-    CurrentUser,
-    SessionDep,
-    get_current_active_superuser,
-)
+from app.api.deps import CurrentUser, SessionDep, get_current_active_superuser
 from app.config import settings
 from app.messaging import generate_new_account_email, send_email
 from app.models import (
@@ -23,7 +19,7 @@ from app.models import (
     UserUpdate,
     UserUpdateMe,
 )
-from app.security import get_password_hash, verify_password
+from app.security import decrypt_secret, get_password_hash, verify_password
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import col, delete, func, select
 
@@ -216,3 +212,19 @@ def delete_user(
     session.delete(user)
     session.commit()
     return Message(message="User deleted successfully")
+
+
+@router.get("/user/github/repos")
+def get_user_github_repos(current_user: CurrentUser) -> list[dict]:
+    # See https://docs.github.com/en/rest/repos/repos?apiVersion=2022-11-28#list-repositories-for-the-authenticated-user
+    gh_token = current_user.github_token
+    if gh_token is None:
+        raise HTTPException(401, "User not authenticated with GitHub")
+    access_token = decrypt_secret(gh_token.access_token)
+    # TODO: Refresh token if it's expired
+    url = "https://api.github.com/user/repos"
+    headers = {"Authorization": f"Bearer {access_token}"}
+    resp = requests.get(url, headers=headers)
+    if not resp.status_code == 200:
+        raise HTTPException(400, f"GitHub request failed: {resp.text}")
+    return resp.json()
