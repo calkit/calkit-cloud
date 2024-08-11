@@ -400,6 +400,20 @@ export class UsersService {
       },
     })
   }
+
+  /**
+   * Get User Github Repos
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static getUserGithubRepos(): CancelablePromise<
+    Array<Record<string, unknown>>
+  > {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/api/v1/user/github/repos",
+    })
+  }
 }
 
 export type TDataTestEmail = {
