@@ -1,4 +1,5 @@
 import {
+  Box,
   Button,
   Container,
   Flex,
@@ -27,6 +28,7 @@ import { ProjectsService } from "../../client"
 import ActionsMenu from "../../components/Common/ActionsMenu"
 import Navbar from "../../components/Common/Navbar"
 import CreateProject from "../../components/Projects/CreateProject"
+import CreateProjectFromGitHub from "../../components/Projects/CreateProjectFromGitHub"
 
 const itemsSearchSchema = z.object({
   page: z.number().catch(1),
@@ -247,7 +249,14 @@ function Projects() {
       <Heading size="lg" textAlign={{ base: "center", md: "left" }} pt={12}>
         Your projects
       </Heading>
-      <Navbar type={"project"} addModalAs={CreateProject} />
+      <Flex>
+        <Box mr={4}>
+          <Navbar type={"project"} addModalAs={CreateProject} />
+        </Box>
+        <Box mr={4}>
+          <Navbar type={"from GitHub"} addModalAs={CreateProjectFromGitHub} />
+        </Box>
+      </Flex>
       <ProjectsTable />
       {/* TODO: This should be public projects */}
       <Heading
