@@ -1,9 +1,11 @@
 """Functionality for working with users."""
 
+from datetime import timedelta
 from typing import Any
 
-from app.models import User, UserCreate, UserUpdate
-from app.security import get_password_hash, verify_password
+from app import utcnow
+from app.models import User, UserCreate, UserGitHubToken, UserUpdate
+from app.security import encrypt_secret, get_password_hash, verify_password
 from sqlmodel import Session, select
 
 
@@ -49,3 +51,34 @@ def authenticate(
     if not verify_password(password, db_user.hashed_password):
         return None
     return db_user
+
+
+def save_github_token(
+    session: Session, user: User, github_resp: dict
+) -> UserGitHubToken:
+    now = utcnow()
+    expires = now + timedelta(seconds=int(github_resp["expires_in"]))
+    rt_expires = now + timedelta(
+        seconds=int(github_resp["refresh_token_expires_in"])
+    )
+    if user.github_token is None:
+        user.github_token = UserGitHubToken(
+            user_id=user.id,
+            access_token=encrypt_secret(github_resp["access_token"]),
+            refresh_token=encrypt_secret(github_resp["refresh_token"]),
+            expires=expires,
+            refresh_token_expires=rt_expires,
+        )
+    else:
+        user.github_token.access_token = encrypt_secret(
+            github_resp["access_token"]
+        )
+        user.github_token.refresh_token = encrypt_secret(
+            github_resp["refresh_token"]
+        )
+        user.github_token.expires = expires
+        user.github_token.refresh_token_expires = rt_expires
+        user.github_token.updated = now
+    session.add(user.github_token)
+    session.commit()
+    return

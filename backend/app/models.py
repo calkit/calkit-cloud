@@ -1,15 +1,12 @@
 """Database/request models."""
 
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime
 
+from app import utcnow
 from pydantic import EmailStr, computed_field
 from slugify import slugify
 from sqlmodel import Field, Relationship, SQLModel
-
-
-def utcnow():
-    return datetime.now(UTC)
 
 
 # Shared properties
@@ -51,11 +48,11 @@ class UpdatePassword(SQLModel):
 
 class UserGitHubToken(SQLModel, table=True):
     user_id: uuid.UUID = Field(foreign_key="user.id", primary_key=True)
-    updated_ts: datetime = Field(default_factory=utcnow)
+    updated: datetime = Field(default_factory=utcnow)
     access_token: str  # These should be encrypted
     refresh_token: str
-    expires_in: int
-    refresh_token_expires_in: int
+    expires: datetime | None
+    refresh_token_expires: datetime | None
 
 
 # Database model, database table inferred from class name

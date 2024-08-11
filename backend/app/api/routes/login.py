@@ -10,17 +10,8 @@ from app import security, users
 from app.api.deps import CurrentUser, SessionDep, get_current_active_superuser
 from app.config import settings
 from app.messaging import generate_reset_password_email, send_email
-from app.models import (
-    Message,
-    NewPassword,
-    Token,
-    UserCreate,
-    UserGitHubToken,
-    UserPublic,
-    utcnow,
-)
+from app.models import Message, NewPassword, Token, UserCreate, UserPublic
 from app.security import (
-    encrypt_secret,
     generate_password_reset_token,
     get_password_hash,
     verify_password_reset_token,
@@ -204,24 +195,7 @@ def login_with_github(code: str, session: SessionDep) -> Token:
         logger.info("User is not active")
         raise HTTPException(401, "User is not active")
     # Save the user's GitHub token for later
-    if user.github_token is None:
-        user.github_token = UserGitHubToken(
-            user_id=user.id,
-            access_token=encrypt_secret(out["access_token"]),
-            refresh_token=encrypt_secret(out["refresh_token"]),
-            expires_in=out["expires_in"],
-            refresh_token_expires_in=out["refresh_token_expires_in"],
-        )
-    else:
-        user.github_token.access_token = encrypt_secret(out["access_token"])
-        user.github_token.refresh_token = encrypt_secret(out["refresh_token"])
-        user.github_token.expires_in = out["expires_in"]
-        user.github_token.refresh_token_expires_in = out[
-            "refresh_token_expires_in"
-        ]
-        user.github_token.updated_ts = utcnow()
-    session.add(user.github_token)
-    session.commit()
+    users.save_github_token(session=session, user=user, github_resp=out)
     # Lastly, generate an access token for this user
     return Token(
         access_token=security.create_access_token(
