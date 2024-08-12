@@ -35,7 +35,7 @@ const CreateProjectFromGitHub = ({ isOpen, onClose }: AddProjectProps) => {
   const queryClient = useQueryClient()
   const showToast = useCustomToast()
   const currentUser = queryClient.getQueryData<UserPublic>(["currentUser"])
-  var githubUsername = currentUser?.github_username
+  let githubUsername = currentUser?.github_username
   if (githubUsername === null) {
     githubUsername = "your-name"
   }
