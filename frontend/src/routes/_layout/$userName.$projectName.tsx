@@ -2,7 +2,7 @@ import { Box, Container, Heading, Spinner, Flex } from "@chakra-ui/react"
 import { useQuery } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 
-import { ProjectsService, type Project } from "../../client"
+import { ProjectsService } from "../../client"
 
 export const Route = createFileRoute("/_layout/$userName/$projectName")({
   component: Project,
