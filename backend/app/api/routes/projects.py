@@ -146,7 +146,6 @@ def get_project_git_files(
     project_id: uuid.UUID,
     session: SessionDep,
     current_user: CurrentUser,
-    path: str | None = None,
 ) -> list[GitTreeItem]:
     project = session.get(Project, project_id)
     if project is None:
