@@ -11,7 +11,7 @@ from app import users, utcnow
 from app.api.deps import CurrentUser, SessionDep
 from app.config import settings
 from app.github import token_resp_text_to_dict
-from app.models import Message, Project, ProjectCreate, ProjectsPublic
+from app.models import Message, Project, ProjectCreate, ProjectsPublic, User
 from app.security import decrypt_secret
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
@@ -71,6 +71,28 @@ def get_project(
     project = session.get(Project, project_id)
     if project is None:
         logger.info(f"Project ID {project_id} not found")
+        raise HTTPException(404)
+    # TODO: Check for collaborator access
+    if project.owner_user_id != current_user.id:
+        raise HTTPException(401)
+    return project
+
+
+@router.get("/projects/{owner_user_name}/{project_name}")
+def get_project_by_name(
+    owner_user_name: str,
+    project_name: str,
+    session: SessionDep,
+    current_user: CurrentUser,
+) -> Project:
+    query = select(Project).where(
+        Project.git_repo_url
+        == f"https://github.com/{owner_user_name}/{project_name}"
+    )
+    logger.info(f"Running query: {query}")
+    project = session.exec(query).first()
+    if project is None:
+        logger.info(f"Project {owner_user_name}/{project_name} not found")
         raise HTTPException(404)
     # TODO: Check for collaborator access
     if project.owner_user_id != current_user.id:
