@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@router.get("/owned")
+@router.get("/projects/owned")
 def get_owned_projects(
     *,
     session: SessionDep,
@@ -41,7 +41,7 @@ def get_owned_projects(
     return ProjectsPublic(data=projects, count=count)
 
 
-@router.post("/")
+@router.post("/projects")
 def create_project(
     *,
     session: SessionDep,
@@ -58,7 +58,7 @@ def create_project(
     return project
 
 
-@router.get("/{project_id}")
+@router.get("/projects/{project_id}")
 def get_project(
     *, project_id: uuid.UUID, current_user: CurrentUser, session: SessionDep
 ) -> Project:
@@ -83,7 +83,7 @@ def _make_data_fpath(project_id: str, idx: str, md5: str) -> str:
     return f"data/project_id={project_id}/{idx}/{md5}"
 
 
-@router.post("/{project_id}/dvc/files/md5/{idx}/{md5}")
+@router.post("/projects/{project_id}/dvc/files/md5/{idx}/{md5}")
 async def post_project_dvc_file(
     *,
     project_id: uuid.UUID,
@@ -104,7 +104,7 @@ async def post_project_dvc_file(
     return Message(message="Success")
 
 
-@router.get("/{project_id}/dvc/files/md5/{idx}/{md5}")
+@router.get("/projects/{project_id}/dvc/files/md5/{idx}/{md5}")
 def get_project_dvc_file(
     *,
     project_id: uuid.UUID,

@@ -6,6 +6,4 @@ api_router.include_router(login.router, tags=["login"])
 api_router.include_router(users.router, tags=["users"])
 api_router.include_router(misc.router, tags=["misc"])
 api_router.include_router(items.router, prefix="/items", tags=["items"])
-api_router.include_router(
-    projects.router, prefix="/projects", tags=["projects"]
-)
+api_router.include_router(projects.router, tags=["projects"])
