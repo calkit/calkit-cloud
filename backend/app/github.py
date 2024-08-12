@@ -23,3 +23,12 @@ def create_app_token() -> str:
     # Create JWT
     encoded_jwt = jwt.encode(payload, signing_key, algorithm="RS256")
     return encoded_jwt
+
+
+def token_resp_text_to_dict(resp_text: str) -> dict:
+    items = resp_text.split("&")
+    out = {}
+    for item in items:
+        key, value = item.split("=")
+        out[key] = value
+    return out

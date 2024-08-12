@@ -9,6 +9,7 @@ import requests
 from app import security, users
 from app.api.deps import CurrentUser, SessionDep, get_current_active_superuser
 from app.config import settings
+from app.github import token_resp_text_to_dict
 from app.messaging import generate_reset_password_email, send_email
 from app.models import Message, NewPassword, Token, UserCreate, UserPublic
 from app.security import (
@@ -138,15 +139,6 @@ def login_with_github(code: str, session: SessionDep) -> Token:
         'token_type': 'bearer'}
     ```
     """
-
-    def resp_text_to_dict(resp_text: str):
-        items = resp_text.split("&")
-        out = {}
-        for item in items:
-            key, value = item.split("=")
-            out[key] = value
-        return out
-
     logger.info(f"Requesting GitHub access token with code: {code}")
     resp = requests.get(
         "https://github.com/login/oauth/access_token",
@@ -160,7 +152,7 @@ def login_with_github(code: str, session: SessionDep) -> Token:
     # user details
     if not resp.status_code == 200:
         raise HTTPException(400, "GitHub authentication failed")
-    out = resp_text_to_dict(resp.text)
+    out = token_resp_text_to_dict(resp.text)
     if "access_token" not in out:
         raise HTTPException(
             400, f"GitHub authentication failed: {out['error']}"

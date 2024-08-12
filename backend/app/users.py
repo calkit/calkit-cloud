@@ -81,4 +81,5 @@ def save_github_token(
         user.github_token.updated = now
     session.add(user.github_token)
     session.commit()
+    session.refresh(user.github_token)
     return

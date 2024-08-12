@@ -3,16 +3,22 @@
 import logging
 import os
 import uuid
+from datetime import UTC, datetime
 
+import requests
 import s3fs
+from app import users, utcnow
 from app.api.deps import CurrentUser, SessionDep
+from app.config import settings
+from app.github import token_resp_text_to_dict
 from app.models import Message, Project, ProjectCreate, ProjectsPublic
-from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile
-from sqlmodel import col, delete, func, select
+from app.security import decrypt_secret
+from fastapi import APIRouter, HTTPException, Request
+from pydantic import BaseModel
+from sqlmodel import func, select
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
 
 router = APIRouter()
 
@@ -124,3 +130,65 @@ def get_project_dvc_file(
     # TODO: Check if this user has read access to this project
     # TODO: Stream the file contents back to the user
     return Message(message="Success")
+
+
+class GitTreeItem(BaseModel):
+    path: str
+    mode: str
+    type: str
+    size: int | None = None
+    sha: str
+    url: str
+
+
+@router.get("/projects/{project_id}/git/files")
+def get_project_git_files(
+    project_id: uuid.UUID,
+    session: SessionDep,
+    current_user: CurrentUser,
+    path: str | None = None,
+) -> list[GitTreeItem]:
+    project = session.get(Project, project_id)
+    if project is None:
+        raise HTTPException(404)
+    if project.owner != current_user:
+        # TODO: Check collaborator access
+        raise HTTPException(401)
+    # Refresh token if necessary
+    # Should also handle tokens that don't exist?
+    if current_user.github_token.expires.replace(tzinfo=UTC) <= utcnow():
+        logger.info("Refreshing GitHub token")
+        resp = requests.post(
+            "https://github.com/login/oauth/access_token",
+            json=dict(
+                client_id=settings.GITHUB_CLIENT_ID,
+                client_secret=settings.GITHUB_CLIENT_SECRET,
+                grant_type="refresh_token",
+                refresh_token=decrypt_secret(
+                    current_user.github_token.refresh_token
+                ),
+            ),
+        )
+        logger.info("Refreshed GitHub token")
+        gh_resp = token_resp_text_to_dict(resp.text)
+        logger.info(f"GitHub token response: {gh_resp}")
+        # TODO: Handle failure, since all are 200 response codes
+        users.save_github_token(
+            session,
+            user=current_user,
+            github_resp=gh_resp,
+        )
+    token = decrypt_secret(current_user.github_token.access_token)
+    # TODO: We need to know the default branch to use the trees route
+    url = (
+        "https://api.github.com/repos/"
+        f"{project.git_repo_url.removeprefix('https://github.com/')}/"
+        "git/trees/main"
+    )
+    logger.info(f"Making request to: {url}")
+    headers = {"Authorization": f"Bearer {token}"}
+    resp = requests.get(url, headers=headers, params=dict(recursive="true"))
+    if not resp.status_code == 200:
+        logger.info(f"GitHub API call failed: {resp.text}")
+        raise HTTPException(400, resp.text)
+    return resp.json()["tree"]
