@@ -2,18 +2,20 @@ import { Box, Container, Heading, Spinner, Flex } from "@chakra-ui/react"
 import { useQuery } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 
-import { ProjectsService } from "../../client"
+import { ProjectsService, type Project } from "../../client"
 
 export const Route = createFileRoute("/_layout/$userName/$projectName")({
   component: Project,
 })
 
 function ProjectView() {
+  const { userName, projectName } = Route.useParams()
   const { isPending, data: project } = useQuery({
-    queryKey: ["projects", "d57bda04-0f73-46d8-a465-3b3663856dc8"],
+    queryKey: ["projects", userName, projectName],
     queryFn: () =>
-      ProjectsService.getProject({
-        projectId: "d57bda04-0f73-46d8-a465-3b3663856dc8",
+      ProjectsService.getProjectByName({
+        ownerUserName: userName,
+        projectName: projectName,
       }),
   })
 

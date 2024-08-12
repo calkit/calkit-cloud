@@ -18,6 +18,7 @@ import type {
   ItemPublic,
   ItemsPublic,
   ItemUpdate,
+  GitTreeItem,
   Project,
   ProjectCreate,
   ProjectsPublic,
@@ -580,6 +581,10 @@ export type TDataCreateProject = {
 export type TDataGetProject = {
   projectId: string
 }
+export type TDataGetProjectByName = {
+  ownerUserName: string
+  projectName: string
+}
 export type TDataPostProjectDvcFile = {
   idx: string
   md5: string
@@ -588,6 +593,9 @@ export type TDataPostProjectDvcFile = {
 export type TDataGetProjectDvcFile = {
   idx: string
   md5: string
+  projectId: string
+}
+export type TDataGetProjectGitFiles = {
   projectId: string
 }
 
@@ -626,7 +634,7 @@ export class ProjectsService {
     const { requestBody } = data
     return __request(OpenAPI, {
       method: "POST",
-      url: "/api/v1/projects/",
+      url: "/api/v1/projects",
       body: requestBody,
       mediaType: "application/json",
       errors: {
@@ -647,6 +655,28 @@ export class ProjectsService {
       url: "/api/v1/projects/{project_id}",
       path: {
         project_id: projectId,
+      },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Get Project By Name
+   * @returns Project Successful Response
+   * @throws ApiError
+   */
+  public static getProjectByName(
+    data: TDataGetProjectByName,
+  ): CancelablePromise<Project> {
+    const { ownerUserName, projectName } = data
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/api/v1/projects/{owner_user_name}/{project_name}",
+      path: {
+        owner_user_name: ownerUserName,
+        project_name: projectName,
       },
       errors: {
         422: `Validation Error`,
@@ -693,6 +723,27 @@ export class ProjectsService {
         project_id: projectId,
         idx,
         md5,
+      },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Get Project Git Files
+   * @returns GitTreeItem Successful Response
+   * @throws ApiError
+   */
+  public static getProjectGitFiles(
+    data: TDataGetProjectGitFiles,
+  ): CancelablePromise<Array<GitTreeItem>> {
+    const { projectId } = data
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/api/v1/projects/{project_id}/git/files",
+      path: {
+        project_id: projectId,
       },
       errors: {
         422: `Validation Error`,

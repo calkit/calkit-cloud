@@ -49,6 +49,42 @@ export const $Body_login_login_access_token = {
   },
 } as const
 
+export const $GitTreeItem = {
+  properties: {
+    path: {
+      type: "string",
+      isRequired: true,
+    },
+    mode: {
+      type: "string",
+      isRequired: true,
+    },
+    type: {
+      type: "string",
+      isRequired: true,
+    },
+    size: {
+      type: "any-of",
+      contains: [
+        {
+          type: "number",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    sha: {
+      type: "string",
+      isRequired: true,
+    },
+    url: {
+      type: "string",
+      isRequired: true,
+    },
+  },
+} as const
+
 export const $HTTPValidationError = {
   properties: {
     detail: {
