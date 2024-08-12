@@ -70,6 +70,7 @@ def get_project(
 ) -> Project:
     project = session.get(Project, project_id)
     if project is None:
+        logger.info(f"Project ID {project_id} not found")
         raise HTTPException(404)
     # TODO: Check for collaborator access
     if project.owner_user_id != current_user.id:
