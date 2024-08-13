@@ -123,10 +123,13 @@ async def post_project_dvc_file(
     )
     logger.info(f"{current_user.email} requesting to POST data")
     # TODO: Check if this user has write access to this project
-    # https://stackoverflow.com/q/73322065/2284865
     fs = _get_minio_fs()
+    # Create bucket if it doesn't exist
+    if not fs.exists("s3://data"):
+        fs.makedir("s3://data")
     fpath = _make_data_fpath(project.id, idx, md5)
     with fs.open(fpath, "wb") as f:
+        # See https://stackoverflow.com/q/73322065/2284865
         async for chunk in req.stream():
             f.write(chunk)
     return Message(message="Success")
