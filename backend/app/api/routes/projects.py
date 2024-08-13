@@ -16,6 +16,7 @@ from app.security import decrypt_secret
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 from sqlmodel import func, select
+import app.projects
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -78,22 +79,16 @@ def get_project(
     return project
 
 
-@router.get("/projects/{owner_user_name}/{project_name}")
+@router.get("/projects/{owner_name}/{project_name}")
 def get_project_by_name(
-    owner_user_name: str,
+    owner_name: str,
     project_name: str,
     session: SessionDep,
     current_user: CurrentUser,
 ) -> Project:
-    query = select(Project).where(
-        Project.git_repo_url
-        == f"https://github.com/{owner_user_name}/{project_name}"
+    project = app.projects.get_project(
+        session=session, owner_name=owner_name, project_name=project_name
     )
-    logger.info(f"Running query: {query}")
-    project = session.exec(query).first()
-    if project is None:
-        logger.info(f"Project {owner_user_name}/{project_name} not found")
-        raise HTTPException(404)
     # TODO: Check for collaborator access
     if project.owner_user_id != current_user.id:
         raise HTTPException(401)
@@ -103,49 +98,57 @@ def get_project_by_name(
 def _get_minio_fs() -> s3fs.S3FileSystem:
     return s3fs.S3FileSystem(
         endpoint_url="http://minio:9000",
-        key=os.getenv("MINIO_KEY"),
-        secret=os.getenv("MINIO_SECRET"),
+        key="root",
+        secret=os.getenv("MINIO_ROOT_PASSWORD"),  # TODO: User lower privs
     )
 
 
 def _make_data_fpath(project_id: str, idx: str, md5: str) -> str:
-    return f"data/project_id={project_id}/{idx}/{md5}"
+    return f"s3://data/project_id={project_id}/{idx}/{md5}"
 
 
-@router.post("/projects/{project_id}/dvc/files/md5/{idx}/{md5}")
+@router.post("/projects/{owner_name}/{project_name}/dvc/files/md5/{idx}/{md5}")
 async def post_project_dvc_file(
     *,
-    project_id: uuid.UUID,
+    owner_name: str,
+    project_name: str,
     idx: str,
     md5: str,
     session: SessionDep,
     current_user: CurrentUser,
     req: Request,
 ) -> Message:
+    project = app.projects.get_project(
+        session=session, owner_name=owner_name, project_name=project_name
+    )
     logger.info(f"{current_user.email} requesting to POST data")
     # TODO: Check if this user has write access to this project
     # https://stackoverflow.com/q/73322065/2284865
     fs = _get_minio_fs()
-    fpath = _make_data_fpath(project_id, idx, md5)
+    fpath = _make_data_fpath(project.id, idx, md5)
     with fs.open(fpath, "wb") as f:
         async for chunk in req.stream():
             f.write(chunk)
     return Message(message="Success")
 
 
-@router.get("/projects/{project_id}/dvc/files/md5/{idx}/{md5}")
+@router.get("/projects/{owner_name}/{project_name}/dvc/files/md5/{idx}/{md5}")
 def get_project_dvc_file(
     *,
-    project_id: uuid.UUID,
+    owner_name: str,
+    project_name: str,
     idx: str,
     md5: str,
     session: SessionDep,
     current_user: CurrentUser,
 ) -> Message:
     logger.info(f"{current_user.email} requesting to GET data")
+    project = app.projects.get_project(
+        session=session, owner_name=owner_name, project_name=project_name
+    )
     # If file doesn't exist, return 404
     fs = _get_minio_fs()
-    fpath = _make_data_fpath(project_id, idx, md5)
+    fpath = _make_data_fpath(project.id, idx, md5)
     logger.info(f"Checking for {fpath}")
     if not fs.exists(fpath):
         logger.info(f"{fpath} does not exist")
