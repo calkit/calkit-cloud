@@ -3,20 +3,21 @@
 import logging
 import os
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC
 
+import app.projects
 import requests
 import s3fs
 from app import users, utcnow
 from app.api.deps import CurrentUser, SessionDep
 from app.config import settings
 from app.github import token_resp_text_to_dict
-from app.models import Message, Project, ProjectCreate, ProjectsPublic, User
+from app.models import Message, Project, ProjectCreate, ProjectsPublic
 from app.security import decrypt_secret
 from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlmodel import func, select
-import app.projects
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -95,9 +96,9 @@ def get_project_by_name(
     return project
 
 
-def _get_minio_fs() -> s3fs.S3FileSystem:
+def _get_minio_fs(host="minio") -> s3fs.S3FileSystem:
     return s3fs.S3FileSystem(
-        endpoint_url="http://minio:9000",
+        endpoint_url=f"http://{host}:9000",
         key="root",
         secret=os.getenv("MINIO_ROOT_PASSWORD"),  # TODO: User lower privs
     )
@@ -144,7 +145,7 @@ def get_project_dvc_file(
     md5: str,
     session: SessionDep,
     current_user: CurrentUser,
-) -> Message:
+) -> StreamingResponse:
     logger.info(f"{current_user.email} requesting to GET data")
     project = app.projects.get_project(
         session=session, owner_name=owner_name, project_name=project_name
@@ -156,9 +157,14 @@ def get_project_dvc_file(
     if not fs.exists(fpath):
         logger.info(f"{fpath} does not exist")
         raise HTTPException(404)
+
     # TODO: Check if this user has read access to this project
-    # TODO: Stream the file contents back to the user
-    return Message(message="Success")
+    # Stream the file contents back to the user
+    def iterfile():
+        with fs.open(fpath, "rb") as f:
+            yield from f
+
+    return StreamingResponse(iterfile())
 
 
 class GitTreeItem(BaseModel):
