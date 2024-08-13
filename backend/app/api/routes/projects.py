@@ -1,5 +1,6 @@
 """Routes for projects."""
 
+import functools
 import logging
 import os
 import uuid
@@ -162,7 +163,9 @@ def get_project_dvc_file(
     # Stream the file contents back to the user
     def iterfile():
         with fs.open(fpath, "rb") as f:
-            yield from f
+            chunker = functools.partial(f.read, 4_000_000)
+            for chunk in iter(chunker, b""):
+                yield chunk
 
     return StreamingResponse(iterfile())
 
