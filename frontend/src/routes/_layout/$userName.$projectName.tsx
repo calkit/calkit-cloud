@@ -1,4 +1,14 @@
-import { Box, Container, Heading, Spinner, Flex } from "@chakra-ui/react"
+import {
+  Box,
+  Container,
+  Heading,
+  Spinner,
+  Flex,
+  Text,
+  List,
+  ListItem,
+  OrderedList,
+} from "@chakra-ui/react"
 import { useQuery } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 
@@ -31,6 +41,15 @@ function ProjectView() {
             {project?.name}
           </Heading>
           <Box pt={5}>{project?.git_repo_url}</Box>
+          <Text>Project type: Research</Text>
+          <Text>Project type: Sup</Text>
+          <Heading size="md" pt={4} pb={2}>
+            Questions
+          </Heading>
+          <OrderedList>
+            <ListItem>Are there new terms we can add to the RANS equations, derived from existing quantities, which close the equations?</ListItem>
+            <ListItem>If so, can we discover the coefficients for those new quantities from DNS data?</ListItem>
+          </OrderedList>
         </Box>
       )}
     </>
