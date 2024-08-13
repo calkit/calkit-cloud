@@ -215,7 +215,9 @@ def delete_user(
 
 
 @router.get("/user/github/repos")
-def get_user_github_repos(current_user: CurrentUser) -> list[dict]:
+def get_user_github_repos(
+    current_user: CurrentUser, per_page: int = 30, page: int = 1
+) -> list[dict]:
     # See https://docs.github.com/en/rest/repos/repos?apiVersion=2022-11-28#list-repositories-for-the-authenticated-user
     gh_token = current_user.github_token
     if gh_token is None:
@@ -224,7 +226,9 @@ def get_user_github_repos(current_user: CurrentUser) -> list[dict]:
     # TODO: Refresh token if it's expired
     url = "https://api.github.com/user/repos"
     headers = {"Authorization": f"Bearer {access_token}"}
-    resp = requests.get(url, headers=headers)
+    resp = requests.get(
+        url, headers=headers, params=dict(page=page, per_page=per_page)
+    )
     if not resp.status_code == 200:
         raise HTTPException(400, f"GitHub request failed: {resp.text}")
     return resp.json()
