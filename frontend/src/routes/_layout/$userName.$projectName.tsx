@@ -5,7 +5,6 @@ import {
   Spinner,
   Flex,
   Text,
-  List,
   ListItem,
   OrderedList,
 } from "@chakra-ui/react"
