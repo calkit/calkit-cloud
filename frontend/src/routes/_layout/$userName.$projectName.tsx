@@ -56,6 +56,9 @@ function ProjectView() {
               from DNS data?
             </ListItem>
           </OrderedList>
+          <Heading size="md" pt={4} pb={2}>
+            Readme
+          </Heading>
         </Box>
       )}
     </>

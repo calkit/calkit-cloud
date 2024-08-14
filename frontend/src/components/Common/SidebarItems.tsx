@@ -6,9 +6,10 @@ import { FiBriefcase, FiHome, FiSettings, FiUsers } from "react-icons/fi"
 import type { UserPublic } from "../../client"
 
 const items = [
-  { icon: FiHome, title: "Dashboard", path: "/" },
-  { icon: FiBriefcase, title: "Projects", path: "/projects" },
-  { icon: FiSettings, title: "User Settings", path: "/settings" },
+  { icon: FiHome, title: "Project home", path: "/" },
+  { icon: FiBriefcase, title: "Questions", path: "/projects" },
+  { icon: FiSettings, title: "Software", path: "/settings" },
+  { icon: FiUsers, title: "Collaborators", path: "/settings" },
 ]
 
 interface SidebarItemsProps {
@@ -21,9 +22,7 @@ const SidebarItems = ({ onClose }: SidebarItemsProps) => {
   const bgActive = useColorModeValue("#E2E8F0", "#4A5568")
   const currentUser = queryClient.getQueryData<UserPublic>(["currentUser"])
 
-  const finalItems = currentUser?.is_superuser
-    ? [...items, { icon: FiUsers, title: "Admin", path: "/admin" }]
-    : items
+  const finalItems = items
 
   const listItems = finalItems.map(({ icon, title, path }) => (
     <Flex
