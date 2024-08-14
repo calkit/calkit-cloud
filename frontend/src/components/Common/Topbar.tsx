@@ -74,7 +74,7 @@ export default function Topbar() {
             onClick={isOpen ? onClose : onOpen}
           />
           <HStack spacing={8} alignItems={"center"}>
-            <Box>
+            <Box px={8}>
               <Link as={RouterLink} to="/">
                 <Image
                   width={20}
