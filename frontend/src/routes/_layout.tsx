@@ -33,11 +33,7 @@ function Layout() {
         h={8}
       >
         <Link as={RouterLink} to="/">
-          <Image
-            width={20}
-            src="/assets/images/calkit.svg"
-            alt="Calkit logo"
-          ></Image>
+          <Image width={20} src="/assets/images/calkit.svg" alt="Calkit logo" />
         </Link>
       </Box>
       {/* TODO: Add other menu items, e.g.:

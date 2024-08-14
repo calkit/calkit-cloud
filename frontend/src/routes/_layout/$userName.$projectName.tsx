@@ -47,8 +47,14 @@ function ProjectView() {
             Questions
           </Heading>
           <OrderedList>
-            <ListItem>Are there new terms we can add to the RANS equations, derived from existing quantities, which close the equations?</ListItem>
-            <ListItem>If so, can we discover the coefficients for those new quantities from DNS data?</ListItem>
+            <ListItem>
+              Are there new terms we can add to the RANS equations, derived from
+              existing quantities, which close the equations?
+            </ListItem>
+            <ListItem>
+              If so, can we discover the coefficients for those new quantities
+              from DNS data?
+            </ListItem>
           </OrderedList>
         </Box>
       )}
