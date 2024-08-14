@@ -12,20 +12,15 @@ import {
   useColorModeValue,
   useDisclosure,
 } from "@chakra-ui/react"
-import { useQueryClient } from "@tanstack/react-query"
 import { FiLogOut, FiMenu } from "react-icons/fi"
 
 import Logo from "/assets/images/kdot.svg"
-import type { UserPublic } from "../../client"
 import useAuth from "../../hooks/useAuth"
 import SidebarItems from "./SidebarItems"
 
 const Sidebar = () => {
-  const queryClient = useQueryClient()
   const bgColor = useColorModeValue("ui.light", "ui.dark")
-  const textColor = useColorModeValue("ui.dark", "ui.light")
   const secBgColor = useColorModeValue("ui.secondary", "ui.darkSlate")
-  const currentUser = queryClient.getQueryData<UserPublic>(["currentUser"])
   const { isOpen, onOpen, onClose } = useDisclosure()
   const { logout } = useAuth()
 
@@ -66,11 +61,6 @@ const Sidebar = () => {
                   <Text ml={2}>Log out</Text>
                 </Flex>
               </Box>
-              {currentUser?.email && (
-                <Text color={textColor} noOfLines={2} fontSize="sm" p={2}>
-                  Logged in as: {currentUser.email}
-                </Text>
-              )}
             </Flex>
           </DrawerBody>
         </DrawerContent>
@@ -79,34 +69,16 @@ const Sidebar = () => {
       {/* Desktop */}
       <Box
         bg={bgColor}
-        p={3}
         h="100vh"
         position="sticky"
+        left="0"
         top="0"
         display={{ base: "none", md: "flex" }}
       >
-        <Flex
-          flexDir="column"
-          justify="space-between"
-          bg={secBgColor}
-          p={4}
-          borderRadius={12}
-        >
-          <Box>
-            <Image src={Logo} alt="Logo" w="100px" maxW="2xs" p={1} />
+        <Flex flexDir="column" justify="space-between" bg={secBgColor} p={4}>
+          <Box minW="150px" pt={4}>
             <SidebarItems />
           </Box>
-          {currentUser?.email && (
-            <Text
-              color={textColor}
-              noOfLines={2}
-              fontSize="sm"
-              p={2}
-              maxW="180px"
-            >
-              Logged in as: {currentUser.email}
-            </Text>
-          )}
         </Flex>
       </Box>
     </>

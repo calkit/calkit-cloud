@@ -29,6 +29,7 @@ import ActionsMenu from "../../components/Common/ActionsMenu"
 import Navbar from "../../components/Common/Navbar"
 import CreateProject from "../../components/Projects/CreateProject"
 import CreateProjectFromGitHub from "../../components/Projects/CreateProjectFromGitHub"
+import { pageWidthNoSidebar } from "../../utils"
 
 const itemsSearchSchema = z.object({
   page: z.number().catch(1),
@@ -245,7 +246,7 @@ function PublicProjectsTable() {
 
 function Projects() {
   return (
-    <Container maxW="full">
+    <Container maxW={pageWidthNoSidebar}>
       <Heading size="lg" textAlign={{ base: "center", md: "left" }} pt={12}>
         Your projects
       </Heading>

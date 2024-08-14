@@ -1,12 +1,11 @@
-import { Flex, Spinner, Box, Link, Image, Container } from "@chakra-ui/react"
+import { Flex, Spinner, Box, Container } from "@chakra-ui/react"
 import {
   Outlet,
   createFileRoute,
   redirect,
-  Link as RouterLink,
 } from "@tanstack/react-router"
-import UserMenu from "../components/Common/UserMenu"
 import useAuth, { isLoggedIn } from "../hooks/useAuth"
+import Topbar from "../components/Common/Topbar"
 
 export const Route = createFileRoute("/_layout")({
   component: Layout,
@@ -23,31 +22,17 @@ function Layout() {
   const { isLoading } = useAuth()
 
   return (
-    <Flex maxW="large" h="auto" position="relative">
-      <Box
-        display="block"
-        position="fixed"
-        top={4}
-        left={4}
-        alignItems="baseline"
-        h={8}
-      >
-        <Link as={RouterLink} to="/">
-          <Image width={20} src="/assets/images/calkit.svg" alt="Calkit logo" />
-        </Link>
-      </Box>
-      {/* TODO: Add other menu items, e.g.:
-      https://chakra-templates.vercel.app/navigation/navbar */}
+    <Box>
+      <Topbar />
       {isLoading ? (
-        <Flex justify="center" align="center" height="100vh" width="full">
+        <Flex justify="center" align="center" height="90%" width="full">
           <Spinner size="xl" color="ui.main" />
         </Flex>
       ) : (
-        <Container maxW="85%" pt={15} mt={5}>
+        <Container px={0} maxW="full">
           <Outlet />
         </Container>
       )}
-      <UserMenu />
-    </Flex>
+    </Box>
   )
 }

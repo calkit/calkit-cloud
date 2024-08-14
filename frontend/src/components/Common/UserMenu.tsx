@@ -28,8 +28,7 @@ const UserMenu = () => {
       {/* Desktop */}
       <Box
         display={{ base: "none", md: "block" }}
-        position="fixed"
-        top={4}
+        alignContent="center"
         right={4}
       >
         <Menu>

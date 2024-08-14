@@ -51,3 +51,5 @@ export const handleError = (err: ApiError, showToast: any) => {
   }
   showToast("Error", errorMessage, "error")
 }
+
+export const pageWidthNoSidebar = "85%"

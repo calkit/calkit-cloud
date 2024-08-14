@@ -15,6 +15,7 @@ import Appearance from "../../components/UserSettings/Appearance"
 import ChangePassword from "../../components/UserSettings/ChangePassword"
 import DeleteAccount from "../../components/UserSettings/DeleteAccount"
 import UserInformation from "../../components/UserSettings/UserInformation"
+import { pageWidthNoSidebar } from "../../utils"
 
 const tabsConfig = [
   { title: "My profile", component: UserInformation },
@@ -35,7 +36,7 @@ function UserSettings() {
     : tabsConfig
 
   return (
-    <Container maxW="full">
+    <Container maxW={pageWidthNoSidebar}>
       <Heading size="lg" textAlign={{ base: "center", md: "left" }} py={12}>
         Settings
       </Heading>

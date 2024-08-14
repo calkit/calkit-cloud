@@ -23,6 +23,7 @@ import { type UserPublic, UsersService } from "../../client"
 import AddUser from "../../components/Admin/AddUser"
 import ActionsMenu from "../../components/Common/ActionsMenu"
 import Navbar from "../../components/Common/Navbar"
+import { pageWidthNoSidebar } from "../../utils"
 
 const usersSearchSchema = z.object({
   page: z.number().catch(1),
@@ -158,11 +159,10 @@ function UsersTable() {
 
 function Admin() {
   return (
-    <Container maxW="full">
+    <Container maxW={pageWidthNoSidebar}>
       <Heading size="lg" textAlign={{ base: "center", md: "left" }} pt={12}>
         User management
       </Heading>
-
       <Navbar type={"User"} addModalAs={AddUser} />
       <UsersTable />
     </Container>

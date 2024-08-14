@@ -12,6 +12,7 @@ import { useQuery } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 
 import { ProjectsService } from "../../client"
+import Sidebar from "../../components/Common/Sidebar"
 
 export const Route = createFileRoute("/_layout/$userName/$projectName")({
   component: Project,
@@ -36,7 +37,7 @@ function ProjectView() {
         </Flex>
       ) : (
         <Box>
-          <Heading size="lg" textAlign={{ base: "center", md: "left" }} pt={12}>
+          <Heading size="lg" textAlign={{ base: "center", md: "left" }} pt={8}>
             {project?.name}
           </Heading>
           <Box pt={5}>{project?.git_repo_url}</Box>
@@ -63,8 +64,11 @@ function ProjectView() {
 
 function Project() {
   return (
-    <Container maxW="full">
-      <ProjectView />
-    </Container>
+    <Flex>
+      <Sidebar />
+      <Container maxW="full" mx={6}>
+        <ProjectView />
+      </Container>
+    </Flex>
   )
 }
