@@ -18,11 +18,13 @@ interface Props {
 }
 
 const Links = ["Projects", "Data", "Software", "Figures"]
-const LinkRoutes = {
-  Projects: "/",
-  Data: "/data",
-  Software: "/software",
-  Figures: "/figures",
+
+const getPath = (link: React.ReactNode) => {
+  const linkString = link?.toString()
+  if (linkString === "Projects") {
+    return "/"
+  }
+  return `/${linkString?.toLowerCase()}`
 }
 
 const NavLink = (props: Props) => {
@@ -38,7 +40,7 @@ const NavLink = (props: Props) => {
         textDecoration: "none",
         bg: useColorModeValue("gray.200", "gray.700"),
       }}
-      to={LinkRoutes[children?.toString()]}
+      to={getPath(children)}
     >
       {children}
     </Box>
