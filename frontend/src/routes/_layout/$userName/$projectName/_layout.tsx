@@ -14,7 +14,6 @@ export const Route = createFileRoute("/_layout/$userName/$projectName/_layout")(
 
 function ProjectLayout() {
   const { userName, projectName } = Route.useParams()
-
   const { isPending, error } = useQuery({
     queryKey: ["projects", userName, projectName],
     queryFn: () =>
