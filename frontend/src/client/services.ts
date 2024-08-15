@@ -24,20 +24,113 @@ import type {
   ProjectsPublic,
 } from "./models"
 
-export type TDataLoginAccessToken = {
-  formData: Body_login_login_access_token
+export type LoginData = {
+  LoginAccessToken: {
+    formData: Body_login_login_access_token
+  }
+  RecoverPassword: {
+    email: string
+  }
+  ResetPassword: {
+    requestBody: NewPassword
+  }
+  RecoverPasswordHtmlContent: {
+    email: string
+  }
+  LoginWithGithub: {
+    code: string
+  }
 }
-export type TDataRecoverPassword = {
-  email: string
+
+export type UsersData = {
+  ReadUsers: {
+    limit?: number
+    skip?: number
+  }
+  CreateUser: {
+    requestBody: UserCreate
+  }
+  UpdateCurrentUser: {
+    requestBody: UserUpdateMe
+  }
+  UpdateCurrentUserPassword: {
+    requestBody: UpdatePassword
+  }
+  RegisterUser: {
+    requestBody: UserRegister
+  }
+  ReadUserById: {
+    userId: string
+  }
+  UpdateUser: {
+    requestBody: UserUpdate
+    userId: string
+  }
+  DeleteUser: {
+    userId: string
+  }
+  GetUserGithubRepos: {
+    page?: number
+    perPage?: number
+  }
 }
-export type TDataResetPassword = {
-  requestBody: NewPassword
+
+export type MiscData = {
+  TestEmail: {
+    emailTo: string
+  }
 }
-export type TDataRecoverPasswordHtmlContent = {
-  email: string
+
+export type ItemsData = {
+  ReadItems: {
+    limit?: number
+    skip?: number
+  }
+  CreateItem: {
+    requestBody: ItemCreate
+  }
+  ReadItem: {
+    id: string
+  }
+  UpdateItem: {
+    id: string
+    requestBody: ItemUpdate
+  }
+  DeleteItem: {
+    id: string
+  }
 }
-export type TDataLoginWithGithub = {
-  code: string
+
+export type ProjectsData = {
+  GetOwnedProjects: {
+    limit?: number
+    offset?: number
+  }
+  CreateProject: {
+    requestBody: ProjectCreate
+  }
+  GetProject: {
+    projectId: string
+  }
+  GetProjectByName: {
+    ownerName: string
+    projectName: string
+  }
+  PostProjectDvcFile: {
+    idx: string
+    md5: string
+    ownerName: string
+    projectName: string
+  }
+  GetProjectDvcFile: {
+    idx: string
+    md5: string
+    ownerName: string
+    projectName: string
+  }
+  GetProjectGitFiles: {
+    projectId: string
+  }
 }
 
 export class LoginService {
@@ -48,7 +141,7 @@ export class LoginService {
    * @throws ApiError
    */
   public static loginAccessToken(
-    data: TDataLoginAccessToken,
+    data: LoginData["LoginAccessToken"],
   ): CancelablePromise<Token> {
     const { formData } = data
     return __request(OpenAPI, {
@@ -81,7 +174,7 @@ export class LoginService {
    * @throws ApiError
    */
   public static recoverPassword(
-    data: TDataRecoverPassword,
+    data: LoginData["RecoverPassword"],
   ): CancelablePromise<Message> {
     const { email } = data
     return __request(OpenAPI, {
@@ -103,7 +196,7 @@ export class LoginService {
    * @throws ApiError
    */
   public static resetPassword(
-    data: TDataResetPassword,
+    data: LoginData["ResetPassword"],
   ): CancelablePromise<Message> {
     const { requestBody } = data
     return __request(OpenAPI, {
@@ -124,7 +217,7 @@ export class LoginService {
    * @throws ApiError
    */
   public static recoverPasswordHtmlContent(
-    data: TDataRecoverPasswordHtmlContent,
+    data: LoginData["RecoverPasswordHtmlContent"],
   ): CancelablePromise<string> {
     const { email } = data
     return __request(OpenAPI, {
@@ -159,7 +252,7 @@ export class LoginService {
    * @throws ApiError
    */
   public static loginWithGithub(
-    data: TDataLoginWithGithub,
+    data: LoginData["LoginWithGithub"],
   ): CancelablePromise<Token> {
     const { code } = data
     return __request(OpenAPI, {
@@ -175,33 +268,6 @@ export class LoginService {
   }
 }
 
-export type TDataReadUsers = {
-  limit?: number
-  skip?: number
-}
-export type TDataCreateUser = {
-  requestBody: UserCreate
-}
-export type TDataUpdateCurrentUser = {
-  requestBody: UserUpdateMe
-}
-export type TDataUpdateCurrentUserPassword = {
-  requestBody: UpdatePassword
-}
-export type TDataRegisterUser = {
-  requestBody: UserRegister
-}
-export type TDataReadUserById = {
-  userId: string
-}
-export type TDataUpdateUser = {
-  requestBody: UserUpdate
-  userId: string
-}
-export type TDataDeleteUser = {
-  userId: string
-}
-
 export class UsersService {
   /**
    * Read Users
@@ -210,9 +276,9 @@ export class UsersService {
    * @throws ApiError
    */
   public static readUsers(
-    data: TDataReadUsers = {},
+    data: UsersData["ReadUsers"] = {},
   ): CancelablePromise<UsersPublic> {
-    const { limit = 100, skip = 0 } = data
+    const { skip = 0, limit = 100 } = data
     return __request(OpenAPI, {
       method: "GET",
       url: "/api/v1/users",
@@ -233,7 +299,7 @@ export class UsersService {
    * @throws ApiError
    */
   public static createUser(
-    data: TDataCreateUser,
+    data: UsersData["CreateUser"],
   ): CancelablePromise<UserPublic> {
     const { requestBody } = data
     return __request(OpenAPI, {
@@ -280,7 +346,7 @@ export class UsersService {
    * @throws ApiError
    */
   public static updateCurrentUser(
-    data: TDataUpdateCurrentUser,
+    data: UsersData["UpdateCurrentUser"],
   ): CancelablePromise<UserPublic> {
     const { requestBody } = data
     return __request(OpenAPI, {
@@ -301,7 +367,7 @@ export class UsersService {
    * @throws ApiError
    */
   public static updateCurrentUserPassword(
-    data: TDataUpdateCurrentUserPassword,
+    data: UsersData["UpdateCurrentUserPassword"],
   ): CancelablePromise<Message> {
     const { requestBody } = data
     return __request(OpenAPI, {
@@ -322,7 +388,7 @@ export class UsersService {
    * @throws ApiError
    */
   public static registerUser(
-    data: TDataRegisterUser,
+    data: UsersData["RegisterUser"],
   ): CancelablePromise<UserPublic> {
     const { requestBody } = data
     return __request(OpenAPI, {
@@ -343,7 +409,7 @@ export class UsersService {
    * @throws ApiError
    */
   public static readUserById(
-    data: TDataReadUserById,
+    data: UsersData["ReadUserById"],
   ): CancelablePromise<UserPublic> {
     const { userId } = data
     return __request(OpenAPI, {
@@ -365,9 +431,9 @@ export class UsersService {
    * @throws ApiError
    */
   public static updateUser(
-    data: TDataUpdateUser,
+    data: UsersData["UpdateUser"],
   ): CancelablePromise<UserPublic> {
-    const { requestBody, userId } = data
+    const { userId, requestBody } = data
     return __request(OpenAPI, {
       method: "PATCH",
       url: "/api/v1/users/{user_id}",
@@ -388,7 +454,9 @@ export class UsersService {
    * @returns Message Successful Response
    * @throws ApiError
    */
-  public static deleteUser(data: TDataDeleteUser): CancelablePromise<Message> {
+  public static deleteUser(
+    data: UsersData["DeleteUser"],
+  ): CancelablePromise<Message> {
     const { userId } = data
     return __request(OpenAPI, {
       method: "DELETE",
@@ -407,18 +475,22 @@ export class UsersService {
    * @returns unknown Successful Response
    * @throws ApiError
    */
-  public static getUserGithubRepos(): CancelablePromise<
-    Array<Record<string, unknown>>
-  > {
+  public static getUserGithubRepos(
+    data: UsersData["GetUserGithubRepos"] = {},
+  ): CancelablePromise<Array<Record<string, unknown>>> {
+    const { perPage = 30, page = 1 } = data
     return __request(OpenAPI, {
       method: "GET",
       url: "/api/v1/user/github/repos",
+      query: {
+        per_page: perPage,
+        page,
+      },
+      errors: {
+        422: `Validation Error`,
+      },
     })
   }
-}
-
-export type TDataTestEmail = {
-  emailTo: string
 }
 
 export class MiscService {
@@ -428,7 +500,9 @@ export class MiscService {
    * @returns Message Successful Response
    * @throws ApiError
    */
-  public static testEmail(data: TDataTestEmail): CancelablePromise<Message> {
+  public static testEmail(
+    data: MiscData["TestEmail"],
+  ): CancelablePromise<Message> {
     const { emailTo } = data
     return __request(OpenAPI, {
       method: "POST",
@@ -443,24 +517,6 @@ export class MiscService {
   }
 }
 
-export type TDataReadItems = {
-  limit?: number
-  skip?: number
-}
-export type TDataCreateItem = {
-  requestBody: ItemCreate
-}
-export type TDataReadItem = {
-  id: string
-}
-export type TDataUpdateItem = {
-  id: string
-  requestBody: ItemUpdate
-}
-export type TDataDeleteItem = {
-  id: string
-}
-
 export class ItemsService {
   /**
    * Read Items
@@ -469,9 +525,9 @@ export class ItemsService {
    * @throws ApiError
    */
   public static readItems(
-    data: TDataReadItems = {},
+    data: ItemsData["ReadItems"] = {},
   ): CancelablePromise<ItemsPublic> {
-    const { limit = 100, skip = 0 } = data
+    const { skip = 0, limit = 100 } = data
     return __request(OpenAPI, {
       method: "GET",
       url: "/api/v1/items/",
@@ -492,7 +548,7 @@ export class ItemsService {
    * @throws ApiError
    */
   public static createItem(
-    data: TDataCreateItem,
+    data: ItemsData["CreateItem"],
   ): CancelablePromise<ItemPublic> {
     const { requestBody } = data
     return __request(OpenAPI, {
@@ -512,7 +568,9 @@ export class ItemsService {
    * @returns ItemPublic Successful Response
    * @throws ApiError
    */
-  public static readItem(data: TDataReadItem): CancelablePromise<ItemPublic> {
+  public static readItem(
+    data: ItemsData["ReadItem"],
+  ): CancelablePromise<ItemPublic> {
     const { id } = data
     return __request(OpenAPI, {
       method: "GET",
@@ -533,7 +591,7 @@ export class ItemsService {
    * @throws ApiError
    */
   public static updateItem(
-    data: TDataUpdateItem,
+    data: ItemsData["UpdateItem"],
   ): CancelablePromise<ItemPublic> {
     const { id, requestBody } = data
     return __request(OpenAPI, {
@@ -556,7 +614,9 @@ export class ItemsService {
    * @returns Message Successful Response
    * @throws ApiError
    */
-  public static deleteItem(data: TDataDeleteItem): CancelablePromise<Message> {
+  public static deleteItem(
+    data: ItemsData["DeleteItem"],
+  ): CancelablePromise<Message> {
     const { id } = data
     return __request(OpenAPI, {
       method: "DELETE",
@@ -571,34 +631,6 @@ export class ItemsService {
   }
 }
 
-export type TDataGetOwnedProjects = {
-  limit?: number
-  offset?: number
-}
-export type TDataCreateProject = {
-  requestBody: ProjectCreate
-}
-export type TDataGetProject = {
-  projectId: string
-}
-export type TDataGetProjectByName = {
-  ownerUserName: string
-  projectName: string
-}
-export type TDataPostProjectDvcFile = {
-  idx: string
-  md5: string
-  projectId: string
-}
-export type TDataGetProjectDvcFile = {
-  idx: string
-  md5: string
-  projectId: string
-}
-export type TDataGetProjectGitFiles = {
-  projectId: string
-}
-
 export class ProjectsService {
   /**
    * Get Owned Projects
@@ -606,7 +638,7 @@ export class ProjectsService {
    * @throws ApiError
    */
   public static getOwnedProjects(
-    data: TDataGetOwnedProjects = {},
+    data: ProjectsData["GetOwnedProjects"] = {},
   ): CancelablePromise<ProjectsPublic> {
     const { limit = 100, offset = 0 } = data
     return __request(OpenAPI, {
@@ -629,7 +661,7 @@ export class ProjectsService {
    * @throws ApiError
    */
   public static createProject(
-    data: TDataCreateProject,
+    data: ProjectsData["CreateProject"],
   ): CancelablePromise<Project> {
     const { requestBody } = data
     return __request(OpenAPI, {
@@ -648,7 +680,9 @@ export class ProjectsService {
    * @returns Project Successful Response
    * @throws ApiError
    */
-  public static getProject(data: TDataGetProject): CancelablePromise<Project> {
+  public static getProject(
+    data: ProjectsData["GetProject"],
+  ): CancelablePromise<Project> {
     const { projectId } = data
     return __request(OpenAPI, {
       method: "GET",
@@ -668,14 +702,14 @@ export class ProjectsService {
    * @throws ApiError
    */
   public static getProjectByName(
-    data: TDataGetProjectByName,
+    data: ProjectsData["GetProjectByName"],
   ): CancelablePromise<Project> {
-    const { ownerUserName, projectName } = data
+    const { ownerName, projectName } = data
     return __request(OpenAPI, {
       method: "GET",
-      url: "/api/v1/projects/{owner_user_name}/{project_name}",
+      url: "/api/v1/projects/{owner_name}/{project_name}",
       path: {
-        owner_user_name: ownerUserName,
+        owner_name: ownerName,
         project_name: projectName,
       },
       errors: {
@@ -690,14 +724,15 @@ export class ProjectsService {
    * @throws ApiError
    */
   public static postProjectDvcFile(
-    data: TDataPostProjectDvcFile,
+    data: ProjectsData["PostProjectDvcFile"],
   ): CancelablePromise<Message> {
-    const { idx, md5, projectId } = data
+    const { ownerName, projectName, idx, md5 } = data
     return __request(OpenAPI, {
       method: "POST",
-      url: "/api/v1/projects/{project_id}/dvc/files/md5/{idx}/{md5}",
+      url: "/api/v1/projects/{owner_name}/{project_name}/dvc/files/md5/{idx}/{md5}",
       path: {
-        project_id: projectId,
+        owner_name: ownerName,
+        project_name: projectName,
         idx,
         md5,
       },
@@ -709,18 +744,19 @@ export class ProjectsService {
 
   /**
    * Get Project Dvc File
-   * @returns Message Successful Response
+   * @returns unknown Successful Response
    * @throws ApiError
    */
   public static getProjectDvcFile(
-    data: TDataGetProjectDvcFile,
-  ): CancelablePromise<Message> {
-    const { idx, md5, projectId } = data
+    data: ProjectsData["GetProjectDvcFile"],
+  ): CancelablePromise<unknown> {
+    const { ownerName, projectName, idx, md5 } = data
     return __request(OpenAPI, {
       method: "GET",
-      url: "/api/v1/projects/{project_id}/dvc/files/md5/{idx}/{md5}",
+      url: "/api/v1/projects/{owner_name}/{project_name}/dvc/files/md5/{idx}/{md5}",
       path: {
-        project_id: projectId,
+        owner_name: ownerName,
+        project_name: projectName,
         idx,
         md5,
       },
@@ -736,7 +772,7 @@ export class ProjectsService {
    * @throws ApiError
    */
   public static getProjectGitFiles(
-    data: TDataGetProjectGitFiles,
+    data: ProjectsData["GetProjectGitFiles"],
   ): CancelablePromise<Array<GitTreeItem>> {
     const { projectId } = data
     return __request(OpenAPI, {

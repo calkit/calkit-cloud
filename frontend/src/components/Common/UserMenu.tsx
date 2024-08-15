@@ -42,11 +42,19 @@ const UserMenu = () => {
           />
           <MenuList>
             {currentUser?.is_superuser && (
-              <MenuItem icon={<FiUsers fontSize="18px" />} as={Link} to="admin">
+              <MenuItem
+                icon={<FiUsers fontSize="18px" />}
+                as={Link}
+                to="/admin"
+              >
                 Admin
               </MenuItem>
             )}
-            <MenuItem icon={<FiUser fontSize="18px" />} as={Link} to="settings">
+            <MenuItem
+              icon={<FiUser fontSize="18px" />}
+              as={Link}
+              to="/settings"
+            >
               Settings
             </MenuItem>
             <MenuItem
