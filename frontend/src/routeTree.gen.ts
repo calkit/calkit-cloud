@@ -20,7 +20,8 @@ import { Route as LayoutIndexImport } from './routes/_layout/index'
 import { Route as LayoutSettingsImport } from './routes/_layout/settings'
 import { Route as LayoutBrowseImport } from './routes/_layout/browse'
 import { Route as LayoutAdminImport } from './routes/_layout/admin'
-import { Route as LayoutUserNameProjectNameImport } from './routes/_layout/$userName.$projectName'
+import { Route as LayoutUserNameProjectNameIndexImport } from './routes/_layout/$userName/$projectName/index'
+import { Route as LayoutUserNameProjectNameQuestionsImport } from './routes/_layout/$userName/$projectName/questions'
 
 // Create/Update Routes
 
@@ -69,10 +70,17 @@ const LayoutAdminRoute = LayoutAdminImport.update({
   getParentRoute: () => LayoutRoute,
 } as any)
 
-const LayoutUserNameProjectNameRoute = LayoutUserNameProjectNameImport.update({
-  path: '/$userName/$projectName',
-  getParentRoute: () => LayoutRoute,
-} as any)
+const LayoutUserNameProjectNameIndexRoute =
+  LayoutUserNameProjectNameIndexImport.update({
+    path: '/$userName/$projectName/',
+    getParentRoute: () => LayoutRoute,
+  } as any)
+
+const LayoutUserNameProjectNameQuestionsRoute =
+  LayoutUserNameProjectNameQuestionsImport.update({
+    path: '/$userName/$projectName/questions',
+    getParentRoute: () => LayoutRoute,
+  } as any)
 
 // Populate the FileRoutesByPath interface
 
@@ -114,8 +122,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutIndexImport
       parentRoute: typeof LayoutImport
     }
-    '/_layout/$userName/$projectName': {
-      preLoaderRoute: typeof LayoutUserNameProjectNameImport
+    '/_layout/$userName/$projectName/questions': {
+      preLoaderRoute: typeof LayoutUserNameProjectNameQuestionsImport
+      parentRoute: typeof LayoutImport
+    }
+    '/_layout/$userName/$projectName/': {
+      preLoaderRoute: typeof LayoutUserNameProjectNameIndexImport
       parentRoute: typeof LayoutImport
     }
   }
@@ -129,7 +141,8 @@ export const routeTree = rootRoute.addChildren([
     LayoutBrowseRoute,
     LayoutSettingsRoute,
     LayoutIndexRoute,
-    LayoutUserNameProjectNameRoute,
+    LayoutUserNameProjectNameQuestionsRoute,
+    LayoutUserNameProjectNameIndexRoute,
   ]),
   LoginRoute,
   RecoverPasswordRoute,

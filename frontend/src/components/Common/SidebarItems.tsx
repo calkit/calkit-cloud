@@ -1,11 +1,22 @@
 import { Box, Flex, Icon, Text, useColorModeValue } from "@chakra-ui/react"
 import { Link } from "@tanstack/react-router"
-import { FiBriefcase, FiHome, FiSettings, FiUsers } from "react-icons/fi"
+import {
+  FiHome,
+  FiUsers,
+  FiCheckCircle,
+  FiHardDrive,
+  FiBookOpen,
+  FiDatabase,
+  FiImage,
+} from "react-icons/fi"
 
 const items = [
   { icon: FiHome, title: "Project home", path: "" },
-  { icon: FiBriefcase, title: "Questions", path: "/questions" },
-  { icon: FiSettings, title: "Software", path: "/software" },
+  { icon: FiCheckCircle, title: "Questions", path: "/questions" },
+  { icon: FiHardDrive, title: "Software", path: "/software" },
+  { icon: FiDatabase, title: "Data", path: "/data" },
+  { icon: FiImage, title: "Figures", path: "/figures" },
+  { icon: FiBookOpen, title: "Publications", path: "/publications" },
   { icon: FiUsers, title: "Collaborators", path: "/collaborators" },
 ]
 

@@ -11,10 +11,10 @@ import {
 import { useQuery } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 
-import { ProjectsService } from "../../client"
-import Sidebar from "../../components/Common/Sidebar"
+import { ProjectsService } from "../../../../client"
+import Sidebar from "../../../../components/Common/Sidebar"
 
-export const Route = createFileRoute("/_layout/$userName/$projectName")({
+export const Route = createFileRoute("/_layout/$userName/$projectName/")({
   component: Project,
 })
 
