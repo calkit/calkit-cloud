@@ -59,7 +59,6 @@ const NavLink = (props: Props) => {
 
 export default function Topbar() {
   const { isOpen, onOpen, onClose } = useDisclosure()
-  const bgColor = useColorModeValue("ui.light", "ui.dark")
   const secBgColor = useColorModeValue("ui.secondary", "ui.darkSlate")
 
   return (
