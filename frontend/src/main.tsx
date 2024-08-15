@@ -7,6 +7,7 @@ import { routeTree } from "./routeTree.gen"
 import { StrictMode } from "react"
 import { OpenAPI } from "./client"
 import theme from "./theme"
+import NotFound from "./components/Common/NotFound"
 
 OpenAPI.BASE = import.meta.env.VITE_API_URL
 OpenAPI.TOKEN = async () => {
@@ -15,7 +16,10 @@ OpenAPI.TOKEN = async () => {
 
 const queryClient = new QueryClient()
 
-const router = createRouter({ routeTree })
+const router = createRouter({
+  routeTree,
+  defaultNotFoundComponent: () => <NotFound />,
+})
 declare module "@tanstack/react-router" {
   interface Register {
     router: typeof router
