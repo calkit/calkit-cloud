@@ -1,15 +1,8 @@
 import {
   Box,
   Flex,
-  Avatar,
   HStack,
   IconButton,
-  Button,
-  Menu,
-  MenuButton,
-  MenuList,
-  MenuItem,
-  MenuDivider,
   useDisclosure,
   useColorModeValue,
   Image,
@@ -17,9 +10,6 @@ import {
   Link,
 } from "@chakra-ui/react"
 import {
-  Outlet,
-  createFileRoute,
-  redirect,
   Link as RouterLink,
 } from "@tanstack/react-router"
 import { HamburgerIcon, CloseIcon } from "@chakra-ui/icons"
