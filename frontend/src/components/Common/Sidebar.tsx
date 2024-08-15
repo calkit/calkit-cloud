@@ -18,7 +18,11 @@ import Logo from "/assets/images/kdot.svg"
 import useAuth from "../../hooks/useAuth"
 import SidebarItems from "./SidebarItems"
 
-const Sidebar = () => {
+interface SidebarProps {
+  basePath: string
+}
+
+const Sidebar = ({ basePath }: SidebarProps) => {
   const bgColor = useColorModeValue("ui.light", "ui.dark")
   const secBgColor = useColorModeValue("ui.secondary", "ui.darkSlate")
   const { isOpen, onOpen, onClose } = useDisclosure()
@@ -48,7 +52,7 @@ const Sidebar = () => {
             <Flex flexDir="column" justify="space-between">
               <Box>
                 <Image src={Logo} alt="logo" p={6} />
-                <SidebarItems onClose={onClose} />
+                <SidebarItems onClose={onClose} basePath={basePath} />
                 <Flex
                   as="button"
                   onClick={handleLogout}
@@ -77,7 +81,7 @@ const Sidebar = () => {
       >
         <Flex flexDir="column" justify="space-between" bg={secBgColor} p={4}>
           <Box minW="150px" pt={4}>
-            <SidebarItems />
+            <SidebarItems basePath={basePath} />
           </Box>
         </Flex>
       </Box>

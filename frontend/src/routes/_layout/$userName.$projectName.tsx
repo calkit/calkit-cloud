@@ -66,9 +66,11 @@ function ProjectView() {
 }
 
 function Project() {
+  const { userName, projectName } = Route.useParams()
+
   return (
     <Flex>
-      <Sidebar />
+      <Sidebar basePath={`/${userName}/${projectName}`} />
       <Container maxW="full" mx={6}>
         <ProjectView />
       </Container>

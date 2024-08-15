@@ -1,9 +1,5 @@
 import { Flex, Spinner, Box, Container } from "@chakra-ui/react"
-import {
-  Outlet,
-  createFileRoute,
-  redirect,
-} from "@tanstack/react-router"
+import { Outlet, createFileRoute, redirect } from "@tanstack/react-router"
 import useAuth, { isLoggedIn } from "../hooks/useAuth"
 import Topbar from "../components/Common/Topbar"
 
