@@ -9,9 +9,7 @@ import {
   Stack,
   Link,
 } from "@chakra-ui/react"
-import {
-  Link as RouterLink,
-} from "@tanstack/react-router"
+import { Link as RouterLink } from "@tanstack/react-router"
 import { HamburgerIcon, CloseIcon } from "@chakra-ui/icons"
 import UserMenu from "./UserMenu"
 
