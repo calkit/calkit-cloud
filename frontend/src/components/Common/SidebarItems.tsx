@@ -38,6 +38,7 @@ const SidebarItems = ({ onClose, basePath }: SidebarItemsProps) => {
       w="100%"
       p={2}
       key={title}
+      activeOptions={{ exact: true }}
       activeProps={{
         style: {
           background: bgActive,
