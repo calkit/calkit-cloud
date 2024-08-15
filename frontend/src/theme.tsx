@@ -7,6 +7,10 @@ const disabledStyles = {
 }
 
 const theme = extendTheme({
+  config: {
+    initialColorMode: "dark",
+    useSystemColorMode: true,
+  },
   colors: {
     ui: {
       main: "#009688",
