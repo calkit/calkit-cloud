@@ -95,6 +95,7 @@ class Settings(BaseSettings):
     # TODO: update type to EmailStr when sqlmodel supports it
     FIRST_SUPERUSER: str
     FIRST_SUPERUSER_PASSWORD: str
+    FIRST_SUPERUSER_GITHUB_USERNAME: str
 
     # GitHub
     GITHUB_CLIENT_ID: str
