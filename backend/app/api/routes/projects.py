@@ -97,8 +97,8 @@ def get_project_by_name(
     return project
 
 
-@router.get("/projects/{owner_name}/{project_name}/github/repo")
-def get_project_repo(
+@router.get("/projects/{owner_name}/{project_name}/git/repo")
+def get_project_git_repo(
     owner_name: str,
     project_name: str,
     session: SessionDep,
@@ -201,24 +201,20 @@ class GitTreeItem(BaseModel):
     url: str
 
 
-@router.get("/projects/{project_id}/git/files")
+@router.get("/projects/{owner_name}/{project_name}/git/files")
 def get_project_git_files(
-    project_id: uuid.UUID,
+    owner_name: str,
+    project_name: str,
     session: SessionDep,
     current_user: CurrentUser,
 ) -> list[GitTreeItem]:
-    project = session.get(Project, project_id)
-    if project is None:
-        raise HTTPException(404)
-    if project.owner != current_user:
-        # TODO: Check collaborator access
-        raise HTTPException(401)
     token = users.get_github_token(session=session, user=current_user)
     # TODO: We need to know the default branch to use the trees route
+    # We can get this by fetching the repo first, but this is maybe inefficient
+    default_branch = "main"
     url = (
-        "https://api.github.com/repos/"
-        f"{project.git_repo_url.removeprefix('https://github.com/')}/"
-        "git/trees/main"
+        f"https://api.github.com/repos/{owner_name}/{project_name}/"
+        f"git/trees/{default_branch}"
     )
     logger.info(f"Making request to: {url}")
     headers = {"Authorization": f"Bearer {token}"}
@@ -229,7 +225,7 @@ def get_project_git_files(
     return resp.json()["tree"]
 
 
-class GitHubBlob(BaseModel):
+class GitBlob(BaseModel):
     sha: str
     node_id: str
     size: int
@@ -245,7 +241,7 @@ def get_project_git_file(
     file_sha: str,
     session: SessionDep,
     user: CurrentUser,
-) -> GitHubBlob:
+) -> GitBlob:
     token = users.get_github_token(session=session, user=user)
     project = get_project_by_name(
         owner_name=owner_name,
@@ -264,4 +260,4 @@ def get_project_git_file(
     logger.info(f"GitHub API response status code: {resp.status_code}")
     if resp.status_code >= 400:
         raise HTTPException(resp.status_code)
-    return GitHubBlob.model_validate(resp.json())
+    return GitBlob.model_validate(resp.json())
