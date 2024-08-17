@@ -1,11 +1,19 @@
 """Functionality for working with users."""
 
-from datetime import timedelta
+from datetime import UTC, timedelta
 from typing import Any
 
-from app import utcnow
+import requests
+from app import logger, utcnow
+from app.config import settings
+from app.github import token_resp_text_to_dict
 from app.models import User, UserCreate, UserGitHubToken, UserUpdate
-from app.security import encrypt_secret, get_password_hash, verify_password
+from app.security import (
+    decrypt_secret,
+    encrypt_secret,
+    get_password_hash,
+    verify_password,
+)
 from sqlmodel import Session, select
 
 
@@ -51,6 +59,37 @@ def authenticate(
     if not verify_password(password, db_user.hashed_password):
         return None
     return db_user
+
+
+def get_github_token(session: Session, user: User) -> str:
+    """Get a user's decrypted GitHub token, automatically refreshing if
+    necessary.
+    """
+    # Refresh token if necessary
+    # Should also handle tokens that don't exist?
+    if user.github_token.expires.replace(tzinfo=UTC) <= utcnow():
+        logger.info("Refreshing GitHub token")
+        resp = requests.post(
+            "https://github.com/login/oauth/access_token",
+            json=dict(
+                client_id=settings.GITHUB_CLIENT_ID,
+                client_secret=settings.GITHUB_CLIENT_SECRET,
+                grant_type="refresh_token",
+                refresh_token=decrypt_secret(
+                    user.github_token.refresh_token
+                ),
+            ),
+        )
+        logger.info("Refreshed GitHub token")
+        gh_resp = token_resp_text_to_dict(resp.text)
+        logger.info(f"GitHub token response: {gh_resp}")
+        # TODO: Handle failure, since all are 200 response codes
+        save_github_token(
+            session,
+            user=user,
+            github_resp=gh_resp,
+        )
+    return decrypt_secret(user.github_token.access_token)
 
 
 def save_github_token(

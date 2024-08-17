@@ -97,6 +97,28 @@ def get_project_by_name(
     return project
 
 
+@router.get("/projects/{owner_name}/{project_name}/github/repo")
+def get_project_repo(
+    owner_name: str,
+    project_name: str,
+    session: SessionDep,
+    current_user: CurrentUser,
+):
+    token = users.get_github_token(session=session, user=current_user)
+    project = get_project_by_name(
+        owner_name=owner_name,
+        project_name=project_name,
+        session=session,
+        current_user=current_user,
+    )
+    repo_name = project.git_repo_url.removeprefix("https://github.com/")
+    resp = requests.get(
+        f"https://api.github.com/repos/{repo_name}",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    return resp.json()
+
+
 def _get_minio_fs(host="minio") -> s3fs.S3FileSystem:
     return s3fs.S3FileSystem(
         endpoint_url=f"http://{host}:9000",
@@ -191,31 +213,7 @@ def get_project_git_files(
     if project.owner != current_user:
         # TODO: Check collaborator access
         raise HTTPException(401)
-    # Refresh token if necessary
-    # Should also handle tokens that don't exist?
-    if current_user.github_token.expires.replace(tzinfo=UTC) <= utcnow():
-        logger.info("Refreshing GitHub token")
-        resp = requests.post(
-            "https://github.com/login/oauth/access_token",
-            json=dict(
-                client_id=settings.GITHUB_CLIENT_ID,
-                client_secret=settings.GITHUB_CLIENT_SECRET,
-                grant_type="refresh_token",
-                refresh_token=decrypt_secret(
-                    current_user.github_token.refresh_token
-                ),
-            ),
-        )
-        logger.info("Refreshed GitHub token")
-        gh_resp = token_resp_text_to_dict(resp.text)
-        logger.info(f"GitHub token response: {gh_resp}")
-        # TODO: Handle failure, since all are 200 response codes
-        users.save_github_token(
-            session,
-            user=current_user,
-            github_resp=gh_resp,
-        )
-    token = decrypt_secret(current_user.github_token.access_token)
+    token = users.get_github_token(session=session, user=current_user)
     # TODO: We need to know the default branch to use the trees route
     url = (
         "https://api.github.com/repos/"
