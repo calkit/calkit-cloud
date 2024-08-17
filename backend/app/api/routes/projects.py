@@ -1,17 +1,16 @@
 """Routes for projects."""
 
+import base64
 import functools
 import logging
 import os
 import uuid
 from datetime import UTC
 
-import base64
-import yaml
-
 import app.projects
 import requests
 import s3fs
+import yaml
 from app import users, utcnow
 from app.api.deps import CurrentUser, SessionDep
 from app.config import settings
@@ -153,6 +152,9 @@ async def post_project_dvc_file(
         session=session, owner_name=owner_name, project_name=project_name
     )
     logger.info(f"{current_user.email} requesting to POST data")
+    # TODO: Check collaborator access
+    if project.owner != current_user:
+        raise HTTPException(401)
     # TODO: Check if this user has write access to this project
     fs = _get_minio_fs()
     # Create bucket if it doesn't exist
@@ -180,6 +182,9 @@ def get_project_dvc_file(
     project = app.projects.get_project(
         session=session, owner_name=owner_name, project_name=project_name
     )
+    # TODO: Check collaborator access
+    if project.owner != current_user:
+        raise HTTPException(401)
     # If file doesn't exist, return 404
     fs = _get_minio_fs()
     fpath = _make_data_fpath(project.id, idx, md5)
@@ -197,6 +202,21 @@ def get_project_dvc_file(
                 yield chunk
 
     return StreamingResponse(iterfile())
+
+
+@router.get("/projects/{owner_name}/{project_name}/dvc/files/md5")
+def get_project_dvc_files(
+    owner_name: str,
+    project_name: str,
+    session: SessionDep,
+    current_user: CurrentUser,
+):
+    project = app.projects.get_project(
+        session=session, owner_name=owner_name, project_name=project_name
+    )
+    if project.owner != current_user:
+        raise HTTPException(401)
+    # TODO: Return what we're supposed to return
 
 
 class GitItem(BaseModel):
