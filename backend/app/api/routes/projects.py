@@ -6,6 +6,9 @@ import os
 import uuid
 from datetime import UTC
 
+import base64
+import yaml
+
 import app.projects
 import requests
 import s3fs
@@ -230,3 +233,21 @@ def get_project_git_contents(
         logger.info(f"GitHub API call failed: {resp.text}")
         raise HTTPException(resp.status_code, resp_json["message"])
     return resp_json
+
+
+@router.get("/projects/{owner_name}/{project_name}/questions")
+def get_project_questions(
+    owner_name: str,
+    project_name: str,
+    current_user: CurrentUser,
+    session: SessionDep,
+):
+    content = get_project_git_contents(
+        owner_name=owner_name,
+        project_name=project_name,
+        session=session,
+        current_user=current_user,
+        path="/.calkit/questions.yaml",
+    )
+    content = base64.b64decode(content["content"]).decode()
+    return yaml.safe_load(content)
