@@ -192,72 +192,41 @@ def get_project_dvc_file(
     return StreamingResponse(iterfile())
 
 
-class GitTreeItem(BaseModel):
+class GitItem(BaseModel):
+    name: str
     path: str
-    mode: str
-    type: str
-    size: int | None = None
     sha: str
-    url: str
-
-
-@router.get("/projects/{owner_name}/{project_name}/git/files")
-def get_project_git_files(
-    owner_name: str,
-    project_name: str,
-    session: SessionDep,
-    current_user: CurrentUser,
-) -> list[GitTreeItem]:
-    token = users.get_github_token(session=session, user=current_user)
-    # TODO: We need to know the default branch to use the trees route
-    # We can get this by fetching the repo first, but this is maybe inefficient
-    default_branch = "main"
-    url = (
-        f"https://api.github.com/repos/{owner_name}/{project_name}/"
-        f"git/trees/{default_branch}"
-    )
-    logger.info(f"Making request to: {url}")
-    headers = {"Authorization": f"Bearer {token}"}
-    resp = requests.get(url, headers=headers, params=dict(recursive="true"))
-    if not resp.status_code == 200:
-        logger.info(f"GitHub API call failed: {resp.text}")
-        raise HTTPException(400, resp.text)
-    return resp.json()["tree"]
-
-
-class GitBlob(BaseModel):
-    sha: str
-    node_id: str
     size: int
     url: str
+    html_url: str
+    git_url: str
+    download_url: str | None
+    type: str
+
+
+class GitItemWithContents(GitItem):
     encoding: str
     content: str
 
 
-@router.get("/projects/{owner_name}/{project_name}/git/files/{file_sha}")
-def get_project_git_file(
+@router.get("/projects/{owner_name}/{project_name}/git/contents/{path}")
+@router.get("/projects/{owner_name}/{project_name}/git/contents")
+def get_project_git_contents(
     owner_name: str,
     project_name: str,
-    file_sha: str,
     session: SessionDep,
-    user: CurrentUser,
-) -> GitBlob:
-    token = users.get_github_token(session=session, user=user)
-    project = get_project_by_name(
-        owner_name=owner_name,
-        project_name=project_name,
-        session=session,
-        current_user=user,
-    )
-    repo_url = project.git_repo_url.removeprefix("https://github.com/")
-    logger.info(
-        f"Getting file SHA {file_sha} for {user.email} from {repo_url}"
-    )
-    resp = requests.get(
-        f"https://api.github.com/repos/{repo_url}/git/blobs/{file_sha}",
-        headers={"Authorization": f"Bearer {token}"},
-    )
-    logger.info(f"GitHub API response status code: {resp.status_code}")
+    current_user: CurrentUser,
+    path: str | None = None,
+) -> list[GitItem] | GitItemWithContents:
+    token = users.get_github_token(session=session, user=current_user)
+    url = f"https://api.github.com/repos/{owner_name}/{project_name}/contents"
+    if path is not None:
+        url += "/" + path
+    logger.info(f"Making request to: {url}")
+    headers = {"Authorization": f"Bearer {token}"}
+    resp = requests.get(url, headers=headers, params=dict(recursive="true"))
+    resp_json = resp.json()
     if resp.status_code >= 400:
-        raise HTTPException(resp.status_code)
-    return GitBlob.model_validate(resp.json())
+        logger.info(f"GitHub API call failed: {resp.text}")
+        raise HTTPException(resp.status_code, resp_json["message"])
+    return resp_json
