@@ -145,6 +145,10 @@ async def post_project_dvc_file(
     current_user: CurrentUser,
     req: Request,
 ) -> Message:
+    logger.info(
+        f"Received request from {current_user.email} to post "
+        f"DVC file MD5 {idx}{md5}"
+    )
     project = app.projects.get_project(
         session=session, owner_name=owner_name, project_name=project_name
     )
