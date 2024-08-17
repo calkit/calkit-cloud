@@ -209,7 +209,7 @@ class GitItemWithContents(GitItem):
     content: str
 
 
-@router.get("/projects/{owner_name}/{project_name}/git/contents/{path}")
+@router.get("/projects/{owner_name}/{project_name}/git/contents/{path:path}")
 @router.get("/projects/{owner_name}/{project_name}/git/contents")
 def get_project_git_contents(
     owner_name: str,
@@ -221,7 +221,7 @@ def get_project_git_contents(
     token = users.get_github_token(session=session, user=current_user)
     url = f"https://api.github.com/repos/{owner_name}/{project_name}/contents"
     if path is not None:
-        url += "/" + path
+        url += path
     logger.info(f"Making request to: {url}")
     headers = {"Authorization": f"Bearer {token}"}
     resp = requests.get(url, headers=headers, params=dict(recursive="true"))
