@@ -5,6 +5,7 @@ import {
   Flex,
   ListItem,
   OrderedList,
+  Text,
 } from "@chakra-ui/react"
 import { useQuery } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
@@ -27,10 +28,18 @@ function ProjectQuestionsView() {
         projectName: projectName,
       }),
   })
+  const { isPending: questionsPending, data: questions } = useQuery({
+    queryKey: ["projects", userName, projectName, "questions"],
+    queryFn: () =>
+      ProjectsService.getProjectQuestions({
+        ownerName: userName,
+        projectName: projectName,
+      }),
+  })
 
   return (
     <>
-      {isPending ? (
+      {isPending || questionsPending ? (
         <Flex justify="center" align="center" height="100vh" width="full">
           <Spinner size="xl" color="ui.main" />
         </Flex>
@@ -45,14 +54,9 @@ function ProjectQuestionsView() {
             Questions: {project?.name}
           </Heading>
           <OrderedList>
-            <ListItem>
-              Are there new terms we can add to the RANS equations, derived from
-              existing quantities, which close the equations?
-            </ListItem>
-            <ListItem>
-              If so, can we discover the coefficients for those new quantities
-              from DNS data?
-            </ListItem>
+            {questions?.map((question) => (
+              <ListItem>{question.question}</ListItem>
+            ))}
           </OrderedList>
         </Box>
       )}

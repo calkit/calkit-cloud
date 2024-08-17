@@ -7,13 +7,30 @@ export type Body_login_login_access_token = {
   client_secret?: string | null
 }
 
-export type GitTreeItem = {
+export type GitItem = {
+  name: string
   path: string
-  mode: string
-  type: string
-  size?: number | null
   sha: string
+  size: number
   url: string
+  html_url: string
+  git_url: string
+  download_url: string | null
+  type: string
+}
+
+export type GitItemWithContents = {
+  name: string
+  path: string
+  sha: string
+  size: number
+  url: string
+  html_url: string
+  git_url: string
+  download_url: string | null
+  type: string
+  encoding: string
+  content: string
 }
 
 export type HTTPValidationError = {

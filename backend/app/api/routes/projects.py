@@ -241,7 +241,7 @@ def get_project_questions(
     project_name: str,
     current_user: CurrentUser,
     session: SessionDep,
-):
+) -> list[dict]:
     content = get_project_git_contents(
         owner_name=owner_name,
         project_name=project_name,

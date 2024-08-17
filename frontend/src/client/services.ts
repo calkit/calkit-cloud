@@ -18,7 +18,8 @@ import type {
   ItemPublic,
   ItemsPublic,
   ItemUpdate,
-  GitTreeItem,
+  GitItem,
+  GitItemWithContents,
   Project,
   ProjectCreate,
   ProjectsPublic,
@@ -116,6 +117,10 @@ export type ProjectsData = {
     ownerName: string
     projectName: string
   }
+  GetProjectGitRepo: {
+    ownerName: string
+    projectName: string
+  }
   PostProjectDvcFile: {
     idx: string
     md5: string
@@ -128,8 +133,19 @@ export type ProjectsData = {
     ownerName: string
     projectName: string
   }
-  GetProjectGitFiles: {
-    projectId: string
+  GetProjectGitContents: {
+    ownerName: string
+    path?: string | null
+    projectName: string
+  }
+  GetProjectGitContents1: {
+    ownerName: string
+    path: string | null
+    projectName: string
+  }
+  GetProjectQuestions: {
+    ownerName: string
+    projectName: string
   }
 }
 
@@ -719,6 +735,28 @@ export class ProjectsService {
   }
 
   /**
+   * Get Project Git Repo
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static getProjectGitRepo(
+    data: ProjectsData["GetProjectGitRepo"],
+  ): CancelablePromise<unknown> {
+    const { ownerName, projectName } = data
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/api/v1/projects/{owner_name}/{project_name}/git/repo",
+      path: {
+        owner_name: ownerName,
+        project_name: projectName,
+      },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
    * Post Project Dvc File
    * @returns Message Successful Response
    * @throws ApiError
@@ -767,19 +805,68 @@ export class ProjectsService {
   }
 
   /**
-   * Get Project Git Files
-   * @returns GitTreeItem Successful Response
+   * Get Project Git Contents
+   * @returns unknown Successful Response
    * @throws ApiError
    */
-  public static getProjectGitFiles(
-    data: ProjectsData["GetProjectGitFiles"],
-  ): CancelablePromise<Array<GitTreeItem>> {
-    const { projectId } = data
+  public static getProjectGitContents(
+    data: ProjectsData["GetProjectGitContents"],
+  ): CancelablePromise<Array<GitItem> | GitItemWithContents> {
+    const { ownerName, projectName, path } = data
     return __request(OpenAPI, {
       method: "GET",
-      url: "/api/v1/projects/{project_id}/git/files",
+      url: "/api/v1/projects/{owner_name}/{project_name}/git/contents",
       path: {
-        project_id: projectId,
+        owner_name: ownerName,
+        project_name: projectName,
+      },
+      query: {
+        path,
+      },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Get Project Git Contents
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static getProjectGitContents1(
+    data: ProjectsData["GetProjectGitContents1"],
+  ): CancelablePromise<Array<GitItem> | GitItemWithContents> {
+    const { ownerName, projectName, path } = data
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/api/v1/projects/{owner_name}/{project_name}/git/contents/{path}",
+      path: {
+        owner_name: ownerName,
+        project_name: projectName,
+        path,
+      },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Get Project Questions
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static getProjectQuestions(
+    data: ProjectsData["GetProjectQuestions"],
+  ): CancelablePromise<Array<Record<string, unknown>>> {
+    const { ownerName, projectName } = data
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/api/v1/projects/{owner_name}/{project_name}/questions",
+      path: {
+        owner_name: ownerName,
+        project_name: projectName,
       },
       errors: {
         422: `Validation Error`,

@@ -49,36 +49,106 @@ export const $Body_login_login_access_token = {
   },
 } as const
 
-export const $GitTreeItem = {
+export const $GitItem = {
   properties: {
+    name: {
+      type: "string",
+      isRequired: true,
+    },
     path: {
       type: "string",
       isRequired: true,
     },
-    mode: {
+    sha: {
       type: "string",
+      isRequired: true,
+    },
+    size: {
+      type: "number",
+      isRequired: true,
+    },
+    url: {
+      type: "string",
+      isRequired: true,
+    },
+    html_url: {
+      type: "string",
+      isRequired: true,
+    },
+    git_url: {
+      type: "string",
+      isRequired: true,
+    },
+    download_url: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
       isRequired: true,
     },
     type: {
       type: "string",
       isRequired: true,
     },
-    size: {
-      type: "any-of",
-      contains: [
-        {
-          type: "number",
-        },
-        {
-          type: "null",
-        },
-      ],
+  },
+} as const
+
+export const $GitItemWithContents = {
+  properties: {
+    name: {
+      type: "string",
+      isRequired: true,
+    },
+    path: {
+      type: "string",
+      isRequired: true,
     },
     sha: {
       type: "string",
       isRequired: true,
     },
+    size: {
+      type: "number",
+      isRequired: true,
+    },
     url: {
+      type: "string",
+      isRequired: true,
+    },
+    html_url: {
+      type: "string",
+      isRequired: true,
+    },
+    git_url: {
+      type: "string",
+      isRequired: true,
+    },
+    download_url: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      isRequired: true,
+    },
+    type: {
+      type: "string",
+      isRequired: true,
+    },
+    encoding: {
+      type: "string",
+      isRequired: true,
+    },
+    content: {
       type: "string",
       isRequired: true,
     },
