@@ -65,3 +65,7 @@ def pre_start(db_engine: Engine) -> None:
     except Exception as e:
         logger.error(e)
         raise e
+
+
+def make_session() -> Session:
+    return Session(engine)

@@ -227,3 +227,41 @@ def get_project_git_files(
         logger.info(f"GitHub API call failed: {resp.text}")
         raise HTTPException(400, resp.text)
     return resp.json()["tree"]
+
+
+class GitHubBlob(BaseModel):
+    sha: str
+    node_id: str
+    size: int
+    url: str
+    encoding: str
+    content: str
+
+
+@router.get("/projects/{owner_name}/{project_name}/git/files/{file_sha}")
+def get_project_git_file(
+    owner_name: str,
+    project_name: str,
+    file_sha: str,
+    session: SessionDep,
+    user: CurrentUser,
+) -> GitHubBlob:
+    token = users.get_github_token(session=session, user=user)
+    project = get_project_by_name(
+        owner_name=owner_name,
+        project_name=project_name,
+        session=session,
+        current_user=user,
+    )
+    repo_url = project.git_repo_url.removeprefix("https://github.com/")
+    logger.info(
+        f"Getting file SHA {file_sha} for {user.email} from {repo_url}"
+    )
+    resp = requests.get(
+        f"https://api.github.com/repos/{repo_url}/git/blobs/{file_sha}",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    logger.info(f"GitHub API response status code: {resp.status_code}")
+    if resp.status_code >= 400:
+        raise HTTPException(resp.status_code)
+    return GitHubBlob.model_validate(resp.json())
