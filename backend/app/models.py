@@ -174,3 +174,45 @@ class ProjectsPublic(SQLModel):
 
 class ProjectCreate(ProjectBase):
     pass
+
+
+class Question(SQLModel, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    project_id: uuid.UUID = Field(foreign_key="project.id")
+    question: str
+
+
+class Figure(SQLModel, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    project_id: uuid.UUID = Field(foreign_key="project.id")
+    path: str
+    title: str
+    description: str | None
+    pipeline: str | None
+
+
+class FigureComment(SQLModel, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    # What figure are we commenting on?
+    # Should we just track this by the project and local repo path of the
+    # figure, since that's how it's identified in the figures file?
+    figure_id: uuid.UUID = Field(foreign_key="figure.id")
+    user_id: uuid.UUID = Field(foreign_key="user.id")
+    created: datetime = Field(default_factory=utcnow)
+    comment: str
+
+
+class Dataset(SQLModel, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    # Project in which is was created
+    project_id: uuid.UUID = Field(foreign_key="project.id")
+    path: str
+    tabular: bool
+    pipeline: str | None = None
+    # TODO: Track version somehow, and link to DVC remote MD5?
+
+
+class ImportedDataset(SQLModel, table=True):
+    """A dataset imported into a project in a read-only fashion."""
+    project_id: uuid.UUID = Field(foreign_key="project.id", primary_key=True)
+    dataset_id: uuid.UUID = Field(foreign_key="dataset.id", primary_key=True)

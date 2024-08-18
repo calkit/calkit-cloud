@@ -25,6 +25,7 @@ import { Route as LayoutAdminImport } from './routes/_layout/admin'
 import { Route as LayoutUserNameProjectNameLayoutImport } from './routes/_layout/$userName/$projectName/_layout'
 import { Route as LayoutUserNameProjectNameLayoutIndexImport } from './routes/_layout/$userName/$projectName/_layout/index'
 import { Route as LayoutUserNameProjectNameLayoutQuestionsImport } from './routes/_layout/$userName/$projectName/_layout/questions'
+import { Route as LayoutUserNameProjectNameLayoutFiguresImport } from './routes/_layout/$userName/$projectName/_layout/figures'
 
 // Create Virtual Routes
 
@@ -99,6 +100,12 @@ const LayoutUserNameProjectNameLayoutIndexRoute =
 const LayoutUserNameProjectNameLayoutQuestionsRoute =
   LayoutUserNameProjectNameLayoutQuestionsImport.update({
     path: '/questions',
+    getParentRoute: () => LayoutUserNameProjectNameLayoutRoute,
+  } as any)
+
+const LayoutUserNameProjectNameLayoutFiguresRoute =
+  LayoutUserNameProjectNameLayoutFiguresImport.update({
+    path: '/figures',
     getParentRoute: () => LayoutUserNameProjectNameLayoutRoute,
   } as any)
 
@@ -183,6 +190,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutUserNameProjectNameLayoutImport
       parentRoute: typeof LayoutUserNameProjectNameRoute
     }
+    '/_layout/$userName/$projectName/_layout/figures': {
+      id: '/_layout/$userName/$projectName/_layout/figures'
+      path: '/figures'
+      fullPath: '/$userName/$projectName/figures'
+      preLoaderRoute: typeof LayoutUserNameProjectNameLayoutFiguresImport
+      parentRoute: typeof LayoutUserNameProjectNameLayoutImport
+    }
     '/_layout/$userName/$projectName/_layout/questions': {
       id: '/_layout/$userName/$projectName/_layout/questions'
       path: '/questions'
@@ -211,6 +225,7 @@ export const routeTree = rootRoute.addChildren({
     LayoutUserNameProjectNameRoute: LayoutUserNameProjectNameRoute.addChildren({
       LayoutUserNameProjectNameLayoutRoute:
         LayoutUserNameProjectNameLayoutRoute.addChildren({
+          LayoutUserNameProjectNameLayoutFiguresRoute,
           LayoutUserNameProjectNameLayoutQuestionsRoute,
           LayoutUserNameProjectNameLayoutIndexRoute,
         }),
@@ -286,9 +301,14 @@ export const routeTree = rootRoute.addChildren({
       "filePath": "_layout/$userName/$projectName/_layout.tsx",
       "parent": "/_layout/$userName/$projectName",
       "children": [
+        "/_layout/$userName/$projectName/_layout/figures",
         "/_layout/$userName/$projectName/_layout/questions",
         "/_layout/$userName/$projectName/_layout/"
       ]
+    },
+    "/_layout/$userName/$projectName/_layout/figures": {
+      "filePath": "_layout/$userName/$projectName/_layout/figures.tsx",
+      "parent": "/_layout/$userName/$projectName/_layout"
     },
     "/_layout/$userName/$projectName/_layout/questions": {
       "filePath": "_layout/$userName/$projectName/_layout/questions.tsx",

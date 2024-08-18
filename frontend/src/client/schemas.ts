@@ -49,6 +49,52 @@ export const $Body_login_login_access_token = {
   },
 } as const
 
+export const $Figure = {
+  properties: {
+    id: {
+      type: "string",
+      format: "uuid",
+    },
+    project_id: {
+      type: "string",
+      isRequired: true,
+      format: "uuid",
+    },
+    path: {
+      type: "string",
+      isRequired: true,
+    },
+    title: {
+      type: "string",
+      isRequired: true,
+    },
+    description: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      isRequired: true,
+    },
+    pipeline: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      isRequired: true,
+    },
+  },
+} as const
+
 export const $GitItem = {
   properties: {
     name: {
@@ -443,6 +489,24 @@ export const $ProjectsPublic = {
     },
     count: {
       type: "number",
+      isRequired: true,
+    },
+  },
+} as const
+
+export const $Question = {
+  properties: {
+    id: {
+      type: "string",
+      format: "uuid",
+    },
+    project_id: {
+      type: "string",
+      isRequired: true,
+      format: "uuid",
+    },
+    question: {
+      type: "string",
       isRequired: true,
     },
   },

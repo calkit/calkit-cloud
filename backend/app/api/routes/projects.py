@@ -11,12 +11,16 @@ import app.projects
 import requests
 import s3fs
 import yaml
-from app import users, utcnow
+from app import users
 from app.api.deps import CurrentUser, SessionDep
-from app.config import settings
-from app.github import token_resp_text_to_dict
-from app.models import Message, Project, ProjectCreate, ProjectsPublic
-from app.security import decrypt_secret
+from app.models import (
+    Figure,
+    Message,
+    Project,
+    ProjectCreate,
+    ProjectsPublic,
+    Question,
+)
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -265,7 +269,7 @@ def get_project_questions(
     project_name: str,
     current_user: CurrentUser,
     session: SessionDep,
-) -> list[dict[str, str]]:
+) -> list[Question]:
     content = get_project_git_contents(
         owner_name=owner_name,
         project_name=project_name,
@@ -274,4 +278,29 @@ def get_project_questions(
         path="/.calkit/questions.yaml",
     )
     content = base64.b64decode(content["content"]).decode()
-    return yaml.safe_load(content)
+    questions = yaml.safe_load(content)
+    # TODO: Ensure these go in the database and use real IDs
+    return [
+        Question.model_validate(
+            q | {"project_id": uuid.uuid4(), "id": uuid.uuid4()}
+        )
+        for q in questions
+    ]
+
+
+@router.get("/projects/{owner_name}/{project_name}/figures")
+def get_project_figures(
+    owner_name: str,
+    project_name: str,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> list[Figure]:
+    fig = Figure(
+        id=uuid.uuid4(),
+        project_id=uuid.uuid4(),
+        path="figures/something.png",
+        title="My cool figure",
+        description="This is a cool figure.",
+        pipeline="something_figure",
+    )
+    return [fig]

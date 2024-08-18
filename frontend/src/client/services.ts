@@ -18,11 +18,13 @@ import type {
   ItemPublic,
   ItemsPublic,
   ItemUpdate,
+  Figure,
   GitItem,
   GitItemWithContents,
   Project,
   ProjectCreate,
   ProjectsPublic,
+  Question,
 } from "./models"
 
 export type LoginData = {
@@ -148,6 +150,10 @@ export type ProjectsData = {
     projectName: string
   }
   GetProjectQuestions: {
+    ownerName: string
+    projectName: string
+  }
+  GetProjectFigures: {
     ownerName: string
     projectName: string
   }
@@ -880,16 +886,38 @@ export class ProjectsService {
 
   /**
    * Get Project Questions
-   * @returns string Successful Response
+   * @returns Question Successful Response
    * @throws ApiError
    */
   public static getProjectQuestions(
     data: ProjectsData["GetProjectQuestions"],
-  ): CancelablePromise<Array<Record<string, string>>> {
+  ): CancelablePromise<Array<Question>> {
     const { ownerName, projectName } = data
     return __request(OpenAPI, {
       method: "GET",
       url: "/api/v1/projects/{owner_name}/{project_name}/questions",
+      path: {
+        owner_name: ownerName,
+        project_name: projectName,
+      },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Get Project Figures
+   * @returns Figure Successful Response
+   * @throws ApiError
+   */
+  public static getProjectFigures(
+    data: ProjectsData["GetProjectFigures"],
+  ): CancelablePromise<Array<Figure>> {
+    const { ownerName, projectName } = data
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/api/v1/projects/{owner_name}/{project_name}/figures",
       path: {
         owner_name: ownerName,
         project_name: projectName,

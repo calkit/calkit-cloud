@@ -7,6 +7,15 @@ export type Body_login_login_access_token = {
   client_secret?: string | null
 }
 
+export type Figure = {
+  id?: string
+  project_id: string
+  path: string
+  title: string
+  description: string | null
+  pipeline: string | null
+}
+
 export type GitItem = {
   name: string
   path: string
@@ -99,6 +108,12 @@ export type ProjectPublic = {
 export type ProjectsPublic = {
   data: Array<ProjectPublic>
   count: number
+}
+
+export type Question = {
+  id?: string
+  project_id: string
+  question: string
 }
 
 export type Token = {
