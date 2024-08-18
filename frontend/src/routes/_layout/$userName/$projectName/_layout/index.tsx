@@ -9,6 +9,7 @@ import {
 } from "@chakra-ui/react"
 import { useQuery } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
+import axios from "axios"
 
 import { ProjectsService } from "../../../../../client"
 
@@ -28,6 +29,14 @@ function ProjectView() {
         projectName: projectName,
       }),
   })
+  const {
+    isPending: localServerPending,
+    error: localServerError,
+    data: localServerData,
+  } = useQuery({
+    queryKey: ["local-server-health"],
+    queryFn: () => axios.get("http://localhost:8866/health"),
+  })
 
   return (
     <>
@@ -43,6 +52,13 @@ function ProjectView() {
           <Box pt={5}>{project?.git_repo_url}</Box>
           <Text>Project type: Research</Text>
           <Text>Project type: Sup</Text>
+          <Box>
+            <Text>
+              {localServerError || localServerPending
+                ? "Local server not connected"
+                : `Local server ${String(localServerData.data).toLowerCase()}`}
+            </Text>
+          </Box>
           <Heading size="md" pt={4} pb={2}>
             Questions
           </Heading>
