@@ -54,7 +54,7 @@ function ProjectQuestionsView() {
           </Heading>
           <OrderedList>
             {questions?.map((question) => (
-              <ListItem>{question.question}</ListItem>
+              <ListItem key={question.id}>{question.question}</ListItem>
             ))}
           </OrderedList>
         </Box>
