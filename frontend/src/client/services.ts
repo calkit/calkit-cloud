@@ -133,6 +133,10 @@ export type ProjectsData = {
     ownerName: string
     projectName: string
   }
+  GetProjectDvcFiles: {
+    ownerName: string
+    projectName: string
+  }
   GetProjectGitContents: {
     ownerName: string
     path?: string | null
@@ -805,6 +809,28 @@ export class ProjectsService {
   }
 
   /**
+   * Get Project Dvc Files
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static getProjectDvcFiles(
+    data: ProjectsData["GetProjectDvcFiles"],
+  ): CancelablePromise<unknown> {
+    const { ownerName, projectName } = data
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/api/v1/projects/{owner_name}/{project_name}/dvc/files/md5",
+      path: {
+        owner_name: ownerName,
+        project_name: projectName,
+      },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
    * Get Project Git Contents
    * @returns unknown Successful Response
    * @throws ApiError
@@ -854,12 +880,12 @@ export class ProjectsService {
 
   /**
    * Get Project Questions
-   * @returns unknown Successful Response
+   * @returns string Successful Response
    * @throws ApiError
    */
   public static getProjectQuestions(
     data: ProjectsData["GetProjectQuestions"],
-  ): CancelablePromise<Array<Record<string, unknown>>> {
+  ): CancelablePromise<Array<Record<string, string>>> {
     const { ownerName, projectName } = data
     return __request(OpenAPI, {
       method: "GET",

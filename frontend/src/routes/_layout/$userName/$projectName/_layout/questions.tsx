@@ -5,7 +5,6 @@ import {
   Flex,
   ListItem,
   OrderedList,
-  Text,
 } from "@chakra-ui/react"
 import { useQuery } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
