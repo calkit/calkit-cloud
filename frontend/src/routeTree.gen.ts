@@ -24,11 +24,14 @@ import { Route as LayoutBrowseImport } from './routes/_layout/browse'
 import { Route as LayoutAdminImport } from './routes/_layout/admin'
 import { Route as LayoutUserNameProjectNameLayoutImport } from './routes/_layout/$userName/$projectName/_layout'
 import { Route as LayoutUserNameProjectNameLayoutIndexImport } from './routes/_layout/$userName/$projectName/_layout/index'
+import { Route as LayoutUserNameProjectNameLayoutSoftwareImport } from './routes/_layout/$userName/$projectName/_layout/software'
 import { Route as LayoutUserNameProjectNameLayoutQuestionsImport } from './routes/_layout/$userName/$projectName/_layout/questions'
+import { Route as LayoutUserNameProjectNameLayoutPublicationsImport } from './routes/_layout/$userName/$projectName/_layout/publications'
 import { Route as LayoutUserNameProjectNameLayoutLocalImport } from './routes/_layout/$userName/$projectName/_layout/local'
 import { Route as LayoutUserNameProjectNameLayoutFilesImport } from './routes/_layout/$userName/$projectName/_layout/files'
 import { Route as LayoutUserNameProjectNameLayoutFiguresImport } from './routes/_layout/$userName/$projectName/_layout/figures'
 import { Route as LayoutUserNameProjectNameLayoutDataImport } from './routes/_layout/$userName/$projectName/_layout/data'
+import { Route as LayoutUserNameProjectNameLayoutCollaboratorsImport } from './routes/_layout/$userName/$projectName/_layout/collaborators'
 
 // Create Virtual Routes
 
@@ -100,9 +103,21 @@ const LayoutUserNameProjectNameLayoutIndexRoute =
     getParentRoute: () => LayoutUserNameProjectNameLayoutRoute,
   } as any)
 
+const LayoutUserNameProjectNameLayoutSoftwareRoute =
+  LayoutUserNameProjectNameLayoutSoftwareImport.update({
+    path: '/software',
+    getParentRoute: () => LayoutUserNameProjectNameLayoutRoute,
+  } as any)
+
 const LayoutUserNameProjectNameLayoutQuestionsRoute =
   LayoutUserNameProjectNameLayoutQuestionsImport.update({
     path: '/questions',
+    getParentRoute: () => LayoutUserNameProjectNameLayoutRoute,
+  } as any)
+
+const LayoutUserNameProjectNameLayoutPublicationsRoute =
+  LayoutUserNameProjectNameLayoutPublicationsImport.update({
+    path: '/publications',
     getParentRoute: () => LayoutUserNameProjectNameLayoutRoute,
   } as any)
 
@@ -127,6 +142,12 @@ const LayoutUserNameProjectNameLayoutFiguresRoute =
 const LayoutUserNameProjectNameLayoutDataRoute =
   LayoutUserNameProjectNameLayoutDataImport.update({
     path: '/data',
+    getParentRoute: () => LayoutUserNameProjectNameLayoutRoute,
+  } as any)
+
+const LayoutUserNameProjectNameLayoutCollaboratorsRoute =
+  LayoutUserNameProjectNameLayoutCollaboratorsImport.update({
+    path: '/collaborators',
     getParentRoute: () => LayoutUserNameProjectNameLayoutRoute,
   } as any)
 
@@ -211,6 +232,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutUserNameProjectNameLayoutImport
       parentRoute: typeof LayoutUserNameProjectNameRoute
     }
+    '/_layout/$userName/$projectName/_layout/collaborators': {
+      id: '/_layout/$userName/$projectName/_layout/collaborators'
+      path: '/collaborators'
+      fullPath: '/$userName/$projectName/collaborators'
+      preLoaderRoute: typeof LayoutUserNameProjectNameLayoutCollaboratorsImport
+      parentRoute: typeof LayoutUserNameProjectNameLayoutImport
+    }
     '/_layout/$userName/$projectName/_layout/data': {
       id: '/_layout/$userName/$projectName/_layout/data'
       path: '/data'
@@ -239,11 +267,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutUserNameProjectNameLayoutLocalImport
       parentRoute: typeof LayoutUserNameProjectNameLayoutImport
     }
+    '/_layout/$userName/$projectName/_layout/publications': {
+      id: '/_layout/$userName/$projectName/_layout/publications'
+      path: '/publications'
+      fullPath: '/$userName/$projectName/publications'
+      preLoaderRoute: typeof LayoutUserNameProjectNameLayoutPublicationsImport
+      parentRoute: typeof LayoutUserNameProjectNameLayoutImport
+    }
     '/_layout/$userName/$projectName/_layout/questions': {
       id: '/_layout/$userName/$projectName/_layout/questions'
       path: '/questions'
       fullPath: '/$userName/$projectName/questions'
       preLoaderRoute: typeof LayoutUserNameProjectNameLayoutQuestionsImport
+      parentRoute: typeof LayoutUserNameProjectNameLayoutImport
+    }
+    '/_layout/$userName/$projectName/_layout/software': {
+      id: '/_layout/$userName/$projectName/_layout/software'
+      path: '/software'
+      fullPath: '/$userName/$projectName/software'
+      preLoaderRoute: typeof LayoutUserNameProjectNameLayoutSoftwareImport
       parentRoute: typeof LayoutUserNameProjectNameLayoutImport
     }
     '/_layout/$userName/$projectName/_layout/': {
@@ -267,11 +309,14 @@ export const routeTree = rootRoute.addChildren({
     LayoutUserNameProjectNameRoute: LayoutUserNameProjectNameRoute.addChildren({
       LayoutUserNameProjectNameLayoutRoute:
         LayoutUserNameProjectNameLayoutRoute.addChildren({
+          LayoutUserNameProjectNameLayoutCollaboratorsRoute,
           LayoutUserNameProjectNameLayoutDataRoute,
           LayoutUserNameProjectNameLayoutFiguresRoute,
           LayoutUserNameProjectNameLayoutFilesRoute,
           LayoutUserNameProjectNameLayoutLocalRoute,
+          LayoutUserNameProjectNameLayoutPublicationsRoute,
           LayoutUserNameProjectNameLayoutQuestionsRoute,
+          LayoutUserNameProjectNameLayoutSoftwareRoute,
           LayoutUserNameProjectNameLayoutIndexRoute,
         }),
     }),
@@ -346,13 +391,20 @@ export const routeTree = rootRoute.addChildren({
       "filePath": "_layout/$userName/$projectName/_layout.tsx",
       "parent": "/_layout/$userName/$projectName",
       "children": [
+        "/_layout/$userName/$projectName/_layout/collaborators",
         "/_layout/$userName/$projectName/_layout/data",
         "/_layout/$userName/$projectName/_layout/figures",
         "/_layout/$userName/$projectName/_layout/files",
         "/_layout/$userName/$projectName/_layout/local",
+        "/_layout/$userName/$projectName/_layout/publications",
         "/_layout/$userName/$projectName/_layout/questions",
+        "/_layout/$userName/$projectName/_layout/software",
         "/_layout/$userName/$projectName/_layout/"
       ]
+    },
+    "/_layout/$userName/$projectName/_layout/collaborators": {
+      "filePath": "_layout/$userName/$projectName/_layout/collaborators.tsx",
+      "parent": "/_layout/$userName/$projectName/_layout"
     },
     "/_layout/$userName/$projectName/_layout/data": {
       "filePath": "_layout/$userName/$projectName/_layout/data.tsx",
@@ -370,8 +422,16 @@ export const routeTree = rootRoute.addChildren({
       "filePath": "_layout/$userName/$projectName/_layout/local.tsx",
       "parent": "/_layout/$userName/$projectName/_layout"
     },
+    "/_layout/$userName/$projectName/_layout/publications": {
+      "filePath": "_layout/$userName/$projectName/_layout/publications.tsx",
+      "parent": "/_layout/$userName/$projectName/_layout"
+    },
     "/_layout/$userName/$projectName/_layout/questions": {
       "filePath": "_layout/$userName/$projectName/_layout/questions.tsx",
+      "parent": "/_layout/$userName/$projectName/_layout"
+    },
+    "/_layout/$userName/$projectName/_layout/software": {
+      "filePath": "_layout/$userName/$projectName/_layout/software.tsx",
       "parent": "/_layout/$userName/$projectName/_layout"
     },
     "/_layout/$userName/$projectName/_layout/": {
