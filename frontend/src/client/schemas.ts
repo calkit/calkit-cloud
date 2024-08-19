@@ -49,6 +49,43 @@ export const $Body_login_login_access_token = {
   },
 } as const
 
+export const $Dataset = {
+  properties: {
+    id: {
+      type: "string",
+      format: "uuid",
+    },
+    project_id: {
+      type: "string",
+      isRequired: true,
+      format: "uuid",
+    },
+    path: {
+      type: "string",
+      isRequired: true,
+    },
+    tabular: {
+      type: "boolean",
+      isRequired: true,
+    },
+    pipeline: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    description: {
+      type: "string",
+      isRequired: true,
+    },
+  },
+} as const
+
 export const $Figure = {
   properties: {
     id: {

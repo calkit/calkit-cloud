@@ -14,6 +14,7 @@ import yaml
 from app import users
 from app.api.deps import CurrentUser, SessionDep
 from app.models import (
+    Dataset,
     Figure,
     Message,
     Project,
@@ -304,3 +305,22 @@ def get_project_figures(
         pipeline="something_figure",
     )
     return [fig]
+
+
+@router.get("/projects/{owner_name}/{project_name}/datasets")
+def get_project_datasets(
+    owner_name: str,
+    project_name: str,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> list[Dataset]:
+    # TODO: Get real data
+    d = Dataset(
+        id=uuid.uuid4(),
+        project_id=uuid.uuid4(),
+        path="data/something.parquet",
+        pipeline="pipeline_that_generates_something",
+        tabular=True,
+        description="This is a dataset of something.",
+    )
+    return [d]

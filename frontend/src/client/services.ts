@@ -18,6 +18,7 @@ import type {
   ItemPublic,
   ItemsPublic,
   ItemUpdate,
+  Dataset,
   Figure,
   GitItem,
   GitItemWithContents,
@@ -154,6 +155,10 @@ export type ProjectsData = {
     projectName: string
   }
   GetProjectFigures: {
+    ownerName: string
+    projectName: string
+  }
+  GetProjectDatasets: {
     ownerName: string
     projectName: string
   }
@@ -918,6 +923,28 @@ export class ProjectsService {
     return __request(OpenAPI, {
       method: "GET",
       url: "/api/v1/projects/{owner_name}/{project_name}/figures",
+      path: {
+        owner_name: ownerName,
+        project_name: projectName,
+      },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Get Project Datasets
+   * @returns Dataset Successful Response
+   * @throws ApiError
+   */
+  public static getProjectDatasets(
+    data: ProjectsData["GetProjectDatasets"],
+  ): CancelablePromise<Array<Dataset>> {
+    const { ownerName, projectName } = data
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/api/v1/projects/{owner_name}/{project_name}/datasets",
       path: {
         owner_name: ownerName,
         project_name: projectName,

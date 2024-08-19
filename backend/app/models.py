@@ -189,6 +189,7 @@ class Figure(SQLModel, table=True):
     title: str
     description: str | None
     pipeline: str | None
+    # TODO: Link to a dataset, or does the pipeline do that?
 
 
 class FigureComment(SQLModel, table=True):
@@ -209,7 +210,10 @@ class Dataset(SQLModel, table=True):
     path: str
     tabular: bool
     pipeline: str | None = None
+    description: str
     # TODO: Track version somehow, and link to DVC remote MD5?
+    # TODO: Is this a directory of files?
+    # TODO: Track size? -- basically all DVC properties
 
 
 class ImportedDataset(SQLModel, table=True):

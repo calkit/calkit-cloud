@@ -1,4 +1,4 @@
-import { Box, Heading, Spinner, Flex, Text } from "@chakra-ui/react"
+import { Box, Heading, Spinner, Flex, Text, Code } from "@chakra-ui/react"
 import { useQuery } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 
@@ -12,11 +12,10 @@ export const Route = createFileRoute(
 
 function ProjectDataView() {
   const { userName, projectName } = Route.useParams()
-  // TODO: Replace below with call to fetch data
   const { isPending: dataPending, data: datasets } = useQuery({
     queryKey: ["projects", userName, projectName, "datasets"],
     queryFn: () =>
-      ProjectsService.getProjectFigures({
+      ProjectsService.getProjectDatasets({
         ownerName: userName,
         projectName: projectName,
       }),
@@ -31,8 +30,10 @@ function ProjectDataView() {
       ) : (
         <Box>
           {datasets?.map((dataset) => (
-            <Box key={dataset.title}>
-              <Heading size="md">{dataset.title}</Heading>
+            <Box key={dataset.path}>
+              <Heading fontFamily="monospace" size="md" pb={1}>
+                {dataset.path}
+              </Heading>
               <Text>{dataset.description}</Text>
             </Box>
           ))}

@@ -7,6 +7,15 @@ export type Body_login_login_access_token = {
   client_secret?: string | null
 }
 
+export type Dataset = {
+  id?: string
+  project_id: string
+  path: string
+  tabular: boolean
+  pipeline?: string | null
+  description: string
+}
+
 export type Figure = {
   id?: string
   project_id: string
