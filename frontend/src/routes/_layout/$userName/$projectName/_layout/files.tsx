@@ -66,12 +66,14 @@ function Files() {
             All files: {project?.name}
           </Heading>
           <Box>
-            {files?.map((file) => (
-              <Text key={file.name}>
-                <Icon as={file.type === "dir" ? FiFolder : FiFile} />{" "}
-                {file.name}
-              </Text>
-            ))}
+            {Array.isArray(files)
+              ? files?.map((file) => (
+                  <Text key={file.name}>
+                    <Icon as={file.type === "dir" ? FiFolder : FiFile} />{" "}
+                    {file.name}
+                  </Text>
+                ))
+              : ""}
           </Box>
         </Box>
       )}
