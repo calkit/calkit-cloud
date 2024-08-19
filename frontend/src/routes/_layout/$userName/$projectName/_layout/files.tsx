@@ -2,6 +2,9 @@ import { createFileRoute } from "@tanstack/react-router"
 import { Heading, Box, Flex, Spinner, Text, Icon } from "@chakra-ui/react"
 import { useQuery } from "@tanstack/react-query"
 import { FiFolder, FiFile } from "react-icons/fi"
+import { FaMarkdown } from "react-icons/fa6"
+import { AiOutlinePython } from "react-icons/ai"
+import { SiAnaconda, SiJupyter } from "react-icons/si"
 
 import { ProjectsService, type GitItem } from "../../../../../client"
 
@@ -48,6 +51,25 @@ function Files() {
     files.sort(sortByTypeAndName)
   }
 
+  const getIcon = (item: GitItem) => {
+    if (item.type === "dir") {
+      return FiFolder
+    }
+    if (item.name.endsWith(".py")) {
+      return AiOutlinePython
+    }
+    if (item.name.endsWith(".ipynb")) {
+      return SiJupyter
+    }
+    if (item.name.endsWith(".md")) {
+      return FaMarkdown
+    }
+    if (item.name === "environment.yml") {
+      return SiAnaconda
+    }
+    return FiFile
+  }
+
   return (
     <>
       {isPending || filesPending ? (
@@ -67,10 +89,10 @@ function Files() {
           <Box>
             {Array.isArray(files)
               ? files?.map((file) => (
-                  <Text key={file.name}>
-                    <Icon as={file.type === "dir" ? FiFolder : FiFile} />{" "}
-                    {file.name}
-                  </Text>
+                  <Flex key={file.name}>
+                    <Icon as={getIcon(file)} alignSelf="center" mr={1} />
+                    <Text>{file.name}</Text>
+                  </Flex>
                 ))
               : ""}
           </Box>
