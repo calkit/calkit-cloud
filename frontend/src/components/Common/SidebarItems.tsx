@@ -13,14 +13,16 @@ import {
 import { FaLaptop } from "react-icons/fa"
 import axios from "axios"
 import { useQuery } from "@tanstack/react-query"
+import { BsGear } from "react-icons/bs"
 
 const items = [
   { icon: FiHome, title: "Project home", path: "" },
   { icon: FiCheckCircle, title: "Questions", path: "/questions" },
-  { icon: FiHardDrive, title: "Software", path: "/software" },
   { icon: FiDatabase, title: "Data", path: "/data" },
   { icon: FiImage, title: "Figures", path: "/figures" },
+  { icon: BsGear, title: "Pipelines", path: "/pipelines" },
   { icon: FiBookOpen, title: "Publications", path: "/publications" },
+  { icon: FiHardDrive, title: "Software", path: "/software" },
   { icon: FiUsers, title: "Collaborators", path: "/collaborators" },
   { icon: FiFolder, title: "All files", path: "/files" },
   { icon: FaLaptop, title: "Local machine", path: "/local" },
