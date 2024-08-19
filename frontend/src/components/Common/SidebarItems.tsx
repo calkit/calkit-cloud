@@ -39,6 +39,7 @@ const SidebarItems = ({ onClose, basePath }: SidebarItemsProps) => {
   const { isPending: localServerPending, error: localServerError } = useQuery({
     queryKey: ["local-server-health"],
     queryFn: () => axios.get("http://localhost:8866/health"),
+    retry: false,
   })
   const localMachineColor =
     localServerError || localServerPending ? "gray" : "ui.success"

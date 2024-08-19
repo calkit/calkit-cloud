@@ -36,6 +36,7 @@ function ProjectView() {
   } = useQuery({
     queryKey: ["local-server-health"],
     queryFn: () => axios.get("http://localhost:8866/health"),
+    retry: false,
   })
 
   return (
