@@ -190,7 +190,7 @@ class Figure(SQLModel, table=True):
     description: str | None
     pipeline: str | None
     # TODO: Link to a dataset, or does the pipeline do that?
-    # TODO: Add content
+    # TODO: Add content, or maybe we can just get from Git contents via path?
 
 
 class FigureComment(SQLModel, table=True):
