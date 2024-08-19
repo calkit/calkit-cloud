@@ -68,6 +68,7 @@ function Login() {
         />
         <Button
           variant="primary"
+          isLoading={loginGitHubMutation.isPending}
           onClick={() =>
             (location.href = `https://github.com/login/oauth/authorize?client_id=${clientId}&state=${ghAuthStateParam}`)
           }
