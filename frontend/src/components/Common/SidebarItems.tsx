@@ -8,7 +8,11 @@ import {
   FiBookOpen,
   FiDatabase,
   FiImage,
+  FiFolder,
 } from "react-icons/fi"
+import { FaLaptop } from "react-icons/fa"
+import axios from "axios"
+import { useQuery } from "@tanstack/react-query"
 
 const items = [
   { icon: FiHome, title: "Project home", path: "" },
@@ -18,6 +22,8 @@ const items = [
   { icon: FiImage, title: "Figures", path: "/figures" },
   { icon: FiBookOpen, title: "Publications", path: "/publications" },
   { icon: FiUsers, title: "Collaborators", path: "/collaborators" },
+  { icon: FiFolder, title: "All files", path: "/files" },
+  { icon: FaLaptop, title: "Local machine", path: "/local" },
 ]
 
 interface SidebarItemsProps {
@@ -28,8 +34,14 @@ interface SidebarItemsProps {
 const SidebarItems = ({ onClose, basePath }: SidebarItemsProps) => {
   const textColor = useColorModeValue("ui.main", "ui.light")
   const bgActive = useColorModeValue("#E2E8F0", "#4A5568")
-
   const finalItems = items
+  // TODO: Check that our current project matches the local server project?
+  const { isPending: localServerPending, error: localServerError } = useQuery({
+    queryKey: ["local-server-health"],
+    queryFn: () => axios.get("http://localhost:8866/health"),
+  })
+  const localMachineColor =
+    localServerError || localServerPending ? "gray" : "ui.success"
 
   const listItems = finalItems.map(({ icon, title, path }) => (
     <Flex
@@ -48,7 +60,11 @@ const SidebarItems = ({ onClose, basePath }: SidebarItemsProps) => {
       color={textColor}
       onClick={onClose}
     >
-      <Icon as={icon} alignSelf="center" />
+      <Icon
+        as={icon}
+        color={title === "Local machine" ? localMachineColor : "default"}
+        alignSelf="center"
+      />
       <Text ml={2}>{title}</Text>
     </Flex>
   ))

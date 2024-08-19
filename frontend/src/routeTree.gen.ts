@@ -25,6 +25,7 @@ import { Route as LayoutAdminImport } from './routes/_layout/admin'
 import { Route as LayoutUserNameProjectNameLayoutImport } from './routes/_layout/$userName/$projectName/_layout'
 import { Route as LayoutUserNameProjectNameLayoutIndexImport } from './routes/_layout/$userName/$projectName/_layout/index'
 import { Route as LayoutUserNameProjectNameLayoutQuestionsImport } from './routes/_layout/$userName/$projectName/_layout/questions'
+import { Route as LayoutUserNameProjectNameLayoutLocalImport } from './routes/_layout/$userName/$projectName/_layout/local'
 import { Route as LayoutUserNameProjectNameLayoutFiguresImport } from './routes/_layout/$userName/$projectName/_layout/figures'
 import { Route as LayoutUserNameProjectNameLayoutDataImport } from './routes/_layout/$userName/$projectName/_layout/data'
 
@@ -101,6 +102,12 @@ const LayoutUserNameProjectNameLayoutIndexRoute =
 const LayoutUserNameProjectNameLayoutQuestionsRoute =
   LayoutUserNameProjectNameLayoutQuestionsImport.update({
     path: '/questions',
+    getParentRoute: () => LayoutUserNameProjectNameLayoutRoute,
+  } as any)
+
+const LayoutUserNameProjectNameLayoutLocalRoute =
+  LayoutUserNameProjectNameLayoutLocalImport.update({
+    path: '/local',
     getParentRoute: () => LayoutUserNameProjectNameLayoutRoute,
   } as any)
 
@@ -211,6 +218,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutUserNameProjectNameLayoutFiguresImport
       parentRoute: typeof LayoutUserNameProjectNameLayoutImport
     }
+    '/_layout/$userName/$projectName/_layout/local': {
+      id: '/_layout/$userName/$projectName/_layout/local'
+      path: '/local'
+      fullPath: '/$userName/$projectName/local'
+      preLoaderRoute: typeof LayoutUserNameProjectNameLayoutLocalImport
+      parentRoute: typeof LayoutUserNameProjectNameLayoutImport
+    }
     '/_layout/$userName/$projectName/_layout/questions': {
       id: '/_layout/$userName/$projectName/_layout/questions'
       path: '/questions'
@@ -241,6 +255,7 @@ export const routeTree = rootRoute.addChildren({
         LayoutUserNameProjectNameLayoutRoute.addChildren({
           LayoutUserNameProjectNameLayoutDataRoute,
           LayoutUserNameProjectNameLayoutFiguresRoute,
+          LayoutUserNameProjectNameLayoutLocalRoute,
           LayoutUserNameProjectNameLayoutQuestionsRoute,
           LayoutUserNameProjectNameLayoutIndexRoute,
         }),
@@ -318,6 +333,7 @@ export const routeTree = rootRoute.addChildren({
       "children": [
         "/_layout/$userName/$projectName/_layout/data",
         "/_layout/$userName/$projectName/_layout/figures",
+        "/_layout/$userName/$projectName/_layout/local",
         "/_layout/$userName/$projectName/_layout/questions",
         "/_layout/$userName/$projectName/_layout/"
       ]
@@ -328,6 +344,10 @@ export const routeTree = rootRoute.addChildren({
     },
     "/_layout/$userName/$projectName/_layout/figures": {
       "filePath": "_layout/$userName/$projectName/_layout/figures.tsx",
+      "parent": "/_layout/$userName/$projectName/_layout"
+    },
+    "/_layout/$userName/$projectName/_layout/local": {
+      "filePath": "_layout/$userName/$projectName/_layout/local.tsx",
       "parent": "/_layout/$userName/$projectName/_layout"
     },
     "/_layout/$userName/$projectName/_layout/questions": {
