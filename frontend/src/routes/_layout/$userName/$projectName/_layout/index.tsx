@@ -46,10 +46,7 @@ function ProjectView() {
         </Flex>
       ) : (
         <Box>
-          <Heading size="lg" textAlign={{ base: "center", md: "left" }} pt={8}>
-            {project?.name}
-          </Heading>
-          <Box pt={5}>{project?.git_repo_url}</Box>
+          <Box>{project?.git_repo_url}</Box>
           <Text>Project type: Research</Text>
           <Text>Project type: Sup</Text>
           <Box>

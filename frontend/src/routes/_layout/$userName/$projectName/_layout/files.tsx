@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router"
-import { Heading, Box, Flex, Spinner, Text, Icon } from "@chakra-ui/react"
+import { Box, Flex, Spinner, Text, Icon } from "@chakra-ui/react"
 import { useQuery } from "@tanstack/react-query"
 import { FiFolder, FiFile } from "react-icons/fi"
 import { FaMarkdown } from "react-icons/fa6"
@@ -16,14 +16,6 @@ export const Route = createFileRoute(
 
 function Files() {
   const { userName, projectName } = Route.useParams()
-  const { isPending, data: project } = useQuery({
-    queryKey: ["projects", userName, projectName],
-    queryFn: () =>
-      ProjectsService.getProjectByName({
-        ownerName: userName,
-        projectName: projectName,
-      }),
-  })
   const { isPending: filesPending, data: files } = useQuery({
     queryKey: ["projects", userName, projectName, "files"],
     queryFn: () =>
@@ -72,20 +64,12 @@ function Files() {
 
   return (
     <>
-      {isPending || filesPending ? (
+      {filesPending ? (
         <Flex justify="center" align="center" height="100vh" width="full">
           <Spinner size="xl" color="ui.main" />
         </Flex>
       ) : (
         <Box>
-          <Heading
-            size="lg"
-            textAlign={{ base: "center", md: "left" }}
-            pt={8}
-            pb={3}
-          >
-            All files: {project?.name}
-          </Heading>
           <Box>
             {Array.isArray(files)
               ? files?.map((file) => (

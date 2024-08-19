@@ -1,4 +1,4 @@
-import { Container, Flex, Spinner } from "@chakra-ui/react"
+import { Container, Flex, Spinner, Heading } from "@chakra-ui/react"
 import { createFileRoute, Outlet } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
 
@@ -14,7 +14,11 @@ export const Route = createFileRoute("/_layout/$userName/$projectName/_layout")(
 
 function ProjectLayout() {
   const { userName, projectName } = Route.useParams()
-  const { isPending, error } = useQuery({
+  const {
+    isPending,
+    error,
+    data: project,
+  } = useQuery({
     queryKey: ["projects", userName, projectName],
     queryFn: () =>
       ProjectsService.getProjectByName({
@@ -43,6 +47,14 @@ function ProjectLayout() {
         <Flex>
           <Sidebar basePath={`/${userName}/${projectName}`} />
           <Container maxW="full" mx={6}>
+            <Heading
+              size="lg"
+              textAlign={{ base: "center", md: "left" }}
+              pt={8}
+              pb={3}
+            >
+              {project?.name}
+            </Heading>
             <Outlet />
           </Container>
         </Flex>

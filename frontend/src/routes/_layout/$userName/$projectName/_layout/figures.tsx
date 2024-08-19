@@ -12,14 +12,6 @@ export const Route = createFileRoute(
 
 function ProjectFiguresView() {
   const { userName, projectName } = Route.useParams()
-  const { isPending, data: project } = useQuery({
-    queryKey: ["projects", userName, projectName],
-    queryFn: () =>
-      ProjectsService.getProjectByName({
-        ownerName: userName,
-        projectName: projectName,
-      }),
-  })
   const { isPending: figuresPending, data: figures } = useQuery({
     queryKey: ["projects", userName, projectName, "figures"],
     queryFn: () =>
@@ -31,20 +23,12 @@ function ProjectFiguresView() {
 
   return (
     <>
-      {isPending || figuresPending ? (
+      {figuresPending ? (
         <Flex justify="center" align="center" height="100vh" width="full">
           <Spinner size="xl" color="ui.main" />
         </Flex>
       ) : (
         <Box>
-          <Heading
-            size="lg"
-            textAlign={{ base: "center", md: "left" }}
-            pt={8}
-            pb={3}
-          >
-            Figures: {project?.name}
-          </Heading>
           {figures?.map((figure) => (
             <Box key={figure.title}>
               <Heading size="md">{figure.title}</Heading>

@@ -12,17 +12,9 @@ export const Route = createFileRoute(
 
 function ProjectDataView() {
   const { userName, projectName } = Route.useParams()
-  const { isPending, data: project } = useQuery({
-    queryKey: ["projects", userName, projectName],
-    queryFn: () =>
-      ProjectsService.getProjectByName({
-        ownerName: userName,
-        projectName: projectName,
-      }),
-  })
   // TODO: Replace below with call to fetch data
-  const { isPending: figuresPending, data: datasets } = useQuery({
-    queryKey: ["projects", userName, projectName, "figures"],
+  const { isPending: dataPending, data: datasets } = useQuery({
+    queryKey: ["projects", userName, projectName, "datasets"],
     queryFn: () =>
       ProjectsService.getProjectFigures({
         ownerName: userName,
@@ -32,20 +24,12 @@ function ProjectDataView() {
 
   return (
     <>
-      {isPending || figuresPending ? (
+      {dataPending ? (
         <Flex justify="center" align="center" height="100vh" width="full">
           <Spinner size="xl" color="ui.main" />
         </Flex>
       ) : (
         <Box>
-          <Heading
-            size="lg"
-            textAlign={{ base: "center", md: "left" }}
-            pt={8}
-            pb={3}
-          >
-            Data: {project?.name}
-          </Heading>
           {datasets?.map((dataset) => (
             <Box key={dataset.title}>
               <Heading size="md">{dataset.title}</Heading>
