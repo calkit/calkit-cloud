@@ -21,7 +21,6 @@ function Files() {
         projectName: projectName,
       }),
   })
-  // TODO: Replace below with call to fetch files
   const { isPending: filesPending, data: files } = useQuery({
     queryKey: ["projects", userName, projectName, "files"],
     queryFn: () =>
