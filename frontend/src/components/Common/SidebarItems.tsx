@@ -20,7 +20,7 @@ const items = [
   { icon: FiCheckCircle, title: "Questions", path: "/questions" },
   { icon: FiDatabase, title: "Data", path: "/data" },
   { icon: FiImage, title: "Figures", path: "/figures" },
-  { icon: BsGear, title: "Pipelines", path: "/pipelines" },
+  { icon: BsGear, title: "Workflow", path: "/workflow" },
   { icon: FiBookOpen, title: "Publications", path: "/publications" },
   { icon: FiHardDrive, title: "Software", path: "/software" },
   { icon: FiUsers, title: "Collaborators", path: "/collaborators" },

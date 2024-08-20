@@ -24,10 +24,10 @@ import { Route as LayoutBrowseImport } from './routes/_layout/browse'
 import { Route as LayoutAdminImport } from './routes/_layout/admin'
 import { Route as LayoutUserNameProjectNameLayoutImport } from './routes/_layout/$userName/$projectName/_layout'
 import { Route as LayoutUserNameProjectNameLayoutIndexImport } from './routes/_layout/$userName/$projectName/_layout/index'
+import { Route as LayoutUserNameProjectNameLayoutWorkflowImport } from './routes/_layout/$userName/$projectName/_layout/workflow'
 import { Route as LayoutUserNameProjectNameLayoutSoftwareImport } from './routes/_layout/$userName/$projectName/_layout/software'
 import { Route as LayoutUserNameProjectNameLayoutQuestionsImport } from './routes/_layout/$userName/$projectName/_layout/questions'
 import { Route as LayoutUserNameProjectNameLayoutPublicationsImport } from './routes/_layout/$userName/$projectName/_layout/publications'
-import { Route as LayoutUserNameProjectNameLayoutPipelinesImport } from './routes/_layout/$userName/$projectName/_layout/pipelines'
 import { Route as LayoutUserNameProjectNameLayoutLocalImport } from './routes/_layout/$userName/$projectName/_layout/local'
 import { Route as LayoutUserNameProjectNameLayoutFilesImport } from './routes/_layout/$userName/$projectName/_layout/files'
 import { Route as LayoutUserNameProjectNameLayoutFiguresImport } from './routes/_layout/$userName/$projectName/_layout/figures'
@@ -104,6 +104,12 @@ const LayoutUserNameProjectNameLayoutIndexRoute =
     getParentRoute: () => LayoutUserNameProjectNameLayoutRoute,
   } as any)
 
+const LayoutUserNameProjectNameLayoutWorkflowRoute =
+  LayoutUserNameProjectNameLayoutWorkflowImport.update({
+    path: '/workflow',
+    getParentRoute: () => LayoutUserNameProjectNameLayoutRoute,
+  } as any)
+
 const LayoutUserNameProjectNameLayoutSoftwareRoute =
   LayoutUserNameProjectNameLayoutSoftwareImport.update({
     path: '/software',
@@ -119,12 +125,6 @@ const LayoutUserNameProjectNameLayoutQuestionsRoute =
 const LayoutUserNameProjectNameLayoutPublicationsRoute =
   LayoutUserNameProjectNameLayoutPublicationsImport.update({
     path: '/publications',
-    getParentRoute: () => LayoutUserNameProjectNameLayoutRoute,
-  } as any)
-
-const LayoutUserNameProjectNameLayoutPipelinesRoute =
-  LayoutUserNameProjectNameLayoutPipelinesImport.update({
-    path: '/pipelines',
     getParentRoute: () => LayoutUserNameProjectNameLayoutRoute,
   } as any)
 
@@ -274,13 +274,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutUserNameProjectNameLayoutLocalImport
       parentRoute: typeof LayoutUserNameProjectNameLayoutImport
     }
-    '/_layout/$userName/$projectName/_layout/pipelines': {
-      id: '/_layout/$userName/$projectName/_layout/pipelines'
-      path: '/pipelines'
-      fullPath: '/$userName/$projectName/pipelines'
-      preLoaderRoute: typeof LayoutUserNameProjectNameLayoutPipelinesImport
-      parentRoute: typeof LayoutUserNameProjectNameLayoutImport
-    }
     '/_layout/$userName/$projectName/_layout/publications': {
       id: '/_layout/$userName/$projectName/_layout/publications'
       path: '/publications'
@@ -300,6 +293,13 @@ declare module '@tanstack/react-router' {
       path: '/software'
       fullPath: '/$userName/$projectName/software'
       preLoaderRoute: typeof LayoutUserNameProjectNameLayoutSoftwareImport
+      parentRoute: typeof LayoutUserNameProjectNameLayoutImport
+    }
+    '/_layout/$userName/$projectName/_layout/workflow': {
+      id: '/_layout/$userName/$projectName/_layout/workflow'
+      path: '/workflow'
+      fullPath: '/$userName/$projectName/workflow'
+      preLoaderRoute: typeof LayoutUserNameProjectNameLayoutWorkflowImport
       parentRoute: typeof LayoutUserNameProjectNameLayoutImport
     }
     '/_layout/$userName/$projectName/_layout/': {
@@ -328,10 +328,10 @@ export const routeTree = rootRoute.addChildren({
           LayoutUserNameProjectNameLayoutFiguresRoute,
           LayoutUserNameProjectNameLayoutFilesRoute,
           LayoutUserNameProjectNameLayoutLocalRoute,
-          LayoutUserNameProjectNameLayoutPipelinesRoute,
           LayoutUserNameProjectNameLayoutPublicationsRoute,
           LayoutUserNameProjectNameLayoutQuestionsRoute,
           LayoutUserNameProjectNameLayoutSoftwareRoute,
+          LayoutUserNameProjectNameLayoutWorkflowRoute,
           LayoutUserNameProjectNameLayoutIndexRoute,
         }),
     }),
@@ -411,10 +411,10 @@ export const routeTree = rootRoute.addChildren({
         "/_layout/$userName/$projectName/_layout/figures",
         "/_layout/$userName/$projectName/_layout/files",
         "/_layout/$userName/$projectName/_layout/local",
-        "/_layout/$userName/$projectName/_layout/pipelines",
         "/_layout/$userName/$projectName/_layout/publications",
         "/_layout/$userName/$projectName/_layout/questions",
         "/_layout/$userName/$projectName/_layout/software",
+        "/_layout/$userName/$projectName/_layout/workflow",
         "/_layout/$userName/$projectName/_layout/"
       ]
     },
@@ -438,10 +438,6 @@ export const routeTree = rootRoute.addChildren({
       "filePath": "_layout/$userName/$projectName/_layout/local.tsx",
       "parent": "/_layout/$userName/$projectName/_layout"
     },
-    "/_layout/$userName/$projectName/_layout/pipelines": {
-      "filePath": "_layout/$userName/$projectName/_layout/pipelines.tsx",
-      "parent": "/_layout/$userName/$projectName/_layout"
-    },
     "/_layout/$userName/$projectName/_layout/publications": {
       "filePath": "_layout/$userName/$projectName/_layout/publications.tsx",
       "parent": "/_layout/$userName/$projectName/_layout"
@@ -452,6 +448,10 @@ export const routeTree = rootRoute.addChildren({
     },
     "/_layout/$userName/$projectName/_layout/software": {
       "filePath": "_layout/$userName/$projectName/_layout/software.tsx",
+      "parent": "/_layout/$userName/$projectName/_layout"
+    },
+    "/_layout/$userName/$projectName/_layout/workflow": {
+      "filePath": "_layout/$userName/$projectName/_layout/workflow.tsx",
       "parent": "/_layout/$userName/$projectName/_layout"
     },
     "/_layout/$userName/$projectName/_layout/": {
