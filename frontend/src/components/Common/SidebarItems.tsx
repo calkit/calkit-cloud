@@ -18,9 +18,9 @@ import { BsGear } from "react-icons/bs"
 const items = [
   { icon: FiHome, title: "Project home", path: "" },
   { icon: FiCheckCircle, title: "Questions", path: "/questions" },
+  { icon: BsGear, title: "Workflow", path: "/workflow" },
   { icon: FiDatabase, title: "Data", path: "/data" },
   { icon: FiImage, title: "Figures", path: "/figures" },
-  { icon: BsGear, title: "Workflow", path: "/workflow" },
   { icon: FiBookOpen, title: "Publications", path: "/publications" },
   { icon: FiHardDrive, title: "Software", path: "/software" },
   { icon: FiUsers, title: "Collaborators", path: "/collaborators" },
