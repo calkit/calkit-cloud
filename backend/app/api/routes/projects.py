@@ -5,7 +5,6 @@ import functools
 import logging
 import os
 import uuid
-from datetime import UTC
 
 import app.projects
 import requests
