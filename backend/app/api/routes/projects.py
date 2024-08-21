@@ -314,6 +314,7 @@ def get_project_datasets(
     session: SessionDep,
 ) -> list[Dataset]:
     # TODO: Get real data
+    # Read the datasets file
     d = Dataset(
         id=uuid.uuid4(),
         project_id=uuid.uuid4(),
@@ -323,3 +324,27 @@ def get_project_datasets(
         description="This is a dataset of something.",
     )
     return [d]
+
+
+@router.post("/projects/{owner_name}/{project_name}/syncs")
+def post_project_sync(
+    owner_name: str,
+    project_name: str,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> Message:
+    """Synchronize a project with its Git repo.
+
+    Do we actually need this? It will give us a way to operate if GitHub is
+    down, at least in read-only mode.
+    Or perhaps we can bidirectionally sync, allowing users to update Calkit
+    entities and we'll commit them back on sync.
+    It would probably be better to use Git for that, so we can handle
+    asynchronous edits with merges.
+    """
+    # Get and save project questions
+    # Figures
+    # Datasets
+    # Publications
+    # TODO: Update files in Git repo with IDs?
+    return Message(message="success")
