@@ -12,6 +12,7 @@ import { createFileRoute } from "@tanstack/react-router"
 import axios from "axios"
 
 import { ProjectsService } from "../../../../../client"
+import Markdown from "../../../../../components/Common/Markdown"
 
 export const Route = createFileRoute(
   "/_layout/$userName/$projectName/_layout/",
@@ -38,41 +39,33 @@ function ProjectView() {
     queryFn: () => axios.get("http://localhost:8866/health"),
     retry: false,
   })
+  const readmeRequest = useQuery({
+    queryKey: ["projects", userName, projectName, "readme"],
+    queryFn: () =>
+      ProjectsService.getProjectGitContents1({
+        ownerName: userName,
+        projectName: projectName,
+        path: "README.md",
+        astype: ".raw",
+      }),
+  })
+
+  const removeFirstLine = (txt: any) => {
+    let lines = String(txt).split("\n")
+    lines.splice(0, 1)
+    return lines.join("\n")
+  }
 
   return (
     <>
-      {isPending ? (
+      {isPending || readmeRequest.isPending ? (
         <Flex justify="center" align="center" height="100vh" width="full">
           <Spinner size="xl" color="ui.main" />
         </Flex>
       ) : (
         <Box>
           <Box>{project?.git_repo_url}</Box>
-          <Text>Project type: Research</Text>
-          <Text>Project type: Sup</Text>
-          <Box>
-            <Text>
-              {localServerError || localServerPending
-                ? "Local server not connected"
-                : `Local server ${String(localServerData.data).toLowerCase()}`}
-            </Text>
-          </Box>
-          <Heading size="md" pt={4} pb={2}>
-            Questions
-          </Heading>
-          <OrderedList>
-            <ListItem>
-              Are there new terms we can add to the RANS equations, derived from
-              existing quantities, which close the equations?
-            </ListItem>
-            <ListItem>
-              If so, can we discover the coefficients for those new quantities
-              from DNS data?
-            </ListItem>
-          </OrderedList>
-          <Heading size="md" pt={4} pb={2}>
-            Readme
-          </Heading>
+          <Markdown>{removeFirstLine(readmeRequest.data)}</Markdown>
         </Box>
       )}
     </>
