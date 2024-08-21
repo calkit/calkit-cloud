@@ -5,6 +5,7 @@ import functools
 import logging
 import os
 import uuid
+from typing import Literal
 
 import app.projects
 import requests
@@ -248,19 +249,27 @@ def get_project_git_contents(
     session: SessionDep,
     current_user: CurrentUser,
     path: str | None = None,
-) -> list[GitItem] | GitItemWithContents:
+    astype: Literal["", ".raw", ".html", ".object"] = "",
+) -> list[GitItem] | GitItemWithContents | str:
     token = users.get_github_token(session=session, user=current_user)
     url = f"https://api.github.com/repos/{owner_name}/{project_name}/contents"
     if path is not None:
-        url += path
+        url += "/" + path
     logger.info(f"Making request to: {url}")
-    headers = {"Authorization": f"Bearer {token}"}
-    resp = requests.get(url, headers=headers, params=dict(recursive="true"))
-    resp_json = resp.json()
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Accept": f"application/vnd.github{astype}+json",
+    }
+    resp = requests.get(url, headers=headers)
+    logger.info(f"Response status code from GitHub: {resp.status_code}")
     if resp.status_code >= 400:
         logger.info(f"GitHub API call failed: {resp.text}")
-        raise HTTPException(resp.status_code, resp_json["message"])
-    return resp_json
+        if astype in ["", ".object"]:
+            raise HTTPException(resp.status_code, resp.json()["message"])
+    if astype in ["", ".object"]:
+        return resp.json()
+    else:
+        return resp.text
 
 
 @router.get("/projects/{owner_name}/{project_name}/questions")
