@@ -141,11 +141,13 @@ export type ProjectsData = {
     projectName: string
   }
   GetProjectGitContents: {
+    astype?: "" | ".raw" | ".html" | ".object"
     ownerName: string
     path?: string | null
     projectName: string
   }
   GetProjectGitContents1: {
+    astype?: "" | ".raw" | ".html" | ".object"
     ownerName: string
     path: string | null
     projectName: string
@@ -159,6 +161,10 @@ export type ProjectsData = {
     projectName: string
   }
   GetProjectDatasets: {
+    ownerName: string
+    projectName: string
+  }
+  PostProjectSync: {
     ownerName: string
     projectName: string
   }
@@ -848,8 +854,8 @@ export class ProjectsService {
    */
   public static getProjectGitContents(
     data: ProjectsData["GetProjectGitContents"],
-  ): CancelablePromise<Array<GitItem> | GitItemWithContents> {
-    const { ownerName, projectName, path } = data
+  ): CancelablePromise<Array<GitItem> | GitItemWithContents | string> {
+    const { ownerName, projectName, path, astype = "" } = data
     return __request(OpenAPI, {
       method: "GET",
       url: "/api/v1/projects/{owner_name}/{project_name}/git/contents",
@@ -859,6 +865,7 @@ export class ProjectsService {
       },
       query: {
         path,
+        astype,
       },
       errors: {
         422: `Validation Error`,
@@ -873,8 +880,8 @@ export class ProjectsService {
    */
   public static getProjectGitContents1(
     data: ProjectsData["GetProjectGitContents1"],
-  ): CancelablePromise<Array<GitItem> | GitItemWithContents> {
-    const { ownerName, projectName, path } = data
+  ): CancelablePromise<Array<GitItem> | GitItemWithContents | string> {
+    const { ownerName, projectName, path, astype = "" } = data
     return __request(OpenAPI, {
       method: "GET",
       url: "/api/v1/projects/{owner_name}/{project_name}/git/contents/{path}",
@@ -882,6 +889,9 @@ export class ProjectsService {
         owner_name: ownerName,
         project_name: projectName,
         path,
+      },
+      query: {
+        astype,
       },
       errors: {
         422: `Validation Error`,
@@ -945,6 +955,36 @@ export class ProjectsService {
     return __request(OpenAPI, {
       method: "GET",
       url: "/api/v1/projects/{owner_name}/{project_name}/datasets",
+      path: {
+        owner_name: ownerName,
+        project_name: projectName,
+      },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Post Project Sync
+   * Synchronize a project with its Git repo.
+   *
+   * Do we actually need this? It will give us a way to operate if GitHub is
+   * down, at least in read-only mode.
+   * Or perhaps we can bidirectionally sync, allowing users to update Calkit
+   * entities and we'll commit them back on sync.
+   * It would probably be better to use Git for that, so we can handle
+   * asynchronous edits with merges.
+   * @returns Message Successful Response
+   * @throws ApiError
+   */
+  public static postProjectSync(
+    data: ProjectsData["PostProjectSync"],
+  ): CancelablePromise<Message> {
+    const { ownerName, projectName } = data
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/api/v1/projects/{owner_name}/{project_name}/syncs",
       path: {
         owner_name: ownerName,
         project_name: projectName,
