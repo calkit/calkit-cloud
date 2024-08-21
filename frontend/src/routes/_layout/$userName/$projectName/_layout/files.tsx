@@ -1,10 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router"
-import { Box, Flex, Spinner, Text, Icon } from "@chakra-ui/react"
+import { Box, Flex, Spinner, Text, Icon, Heading } from "@chakra-ui/react"
 import { useQuery } from "@tanstack/react-query"
 import { FiFolder, FiFile } from "react-icons/fi"
 import { FaMarkdown } from "react-icons/fa6"
 import { AiOutlinePython } from "react-icons/ai"
 import { SiAnaconda, SiJupyter } from "react-icons/si"
+import axios from "axios"
 
 import { ProjectsService, type GitItem } from "../../../../../client"
 
@@ -23,6 +24,11 @@ function Files() {
         ownerName: userName,
         projectName: projectName,
       }),
+  })
+  const localFilesRequest = useQuery({
+    queryKey: ["local-files"],
+    queryFn: () => axios.get("http://localhost:8866/ls"),
+    retry: false,
   })
 
   if (Array.isArray(files)) {
@@ -64,13 +70,19 @@ function Files() {
 
   return (
     <>
+      <Heading size="md" mb={1}>
+        All files
+      </Heading>
       {filesPending ? (
         <Flex justify="center" align="center" height="100vh" width="full">
           <Spinner size="xl" color="ui.main" />
         </Flex>
       ) : (
-        <Box>
-          <Box>
+        <Flex>
+          <Box minW="20%">
+            <Heading size="s" mb={1}>
+              Cloud
+            </Heading>
             {Array.isArray(files)
               ? files?.map((file) => (
                   <Flex key={file.name}>
@@ -80,7 +92,21 @@ function Files() {
                 ))
               : ""}
           </Box>
-        </Box>
+          <Box minW="20%">
+            <Heading size="s" mb={1}>
+              Local
+            </Heading>
+            {!localFilesRequest.error &&
+            Array.isArray(localFilesRequest.data?.data)
+              ? localFilesRequest.data?.data.map((file) => (
+                  <Flex key={file.name}>
+                    <Icon as={getIcon(file)} alignSelf="center" mr={1} />
+                    <Text>{file.name}</Text>
+                  </Flex>
+                ))
+              : "Local server not connected"}
+          </Box>
+        </Flex>
       )}
     </>
   )
