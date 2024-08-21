@@ -10,7 +10,7 @@ const Mermaid = ({ children }: MermaidProps) => {
     const renderDiagram = async () => {
       mermaid.initialize({
         startOnLoad: false,
-        theme: "default",
+        theme: "dark",
         securityLevel: "loose",
         fontFamily: "monospace",
       })

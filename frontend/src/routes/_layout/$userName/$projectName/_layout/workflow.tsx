@@ -5,11 +5,18 @@ import Mermaid from "../../../../../components/Common/Mermaid"
 
 // TODO: Get this diagram from the back end
 const diagram = `
-graph TD;
-    A-->B;
-    A-->C;
-    B-->D;
-    C-->D;
+flowchart TD
+  node1["build-paper"]
+  node2["compute-coeffs"]
+  node3["data/jhtdb-transitional-bl/time-ave-profiles.h5.dvc"]
+  node4["extract-jhtdb-stats"]
+  node5["plot-time-ave-profiles"]
+  node6["run-rans-sim" <a href='./'>home</a>]
+  node2-->node6
+  node3-->node5
+  node4-->node2
+  node5-->node1
+  node6-->node5
 `
 
 export const Route = createFileRoute(
