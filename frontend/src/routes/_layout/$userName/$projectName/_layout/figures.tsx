@@ -28,8 +28,8 @@ function FigureComments({ figure }: CommentsProps) {
   const handleInputChange = (val) => {
     setCommentInput(val.target.value)
   }
-  const onButtonClick = (e) => {
-    console.log("Button clicked on", figure.path)
+  const onButtonClick = () => {
+    console.log("Button clicked on", figure.path, commentInput)
   }
 
   return (
