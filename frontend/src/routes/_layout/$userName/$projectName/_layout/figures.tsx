@@ -7,11 +7,15 @@ import {
   Textarea,
   Button,
 } from "@chakra-ui/react"
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 import { useState } from "react"
 
-import { ProjectsService, type Figure } from "../../../../../client"
+import {
+  ProjectsService,
+  type Figure,
+  type FigureCommentPost,
+} from "../../../../../client"
 
 export const Route = createFileRoute(
   "/_layout/$userName/$projectName/_layout/figures",
@@ -24,6 +28,7 @@ interface CommentsProps {
 }
 
 function FigureComments({ figure }: CommentsProps) {
+  const queryClient = useQueryClient()
   const { userName, projectName } = Route.useParams()
   const {
     isPending,
@@ -42,8 +47,22 @@ function FigureComments({ figure }: CommentsProps) {
   const handleInputChange = (val) => {
     setCommentInput(val.target.value)
   }
+  const mutation = useMutation({
+    mutationFn: (data: FigureCommentPost) =>
+      ProjectsService.postFigureComment({
+        ownerName: userName,
+        projectName: projectName,
+        requestBody: data,
+      }),
+    onSettled: () => {
+      queryClient.invalidateQueries({
+        queryKey: [userName, projectName, "figure-comments"],
+      })
+    },
+  })
   const onButtonClick = () => {
-    console.log("Button clicked on", figure.path, commentInput)
+    mutation.mutate({ figure_path: figure.path, comment: commentInput })
+    setCommentInput("")
   }
 
   return (
@@ -76,6 +95,7 @@ function FigureComments({ figure }: CommentsProps) {
             id={figure.path}
             my={2}
             isDisabled={commentInput === ""}
+            isLoading={mutation.isPending}
             onClick={onButtonClick}
           >
             Submit

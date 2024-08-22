@@ -424,6 +424,10 @@ def post_figure_comment(
     current_user: CurrentUser,
     session: SessionDep,
 ) -> FigureComment:
+    logger.info(
+        f"Received request to post comment to {owner_name}/{project_name}/"
+        f"{comment_in.figure_path}: {comment_in.comment}"
+    )
     # Does this user have permission to comment on this project?
     project = app.projects.get_project(
         session=session, owner_name=owner_name, project_name=project_name
