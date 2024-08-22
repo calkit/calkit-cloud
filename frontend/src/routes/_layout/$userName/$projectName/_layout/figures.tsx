@@ -35,7 +35,7 @@ function ProjectFiguresView() {
                 {figure.title}
               </Heading>
               <Text>{figure.description}</Text>
-              {figure.path.endsWith(".pdf") && figure.url ? (
+              {figure.path.endsWith(".pdf") && figure.content ? (
                 <Box height="530px" width="635px" my={3}>
                   <embed
                     height="100%"
