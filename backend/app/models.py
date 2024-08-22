@@ -176,6 +176,20 @@ class ProjectCreate(ProjectBase):
     pass
 
 
+class WorkflowStage(SQLModel):
+    cmd: str
+    deps: list[str] | None = None
+    outs: list[str]
+    desc: str | None = None
+    meta: dict | None = None
+    wdir: str | None = None
+
+
+class Workflow(SQLModel):
+    mermaid: str
+    stages: dict[str, WorkflowStage]
+
+
 class Question(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     project_id: uuid.UUID = Field(foreign_key="project.id")
@@ -219,5 +233,6 @@ class Dataset(SQLModel, table=True):
 
 class ImportedDataset(SQLModel, table=True):
     """A dataset imported into a project in a read-only fashion."""
+
     project_id: uuid.UUID = Field(foreign_key="project.id", primary_key=True)
     dataset_id: uuid.UUID = Field(foreign_key="dataset.id", primary_key=True)

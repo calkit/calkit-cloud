@@ -13,6 +13,7 @@ import s3fs
 import yaml
 from app import users
 from app.api.deps import CurrentUser, SessionDep
+from app.dvc import make_mermaid_diagram
 from app.models import (
     Dataset,
     Figure,
@@ -21,6 +22,7 @@ from app.models import (
     ProjectCreate,
     ProjectsPublic,
     Question,
+    Workflow,
 )
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
@@ -357,3 +359,27 @@ def post_project_sync(
     # Publications
     # TODO: Update files in Git repo with IDs?
     return Message(message="success")
+
+
+@router.get("/projects/{owner_name}/{project_name}/workflow")
+def get_project_workflow(
+    owner_name: str,
+    project_name: str,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> Workflow:
+    content = get_project_git_contents(
+        owner_name=owner_name,
+        project_name=project_name,
+        session=session,
+        current_user=current_user,
+        path="/dvc.yaml",
+    )
+    content = base64.b64decode(content["content"]).decode()
+    dvc_pipeline = yaml.safe_load(content)
+    # Generate Mermaid diagram
+    mermaid = make_mermaid_diagram(dvc_pipeline)
+    return Workflow(
+        stages=dvc_pipeline["stages"],
+        mermaid=mermaid,
+    )

@@ -29,6 +29,8 @@ pyjwt = "^2.8.0"
 s3fs = "^2024.6.1"
 python-slugify = "^8.0.4"
 cryptography = "^43.0.0"
+dvc = "^3.54.1"
+gitpython = "^3.1.43"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.4.3"
