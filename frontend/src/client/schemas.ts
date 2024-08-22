@@ -60,15 +60,44 @@ export const $Dataset = {
       isRequired: true,
       format: "uuid",
     },
+    imported_from: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
     path: {
       type: "string",
       isRequired: true,
     },
-    tabular: {
-      type: "boolean",
-      isRequired: true,
+    title: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
     },
-    pipeline: {
+    tabular: {
+      type: "any-of",
+      contains: [
+        {
+          type: "boolean",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    stage: {
       type: "any-of",
       contains: [
         {
@@ -80,8 +109,26 @@ export const $Dataset = {
       ],
     },
     description: {
-      type: "string",
-      isRequired: true,
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    url: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
     },
   },
 } as const

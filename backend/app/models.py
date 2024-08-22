@@ -223,10 +223,14 @@ class Dataset(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     # Project in which is was created
     project_id: uuid.UUID = Field(foreign_key="project.id")
+    # Full path to origin project and dataset, if this is imported
+    imported_from: str | None = None
     path: str
-    tabular: bool
-    pipeline: str | None = None
-    description: str
+    title: str | None = None
+    tabular: bool | None = None
+    stage: str | None = None
+    description: str | None = None
+    url: str | None = None  # To allow for downloads?
     # TODO: Track version somehow, and link to DVC remote MD5?
     # TODO: Is this a directory of files?
     # TODO: Track size? -- basically all DVC properties

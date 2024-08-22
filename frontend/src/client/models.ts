@@ -10,10 +10,13 @@ export type Body_login_login_access_token = {
 export type Dataset = {
   id?: string
   project_id: string
+  imported_from?: string | null
   path: string
-  tabular: boolean
-  pipeline?: string | null
-  description: string
+  title?: string | null
+  tabular?: boolean | null
+  stage?: string | null
+  description?: string | null
+  url?: string | null
 }
 
 export type Figure = {

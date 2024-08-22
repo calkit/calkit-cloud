@@ -318,6 +318,18 @@ def get_project_figures(
         astype=".raw",
     )
     figures = yaml.safe_load(figs_yaml)
+    # Read the DVC lock file
+    # TODO: Handle cases where this doesn't exist
+    # Perhaps we need a caching table for git contents
+    dvc_lock_yaml = get_project_git_contents(
+        owner_name=owner_name,
+        project_name=project_name,
+        session=session,
+        current_user=current_user,
+        path="dvc.lock",
+        astype=".raw",
+    )
+    dvc_lock = yaml.safe_load(dvc_lock_yaml)
     fs = _get_minio_fs()
     # Get the figure content and base64 encode it
     for fig in figures:
@@ -327,15 +339,6 @@ def get_project_figures(
         # the DVC lock file
         if (stage := fig.get("stage")) is not None:
             logger.info(f"Searching for {path} from stage '{stage}'")
-            dvc_lock_yaml = get_project_git_contents(
-                owner_name=owner_name,
-                project_name=project_name,
-                session=session,
-                current_user=current_user,
-                path="dvc.lock",
-                astype=".raw",
-            )
-            dvc_lock = yaml.safe_load(dvc_lock_yaml)
             stage_outs = dvc_lock["stages"][stage]["outs"]
             for out in stage_outs:
                 if out["path"] == path:
@@ -381,24 +384,35 @@ def get_project_figures(
     return [Figure.model_validate(fig) for fig in figures]
 
 
-@router.get("/projects/{owner_name}/{project_name}/datasets")
-def get_project_datasets(
+@router.get("/projects/{owner_name}/{project_name}/data")
+def get_project_data(
     owner_name: str,
     project_name: str,
     current_user: CurrentUser,
     session: SessionDep,
 ) -> list[Dataset]:
-    # TODO: Get real data
-    # Read the datasets file
-    d = Dataset(
-        id=uuid.uuid4(),
-        project_id=uuid.uuid4(),
-        path="data/something.parquet",
-        pipeline="pipeline_that_generates_something",
-        tabular=True,
-        description="This is a dataset of something.",
+    project = app.projects.get_project(
+        session=session, owner_name=owner_name, project_name=project_name
     )
-    return [d]
+    # Read the datasets file from the repo
+    datasets_yaml = get_project_git_contents(
+        owner_name=owner_name,
+        project_name=project_name,
+        session=session,
+        current_user=current_user,
+        path=".calkit/data.yaml",
+        astype=".raw",
+    )
+    datasets = yaml.safe_load(datasets_yaml)
+    fs = _get_minio_fs()
+    for dataset in datasets:
+        # Create a dummy ID
+        # TODO: Don't do this -- put in the DB or not
+        dataset["id"] = uuid.uuid4()
+        dataset["project_id"] = project.id
+        # TODO: If this is imported, get title, description, etc. from the
+        # source dataset
+    return [Dataset.model_validate(d) for d in datasets]
 
 
 @router.post("/projects/{owner_name}/{project_name}/syncs")

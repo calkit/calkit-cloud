@@ -1,4 +1,14 @@
-import { Box, Heading, Spinner, Flex, Text } from "@chakra-ui/react"
+import {
+  Box,
+  Heading,
+  Spinner,
+  Flex,
+  Text,
+  UnorderedList,
+  ListItem,
+  Code,
+  Badge,
+} from "@chakra-ui/react"
 import { useQuery } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 
@@ -15,7 +25,7 @@ function ProjectDataView() {
   const { isPending: dataPending, data: datasets } = useQuery({
     queryKey: ["projects", userName, projectName, "datasets"],
     queryFn: () =>
-      ProjectsService.getProjectDatasets({
+      ProjectsService.getProjectData({
         ownerName: userName,
         projectName: projectName,
       }),
@@ -23,20 +33,33 @@ function ProjectDataView() {
 
   return (
     <>
+      <Heading size="md" mb={2}>
+        Data
+      </Heading>
       {dataPending ? (
         <Flex justify="center" align="center" height="100vh" width="full">
           <Spinner size="xl" color="ui.main" />
         </Flex>
       ) : (
         <Box>
-          {datasets?.map((dataset) => (
-            <Box key={dataset.path}>
-              <Heading fontFamily="monospace" size="md" pb={1}>
-                {dataset.path}
-              </Heading>
-              <Text>{dataset.description}</Text>
-            </Box>
-          ))}
+          <UnorderedList>
+            {datasets?.map((dataset) => (
+              <ListItem key={dataset.path}>
+                <Code>{dataset.path}</Code>
+                {dataset.imported_from ? (
+                  <Badge ml={1} bgColor="green.500">
+                    imported
+                  </Badge>
+                ) : (
+                  ""
+                )}
+                <Text>Title: {dataset.title ? dataset.title : ""}</Text>
+                <Text>
+                  Description: {dataset.description ? dataset.description : ""}
+                </Text>
+              </ListItem>
+            ))}
+          </UnorderedList>
         </Box>
       )}
     </>
