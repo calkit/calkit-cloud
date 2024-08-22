@@ -217,6 +217,28 @@ class FigureComment(SQLModel, table=True):
     updated: datetime = Field(default_factory=utcnow)
     external_url: str | None = Field(default=None, max_length=2048)
     comment: str
+    # Relationships
+    user: User = Relationship()
+
+    @computed_field
+    @property
+    def user_github_username(self) -> str:
+        return self.user.github_username
+
+    @computed_field
+    @property
+    def user_full_name(self) -> str:
+        return self.user.full_name
+
+    @computed_field
+    @property
+    def user_email(self) -> str:
+        return self.user.email
+
+
+class FigureCommentPost(SQLModel):
+    figure_path: str
+    comment: str
 
 
 class Dataset(SQLModel):

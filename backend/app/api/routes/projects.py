@@ -17,6 +17,8 @@ from app.dvc import make_mermaid_diagram
 from app.models import (
     Dataset,
     Figure,
+    FigureComment,
+    FigureCommentPost,
     Message,
     Project,
     ProjectCreate,
@@ -384,6 +386,76 @@ def get_project_figures(
     return [Figure.model_validate(fig) for fig in figures]
 
 
+@router.get("/projects/{owner_name}/{project_name}/figures/{figure_path}")
+def get_project_figure(
+    owner_name: str,
+    project_name: str,
+    figure_path: str,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> Figure:
+    pass
+
+
+@router.get("/projects/{owner_name}/{project_name}/figure-comments")
+def get_figure_comments(
+    owner_name: str,
+    project_name: str,
+    current_user: CurrentUser,
+    session: SessionDep,
+    figure_path: str | None = None,
+) -> list[FigureComment]:
+    project = app.projects.get_project(
+        session=session, owner_name=owner_name, project_name=project_name
+    )
+    # TODO: Check that this user has access to this project
+    query = select(FigureComment).where(FigureComment.project_id == project.id)
+    if figure_path is not None:
+        query = query.where(FigureComment.figure_path == figure_path)
+    comments = session.exec(query).fetchall()
+    return comments
+
+
+@router.post("/projects/{owner_name}/{project_name}/figure-comments")
+def post_figure_comment(
+    owner_name: str,
+    project_name: str,
+    comment_in: FigureCommentPost,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> FigureComment:
+    # Does this user have permission to comment on this project?
+    project = app.projects.get_project(
+        session=session, owner_name=owner_name, project_name=project_name
+    )
+    # TODO: Centralize permissions
+    if not project.owner == current_user:
+        raise HTTPException(401)
+    # First we need to make this this figure path exists in this project
+    figs_yaml = get_project_git_contents(
+        owner_name=owner_name,
+        project_name=project_name,
+        session=session,
+        current_user=current_user,
+        path=".calkit/figures.yaml",
+        astype=".raw",
+    )
+    figures = yaml.safe_load(figs_yaml)
+    fig_paths = [fig["path"] for fig in figures]
+    if comment_in.figure_path not in fig_paths:
+        raise HTTPException(404)
+    comment = FigureComment(
+        project_id=project.id,
+        figure_path=comment_in.figure_path,
+        comment=comment_in.comment,
+        user_id=current_user.id,
+    )
+    session.add(comment)
+    session.commit()
+    session.refresh(comment)
+    return comment
+
+
 @router.get("/projects/{owner_name}/{project_name}/data")
 def get_project_data(
     owner_name: str,
@@ -394,6 +466,9 @@ def get_project_data(
     project = app.projects.get_project(
         session=session, owner_name=owner_name, project_name=project_name
     )
+    # TODO: Centralize permissions
+    if project.owner != current_user:
+        raise HTTPException(401)
     # Read the datasets file from the repo
     datasets_yaml = get_project_git_contents(
         owner_name=owner_name,
