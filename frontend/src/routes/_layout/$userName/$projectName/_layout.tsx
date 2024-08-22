@@ -1,6 +1,16 @@
-import { Container, Flex, Spinner, Heading } from "@chakra-ui/react"
+import {
+  Container,
+  Flex,
+  Spinner,
+  Heading,
+  Link,
+  HStack,
+  Icon,
+} from "@chakra-ui/react"
 import { createFileRoute, Outlet } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
+import { ExternalLinkIcon } from "@chakra-ui/icons"
+import { FaGithub } from "react-icons/fa"
 
 import Sidebar from "../../../../components/Common/Sidebar"
 import NotFound from "../../../../components/Common/NotFound"
@@ -47,14 +57,25 @@ function ProjectLayout() {
         <Flex>
           <Sidebar basePath={`/${userName}/${projectName}`} />
           <Container maxW="full" mx={6}>
-            <Heading
-              size="lg"
-              textAlign={{ base: "center", md: "left" }}
-              pt={8}
-              pb={3}
-            >
-              {project?.name}
-            </Heading>
+            <Flex width={"full"}>
+              <Heading
+                size="lg"
+                textAlign={{ base: "center", md: "left" }}
+                alignContent={"center"}
+                pt={8}
+                pb={3}
+              >
+                {project?.name}
+                {project?.git_repo_url ? (
+                  <Link href={project?.git_repo_url} isExternal>
+                    <Icon height="45%" as={FaGithub} pl={3} pr={0} mr={0} />
+                    <Icon height={"50%"} as={ExternalLinkIcon} pl={0} ml={0} />
+                  </Link>
+                ) : (
+                  ""
+                )}
+              </Heading>
+            </Flex>
             <Outlet />
           </Container>
         </Flex>

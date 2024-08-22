@@ -30,15 +30,6 @@ function ProjectView() {
         projectName: projectName,
       }),
   })
-  const {
-    isPending: localServerPending,
-    error: localServerError,
-    data: localServerData,
-  } = useQuery({
-    queryKey: ["local-server-health"],
-    queryFn: () => axios.get("http://localhost:8866/health"),
-    retry: false,
-  })
   const readmeRequest = useQuery({
     queryKey: ["projects", userName, projectName, "readme"],
     queryFn: () =>
@@ -64,7 +55,6 @@ function ProjectView() {
         </Flex>
       ) : (
         <Box>
-          <Box>{project?.git_repo_url}</Box>
           <Markdown>{removeFirstLine(readmeRequest.data)}</Markdown>
         </Box>
       )}
