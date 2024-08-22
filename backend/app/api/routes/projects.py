@@ -352,7 +352,9 @@ def get_project_figures(
                         f"Figure content is now {len(fig['content'])} long"
                     )
                     kws = {}
-                    kws["ResponseContentDisposition"] = f"filename={path}"
+                    kws["ResponseContentDisposition"] = (
+                        f"filename={os.path.basename(path)}"
+                    )
                     url = fs.url(fpath, expires=3600 * 24, **kws)
                     logger.info(f"Generated presigned URL for {path}: {url}")
                     fig["url"] = url
