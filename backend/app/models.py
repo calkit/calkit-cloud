@@ -190,7 +190,7 @@ class Workflow(SQLModel):
     stages: dict[str, WorkflowStage]
 
 
-class Question(SQLModel, table=True):
+class Question(SQLModel):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     project_id: uuid.UUID = Field(foreign_key="project.id")
     question: str
@@ -210,16 +210,16 @@ class Figure(SQLModel):
 
 class FigureComment(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    # What figure are we commenting on?
-    # Should we just track this by the project and local repo path of the
-    # figure, since that's how it's identified in the figures file?
-    figure_id: uuid.UUID = Field(foreign_key="figure.id")
+    project_id: uuid.UUID = Field(foreign_key="project.id")
+    figure_path: str = Field(max_length=255)
     user_id: uuid.UUID = Field(foreign_key="user.id")
     created: datetime = Field(default_factory=utcnow)
+    updated: datetime = Field(default_factory=utcnow)
+    external_url: str | None = Field(default=None, max_length=2048)
     comment: str
 
 
-class Dataset(SQLModel, table=True):
+class Dataset(SQLModel):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     # Project in which is was created
     project_id: uuid.UUID = Field(foreign_key="project.id")
@@ -236,7 +236,7 @@ class Dataset(SQLModel, table=True):
     # TODO: Track size? -- basically all DVC properties
 
 
-class ImportedDataset(SQLModel, table=True):
+class ImportedDataset(SQLModel):
     """A dataset imported into a project in a read-only fashion."""
 
     project_id: uuid.UUID = Field(foreign_key="project.id", primary_key=True)
