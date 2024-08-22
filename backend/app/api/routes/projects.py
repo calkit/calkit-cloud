@@ -287,8 +287,8 @@ def get_project_questions(
         session=session,
         current_user=current_user,
         path=".calkit/questions.yaml",
+        astype=".raw"
     )
-    content = base64.b64decode(content["content"]).decode()
     questions = yaml.safe_load(content)
     # TODO: Ensure these go in the database and use real IDs
     return [
