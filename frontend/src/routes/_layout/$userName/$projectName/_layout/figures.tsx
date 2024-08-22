@@ -31,11 +31,12 @@ function ProjectFiguresView() {
         <Box>
           {figures?.map((figure) => (
             <Box key={figure.title}>
-              <Heading size="md">{figure.title}</Heading>
-              <Code>{figure.path}</Code>
+              <Heading size="md" mb={2}>
+                {figure.title}
+              </Heading>
               <Text>{figure.description}</Text>
               {figure.path.endsWith(".pdf") && figure.url ? (
-                <Box height="525px" width="630px" my={3}>
+                <Box height="530px" width="635px" my={3}>
                   <embed
                     height="100%"
                     width="100%"
