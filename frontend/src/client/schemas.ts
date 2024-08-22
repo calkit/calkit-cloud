@@ -97,15 +97,7 @@ export const $Figure = {
       isRequired: true,
     },
     description: {
-      type: "any-of",
-      contains: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
+      type: "string",
       isRequired: true,
     },
     stage: {
@@ -118,9 +110,30 @@ export const $Figure = {
           type: "null",
         },
       ],
-      isRequired: true,
     },
     dataset: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    content: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    url: {
       type: "any-of",
       contains: [
         {

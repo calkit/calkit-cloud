@@ -19,9 +19,11 @@ export type Dataset = {
 export type Figure = {
   path: string
   title: string
-  description: string | null
-  stage: string | null
+  description: string
+  stage?: string | null
   dataset?: string | null
+  content?: string | null
+  url?: string | null
 }
 
 export type GitItem = {

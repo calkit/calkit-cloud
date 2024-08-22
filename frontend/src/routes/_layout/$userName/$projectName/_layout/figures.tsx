@@ -34,6 +34,17 @@ function ProjectFiguresView() {
               <Heading size="md">{figure.title}</Heading>
               <Code>{figure.path}</Code>
               <Text>{figure.description}</Text>
+              {figure.path.endsWith(".pdf") && figure.url ? (
+                <Box height="525px" width="630px" my={3}>
+                  <embed
+                    height="100%"
+                    width="100%"
+                    src={`data:application/pdf;base64,${figure.content}`}
+                  />
+                </Box>
+              ) : (
+                "Cannot render figure content."
+              )}
             </Box>
           ))}
         </Box>

@@ -287,7 +287,7 @@ def get_project_questions(
         session=session,
         current_user=current_user,
         path=".calkit/questions.yaml",
-        astype=".raw"
+        astype=".raw",
     )
     questions = yaml.safe_load(content)
     # TODO: Ensure these go in the database and use real IDs
@@ -306,15 +306,76 @@ def get_project_figures(
     current_user: CurrentUser,
     session: SessionDep,
 ) -> list[Figure]:
-    content = get_project_git_contents(
+    project = app.projects.get_project(
+        session=session, owner_name=owner_name, project_name=project_name
+    )
+    figs_yaml = get_project_git_contents(
         owner_name=owner_name,
         project_name=project_name,
         session=session,
         current_user=current_user,
         path=".calkit/figures.yaml",
-        astype=".raw"
+        astype=".raw",
     )
-    figures = yaml.safe_load(content)
+    figures = yaml.safe_load(figs_yaml)
+    fs = _get_minio_fs()
+    # Get the figure content and base64 encode it
+    for fig in figures:
+        path = fig["path"]
+        # Is this in the Git repo, or is it in DVC?
+        # If it has a stage defined, it should be able to be identified from
+        # the DVC lock file
+        if (stage := fig.get("stage")) is not None:
+            logger.info(f"Searching for {path} from stage '{stage}'")
+            dvc_lock_yaml = get_project_git_contents(
+                owner_name=owner_name,
+                project_name=project_name,
+                session=session,
+                current_user=current_user,
+                path="dvc.lock",
+                astype=".raw",
+            )
+            dvc_lock = yaml.safe_load(dvc_lock_yaml)
+            stage_outs = dvc_lock["stages"][stage]["outs"]
+            for out in stage_outs:
+                if out["path"] == path:
+                    # We've found it
+                    idx = out["md5"][:2]
+                    md5 = out["md5"][2:]
+                    fpath = _make_data_fpath(
+                        project_id=project.id, idx=idx, md5=md5
+                    )
+                    with fs.open(fpath, "rb") as f:
+                        content = f.read()
+                    fig["content"] = base64.b64encode(content).decode()
+                    logger.info(
+                        f"Figure content is now {len(fig['content'])} long"
+                    )
+                    kws = {}
+                    kws["ResponseContentDisposition"] = f"filename={path}"
+                    url = fs.url(fpath, expires=3600 * 24, **kws)
+                    logger.info(f"Generated presigned URL for {path}: {url}")
+                    fig["url"] = url
+                    break
+        else:
+            # This is not the output of a DVC pipeline stage
+            # First, see if it lives in the Git repo
+            # TODO: Handle imported figures
+            try:
+                content = get_project_git_contents(
+                    owner_name=owner_name,
+                    project_name=project_name,
+                    session=session,
+                    current_user=current_user,
+                    path=path,
+                )
+                fig["content"] = content["content"]
+            except HTTPException:
+                # Looks like it doesn't exist in the repo
+                # This must be an imported figure, or it's just tracked in DVC
+                # without being the output of a stage
+                # TODO: Handle this case
+                raise HTTPException(501)
     return [Figure.model_validate(fig) for fig in figures]
 
 

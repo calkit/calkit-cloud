@@ -199,9 +199,11 @@ class Question(SQLModel, table=True):
 class Figure(SQLModel):
     path: str
     title: str
-    description: str | None
-    stage: str | None
+    description: str
+    stage: str | None = None
     dataset: str | None = None
+    content: str | None = None  # Base64 encoded
+    url: str | None = None
     # TODO: Link to a dataset, or does the pipeline do that?
     # TODO: Add content, or maybe we can just get from Git contents via path?
 
