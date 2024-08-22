@@ -48,7 +48,7 @@ function FigureComments({ figure }: CommentsProps) {
 
   return (
     <>
-      <Heading size="s" mb={2}>
+      <Heading size="s" mb={1}>
         Comments
       </Heading>
       <Box>
