@@ -1,11 +1,4 @@
-import {
-  Container,
-  Flex,
-  Spinner,
-  Heading,
-  Link,
-  Icon,
-} from "@chakra-ui/react"
+import { Container, Flex, Spinner, Heading, Link, Icon } from "@chakra-ui/react"
 import { createFileRoute, Outlet } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
 import { ExternalLinkIcon } from "@chakra-ui/icons"

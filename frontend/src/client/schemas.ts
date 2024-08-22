@@ -88,15 +88,6 @@ export const $Dataset = {
 
 export const $Figure = {
   properties: {
-    id: {
-      type: "string",
-      format: "uuid",
-    },
-    project_id: {
-      type: "string",
-      isRequired: true,
-      format: "uuid",
-    },
     path: {
       type: "string",
       isRequired: true,
@@ -117,7 +108,7 @@ export const $Figure = {
       ],
       isRequired: true,
     },
-    pipeline: {
+    stage: {
       type: "any-of",
       contains: [
         {
@@ -128,6 +119,17 @@ export const $Figure = {
         },
       ],
       isRequired: true,
+    },
+    dataset: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
     },
   },
 } as const

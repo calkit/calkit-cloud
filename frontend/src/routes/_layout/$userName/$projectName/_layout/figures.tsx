@@ -1,4 +1,4 @@
-import { Box, Heading, Spinner, Flex, Text } from "@chakra-ui/react"
+import { Box, Heading, Spinner, Flex, Text, Code } from "@chakra-ui/react"
 import { useQuery } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 
@@ -32,6 +32,7 @@ function ProjectFiguresView() {
           {figures?.map((figure) => (
             <Box key={figure.title}>
               <Heading size="md">{figure.title}</Heading>
+              <Code>{figure.path}</Code>
               <Text>{figure.description}</Text>
             </Box>
           ))}

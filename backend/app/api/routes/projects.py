@@ -306,15 +306,16 @@ def get_project_figures(
     current_user: CurrentUser,
     session: SessionDep,
 ) -> list[Figure]:
-    fig = Figure(
-        id=uuid.uuid4(),
-        project_id=uuid.uuid4(),
-        path="figures/something.png",
-        title="My cool figure",
-        description="This is a cool figure.",
-        pipeline="something_figure",
+    content = get_project_git_contents(
+        owner_name=owner_name,
+        project_name=project_name,
+        session=session,
+        current_user=current_user,
+        path=".calkit/figures.yaml",
+        astype=".raw"
     )
-    return [fig]
+    figures = yaml.safe_load(content)
+    return [Figure.model_validate(fig) for fig in figures]
 
 
 @router.get("/projects/{owner_name}/{project_name}/datasets")

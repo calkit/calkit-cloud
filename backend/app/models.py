@@ -196,13 +196,12 @@ class Question(SQLModel, table=True):
     question: str
 
 
-class Figure(SQLModel, table=True):
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    project_id: uuid.UUID = Field(foreign_key="project.id")
+class Figure(SQLModel):
     path: str
     title: str
     description: str | None
-    pipeline: str | None
+    stage: str | None
+    dataset: str | None = None
     # TODO: Link to a dataset, or does the pipeline do that?
     # TODO: Add content, or maybe we can just get from Git contents via path?
 
