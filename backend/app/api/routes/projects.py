@@ -286,7 +286,7 @@ def get_project_questions(
         project_name=project_name,
         session=session,
         current_user=current_user,
-        path="/.calkit/questions.yaml",
+        path=".calkit/questions.yaml",
     )
     content = base64.b64decode(content["content"]).decode()
     questions = yaml.safe_load(content)
@@ -373,12 +373,15 @@ def get_project_workflow(
         project_name=project_name,
         session=session,
         current_user=current_user,
-        path="/dvc.yaml",
+        path="dvc.yaml",
     )
     content = base64.b64decode(content["content"]).decode()
     dvc_pipeline = yaml.safe_load(content)
     # Generate Mermaid diagram
     mermaid = make_mermaid_diagram(dvc_pipeline)
+    logger.info(
+        f"Created Mermaid diagram for {owner_name}/{project_name}:\n{mermaid}"
+    )
     return Workflow(
         stages=dvc_pipeline["stages"],
         mermaid=mermaid,

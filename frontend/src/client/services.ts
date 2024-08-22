@@ -26,6 +26,7 @@ import type {
   ProjectCreate,
   ProjectsPublic,
   Question,
+  Workflow,
 } from "./models"
 
 export type LoginData = {
@@ -165,6 +166,10 @@ export type ProjectsData = {
     projectName: string
   }
   PostProjectSync: {
+    ownerName: string
+    projectName: string
+  }
+  GetProjectWorkflow: {
     ownerName: string
     projectName: string
   }
@@ -985,6 +990,28 @@ export class ProjectsService {
     return __request(OpenAPI, {
       method: "POST",
       url: "/api/v1/projects/{owner_name}/{project_name}/syncs",
+      path: {
+        owner_name: ownerName,
+        project_name: projectName,
+      },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Get Project Workflow
+   * @returns Workflow Successful Response
+   * @throws ApiError
+   */
+  public static getProjectWorkflow(
+    data: ProjectsData["GetProjectWorkflow"],
+  ): CancelablePromise<Workflow> {
+    const { ownerName, projectName } = data
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/api/v1/projects/{owner_name}/{project_name}/workflow",
       path: {
         owner_name: ownerName,
         project_name: projectName,

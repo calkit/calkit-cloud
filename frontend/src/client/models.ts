@@ -184,3 +184,17 @@ export type ValidationError = {
   msg: string
   type: string
 }
+
+export type Workflow = {
+  mermaid: string
+  stages: Record<string, WorkflowStage>
+}
+
+export type WorkflowStage = {
+  cmd: string
+  deps?: Array<string> | null
+  outs: Array<string>
+  desc?: string | null
+  meta?: Record<string, unknown> | null
+  wdir?: string | null
+}

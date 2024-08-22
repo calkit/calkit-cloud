@@ -853,3 +853,85 @@ export const $ValidationError = {
     },
   },
 } as const
+
+export const $Workflow = {
+  properties: {
+    mermaid: {
+      type: "string",
+      isRequired: true,
+    },
+    stages: {
+      type: "dictionary",
+      contains: {
+        type: "WorkflowStage",
+      },
+      isRequired: true,
+    },
+  },
+} as const
+
+export const $WorkflowStage = {
+  properties: {
+    cmd: {
+      type: "string",
+      isRequired: true,
+    },
+    deps: {
+      type: "any-of",
+      contains: [
+        {
+          type: "array",
+          contains: {
+            type: "string",
+          },
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    outs: {
+      type: "array",
+      contains: {
+        type: "string",
+      },
+      isRequired: true,
+    },
+    desc: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    meta: {
+      type: "any-of",
+      contains: [
+        {
+          type: "dictionary",
+          contains: {
+            properties: {},
+          },
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    wdir: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+  },
+} as const
