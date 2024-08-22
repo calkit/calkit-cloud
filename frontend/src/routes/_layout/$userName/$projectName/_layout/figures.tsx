@@ -24,6 +24,20 @@ interface CommentsProps {
 }
 
 function FigureComments({ figure }: CommentsProps) {
+  const { userName, projectName } = Route.useParams()
+  const {
+    isPending,
+    error,
+    data: comments,
+  } = useQuery({
+    queryKey: [userName, projectName, "figure-comments"],
+    queryFn: () =>
+      ProjectsService.getFigureComments({
+        ownerName: userName,
+        projectName: projectName,
+        figurePath: figure.path,
+      }),
+  })
   const [commentInput, setCommentInput] = useState("")
   const handleInputChange = (val) => {
     setCommentInput(val.target.value)
@@ -38,8 +52,19 @@ function FigureComments({ figure }: CommentsProps) {
         Comments
       </Heading>
       <Box>
-        <Text>Someone (time): This is my comment.</Text>
-        <Text>Else (time): This is my comment.</Text>
+        {isPending ? (
+          <Flex justify="center" align="center" height="100vh" width="full">
+            <Spinner size="xl" color="ui.main" />
+          </Flex>
+        ) : (
+          <Box>
+            {comments?.map((comment) => (
+              <Box key={comment.id}>
+                {comment.user_github_username}: {comment.comment}
+              </Box>
+            ))}
+          </Box>
+        )}
         <Textarea
           mt={2}
           value={commentInput}

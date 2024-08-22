@@ -20,6 +20,8 @@ import type {
   ItemUpdate,
   Dataset,
   Figure,
+  FigureComment,
+  FigureCommentPost,
   GitItem,
   GitItemWithContents,
   Project,
@@ -160,6 +162,21 @@ export type ProjectsData = {
   GetProjectFigures: {
     ownerName: string
     projectName: string
+  }
+  GetProjectFigure: {
+    figurePath: string
+    ownerName: string
+    projectName: string
+  }
+  GetFigureComments: {
+    figurePath?: string | null
+    ownerName: string
+    projectName: string
+  }
+  PostFigureComment: {
+    ownerName: string
+    projectName: string
+    requestBody: FigureCommentPost
   }
   GetProjectData: {
     ownerName: string
@@ -942,6 +959,78 @@ export class ProjectsService {
         owner_name: ownerName,
         project_name: projectName,
       },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Get Project Figure
+   * @returns Figure Successful Response
+   * @throws ApiError
+   */
+  public static getProjectFigure(
+    data: ProjectsData["GetProjectFigure"],
+  ): CancelablePromise<Figure> {
+    const { ownerName, projectName, figurePath } = data
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/api/v1/projects/{owner_name}/{project_name}/figures/{figure_path}",
+      path: {
+        owner_name: ownerName,
+        project_name: projectName,
+        figure_path: figurePath,
+      },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Get Figure Comments
+   * @returns FigureComment Successful Response
+   * @throws ApiError
+   */
+  public static getFigureComments(
+    data: ProjectsData["GetFigureComments"],
+  ): CancelablePromise<Array<FigureComment>> {
+    const { ownerName, projectName, figurePath } = data
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/api/v1/projects/{owner_name}/{project_name}/figure-comments",
+      path: {
+        owner_name: ownerName,
+        project_name: projectName,
+      },
+      query: {
+        figure_path: figurePath,
+      },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Post Figure Comment
+   * @returns FigureComment Successful Response
+   * @throws ApiError
+   */
+  public static postFigureComment(
+    data: ProjectsData["PostFigureComment"],
+  ): CancelablePromise<FigureComment> {
+    const { ownerName, projectName, requestBody } = data
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/api/v1/projects/{owner_name}/{project_name}/figure-comments",
+      path: {
+        owner_name: ownerName,
+        project_name: projectName,
+      },
+      body: requestBody,
+      mediaType: "application/json",
       errors: {
         422: `Validation Error`,
       },

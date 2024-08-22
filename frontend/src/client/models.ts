@@ -29,6 +29,25 @@ export type Figure = {
   url?: string | null
 }
 
+export type FigureComment = {
+  id?: string
+  project_id: string
+  figure_path: string
+  user_id: string
+  created?: string
+  updated?: string
+  external_url?: string | null
+  comment: string
+  readonly user_github_username: string
+  readonly user_full_name: string
+  readonly user_email: string
+}
+
+export type FigureCommentPost = {
+  figure_path: string
+  comment: string
+}
+
 export type GitItem = {
   name: string
   path: string

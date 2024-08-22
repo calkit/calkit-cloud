@@ -194,6 +194,82 @@ export const $Figure = {
   },
 } as const
 
+export const $FigureComment = {
+  properties: {
+    id: {
+      type: "string",
+      format: "uuid",
+    },
+    project_id: {
+      type: "string",
+      isRequired: true,
+      format: "uuid",
+    },
+    figure_path: {
+      type: "string",
+      isRequired: true,
+      maxLength: 255,
+    },
+    user_id: {
+      type: "string",
+      isRequired: true,
+      format: "uuid",
+    },
+    created: {
+      type: "string",
+      format: "date-time",
+    },
+    updated: {
+      type: "string",
+      format: "date-time",
+    },
+    external_url: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          maxLength: 2048,
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    comment: {
+      type: "string",
+      isRequired: true,
+    },
+    user_github_username: {
+      type: "string",
+      isReadOnly: true,
+      isRequired: true,
+    },
+    user_full_name: {
+      type: "string",
+      isReadOnly: true,
+      isRequired: true,
+    },
+    user_email: {
+      type: "string",
+      isReadOnly: true,
+      isRequired: true,
+    },
+  },
+} as const
+
+export const $FigureCommentPost = {
+  properties: {
+    figure_path: {
+      type: "string",
+      isRequired: true,
+    },
+    comment: {
+      type: "string",
+      isRequired: true,
+    },
+  },
+} as const
+
 export const $GitItem = {
   properties: {
     name: {
