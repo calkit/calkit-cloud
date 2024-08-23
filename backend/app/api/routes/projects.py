@@ -4,10 +4,12 @@ import base64
 import functools
 import logging
 import os
+import subprocess
 import uuid
 from typing import Annotated, Literal
 
 import app.projects
+import git
 import requests
 import s3fs
 import yaml
@@ -417,26 +419,100 @@ def post_project_figure(
     if project.owner != current_user:
         raise HTTPException(401)
     # TODO: Check write collaborator access to this project
-    # TODO: Make sure this figure doesn't already exist
-    # TODO: Decide if it should go in Git or DVC
-    # Small files are probably fine in Git, and figures should typically be
-    # small files
-    # TODO: Add the file to the repo(s) -- we may need to clone it
+    # TODO: Make sure a figure with this path doesn't already exist
+    # TODO: Handle projects that aren't yet Calkit projects
+    figs_yaml = get_project_git_contents(
+        owner_name=owner_name,
+        project_name=project_name,
+        session=session,
+        current_user=current_user,
+        path=".calkit/figures.yaml",
+        astype=".raw",
+    )
+    figures = yaml.safe_load(figs_yaml)
+    figpaths = [fig["path"] for fig in figures]
+    if path in figpaths:
+        raise HTTPException(400, "A figure already exists at this path")
+    # Add the file to the repo(s) -- we may need to clone it
+    # If it already exists, just git pull
+    base_dir = f"/tmp/{owner_name}/{project_name}"
+    os.makedirs(base_dir, exist_ok=True)
+    os.chdir(base_dir)
+    # Clone the repo if it doesn't exist -- it will be in a "repo" dir
+    access_token = users.get_github_token(session=session, user=current_user)
+    git_clone_url = (
+        f"https://x-access-token:{access_token}@"
+        f"{project.git_repo_url.removeprefix('https://')}.git"
+    )
+    cloned = False
+    if not os.path.isdir("repo"):
+        cloned = True
+        logger.info(f"Git cloning into {base_dir}")
+        subprocess.call(
+            ["git", "clone", "--depth", "1", git_clone_url, "repo"]
+        )
+    os.chdir("repo")
+    repo = git.Repo()
+    if not cloned:
+        logger.info("Updating remote in case token was refreshed")
+        repo.remote().set_url(git_clone_url)
+        repo.git.pull()
+    repo_contents = os.listdir(".")
+    logger.info(f"Repo contents: {repo_contents}")
+    # Run git config so we make commits as this user
+    repo.git.config(["user.name", current_user.full_name])
+    repo.git.config(["user.email", current_user.email])
+    # Save the file to the desired path
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    file_data = file.file.read()
+    with open(path, "wb") as f:
+        f.write(file_data)
     # Either git add {path} or dvc add {path}
     # If we DVC add, we'll get output like
     # To track the changes with git, run:
 
-    #         git add figures/.gitignore figures/comp-domain-from-jhtdb.png.dvc
+    #         git add figures/.gitignore figures/my-figure.png.dvc
 
     # To enable auto staging, run:
 
     #         dvc config core.autostage true
-    # Make sure we use the user's email, or maybe we can post the file(s) to
-    # the GitHub API?
-    # TODO: Push to GitHub, and optionally DVC remote if we used it
-    # If the DVC remote, we can just put it in the expected location since
+    dvc_out = subprocess.check_output(["dvc", "add", path]).decode()
+    for line in dvc_out.split("\n"):
+        if line.strip().startswith("git add"):
+            cmd = line.strip().split()
+            logger.info(f"Calling {cmd}")
+            repo.git.add(cmd[2:])
+    # Update figures.yaml
+    figures.append(
+        dict(path=path, title=title, description=description, stage=None)
+    )
+    with open(".calkit/figures.yaml", "w") as f:
+        yaml.safe_dump(figures, f)
+    repo.git.add(".calkit/figures.yaml")
+    # Make a commit
+    repo.git.commit(["-m", f"Add figure {path}"])
+    # Push to GitHub, and optionally DVC remote if we used it
+    repo.git.push(["origin", repo.branches[0].name])
+    # TODO: If the DVC remote, we can just put it in the expected location since
     # we'll have the md5 hash in the dvc file
-    raise HTTPException(501)
+    with open(path + ".dvc") as f:
+        dvc_yaml = yaml.safe_load(f)
+    md5 = dvc_yaml["outs"][0]["md5"]
+    fs = _get_minio_fs()
+    fpath = _make_data_fpath(project_id=project.id, idx=md5[:2], md5=md5[2:])
+    with fs.open(fpath, "wb") as f:
+        f.write(file_data)
+    kws = {}
+    kws["ResponseContentDisposition"] = f"filename={os.path.basename(path)}"
+    url = fs.url(fpath, expires=3600 * 24, **kws)
+    return Figure(
+        path=path,
+        title=title,
+        description=description,
+        stage=None,
+        content=None,
+        url=url,
+    )
 
 
 @router.get("/projects/{owner_name}/{project_name}/figure-comments")
