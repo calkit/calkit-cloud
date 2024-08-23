@@ -32,7 +32,6 @@ function FigureComments({ figure }: CommentsProps) {
   const { userName, projectName } = Route.useParams()
   const {
     isPending,
-    error,
     data: comments,
   } = useQuery({
     queryKey: [userName, projectName, "figure-comments"],
