@@ -5,7 +5,7 @@ import functools
 import logging
 import os
 import uuid
-from typing import Literal
+from typing import Annotated, Literal
 
 import app.projects
 import requests
@@ -26,7 +26,7 @@ from app.models import (
     Question,
     Workflow,
 )
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, File, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlmodel import func, select
@@ -394,6 +394,49 @@ def get_project_figure(
     current_user: CurrentUser,
     session: SessionDep,
 ) -> Figure:
+    raise HTTPException(501)
+
+
+class FigurePost(BaseModel):
+    path: str
+    title: str
+    description: str
+
+
+@router.post("/projects/{owner_name}/{project_name}/figures")
+def post_project_figure(
+    owner_name: str,
+    project_name: str,
+    figure_in: FigurePost,
+    file: Annotated[bytes, File()],
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> Figure:
+    project = app.projects.get_project(
+        session=session, owner_name=owner_name, project_name=project_name
+    )
+    if project.owner != current_user:
+        raise HTTPException(401)
+    # TODO: Check write collaborator access to this project
+    # TODO: Make sure this figure doesn't already exist
+    # TODO: Decide if it should go in Git or DVC
+    # Small files are probably fine in Git, and figures should typically be
+    # small files
+    # TODO: Add the file to the repo(s) -- we may need to clone it
+    # Either git add {path} or dvc add {path}
+    # If we DVC add, we'll get output like
+    # To track the changes with git, run:
+
+    #         git add figures/.gitignore figures/comp-domain-from-jhtdb.png.dvc
+
+    # To enable auto staging, run:
+
+    #         dvc config core.autostage true
+    # Make sure we use the user's email, or maybe we can post the file(s) to
+    # the GitHub API?
+    # TODO: Push to GitHub, and optionally DVC remote if we used it
+    # If the DVC remote, we can just put it in the expected location since
+    # we'll have the md5 hash in the dvc file
     raise HTTPException(501)
 
 
