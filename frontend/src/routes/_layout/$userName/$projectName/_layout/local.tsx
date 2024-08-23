@@ -30,6 +30,9 @@ function LocalServer() {
   const openVSCode = () => {
     axios.post("http://localhost:8866/open/vscode")
   }
+  const runGitPull = () => {
+    axios.post("http://localhost:8866/git/pull")
+  }
 
   return (
     <>
@@ -48,8 +51,11 @@ function LocalServer() {
                 <Text>
                   Current working directory: <Code>{cwdQuery?.data?.data}</Code>
                 </Text>
-                <Button variant="primary" onClick={openVSCode}>
+                <Button m={2} variant="primary" onClick={openVSCode}>
                   Open in VSCode <Icon ml={1} as={FiExternalLink} />
+                </Button>
+                <Button m={2} variant="primary" onClick={runGitPull}>
+                  Pull changes from cloud
                 </Button>
               </Box>
             ) : (
