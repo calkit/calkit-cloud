@@ -92,7 +92,7 @@ function FigureComments({ figure }: FigureProps) {
             my={2}
             maxH={"400px"}
             overflowY={"auto"}
-            flexDirection={"column-reverse"}
+            flexDirection={"column"}
             display={"flex"}
             borderWidth={"1px"}
             borderRadius={"md"}
