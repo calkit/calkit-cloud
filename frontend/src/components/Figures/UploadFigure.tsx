@@ -1,5 +1,4 @@
 import {
-  Box,
   Button,
   FormControl,
   FormErrorMessage,
@@ -44,7 +43,6 @@ const UploadFigure = ({ isOpen, onClose }: UploadFigureProps) => {
     register,
     handleSubmit,
     reset,
-    // getValues,
     formState: { errors, isSubmitting },
   } = useForm<FigurePostWithFile>({
     mode: "onBlur",
@@ -57,9 +55,8 @@ const UploadFigure = ({ isOpen, onClose }: UploadFigureProps) => {
   })
 
   const mutation = useMutation({
-    mutationFn: (data: FigurePostWithFile) => {
-      console.log(data)
-      return ProjectsService.postProjectFigure({
+    mutationFn: (data: FigurePostWithFile) =>
+      ProjectsService.postProjectFigure({
         formData: {
           title: data.title,
           path: data.path,
@@ -68,8 +65,7 @@ const UploadFigure = ({ isOpen, onClose }: UploadFigureProps) => {
         },
         ownerName: userName,
         projectName: projectName,
-      })
-    },
+      }),
     onSuccess: () => {
       showToast("Success!", "Figure uploaded successfully.", "success")
       reset()
@@ -79,7 +75,9 @@ const UploadFigure = ({ isOpen, onClose }: UploadFigureProps) => {
       handleError(err, showToast)
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["figures"] }) // TODO
+      queryClient.invalidateQueries({
+        queryKey: ["projects", userName, projectName, "figures"],
+      })
     },
   })
 
