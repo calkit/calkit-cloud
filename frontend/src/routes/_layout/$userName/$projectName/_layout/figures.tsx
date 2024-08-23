@@ -63,6 +63,18 @@ function FigureComments({ figure }: FigureProps) {
     mutation.mutate({ figure_path: figure.path, comment: commentInput })
     setCommentInput("")
   }
+  const stringToColor = (str: string) => {
+    let hash = 0
+    str.split("").forEach((char) => {
+      hash = char.charCodeAt(0) + ((hash << 5) - hash)
+    })
+    let color = "#"
+    for (let i = 0; i < 3; i++) {
+      const value = (hash >> (i * 8)) & 0xff
+      color += value.toString(16).padStart(2, "0")
+    }
+    return color
+  }
 
   return (
     <>
@@ -87,7 +99,17 @@ function FigureComments({ figure }: FigureProps) {
           >
             {comments?.map((comment) => (
               <Box key={comment.id}>
-                {comment.user_github_username}: {comment.comment}
+                <Flex>
+                  <Box mr={1}>
+                    <Text
+                      fontWeight={"bold"}
+                      color={stringToColor(comment.user_email)}
+                    >
+                      {comment.user_github_username}:
+                    </Text>
+                  </Box>
+                  <Box mr={1}>{comment.comment}</Box>
+                </Flex>
               </Box>
             ))}
           </Box>
