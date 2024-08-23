@@ -394,7 +394,7 @@ def get_project_figure(
     current_user: CurrentUser,
     session: SessionDep,
 ) -> Figure:
-    pass
+    raise HTTPException(501)
 
 
 @router.get("/projects/{owner_name}/{project_name}/figure-comments")
