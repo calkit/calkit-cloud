@@ -16,6 +16,7 @@ import {
 } from "@chakra-ui/react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { type SubmitHandler, useForm } from "react-hook-form"
+import { getRouteApi } from "@tanstack/react-router"
 
 import { ProjectsService } from "../../client"
 import type { ApiError } from "../../client/core/ApiError"
@@ -37,6 +38,8 @@ interface FigurePostWithFile {
 const UploadFigure = ({ isOpen, onClose }: UploadFigureProps) => {
   const queryClient = useQueryClient()
   const showToast = useCustomToast()
+  const routeApi = getRouteApi("/_layout/$userName/$projectName")
+  const { userName, projectName } = routeApi.useParams()
   const {
     register,
     handleSubmit,
@@ -63,8 +66,8 @@ const UploadFigure = ({ isOpen, onClose }: UploadFigureProps) => {
           description: data.description,
           file: data.file[0],
         },
-        ownerName: "TODO",
-        projectName: "TODO",
+        ownerName: userName,
+        projectName: projectName,
       })
     },
     onSuccess: () => {
