@@ -8,7 +8,9 @@ export type Body_login_login_access_token = {
 }
 
 export type Body_projects_post_project_figure = {
-  figure_in: FigurePost
+  path: string
+  title: string
+  description: string
   file: Blob | File
 }
 
@@ -51,12 +53,6 @@ export type FigureComment = {
 export type FigureCommentPost = {
   figure_path: string
   comment: string
-}
-
-export type FigurePost = {
-  path: string
-  title: string
-  description: string
 }
 
 export type GitItem = {

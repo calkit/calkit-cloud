@@ -1,4 +1,5 @@
 import {
+  Box,
   Button,
   FormControl,
   FormErrorMessage,
@@ -11,11 +12,12 @@ import {
   ModalFooter,
   ModalHeader,
   ModalOverlay,
+  Textarea,
 } from "@chakra-ui/react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { type SubmitHandler, useForm } from "react-hook-form"
 
-import { ProjectsService, type FigurePost } from "../../client"
+import { ProjectsService } from "../../client"
 import type { ApiError } from "../../client/core/ApiError"
 import useCustomToast from "../../hooks/useCustomToast"
 import { handleError } from "../../utils"
@@ -25,9 +27,11 @@ interface UploadFigureProps {
   onClose: () => void
 }
 
-interface FigurePostWithFile extends FigurePost {
-  figure_in: FigurePost
-  file: File
+interface FigurePostWithFile {
+  path: string
+  title: string
+  description: string
+  file: FileList
 }
 
 const UploadFigure = ({ isOpen, onClose }: UploadFigureProps) => {
@@ -43,17 +47,26 @@ const UploadFigure = ({ isOpen, onClose }: UploadFigureProps) => {
     mode: "onBlur",
     criteriaMode: "all",
     defaultValues: {
-      figure_in: { path: "", title: "", description: "" },
+      path: "",
+      title: "",
+      description: "",
     },
   })
 
   const mutation = useMutation({
-    mutationFn: (data: FigurePostWithFile) =>
-      ProjectsService.postProjectFigure({
-        formData: data,
+    mutationFn: (data: FigurePostWithFile) => {
+      console.log(data)
+      return ProjectsService.postProjectFigure({
+        formData: {
+          title: data.title,
+          path: data.path,
+          description: data.description,
+          file: data.file[0],
+        },
         ownerName: "TODO",
         projectName: "TODO",
-      }),
+      })
+    },
     onSuccess: () => {
       showToast("Success!", "Figure uploaded successfully.", "success")
       reset()
@@ -112,18 +125,32 @@ const UploadFigure = ({ isOpen, onClose }: UploadFigureProps) => {
             </FormControl>
             <FormControl mt={4} isRequired isInvalid={!!errors.description}>
               <FormLabel htmlFor="description">Description</FormLabel>
-              <Input
+              <Textarea
                 id="description"
                 {...register("description", {
                   required: "Description is required",
                 })}
                 placeholder="Description"
-                type="text"
               />
               {errors.description && (
                 <FormErrorMessage>
                   {errors.description.message}
                 </FormErrorMessage>
+              )}
+            </FormControl>
+
+            <FormControl mt={4} isRequired isInvalid={!!errors.file}>
+              <FormLabel htmlFor="file">File</FormLabel>
+              <Input
+                id="file"
+                {...register("file", {
+                  required: "File is required",
+                })}
+                type="file"
+                name="file"
+              />
+              {errors.file && (
+                <FormErrorMessage>{errors.file.message}</FormErrorMessage>
               )}
             </FormControl>
           </ModalBody>

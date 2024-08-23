@@ -26,7 +26,7 @@ from app.models import (
     Question,
     Workflow,
 )
-from fastapi import APIRouter, File, HTTPException, Request
+from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlmodel import func, select
@@ -407,11 +407,16 @@ class FigurePost(BaseModel):
 def post_project_figure(
     owner_name: str,
     project_name: str,
-    figure_in: FigurePost,
-    file: Annotated[bytes, File()],
+    path: Annotated[str, Form()],
+    title: Annotated[str, Form()],
+    description: Annotated[str, Form()],
+    file: Annotated[UploadFile, File()],
     current_user: CurrentUser,
     session: SessionDep,
 ) -> Figure:
+    logger.info(
+        f"Received figure file {path} with content type: {file.content_type}"
+    )
     project = app.projects.get_project(
         session=session, owner_name=owner_name, project_name=project_name
     )

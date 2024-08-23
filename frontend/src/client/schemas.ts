@@ -51,8 +51,16 @@ export const $Body_login_login_access_token = {
 
 export const $Body_projects_post_project_figure = {
   properties: {
-    figure_in: {
-      type: "FigurePost",
+    path: {
+      type: "string",
+      isRequired: true,
+    },
+    title: {
+      type: "string",
+      isRequired: true,
+    },
+    description: {
+      type: "string",
       isRequired: true,
     },
     file: {
@@ -278,23 +286,6 @@ export const $FigureCommentPost = {
       isRequired: true,
     },
     comment: {
-      type: "string",
-      isRequired: true,
-    },
-  },
-} as const
-
-export const $FigurePost = {
-  properties: {
-    path: {
-      type: "string",
-      isRequired: true,
-    },
-    title: {
-      type: "string",
-      isRequired: true,
-    },
-    description: {
       type: "string",
       isRequired: true,
     },
