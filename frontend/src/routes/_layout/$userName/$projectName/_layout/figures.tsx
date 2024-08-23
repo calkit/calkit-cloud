@@ -6,6 +6,7 @@ import {
   Text,
   Textarea,
   Button,
+  Image,
 } from "@chakra-ui/react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
@@ -25,15 +26,15 @@ export const Route = createFileRoute(
   component: ProjectFigures,
 })
 
-interface CommentsProps {
+interface FigureProps {
   figure: Figure
 }
 
-function FigureComments({ figure }: CommentsProps) {
+function FigureComments({ figure }: FigureProps) {
   const queryClient = useQueryClient()
   const { userName, projectName } = Route.useParams()
   const { isPending, data: comments } = useQuery({
-    queryKey: [userName, projectName, "figure-comments"],
+    queryKey: [userName, projectName, "figure-comments", figure.path],
     queryFn: () =>
       ProjectsService.getFigureComments({
         ownerName: userName,
@@ -54,7 +55,7 @@ function FigureComments({ figure }: CommentsProps) {
       }),
     onSettled: () => {
       queryClient.invalidateQueries({
-        queryKey: [userName, projectName, "figure-comments"],
+        queryKey: [userName, projectName, "figure-comments", figure.path],
       })
     },
   })
@@ -104,6 +105,51 @@ function FigureComments({ figure }: CommentsProps) {
   )
 }
 
+function FigureView({ figure }: FigureProps) {
+  let figView = <>Not set</>
+  if (figure.path.endsWith(".pdf")) {
+    figView = (
+      <Box height="530px" width="635px">
+        <embed
+          height="100%"
+          width="100%"
+          src={`data:application/pdf;base64,${figure.content}`}
+        />
+      </Box>
+    )
+  } else if (figure.path.endsWith(".png")) {
+    figView = (
+      <Box width="635px">
+        <Image
+          alt={figure.title}
+          src={`data:image/png;base64,${figure.content}`}
+        />
+      </Box>
+    )
+  } else {
+    figView = <>Dunno</>
+  }
+
+  return (
+    <>
+      <Heading size="md" mb={2}>
+        {figure.title}
+      </Heading>
+      <Text>{figure.description}</Text>
+      {figure.content ? (
+        <Flex my={3}>
+          {figView}
+          <Box mx={4} width={"50%"}>
+            <FigureComments figure={figure} />
+          </Box>
+        </Flex>
+      ) : (
+        "Cannot render content"
+      )}
+    </>
+  )
+}
+
 function ProjectFiguresView() {
   const { userName, projectName } = Route.useParams()
   const { isPending: figuresPending, data: figures } = useQuery({
@@ -125,26 +171,7 @@ function ProjectFiguresView() {
         <Box>
           {figures?.map((figure) => (
             <Box key={figure.title}>
-              <Heading size="md" mb={2}>
-                {figure.title}
-              </Heading>
-              <Text>{figure.description}</Text>
-              {figure.path.endsWith(".pdf") && figure.content ? (
-                <Flex my={3}>
-                  <Box height="530px" width="635px">
-                    <embed
-                      height="100%"
-                      width="100%"
-                      src={`data:application/pdf;base64,${figure.content}`}
-                    />
-                  </Box>
-                  <Box mx={4} width={"50%"}>
-                    <FigureComments figure={figure} />
-                  </Box>
-                </Flex>
-              ) : (
-                "Cannot render figure content."
-              )}
+              <FigureView figure={figure} />
             </Box>
           ))}
         </Box>
@@ -158,6 +185,7 @@ function ProjectFigures() {
     <>
       <Navbar type={"figure"} verb={"Upload"} addModalAs={UploadFigure} />
       <ProjectFiguresView />
+      <Box mb={10} />
     </>
   )
 }

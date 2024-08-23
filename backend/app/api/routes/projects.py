@@ -383,8 +383,36 @@ def get_project_figures(
                 # Looks like it doesn't exist in the repo
                 # This must be an imported figure, or it's just tracked in DVC
                 # without being the output of a stage
-                # TODO: Handle this case
-                raise HTTPException(501)
+                logger.info(f"{path} does not exist in Git repo")
+                # See if we can get the DVC file
+                dvc_yaml = get_project_git_contents(
+                    owner_name=owner_name,
+                    project_name=project_name,
+                    session=session,
+                    current_user=current_user,
+                    path=path + ".dvc",
+                    astype=".raw",
+                )
+                dvc_yaml = yaml.safe_load(dvc_yaml)
+                out = dvc_yaml["outs"][0]
+                idx = out["md5"][:2]
+                md5 = out["md5"][2:]
+                fpath = _make_data_fpath(
+                    project_id=project.id, idx=idx, md5=md5
+                )
+                with fs.open(fpath, "rb") as f:
+                    content = f.read()
+                fig["content"] = base64.b64encode(content).decode()
+                logger.info(
+                    f"Figure content is now {len(fig['content'])} long"
+                )
+                kws = {}
+                kws["ResponseContentDisposition"] = (
+                    f"filename={os.path.basename(path)}"
+                )
+                url = fs.url(fpath, expires=3600 * 24, **kws)
+                logger.info(f"Generated presigned URL for {path}: {url}")
+                fig["url"] = url
     return [Figure.model_validate(fig) for fig in figures]
 
 
