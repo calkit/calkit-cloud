@@ -677,8 +677,8 @@ def get_project_workflow(
         session=session,
         current_user=current_user,
         path="dvc.yaml",
+        astype=".raw",
     )
-    content = base64.b64decode(content["content"]).decode()
     dvc_pipeline = yaml.safe_load(content)
     # Generate Mermaid diagram
     mermaid = make_mermaid_diagram(dvc_pipeline)
@@ -686,6 +686,5 @@ def get_project_workflow(
         f"Created Mermaid diagram for {owner_name}/{project_name}:\n{mermaid}"
     )
     return Workflow(
-        stages=dvc_pipeline["stages"],
-        mermaid=mermaid,
+        stages=dvc_pipeline["stages"], mermaid=mermaid, yaml=content
     )

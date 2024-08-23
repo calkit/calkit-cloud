@@ -188,6 +188,7 @@ class WorkflowStage(SQLModel):
 class Workflow(SQLModel):
     mermaid: str
     stages: dict[str, WorkflowStage]
+    yaml: str
 
 
 class Question(SQLModel):

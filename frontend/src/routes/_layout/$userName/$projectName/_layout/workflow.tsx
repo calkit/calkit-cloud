@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router"
-import { Box, Flex, Spinner } from "@chakra-ui/react"
+import { Box, Code, Flex, Spinner, Heading } from "@chakra-ui/react"
 import { useQuery } from "@tanstack/react-query"
 
 import Mermaid from "../../../../../components/Common/Mermaid"
@@ -36,9 +36,26 @@ function ProjectWorkflow() {
           <Spinner size="xl" color="ui.main" />
         </Flex>
       ) : (
-        <Box p={5}>
-          <Mermaid>{String(workflowQuery?.data?.mermaid)}</Mermaid>
-        </Box>
+        <Flex>
+          <Box p={5} maxW="50%" minW="40%">
+            <Mermaid>{String(workflowQuery?.data?.mermaid)}</Mermaid>
+          </Box>
+          <Box maxW="50%">
+            <Heading size="md" my={2}>
+              YAML
+            </Heading>
+            <Code
+              p={2}
+              borderRadius={"lg"}
+              display="block"
+              whiteSpace="pre"
+              maxH="850px"
+              overflowY="auto"
+            >
+              {String(workflowQuery?.data?.yaml)}
+            </Code>
+          </Box>
+        </Flex>
       )}
     </>
   )

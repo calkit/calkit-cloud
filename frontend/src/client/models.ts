@@ -218,6 +218,7 @@ export type ValidationError = {
 export type Workflow = {
   mermaid: string
   stages: Record<string, WorkflowStage>
+  yaml: string
 }
 
 export type WorkflowStage = {

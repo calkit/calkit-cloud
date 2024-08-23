@@ -1027,6 +1027,10 @@ export const $Workflow = {
       },
       isRequired: true,
     },
+    yaml: {
+      type: "string",
+      isRequired: true,
+    },
   },
 } as const
 
