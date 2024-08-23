@@ -99,7 +99,9 @@ const UploadFigure = ({ isOpen, onClose }: UploadFigureProps) => {
           <ModalCloseButton />
           <ModalBody pb={6}>
             <FormControl isRequired isInvalid={!!errors.path}>
-              <FormLabel htmlFor="path">Path (relative)</FormLabel>
+              <FormLabel htmlFor="path">
+                Path (relative to project folder)
+              </FormLabel>
               <Input
                 id="path"
                 {...register("path", {
@@ -143,6 +145,7 @@ const UploadFigure = ({ isOpen, onClose }: UploadFigureProps) => {
             <FormControl mt={4} isRequired isInvalid={!!errors.file}>
               <FormLabel htmlFor="file">File</FormLabel>
               <Input
+                pt={1}
                 id="file"
                 {...register("file", {
                   required: "File is required",
