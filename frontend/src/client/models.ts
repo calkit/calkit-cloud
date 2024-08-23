@@ -7,6 +7,11 @@ export type Body_login_login_access_token = {
   client_secret?: string | null
 }
 
+export type Body_projects_post_project_figure = {
+  figure_in: FigurePost
+  file: Blob | File
+}
+
 export type Dataset = {
   id?: string
   project_id: string
@@ -46,6 +51,12 @@ export type FigureComment = {
 export type FigureCommentPost = {
   figure_path: string
   comment: string
+}
+
+export type FigurePost = {
+  path: string
+  title: string
+  description: string
 }
 
 export type GitItem = {

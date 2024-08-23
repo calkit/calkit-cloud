@@ -49,6 +49,20 @@ export const $Body_login_login_access_token = {
   },
 } as const
 
+export const $Body_projects_post_project_figure = {
+  properties: {
+    figure_in: {
+      type: "FigurePost",
+      isRequired: true,
+    },
+    file: {
+      type: "binary",
+      isRequired: true,
+      format: "binary",
+    },
+  },
+} as const
+
 export const $Dataset = {
   properties: {
     id: {
@@ -264,6 +278,23 @@ export const $FigureCommentPost = {
       isRequired: true,
     },
     comment: {
+      type: "string",
+      isRequired: true,
+    },
+  },
+} as const
+
+export const $FigurePost = {
+  properties: {
+    path: {
+      type: "string",
+      isRequired: true,
+    },
+    title: {
+      type: "string",
+      isRequired: true,
+    },
+    description: {
       type: "string",
       isRequired: true,
     },

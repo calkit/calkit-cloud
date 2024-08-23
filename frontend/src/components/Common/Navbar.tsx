@@ -6,15 +6,16 @@ import { FaPlus } from "react-icons/fa"
 interface NavbarProps {
   type: string
   addModalAs: ComponentType | ElementType
+  verb?: string
 }
 
-const Navbar = ({ type, addModalAs }: NavbarProps) => {
+const Navbar = ({ type, addModalAs, verb }: NavbarProps) => {
   const addModal = useDisclosure()
 
   const AddModal = addModalAs
   return (
     <>
-      <Flex py={8} gap={4}>
+      <Flex py={4} gap={4}>
         {/* TODO: Complete search functionality */}
         {/* <InputGroup w={{ base: '100%', md: 'auto' }}>
                     <InputLeftElement pointerEvents='none'>
@@ -28,7 +29,7 @@ const Navbar = ({ type, addModalAs }: NavbarProps) => {
           fontSize={{ base: "sm", md: "inherit" }}
           onClick={addModal.onOpen}
         >
-          <Icon as={FaPlus} /> Add {type}
+          <Icon as={FaPlus} /> {verb ? verb : "Add"} {type}
         </Button>
         <AddModal isOpen={addModal.isOpen} onClose={addModal.onClose} />
       </Flex>

@@ -18,6 +18,7 @@ import type {
   ItemPublic,
   ItemsPublic,
   ItemUpdate,
+  Body_projects_post_project_figure,
   Dataset,
   Figure,
   FigureComment,
@@ -160,6 +161,11 @@ export type ProjectsData = {
     projectName: string
   }
   GetProjectFigures: {
+    ownerName: string
+    projectName: string
+  }
+  PostProjectFigure: {
+    formData: Body_projects_post_project_figure
     ownerName: string
     projectName: string
   }
@@ -959,6 +965,30 @@ export class ProjectsService {
         owner_name: ownerName,
         project_name: projectName,
       },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Post Project Figure
+   * @returns Figure Successful Response
+   * @throws ApiError
+   */
+  public static postProjectFigure(
+    data: ProjectsData["PostProjectFigure"],
+  ): CancelablePromise<Figure> {
+    const { ownerName, projectName, formData } = data
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/api/v1/projects/{owner_name}/{project_name}/figures",
+      path: {
+        owner_name: ownerName,
+        project_name: projectName,
+      },
+      formData: formData,
+      mediaType: "multipart/form-data",
       errors: {
         422: `Validation Error`,
       },

@@ -11,6 +11,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 import { useState } from "react"
 
+import Navbar from "../../../../../components/Common/Navbar"
+import UploadFigure from "../../../../../components/Figures/UploadFigure"
 import {
   ProjectsService,
   type Figure,
@@ -30,10 +32,7 @@ interface CommentsProps {
 function FigureComments({ figure }: CommentsProps) {
   const queryClient = useQueryClient()
   const { userName, projectName } = Route.useParams()
-  const {
-    isPending,
-    data: comments,
-  } = useQuery({
+  const { isPending, data: comments } = useQuery({
     queryKey: [userName, projectName, "figure-comments"],
     queryFn: () =>
       ProjectsService.getFigureComments({
@@ -155,5 +154,10 @@ function ProjectFiguresView() {
 }
 
 function ProjectFigures() {
-  return <ProjectFiguresView />
+  return (
+    <>
+      <Navbar type={"figure"} verb={"Upload"} addModalAs={UploadFigure} />
+      <ProjectFiguresView />
+    </>
+  )
 }
