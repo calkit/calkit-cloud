@@ -75,7 +75,16 @@ function FigureComments({ figure }: FigureProps) {
             <Spinner size="xl" color="ui.main" />
           </Flex>
         ) : (
-          <Box>
+          <Box
+            p={2}
+            my={2}
+            maxH={"400px"}
+            overflowY={"auto"}
+            flexDirection={"column-reverse"}
+            display={"flex"}
+            borderWidth={"1px"}
+            borderRadius={"md"}
+          >
             {comments?.map((comment) => (
               <Box key={comment.id}>
                 {comment.user_github_username}: {comment.comment}
@@ -139,7 +148,7 @@ function FigureView({ figure }: FigureProps) {
       {figure.content ? (
         <Flex my={3}>
           {figView}
-          <Box mx={4} width={"50%"}>
+          <Box mx={4} width={"50%"} maxH={"550px"}>
             <FigureComments figure={figure} />
           </Box>
         </Flex>
