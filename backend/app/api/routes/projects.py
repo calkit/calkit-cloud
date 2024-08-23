@@ -397,12 +397,6 @@ def get_project_figure(
     raise HTTPException(501)
 
 
-class FigurePost(BaseModel):
-    path: str
-    title: str
-    description: str
-
-
 @router.post("/projects/{owner_name}/{project_name}/figures")
 def post_project_figure(
     owner_name: str,
