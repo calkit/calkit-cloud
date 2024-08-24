@@ -85,7 +85,7 @@ const AddProject = ({ isOpen, onClose }: AddProjectProps) => {
       >
         <ModalOverlay />
         <ModalContent as="form" onSubmit={handleSubmit(onSubmit)}>
-          <ModalHeader>Add project</ModalHeader>
+          <ModalHeader>Create project</ModalHeader>
           <ModalCloseButton />
           <ModalBody pb={6}>
             <FormControl isRequired isInvalid={!!errors.name}>
