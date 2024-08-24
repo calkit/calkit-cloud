@@ -106,6 +106,7 @@ def create_project(
     session.add(project)
     session.commit()
     session.refresh(project)
+    # TODO: Create .calkit directory, README, DVC init
     return project
 
 
@@ -544,7 +545,7 @@ def post_project_figure(
         dict(path=path, title=title, description=description, stage=None)
     )
     with open(".calkit/figures.yaml", "w") as f:
-        yaml.safe_dump(figures, f)
+        yaml.safe_dump(figures, f, sort_keys=False)
     repo.git.add(".calkit/figures.yaml")
     # Make a commit
     repo.git.commit(["-m", f"Add figure {path}"])
