@@ -83,7 +83,6 @@ function ProjectsTable() {
         <Table size={{ base: "sm", md: "md" }}>
           <Thead>
             <Tr>
-              <Th>ID</Th>
               <Th>Name</Th>
               <Th>GitHub URL</Th>
               <Th>Description</Th>
@@ -104,9 +103,6 @@ function ProjectsTable() {
             <Tbody>
               {items?.data.map((item) => (
                 <Tr key={item.id} opacity={isPlaceholderData ? 0.5 : 1}>
-                  <Td isTruncated maxWidth="60px">
-                    {item.id}
-                  </Td>
                   <Td isTruncated maxWidth="150px">
                     {/* TODO: Project paths should be forced to match GitHub URL? */}
                     <Link
@@ -185,7 +181,6 @@ function PublicProjectsTable() {
         <Table size={{ base: "sm", md: "md" }}>
           <Thead>
             <Tr>
-              <Th>ID</Th>
               <Th>Name</Th>
               <Th>GitHub URL</Th>
               <Th>Description</Th>
@@ -205,9 +200,6 @@ function PublicProjectsTable() {
             <Tbody>
               {items?.data.map((item) => (
                 <Tr key={item.id} opacity={isPlaceholderData ? 0.5 : 1}>
-                  <Td isTruncated maxWidth="60px">
-                    {item.id}
-                  </Td>
                   <Td isTruncated maxWidth="150px">
                     {item.name}
                   </Td>
