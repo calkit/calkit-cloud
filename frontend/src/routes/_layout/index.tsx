@@ -252,10 +252,14 @@ function Projects() {
       </Heading>
       <Flex>
         <Box mr={4}>
-          <Navbar type={"project"} addModalAs={CreateProject} />
+          <Navbar verb={"Create"} type={"project"} addModalAs={CreateProject} />
         </Box>
         <Box mr={4}>
-          <Navbar type={"from GitHub"} addModalAs={CreateProjectFromGitHub} />
+          <Navbar
+            verb={"Import"}
+            type={"from GitHub"}
+            addModalAs={CreateProjectFromGitHub}
+          />
         </Box>
       </Flex>
       <ProjectsTable />
