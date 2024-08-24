@@ -43,6 +43,7 @@ const AddProject = ({ isOpen, onClose }: AddProjectProps) => {
     register,
     handleSubmit,
     reset,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<ProjectCreate>({
     mode: "onBlur",
@@ -75,6 +76,14 @@ const AddProject = ({ isOpen, onClose }: AddProjectProps) => {
     mutation.mutate(data)
   }
 
+  const onNameChange = (e) => {
+    const projectName = String(e.target.value)
+      .toLowerCase()
+      .replace(/\s+/g, "-")
+    const repoUrl = `https://github.com/${githubUsername}/${projectName}`
+    setValue("git_repo_url", repoUrl)
+  }
+
   return (
     <>
       <Modal
@@ -97,13 +106,16 @@ const AddProject = ({ isOpen, onClose }: AddProjectProps) => {
                 })}
                 placeholder="Ex: Coherent structures in high Reynolds number boundary layers"
                 type="text"
+                onChange={onNameChange}
               />
               {errors.name && (
                 <FormErrorMessage>{errors.name.message}</FormErrorMessage>
               )}
             </FormControl>
-            <FormControl mt={4} isRequired isInvalid={!!errors.git_repo_url}>
-              <FormLabel htmlFor="git_repo_url">GitHub repo URL</FormLabel>
+            <FormControl mt={4} isInvalid={!!errors.git_repo_url}>
+              <FormLabel htmlFor="git_repo_url">
+                GitHub repo URL (auto-generated)
+              </FormLabel>
               <Input
                 id="git_repo_url"
                 {...register("git_repo_url", {
@@ -111,6 +123,7 @@ const AddProject = ({ isOpen, onClose }: AddProjectProps) => {
                 })}
                 placeholder="Ex: https://github.com/your_name/your_repo"
                 type="text"
+                isDisabled
               />
               {errors.git_repo_url && (
                 <FormErrorMessage>
