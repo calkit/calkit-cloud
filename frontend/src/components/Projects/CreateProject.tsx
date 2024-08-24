@@ -35,10 +35,9 @@ const AddProject = ({ isOpen, onClose }: AddProjectProps) => {
   const queryClient = useQueryClient()
   const showToast = useCustomToast()
   const currentUser = queryClient.getQueryData<UserPublic>(["currentUser"])
-  var githubUsername = currentUser?.github_username
-  if (githubUsername === null) {
-    githubUsername = "your-name"
-  }
+  const githubUsername = currentUser?.github_username
+    ? currentUser.github_username
+    : "your-name"
 
   const {
     register,
