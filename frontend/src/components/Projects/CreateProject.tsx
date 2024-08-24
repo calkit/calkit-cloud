@@ -67,7 +67,7 @@ const AddProject = ({ isOpen, onClose }: AddProjectProps) => {
       handleError(err, showToast)
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["items"] })
+      queryClient.invalidateQueries({ queryKey: ["projects"] })
     },
   })
 

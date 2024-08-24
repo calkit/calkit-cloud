@@ -48,7 +48,7 @@ function getItemsQueryOptions({ page }: { page: number }) {
         offset: (page - 1) * PER_PAGE,
         limit: PER_PAGE,
       }),
-    queryKey: ["items", { page }],
+    queryKey: ["projects", { page }],
   }
 }
 
