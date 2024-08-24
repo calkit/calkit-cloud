@@ -71,6 +71,35 @@ def create_project(
     project_in: ProjectCreate,
 ) -> Project:
     """Create new project."""
+    # First, create a repo for this on GitHub
+    token = users.get_github_token(session=session, user=current_user)
+    repo_name = project_in.git_repo_url.split("/")[-1]
+    logger.info(
+        f"Creating GitHub repo for {current_user.github_username}: {repo_name}"
+    )
+    body = {
+        "name": repo_name,
+        "description": project_in.description,
+        "homepage": (
+            f"https://calkit.io/{current_user.github_username}/{repo_name}"
+        ),
+        "private": not project_in.is_public,
+    }
+    resp = requests.post(
+        "https://api.github.com/user/repos",
+        json=body,
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    if not resp.status_code == 201:
+        logger.warning(f"Failed to create: {resp.json()}")
+        try:
+            message = resp.json()["errors"][0]["message"].capitalize()
+        except:
+            message = "Failed to create GitHub repo"
+        raise HTTPException(resp.status_code, message)
+    resp_json = resp.json()
+    logger.info(f"Create GitHub repo with URL: {resp_json['html_url']}")
+    logger.info("Adding to database")
     project = Project.model_validate(
         project_in, update={"owner_user_id": current_user.id}
     )
