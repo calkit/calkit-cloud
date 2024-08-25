@@ -8,6 +8,7 @@ import { SiAnaconda, SiJupyter } from "react-icons/si"
 import axios from "axios"
 
 import { ProjectsService, type GitItem } from "../../../../../client"
+import { useState } from "react"
 
 export const Route = createFileRoute(
   "/_layout/$userName/$projectName/_layout/files",
@@ -36,17 +37,46 @@ const getIcon = (item: GitItem) => {
 
 interface ItemProps {
   item: GitItem
+  level?: number
 }
 
 // A component to render an individual item in the list of contents
 // If a directory, expand to show files when clicked
 // If a file, get content and display to the right in a viewer
-function Item({ item }: ItemProps) {
+function Item({ item, level }: ItemProps) {
+  const indent = level ? level : 0
+  const [isExpanded, setIsExpanded] = useState(false)
+  const handleClick = (e) => {
+    setIsExpanded(!isExpanded)
+  }
+  const { userName, projectName } = Route.useParams()
+  const { isPending, data } = useQuery({
+    queryKey: ["projects", userName, projectName, "files", item.path],
+    queryFn: () =>
+      ProjectsService.getProjectGitContents({
+        ownerName: userName,
+        projectName: projectName,
+        path: item.path,
+      }),
+    enabled: isExpanded,
+  })
+
   return (
-    <Flex>
-      <Icon as={getIcon(item)} alignSelf="center" mr={1} />
-      <Text>{item.name}</Text>
-    </Flex>
+    <>
+      <Flex cursor={"pointer"} onClick={handleClick} ml={indent * 4}>
+        <Icon as={getIcon(item)} alignSelf="center" mr={1} />
+        <Text>{item.name}</Text>
+      </Flex>
+      {isExpanded && item.type === "dir" ? (
+        <Box>
+          {data?.map((subItem: GitItem) => (
+            <Item key={subItem.name} item={subItem} level={indent + 1} />
+          ))}
+        </Box>
+      ) : (
+        ""
+      )}
+    </>
   )
 }
 
@@ -59,11 +89,6 @@ function Files() {
         ownerName: userName,
         projectName: projectName,
       }),
-  })
-  const localFilesRequest = useQuery({
-    queryKey: ["local-files"],
-    queryFn: () => axios.get("http://localhost:8866/ls"),
-    retry: false,
   })
 
   if (Array.isArray(files)) {
@@ -95,24 +120,10 @@ function Files() {
         </Flex>
       ) : (
         <Flex>
-          <Box minW="20%">
-            <Heading size="s" mb={1}>
-              Cloud
-            </Heading>
+          <Box>
             {Array.isArray(files)
-              ? files?.map((file) => <Item key={file.path} item={file} />)
+              ? files?.map((file) => <Item key={file.name} item={file} />)
               : ""}
-          </Box>
-          <Box minW="20%">
-            <Heading size="s" mb={1}>
-              Local
-            </Heading>
-            {!localFilesRequest.error &&
-            Array.isArray(localFilesRequest.data?.data)
-              ? localFilesRequest.data?.data.map((file) => (
-                  <Item key={file.path} item={file} />
-                ))
-              : "Local server not connected"}
           </Box>
         </Flex>
       )}
