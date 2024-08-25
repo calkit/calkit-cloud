@@ -41,16 +41,20 @@ const getIcon = (item: GitItem, isExpanded = false) => {
 interface ItemProps {
   item: GitItem
   level?: number
+  setFileViewerContent: (content: string) => void
 }
 
 // A component to render an individual item in the list of contents
 // If a directory, expand to show files when clicked
 // If a file, get content and display to the right in a viewer
-function Item({ item, level }: ItemProps) {
+function Item({ item, level, setFileViewerContent }: ItemProps) {
   const indent = level ? level : 0
   const [isExpanded, setIsExpanded] = useState(false)
   const handleClick = (e) => {
     setIsExpanded(!isExpanded)
+    if (item.type === "file") {
+      setFileViewerContent(atob(data?.content))
+    }
   }
   const { userName, projectName } = Route.useParams()
   const { isPending, data } = useQuery({
@@ -73,7 +77,12 @@ function Item({ item, level }: ItemProps) {
       {isExpanded && item.type === "dir" ? (
         <Box>
           {data?.map((subItem: GitItem) => (
-            <Item key={subItem.name} item={subItem} level={indent + 1} />
+            <Item
+              key={subItem.name}
+              item={subItem}
+              level={indent + 1}
+              setFileViewerContent={setFileViewerContent}
+            />
           ))}
         </Box>
       ) : (
@@ -93,6 +102,7 @@ function Files() {
         projectName: projectName,
       }),
   })
+  const [fileViewerContent, setFileViewerContent] = useState("")
 
   if (Array.isArray(files)) {
     function sortByTypeAndName(a: GitItem, b: GitItem) {
@@ -123,10 +133,20 @@ function Files() {
         </Flex>
       ) : (
         <Flex>
-          <Box>
+          <Box mr={10}>
             {Array.isArray(files)
-              ? files?.map((file) => <Item key={file.name} item={file} />)
+              ? files?.map((file) => (
+                  <Item
+                    key={file.name}
+                    item={file}
+                    setFileViewerContent={setFileViewerContent}
+                  />
+                ))
               : ""}
+          </Box>
+          <Box minW={"60%"}>
+            {/* <embed src={fileViewerContent}/> */}
+            {fileViewerContent}
           </Box>
         </Flex>
       )}
