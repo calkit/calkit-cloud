@@ -5,10 +5,10 @@ import { FiFolder, FiFile } from "react-icons/fi"
 import { FaMarkdown } from "react-icons/fa6"
 import { AiOutlinePython } from "react-icons/ai"
 import { SiAnaconda, SiJupyter } from "react-icons/si"
-import axios from "axios"
+import { useState } from "react"
+import { FaRegFolderOpen } from "react-icons/fa"
 
 import { ProjectsService, type GitItem } from "../../../../../client"
-import { useState } from "react"
 
 export const Route = createFileRoute(
   "/_layout/$userName/$projectName/_layout/files",
@@ -16,9 +16,12 @@ export const Route = createFileRoute(
   component: Files,
 })
 
-const getIcon = (item: GitItem) => {
-  if (item.type === "dir") {
+const getIcon = (item: GitItem, isExpanded = false) => {
+  if (item.type === "dir" && !isExpanded) {
     return FiFolder
+  }
+  if (item.type === "dir" && isExpanded) {
+    return FaRegFolderOpen
   }
   if (item.name.endsWith(".py")) {
     return AiOutlinePython
@@ -64,7 +67,7 @@ function Item({ item, level }: ItemProps) {
   return (
     <>
       <Flex cursor={"pointer"} onClick={handleClick} ml={indent * 4}>
-        <Icon as={getIcon(item)} alignSelf="center" mr={1} />
+        <Icon as={getIcon(item, isExpanded)} alignSelf="center" mr={1} />
         <Text>{item.name}</Text>
       </Flex>
       {isExpanded && item.type === "dir" ? (
