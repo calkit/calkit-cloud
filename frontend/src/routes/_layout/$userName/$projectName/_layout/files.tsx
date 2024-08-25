@@ -15,6 +15,41 @@ export const Route = createFileRoute(
   component: Files,
 })
 
+const getIcon = (item: GitItem) => {
+  if (item.type === "dir") {
+    return FiFolder
+  }
+  if (item.name.endsWith(".py")) {
+    return AiOutlinePython
+  }
+  if (item.name.endsWith(".ipynb")) {
+    return SiJupyter
+  }
+  if (item.name.endsWith(".md")) {
+    return FaMarkdown
+  }
+  if (item.name === "environment.yml") {
+    return SiAnaconda
+  }
+  return FiFile
+}
+
+interface ItemProps {
+  item: GitItem
+}
+
+// A component to render an individual item in the list of contents
+// If a directory, expand to show files when clicked
+// If a file, get content and display to the right in a viewer
+function Item({ item }: ItemProps) {
+  return (
+    <Flex>
+      <Icon as={getIcon(item)} alignSelf="center" mr={1} />
+      <Text>{item.name}</Text>
+    </Flex>
+  )
+}
+
 function Files() {
   const { userName, projectName } = Route.useParams()
   const { isPending: filesPending, data: files } = useQuery({
@@ -49,25 +84,6 @@ function Files() {
     files.sort(sortByTypeAndName)
   }
 
-  const getIcon = (item: GitItem) => {
-    if (item.type === "dir") {
-      return FiFolder
-    }
-    if (item.name.endsWith(".py")) {
-      return AiOutlinePython
-    }
-    if (item.name.endsWith(".ipynb")) {
-      return SiJupyter
-    }
-    if (item.name.endsWith(".md")) {
-      return FaMarkdown
-    }
-    if (item.name === "environment.yml") {
-      return SiAnaconda
-    }
-    return FiFile
-  }
-
   return (
     <>
       <Heading size="md" mb={1}>
@@ -84,12 +100,7 @@ function Files() {
               Cloud
             </Heading>
             {Array.isArray(files)
-              ? files?.map((file) => (
-                  <Flex key={file.name}>
-                    <Icon as={getIcon(file)} alignSelf="center" mr={1} />
-                    <Text>{file.name}</Text>
-                  </Flex>
-                ))
+              ? files?.map((file) => <Item key={file.path} item={file} />)
               : ""}
           </Box>
           <Box minW="20%">
@@ -99,10 +110,7 @@ function Files() {
             {!localFilesRequest.error &&
             Array.isArray(localFilesRequest.data?.data)
               ? localFilesRequest.data?.data.map((file) => (
-                  <Flex key={file.name}>
-                    <Icon as={getIcon(file)} alignSelf="center" mr={1} />
-                    <Text>{file.name}</Text>
-                  </Flex>
+                  <Item key={file.path} item={file} />
                 ))
               : "Local server not connected"}
           </Box>
