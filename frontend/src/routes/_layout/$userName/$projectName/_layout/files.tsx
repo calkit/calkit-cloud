@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router"
-import { Box, Flex, Spinner, Text, Icon, Heading } from "@chakra-ui/react"
+import { Box, Flex, Spinner, Text, Icon, Heading, Code } from "@chakra-ui/react"
 import { useQuery } from "@tanstack/react-query"
 import { FiFolder, FiFile } from "react-icons/fi"
 import { FaMarkdown } from "react-icons/fa6"
@@ -8,7 +8,11 @@ import { SiAnaconda, SiJupyter } from "react-icons/si"
 import { useState } from "react"
 import { FaRegFolderOpen } from "react-icons/fa"
 
-import { ProjectsService, type GitItem } from "../../../../../client"
+import {
+  type GitItemWithContents,
+  ProjectsService,
+  type GitItem,
+} from "../../../../../client"
 
 export const Route = createFileRoute(
   "/_layout/$userName/$projectName/_layout/files",
@@ -39,23 +43,17 @@ const getIcon = (item: GitItem, isExpanded = false) => {
 }
 
 interface ItemProps {
-  item: GitItem
+  item: GitItem | GitItemWithContents
   level?: number
-  setFileViewerContent: (content: string) => void
+  setSelectedFile: (file: GitItemWithContents) => void
 }
 
 // A component to render an individual item in the list of contents
 // If a directory, expand to show files when clicked
 // If a file, get content and display to the right in a viewer
-function Item({ item, level, setFileViewerContent }: ItemProps) {
+function Item({ item, level, setSelectedFile }: ItemProps) {
   const indent = level ? level : 0
   const [isExpanded, setIsExpanded] = useState(false)
-  const handleClick = (e) => {
-    setIsExpanded(!isExpanded)
-    if (item.type === "file") {
-      setFileViewerContent(atob(data?.content))
-    }
-  }
   const { userName, projectName } = Route.useParams()
   const { isPending, data } = useQuery({
     queryKey: ["projects", userName, projectName, "files", item.path],
@@ -67,6 +65,12 @@ function Item({ item, level, setFileViewerContent }: ItemProps) {
       }),
     enabled: isExpanded,
   })
+  const handleClick = (e) => {
+    setIsExpanded(!isExpanded)
+    if (item.type === "file") {
+      setSelectedFile(item)
+    }
+  }
 
   return (
     <>
@@ -76,12 +80,12 @@ function Item({ item, level, setFileViewerContent }: ItemProps) {
       </Flex>
       {isExpanded && item.type === "dir" ? (
         <Box>
-          {data?.map((subItem: GitItem) => (
+          {data?.map((subItem: GitItem | GitItemWithContents) => (
             <Item
               key={subItem.name}
               item={subItem}
               level={indent + 1}
-              setFileViewerContent={setFileViewerContent}
+              setSelectedFile={setSelectedFile}
             />
           ))}
         </Box>
@@ -102,7 +106,19 @@ function Files() {
         projectName: projectName,
       }),
   })
-  const [fileViewerContent, setFileViewerContent] = useState("")
+  const [selectedFile, setSelectedFile] = useState<GitItem | undefined>(
+    undefined,
+  )
+  const selectedFileQuery = useQuery({
+    queryKey: ["projects", userName, projectName, "files", selectedFile?.path],
+    queryFn: () =>
+      ProjectsService.getProjectGitContents({
+        ownerName: userName,
+        projectName: projectName,
+        path: selectedFile?.path,
+      }),
+    enabled: selectedFile !== undefined,
+  })
 
   if (Array.isArray(files)) {
     function sortByTypeAndName(a: GitItem, b: GitItem) {
@@ -124,9 +140,6 @@ function Files() {
 
   return (
     <>
-      <Heading size="md" mb={1}>
-        All files
-      </Heading>
       {filesPending ? (
         <Flex justify="center" align="center" height="100vh" width="full">
           <Spinner size="xl" color="ui.main" />
@@ -139,14 +152,31 @@ function Files() {
                   <Item
                     key={file.name}
                     item={file}
-                    setFileViewerContent={setFileViewerContent}
+                    setSelectedFile={setSelectedFile}
                   />
                 ))
               : ""}
           </Box>
-          <Box minW={"60%"}>
-            {/* <embed src={fileViewerContent}/> */}
-            {fileViewerContent}
+          <Box minW={"750px"}>
+            {selectedFile !== undefined &&
+            (selectedFileQuery.isPending || selectedFileQuery.isRefetching) ? (
+              <Flex justify="center" align="center" height="full" width="full">
+                <Spinner size="xl" color="ui.main" />
+              </Flex>
+            ) : (
+              <Code
+                p={2}
+                borderRadius={"lg"}
+                display="block"
+                whiteSpace="pre"
+                maxH="700px"
+                overflowY="auto"
+                maxW="750px"
+                overflowX="auto"
+              >
+                {String(atob(selectedFileQuery.data?.content))}
+              </Code>
+            )}
           </Box>
         </Flex>
       )}
