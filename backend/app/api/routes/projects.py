@@ -347,6 +347,34 @@ def get_project_git_contents(
                             )
             else:
                 dvc_lock = None
+            # Now iterate through all items, and if one is a DVC file, read
+            # that file and create an object for it
+            for item in resp_json:
+                if item["path"].endswith(".dvc"):
+                    dvc_url = base_url + "/" + item["path"]
+                    logger.info(f"Fetching DVC file from {dvc_url}")
+                    dvc_file = requests.get(
+                        dvc_url,
+                        headers={
+                            "Authorization": f"Bearer {token}",
+                            "Accept": f"application/vnd.github.raw+json",
+                        },
+                    )
+                    dvc_file = yaml.safe_load(dvc_file.text)
+                    dvc_out = dvc_file["outs"][0]
+                    resp_json.append(
+                        dict(
+                            name=item["name"].removesuffix(".dvc"),
+                            path=dvc_out["path"],
+                            size=dvc_out["size"],
+                            md5=dvc_out["md5"],
+                            type=(
+                                "dvc-dir"
+                                if dvc_out["md5"].endswith(".dir")
+                                else "dvc-file"
+                            ),
+                        )
+                    )
         return resp_json
     else:
         return resp.text
