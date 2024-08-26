@@ -146,7 +146,13 @@ function Files() {
         </Flex>
       ) : (
         <Flex>
-          <Box mr={10}>
+          <Box
+            mr={10}
+            height="700px"
+            width="200px"
+            overflowX="auto"
+            overflowY="auto"
+          >
             {Array.isArray(files)
               ? files?.map((file) => (
                   <Item
@@ -169,7 +175,7 @@ function Files() {
                 borderRadius={"lg"}
                 display="block"
                 whiteSpace="pre"
-                maxH="700px"
+                height="700px"
                 overflowY="auto"
                 maxW="750px"
                 overflowX="auto"
