@@ -180,7 +180,9 @@ function Files() {
                 maxW="750px"
                 overflowX="auto"
               >
-                {String(atob(selectedFileQuery.data?.content))}
+                {selectedFileQuery.data
+                  ? String(atob(selectedFileQuery.data?.content))
+                  : ""}
               </Code>
             )}
           </Box>
