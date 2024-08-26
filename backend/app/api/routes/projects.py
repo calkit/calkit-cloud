@@ -263,13 +263,15 @@ def get_project_dvc_files(
 class GitItem(BaseModel):
     name: str
     path: str
-    sha: str
+    sha: str | None = None
     size: int
-    url: str
-    html_url: str
-    git_url: str
-    download_url: str | None
+    url: str | None = None
+    html_url: str | None = None
+    git_url: str | None = None
+    download_url: str | None = None
     type: str
+    md5: str | None = None
+    stage_name: str | None = None
 
 
 class GitItemWithContents(GitItem):
@@ -288,7 +290,10 @@ def get_project_git_contents(
     astype: Literal["", ".raw", ".html", ".object"] = "",
 ) -> list[GitItem] | GitItemWithContents | str:
     token = users.get_github_token(session=session, user=current_user)
-    url = f"https://api.github.com/repos/{owner_name}/{project_name}/contents"
+    base_url = (
+        f"https://api.github.com/repos/{owner_name}/{project_name}/contents"
+    )
+    url = base_url
     if path is not None:
         url += "/" + path
     logger.info(f"Making request to: {url}")
@@ -299,11 +304,50 @@ def get_project_git_contents(
     resp = requests.get(url, headers=headers)
     logger.info(f"Response status code from GitHub: {resp.status_code}")
     if resp.status_code >= 400:
+        # It's possible this is a DVC object, and if so, we should figure out
+        # if it's an output or a normally tracked file, and get that
         logger.info(f"GitHub API call failed: {resp.text}")
         if astype in ["", ".object"]:
             raise HTTPException(resp.status_code, resp.json()["message"])
+    # If this is a directory, see if we have any DVC objects, and return those
+    # We could clone the repo and run `dvc list . --dvc-only` on it, or we can
+    # reimplement the logic based on what's returned from the GitHub API
     if astype in ["", ".object"]:
-        return resp.json()
+        resp_json = resp.json()
+        # First, see if there's a DVC lock file in this repo if we've requested
+        # content from a directory
+        if isinstance(resp_json, list):
+            dvc_lock = requests.get(
+                base_url + "/dvc.lock",
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Accept": f"application/vnd.github.raw+json",
+                },
+            )
+            if dvc_lock.status_code == 200:
+                if path is None:
+                    path = ""
+                dvc_lock = yaml.safe_load(dvc_lock.text)
+                for stage_name, stage in dvc_lock["stages"].items():
+                    for out in stage["outs"]:
+                        if os.path.dirname(out["path"]) == path:
+                            resp_json.append(
+                                dict(
+                                    name=os.path.basename(out["path"]),
+                                    path=out["path"],
+                                    size=out["size"],
+                                    md5=out["md5"],
+                                    type=(
+                                        "dvc-out-dir"
+                                        if out["md5"].endswith(".dir")
+                                        else "dvc-out-file"
+                                    ),
+                                    stage_name=stage_name,
+                                )
+                            )
+            else:
+                dvc_lock = None
+        return resp_json
     else:
         return resp.text
 
