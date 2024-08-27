@@ -630,7 +630,8 @@ def post_project_figure(
         os.path.join(repo.working_dir, os.path.dirname(path)), exist_ok=True
     )
     file_data = file.file.read()
-    with open(os.path.join(repo.working_dir, path), "wb") as f:
+    full_fig_path = os.path.join(repo.working_dir, path)
+    with open(full_fig_path, "wb") as f:
         f.write(file_data)
     # Either git add {path} or dvc add {path}
     # If we DVC add, we'll get output like
@@ -677,6 +678,8 @@ def post_project_figure(
     kws = {}
     kws["ResponseContentDisposition"] = f"filename={os.path.basename(path)}"
     url = fs.url(fpath, expires=3600 * 24, **kws)
+    # Finally, remove the figure from the cached repo
+    os.remove(full_fig_path)
     return Figure(
         path=path,
         title=title,
