@@ -2,9 +2,12 @@
 
 import os
 import tempfile
+
+import ruamel.yaml
 from dvc.commands import dag
 from dvc.repo import Repo
-import yaml
+
+yaml = ruamel.yaml.YAML()
 
 
 def make_mermaid_diagram(pipeline: dict) -> str:
@@ -18,7 +21,7 @@ def make_mermaid_diagram(pipeline: dict) -> str:
         with tempfile.TemporaryDirectory() as tmpdirname:
             os.chdir(tmpdirname)
             with open("dvc.yaml", "w") as f:
-                yaml.safe_dump(pipeline, f)
+                yaml.dump(pipeline, f)
             with Repo.init(
                 ".",
                 no_scm=True,
