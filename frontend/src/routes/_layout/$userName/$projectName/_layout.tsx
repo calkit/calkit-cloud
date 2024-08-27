@@ -54,7 +54,7 @@ function ProjectLayout() {
                 size="lg"
                 textAlign={{ base: "center", md: "left" }}
                 alignContent={"center"}
-                mt={5}
+                mt={6}
                 mb={3}
               >
                 {project?.name}
