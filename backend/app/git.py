@@ -27,7 +27,7 @@ def get_repo(
     base_dir = f"/tmp/{user.github_username}/{owner_name}/{project_name}"
     repo_dir = os.path.join(base_dir, "repo")
     updated_fpath = os.path.join(base_dir, "updated.txt")
-    lock_fpath = os.path.join(base_dir, "cloning.lock")
+    lock_fpath = os.path.join(base_dir, "updating.lock")
     os.makedirs(base_dir, exist_ok=True)
     # Clone the repo if it doesn't exist -- it will be in a "repo" dir
     access_token = users.get_github_token(session=session, user=user)
@@ -50,12 +50,6 @@ def get_repo(
         repo.git.config(["user.name", user.full_name])
         repo.git.config(["user.email", user.email])
         os.remove(lock_fpath)
-    n = 1
-    while os.path.isfile(lock_fpath):
-        n += 1
-        time.sleep(0.01)
-        if n > 1000:
-            os.remove(lock_fpath)
     if os.path.isfile(updated_fpath):
         last_updated = os.path.getmtime(updated_fpath)
     else:
@@ -64,12 +58,23 @@ def get_repo(
         repo = git.Repo(repo_dir)
         # TODO: Only pull if we know we need to, perhaps with a call to GitHub
         # for the latest rev
-        if ttl is None or ((time.time() - last_updated) > ttl):
+        if (
+            ttl is None or ((time.time() - last_updated) > ttl)
+        ) and not os.path.isfile(lock_fpath):
+            subprocess.call(["touch", lock_fpath])
             logger.info("Updating remote in case token was refreshed")
             repo.remote().set_url(git_clone_url)
             logger.info("Git pulling")
             repo.git.pull()
+            os.remove(lock_fpath)
             subprocess.call(["touch", updated_fpath])
+    # Timeout lock in case an operation failed last time
+    n = 1
+    while os.path.isfile(lock_fpath):
+        n += 1
+        time.sleep(0.01)
+        if n > 1000:
+            os.remove(lock_fpath)
     repo_contents = os.listdir(repo_dir)
     logger.info(f"Repo contents: {repo_contents}")
     return repo
