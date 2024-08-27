@@ -10,14 +10,20 @@ import {
   Badge,
 } from "@chakra-ui/react"
 import { useQuery } from "@tanstack/react-query"
-import { FiFolder, FiFile } from "react-icons/fi"
+import { FiFolder, FiFile, FiDatabase } from "react-icons/fi"
 import { FaMarkdown } from "react-icons/fa6"
 import { AiOutlinePython } from "react-icons/ai"
 import { SiAnaconda, SiJupyter } from "react-icons/si"
 import { useState } from "react"
-import { FaRegFolderOpen } from "react-icons/fa"
+import {
+  FaDocker,
+  FaList,
+  FaRegFileImage,
+  FaRegFolderOpen,
+} from "react-icons/fa"
 
 import { ProjectsService, type ContentsItem } from "../../../../../client"
+import { BsFiletypeYml } from "react-icons/bs"
 
 export const Route = createFileRoute(
   "/_layout/$userName/$projectName/_layout/files",
@@ -26,11 +32,25 @@ export const Route = createFileRoute(
 })
 
 const getIcon = (item: ContentsItem, isExpanded = false) => {
+  if (item.calkit_object) {
+    if (item.calkit_object.kind === "dataset" && item.type !== "dir") {
+      return FiDatabase
+    }
+    if (item.calkit_object.kind === "figure") {
+      return FaRegFileImage
+    }
+    if (item.calkit_object.kind === "references") {
+      return FaList
+    }
+  }
   if (item.type === "dir" && !isExpanded) {
     return FiFolder
   }
   if (item.type === "dir" && isExpanded) {
     return FaRegFolderOpen
+  }
+  if (item.name.endsWith(".png")) {
+    return FaRegFileImage
   }
   if (item.name.endsWith(".py")) {
     return AiOutlinePython
@@ -41,8 +61,14 @@ const getIcon = (item: ContentsItem, isExpanded = false) => {
   if (item.name.endsWith(".md")) {
     return FaMarkdown
   }
+  if (item.name.endsWith("yaml") || item.name === "dvc.lock") {
+    return BsFiletypeYml
+  }
   if (item.name === "environment.yml") {
     return SiAnaconda
+  }
+  if (item.name === "Dockerfile") {
+    return FaDocker
   }
   return FiFile
 }
@@ -78,7 +104,12 @@ function Item({ item, level, setSelectedFile }: ItemProps) {
   return (
     <>
       <Flex cursor={"pointer"} onClick={handleClick} ml={indent * 4}>
-        <Icon as={getIcon(item, isExpanded)} alignSelf="center" mr={1} />
+        <Icon
+          as={getIcon(item, isExpanded)}
+          alignSelf="center"
+          mr={1}
+          color={item.calkit_object ? "green.500" : "default"}
+        />
         <Text>{item.name}</Text>
       </Flex>
       {isExpanded && item.type === "dir" ? (
