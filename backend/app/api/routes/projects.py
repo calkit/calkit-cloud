@@ -268,16 +268,13 @@ def get_project_dvc_files(
 class GitItem(BaseModel):
     name: str
     path: str
-    sha: str | None = None
+    sha: str
     size: int
-    url: str | None = None
-    html_url: str | None = None
-    git_url: str | None = None
-    download_url: str | None = None
+    url: str
+    html_url: str
+    git_url: str
+    download_url: str | None
     type: str
-    md5: str | None = None
-    stage_name: str | None = None
-    calkit_type: str | None = None
 
 
 class GitItemWithContents(GitItem):
@@ -296,29 +293,7 @@ def get_project_git_contents(
     astype: Literal["", ".raw", ".html", ".object"] = "",
 ) -> list[GitItem] | GitItemWithContents | str:
     token = users.get_github_token(session=session, user=current_user)
-    base_url = (
-        f"https://api.github.com/repos/{owner_name}/{project_name}/contents"
-    )
-    # First read the calkit metadata file since we will use this to patch in
-    # any paths that exist in DVC only
-    cky_resp = requests.get(
-        base_url + "/calkit.yaml",
-        headers={
-            "Authorization": f"Bearer {token}",
-            "Accept": f"application/vnd.github.raw+json",
-        },
-    )
-    if cky_resp.status_code != 200:
-        logger.warning(f"{owner_name}/{project_name} has no calkit.yaml file")
-        ck_yaml = {}
-    else:
-        ck_yaml = ryaml.load(cky_resp.text)
-    ck_paths = {
-        category: [f.get("path") for f in ck_yaml.get(category + "s", [])]
-        for category in ["figure", "publication", "dataset"]
-    }
-    logger.info(f"Calkit paths: {ck_paths}")
-    url = base_url
+    url = f"https://api.github.com/repos/{owner_name}/{project_name}/contents"
     if path is not None:
         url += "/" + path
     logger.info(f"Making request to: {url}")
@@ -329,90 +304,11 @@ def get_project_git_contents(
     resp = requests.get(url, headers=headers)
     logger.info(f"Response status code from GitHub: {resp.status_code}")
     if resp.status_code >= 400:
-        # It's possible this is a DVC object, and if so, we should figure out
-        # if it's an output or a normally tracked file, and get that
         logger.info(f"GitHub API call failed: {resp.text}")
         if astype in ["", ".object"]:
             raise HTTPException(resp.status_code, resp.json()["message"])
-    # If this is a directory, see if we have any DVC objects, and return those
-    # We could clone the repo and run `dvc list . --dvc-only` on it, or we can
-    # reimplement the logic based on what's returned from the GitHub API
     if astype in ["", ".object"]:
-        resp_json = resp.json()
-        # First, see if there's a DVC lock file in this repo if we've requested
-        # content from a directory
-        if isinstance(resp_json, list):
-            dvc_lock = requests.get(
-                base_url + "/dvc.lock",
-                headers={
-                    "Authorization": f"Bearer {token}",
-                    "Accept": f"application/vnd.github.raw+json",
-                },
-            )
-            if dvc_lock.status_code == 200:
-                if path is None:
-                    path = ""
-                dvc_lock = ryaml.load(dvc_lock.text)
-                for stage_name, stage in dvc_lock["stages"].items():
-                    for out in stage["outs"]:
-                        # TODO: If the output has a working directory, we need
-                        # to add that to the path
-                        if os.path.dirname(out["path"]) == path:
-                            resp_json.append(
-                                dict(
-                                    name=os.path.basename(out["path"]),
-                                    path=out["path"],
-                                    size=out["size"],
-                                    md5=out["md5"],
-                                    type=(
-                                        "dvc-out-dir"
-                                        if out["md5"].endswith(".dir")
-                                        else "dvc-out-file"
-                                    ),
-                                    stage_name=stage_name,
-                                )
-                            )
-            else:
-                dvc_lock = None
-            # Now iterate through all items, and if one is a DVC file, read
-            # that file and create an object for it
-            for item in resp_json:
-                if item["path"].endswith(".dvc") and item["type"] == "file":
-                    dvc_url = base_url + "/" + item["path"]
-                    logger.info(f"Fetching DVC file from {dvc_url}")
-                    dvc_file = requests.get(
-                        dvc_url,
-                        headers={
-                            "Authorization": f"Bearer {token}",
-                            "Accept": f"application/vnd.github.raw+json",
-                        },
-                    )
-                    dvc_file = ryaml.load(dvc_file.text)
-                    dvc_out = dvc_file["outs"][0]
-                    resp_json.append(
-                        dict(
-                            name=item["name"].removesuffix(".dvc"),
-                            path=dvc_out["path"],
-                            size=dvc_out["size"],
-                            md5=dvc_out["md5"],
-                            type=(
-                                "dvc-dir"
-                                if dvc_out["md5"].endswith(".dir")
-                                else "dvc-file"
-                            ),
-                        )
-                    )
-            # Now let's see if any of these paths are Calkit entities
-            for item in resp_json:
-                for category, pathlist in ck_paths.items():
-                    if item["path"] in pathlist:
-                        item["calkit_type"] = category
-        else:
-            # This is a single file, check if it's a Calkit entity
-            for category, pathlist in ck_paths.items():
-                if resp_json["path"] in pathlist:
-                    resp_json["calkit_type"] = category
-        return resp_json
+        return resp.json()
     else:
         return resp.text
 
