@@ -814,15 +814,21 @@ def get_project_workflow(
     project_name: str,
     current_user: CurrentUser,
     session: SessionDep,
-) -> Workflow:
-    content = get_project_git_contents(
+) -> Workflow | None:
+    project = get_project_by_name(
         owner_name=owner_name,
         project_name=project_name,
         session=session,
         current_user=current_user,
-        path="dvc.yaml",
-        astype=".raw",
     )
+    repo = get_repo(
+        project=project, user=current_user, session=session, ttl=300
+    )
+    fpath = os.path.join(repo.working_dir, "dvc.yaml")
+    if not os.path.isfile(fpath):
+        return
+    with open(fpath) as f:
+        content = f.read()
     dvc_pipeline = ryaml.load(content)
     # Generate Mermaid diagram
     mermaid = make_mermaid_diagram(dvc_pipeline)
