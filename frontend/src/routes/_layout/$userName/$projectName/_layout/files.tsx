@@ -63,7 +63,7 @@ function Item({ item, level, setSelectedFile }: ItemProps) {
   })
   const handleClick = (e) => {
     setIsExpanded(!isExpanded)
-    if (item.type === "file") {
+    if (item.type !== "dir") {
       setSelectedFile(item)
     }
   }
@@ -137,7 +137,7 @@ function Files() {
   return (
     <>
       {filesPending ? (
-        <Flex justify="center" align="center" height="100vh" width="full">
+        <Flex justify="center" align="center" height="full" width="full">
           <Spinner size="xl" color="ui.main" />
         </Flex>
       ) : (
@@ -176,9 +176,9 @@ function Files() {
                 maxW="750px"
                 overflowX="auto"
               >
-                {selectedFileQuery.data
+                {selectedFileQuery.data?.content
                   ? String(atob(selectedFileQuery.data?.content))
-                  : ""}
+                  : "Cannot render this type of content yet"}
               </Code>
             )}
           </Box>

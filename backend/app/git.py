@@ -53,7 +53,7 @@ def get_repo(
         if ttl is None or ((time.time() - last_updated) > ttl):
             repo.git.pull()
             subprocess.call(["touch", updated_fpath])
-    repo_contents = os.listdir(".")
+    repo_contents = os.listdir(repo_dir)
     logger.info(f"Repo contents: {repo_contents}")
     # Run git config so we make commits as this user
     repo.git.config(["user.name", user.full_name])
