@@ -22,6 +22,8 @@ def get_repo(
     # Add the file to the repo(s) -- we may need to clone it
     # If it already exists, just git pull
     base_dir = f"/tmp/{owner_name}/{project_name}"
+    repo_dir = os.path.join(base_dir, "repo")
+    updated_fpath = os.path.join(base_dir, "updated.txt")
     os.makedirs(base_dir, exist_ok=True)
     os.chdir(base_dir)
     # Clone the repo if it doesn't exist -- it will be in a "repo" dir
@@ -31,20 +33,20 @@ def get_repo(
         f"{project.git_repo_url.removeprefix('https://')}.git"
     )
     cloned = False
-    if not os.path.isdir("repo"):
+    if not os.path.isdir(repo_dir):
         cloned = True
-        logger.info(f"Git cloning into {base_dir}")
+        logger.info(f"Git cloning into {repo_dir}")
         subprocess.call(
-            ["git", "clone", "--depth", "1", git_clone_url, "repo"]
+            ["git", "clone", "--depth", "1", git_clone_url, repo_dir]
         )
         # Touch a file so we can compute a TTL
-        subprocess.call(["touch", "updated.txt"])
-    if os.path.isfile("updated.txt"):
-        last_updated = os.path.getmtime("updated.txt")
+        subprocess.call(["touch", updated_fpath])
+    if os.path.isfile(updated_fpath):
+        last_updated = os.path.getmtime(updated_fpath)
     else:
         last_updated = 0
-    os.chdir("repo")
-    repo = git.Repo()
+    os.chdir(repo_dir)
+    repo = git.Repo(repo_dir)
     if not cloned:
         logger.info("Updating remote in case token was refreshed")
         repo.remote().set_url(git_clone_url)
@@ -52,7 +54,7 @@ def get_repo(
         # for the latest rev
         if ttl is None or ((time.time() - last_updated) > ttl):
             repo.git.pull()
-            subprocess.call(["touch", "../updated.txt"])
+            subprocess.call(["touch", updated_fpath])
     repo_contents = os.listdir(".")
     logger.info(f"Repo contents: {repo_contents}")
     # Run git config so we make commits as this user
