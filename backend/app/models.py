@@ -143,6 +143,11 @@ class ProjectBase(SQLModel):
     git_repo_url: str = Field(max_length=2048)
     is_public: bool = Field(default=False)
 
+    @computed_field
+    @property
+    def name_slug(self) -> str:
+        return slugify(self.name)
+
 
 class Project(ProjectBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
@@ -160,11 +165,6 @@ class ProjectPublic(ProjectBase):
     id: uuid.UUID
     owner_user_id: uuid.UUID
     owner_github_username: str | None
-
-    @computed_field
-    @property
-    def name_slug(self) -> str:
-        return slugify(self.name)
 
 
 class ProjectsPublic(SQLModel):

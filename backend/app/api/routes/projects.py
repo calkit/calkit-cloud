@@ -33,6 +33,7 @@ from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlmodel import func, select
+from app.git import get_repo
 
 yaml = ruamel.yaml.YAML()
 yaml.indent(mapping=2, sequence=4, offset=2)
@@ -414,6 +415,103 @@ def get_project_git_contents(
         return resp_json
     else:
         return resp.text
+
+
+@router.get("/projects/{owner_name}/{project_name}/contents/{path:path}")
+@router.get("/projects/{owner_name}/{project_name}/contents")
+def get_project_contents(
+    owner_name: str,
+    project_name: str,
+    session: SessionDep,
+    current_user: CurrentUser,
+    path: str | None = None,
+) -> list[dict] | dict:
+    project = get_project_by_name(
+        owner_name=owner_name,
+        project_name=project_name,
+        session=session,
+        current_user=current_user,
+    )
+    # TODO: Collaborator access
+    if project.owner != current_user:
+        raise HTTPException(401)
+    # Get the repo
+    # Note this will make the repo our working directory
+    repo = get_repo(project=project, user=current_user, session=session)
+    # Load Calkit entities
+    if os.path.isfile("calkit.yaml"):
+        logger.info("Loading calkit.yaml")
+        ck_info = yaml.load(Path("calkit.yaml"))
+    else:
+        ck_info = {}
+    # Is this a path in our calkit entities?
+    # Let's restructure as a dictionary keyed by path
+    ck_objects = {}
+    for category, itemlist in ck_info.items():
+        for item in itemlist:
+            # TODO: Get size, MD5, dir, presigned URL?
+            item["kind"] = (
+                category.removesuffix("s")
+                if category != "references"
+                else category
+            )
+            ck_objects[item["path"]] = item
+    # See if we're listing off a directory
+    if path is None or os.path.isdir(path):
+        # We're listing off the top of the repo
+        dirname = "" if path is None else path
+        contents = []
+        paths = os.listdir("." if path is None else path)
+        paths = [os.path.join(dirname, p) for p in paths]
+        for p in paths:
+            obj = dict(
+                name=os.path.basename(p),
+                path=p,
+                size=os.path.getsize(p),
+                in_repo=True,
+            )
+            if os.path.isfile(p):
+                obj["type"] = "file"
+            else:
+                obj["type"] = "dir"
+            if p in ck_objects:
+                obj["calkit_object"] = ck_objects[p]
+            else:
+                obj["calkit_object"] = None
+            contents.append(obj)
+        for ck_path, ck_obj in ck_objects.items():
+            if os.path.dirname(ck_path) == dirname and ck_path not in paths:
+                # TODO: Is this a file or a directory?
+                # We should be able to tell from the DVC file
+                # We should also be able to get the size
+                obj = dict(
+                    name=os.path.basename(ck_path),
+                    path=ck_path,
+                    in_repo=False,
+                    calkit_object=ck_obj,
+                )
+                contents.append(obj)
+        return contents
+    # We're looking for a file, so let's first check if it exists in the repo
+    if os.path.isfile(path):
+        return dict(
+            path=path,
+            name=os.path.basename(path),
+            size=os.path.getsize(path),
+            in_repo=True,
+            calkit_object=ck_objects.get(path),
+        )
+    # The file isn't in the repo, but maybe it's in the Calkit objects
+    elif path in ck_objects:
+        return dict(
+            path=path,
+            name=os.path.basename(path),
+            size=None,  # TODO
+            in_repo=False,
+            calkit_object=ck_objects[path],
+        )
+    else:
+        raise HTTPException(404)
 
 
 @router.get("/projects/{owner_name}/{project_name}/questions")
