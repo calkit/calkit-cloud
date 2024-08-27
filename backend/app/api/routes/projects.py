@@ -498,6 +498,7 @@ def get_project_contents(
             path=path,
             name=os.path.basename(path),
             size=os.path.getsize(path),
+            type="file",
             in_repo=True,
             calkit_object=ck_objects.get(path),
         )
@@ -507,6 +508,7 @@ def get_project_contents(
             path=path,
             name=os.path.basename(path),
             size=None,  # TODO
+            type=None,  # TODO
             in_repo=False,
             calkit_object=ck_objects[path],
         )
