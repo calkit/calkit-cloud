@@ -613,10 +613,14 @@ def post_project_figure(
     repo = get_repo(
         project=project, user=current_user, session=session, ttl=None
     )
-    # TODO: Make sure a figure with this path doesn't already exist
-    # TODO: Handle projects that aren't yet Calkit projects
-    ck_info = ryaml.load(Path(os.path.join(repo.working_dir, "calkit.yaml")))
+    # Handle projects that aren't yet Calkit projects
+    ck_fpath = os.path.join(repo.working_dir, "calkit.yaml")
+    if os.path.isfile(ck_fpath):
+        ck_info = ryaml.load(Path(ck_fpath))
+    else:
+        ck_info = {}
     figures = ck_info.get("figures", [])
+    # Make sure a figure with this path doesn't already exist
     figpaths = [fig["path"] for fig in figures]
     if path in figpaths:
         raise HTTPException(400, "A figure already exists at this path")
@@ -637,6 +641,10 @@ def post_project_figure(
     # To enable auto staging, run:
 
     #         dvc config core.autostage true
+    # Initialize DVC if it's never been
+    if not os.path.isdir(os.path.join(repo.working_dir, ".dvc")):
+        logger.info("Calling dvc init since .dvc directory is missing")
+        subprocess.call(["dvc", "init"], cwd=repo.working_dir)
     dvc_out = subprocess.check_output(
         ["dvc", "add", path], cwd=repo.working_dir
     ).decode()
