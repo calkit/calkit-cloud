@@ -417,6 +417,16 @@ def get_project_git_contents(
         return resp.text
 
 
+class ContentsItem(BaseModel):
+    name: str
+    path: str
+    type: str | None
+    size: int | None
+    in_repo: bool
+    content: str | None = None
+    calkit_object: dict | None = None
+
+
 @router.get("/projects/{owner_name}/{project_name}/contents/{path:path}")
 @router.get("/projects/{owner_name}/{project_name}/contents")
 def get_project_contents(
@@ -425,7 +435,7 @@ def get_project_contents(
     session: SessionDep,
     current_user: CurrentUser,
     path: str | None = None,
-) -> list[dict] | dict:
+) -> list[ContentsItem] | ContentsItem:
     project = get_project_by_name(
         owner_name=owner_name,
         project_name=project_name,
