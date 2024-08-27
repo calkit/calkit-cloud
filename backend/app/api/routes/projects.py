@@ -452,10 +452,11 @@ def get_project_contents(
     repo = get_repo(
         project=project, user=current_user, session=session, ttl=300
     )
+    repo_dir = repo.working_dir
     # Load Calkit entities
-    if os.path.isfile("calkit.yaml"):
+    if os.path.isfile(os.path.join(repo_dir, "calkit.yaml")):
         logger.info("Loading calkit.yaml")
-        ck_info = yaml.load(Path("calkit.yaml"))
+        ck_info = yaml.load(Path(os.path.join(repo_dir, "calkit.yaml")))
     else:
         ck_info = {}
     ignore_paths = [".git", ".dvc/cache", ".dvc/tmp", ".dvc/config.local"]
@@ -473,11 +474,13 @@ def get_project_contents(
             )
             ck_objects[item["path"]] = item
     # See if we're listing off a directory
-    if path is None or os.path.isdir(path):
+    if path is None or os.path.isdir(os.path.join(repo_dir, path)):
         # We're listing off the top of the repo
         dirname = "" if path is None else path
         contents = []
-        paths = os.listdir("." if path is None else path)
+        paths = os.listdir(
+            repo_dir if path is None else os.path.join(repo_dir, path)
+        )
         paths = [os.path.join(dirname, p) for p in paths]
         for p in paths:
             if p in ignore_paths:
@@ -485,10 +488,10 @@ def get_project_contents(
             obj = dict(
                 name=os.path.basename(p),
                 path=p,
-                size=os.path.getsize(p),
+                size=os.path.getsize(os.path.join(repo_dir, p)),
                 in_repo=True,
             )
-            if os.path.isfile(p):
+            if os.path.isfile(os.path.join(repo_dir, p)):
                 obj["type"] = "file"
             else:
                 obj["type"] = "dir"
@@ -513,13 +516,13 @@ def get_project_contents(
                 contents.append(obj)
         return contents
     # We're looking for a file, so let's first check if it exists in the repo
-    if os.path.isfile(path):
-        with open(path, "rb") as f:
+    if os.path.isfile(os.path.join(repo_dir, path)):
+        with open(os.path.join(repo_dir, path), "rb") as f:
             content = f.read()
         return dict(
             path=path,
             name=os.path.basename(path),
-            size=os.path.getsize(path),
+            size=os.path.getsize(os.path.join(repo_dir, path)),
             type="file",
             in_repo=True,
             content=base64.b64encode(content).decode(),

@@ -25,7 +25,6 @@ def get_repo(
     repo_dir = os.path.join(base_dir, "repo")
     updated_fpath = os.path.join(base_dir, "updated.txt")
     os.makedirs(base_dir, exist_ok=True)
-    os.chdir(base_dir)
     # Clone the repo if it doesn't exist -- it will be in a "repo" dir
     access_token = users.get_github_token(session=session, user=user)
     git_clone_url = (
@@ -45,7 +44,6 @@ def get_repo(
         last_updated = os.path.getmtime(updated_fpath)
     else:
         last_updated = 0
-    os.chdir(repo_dir)
     repo = git.Repo(repo_dir)
     if not cloned:
         logger.info("Updating remote in case token was refreshed")
