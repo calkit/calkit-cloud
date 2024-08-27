@@ -225,8 +225,16 @@ function Files() {
             {selectedFile ? (
               <Box>
                 <Text>Name: {selectedFile.name}</Text>
-                <Text>Type: {selectedFile.type}</Text>
-                <Text>Size: {selectedFile.size}</Text>
+                {selectedFile.type ? (
+                  <Text>Type: {selectedFile.type}</Text>
+                ) : (
+                  ""
+                )}
+                {selectedFile.size ? (
+                  <Text>Size: {selectedFile.size}</Text>
+                ) : (
+                  ""
+                )}
                 {selectedFile.calkit_object ? (
                   <Badge bgColor="green.500">
                     {selectedFile.calkit_object.kind}
