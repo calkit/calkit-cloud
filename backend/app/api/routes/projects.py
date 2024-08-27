@@ -650,14 +650,15 @@ def post_project_figure(
         dict(path=path, title=title, description=description, stage=None)
     )
     ck_info["figures"] = figures
-    ryaml.dump(Path(os.path.join(repo.working_dir, "calkit.yaml")))
+    with open(os.path.join(repo.working_dir, "calkit.yaml"), "w") as f:
+        ryaml.dump(ck_info, f)
     repo.git.add("calkit.yaml")
     # Make a commit
     repo.git.commit(["-m", f"Add figure {path}"])
     # Push to GitHub, and optionally DVC remote if we used it
     repo.git.push(["origin", repo.branches[0].name])
-    # TODO: If the DVC remote, we can just put it in the expected location since
-    # we'll have the md5 hash in the dvc file
+    # If using the DVC remote, we can just put it in the expected location
+    # since we'll have the md5 hash in the dvc file
     with open(os.path.join(repo.working_dir, path + ".dvc")) as f:
         dvc_yaml = ryaml.load(f)
     md5 = dvc_yaml["outs"][0]["md5"]
