@@ -6,6 +6,7 @@ import logging
 import os
 import subprocess
 import uuid
+from pathlib import Path
 from typing import Annotated, Literal
 
 import app.projects
@@ -606,56 +607,26 @@ def post_project_figure(
     project = app.projects.get_project(
         session=session, owner_name=owner_name, project_name=project_name
     )
+    # TODO: Check write collaborator access to this project
     if project.owner != current_user:
         raise HTTPException(401)
-    # TODO: Check write collaborator access to this project
+    repo = get_repo(
+        project=project, user=current_user, session=session, ttl=None
+    )
     # TODO: Make sure a figure with this path doesn't already exist
     # TODO: Handle projects that aren't yet Calkit projects
-    figs_yaml = get_project_git_contents(
-        owner_name=owner_name,
-        project_name=project_name,
-        session=session,
-        current_user=current_user,
-        path=".calkit/figures.yaml",
-        astype=".raw",
-    )
-    figures = ryaml.load(figs_yaml)
+    ck_info = ryaml.load(Path(os.path.join(repo.working_dir, "calkit.yaml")))
+    figures = ck_info.get("figures", [])
     figpaths = [fig["path"] for fig in figures]
     if path in figpaths:
         raise HTTPException(400, "A figure already exists at this path")
-    # Add the file to the repo(s) -- we may need to clone it
-    # If it already exists, just git pull
-    base_dir = f"/tmp/{owner_name}/{project_name}"
-    os.makedirs(base_dir, exist_ok=True)
-    os.chdir(base_dir)
-    # Clone the repo if it doesn't exist -- it will be in a "repo" dir
-    access_token = users.get_github_token(session=session, user=current_user)
-    git_clone_url = (
-        f"https://x-access-token:{access_token}@"
-        f"{project.git_repo_url.removeprefix('https://')}.git"
-    )
-    cloned = False
-    if not os.path.isdir("repo"):
-        cloned = True
-        logger.info(f"Git cloning into {base_dir}")
-        subprocess.call(
-            ["git", "clone", "--depth", "1", git_clone_url, "repo"]
-        )
-    os.chdir("repo")
-    repo = git.Repo()
-    if not cloned:
-        logger.info("Updating remote in case token was refreshed")
-        repo.remote().set_url(git_clone_url)
-        repo.git.pull()
-    repo_contents = os.listdir(".")
-    logger.info(f"Repo contents: {repo_contents}")
-    # Run git config so we make commits as this user
-    repo.git.config(["user.name", current_user.full_name])
-    repo.git.config(["user.email", current_user.email])
+    # Add the file to the repo(s)
     # Save the file to the desired path
-    os.makedirs(os.path.dirname(path), exist_ok=True)
+    os.makedirs(
+        os.path.join(repo.working_dir, os.path.dirname(path)), exist_ok=True
+    )
     file_data = file.file.read()
-    with open(path, "wb") as f:
+    with open(os.path.join(repo.working_dir, path), "wb") as f:
         f.write(file_data)
     # Either git add {path} or dvc add {path}
     # If we DVC add, we'll get output like
@@ -666,26 +637,28 @@ def post_project_figure(
     # To enable auto staging, run:
 
     #         dvc config core.autostage true
-    dvc_out = subprocess.check_output(["dvc", "add", path]).decode()
+    dvc_out = subprocess.check_output(
+        ["dvc", "add", path], cwd=repo.working_dir
+    ).decode()
     for line in dvc_out.split("\n"):
         if line.strip().startswith("git add"):
             cmd = line.strip().split()
             logger.info(f"Calling {cmd}")
             repo.git.add(cmd[2:])
-    # Update figures.yaml
+    # Update figures
     figures.append(
         dict(path=path, title=title, description=description, stage=None)
     )
-    with open(".calkit/figures.yaml", "w") as f:
-        ryaml.dump(figures, f)
-    repo.git.add(".calkit/figures.yaml")
+    ck_info["figures"] = figures
+    ryaml.dump(Path(os.path.join(repo.working_dir, "calkit.yaml")))
+    repo.git.add("calkit.yaml")
     # Make a commit
     repo.git.commit(["-m", f"Add figure {path}"])
     # Push to GitHub, and optionally DVC remote if we used it
     repo.git.push(["origin", repo.branches[0].name])
     # TODO: If the DVC remote, we can just put it in the expected location since
     # we'll have the md5 hash in the dvc file
-    with open(path + ".dvc") as f:
+    with open(os.path.join(repo.working_dir, path + ".dvc")) as f:
         dvc_yaml = ryaml.load(f)
     md5 = dvc_yaml["outs"][0]["md5"]
     fs = _get_minio_fs()
