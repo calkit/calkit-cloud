@@ -80,7 +80,7 @@ const Sidebar = ({ basePath }: SidebarProps) => {
         display={{ base: "none", md: "flex" }}
       >
         <Flex flexDir="column" justify="space-between" bg={secBgColor} p={4}>
-          <Box minW="150px" mt={3}>
+          <Box minW="150px" mt={2}>
             <SidebarItems basePath={basePath} />
           </Box>
         </Flex>
