@@ -2,6 +2,7 @@
 
 import os
 import subprocess
+import time
 
 import git
 from app import users
@@ -10,7 +11,9 @@ from app.models import Project, User
 from sqlmodel import Session
 
 
-def get_repo(project: Project, user: User, session: Session) -> git.Repo:
+def get_repo(
+    project: Project, user: User, session: Session, ttl=None
+) -> git.Repo:
     """Ensure that the repo exists and is ready for operating upon for the
     user.
     """
@@ -34,6 +37,12 @@ def get_repo(project: Project, user: User, session: Session) -> git.Repo:
         subprocess.call(
             ["git", "clone", "--depth", "1", git_clone_url, "repo"]
         )
+        # Touch a file so we can compute a TTL
+        subprocess.call(["touch", "updated.txt"])
+    if os.path.isfile("updated.txt"):
+        last_updated = os.path.getmtime("updated.txt")
+    else:
+        last_updated = 0
     os.chdir("repo")
     repo = git.Repo()
     if not cloned:
@@ -41,7 +50,9 @@ def get_repo(project: Project, user: User, session: Session) -> git.Repo:
         repo.remote().set_url(git_clone_url)
         # TODO: Only pull if we know we need to, perhaps with a call to GitHub
         # for the latest rev
-        repo.git.pull()
+        if ttl is None or ((time.time() - last_updated) > ttl):
+            repo.git.pull()
+            subprocess.call(["touch", "../updated.txt"])
     repo_contents = os.listdir(".")
     logger.info(f"Repo contents: {repo_contents}")
     # Run git config so we make commits as this user

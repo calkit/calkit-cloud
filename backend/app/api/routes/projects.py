@@ -17,6 +17,7 @@ import s3fs
 from app import users
 from app.api.deps import CurrentUser, SessionDep
 from app.dvc import make_mermaid_diagram
+from app.git import get_repo
 from app.models import (
     Dataset,
     Figure,
@@ -33,7 +34,6 @@ from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlmodel import func, select
-from app.git import get_repo
 
 yaml = ruamel.yaml.YAML()
 yaml.indent(mapping=2, sequence=4, offset=2)
@@ -448,7 +448,10 @@ def get_project_contents(
         raise HTTPException(401)
     # Get the repo
     # Note this will make the repo our working directory
-    repo = get_repo(project=project, user=current_user, session=session)
+    # TODO: Stop using a TTL and rely on latest commit hash
+    repo = get_repo(
+        project=project, user=current_user, session=session, ttl=300
+    )
     # Load Calkit entities
     if os.path.isfile("calkit.yaml"):
         logger.info("Loading calkit.yaml")
