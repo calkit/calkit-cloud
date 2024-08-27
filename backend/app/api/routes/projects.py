@@ -6,13 +6,14 @@ import logging
 import os
 import subprocess
 import uuid
+from pathlib import Path
 from typing import Annotated, Literal
 
 import app.projects
 import git
 import requests
+import ruamel.yaml
 import s3fs
-import yaml
 from app import users
 from app.api.deps import CurrentUser, SessionDep
 from app.dvc import make_mermaid_diagram
@@ -32,6 +33,9 @@ from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlmodel import func, select
+
+yaml = ruamel.yaml.YAML()
+yaml.indent(mapping=2, sequence=4, offset=2)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -272,6 +276,7 @@ class GitItem(BaseModel):
     type: str
     md5: str | None = None
     stage_name: str | None = None
+    calkit_type: str | None = None
 
 
 class GitItemWithContents(GitItem):
@@ -293,6 +298,25 @@ def get_project_git_contents(
     base_url = (
         f"https://api.github.com/repos/{owner_name}/{project_name}/contents"
     )
+    # First read the calkit metadata file since we will use this to patch in
+    # any paths that exist in DVC only
+    cky_resp = requests.get(
+        base_url + "/calkit.yaml",
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Accept": f"application/vnd.github.raw+json",
+        },
+    )
+    if cky_resp.status_code != 200:
+        logger.warning(f"{owner_name}/{project_name} has no calkit.yaml file")
+        ck_yaml = {}
+    else:
+        ck_yaml = yaml.load(cky_resp.text)
+    ck_paths = {
+        category: [f.get("path") for f in ck_yaml.get(category + "s", [])]
+        for category in ["figure", "publication", "dataset"]
+    }
+    logger.info(f"Calkit paths: {ck_paths}")
     url = base_url
     if path is not None:
         url += "/" + path
@@ -327,9 +351,11 @@ def get_project_git_contents(
             if dvc_lock.status_code == 200:
                 if path is None:
                     path = ""
-                dvc_lock = yaml.safe_load(dvc_lock.text)
+                dvc_lock = yaml.load(dvc_lock.text)
                 for stage_name, stage in dvc_lock["stages"].items():
                     for out in stage["outs"]:
+                        # TODO: If the output has a working directory, we need
+                        # to add that to the path
                         if os.path.dirname(out["path"]) == path:
                             resp_json.append(
                                 dict(
@@ -350,7 +376,7 @@ def get_project_git_contents(
             # Now iterate through all items, and if one is a DVC file, read
             # that file and create an object for it
             for item in resp_json:
-                if item["path"].endswith(".dvc"):
+                if item["path"].endswith(".dvc") and item["type"] == "file":
                     dvc_url = base_url + "/" + item["path"]
                     logger.info(f"Fetching DVC file from {dvc_url}")
                     dvc_file = requests.get(
@@ -360,7 +386,7 @@ def get_project_git_contents(
                             "Accept": f"application/vnd.github.raw+json",
                         },
                     )
-                    dvc_file = yaml.safe_load(dvc_file.text)
+                    dvc_file = yaml.load(dvc_file.text)
                     dvc_out = dvc_file["outs"][0]
                     resp_json.append(
                         dict(
@@ -375,6 +401,16 @@ def get_project_git_contents(
                             ),
                         )
                     )
+            # Now let's see if any of these paths are Calkit entities
+            for item in resp_json:
+                for category, pathlist in ck_paths.items():
+                    if item["path"] in pathlist:
+                        item["calkit_type"] = category
+        else:
+            # This is a single file, check if it's a Calkit entity
+            for category, pathlist in ck_paths.items():
+                if resp_json["path"] in pathlist:
+                    resp_json["calkit_type"] = category
         return resp_json
     else:
         return resp.text
@@ -395,7 +431,7 @@ def get_project_questions(
         path=".calkit/questions.yaml",
         astype=".raw",
     )
-    questions = yaml.safe_load(content)
+    questions = yaml.load(content)
     # TODO: Ensure these go in the database and use real IDs
     return [
         Question.model_validate(
@@ -423,7 +459,7 @@ def get_project_figures(
         path=".calkit/figures.yaml",
         astype=".raw",
     )
-    figures = yaml.safe_load(figs_yaml)
+    figures = yaml.load(figs_yaml)
     # Read the DVC lock file
     # TODO: Handle cases where this doesn't exist
     # Perhaps we need a caching table for git contents
@@ -435,7 +471,7 @@ def get_project_figures(
         path="dvc.lock",
         astype=".raw",
     )
-    dvc_lock = yaml.safe_load(dvc_lock_yaml)
+    dvc_lock = yaml.load(dvc_lock_yaml)
     fs = _get_minio_fs()
     # Get the figure content and base64 encode it
     for fig in figures:
@@ -495,7 +531,7 @@ def get_project_figures(
                     path=path + ".dvc",
                     astype=".raw",
                 )
-                dvc_yaml = yaml.safe_load(dvc_yaml)
+                dvc_yaml = yaml.load(dvc_yaml)
                 out = dvc_yaml["outs"][0]
                 idx = out["md5"][:2]
                 md5 = out["md5"][2:]
@@ -559,7 +595,7 @@ def post_project_figure(
         path=".calkit/figures.yaml",
         astype=".raw",
     )
-    figures = yaml.safe_load(figs_yaml)
+    figures = yaml.load(figs_yaml)
     figpaths = [fig["path"] for fig in figures]
     if path in figpaths:
         raise HTTPException(400, "A figure already exists at this path")
@@ -617,7 +653,7 @@ def post_project_figure(
         dict(path=path, title=title, description=description, stage=None)
     )
     with open(".calkit/figures.yaml", "w") as f:
-        yaml.safe_dump(figures, f, sort_keys=False)
+        yaml.dump(figures, f)
     repo.git.add(".calkit/figures.yaml")
     # Make a commit
     repo.git.commit(["-m", f"Add figure {path}"])
@@ -626,7 +662,7 @@ def post_project_figure(
     # TODO: If the DVC remote, we can just put it in the expected location since
     # we'll have the md5 hash in the dvc file
     with open(path + ".dvc") as f:
-        dvc_yaml = yaml.safe_load(f)
+        dvc_yaml = yaml.load(f)
     md5 = dvc_yaml["outs"][0]["md5"]
     fs = _get_minio_fs()
     fpath = _make_data_fpath(project_id=project.id, idx=md5[:2], md5=md5[2:])
@@ -692,7 +728,7 @@ def post_figure_comment(
         path=".calkit/figures.yaml",
         astype=".raw",
     )
-    figures = yaml.safe_load(figs_yaml)
+    figures = yaml.load(figs_yaml)
     fig_paths = [fig["path"] for fig in figures]
     if comment_in.figure_path not in fig_paths:
         raise HTTPException(404)
@@ -730,7 +766,7 @@ def get_project_data(
         path=".calkit/data.yaml",
         astype=".raw",
     )
-    datasets = yaml.safe_load(datasets_yaml)
+    datasets = yaml.load(datasets_yaml)
     fs = _get_minio_fs()
     for dataset in datasets:
         # Create a dummy ID
@@ -781,7 +817,7 @@ def get_project_workflow(
         path="dvc.yaml",
         astype=".raw",
     )
-    dvc_pipeline = yaml.safe_load(content)
+    dvc_pipeline = yaml.load(content)
     # Generate Mermaid diagram
     mermaid = make_mermaid_diagram(dvc_pipeline)
     logger.info(
