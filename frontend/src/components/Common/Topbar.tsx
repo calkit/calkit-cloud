@@ -55,7 +55,7 @@ export default function Topbar() {
     <>
       <Box
         bg={secBgColor}
-        mx={4}
+        px={4}
         position={"sticky"}
         top={0}
         h={16}
