@@ -488,12 +488,15 @@ def get_project_contents(
                     name=os.path.basename(ck_path),
                     path=ck_path,
                     in_repo=False,
+                    size=None,
+                    type=None,
                     calkit_object=ck_obj,
                 )
                 contents.append(obj)
         return contents
     # We're looking for a file, so let's first check if it exists in the repo
     if os.path.isfile(path):
+        # TODO: Add contents and/or presigned URL
         return dict(
             path=path,
             name=os.path.basename(path),
@@ -504,6 +507,7 @@ def get_project_contents(
         )
     # The file isn't in the repo, but maybe it's in the Calkit objects
     elif path in ck_objects:
+        # TODO: Return presigned URL? Will need MD5 so we can create the path
         return dict(
             path=path,
             name=os.path.basename(path),
