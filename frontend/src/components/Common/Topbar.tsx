@@ -53,7 +53,14 @@ export default function Topbar() {
 
   return (
     <>
-      <Box bg={secBgColor} px={4} position={"sticky"} top={0} zIndex={1000}>
+      <Box
+        bg={secBgColor}
+        mx={4}
+        position={"sticky"}
+        top={0}
+        h={16}
+        zIndex={1000}
+      >
         <Flex h={16} alignItems={"center"} justifyContent={"space-between"}>
           <IconButton
             size={"md"}

@@ -73,10 +73,10 @@ const Sidebar = ({ basePath }: SidebarProps) => {
       {/* Desktop */}
       <Box
         bg={bgColor}
-        h="100vh"
+        h="90vh"
         position="sticky"
         left="0"
-        top="0"
+        top={16}
         display={{ base: "none", md: "flex" }}
       >
         <Flex flexDir="column" justify="space-between" bg={secBgColor} p={4}>
