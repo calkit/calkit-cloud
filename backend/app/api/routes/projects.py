@@ -749,10 +749,10 @@ def post_figure_comment(
         project_name=project_name,
         session=session,
         current_user=current_user,
-        path=".calkit/figures.yaml",
+        path="calkit.yaml",
         astype=".raw",
     )
-    figures = ryaml.load(figs_yaml)
+    figures = ryaml.load(figs_yaml).get("figures", [])
     fig_paths = [fig["path"] for fig in figures]
     if comment_in.figure_path not in fig_paths:
         raise HTTPException(404)
