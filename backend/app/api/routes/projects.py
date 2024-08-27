@@ -424,6 +424,7 @@ class ContentsItem(BaseModel):
     size: int | None
     in_repo: bool
     content: str | None = None
+    url: str | None = None
     calkit_object: dict | None = None
 
 
@@ -506,13 +507,15 @@ def get_project_contents(
         return contents
     # We're looking for a file, so let's first check if it exists in the repo
     if os.path.isfile(path):
-        # TODO: Add contents and/or presigned URL
+        with open(path, "rb") as f:
+            content = f.read()
         return dict(
             path=path,
             name=os.path.basename(path),
             size=os.path.getsize(path),
             type="file",
             in_repo=True,
+            content=base64.b64encode(content).decode(),
             calkit_object=ck_objects.get(path),
         )
     # The file isn't in the repo, but maybe it's in the Calkit objects
