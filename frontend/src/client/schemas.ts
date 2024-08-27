@@ -380,52 +380,24 @@ export const $GitItem = {
       isRequired: true,
     },
     sha: {
-      type: "any-of",
-      contains: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
+      type: "string",
+      isRequired: true,
     },
     size: {
       type: "number",
       isRequired: true,
     },
     url: {
-      type: "any-of",
-      contains: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
+      type: "string",
+      isRequired: true,
     },
     html_url: {
-      type: "any-of",
-      contains: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
+      type: "string",
+      isRequired: true,
     },
     git_url: {
-      type: "any-of",
-      contains: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
+      type: "string",
+      isRequired: true,
     },
     download_url: {
       type: "any-of",
@@ -437,43 +409,11 @@ export const $GitItem = {
           type: "null",
         },
       ],
+      isRequired: true,
     },
     type: {
       type: "string",
       isRequired: true,
-    },
-    md5: {
-      type: "any-of",
-      contains: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
-    },
-    stage_name: {
-      type: "any-of",
-      contains: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
-    },
-    calkit_type: {
-      type: "any-of",
-      contains: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
     },
   },
 } as const
@@ -489,52 +429,24 @@ export const $GitItemWithContents = {
       isRequired: true,
     },
     sha: {
-      type: "any-of",
-      contains: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
+      type: "string",
+      isRequired: true,
     },
     size: {
       type: "number",
       isRequired: true,
     },
     url: {
-      type: "any-of",
-      contains: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
+      type: "string",
+      isRequired: true,
     },
     html_url: {
-      type: "any-of",
-      contains: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
+      type: "string",
+      isRequired: true,
     },
     git_url: {
-      type: "any-of",
-      contains: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
+      type: "string",
+      isRequired: true,
     },
     download_url: {
       type: "any-of",
@@ -546,43 +458,11 @@ export const $GitItemWithContents = {
           type: "null",
         },
       ],
+      isRequired: true,
     },
     type: {
       type: "string",
       isRequired: true,
-    },
-    md5: {
-      type: "any-of",
-      contains: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
-    },
-    stage_name: {
-      type: "any-of",
-      contains: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
-    },
-    calkit_type: {
-      type: "any-of",
-      contains: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
     },
     encoding: {
       type: "string",

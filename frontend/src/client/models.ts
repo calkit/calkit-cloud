@@ -69,31 +69,25 @@ export type FigureCommentPost = {
 export type GitItem = {
   name: string
   path: string
-  sha?: string | null
+  sha: string
   size: number
-  url?: string | null
-  html_url?: string | null
-  git_url?: string | null
-  download_url?: string | null
+  url: string
+  html_url: string
+  git_url: string
+  download_url: string | null
   type: string
-  md5?: string | null
-  stage_name?: string | null
-  calkit_type?: string | null
 }
 
 export type GitItemWithContents = {
   name: string
   path: string
-  sha?: string | null
+  sha: string
   size: number
-  url?: string | null
-  html_url?: string | null
-  git_url?: string | null
-  download_url?: string | null
+  url: string
+  html_url: string
+  git_url: string
+  download_url: string | null
   type: string
-  md5?: string | null
-  stage_name?: string | null
-  calkit_type?: string | null
   encoding: string
   content: string
 }

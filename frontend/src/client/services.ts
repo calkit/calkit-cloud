@@ -1180,12 +1180,12 @@ export class ProjectsService {
 
   /**
    * Get Project Workflow
-   * @returns Workflow Successful Response
+   * @returns unknown Successful Response
    * @throws ApiError
    */
   public static getProjectWorkflow(
     data: ProjectsData["GetProjectWorkflow"],
-  ): CancelablePromise<Workflow> {
+  ): CancelablePromise<Workflow | null> {
     const { ownerName, projectName } = data
     return __request(OpenAPI, {
       method: "GET",
