@@ -182,8 +182,9 @@ function Files() {
         <Flex>
           <Box
             mr={10}
-            height="700px"
-            width="200px"
+            height="82vh"
+            minW="200px"
+            maxW="300px"
             overflowX="auto"
             overflowY="auto"
           >
@@ -197,7 +198,7 @@ function Files() {
                 ))
               : ""}
           </Box>
-          <Box minW={"750px"}>
+          <Box minW={"685px"}>
             {selectedFile !== undefined &&
             (selectedFileQuery.isPending || selectedFileQuery.isRefetching) ? (
               <Flex justify="center" align="center" height="full" width="full">
@@ -209,9 +210,9 @@ function Files() {
                 borderRadius={"lg"}
                 display="block"
                 whiteSpace="pre"
-                height="700px"
+                height="82vh"
                 overflowY="auto"
-                maxW="750px"
+                maxW="685px"
                 overflowX="auto"
               >
                 {selectedFileQuery.data?.content

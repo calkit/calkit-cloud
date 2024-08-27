@@ -47,7 +47,7 @@ function ProjectWorkflow() {
               borderRadius={"lg"}
               display="block"
               whiteSpace="pre"
-              maxH="850px"
+              height="75vh"
               overflowY="auto"
             >
               {String(workflowQuery?.data?.yaml)}
