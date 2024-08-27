@@ -1,5 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router"
-import { Box, Flex, Spinner, Text, Icon, Heading, Code } from "@chakra-ui/react"
+import {
+  Box,
+  Flex,
+  Spinner,
+  Text,
+  Icon,
+  Heading,
+  Code,
+  Badge,
+} from "@chakra-ui/react"
 import { useQuery } from "@tanstack/react-query"
 import { FiFolder, FiFile } from "react-icons/fi"
 import { FaMarkdown } from "react-icons/fa6"
@@ -63,9 +72,7 @@ function Item({ item, level, setSelectedFile }: ItemProps) {
   })
   const handleClick = (e) => {
     setIsExpanded(!isExpanded)
-    if (item.type !== "dir") {
-      setSelectedFile(item)
-    }
+    setSelectedFile(item)
   }
 
   return (
@@ -178,8 +185,27 @@ function Files() {
               >
                 {selectedFileQuery.data?.content
                   ? String(atob(selectedFileQuery.data?.content))
-                  : "Cannot render this type of content yet"}
+                  : ""}
               </Code>
+            )}
+          </Box>
+          <Box mx={5}>
+            <Heading size="md">Info</Heading>
+            {selectedFile ? (
+              <Box>
+                <Text>Name: {selectedFile.name}</Text>
+                <Text>Type: {selectedFile.type}</Text>
+                <Text>Size: {selectedFile.size}</Text>
+                {selectedFile.calkit_object ? (
+                  <Badge bgColor="green.500">
+                    {selectedFile.calkit_object.kind}
+                  </Badge>
+                ) : (
+                  ""
+                )}
+              </Box>
+            ) : (
+              ""
             )}
           </Box>
         </Flex>
