@@ -67,6 +67,7 @@ def get_repo(
         if ttl is None or ((time.time() - last_updated) > ttl):
             logger.info("Updating remote in case token was refreshed")
             repo.remote().set_url(git_clone_url)
+            logger.info("Git pulling")
             repo.git.pull()
             subprocess.call(["touch", updated_fpath])
     repo_contents = os.listdir(repo_dir)
