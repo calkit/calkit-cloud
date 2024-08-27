@@ -455,7 +455,9 @@ def get_project_contents(
         ck_info = yaml.load(Path("calkit.yaml"))
     else:
         ck_info = {}
-    # Is this a path in our calkit entities?
+    ignore_paths = [".git", ".dvc/cache", ".dvc/tmp", ".dvc/config.local"]
+    if path is not None and path in ignore_paths:
+        raise HTTPException(404)
     # Let's restructure as a dictionary keyed by path
     ck_objects = {}
     for category, itemlist in ck_info.items():
@@ -475,6 +477,8 @@ def get_project_contents(
         paths = os.listdir("." if path is None else path)
         paths = [os.path.join(dirname, p) for p in paths]
         for p in paths:
+            if p in ignore_paths:
+                continue
             obj = dict(
                 name=os.path.basename(p),
                 path=p,
