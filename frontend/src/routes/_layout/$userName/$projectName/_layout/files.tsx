@@ -6,6 +6,7 @@ import {
   Text,
   Icon,
   Heading,
+  Image,
   Code,
   Badge,
 } from "@chakra-ui/react"
@@ -172,6 +173,26 @@ function Files() {
     files.sort(sortByTypeAndName)
   }
 
+  const renderContent = (name: string, content: string) => {
+    if (name.endsWith(".png")) {
+      return <Image src={`data:image/png;base64,${content}`} maxW={"685px"} />
+    }
+    return (
+      <Code
+        p={2}
+        borderRadius={"lg"}
+        display="block"
+        whiteSpace="pre"
+        height="82vh"
+        overflowY="auto"
+        maxW="685px"
+        overflowX="auto"
+      >
+        {content ? String(atob(content)) : ""}
+      </Code>
+    )
+  }
+
   return (
     <>
       {filesPending ? (
@@ -198,27 +219,21 @@ function Files() {
                 ))
               : ""}
           </Box>
-          <Box minW={"685px"}>
+          <Box minW={"685px"} borderRadius={"lg"} borderWidth={1}>
             {selectedFile !== undefined &&
             (selectedFileQuery.isPending || selectedFileQuery.isRefetching) ? (
               <Flex justify="center" align="center" height="full" width="full">
                 <Spinner size="xl" color="ui.main" />
               </Flex>
             ) : (
-              <Code
-                p={2}
-                borderRadius={"lg"}
-                display="block"
-                whiteSpace="pre"
-                height="82vh"
-                overflowY="auto"
-                maxW="685px"
-                overflowX="auto"
-              >
-                {selectedFileQuery.data?.content
-                  ? String(atob(selectedFileQuery.data?.content))
+              <>
+                {selectedFileQuery?.data?.content
+                  ? renderContent(
+                      selectedFileQuery.data.name,
+                      selectedFileQuery.data.content,
+                    )
                   : ""}
-              </Code>
+              </>
             )}
           </Box>
           <Box mx={5}>
