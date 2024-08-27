@@ -22,8 +22,6 @@ function ProjectWorkflow() {
       }),
   })
 
-  console.log(workflowQuery.data)
-
   return (
     <>
       <Box>
