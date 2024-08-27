@@ -14,6 +14,17 @@ export type Body_projects_post_project_figure = {
   file: Blob | File
 }
 
+export type ContentsItem = {
+  name: string
+  path: string
+  type: string | null
+  size: number | null
+  in_repo: boolean
+  content?: string | null
+  url?: string | null
+  calkit_object?: Record<string, unknown> | null
+}
+
 export type Dataset = {
   id?: string
   project_id: string
@@ -58,25 +69,31 @@ export type FigureCommentPost = {
 export type GitItem = {
   name: string
   path: string
-  sha: string
+  sha?: string | null
   size: number
-  url: string
-  html_url: string
-  git_url: string
-  download_url: string | null
+  url?: string | null
+  html_url?: string | null
+  git_url?: string | null
+  download_url?: string | null
   type: string
+  md5?: string | null
+  stage_name?: string | null
+  calkit_type?: string | null
 }
 
 export type GitItemWithContents = {
   name: string
   path: string
-  sha: string
+  sha?: string | null
   size: number
-  url: string
-  html_url: string
-  git_url: string
-  download_url: string | null
+  url?: string | null
+  html_url?: string | null
+  git_url?: string | null
+  download_url?: string | null
   type: string
+  md5?: string | null
+  stage_name?: string | null
+  calkit_type?: string | null
   encoding: string
   content: string
 }
@@ -123,6 +140,7 @@ export type Project = {
   is_public?: boolean
   id?: string
   owner_user_id: string
+  readonly name_slug: string
   readonly owner_github_username: string
 }
 

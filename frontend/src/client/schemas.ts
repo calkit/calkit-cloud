@@ -71,6 +71,83 @@ export const $Body_projects_post_project_figure = {
   },
 } as const
 
+export const $ContentsItem = {
+  properties: {
+    name: {
+      type: "string",
+      isRequired: true,
+    },
+    path: {
+      type: "string",
+      isRequired: true,
+    },
+    type: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      isRequired: true,
+    },
+    size: {
+      type: "any-of",
+      contains: [
+        {
+          type: "number",
+        },
+        {
+          type: "null",
+        },
+      ],
+      isRequired: true,
+    },
+    in_repo: {
+      type: "boolean",
+      isRequired: true,
+    },
+    content: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    url: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    calkit_object: {
+      type: "any-of",
+      contains: [
+        {
+          type: "dictionary",
+          contains: {
+            properties: {},
+          },
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+  },
+} as const
+
 export const $Dataset = {
   properties: {
     id: {
@@ -303,24 +380,52 @@ export const $GitItem = {
       isRequired: true,
     },
     sha: {
-      type: "string",
-      isRequired: true,
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
     },
     size: {
       type: "number",
       isRequired: true,
     },
     url: {
-      type: "string",
-      isRequired: true,
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
     },
     html_url: {
-      type: "string",
-      isRequired: true,
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
     },
     git_url: {
-      type: "string",
-      isRequired: true,
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
     },
     download_url: {
       type: "any-of",
@@ -332,11 +437,43 @@ export const $GitItem = {
           type: "null",
         },
       ],
-      isRequired: true,
     },
     type: {
       type: "string",
       isRequired: true,
+    },
+    md5: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    stage_name: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    calkit_type: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
     },
   },
 } as const
@@ -352,24 +489,52 @@ export const $GitItemWithContents = {
       isRequired: true,
     },
     sha: {
-      type: "string",
-      isRequired: true,
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
     },
     size: {
       type: "number",
       isRequired: true,
     },
     url: {
-      type: "string",
-      isRequired: true,
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
     },
     html_url: {
-      type: "string",
-      isRequired: true,
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
     },
     git_url: {
-      type: "string",
-      isRequired: true,
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
     },
     download_url: {
       type: "any-of",
@@ -381,11 +546,43 @@ export const $GitItemWithContents = {
           type: "null",
         },
       ],
-      isRequired: true,
     },
     type: {
       type: "string",
       isRequired: true,
+    },
+    md5: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    stage_name: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    calkit_type: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
     },
     encoding: {
       type: "string",
@@ -573,6 +770,11 @@ export const $Project = {
       type: "string",
       isRequired: true,
       format: "uuid",
+    },
+    name_slug: {
+      type: "string",
+      isReadOnly: true,
+      isRequired: true,
     },
     owner_github_username: {
       type: "string",

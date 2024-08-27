@@ -19,6 +19,7 @@ import type {
   ItemsPublic,
   ItemUpdate,
   Body_projects_post_project_figure,
+  ContentsItem,
   Dataset,
   Figure,
   FigureComment,
@@ -152,6 +153,16 @@ export type ProjectsData = {
   }
   GetProjectGitContents1: {
     astype?: "" | ".raw" | ".html" | ".object"
+    ownerName: string
+    path: string | null
+    projectName: string
+  }
+  GetProjectContents: {
+    ownerName: string
+    path?: string | null
+    projectName: string
+  }
+  GetProjectContents1: {
     ownerName: string
     path: string | null
     projectName: string
@@ -920,6 +931,54 @@ export class ProjectsService {
       },
       query: {
         astype,
+      },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Get Project Contents
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static getProjectContents(
+    data: ProjectsData["GetProjectContents"],
+  ): CancelablePromise<Array<ContentsItem> | ContentsItem> {
+    const { ownerName, projectName, path } = data
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/api/v1/projects/{owner_name}/{project_name}/contents",
+      path: {
+        owner_name: ownerName,
+        project_name: projectName,
+      },
+      query: {
+        path,
+      },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Get Project Contents
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static getProjectContents1(
+    data: ProjectsData["GetProjectContents1"],
+  ): CancelablePromise<Array<ContentsItem> | ContentsItem> {
+    const { ownerName, projectName, path } = data
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/api/v1/projects/{owner_name}/{project_name}/contents/{path}",
+      path: {
+        owner_name: ownerName,
+        project_name: projectName,
+        path,
       },
       errors: {
         422: `Validation Error`,

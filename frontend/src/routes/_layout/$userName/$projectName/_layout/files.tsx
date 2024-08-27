@@ -8,11 +8,7 @@ import { SiAnaconda, SiJupyter } from "react-icons/si"
 import { useState } from "react"
 import { FaRegFolderOpen } from "react-icons/fa"
 
-import {
-  type GitItemWithContents,
-  ProjectsService,
-  type GitItem,
-} from "../../../../../client"
+import { ProjectsService, type ContentsItem } from "../../../../../client"
 
 export const Route = createFileRoute(
   "/_layout/$userName/$projectName/_layout/files",
@@ -20,7 +16,7 @@ export const Route = createFileRoute(
   component: Files,
 })
 
-const getIcon = (item: GitItem, isExpanded = false) => {
+const getIcon = (item: ContentsItem, isExpanded = false) => {
   if (item.type === "dir" && !isExpanded) {
     return FiFolder
   }
@@ -43,9 +39,9 @@ const getIcon = (item: GitItem, isExpanded = false) => {
 }
 
 interface ItemProps {
-  item: GitItem | GitItemWithContents
+  item: ContentsItem
   level?: number
-  setSelectedFile: (file: GitItemWithContents) => void
+  setSelectedFile: (file: ContentsItem) => void
 }
 
 // A component to render an individual item in the list of contents
@@ -58,7 +54,7 @@ function Item({ item, level, setSelectedFile }: ItemProps) {
   const { isPending, data } = useQuery({
     queryKey: ["projects", userName, projectName, "files", item.path],
     queryFn: () =>
-      ProjectsService.getProjectGitContents({
+      ProjectsService.getProjectContents({
         ownerName: userName,
         projectName: projectName,
         path: item.path,
@@ -80,7 +76,7 @@ function Item({ item, level, setSelectedFile }: ItemProps) {
       </Flex>
       {isExpanded && item.type === "dir" ? (
         <Box>
-          {data?.map((subItem: GitItem | GitItemWithContents) => (
+          {data?.map((subItem: ContentsItem) => (
             <Item
               key={subItem.name}
               item={subItem}
@@ -101,18 +97,18 @@ function Files() {
   const { isPending: filesPending, data: files } = useQuery({
     queryKey: ["projects", userName, projectName, "files"],
     queryFn: () =>
-      ProjectsService.getProjectGitContents({
+      ProjectsService.getProjectContents({
         ownerName: userName,
         projectName: projectName,
       }),
   })
-  const [selectedFile, setSelectedFile] = useState<GitItem | undefined>(
+  const [selectedFile, setSelectedFile] = useState<ContentsItem | undefined>(
     undefined,
   )
   const selectedFileQuery = useQuery({
     queryKey: ["projects", userName, projectName, "files", selectedFile?.path],
     queryFn: () =>
-      ProjectsService.getProjectGitContents({
+      ProjectsService.getProjectContents({
         ownerName: userName,
         projectName: projectName,
         path: selectedFile?.path,
@@ -121,7 +117,7 @@ function Files() {
   })
 
   if (Array.isArray(files)) {
-    function sortByTypeAndName(a: GitItem, b: GitItem) {
+    function sortByTypeAndName(a: ContentsItem, b: ContentsItem) {
       if (a.type === "dir" && b.type === "dir") {
         if (a.name < b.name) {
           return -1
