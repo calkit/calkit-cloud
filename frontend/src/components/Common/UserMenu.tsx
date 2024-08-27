@@ -7,11 +7,11 @@ import {
   MenuList,
 } from "@chakra-ui/react"
 import { Link } from "@tanstack/react-router"
-import { FaUserAstronaut } from "react-icons/fa"
+import { GiFox } from "react-icons/gi"
 import { FiLogOut, FiUser, FiUsers } from "react-icons/fi"
 import { useQueryClient } from "@tanstack/react-query"
-import { type UserPublic } from "../../client"
 
+import { type UserPublic } from "../../client"
 import useAuth from "../../hooks/useAuth"
 
 const UserMenu = () => {
@@ -35,7 +35,7 @@ const UserMenu = () => {
           <MenuButton
             as={IconButton}
             aria-label="Options"
-            icon={<FaUserAstronaut color="white" fontSize="18px" />}
+            icon={<GiFox color="white" fontSize="18px" />}
             bg="ui.main"
             isRound
             data-testid="user-menu"
