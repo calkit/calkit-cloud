@@ -111,7 +111,7 @@ def create_project(
     session.add(project)
     session.commit()
     session.refresh(project)
-    # TODO: Create .calkit directory, README, DVC init
+    # TODO: Create calkit.yaml file, README, DVC init
     return project
 
 
@@ -452,10 +452,10 @@ def get_project_questions(
         project_name=project_name,
         session=session,
         current_user=current_user,
-        path=".calkit/questions.yaml",
+        path="calkit.yaml",
         astype=".raw",
     )
-    questions = ryaml.load(content)
+    questions = ryaml.load(content).get("questions", [])
     # TODO: Ensure these go in the database and use real IDs
     return [
         Question.model_validate(
@@ -480,10 +480,10 @@ def get_project_figures(
         project_name=project_name,
         session=session,
         current_user=current_user,
-        path=".calkit/figures.yaml",
+        path="calkit.yaml",
         astype=".raw",
     )
-    figures = ryaml.load(figs_yaml)
+    figures = ryaml.load(figs_yaml).get("figures", [])
     # Read the DVC lock file
     # TODO: Handle cases where this doesn't exist
     # Perhaps we need a caching table for git contents
@@ -787,10 +787,10 @@ def get_project_data(
         project_name=project_name,
         session=session,
         current_user=current_user,
-        path=".calkit/data.yaml",
+        path="calkit.yaml",
         astype=".raw",
     )
-    datasets = ryaml.load(datasets_yaml)
+    datasets = ryaml.load(datasets_yaml).get("datasets", [])
     fs = _get_minio_fs()
     for dataset in datasets:
         # Create a dummy ID
