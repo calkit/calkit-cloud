@@ -38,7 +38,7 @@ function ProjectWorkflow() {
           <Box p={5} maxW="50%" minW="40%">
             <Mermaid>{String(workflowQuery?.data?.mermaid)}</Mermaid>
           </Box>
-          <Box maxW="50%">
+          <Box width="680px">
             <Heading size="md" my={2}>
               YAML
             </Heading>
@@ -47,7 +47,7 @@ function ProjectWorkflow() {
               borderRadius={"lg"}
               display="block"
               whiteSpace="pre"
-              height="75vh"
+              height="78vh"
               overflowY="auto"
             >
               {String(workflowQuery?.data?.yaml)}
