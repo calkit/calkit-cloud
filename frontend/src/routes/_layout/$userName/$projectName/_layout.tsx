@@ -54,8 +54,8 @@ function ProjectLayout() {
                 size="lg"
                 textAlign={{ base: "center", md: "left" }}
                 alignContent={"center"}
-                pt={8}
-                pb={3}
+                mt={5}
+                mb={3}
               >
                 {project?.name}
                 {project?.git_repo_url ? (
