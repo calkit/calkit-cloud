@@ -11,8 +11,17 @@ export type Body_projects_post_project_figure = {
   path: string
   title: string
   description: string
-  stage?: string
-  file?: Blob | File
+}
+
+export type ContentPatch = {
+  kind:
+    | "figure"
+    | "dataset"
+    | "publication"
+    | "environment"
+    | "references"
+    | null
+  attrs?: Record<string, unknown>
 }
 
 export type ContentsItem = {

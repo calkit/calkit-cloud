@@ -10,13 +10,16 @@ from pathlib import Path
 from typing import Annotated, Literal, Optional
 
 import app.projects
-import git
 import requests
 import ruamel.yaml
 import s3fs
 import yaml
 from app import users
 from app.api.deps import CurrentUser, SessionDep
+from app.core import (
+    CATEGORIES_PLURAL_TO_SINGULAR,
+    CATEGORIES_SINGULAR_TO_PLURAL,
+)
 from app.dvc import make_mermaid_diagram, output_from_pipeline
 from app.git import get_repo
 from app.models import (
@@ -503,6 +506,91 @@ def get_project_contents(
         )
     else:
         raise HTTPException(404)
+
+
+class ContentPatch(BaseModel):
+    kind: (
+        Literal[
+            "figure", "dataset", "publication", "environment", "references"
+        ]
+        | None
+    )
+    attrs: dict = {}
+
+
+@router.patch("/projects/{owner_name}/{project_name}/contents/{path:path}")
+def patch_project_contents(
+    owner_name: str,
+    project_name: str,
+    path: str,
+    req: ContentPatch,
+    session: SessionDep,
+    current_user: CurrentUser,
+) -> dict | None:
+    project = get_project_by_name(
+        owner_name=owner_name,
+        project_name=project_name,
+        session=session,
+        current_user=current_user,
+    )
+    # TODO: Collaborator access!
+    if project.owner != current_user:
+        raise HTTPException(401)
+    if "path" in req.attrs:
+        raise HTTPException(501, "Object path change not supported")
+    repo = get_repo(
+        project=project, user=current_user, session=session, ttl=None
+    )
+    ck_fpath = os.path.join(repo.working_dir, "calkit.yaml")
+    if os.path.isfile(ck_fpath):
+        with open(ck_fpath) as f:
+            ck_info = ryaml.load(f)
+    else:
+        ck_info = {}
+    # See if this path exists in any category, in case we are going to change
+    # its category
+    current_category = None
+    current_object = None
+    current_index = None
+    updated = False
+    for category, objlist in ck_info.items():
+        for obj in objlist:
+            if obj["path"] == path:
+                current_category = category
+                current_category_singular = CATEGORIES_PLURAL_TO_SINGULAR[
+                    current_category
+                ]
+                current_index = objlist.index(obj)
+                # If we're not changing categories, we can update in place
+                if req.kind == current_category_singular:
+                    obj |= req.attrs
+                    current_object = obj
+                    updated = True
+                else:
+                    current_object = objlist.pop(current_index)
+                break
+    if not updated and req.kind is not None:
+        if current_object is None:
+            current_object = dict(path=path)
+        current_object |= req.attrs
+        target_category = CATEGORIES_SINGULAR_TO_PLURAL[req.kind]
+        if target_category in ck_info:
+            ck_info[target_category].append(current_object)
+        else:
+            ck_info[target_category] = [current_object]
+    # Now it's time to write and commit
+    with open(ck_fpath, "w") as f:
+        ryaml.dump(ck_info, f)
+    git_diff = repo.git.diff("calkit.yaml")
+    if not git_diff:
+        logger.info("No changes to calkit.yaml detected")
+        return current_object
+    logger.info("Adding and committing changes to calkit.yaml")
+    repo.git.add("calkit.yaml")
+    repo.git.commit(["-m", f"Add {req.kind} {path}"])
+    logger.info("Pushing Git repo")
+    repo.git.push(["origin", repo.branches[0].name])
+    return current_object
 
 
 @router.get("/projects/{owner_name}/{project_name}/questions")

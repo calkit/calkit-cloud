@@ -63,12 +63,36 @@ export const $Body_projects_post_project_figure = {
       type: "string",
       isRequired: true,
     },
-    stage: {
-      type: "string",
+  },
+} as const
+
+export const $ContentPatch = {
+  properties: {
+    kind: {
+      type: "any-of",
+      contains: [
+        {
+          type: "Enum",
+          enum: [
+            "figure",
+            "dataset",
+            "publication",
+            "environment",
+            "references",
+          ],
+        },
+        {
+          type: "null",
+        },
+      ],
+      isRequired: true,
     },
-    file: {
-      type: "binary",
-      format: "binary",
+    attrs: {
+      type: "dictionary",
+      contains: {
+        properties: {},
+      },
+      default: {},
     },
   },
 } as const

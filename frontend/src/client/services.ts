@@ -19,6 +19,7 @@ import type {
   ItemsPublic,
   ItemUpdate,
   Body_projects_post_project_figure,
+  ContentPatch,
   ContentsItem,
   Dataset,
   Figure,
@@ -167,6 +168,12 @@ export type ProjectsData = {
     path: string | null
     projectName: string
   }
+  PatchProjectContents: {
+    ownerName: string
+    path: string
+    projectName: string
+    requestBody: ContentPatch
+  }
   GetProjectQuestions: {
     ownerName: string
     projectName: string
@@ -176,9 +183,11 @@ export type ProjectsData = {
     projectName: string
   }
   PostProjectFigure: {
+    file?: Blob | File | null
     formData: Body_projects_post_project_figure
     ownerName: string
     projectName: string
+    stage?: string | null
   }
   GetProjectFigure: {
     figurePath: string
@@ -987,6 +996,31 @@ export class ProjectsService {
   }
 
   /**
+   * Patch Project Contents
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static patchProjectContents(
+    data: ProjectsData["PatchProjectContents"],
+  ): CancelablePromise<Record<string, unknown> | null> {
+    const { ownerName, projectName, path, requestBody } = data
+    return __request(OpenAPI, {
+      method: "PATCH",
+      url: "/api/v1/projects/{owner_name}/{project_name}/contents/{path}",
+      path: {
+        owner_name: ownerName,
+        project_name: projectName,
+        path,
+      },
+      body: requestBody,
+      mediaType: "application/json",
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
    * Get Project Questions
    * @returns Question Successful Response
    * @throws ApiError
@@ -1038,7 +1072,7 @@ export class ProjectsService {
   public static postProjectFigure(
     data: ProjectsData["PostProjectFigure"],
   ): CancelablePromise<Figure> {
-    const { ownerName, projectName, formData } = data
+    const { ownerName, projectName, formData, stage, file } = data
     return __request(OpenAPI, {
       method: "POST",
       url: "/api/v1/projects/{owner_name}/{project_name}/figures",
@@ -1046,8 +1080,12 @@ export class ProjectsService {
         owner_name: ownerName,
         project_name: projectName,
       },
+      query: {
+        stage,
+        file,
+      },
       formData: formData,
-      mediaType: "multipart/form-data",
+      mediaType: "application/x-www-form-urlencoded",
       errors: {
         422: `Validation Error`,
       },
