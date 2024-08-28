@@ -514,6 +514,44 @@ def get_project_contents(
         raise HTTPException(404)
 
 
+@router.put("/projects/{owner_name}/{project_name}/contents/{path:path}")
+def put_project_contents(
+    owner_name: str,
+    project_name: str,
+    path: str,
+    file: Annotated[UploadFile, File()],
+    session: SessionDep,
+    current_user: CurrentUser,
+) -> ContentsItem:
+    project = get_project_by_name(
+        owner_name=owner_name,
+        project_name=project_name,
+        session=session,
+        current_user=current_user,
+    )
+    # TODO: Collaborator access!
+    if project.owner != current_user:
+        raise HTTPException(401)
+    repo = get_repo(
+        project=project, user=current_user, session=session, ttl=300
+    )
+    dirname = os.path.dirname(path)
+    os.makedirs(os.path.join(repo.working_dir, dirname), exist_ok=True)
+    with open(os.path.join(repo.working_dir, path), "wb") as f:
+        f.write(file.file.read())
+    repo.git.add(path)
+    if repo.git.diff(["--staged", path]):
+        repo.git.commit(["-m", f"Upload {path} from web"])
+        repo.git.push(["origin", repo.active_branch.name])
+    return ContentsItem(
+        name=os.path.basename(path),
+        path=path,
+        type="file",
+        size=os.path.getsize(os.path.join(repo.working_dir, path)),
+        in_repo=True,
+    )
+
+
 class ContentPatch(BaseModel):
     kind: (
         Literal[

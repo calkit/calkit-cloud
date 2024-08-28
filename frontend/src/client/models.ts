@@ -15,6 +15,10 @@ export type Body_projects_post_project_figure = {
   file?: Blob | File | null
 }
 
+export type Body_projects_put_project_contents = {
+  file: Blob | File
+}
+
 export type ContentPatch = {
   kind:
     | "figure"

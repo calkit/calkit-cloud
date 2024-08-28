@@ -12,6 +12,8 @@ import {
   ModalHeader,
   ModalOverlay,
   Textarea,
+  Text,
+  Box,
 } from "@chakra-ui/react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { type SubmitHandler, useForm } from "react-hook-form"
@@ -29,8 +31,6 @@ interface UploadFileProps {
 
 interface FilePost {
   path: string
-  title: string
-  description: string
   file: FileList
 }
 
@@ -49,25 +49,21 @@ const UploadFile = ({ isOpen, onClose }: UploadFileProps) => {
     criteriaMode: "all",
     defaultValues: {
       path: "",
-      title: "",
-      description: "",
     },
   })
 
   const mutation = useMutation({
     mutationFn: (data: FilePost) =>
-      ProjectsService.postProjectFigure({
+      ProjectsService.putProjectContents({
         formData: {
-          title: data.title,
-          path: data.path,
-          description: data.description,
           file: data.file[0],
         },
         ownerName: userName,
         projectName: projectName,
+        path: data.path,
       }),
     onSuccess: () => {
-      showToast("Success!", "Figure uploaded successfully.", "success")
+      showToast("Success!", "File uploaded successfully.", "success")
       reset()
       onClose()
     },
@@ -76,7 +72,7 @@ const UploadFile = ({ isOpen, onClose }: UploadFileProps) => {
     },
     onSettled: () => {
       queryClient.invalidateQueries({
-        queryKey: ["projects", userName, projectName, "figures"],
+        queryKey: ["projects", userName, projectName, "files"],
       })
     },
   })
@@ -112,33 +108,6 @@ const UploadFile = ({ isOpen, onClose }: UploadFileProps) => {
               />
               {errors.path && (
                 <FormErrorMessage>{errors.path.message}</FormErrorMessage>
-              )}
-            </FormControl>
-            <FormControl mt={4} isRequired isInvalid={!!errors.title}>
-              <FormLabel htmlFor="title">Title</FormLabel>
-              <Input
-                id="title"
-                {...register("title")}
-                placeholder="Title"
-                type="text"
-              />
-              {errors.title && (
-                <FormErrorMessage>{errors.title.message}</FormErrorMessage>
-              )}
-            </FormControl>
-            <FormControl mt={4} isRequired isInvalid={!!errors.description}>
-              <FormLabel htmlFor="description">Description</FormLabel>
-              <Textarea
-                id="description"
-                {...register("description", {
-                  required: "Description is required",
-                })}
-                placeholder="Description"
-              />
-              {errors.description && (
-                <FormErrorMessage>
-                  {errors.description.message}
-                </FormErrorMessage>
               )}
             </FormControl>
             <FormControl mt={4} isRequired isInvalid={!!errors.file}>

@@ -89,6 +89,16 @@ export const $Body_projects_post_project_figure = {
   },
 } as const
 
+export const $Body_projects_put_project_contents = {
+  properties: {
+    file: {
+      type: "binary",
+      isRequired: true,
+      format: "binary",
+    },
+  },
+} as const
+
 export const $ContentPatch = {
   properties: {
     kind: {

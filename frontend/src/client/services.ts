@@ -19,6 +19,7 @@ import type {
   ItemsPublic,
   ItemUpdate,
   Body_projects_post_project_figure,
+  Body_projects_put_project_contents,
   ContentPatch,
   ContentsItem,
   Dataset,
@@ -166,6 +167,12 @@ export type ProjectsData = {
   GetProjectContents1: {
     ownerName: string
     path: string | null
+    projectName: string
+  }
+  PutProjectContents: {
+    formData: Body_projects_put_project_contents
+    ownerName: string
+    path: string
     projectName: string
   }
   PatchProjectContents: {
@@ -987,6 +994,31 @@ export class ProjectsService {
         project_name: projectName,
         path,
       },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Put Project Contents
+   * @returns ContentsItem Successful Response
+   * @throws ApiError
+   */
+  public static putProjectContents(
+    data: ProjectsData["PutProjectContents"],
+  ): CancelablePromise<ContentsItem> {
+    const { ownerName, projectName, path, formData } = data
+    return __request(OpenAPI, {
+      method: "PUT",
+      url: "/api/v1/projects/{owner_name}/{project_name}/contents/{path}",
+      path: {
+        owner_name: ownerName,
+        project_name: projectName,
+        path,
+      },
+      formData: formData,
+      mediaType: "multipart/form-data",
       errors: {
         422: `Validation Error`,
       },
