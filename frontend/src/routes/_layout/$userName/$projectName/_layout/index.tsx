@@ -16,11 +16,10 @@ function ProjectView() {
   const readmeRequest = useQuery({
     queryKey: ["projects", userName, projectName, "readme"],
     queryFn: () =>
-      ProjectsService.getProjectGitContents1({
+      ProjectsService.getProjectContents({
         ownerName: userName,
         projectName: projectName,
         path: "README.md",
-        astype: ".raw",
       }),
   })
 
@@ -38,7 +37,9 @@ function ProjectView() {
         </Flex>
       ) : (
         <Box>
-          <Markdown>{removeFirstLine(readmeRequest.data)}</Markdown>
+          <Markdown>
+            {removeFirstLine(atob(String(readmeRequest?.data?.content)))}
+          </Markdown>
         </Box>
       )}
     </>
