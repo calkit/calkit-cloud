@@ -444,13 +444,15 @@ def get_project_contents(
                 # TODO: Is this a file or a directory?
                 # We should be able to tell from the DVC file
                 # We should also be able to get the size
-                obj = dict(
-                    name=os.path.basename(ck_path),
-                    path=ck_path,
-                    in_repo=False,
-                    size=None,
-                    type=None,
-                    calkit_object=ck_obj,
+                obj = ContentsItem.model_validate(
+                    dict(
+                        name=os.path.basename(ck_path),
+                        path=ck_path,
+                        in_repo=False,
+                        size=None,
+                        type=None,
+                        calkit_object=ck_obj,
+                    )
                 )
                 contents.append(obj)
         return contents
@@ -462,14 +464,16 @@ def get_project_contents(
     ):
         with open(os.path.join(repo_dir, path), "rb") as f:
             content = f.read()
-        return dict(
-            path=path,
-            name=os.path.basename(path),
-            size=os.path.getsize(os.path.join(repo_dir, path)),
-            type="file",
-            in_repo=True,
-            content=base64.b64encode(content).decode(),
-            calkit_object=ck_objects.get(path),
+        return ContentsItem.model_validate(
+            dict(
+                path=path,
+                name=os.path.basename(path),
+                size=os.path.getsize(os.path.join(repo_dir, path)),
+                type="file",
+                in_repo=True,
+                content=base64.b64encode(content).decode(),
+                calkit_object=ck_objects.get(path),
+            )
         )
     # The file isn't in the repo, but maybe it's in the Calkit objects
     elif path in ck_objects:
@@ -496,15 +500,17 @@ def get_project_contents(
             if size is not None and size <= 5_000_000 and fs.exists(fp):
                 with fs.open(fp, "rb") as f:
                     content = base64.b64encode(f.read()).decode()
-        return dict(
-            path=path,
-            name=os.path.basename(path),
-            size=size,
-            type=dvc_type,
-            in_repo=False,
-            content=content,
-            url=url,
-            calkit_object=ck_objects[path],
+        return ContentsItem.model_validate(
+            dict(
+                path=path,
+                name=os.path.basename(path),
+                size=size,
+                type=dvc_type,
+                in_repo=False,
+                content=content,
+                url=url,
+                calkit_object=ck_objects[path],
+            )
         )
     else:
         raise HTTPException(404)
@@ -630,106 +636,30 @@ def get_project_figures(
     project = app.projects.get_project(
         session=session, owner_name=owner_name, project_name=project_name
     )
-    figs_yaml = get_project_git_contents(
-        owner_name=owner_name,
-        project_name=project_name,
-        session=session,
-        current_user=current_user,
-        path="calkit.yaml",
-        astype=".raw",
+    # TODO: Handle collaborators
+    if project.owner != current_user:
+        raise HTTPException(401)
+    repo = get_repo(
+        project=project, user=current_user, session=session, ttl=300
     )
-    figures = ryaml.load(figs_yaml).get("figures", [])
-    # Read the DVC lock file
-    # TODO: Handle cases where this doesn't exist
-    # Perhaps we need a caching table for git contents
-    dvc_lock_yaml = get_project_git_contents(
-        owner_name=owner_name,
-        project_name=project_name,
-        session=session,
-        current_user=current_user,
-        path="dvc.lock",
-        astype=".raw",
-    )
-    dvc_lock = ryaml.load(dvc_lock_yaml)
-    fs = _get_minio_fs()
+    if os.path.isfile(os.path.join(repo.working_dir, "calkit.yaml")):
+        with open(os.path.join(repo.working_dir, "calkit.yaml")) as f:
+            ck_info = ryaml.load(f)
+    else:
+        return []
+    figures = ck_info.get("figures", [])
+    if not figures:
+        return figures
     # Get the figure content and base64 encode it
     for fig in figures:
-        path = fig["path"]
-        # Is this in the Git repo, or is it in DVC?
-        # If it has a stage defined, it should be able to be identified from
-        # the DVC lock file
-        if (stage := fig.get("stage")) is not None:
-            logger.info(f"Searching for {path} from stage '{stage}'")
-            stage_outs = dvc_lock["stages"][stage]["outs"]
-            for out in stage_outs:
-                if out["path"] == path:
-                    # We've found it
-                    idx = out["md5"][:2]
-                    md5 = out["md5"][2:]
-                    fpath = _make_data_fpath(
-                        project_id=project.id, idx=idx, md5=md5
-                    )
-                    with fs.open(fpath, "rb") as f:
-                        content = f.read()
-                    fig["content"] = base64.b64encode(content).decode()
-                    logger.info(
-                        f"Figure content is now {len(fig['content'])} long"
-                    )
-                    kws = {}
-                    kws["ResponseContentDisposition"] = (
-                        f"filename={os.path.basename(path)}"
-                    )
-                    url = fs.url(fpath, expires=3600 * 24, **kws)
-                    logger.info(f"Generated presigned URL for {path}: {url}")
-                    fig["url"] = url
-                    break
-        else:
-            # This is not the output of a DVC pipeline stage
-            # First, see if it lives in the Git repo
-            # TODO: Handle imported figures
-            try:
-                content = get_project_git_contents(
-                    owner_name=owner_name,
-                    project_name=project_name,
-                    session=session,
-                    current_user=current_user,
-                    path=path,
-                )
-                fig["content"] = content["content"]
-            except HTTPException:
-                # Looks like it doesn't exist in the repo
-                # This must be an imported figure, or it's just tracked in DVC
-                # without being the output of a stage
-                logger.info(f"{path} does not exist in Git repo")
-                # See if we can get the DVC file
-                dvc_yaml = get_project_git_contents(
-                    owner_name=owner_name,
-                    project_name=project_name,
-                    session=session,
-                    current_user=current_user,
-                    path=path + ".dvc",
-                    astype=".raw",
-                )
-                dvc_yaml = ryaml.load(dvc_yaml)
-                out = dvc_yaml["outs"][0]
-                idx = out["md5"][:2]
-                md5 = out["md5"][2:]
-                fpath = _make_data_fpath(
-                    project_id=project.id, idx=idx, md5=md5
-                )
-                with fs.open(fpath, "rb") as f:
-                    content = f.read()
-                fig["content"] = base64.b64encode(content).decode()
-                logger.info(
-                    f"Figure content is now {len(fig['content'])} long"
-                )
-                kws = {}
-                kws["ResponseContentDisposition"] = (
-                    f"filename={os.path.basename(path)}"
-                )
-                url = fs.url(fpath, expires=3600 * 24, **kws)
-                logger.info(f"Generated presigned URL for {path}: {url}")
-                fig["url"] = url
+        item = get_project_contents(
+            owner_name=owner_name,
+            project_name=project_name,
+            session=session,
+            current_user=current_user,
+            path=fig["path"],
+        )
+        fig["content"] = item.content
     return [Figure.model_validate(fig) for fig in figures]
 
 
