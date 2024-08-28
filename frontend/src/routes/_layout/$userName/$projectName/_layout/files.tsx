@@ -9,10 +9,12 @@ import {
   Image,
   Code,
   Badge,
+  Button,
+  useDisclosure,
 } from "@chakra-ui/react"
 import { useQuery } from "@tanstack/react-query"
 import { FiFolder, FiFile, FiDatabase } from "react-icons/fi"
-import { FaMarkdown } from "react-icons/fa6"
+import { FaMarkdown, FaPlus } from "react-icons/fa6"
 import { AiOutlinePython } from "react-icons/ai"
 import { SiAnaconda, SiJupyter } from "react-icons/si"
 import { useState } from "react"
@@ -25,6 +27,7 @@ import {
 
 import { ProjectsService, type ContentsItem } from "../../../../../client"
 import { BsFiletypeYml } from "react-icons/bs"
+import UploadFile from "../../../../../components/Files/UploadFile"
 
 export const Route = createFileRoute(
   "/_layout/$userName/$projectName/_layout/files",
@@ -207,6 +210,7 @@ function Files() {
       }),
     enabled: selectedFile !== undefined,
   })
+  const addModal = useDisclosure()
 
   if (Array.isArray(files)) {
     files.sort(sortByTypeAndName)
@@ -228,6 +232,25 @@ function Files() {
             overflowX="auto"
             overflowY="auto"
           >
+            {" "}
+            <Flex gap={2}>
+              <Heading size="md" mb={1}>
+                All files
+              </Heading>
+              <Button
+                variant="primary"
+                height="25px"
+                p={3}
+                pl={2}
+                fontSize={"sm"}
+                mb={1}
+                onClick={addModal.onOpen}
+              >
+                <Icon as={FaPlus} height={"14px"} />
+                Upload
+              </Button>
+            </Flex>
+            <UploadFile isOpen={addModal.isOpen} onClose={addModal.onClose} />
             {Array.isArray(files)
               ? files?.map((file) => (
                   <Item
