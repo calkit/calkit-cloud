@@ -77,8 +77,6 @@ def get_repo(
         time.sleep(0.01)
         if n > 1000:
             os.remove(lock_fpath)
-    repo_contents = os.listdir(repo_dir)
-    logger.info(f"Repo contents: {repo_contents}")
     return repo
 
 
