@@ -158,7 +158,7 @@ function FigureView({ figure }: FigureProps) {
       </Box>
     )
   } else {
-    figView = <>Dunno</>
+    figView = <Text>Cannot render this type of figure</Text>
   }
 
   return (
