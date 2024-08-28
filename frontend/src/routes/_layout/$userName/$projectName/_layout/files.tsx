@@ -24,6 +24,7 @@ import {
   FaRegFileImage,
   FaRegFolderOpen,
 } from "react-icons/fa"
+import { MdEdit } from "react-icons/md"
 
 import { ProjectsService, type ContentsItem } from "../../../../../client"
 import { BsFiletypeYml } from "react-icons/bs"
@@ -298,13 +299,19 @@ function Files() {
                 ) : (
                   ""
                 )}
-                {selectedFile.calkit_object ? (
-                  <Badge bgColor="green.500">
-                    {selectedFile.calkit_object.kind}
-                  </Badge>
-                ) : (
-                  ""
-                )}
+                <Text>
+                  Artifact type:
+                  {selectedFile.calkit_object ? (
+                    <Badge ml={1} bgColor="green.500">
+                      {selectedFile.calkit_object.kind}
+                    </Badge>
+                  ) : (
+                    <Badge ml={1} bgColor={"gray"}>
+                      None
+                    </Badge>
+                  )}
+                  <Icon as={MdEdit} pt={0.5} ml={0.5} />
+                </Text>
               </Box>
             ) : (
               ""
