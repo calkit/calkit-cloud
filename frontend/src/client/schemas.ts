@@ -63,9 +63,11 @@ export const $Body_projects_post_project_figure = {
       type: "string",
       isRequired: true,
     },
+    stage: {
+      type: "string",
+    },
     file: {
       type: "binary",
-      isRequired: true,
       format: "binary",
     },
   },

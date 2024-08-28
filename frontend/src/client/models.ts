@@ -11,7 +11,8 @@ export type Body_projects_post_project_figure = {
   path: string
   title: string
   description: string
-  file: Blob | File
+  stage?: string
+  file?: Blob | File
 }
 
 export type ContentsItem = {

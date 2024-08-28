@@ -27,7 +27,7 @@ interface LabelFigureProps {
   onClose: () => void
 }
 
-interface FigurePut {
+interface FigurePost {
   path: string
   title: string
   description: string
@@ -43,7 +43,7 @@ const LabelAsFigure = ({ isOpen, onClose }: LabelFigureProps) => {
     handleSubmit,
     reset,
     formState: { errors, isSubmitting },
-  } = useForm<FigurePut>({
+  } = useForm<FigurePost>({
     mode: "onBlur",
     criteriaMode: "all",
     defaultValues: {
@@ -54,7 +54,7 @@ const LabelAsFigure = ({ isOpen, onClose }: LabelFigureProps) => {
   })
 
   const mutation = useMutation({
-    mutationFn: (data: FigurePut) =>
+    mutationFn: (data: FigurePost) =>
       ProjectsService.postProjectFigure({
         formData: {
           title: data.title,
@@ -65,7 +65,7 @@ const LabelAsFigure = ({ isOpen, onClose }: LabelFigureProps) => {
         projectName: projectName,
       }),
     onSuccess: () => {
-      showToast("Success!", "Figure labeled successfully.", "success")
+      showToast("Success!", "Figure added successfully.", "success")
       reset()
       onClose()
     },
@@ -79,7 +79,7 @@ const LabelAsFigure = ({ isOpen, onClose }: LabelFigureProps) => {
     },
   })
 
-  const onSubmit: SubmitHandler<FigurePut> = (data) => {
+  const onSubmit: SubmitHandler<FigurePost> = (data) => {
     mutation.mutate(data)
   }
 
