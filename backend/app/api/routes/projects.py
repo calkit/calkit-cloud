@@ -17,7 +17,7 @@ import s3fs
 import yaml
 from app import users
 from app.api.deps import CurrentUser, SessionDep
-from app.dvc import make_mermaid_diagram
+from app.dvc import make_mermaid_diagram, output_from_pipeline
 from app.git import get_repo
 from app.models import (
     Dataset,
@@ -357,6 +357,15 @@ def get_project_contents(
             ck_info = yaml.safe_load(f)
     else:
         ck_info = {}
+    # Load DVC pipeline and lock files if they exist
+    dvc_fpath = os.path.join(repo_dir, "dvc.yaml")
+    pipeline = {}
+    if os.path.isfile(dvc_fpath):
+        pipeline = ryaml.load(Path(dvc_fpath))
+    dvc_lock_fpath = os.path.join(repo_dir, "dvc.lock")
+    dvc_lock = {}
+    if os.path.isfile(dvc_lock_fpath):
+        dvc_lock = ryaml.load(Path(dvc_lock_fpath))
     ignore_paths = [".git", ".dvc/cache", ".dvc/tmp", ".dvc/config.local"]
     if path is not None and path in ignore_paths:
         raise HTTPException(404)
@@ -364,13 +373,28 @@ def get_project_contents(
     ck_objects = {}
     for category, itemlist in ck_info.items():
         for item in itemlist:
-            # TODO: Get size, MD5, dir, presigned URL?
             item["kind"] = (
                 category.removesuffix("s")
                 if category != "references"
                 else category
             )
             ck_objects[item["path"]] = item
+    # Find any DVC outs for Calkit objects
+    ck_outs = {}
+    for p, obj in ck_objects.items():
+        stage_name = obj.get("stage")
+        if stage_name is None:
+            dvc_fp = os.path.join(repo_dir, p + ".dvc")
+            if os.path.isfile(dvc_fp):
+                dvo = ryaml.load(Path(dvc_fp))["outs"][0]
+                ck_outs[p] = dvo
+            else:
+                ck_outs[p] = None
+        else:
+            out = output_from_pipeline(
+                path=p, stage_name=stage_name, pipeline=pipeline, lock=dvc_lock
+            )
+            ck_outs[p] = out
     # See if we're listing off a directory
     if path is None or os.path.isdir(os.path.join(repo_dir, path)):
         # We're listing off the top of the repo
@@ -394,7 +418,16 @@ def get_project_contents(
             else:
                 obj["type"] = "dir"
             if p in ck_objects:
+                dvc_out = ck_outs.get(p)
                 obj["calkit_object"] = ck_objects[p]
+                obj["in_repo"] = False
+                if dvc_out is not None:
+                    obj["size"] = dvc_out.get("size")
+                    obj["type"] = (
+                        "dir"
+                        if dvc_out.get("md5", "").endswith(".dir")
+                        else "file"
+                    )
             else:
                 obj["calkit_object"] = None
             contents.append(obj)
@@ -414,7 +447,7 @@ def get_project_contents(
                 contents.append(obj)
         return contents
     # We're looking for a file, so let's first check if it exists in the repo
-    if os.path.isfile(os.path.join(repo_dir, path)):
+    if os.path.isfile(os.path.join(repo_dir, path)) and path not in ck_objects:
         with open(os.path.join(repo_dir, path), "rb") as f:
             content = f.read()
         return dict(
@@ -428,13 +461,34 @@ def get_project_contents(
         )
     # The file isn't in the repo, but maybe it's in the Calkit objects
     elif path in ck_objects:
-        # TODO: Return presigned URL? Will need MD5 so we can create the path
+        size = ck_outs.get(path, {}).get("size")
+        md5 = ck_outs.get(path, {}).get("md5", "")
+        dvc_type = "dir" if md5.endswith(".dir") else "file"
+        content = None
+        url = None
+        # Create presigned url
+        if md5:
+            fs = _get_minio_fs()
+            fp = _make_data_fpath(
+                project_id=project.id, idx=md5[:2], md5=md5[2:]
+            )
+            kws = {}
+            kws["ResponseContentDisposition"] = (
+                f"filename={os.path.basename(path)}"
+            )
+            url = fs.url(fp, expires=3600 * 24, **kws)
+            # Get content is the size is small enough
+            if size is not None and size <= 5_000_000 and fs.exists(fp):
+                with fs.open(fp, "rb") as f:
+                    content = base64.b64encode(f.read()).decode()
         return dict(
             path=path,
             name=os.path.basename(path),
-            size=None,  # TODO
-            type=None,  # TODO
+            size=size,
+            type=dvc_type,
             in_repo=False,
+            content=content,
+            url=url,
             calkit_object=ck_objects[path],
         )
     else:
