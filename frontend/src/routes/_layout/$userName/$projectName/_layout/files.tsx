@@ -210,7 +210,7 @@ function Files() {
       }),
     enabled: selectedFile !== undefined,
   })
-  const addModal = useDisclosure()
+  const fileUploadModal = useDisclosure()
 
   if (Array.isArray(files)) {
     files.sort(sortByTypeAndName)
@@ -244,13 +244,16 @@ function Files() {
                 pl={2}
                 fontSize={"sm"}
                 mb={1}
-                onClick={addModal.onOpen}
+                onClick={fileUploadModal.onOpen}
               >
                 <Icon as={FaPlus} height={"14px"} />
                 Upload
               </Button>
             </Flex>
-            <UploadFile isOpen={addModal.isOpen} onClose={addModal.onClose} />
+            <UploadFile
+              isOpen={fileUploadModal.isOpen}
+              onClose={fileUploadModal.onClose}
+            />
             {Array.isArray(files)
               ? files?.map((file) => (
                   <Item
