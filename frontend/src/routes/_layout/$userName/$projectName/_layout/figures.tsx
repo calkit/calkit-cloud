@@ -168,7 +168,7 @@ function FigureView({ figure }: FigureProps) {
 
   return (
     <>
-      <Heading size="md" mb={2}>
+      <Heading size="sm" mb={1} pt={1}>
         {figure.title}
       </Heading>
       <Text>{figure.description}</Text>
@@ -230,11 +230,13 @@ const ModalButton = ({ type, addModalAs, verb }: ModalProps) => {
       <Flex gap={4}>
         <Button
           variant="primary"
+          height={"30px"}
+          px={3}
           gap={1}
           fontSize={{ base: "sm", md: "inherit" }}
           onClick={addModal.onOpen}
         >
-          <Icon as={FaPlus} /> {verb} {type}
+          <Icon as={FaPlus} height={"12px"} /> {verb} {type}
         </Button>
         <AddModal isOpen={addModal.isOpen} onClose={addModal.onClose} />
       </Flex>
@@ -246,6 +248,7 @@ function ProjectFigures() {
   return (
     <>
       <HStack mb={2}>
+        <Heading size="md">Figures</Heading>
         <ModalButton
           type={"figure"}
           verb={"Upload"}
