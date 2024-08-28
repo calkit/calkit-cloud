@@ -361,11 +361,13 @@ def get_project_contents(
     dvc_fpath = os.path.join(repo_dir, "dvc.yaml")
     pipeline = {}
     if os.path.isfile(dvc_fpath):
-        pipeline = ryaml.load(Path(dvc_fpath))
+        with open(dvc_fpath) as f:
+            pipeline = yaml.safe_load(f)
     dvc_lock_fpath = os.path.join(repo_dir, "dvc.lock")
     dvc_lock = {}
     if os.path.isfile(dvc_lock_fpath):
-        dvc_lock = ryaml.load(Path(dvc_lock_fpath))
+        with open(dvc_lock_fpath) as f:
+            dvc_lock = yaml.safe_load(f)
     ignore_paths = [".git", ".dvc/cache", ".dvc/tmp", ".dvc/config.local"]
     if path is not None and path in ignore_paths:
         raise HTTPException(404)
@@ -386,7 +388,8 @@ def get_project_contents(
         if stage_name is None:
             dvc_fp = os.path.join(repo_dir, p + ".dvc")
             if os.path.isfile(dvc_fp):
-                dvo = ryaml.load(Path(dvc_fp))["outs"][0]
+                with open(dvc_fp) as f:
+                    dvo = yaml.safe_load(f)["outs"][0]
                 ck_outs[p] = dvo
             else:
                 ck_outs[p] = None
