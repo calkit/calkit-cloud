@@ -7,12 +7,16 @@ import {
   Textarea,
   Button,
   Image,
+  Icon,
+  useDisclosure,
+  HStack,
 } from "@chakra-ui/react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 import { useState } from "react"
+import { FaPlus } from "react-icons/fa"
+import { ElementType, ComponentType } from "react"
 
-import Navbar from "../../../../../components/Common/Navbar"
 import UploadFigure from "../../../../../components/Figures/UploadFigure"
 import {
   ProjectsService,
@@ -211,10 +215,47 @@ function ProjectFiguresView() {
   )
 }
 
+interface ModalProps {
+  type: string
+  addModalAs: ComponentType | ElementType
+  verb: string
+}
+
+const ModalButton = ({ type, addModalAs, verb }: ModalProps) => {
+  const addModal = useDisclosure()
+  const AddModal = addModalAs
+  return (
+    <>
+      <Flex gap={4}>
+        <Button
+          variant="primary"
+          gap={1}
+          fontSize={{ base: "sm", md: "inherit" }}
+          onClick={addModal.onOpen}
+        >
+          <Icon as={FaPlus} /> {verb} {type}
+        </Button>
+        <AddModal isOpen={addModal.isOpen} onClose={addModal.onClose} />
+      </Flex>
+    </>
+  )
+}
+
 function ProjectFigures() {
   return (
     <>
-      <Navbar type={"figure"} verb={"Upload"} addModalAs={UploadFigure} />
+      <HStack mb={2}>
+        <ModalButton
+          type={"figure"}
+          verb={"Upload"}
+          addModalAs={UploadFigure}
+        />
+        <ModalButton
+          type={"figure"}
+          verb={"Label existing as"}
+          addModalAs={UploadFigure}
+        />
+      </HStack>
       <ProjectFiguresView />
       <Box mb={10} />
     </>
