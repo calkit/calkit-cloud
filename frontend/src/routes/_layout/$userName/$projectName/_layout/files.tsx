@@ -177,6 +177,15 @@ function Files() {
     if (name.endsWith(".png")) {
       return <Image src={`data:image/png;base64,${content}`} maxW={"685px"} />
     }
+    if (name.endsWith(".pdf")) {
+      return (
+        <embed
+          height="100%"
+          width="100%"
+          src={`data:application/pdf;base64,${content}`}
+        />
+      )
+    }
     return (
       <Code
         p={2}
