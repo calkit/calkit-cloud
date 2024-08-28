@@ -7,7 +7,7 @@ import os
 import subprocess
 import uuid
 from pathlib import Path
-from typing import Annotated, Literal
+from typing import Annotated, Literal, Optional
 
 import app.projects
 import git
@@ -663,8 +663,8 @@ def post_project_figure(
     path: Annotated[str, Form()],
     title: Annotated[str, Form()],
     description: Annotated[str, Form()],
-    stage: Annotated[str, Form()] | None = None,
-    file: Annotated[UploadFile, File()] | None = None,
+    stage: Optional[Annotated[str, Form()]] = None,
+    file: Optional[Annotated[UploadFile, File()]] = None,
 ) -> Figure:
     if file is not None:
         logger.info(
@@ -673,6 +673,10 @@ def post_project_figure(
         )
     else:
         logger.info(f"Received request to create figure from {path}")
+    if file is not None and stage is not None:
+        raise HTTPException(
+            400, "DVC outputs should be uploaded with `dvc push`"
+        )
     project = app.projects.get_project(
         session=session, owner_name=owner_name, project_name=project_name
     )
@@ -725,6 +729,10 @@ def post_project_figure(
                 cmd = line.strip().split()
                 logger.info(f"Calling {cmd}")
                 repo.git.add(cmd[2:])
+    elif not os.path.isfile(os.path.join(repo.working_dir, path)):
+        raise HTTPException(
+            400, "File must exist in repo if not being uploaded"
+        )
     # Update figures
     figures.append(
         dict(path=path, title=title, description=description, stage=stage)
