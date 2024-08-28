@@ -658,16 +658,21 @@ def get_project_figure(
 def post_project_figure(
     owner_name: str,
     project_name: str,
+    current_user: CurrentUser,
+    session: SessionDep,
     path: Annotated[str, Form()],
     title: Annotated[str, Form()],
     description: Annotated[str, Form()],
-    file: Annotated[UploadFile, File()],
-    current_user: CurrentUser,
-    session: SessionDep,
+    stage: Annotated[str, Form()] | None = None,
+    file: Annotated[UploadFile, File()] | None = None,
 ) -> Figure:
-    logger.info(
-        f"Received figure file {path} with content type: {file.content_type}"
-    )
+    if file is not None:
+        logger.info(
+            f"Received figure file {path} with content type: "
+            f"{file.content_type}"
+        )
+    else:
+        logger.info(f"Received request to create figure from {path}")
     project = app.projects.get_project(
         session=session, owner_name=owner_name, project_name=project_name
     )
@@ -688,39 +693,41 @@ def post_project_figure(
     figpaths = [fig["path"] for fig in figures]
     if path in figpaths:
         raise HTTPException(400, "A figure already exists at this path")
-    # Add the file to the repo(s)
-    # Save the file to the desired path
-    os.makedirs(
-        os.path.join(repo.working_dir, os.path.dirname(path)), exist_ok=True
-    )
-    file_data = file.file.read()
-    full_fig_path = os.path.join(repo.working_dir, path)
-    with open(full_fig_path, "wb") as f:
-        f.write(file_data)
-    # Either git add {path} or dvc add {path}
-    # If we DVC add, we'll get output like
-    # To track the changes with git, run:
+    if file is not None:
+        # Add the file to the repo(s)
+        # Save the file to the desired path
+        os.makedirs(
+            os.path.join(repo.working_dir, os.path.dirname(path)),
+            exist_ok=True,
+        )
+        file_data = file.file.read()
+        full_fig_path = os.path.join(repo.working_dir, path)
+        with open(full_fig_path, "wb") as f:
+            f.write(file_data)
+        # Either git add {path} or dvc add {path}
+        # If we DVC add, we'll get output like
+        # To track the changes with git, run:
 
-    #         git add figures/.gitignore figures/my-figure.png.dvc
+        #         git add figures/.gitignore figures/my-figure.png.dvc
 
-    # To enable auto staging, run:
+        # To enable auto staging, run:
 
-    #         dvc config core.autostage true
-    # Initialize DVC if it's never been
-    if not os.path.isdir(os.path.join(repo.working_dir, ".dvc")):
-        logger.info("Calling dvc init since .dvc directory is missing")
-        subprocess.call(["dvc", "init"], cwd=repo.working_dir)
-    dvc_out = subprocess.check_output(
-        ["dvc", "add", path], cwd=repo.working_dir
-    ).decode()
-    for line in dvc_out.split("\n"):
-        if line.strip().startswith("git add"):
-            cmd = line.strip().split()
-            logger.info(f"Calling {cmd}")
-            repo.git.add(cmd[2:])
+        #         dvc config core.autostage true
+        # Initialize DVC if it's never been
+        if not os.path.isdir(os.path.join(repo.working_dir, ".dvc")):
+            logger.info("Calling dvc init since .dvc directory is missing")
+            subprocess.call(["dvc", "init"], cwd=repo.working_dir)
+        dvc_out = subprocess.check_output(
+            ["dvc", "add", path], cwd=repo.working_dir
+        ).decode()
+        for line in dvc_out.split("\n"):
+            if line.strip().startswith("git add"):
+                cmd = line.strip().split()
+                logger.info(f"Calling {cmd}")
+                repo.git.add(cmd[2:])
     # Update figures
     figures.append(
-        dict(path=path, title=title, description=description, stage=None)
+        dict(path=path, title=title, description=description, stage=stage)
     )
     ck_info["figures"] = figures
     with open(os.path.join(repo.working_dir, "calkit.yaml"), "w") as f:
@@ -730,25 +737,31 @@ def post_project_figure(
     repo.git.commit(["-m", f"Add figure {path}"])
     # Push to GitHub, and optionally DVC remote if we used it
     repo.git.push(["origin", repo.branches[0].name])
-    # If using the DVC remote, we can just put it in the expected location
-    # since we'll have the md5 hash in the dvc file
-    with open(os.path.join(repo.working_dir, path + ".dvc")) as f:
-        dvc_yaml = ryaml.load(f)
-    md5 = dvc_yaml["outs"][0]["md5"]
-    fs = _get_minio_fs()
-    fpath = _make_data_fpath(project_id=project.id, idx=md5[:2], md5=md5[2:])
-    with fs.open(fpath, "wb") as f:
-        f.write(file_data)
-    kws = {}
-    kws["ResponseContentDisposition"] = f"filename={os.path.basename(path)}"
-    url = fs.url(fpath, expires=3600 * 24, **kws)
-    # Finally, remove the figure from the cached repo
-    os.remove(full_fig_path)
+    url = None
+    if file is not None:
+        # If using the DVC remote, we can just put it in the expected location
+        # since we'll have the md5 hash in the dvc file
+        with open(os.path.join(repo.working_dir, path + ".dvc")) as f:
+            dvc_yaml = yaml.safe_load(f)
+        md5 = dvc_yaml["outs"][0]["md5"]
+        fs = _get_minio_fs()
+        fpath = _make_data_fpath(
+            project_id=project.id, idx=md5[:2], md5=md5[2:]
+        )
+        with fs.open(fpath, "wb") as f:
+            f.write(file_data)
+        kws = {}
+        kws["ResponseContentDisposition"] = (
+            f"filename={os.path.basename(path)}"
+        )
+        url = fs.url(fpath, expires=3600 * 24, **kws)
+        # Finally, remove the figure from the cached repo
+        os.remove(full_fig_path)
     return Figure(
         path=path,
         title=title,
         description=description,
-        stage=None,
+        stage=stage,
         content=None,
         url=url,
     )
