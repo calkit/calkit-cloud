@@ -11,7 +11,6 @@ from typing import Annotated, Literal, Optional
 
 import app.projects
 import requests
-import ruamel.yaml
 import s3fs
 import yaml
 from app import users
@@ -19,9 +18,10 @@ from app.api.deps import CurrentUser, SessionDep
 from app.core import (
     CATEGORIES_PLURAL_TO_SINGULAR,
     CATEGORIES_SINGULAR_TO_PLURAL,
+    ryaml,
 )
 from app.dvc import make_mermaid_diagram, output_from_pipeline
-from app.git import get_repo
+from app.git import get_ck_info, get_repo
 from app.models import (
     Dataset,
     Figure,
@@ -38,9 +38,6 @@ from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlmodel import func, select
-
-ryaml = ruamel.yaml.YAML()
-ryaml.indent(mapping=2, sequence=4, offset=2)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -834,15 +831,10 @@ def post_figure_comment(
     if not project.owner == current_user:
         raise HTTPException(401)
     # First we need to make this this figure path exists in this project
-    figs_yaml = get_project_git_contents(
-        owner_name=owner_name,
-        project_name=project_name,
-        session=session,
-        current_user=current_user,
-        path="calkit.yaml",
-        astype=".raw",
+    ck_info = get_ck_info(
+        project=project, user=current_user, session=session, ttl=300
     )
-    figures = ryaml.load(figs_yaml).get("figures", [])
+    figures = ck_info.get("figures", [])
     fig_paths = [fig["path"] for fig in figures]
     if comment_in.figure_path not in fig_paths:
         raise HTTPException(404)

@@ -3,8 +3,13 @@
 import logging
 from datetime import UTC, datetime
 
+import ruamel.yaml
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+ryaml = ruamel.yaml.YAML()
+ryaml.indent(mapping=2, sequence=4, offset=2)
 
 CATEGORIES_SINGULAR_TO_PLURAL = {
     "figure": "figures",

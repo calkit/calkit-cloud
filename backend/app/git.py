@@ -10,6 +10,8 @@ from app.core import logger
 from app.models import Project, User
 from sqlmodel import Session
 
+from app.core import ryaml
+
 
 def get_repo(
     project: Project, user: User, session: Session, ttl=None
@@ -78,3 +80,15 @@ def get_repo(
     repo_contents = os.listdir(repo_dir)
     logger.info(f"Repo contents: {repo_contents}")
     return repo
+
+
+def get_ck_info(
+    project: Project, user: User, session: Session, ttl=None
+) -> dict:
+    """Load the calkit.yaml file contents into a dictionary."""
+    repo = get_repo(project=project, user=user, session=session, ttl=ttl)
+    if os.path.isfile(os.path.join(repo.working_dir, "calkit.yaml")):
+        with open(os.path.join(repo.working_dir, "calkit.yaml")) as f:
+            return ryaml.load(f)
+    else:
+        return {}
