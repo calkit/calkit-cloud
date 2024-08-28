@@ -11,6 +11,8 @@ export type Body_projects_post_project_figure = {
   path: string
   title: string
   description: string
+  stage?: string | null
+  file?: Blob | File | null
 }
 
 export type ContentPatch = {

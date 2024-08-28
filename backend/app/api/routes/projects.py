@@ -751,8 +751,8 @@ def post_project_figure(
     path: Annotated[str, Form()],
     title: Annotated[str, Form()],
     description: Annotated[str, Form()],
-    stage: Optional[Annotated[str, Form()]] = None,
-    file: Optional[Annotated[UploadFile, File()]] = None,
+    stage: Optional[Annotated[str, Form()]] = Form(None),
+    file: Optional[Annotated[UploadFile, File()]] = Form(None),
 ) -> Figure:
     if file is not None:
         logger.info(

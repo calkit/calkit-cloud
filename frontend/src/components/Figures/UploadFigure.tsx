@@ -141,7 +141,6 @@ const UploadFigure = ({ isOpen, onClose }: UploadFigureProps) => {
                 </FormErrorMessage>
               )}
             </FormControl>
-
             <FormControl mt={4} isRequired isInvalid={!!errors.file}>
               <FormLabel htmlFor="file">File</FormLabel>
               <Input

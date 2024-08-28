@@ -183,11 +183,9 @@ export type ProjectsData = {
     projectName: string
   }
   PostProjectFigure: {
-    file?: Blob | File | null
     formData: Body_projects_post_project_figure
     ownerName: string
     projectName: string
-    stage?: string | null
   }
   GetProjectFigure: {
     figurePath: string
@@ -1072,17 +1070,13 @@ export class ProjectsService {
   public static postProjectFigure(
     data: ProjectsData["PostProjectFigure"],
   ): CancelablePromise<Figure> {
-    const { ownerName, projectName, formData, stage, file } = data
+    const { ownerName, projectName, formData } = data
     return __request(OpenAPI, {
       method: "POST",
       url: "/api/v1/projects/{owner_name}/{project_name}/figures",
       path: {
         owner_name: ownerName,
         project_name: projectName,
-      },
-      query: {
-        stage,
-        file,
       },
       formData: formData,
       mediaType: "application/x-www-form-urlencoded",

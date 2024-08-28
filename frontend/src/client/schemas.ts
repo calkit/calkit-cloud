@@ -63,6 +63,29 @@ export const $Body_projects_post_project_figure = {
       type: "string",
       isRequired: true,
     },
+    stage: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    file: {
+      type: "any-of",
+      contains: [
+        {
+          type: "binary",
+          format: "binary",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
   },
 } as const
 
