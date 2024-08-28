@@ -74,6 +74,21 @@ const getIcon = (item: ContentsItem, isExpanded = false) => {
   return FiFile
 }
 
+function sortByTypeAndName(a: ContentsItem, b: ContentsItem) {
+  if (a.type === "dir" && b.type === "dir") {
+    if (a.name < b.name) {
+      return -1
+    }
+  } else if (a.type === "dir" && b.type === "file") {
+    return -1
+  } else if (a.type === "file" && b.type === "file") {
+    if (a.name < b.name) {
+      return -1
+    }
+  }
+  return 0
+}
+
 interface ItemProps {
   item: ContentsItem
   level?: number
@@ -100,6 +115,10 @@ function Item({ item, level, setSelectedFile }: ItemProps) {
   const handleClick = (e) => {
     setIsExpanded(!isExpanded)
     setSelectedFile(item)
+  }
+
+  if (Array.isArray(data)) {
+    data.sort(sortByTypeAndName)
   }
 
   return (
@@ -190,20 +209,6 @@ function Files() {
   })
 
   if (Array.isArray(files)) {
-    function sortByTypeAndName(a: ContentsItem, b: ContentsItem) {
-      if (a.type === "dir" && b.type === "dir") {
-        if (a.name < b.name) {
-          return -1
-        }
-      } else if (a.type === "dir" && b.type === "file") {
-        return -1
-      } else if (a.type === "file" && b.type === "file") {
-        if (a.name < b.name) {
-          return -1
-        }
-      }
-      return 0
-    }
     files.sort(sortByTypeAndName)
   }
 

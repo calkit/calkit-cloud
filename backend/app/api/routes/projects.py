@@ -406,8 +406,10 @@ def get_project_contents(
         # We're listing off the top of the repo
         dirname = "" if path is None else path
         contents = []
-        paths = os.listdir(
-            repo_dir if path is None else os.path.join(repo_dir, path)
+        paths = sorted(
+            os.listdir(
+                repo_dir if path is None else os.path.join(repo_dir, path)
+            )
         )
         paths = [os.path.join(dirname, p) for p in paths]
         for p in paths:
