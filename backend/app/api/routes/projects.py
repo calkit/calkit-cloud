@@ -864,16 +864,10 @@ def get_project_data(
     if project.owner != current_user:
         raise HTTPException(401)
     # Read the datasets file from the repo
-    datasets_yaml = get_project_git_contents(
-        owner_name=owner_name,
-        project_name=project_name,
-        session=session,
-        current_user=current_user,
-        path="calkit.yaml",
-        astype=".raw",
+    ck_info = get_ck_info(
+        project=project, user=current_user, session=session, ttl=300
     )
-    datasets = ryaml.load(datasets_yaml).get("datasets", [])
-    fs = _get_minio_fs()
+    datasets = ck_info.get("datasets", [])
     for dataset in datasets:
         # Create a dummy ID
         # TODO: Don't do this -- put in the DB or not
