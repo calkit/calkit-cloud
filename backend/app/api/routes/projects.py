@@ -375,11 +375,7 @@ def get_project_contents(
     ck_objects = {}
     for category, itemlist in ck_info.items():
         for item in itemlist:
-            item["kind"] = (
-                category.removesuffix("s")
-                if category != "references"
-                else category
-            )
+            item["kind"] = CATEGORIES_PLURAL_TO_SINGULAR[category]
             ck_objects[item["path"]] = item
     # Find any DVC outs for Calkit objects
     ck_outs = {}
@@ -438,16 +434,21 @@ def get_project_contents(
             contents.append(obj)
         for ck_path, ck_obj in ck_objects.items():
             if os.path.dirname(ck_path) == dirname and ck_path not in paths:
-                # TODO: Is this a file or a directory?
-                # We should be able to tell from the DVC file
-                # We should also be able to get the size
+                # Read DVC output for this path
+                dvc_out = ck_outs.get(ck_path)
+                if dvc_out is None:
+                    dvc_out = {}
                 obj = ContentsItem.model_validate(
                     dict(
                         name=os.path.basename(ck_path),
                         path=ck_path,
                         in_repo=False,
-                        size=None,
-                        type=None,
+                        size=dvc_out.get("size"),
+                        type=(
+                            "dir"
+                            if dvc_out.get("md5", "").endswith(".dir")
+                            else "file"
+                        ),
                         calkit_object=ck_obj,
                     )
                 )
