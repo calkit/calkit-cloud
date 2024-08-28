@@ -18,6 +18,7 @@ import { FaPlus } from "react-icons/fa"
 import { ElementType, ComponentType } from "react"
 
 import UploadFigure from "../../../../../components/Figures/UploadFigure"
+import LabelAsFigure from "../../../../../components/Figures/FigureFromExisting"
 import {
   ProjectsService,
   type Figure,
@@ -253,7 +254,7 @@ function ProjectFigures() {
         <ModalButton
           type={"figure"}
           verb={"Label existing as"}
-          addModalAs={UploadFigure}
+          addModalAs={LabelAsFigure}
         />
       </HStack>
       <ProjectFiguresView />
