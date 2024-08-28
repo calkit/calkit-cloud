@@ -131,6 +131,40 @@ function Item({ item, level, setSelectedFile }: ItemProps) {
   )
 }
 
+interface FileContentProps {
+  name: string
+  content: string
+}
+
+function FileContent({ name, content }: FileContentProps) {
+  if (name.endsWith(".png")) {
+    return <Image src={`data:image/png;base64,${content}`} maxW={"685px"} />
+  }
+  if (name.endsWith(".pdf")) {
+    return (
+      <embed
+        height="100%"
+        width="100%"
+        src={`data:application/pdf;base64,${content}`}
+      />
+    )
+  }
+  return (
+    <Code
+      p={2}
+      borderRadius={"lg"}
+      display="block"
+      whiteSpace="pre"
+      height="82vh"
+      overflowY="auto"
+      maxW="685px"
+      overflowX="auto"
+    >
+      {content ? String(atob(content)) : ""}
+    </Code>
+  )
+}
+
 function Files() {
   const { userName, projectName } = Route.useParams()
   const { isPending: filesPending, data: files } = useQuery({
@@ -173,35 +207,6 @@ function Files() {
     files.sort(sortByTypeAndName)
   }
 
-  const renderContent = (name: string, content: string) => {
-    if (name.endsWith(".png")) {
-      return <Image src={`data:image/png;base64,${content}`} maxW={"685px"} />
-    }
-    if (name.endsWith(".pdf")) {
-      return (
-        <embed
-          height="100%"
-          width="100%"
-          src={`data:application/pdf;base64,${content}`}
-        />
-      )
-    }
-    return (
-      <Code
-        p={2}
-        borderRadius={"lg"}
-        display="block"
-        whiteSpace="pre"
-        height="82vh"
-        overflowY="auto"
-        maxW="685px"
-        overflowX="auto"
-      >
-        {content ? String(atob(content)) : ""}
-      </Code>
-    )
-  }
-
   return (
     <>
       {filesPending ? (
@@ -236,12 +241,14 @@ function Files() {
               </Flex>
             ) : (
               <>
-                {selectedFileQuery?.data?.content
-                  ? renderContent(
-                      selectedFileQuery.data.name,
-                      selectedFileQuery.data.content,
-                    )
-                  : ""}
+                {selectedFileQuery?.data?.content ? (
+                  <FileContent
+                    name={selectedFileQuery?.data?.name}
+                    content={selectedFileQuery?.data?.content}
+                  />
+                ) : (
+                  ""
+                )}
               </>
             )}
           </Box>
