@@ -446,8 +446,12 @@ def get_project_contents(
                 )
                 contents.append(obj)
         return contents
-    # We're looking for a file, so let's first check if it exists in the repo
-    if os.path.isfile(os.path.join(repo_dir, path)) and path not in ck_objects:
+    # We're looking for a file, so let's first check if it exists in the repo,
+    # but only if it doesn't exist in the DVC outputs
+    if (
+        os.path.isfile(os.path.join(repo_dir, path))
+        and ck_outs.get(path) is None
+    ):
         with open(os.path.join(repo_dir, path), "rb") as f:
             content = f.read()
         return dict(
@@ -461,8 +465,11 @@ def get_project_contents(
         )
     # The file isn't in the repo, but maybe it's in the Calkit objects
     elif path in ck_objects:
-        size = ck_outs.get(path, {}).get("size")
-        md5 = ck_outs.get(path, {}).get("md5", "")
+        dvc_out = ck_outs.get(path)
+        if dvc_out is None:
+            dvc_out = {}
+        size = dvc_out.get("size")
+        md5 = dvc_out.get("md5", "")
         dvc_type = "dir" if md5.endswith(".dir") else "file"
         content = None
         url = None
