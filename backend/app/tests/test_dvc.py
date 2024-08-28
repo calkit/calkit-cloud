@@ -1,6 +1,9 @@
 """Tests for the ``dvc`` module."""
 
-from app.dvc import make_mermaid_diagram
+import os
+from copy import deepcopy
+
+from app.dvc import make_mermaid_diagram, output_from_pipeline
 
 
 def test_make_mermaid_diagram():
@@ -20,3 +23,51 @@ def test_make_mermaid_diagram():
     }
     mm = make_mermaid_diagram(pipeline)
     return mm
+
+
+def test_output_from_pipeline():
+    print(os.getcwd())
+    pipeline = {
+        "stages": {
+            "my_stage": {"deps": []},
+            "subdir_stage": {
+                "wdir": "backend/scripts",
+            },
+        }
+    }
+    lock = deepcopy(pipeline)
+    lock["stages"]["my_stage"]["outs"] = [
+        {
+            "path": "README.md",
+            "hash": "md5",
+            "md5": "0ac9de94eb7bc991d60df6d4d8a7553d",
+            "size": 2828,
+        }
+    ]
+    lock["stages"]["subdir_stage"]["outs"] = [
+        {
+            "path": "create-initial-data.py",
+            "hash": "md5",
+            "md5": "0ac9de94eb7bc991d60df6d4d8a7553c",
+            "size": 282843,
+        }
+    ]
+    out = output_from_pipeline(
+        "README.md", "my_stage", pipeline=pipeline, lock=lock
+    )
+    assert out["path"] == "README.md"
+    out = output_from_pipeline(
+        "backend/scripts/create-initial-data.py",
+        "subdir_stage",
+        pipeline=pipeline,
+        lock=lock,
+    )
+    assert out["path"] == "backend/scripts/create-initial-data.py"
+    assert out["md5"].endswith("3c")
+    out = output_from_pipeline(
+        "something-that-wont/exist",
+        "subdir_stage",
+        pipeline=pipeline,
+        lock=lock,
+    )
+    assert out is None

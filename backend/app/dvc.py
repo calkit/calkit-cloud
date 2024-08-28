@@ -33,3 +33,21 @@ def make_mermaid_diagram(pipeline: dict) -> str:
     finally:
         os.chdir(wd_orig)
     return mm
+
+
+def output_from_pipeline(
+    path: str, stage_name: str, pipeline: dict, lock: dict
+) -> dict | None:
+    """Given a path and stage name, search through the DVC pipeline config and
+    DVC lock files to see if the path exists as a DVC output.
+    """
+    stage = pipeline.get("stages", {}).get(stage_name)
+    if stage is None:
+        return
+    wdir = stage.get("wdir", "")
+    outs = lock.get("stages", []).get(stage_name, {}).get("outs", [])
+    for out in outs:
+        outpath = os.path.join(wdir, out["path"])
+        if os.path.abspath(outpath) == os.path.abspath(path):
+            out["path"] = path
+            return out
