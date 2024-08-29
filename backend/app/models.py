@@ -141,10 +141,12 @@ class ProjectBase(SQLModel):
         default=None, min_length=0, max_length=2048
     )
     is_public: bool = Field(default=False)
-    created: datetime = Field(default_factory=utcnow)
-    updated: datetime = Field(default_factory=utcnow)
+    created: datetime | None = Field(default_factory=utcnow)
+    updated: datetime | None = Field(default_factory=utcnow)
     git_repo_url: str = Field(max_length=2048)
-    latest_git_rev: str = Field(max_length=40, nullable=True, default=None)
+    latest_git_rev: str | None = Field(
+        max_length=40, nullable=True, default=None
+    )
 
     @computed_field
     @property
