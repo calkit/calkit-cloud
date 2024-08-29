@@ -109,7 +109,7 @@ function Item({ item, level, setSelectedFile }: ItemProps) {
   const indent = level ? level : 0
   const [isExpanded, setIsExpanded] = useState(false)
   const { userName, projectName } = Route.useParams()
-  const { isPending, data } = useQuery({
+  const { data } = useQuery({
     queryKey: ["projects", userName, projectName, "files", item.path],
     queryFn: () =>
       ProjectsService.getProjectContents({
@@ -141,7 +141,7 @@ function Item({ item, level, setSelectedFile }: ItemProps) {
       </Flex>
       {isExpanded && item.type === "dir" ? (
         <Box>
-          {data?.map((subItem: ContentsItem) => (
+          {data?.dir_items?.map((subItem: ContentsItem) => (
             <Item
               key={subItem.name}
               item={subItem}
@@ -193,17 +193,16 @@ function FileContent({ name, content }: FileContentProps) {
 
 interface SelectedItemProps {
   selectedFile: ContentsItem
-  selectedItem: ContentsItem
 }
 
-function SelectedInfo({ selectedFile, selectedItem }: SelectedItemProps) {
+function SelectedInfo({ selectedFile }: SelectedItemProps) {
   const fileInfoModal = useDisclosure()
 
   return (
     <Box>
-      <Text>Name: {selectedItem.name}</Text>
-      {selectedItem.type ? <Text>Type: {selectedItem.type}</Text> : ""}
-      {selectedItem.size ? <Text>Size: {selectedItem.size}</Text> : ""}
+      <Text>Name: {selectedFile.name}</Text>
+      {selectedFile.type ? <Text>Type: {selectedFile.type}</Text> : ""}
+      {selectedFile.size ? <Text>Size: {selectedFile.size}</Text> : ""}
       <HStack alignContent={"center"} mt={4} mb={1} gap={1}>
         <Heading size={"sm"}>Artifact info</Heading>
         <IconButton
@@ -287,8 +286,8 @@ function Files() {
   })
   const fileUploadModal = useDisclosure()
 
-  if (Array.isArray(files)) {
-    files.sort(sortByTypeAndName)
+  if (Array.isArray(files?.dir_items)) {
+    files.dir_items.sort(sortByTypeAndName)
   }
 
   return (
@@ -329,8 +328,8 @@ function Files() {
               isOpen={fileUploadModal.isOpen}
               onClose={fileUploadModal.onClose}
             />
-            {Array.isArray(files)
-              ? files?.map((file) => (
+            {Array.isArray(files?.dir_items)
+              ? files.dir_items?.map((file) => (
                   <Item
                     key={file.name}
                     item={file}
@@ -366,10 +365,7 @@ function Files() {
             ) : (
               <>
                 {selectedFileQuery?.data && selectedFile !== undefined ? (
-                  <SelectedInfo
-                    selectedFile={selectedFileQuery.data}
-                    selectedItem={selectedFile}
-                  />
+                  <SelectedInfo selectedFile={selectedFileQuery.data} />
                 ) : (
                   ""
                 )}

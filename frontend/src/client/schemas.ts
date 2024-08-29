@@ -204,6 +204,20 @@ export const $ContentsItem = {
         },
       ],
     },
+    dir_items: {
+      type: "any-of",
+      contains: [
+        {
+          type: "array",
+          contains: {
+            type: "_ContentsItemBase",
+          },
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
   },
 } as const
 
@@ -692,14 +706,50 @@ export const $Project = {
         },
       ],
     },
+    is_public: {
+      type: "boolean",
+      default: false,
+    },
+    created: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    updated: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
     git_repo_url: {
       type: "string",
       isRequired: true,
       maxLength: 2048,
     },
-    is_public: {
-      type: "boolean",
-      default: false,
+    latest_git_rev: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          maxLength: 40,
+        },
+        {
+          type: "null",
+        },
+      ],
     },
     id: {
       type: "string",
@@ -744,14 +794,50 @@ export const $ProjectCreate = {
         },
       ],
     },
+    is_public: {
+      type: "boolean",
+      default: false,
+    },
+    created: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    updated: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
     git_repo_url: {
       type: "string",
       isRequired: true,
       maxLength: 2048,
     },
-    is_public: {
-      type: "boolean",
-      default: false,
+    latest_git_rev: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          maxLength: 40,
+        },
+        {
+          type: "null",
+        },
+      ],
     },
   },
 } as const
@@ -777,14 +863,50 @@ export const $ProjectPublic = {
         },
       ],
     },
+    is_public: {
+      type: "boolean",
+      default: false,
+    },
+    created: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    updated: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
     git_repo_url: {
       type: "string",
       isRequired: true,
       maxLength: 2048,
     },
-    is_public: {
-      type: "boolean",
-      default: false,
+    latest_git_rev: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          maxLength: 40,
+        },
+        {
+          type: "null",
+        },
+      ],
     },
     id: {
       type: "string",
@@ -1232,6 +1354,83 @@ export const $WorkflowStage = {
       contains: [
         {
           type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+  },
+} as const
+
+export const $_ContentsItemBase = {
+  properties: {
+    name: {
+      type: "string",
+      isRequired: true,
+    },
+    path: {
+      type: "string",
+      isRequired: true,
+    },
+    type: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      isRequired: true,
+    },
+    size: {
+      type: "any-of",
+      contains: [
+        {
+          type: "number",
+        },
+        {
+          type: "null",
+        },
+      ],
+      isRequired: true,
+    },
+    in_repo: {
+      type: "boolean",
+      isRequired: true,
+    },
+    content: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    url: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    calkit_object: {
+      type: "any-of",
+      contains: [
+        {
+          type: "dictionary",
+          contains: {
+            properties: {},
+          },
         },
         {
           type: "null",

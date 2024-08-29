@@ -314,7 +314,7 @@ def get_project_git_contents(
         return resp.text
 
 
-class ContentsItem(BaseModel):
+class _ContentsItemBase(BaseModel):
     name: str
     path: str
     type: str | None
@@ -325,6 +325,10 @@ class ContentsItem(BaseModel):
     calkit_object: dict | None = None
 
 
+class ContentsItem(_ContentsItemBase):
+    dir_items: list[_ContentsItemBase] | None = None
+
+
 @router.get("/projects/{owner_name}/{project_name}/contents/{path:path}")
 @router.get("/projects/{owner_name}/{project_name}/contents")
 def get_project_contents(
@@ -333,7 +337,7 @@ def get_project_contents(
     session: SessionDep,
     current_user: CurrentUser,
     path: str | None = None,
-) -> list[ContentsItem] | ContentsItem:
+) -> ContentsItem:
     project = get_project_by_name(
         owner_name=owner_name,
         project_name=project_name,
@@ -431,7 +435,7 @@ def get_project_contents(
                     )
             else:
                 obj["calkit_object"] = None
-            contents.append(obj)
+            contents.append(ContentsItem.model_validate(obj))
         for ck_path, ck_obj in ck_objects.items():
             if os.path.dirname(ck_path) == dirname and ck_path not in paths:
                 # Read DVC output for this path
@@ -453,7 +457,15 @@ def get_project_contents(
                     )
                 )
                 contents.append(obj)
-        return contents
+        return ContentsItem(
+            name=os.path.basename(dirname),
+            path=dirname,
+            type="dir",
+            size=sum([c.size for c in contents]),
+            dir_items=contents,
+            calkit_object=ck_objects.get(path),
+            in_repo=os.path.isdir(os.path.join(repo.working_dir, dirname)),
+        )
     # We're looking for a file, so let's first check if it exists in the repo,
     # but only if it doesn't exist in the DVC outputs
     if (

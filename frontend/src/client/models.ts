@@ -39,6 +39,7 @@ export type ContentsItem = {
   content?: string | null
   url?: string | null
   calkit_object?: Record<string, unknown> | null
+  dir_items?: Array<_ContentsItemBase> | null
 }
 
 export type Dataset = {
@@ -146,8 +147,11 @@ export type NewPassword = {
 export type Project = {
   name: string
   description?: string | null
-  git_repo_url: string
   is_public?: boolean
+  created?: string | null
+  updated?: string | null
+  git_repo_url: string
+  latest_git_rev?: string | null
   id?: string
   owner_user_id: string
   readonly name_slug: string
@@ -157,15 +161,21 @@ export type Project = {
 export type ProjectCreate = {
   name: string
   description?: string | null
-  git_repo_url: string
   is_public?: boolean
+  created?: string | null
+  updated?: string | null
+  git_repo_url: string
+  latest_git_rev?: string | null
 }
 
 export type ProjectPublic = {
   name: string
   description?: string | null
-  git_repo_url: string
   is_public?: boolean
+  created?: string | null
+  updated?: string | null
+  git_repo_url: string
+  latest_git_rev?: string | null
   id: string
   owner_user_id: string
   owner_github_username: string | null
@@ -256,4 +266,15 @@ export type WorkflowStage = {
   desc?: string | null
   meta?: Record<string, unknown> | null
   wdir?: string | null
+}
+
+export type _ContentsItemBase = {
+  name: string
+  path: string
+  type: string | null
+  size: number | null
+  in_repo: boolean
+  content?: string | null
+  url?: string | null
+  calkit_object?: Record<string, unknown> | null
 }

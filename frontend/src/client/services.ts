@@ -954,12 +954,12 @@ export class ProjectsService {
 
   /**
    * Get Project Contents
-   * @returns unknown Successful Response
+   * @returns ContentsItem Successful Response
    * @throws ApiError
    */
   public static getProjectContents(
     data: ProjectsData["GetProjectContents"],
-  ): CancelablePromise<Array<ContentsItem> | ContentsItem> {
+  ): CancelablePromise<ContentsItem> {
     const { ownerName, projectName, path } = data
     return __request(OpenAPI, {
       method: "GET",
@@ -979,12 +979,12 @@ export class ProjectsService {
 
   /**
    * Get Project Contents
-   * @returns unknown Successful Response
+   * @returns ContentsItem Successful Response
    * @throws ApiError
    */
   public static getProjectContents1(
     data: ProjectsData["GetProjectContents1"],
-  ): CancelablePromise<Array<ContentsItem> | ContentsItem> {
+  ): CancelablePromise<ContentsItem> {
     const { ownerName, projectName, path } = data
     return __request(OpenAPI, {
       method: "GET",
