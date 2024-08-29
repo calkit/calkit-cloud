@@ -34,6 +34,7 @@ import { ProjectsService, type ContentsItem } from "../../../../../client"
 import { BsFiletypeYml } from "react-icons/bs"
 import UploadFile from "../../../../../components/Files/UploadFile"
 import EditFileInfo from "../../../../../components/Files/EditFileInfo"
+import Markdown from "../../../../../components/Common/Markdown"
 
 export const Route = createFileRoute(
   "/_layout/$userName/$projectName/_layout/files",
@@ -175,6 +176,13 @@ function FileContent({ name, content }: FileContentProps) {
         width="100%"
         src={`data:application/pdf;base64,${content}`}
       />
+    )
+  }
+  if (name.endsWith(".md")) {
+    return (
+      <Box py={2} px={4} maxW={"750px"}>
+        <Markdown>{atob(content)}</Markdown>
+      </Box>
     )
   }
   return (

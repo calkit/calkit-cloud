@@ -4,6 +4,8 @@ import {
   OrderedList,
   UnorderedList,
   Text,
+  Code,
+  Link,
 } from "@chakra-ui/react"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
@@ -21,6 +23,12 @@ const H2 = (props: any) => {
 const H3 = (props: any) => {
   return <Heading size="sm" my={2} {...props} />
 }
+const p = (props: any) => {
+  return <Text my={2} mt={3} {...props} />
+}
+const code = (props: any) => {
+  return <Code my={2} whiteSpace={"pre"} display={"block"} p={2} {...props} />
+}
 
 const Markdown = ({ children }: MarkdownProps) => {
   return (
@@ -32,7 +40,9 @@ const Markdown = ({ children }: MarkdownProps) => {
         li: ListItem,
         ol: OrderedList,
         ul: UnorderedList,
-        p: Text,
+        p: p,
+        code: code,
+        a: Link,
       }}
       remarkPlugins={[remarkGfm]}
     >
