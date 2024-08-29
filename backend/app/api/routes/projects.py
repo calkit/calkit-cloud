@@ -461,7 +461,7 @@ def get_project_contents(
             name=os.path.basename(dirname),
             path=dirname,
             type="dir",
-            size=sum([c.size for c in contents]),
+            size=sum([c.size if c.size is not None else 0 for c in contents]),
             dir_items=contents,
             calkit_object=ck_objects.get(path),
             in_repo=os.path.isdir(os.path.join(repo.working_dir, dirname)),
