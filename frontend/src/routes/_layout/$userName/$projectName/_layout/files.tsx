@@ -335,9 +335,7 @@ function Files() {
             <Heading size="md">Info</Heading>
             {selectedFile !== undefined &&
             (selectedFileQuery.isPending || selectedFileQuery.isRefetching) ? (
-              <Flex justify="center" align="center" height="full" width="full">
-                <Spinner size="xl" color="ui.main" />
-              </Flex>
+              ""
             ) : (
               <>
                 {selectedFileQuery?.data && selectedFile !== undefined ? (
