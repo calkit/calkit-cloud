@@ -11,6 +11,7 @@ import {
   Badge,
   Button,
   useDisclosure,
+  IconButton,
 } from "@chakra-ui/react"
 import { useQuery } from "@tanstack/react-query"
 import { FiFolder, FiFile, FiDatabase } from "react-icons/fi"
@@ -310,7 +311,16 @@ function Files() {
                       None
                     </Badge>
                   )}
-                  <Icon as={MdEdit} pt={0.5} ml={0.5} />
+                  <IconButton
+                    aria-label="Change artifact info"
+                    icon={<MdEdit />}
+                    height={"19px"}
+                    size={"22px"}
+                    width={"18px"}
+                    borderRadius={3}
+                    fontSize="15px"
+                    ml={0.5}
+                  />
                 </Text>
               </Box>
             ) : (
