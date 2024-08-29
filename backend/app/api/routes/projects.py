@@ -646,9 +646,9 @@ def patch_project_contents(
     if req.kind is None:
         message = f"Remove {path} from {current_category}"
     elif updated:
-        message = f"Update {req.kind} {path}"
+        message = f"Update {current_category_singular} {path}"
     else:
-        message = f"Add {req.kind} {path}"
+        message = f"Add {path} to {target_category}"
     repo.git.commit(["-m", message])
     logger.info("Pushing Git repo")
     repo.git.push(["origin", repo.branches[0].name])
