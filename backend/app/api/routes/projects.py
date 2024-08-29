@@ -631,7 +631,11 @@ def patch_project_contents(
         return current_object
     logger.info("Adding and committing changes to calkit.yaml")
     repo.git.add("calkit.yaml")
-    repo.git.commit(["-m", f"Add {req.kind} {path}"])
+    if req.kind is None:
+        message = f"Remove {path} from {current_category}"
+    else:
+        message = f"Add {req.kind} {path}"
+    repo.git.commit(["-m", message])
     logger.info("Pushing Git repo")
     repo.git.push(["origin", repo.branches[0].name])
     return current_object
