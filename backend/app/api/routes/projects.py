@@ -645,6 +645,8 @@ def patch_project_contents(
     repo.git.add("calkit.yaml")
     if req.kind is None:
         message = f"Remove {path} from {current_category}"
+    elif updated:
+        message = f"Update {req.kind} {path}"
     else:
         message = f"Add {req.kind} {path}"
     repo.git.commit(["-m", message])

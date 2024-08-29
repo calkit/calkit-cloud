@@ -10,6 +10,8 @@ logger = logging.getLogger(__name__)
 
 ryaml = ruamel.yaml.YAML()
 ryaml.indent(mapping=2, sequence=4, offset=2)
+ryaml.preserve_quotes = True
+ryaml.width = 70
 
 CATEGORIES_SINGULAR_TO_PLURAL = {
     "figure": "figures",
