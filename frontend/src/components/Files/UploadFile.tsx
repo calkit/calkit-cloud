@@ -11,9 +11,6 @@ import {
   ModalFooter,
   ModalHeader,
   ModalOverlay,
-  Textarea,
-  Text,
-  Box,
 } from "@chakra-ui/react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { type SubmitHandler, useForm } from "react-hook-form"
