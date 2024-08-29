@@ -9,6 +9,7 @@ import {
   Image,
   Code,
   Badge,
+  Link,
   Button,
   useDisclosure,
   IconButton,
@@ -27,6 +28,7 @@ import {
   FaRegFolderOpen,
 } from "react-icons/fa"
 import { MdEdit } from "react-icons/md"
+import { ExternalLinkIcon } from "@chakra-ui/icons"
 
 import { ProjectsService, type ContentsItem } from "../../../../../client"
 import { BsFiletypeYml } from "react-icons/bs"
@@ -193,9 +195,15 @@ function FileContent({ name, content }: FileContentProps) {
 
 interface SelectedItemProps {
   selectedFile: ContentsItem
+  ownerName: string
+  projectName: string
 }
 
-function SelectedInfo({ selectedFile }: SelectedItemProps) {
+function SelectedInfo({
+  selectedFile,
+  ownerName,
+  projectName,
+}: SelectedItemProps) {
   const fileInfoModal = useDisclosure()
 
   return (
@@ -254,6 +262,18 @@ function SelectedInfo({ selectedFile }: SelectedItemProps) {
         <Text>
           Workflow stage: <Code>{selectedFile.calkit_object.stage}</Code>
         </Text>
+      ) : (
+        ""
+      )}
+      {selectedFile.type === "file" && selectedFile.in_repo ? (
+        <Link
+          href={`https://github.dev/${ownerName}/${projectName}/blob/main/${selectedFile.path}`}
+          isExternal
+        >
+          <Button mt={4}>
+            Edit on GitHub.dev <Icon ml={1} as={ExternalLinkIcon} />
+          </Button>
+        </Link>
       ) : (
         ""
       )}
@@ -365,7 +385,11 @@ function Files() {
             ) : (
               <>
                 {selectedFileQuery?.data && selectedFile !== undefined ? (
-                  <SelectedInfo selectedFile={selectedFileQuery.data} />
+                  <SelectedInfo
+                    selectedFile={selectedFileQuery.data}
+                    ownerName={userName}
+                    projectName={projectName}
+                  />
                 ) : (
                   ""
                 )}
