@@ -190,6 +190,51 @@ function FileContent({ name, content }: FileContentProps) {
   )
 }
 
+interface SelectedItemProps {
+  selectedFile: ContentsItem
+  selectedItem: ContentsItem
+}
+
+function SelectedInfo({ selectedFile, selectedItem }: SelectedItemProps) {
+  const fileInfoModal = useDisclosure()
+
+  return (
+    <Box>
+      <Text>Name: {selectedItem.name}</Text>
+      {selectedItem.type ? <Text>Type: {selectedItem.type}</Text> : ""}
+      {selectedItem.size ? <Text>Size: {selectedItem.size}</Text> : ""}
+      <Text>
+        Artifact type:
+        {selectedFile.calkit_object ? (
+          <Badge ml={1} bgColor="green.500">
+            {selectedFile.calkit_object.kind}
+          </Badge>
+        ) : (
+          <Badge ml={1} bgColor={"gray"}>
+            None
+          </Badge>
+        )}
+        <IconButton
+          aria-label="Change artifact info"
+          icon={<MdEdit />}
+          height={"19px"}
+          size={"22px"}
+          width={"18px"}
+          borderRadius={3}
+          fontSize="15px"
+          ml={0.5}
+          onClick={fileInfoModal.onOpen}
+        />
+      </Text>
+      <EditFileInfo
+        isOpen={fileInfoModal.isOpen}
+        onClose={fileInfoModal.onClose}
+        path={selectedFile.path}
+      />
+    </Box>
+  )
+}
+
 function Files() {
   const { userName, projectName } = Route.useParams()
   const { isPending: filesPending, data: files } = useQuery({
@@ -214,7 +259,6 @@ function Files() {
     enabled: selectedFile !== undefined,
   })
   const fileUploadModal = useDisclosure()
-  const fileInfoModal = useDisclosure()
 
   if (Array.isArray(files)) {
     files.sort(sortByTypeAndName)
@@ -289,50 +333,22 @@ function Files() {
           </Box>
           <Box mx={5}>
             <Heading size="md">Info</Heading>
-            {selectedFile ? (
-              <Box>
-                <Text>Name: {selectedFile.name}</Text>
-                {selectedFile.type ? (
-                  <Text>Type: {selectedFile.type}</Text>
-                ) : (
-                  ""
-                )}
-                {selectedFile.size ? (
-                  <Text>Size: {selectedFile.size}</Text>
-                ) : (
-                  ""
-                )}
-                <Text>
-                  Artifact type:
-                  {selectedFile.calkit_object ? (
-                    <Badge ml={1} bgColor="green.500">
-                      {selectedFile.calkit_object.kind}
-                    </Badge>
-                  ) : (
-                    <Badge ml={1} bgColor={"gray"}>
-                      None
-                    </Badge>
-                  )}
-                  <IconButton
-                    aria-label="Change artifact info"
-                    icon={<MdEdit />}
-                    height={"19px"}
-                    size={"22px"}
-                    width={"18px"}
-                    borderRadius={3}
-                    fontSize="15px"
-                    ml={0.5}
-                    onClick={fileInfoModal.onOpen}
-                  />
-                </Text>
-                <EditFileInfo
-                  isOpen={fileInfoModal.isOpen}
-                  onClose={fileInfoModal.onClose}
-                  path={selectedFile.path}
-                />
-              </Box>
+            {selectedFile !== undefined &&
+            (selectedFileQuery.isPending || selectedFileQuery.isRefetching) ? (
+              <Flex justify="center" align="center" height="full" width="full">
+                <Spinner size="xl" color="ui.main" />
+              </Flex>
             ) : (
-              ""
+              <>
+                {selectedFileQuery?.data && selectedFile !== undefined ? (
+                  <SelectedInfo
+                    selectedFile={selectedFileQuery.data}
+                    selectedItem={selectedFile}
+                  />
+                ) : (
+                  ""
+                )}
+              </>
             )}
           </Box>
         </Flex>
