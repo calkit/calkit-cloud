@@ -3,6 +3,11 @@
 import os
 import time
 
+from app.models import User
+from sqlmodel import Session
+from app.users import get_github_token
+import requests
+
 import jwt
 
 
@@ -32,3 +37,28 @@ def token_resp_text_to_dict(resp_text: str) -> dict:
         key, value = item.split("=")
         out[key] = value
     return out
+
+
+def make_request_for_user(
+    path: str,
+    session: Session,
+    user: User,
+    kind="get",
+    astype="",
+    **kwargs,
+):
+    """Make a request to the GitHub API on behalf of a user."""
+    token = get_github_token(session=session, user=user)
+    func = getattr(requests, kind)
+    resp = func(
+        f"https://api.github.com" + path,
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Accept": f"application/vnd.github{astype}+json",
+        },
+        **kwargs,
+    )
+    if astype in ["", ".object"]:
+        return resp.json()
+    else:
+        return resp.text
