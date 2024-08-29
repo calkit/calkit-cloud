@@ -30,6 +30,7 @@ import { MdEdit } from "react-icons/md"
 import { ProjectsService, type ContentsItem } from "../../../../../client"
 import { BsFiletypeYml } from "react-icons/bs"
 import UploadFile from "../../../../../components/Files/UploadFile"
+import EditFileInfo from "../../../../../components/Files/EditFileInfo"
 
 export const Route = createFileRoute(
   "/_layout/$userName/$projectName/_layout/files",
@@ -213,6 +214,7 @@ function Files() {
     enabled: selectedFile !== undefined,
   })
   const fileUploadModal = useDisclosure()
+  const fileInfoModal = useDisclosure()
 
   if (Array.isArray(files)) {
     files.sort(sortByTypeAndName)
@@ -320,8 +322,14 @@ function Files() {
                     borderRadius={3}
                     fontSize="15px"
                     ml={0.5}
+                    onClick={fileInfoModal.onOpen}
                   />
                 </Text>
+                <EditFileInfo
+                  isOpen={fileInfoModal.isOpen}
+                  onClose={fileInfoModal.onClose}
+                  path={selectedFile.path}
+                />
               </Box>
             ) : (
               ""
