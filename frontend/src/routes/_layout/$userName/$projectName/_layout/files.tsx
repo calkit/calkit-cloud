@@ -166,7 +166,7 @@ interface FileContentProps {
 
 function FileContent({ name, content }: FileContentProps) {
   if (name.endsWith(".png")) {
-    return <Image src={`data:image/png;base64,${content}`} maxW={"685px"} />
+    return <Image src={`data:image/png;base64,${content}`} width={"100%"} />
   }
   if (name.endsWith(".pdf")) {
     return (
