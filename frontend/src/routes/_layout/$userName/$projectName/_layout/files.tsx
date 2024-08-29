@@ -12,6 +12,7 @@ import {
   Button,
   useDisclosure,
   IconButton,
+  HStack,
 } from "@chakra-ui/react"
 import { useQuery } from "@tanstack/react-query"
 import { FiFolder, FiFile, FiDatabase } from "react-icons/fi"
@@ -203,17 +204,8 @@ function SelectedInfo({ selectedFile, selectedItem }: SelectedItemProps) {
       <Text>Name: {selectedItem.name}</Text>
       {selectedItem.type ? <Text>Type: {selectedItem.type}</Text> : ""}
       {selectedItem.size ? <Text>Size: {selectedItem.size}</Text> : ""}
-      <Text>
-        Artifact type:
-        {selectedFile.calkit_object ? (
-          <Badge ml={1} bgColor="green.500">
-            {selectedFile.calkit_object.kind}
-          </Badge>
-        ) : (
-          <Badge ml={1} bgColor={"gray"}>
-            None
-          </Badge>
-        )}
+      <HStack alignContent={"center"} mt={4} mb={1} gap={1}>
+        <Heading size={"sm"}>Artifact info</Heading>
         <IconButton
           aria-label="Change artifact info"
           icon={<MdEdit />}
@@ -222,15 +214,50 @@ function SelectedInfo({ selectedFile, selectedItem }: SelectedItemProps) {
           width={"18px"}
           borderRadius={3}
           fontSize="15px"
-          ml={0.5}
           onClick={fileInfoModal.onOpen}
         />
+        <EditFileInfo
+          isOpen={fileInfoModal.isOpen}
+          onClose={fileInfoModal.onClose}
+          item={selectedFile}
+        />
+      </HStack>
+      <Text>
+        Type:
+        {selectedFile.calkit_object?.kind ? (
+          <>
+            <Badge ml={1} bgColor="green.500">
+              {selectedFile.calkit_object.kind}
+            </Badge>
+          </>
+        ) : (
+          <Badge ml={1} bgColor={"gray"}>
+            None
+          </Badge>
+        )}
       </Text>
-      <EditFileInfo
-        isOpen={fileInfoModal.isOpen}
-        onClose={fileInfoModal.onClose}
-        item={selectedFile}
-      />
+      {selectedFile.calkit_object?.name ? (
+        <Text>Name: {selectedFile.calkit_object.name}</Text>
+      ) : (
+        ""
+      )}
+      {selectedFile.calkit_object?.title ? (
+        <Text>Title: {selectedFile.calkit_object.title}</Text>
+      ) : (
+        ""
+      )}
+      {selectedFile.calkit_object?.description ? (
+        <Text>Description: {selectedFile.calkit_object.description}</Text>
+      ) : (
+        ""
+      )}
+      {selectedFile.calkit_object?.stage ? (
+        <Text>
+          Workflow stage: <Code>{selectedFile.calkit_object.stage}</Code>
+        </Text>
+      ) : (
+        ""
+      )}
     </Box>
   )
 }
