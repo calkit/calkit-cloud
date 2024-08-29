@@ -68,7 +68,12 @@ def get_repo(
             repo.remote().set_url(git_clone_url)
             logger.info("Git pulling")
             repo.git.pull()
-            os.remove(lock_fpath)
+            try:
+                os.remove(lock_fpath)
+            except FileNotFoundError:
+                logger.warning(
+                    "Can't delete lock file because it doesn't exist"
+                )
             subprocess.call(["touch", updated_fpath])
     # Timeout lock in case an operation failed last time
     n = 1
