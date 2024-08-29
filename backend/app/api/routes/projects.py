@@ -662,15 +662,19 @@ def get_project_questions(
     current_user: CurrentUser,
     session: SessionDep,
 ) -> list[Question]:
-    content = get_project_git_contents(
+    project = get_project_by_name(
         owner_name=owner_name,
         project_name=project_name,
         session=session,
         current_user=current_user,
-        path="calkit.yaml",
-        astype=".raw",
     )
-    questions = ryaml.load(content).get("questions", [])
+    # TODO: Handle collaborators
+    if project.owner != current_user:
+        raise HTTPException(401)
+    ck_info = get_ck_info(
+        project=project, user=current_user, session=session, ttl=300
+    )
+    questions = ck_info.get("questions", [])
     # TODO: Ensure these go in the database and use real IDs
     return [
         Question.model_validate(
@@ -693,14 +697,9 @@ def get_project_figures(
     # TODO: Handle collaborators
     if project.owner != current_user:
         raise HTTPException(401)
-    repo = get_repo(
+    ck_info = get_ck_info(
         project=project, user=current_user, session=session, ttl=300
     )
-    if os.path.isfile(os.path.join(repo.working_dir, "calkit.yaml")):
-        with open(os.path.join(repo.working_dir, "calkit.yaml")) as f:
-            ck_info = ryaml.load(f)
-    else:
-        return []
     figures = ck_info.get("figures", [])
     if not figures:
         return figures
