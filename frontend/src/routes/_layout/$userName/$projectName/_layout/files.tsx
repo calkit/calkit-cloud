@@ -229,7 +229,7 @@ function SelectedInfo({ selectedFile, selectedItem }: SelectedItemProps) {
       <EditFileInfo
         isOpen={fileInfoModal.isOpen}
         onClose={fileInfoModal.onClose}
-        path={selectedFile.path}
+        item={selectedFile}
       />
     </Box>
   )

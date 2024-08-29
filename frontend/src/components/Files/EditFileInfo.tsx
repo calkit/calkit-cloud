@@ -16,7 +16,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { type SubmitHandler, useForm } from "react-hook-form"
 import { getRouteApi } from "@tanstack/react-router"
 
-import { ProjectsService, type ContentPatch } from "../../client"
+import { ProjectsService, type ContentPatch, type ContentsItem } from "../../client"
 import type { ApiError } from "../../client/core/ApiError"
 import useCustomToast from "../../hooks/useCustomToast"
 import { handleError } from "../../utils"
@@ -24,10 +24,10 @@ import { handleError } from "../../utils"
 interface EditFileProps {
   isOpen: boolean
   onClose: () => void
-  path: string
+  item: ContentsItem
 }
 
-const EditFileInfo = ({ isOpen, onClose, path }: EditFileProps) => {
+const EditFileInfo = ({ isOpen, onClose, item }: EditFileProps) => {
   const queryClient = useQueryClient()
   const showToast = useCustomToast()
   const routeApi = getRouteApi("/_layout/$userName/$projectName")
@@ -50,7 +50,7 @@ const EditFileInfo = ({ isOpen, onClose, path }: EditFileProps) => {
       return ProjectsService.patchProjectContents({
         ownerName: userName,
         projectName: projectName,
-        path: path,
+        path: item.path,
         requestBody: data,
       })
     },
