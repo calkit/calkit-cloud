@@ -13,12 +13,14 @@ import {
   MenuButton,
   MenuList,
   MenuItem,
+  useColorModeValue,
+  Link,
 } from "@chakra-ui/react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 import { useState } from "react"
-import { FaPlus } from "react-icons/fa"
-import { ElementType, ComponentType } from "react"
+import { FaPlus, FaRegFileImage, FaRegFilePdf } from "react-icons/fa"
+import { FiFile } from "react-icons/fi"
 
 import UploadFigure from "../../../../../components/Figures/UploadFigure"
 import LabelAsFigure from "../../../../../components/Figures/FigureFromExisting"
@@ -189,7 +191,18 @@ function FigureView({ figure }: FigureProps) {
   )
 }
 
+const getIcon = (figure: Figure) => {
+  if (figure.path.endsWith(".png") || figure.path.endsWith(".jpg")) {
+    return FaRegFileImage
+  }
+  if (figure.path.endsWith(".pdf")) {
+    return FaRegFilePdf
+  }
+  return FiFile
+}
+
 function ProjectFigures() {
+  const secBgColor = useColorModeValue("ui.secondary", "ui.darkSlate")
   const { userName, projectName } = Route.useParams()
   const { isPending: figuresPending, data: figures } = useQuery({
     queryKey: ["projects", userName, projectName, "figures"],
@@ -241,17 +254,31 @@ function ProjectFigures() {
           <Box
             minW={"200px"}
             px={0}
-            py={0}
+            py={2}
             mr={6}
             mt={0}
-            borderRadius={"md"}
-            bgColor={"none"}
+            pl={3}
+            pb={2}
+            borderRadius={"lg"}
+            bg={secBgColor}
             borderWidth={0}
+            position={"sticky"}
+            top="55"
           >
             {figures
               ? figures.map((figure) => (
                   <Box key={figure.path}>
-                    <Text noOfLines={1}> {figure.title}</Text>
+                    <Link href={`#${figure.path}`}>
+                      <Text noOfLines={1}>
+                        <Icon
+                          height={"15px"}
+                          pt={0.5}
+                          mr={0.5}
+                          as={getIcon(figure)}
+                        />
+                        {figure.title}
+                      </Text>
+                    </Link>
                   </Box>
                 ))
               : ""}
@@ -266,7 +293,7 @@ function ProjectFigures() {
             <Flex>
               <Box>
                 {figures?.map((figure) => (
-                  <Box key={figure.title}>
+                  <Box id={figure.path} key={figure.title}>
                     <FigureView figure={figure} />
                   </Box>
                 ))}
