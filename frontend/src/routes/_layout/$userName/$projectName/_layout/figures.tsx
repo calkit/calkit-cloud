@@ -101,7 +101,7 @@ function FigureComments({ figure }: FigureProps) {
           <Box
             p={2}
             my={2}
-            maxH={"400px"}
+            maxH={"340px"}
             overflowY={"auto"}
             flexDirection={"column"}
             display={"flex"}
