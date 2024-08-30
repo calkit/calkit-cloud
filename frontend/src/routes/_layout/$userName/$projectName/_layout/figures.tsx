@@ -15,6 +15,7 @@ import {
   MenuItem,
   useColorModeValue,
   Link,
+  Code,
 } from "@chakra-ui/react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
@@ -173,20 +174,31 @@ function FigureView({ figure }: FigureProps) {
 
   return (
     <>
-      <Heading size="sm" mb={1} pt={1}>
-        {figure.title}
-      </Heading>
-      <Text>{figure.description}</Text>
-      {figure.content ? (
-        <Flex my={3}>
-          {figView}
-          <Box mx={4} width={"50%"} maxH={"550px"}>
-            <FigureComments figure={figure} />
+      <Flex pt={1}>
+        <Box maxW={"640px"}>
+          <Heading size="md" mb={1}>
+            {figure.title}
+          </Heading>
+          <Text>{figure.description}</Text>
+          {figure.content ? <Box my={3}>{figView}</Box> : "No content found"}
+        </Box>
+        <Box mx={4} width={"100%"} maxH={"550px"} pt={1}>
+          <Box mb={2}>
+            <Heading size={"sm"} mb={0.5}>
+              Info
+            </Heading>
+            <Text>Path: {figure.path}</Text>
+            {figure.stage ? (
+              <Text>
+                Stage: <Code>{figure.stage}</Code>
+              </Text>
+            ) : (
+              ""
+            )}
           </Box>
-        </Flex>
-      ) : (
-        "Cannot render content"
-      )}
+          <FigureComments figure={figure} />
+        </Box>
+      </Flex>
     </>
   )
 }
