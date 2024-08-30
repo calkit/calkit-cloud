@@ -9,7 +9,10 @@ import {
   Image,
   Icon,
   useDisclosure,
-  HStack,
+  Menu,
+  MenuButton,
+  MenuList,
+  MenuItem,
 } from "@chakra-ui/react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
@@ -186,7 +189,7 @@ function FigureView({ figure }: FigureProps) {
   )
 }
 
-function ProjectFiguresView() {
+function ProjectFigures() {
   const { userName, projectName } = Route.useParams()
   const { isPending: figuresPending, data: figures } = useQuery({
     queryKey: ["projects", userName, projectName, "figures"],
@@ -196,72 +199,82 @@ function ProjectFiguresView() {
         projectName: projectName,
       }),
   })
+  const uploadFigureModal = useDisclosure()
+  const labelFigureModal = useDisclosure()
 
   return (
     <>
-      {figuresPending ? (
-        <Flex justify="center" align="center" height="100vh" width="full">
-          <Spinner size="xl" color="ui.main" />
-        </Flex>
-      ) : (
+      <Flex>
         <Box>
-          {figures?.map((figure) => (
-            <Box key={figure.title}>
-              <FigureView figure={figure} />
-            </Box>
-          ))}
+          <Flex mb={2}>
+            <Heading size="md">Figures</Heading>
+            <Menu>
+              <MenuButton>
+                <Button
+                  variant="primary"
+                  height={"25px"}
+                  width={"9px"}
+                  px={1}
+                  ml={2}
+                >
+                  <Icon as={FaPlus} fontSize={"sm"} />
+                </Button>
+              </MenuButton>
+              <MenuList>
+                <MenuItem onClick={uploadFigureModal.onOpen}>
+                  Upload new figure
+                </MenuItem>
+                <MenuItem onClick={labelFigureModal.onOpen}>
+                  Label existing file as figure
+                </MenuItem>
+              </MenuList>
+            </Menu>
+            <UploadFigure
+              isOpen={uploadFigureModal.isOpen}
+              onClose={uploadFigureModal.onClose}
+            />
+            <LabelAsFigure
+              isOpen={labelFigureModal.isOpen}
+              onClose={labelFigureModal.onClose}
+            />
+          </Flex>
+          <Box
+            minW={"200px"}
+            px={0}
+            py={0}
+            mr={6}
+            mt={0}
+            borderRadius={"md"}
+            bgColor={"none"}
+            borderWidth={0}
+          >
+            {figures
+              ? figures.map((figure) => (
+                  <Box key={figure.path}>
+                    <Text noOfLines={1}> {figure.title}</Text>
+                  </Box>
+                ))
+              : ""}
+          </Box>
         </Box>
-      )}
-    </>
-  )
-}
-
-interface ModalProps {
-  type: string
-  addModalAs: ComponentType | ElementType
-  verb: string
-}
-
-const ModalButton = ({ type, addModalAs, verb }: ModalProps) => {
-  const addModal = useDisclosure()
-  const AddModal = addModalAs
-  return (
-    <>
-      <Flex gap={4}>
-        <Button
-          variant="primary"
-          height={"30px"}
-          px={3}
-          gap={1}
-          fontSize={{ base: "sm", md: "inherit" }}
-          onClick={addModal.onOpen}
-        >
-          <Icon as={FaPlus} height={"12px"} /> {verb} {type}
-        </Button>
-        <AddModal isOpen={addModal.isOpen} onClose={addModal.onClose} />
+        <>
+          {figuresPending ? (
+            <Flex justify="center" align="center" height="100vh" width="full">
+              <Spinner size="xl" color="ui.main" />
+            </Flex>
+          ) : (
+            <Flex>
+              <Box>
+                {figures?.map((figure) => (
+                  <Box key={figure.title}>
+                    <FigureView figure={figure} />
+                  </Box>
+                ))}
+              </Box>
+            </Flex>
+          )}
+        </>
       </Flex>
-    </>
-  )
-}
-
-function ProjectFigures() {
-  return (
-    <>
-      <HStack mb={2}>
-        <Heading size="md">Figures</Heading>
-        <ModalButton
-          type={"figure"}
-          verb={"Upload"}
-          addModalAs={UploadFigure}
-        />
-        <ModalButton
-          type={"figure"}
-          verb={"Label existing as"}
-          addModalAs={LabelAsFigure}
-        />
-      </HStack>
-      <ProjectFiguresView />
-      <Box mb={10} />
     </>
   )
 }
