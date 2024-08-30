@@ -16,6 +16,7 @@ import {
   useColorModeValue,
   Link,
   Code,
+  Tooltip,
 } from "@chakra-ui/react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
@@ -281,15 +282,20 @@ function ProjectFigures() {
               ? figures.map((figure) => (
                   <Box key={figure.path}>
                     <Link href={`#${figure.path}`}>
-                      <Text noOfLines={1}>
-                        <Icon
-                          height={"15px"}
-                          pt={0.5}
-                          mr={0.5}
-                          as={getIcon(figure)}
-                        />
-                        {figure.title}
-                      </Text>
+                      <Tooltip
+                        label={`${figure.title}: ${figure.description}`}
+                        openDelay={600}
+                      >
+                        <Text noOfLines={1}>
+                          <Icon
+                            height={"15px"}
+                            pt={0.5}
+                            mr={0.5}
+                            as={getIcon(figure)}
+                          />
+                          {figure.title}
+                        </Text>
+                      </Tooltip>
                     </Link>
                   </Box>
                 ))
