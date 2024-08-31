@@ -4,8 +4,6 @@ import {
   Spinner,
   Flex,
   Text,
-  UnorderedList,
-  ListItem,
   Code,
   Badge,
   SimpleGrid,
