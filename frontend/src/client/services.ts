@@ -31,6 +31,7 @@ import type {
   Project,
   ProjectCreate,
   ProjectsPublic,
+  Publication,
   Question,
   Workflow,
 } from "./models"
@@ -210,6 +211,10 @@ export type ProjectsData = {
     requestBody: FigureCommentPost
   }
   GetProjectData: {
+    ownerName: string
+    projectName: string
+  }
+  GetProjectPublications: {
     ownerName: string
     projectName: string
   }
@@ -1202,6 +1207,28 @@ export class ProjectsService {
     return __request(OpenAPI, {
       method: "GET",
       url: "/api/v1/projects/{owner_name}/{project_name}/data",
+      path: {
+        owner_name: ownerName,
+        project_name: projectName,
+      },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Get Project Publications
+   * @returns Publication Successful Response
+   * @throws ApiError
+   */
+  public static getProjectPublications(
+    data: ProjectsData["GetProjectPublications"],
+  ): CancelablePromise<Array<Publication>> {
+    const { ownerName, projectName } = data
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/api/v1/projects/{owner_name}/{project_name}/publications",
       path: {
         owner_name: ownerName,
         project_name: projectName,

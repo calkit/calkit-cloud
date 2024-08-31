@@ -187,10 +187,36 @@ export type ProjectsPublic = {
   count: number
 }
 
+export type Publication = {
+  path: string
+  title: string
+  description?: string | null
+  type?:
+    | "journal-article"
+    | "conference-paper"
+    | "presentation"
+    | "poster"
+    | "report"
+    | "book"
+    | null
+  stage?: string | null
+  content?: string | null
+  stage_info?: Stage | null
+}
+
 export type Question = {
   id?: string
   project_id: string
   question: string
+}
+
+export type Stage = {
+  cmd: string
+  wdir?: string | null
+  deps?: Array<string> | null
+  outs?: Array<string> | null
+  desc?: string | null
+  meta?: Record<string, unknown> | null
 }
 
 export type Token = {

@@ -954,6 +954,82 @@ export const $ProjectsPublic = {
   },
 } as const
 
+export const $Publication = {
+  properties: {
+    path: {
+      type: "string",
+      isRequired: true,
+    },
+    title: {
+      type: "string",
+      isRequired: true,
+    },
+    description: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    type: {
+      type: "any-of",
+      contains: [
+        {
+          type: "Enum",
+          enum: [
+            "journal-article",
+            "conference-paper",
+            "presentation",
+            "poster",
+            "report",
+            "book",
+          ],
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    stage: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    content: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    stage_info: {
+      type: "any-of",
+      contains: [
+        {
+          type: "Stage",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+  },
+} as const
+
 export const $Question = {
   properties: {
     id: {
@@ -968,6 +1044,79 @@ export const $Question = {
     question: {
       type: "string",
       isRequired: true,
+    },
+  },
+} as const
+
+export const $Stage = {
+  properties: {
+    cmd: {
+      type: "string",
+      isRequired: true,
+    },
+    wdir: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    deps: {
+      type: "any-of",
+      contains: [
+        {
+          type: "array",
+          contains: {
+            type: "string",
+          },
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    outs: {
+      type: "any-of",
+      contains: [
+        {
+          type: "array",
+          contains: {
+            type: "string",
+          },
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    desc: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    meta: {
+      type: "any-of",
+      contains: [
+        {
+          type: "dictionary",
+          contains: {
+            properties: {},
+          },
+        },
+        {
+          type: "null",
+        },
+      ],
     },
   },
 } as const
