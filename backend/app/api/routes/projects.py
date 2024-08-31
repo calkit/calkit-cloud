@@ -21,7 +21,7 @@ from app.core import (
     ryaml,
 )
 from app.dvc import make_mermaid_diagram, output_from_pipeline
-from app.git import get_ck_info, get_repo
+from app.git import get_ck_info, get_dvc_pipeline, get_repo
 from app.models import (
     Dataset,
     Figure,
@@ -932,6 +932,84 @@ def get_project_data(
         # TODO: If this is imported, get title, description, etc. from the
         # source dataset
     return [Dataset.model_validate(d) for d in datasets]
+
+
+class Stage(BaseModel):
+    cmd: str
+    wdir: str | None = None
+    deps: list[str] | None = None
+    outs: list[str] | None = None
+    desc: str | None = None
+    meta: dict | None = None
+
+
+class Publication(BaseModel):
+    path: str
+    title: str
+    description: str | None = None
+    type: (
+        Literal[
+            "journal-article",
+            "conference-paper",
+            "presentation",
+            "poster",
+            "report",
+            "book",
+        ]
+        | None
+    ) = None
+    stage: str | None = None
+    content: str | None = None
+    stage_info: Stage | None = None
+
+
+@router.get("/projects/{owner_name}/{project_name}/publications")
+def get_project_publications(
+    owner_name: str,
+    project_name: str,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> list[Publication]:
+    project = get_project_by_name(
+        owner_name=owner_name,
+        project_name=project_name,
+        session=session,
+        current_user=current_user,
+    )
+    # TODO: Collaborator access
+    if project.owner != current_user:
+        raise HTTPException(401)
+    ck_info = get_ck_info(
+        project=project, user=current_user, session=session, ttl=300
+    )
+    pipeline = get_dvc_pipeline(
+        project=project, user=current_user, session=session, ttl=300
+    )
+    publications = ck_info.get("publications", [])
+    resp = []
+    for pub in publications:
+        if "stage" in pub:
+            pub["stage_info"] = pipeline.get("stages", {}).get(pub["stage"])
+        # See if we can fetch the content for this publication
+        # TODO: This is probably pretty inefficient, since this function
+        # reloads the YAML files we just loaded
+        try:
+            item = get_project_contents(
+                owner_name=owner_name,
+                project_name=project_name,
+                session=session,
+                current_user=current_user,
+                path=pub["path"],
+            )
+            pub["content"] = item.content
+        except HTTPException as e:
+            logger.error(
+                f"Failed to get publication object at path {pub['path']}: {e}"
+            )
+            # Must be a 404
+            pass
+        resp.append(Publication.model_validate(pub))
+    return resp
 
 
 @router.post("/projects/{owner_name}/{project_name}/syncs")
