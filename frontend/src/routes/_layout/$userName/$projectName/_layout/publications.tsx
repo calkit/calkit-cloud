@@ -35,7 +35,9 @@ function PubView({ publication }: PubViewProps) {
   return (
     <Flex>
       <Box width={"66%"}>
-        <Heading size={"md"} id={publication.path}>{publication.title}</Heading>
+        <Heading size={"md"} id={publication.path}>
+          {publication.title}
+        </Heading>
 
         <Text>{publication.description}</Text>
 
@@ -104,17 +106,15 @@ function Publications() {
             </Flex>
             {/* Iterate over all publications to create an anchor link for
              each */}
-            {pubsQuery.data? (
-              pubsQuery.data.map((pub) => (
-                <Link key={pub.path} href={`#${pub.path}`}>
-                <Text noOfLines={1}>
-                  <Icon pt={1} as={FiFile} /> {pub.title}
-                </Text>
-              </Link>
-              ))
-            )
-          : ""
-          }
+            {pubsQuery.data
+              ? pubsQuery.data.map((pub) => (
+                  <Link key={pub.path} href={`#${pub.path}`}>
+                    <Text noOfLines={1}>
+                      <Icon pt={1} as={FiFile} /> {pub.title}
+                    </Text>
+                  </Link>
+                ))
+              : ""}
           </Box>
           {/* A box to the right that iterates over all figures, adding a view
            for the content, info, and comments */}
