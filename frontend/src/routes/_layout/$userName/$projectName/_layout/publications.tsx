@@ -38,6 +38,8 @@ function Publications() {
         px={3}
         py={2}
         mr={4}
+        position={"sticky"}
+        top="55"
       >
         <Flex align={"center"} mb={1}>
           <Heading size={"md"}>Publications</Heading>
@@ -59,7 +61,7 @@ function Publications() {
         </Flex>
         {/* Iterate over all publications to create an anchor link for each */}
         <Link>
-          <Text>
+          <Text noOfLines={1}>
             <Icon pt={1} as={FiFile} /> This is the name
           </Text>
         </Link>
