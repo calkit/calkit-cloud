@@ -58,13 +58,7 @@ const EditFileInfo = ({ isOpen, onClose, item }: EditFileProps) => {
     mode: "onBlur",
     criteriaMode: "all",
     defaultValues: {
-      kind: [
-        "publication",
-        "figure",
-        "dataset",
-        "environment",
-        "references",
-      ].includes(String(item.calkit_object?.kind))
+      kind: item.calkit_object?.kind
         ? (item.calkit_object?.kind as CalkitKind)
         : null,
     },
