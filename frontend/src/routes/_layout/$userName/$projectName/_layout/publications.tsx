@@ -19,13 +19,36 @@ import { useQuery } from "@tanstack/react-query"
 import { FiFile } from "react-icons/fi"
 import { FaPlus } from "react-icons/fa"
 
-import { ProjectsService } from "../../../../../client"
+import { ProjectsService, type Publication } from "../../../../../client"
 
 export const Route = createFileRoute(
   "/_layout/$userName/$projectName/_layout/publications",
 )({
   component: Publications,
 })
+
+interface PubViewProps {
+  publication: Publication
+}
+
+function PubView({ publication }: PubViewProps) {
+  return (
+    <Flex>
+      <Box width={"66%"}>
+        <Heading size={"md"}>{publication.title}</Heading>
+
+        <Text>{publication.description}</Text>
+
+        <Box>This is the actual content</Box>
+      </Box>
+
+      <Box width={"33%"}>
+        <Box>This is the info view</Box>
+        <Box>This is the publication comments view</Box>
+      </Box>
+    </Flex>
+  )
+}
 
 function Publications() {
   const secBgColor = useColorModeValue("ui.secondary", "ui.darkSlate")
@@ -90,14 +113,15 @@ function Publications() {
           {/* A box to the right that iterates over all figures, adding a view
            for the content, info, and comments */}
           <Box width={"100%"}>
-            <Flex>
-              <Box width={"66%"}>This is the publication content view</Box>
-
-              <Box width={"33%"}>
-                <Box>This is the info view</Box>
-                <Box>This is the publication comments view</Box>
-              </Box>
-            </Flex>
+            {pubsQuery.data ? (
+              <>
+                {pubsQuery.data.map((pub) => (
+                  <PubView key={pub.path} publication={pub} />
+                ))}
+              </>
+            ) : (
+              ""
+            )}
           </Box>
         </Flex>
       )}
