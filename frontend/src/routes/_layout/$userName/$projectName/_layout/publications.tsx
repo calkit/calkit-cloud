@@ -15,6 +15,9 @@ import {
   Spinner,
   Badge,
   Code,
+  Image,
+  Alert,
+  AlertIcon,
 } from "@chakra-ui/react"
 import { createFileRoute } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
@@ -36,17 +39,43 @@ interface PubViewProps {
 function PubView({ publication }: PubViewProps) {
   const secBgColor = useColorModeValue("ui.secondary", "ui.darkSlate")
 
+  let contentView = <>Not set</>
+  if (publication.path.endsWith(".pdf") && publication.content) {
+    contentView = (
+      <embed
+        height="100%"
+        width="100%"
+        src={`data:application/pdf;base64,${publication.content}`}
+      />
+    )
+  } else if (publication.path.endsWith(".png") && publication.content) {
+    contentView = (
+      <Image
+        alt={publication.title}
+        src={`data:image/png;base64,${publication.content}`}
+      />
+    )
+  } else {
+    contentView = (
+      <Alert mt={2} status="warning" borderRadius="xl">
+        <AlertIcon />
+        Cannot render content, either because it is empty or an unrecognized
+        file type.
+      </Alert>
+    )
+  }
+
   return (
     <Flex mb={2}>
       {/* A heading and content view */}
-      <Box width={"66%"}>
+      <Box width={"66%"} mr={4}>
         <Heading size={"md"} id={publication.path}>
           {publication.title}
         </Heading>
-
         <Text>{publication.description}</Text>
-
-        <Box>This is the actual content</Box>
+        <Box my={2} height={"80vh"} borderRadius={"lg"}>
+          {contentView}
+        </Box>
       </Box>
       {/* Information about the publication */}
       <Box width={"33%"}>
