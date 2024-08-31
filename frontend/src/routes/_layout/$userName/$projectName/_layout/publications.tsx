@@ -13,6 +13,8 @@ import {
   MenuItem,
   useDisclosure,
   Spinner,
+  Badge,
+  Code,
 } from "@chakra-ui/react"
 import { createFileRoute } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
@@ -36,6 +38,7 @@ function PubView({ publication }: PubViewProps) {
 
   return (
     <Flex mb={2}>
+      {/* A heading and content view */}
       <Box width={"66%"}>
         <Heading size={"md"} id={publication.path}>
           {publication.title}
@@ -45,12 +48,27 @@ function PubView({ publication }: PubViewProps) {
 
         <Box>This is the actual content</Box>
       </Box>
-
+      {/* Information about the publication */}
       <Box width={"33%"}>
         <Box bg={secBgColor} borderRadius={"lg"} p={2} mb={2}>
           <Heading size="sm">Info</Heading>
-          This is the info view
+          {publication.path ? <Text>Path: {publication.path}</Text> : ""}
+          {publication.type ? (
+            <Text>
+              Type:<Badge>{publication.type}</Badge>
+            </Text>
+          ) : (
+            ""
+          )}
+          {publication.stage ? (
+            <Text>
+              Workflow stage: <Code>{publication.stage}</Code>
+            </Text>
+          ) : (
+            ""
+          )}
         </Box>
+        {/* Comments */}
         <Box bg={secBgColor} borderRadius={"lg"} p={2}>
           <Heading size="sm">Comments</Heading>
           This is the publication comments view
