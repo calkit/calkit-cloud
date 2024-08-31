@@ -100,7 +100,7 @@ function PubView({ publication }: PubViewProps) {
         {/* Comments */}
         <Box bg={secBgColor} borderRadius={"lg"} p={2}>
           <Heading size="sm">Comments</Heading>
-          This is the publication comments view
+          Coming soon!
         </Box>
       </Box>
     </Flex>
