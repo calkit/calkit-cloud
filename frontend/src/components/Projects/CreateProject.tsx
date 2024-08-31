@@ -76,7 +76,7 @@ const AddProject = ({ isOpen, onClose }: AddProjectProps) => {
     mutation.mutate(data)
   }
 
-  const onNameChange = (e) => {
+  const onNameChange = (e: any) => {
     const projectName = String(e.target.value)
       .toLowerCase()
       .replace(/\s+/g, "-")

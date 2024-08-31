@@ -122,7 +122,7 @@ function Item({ item, level, setSelectedFile }: ItemProps) {
       }),
     enabled: isExpanded,
   })
-  const handleClick = (e) => {
+  const handleClick = () => {
     setIsExpanded(!isExpanded)
     setSelectedFile(item)
   }
@@ -242,7 +242,7 @@ function SelectedInfo({
         {selectedFile.calkit_object?.kind ? (
           <>
             <Badge ml={1} bgColor="green.500">
-              {selectedFile.calkit_object.kind}
+              {String(selectedFile.calkit_object.kind)}
             </Badge>
           </>
         ) : (
@@ -252,23 +252,26 @@ function SelectedInfo({
         )}
       </Text>
       {selectedFile.calkit_object?.name ? (
-        <Text>Name: {selectedFile.calkit_object.name}</Text>
+        <Text>Name: {String(selectedFile.calkit_object.name)}</Text>
       ) : (
         ""
       )}
       {selectedFile.calkit_object?.title ? (
-        <Text>Title: {selectedFile.calkit_object.title}</Text>
+        <Text>Title: {String(selectedFile.calkit_object.title)}</Text>
       ) : (
         ""
       )}
       {selectedFile.calkit_object?.description ? (
-        <Text>Description: {selectedFile.calkit_object.description}</Text>
+        <Text>
+          Description: {String(selectedFile.calkit_object.description)}
+        </Text>
       ) : (
         ""
       )}
       {selectedFile.calkit_object?.stage ? (
         <Text>
-          Workflow stage: <Code>{selectedFile.calkit_object.stage}</Code>
+          Workflow stage:{" "}
+          <Code>{String(selectedFile.calkit_object.stage)}</Code>
         </Text>
       ) : (
         ""

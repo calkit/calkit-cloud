@@ -55,7 +55,7 @@ function FigureComments({ figure }: FigureProps) {
       }),
   })
   const [commentInput, setCommentInput] = useState("")
-  const handleInputChange = (val) => {
+  const handleInputChange = (val: any) => {
     setCommentInput(val.target.value)
   }
   const mutation = useMutation({

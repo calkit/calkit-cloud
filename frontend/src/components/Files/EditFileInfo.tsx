@@ -39,6 +39,13 @@ const EditFileInfo = ({ isOpen, onClose, item }: EditFileProps) => {
   const showToast = useCustomToast()
   const routeApi = getRouteApi("/_layout/$userName/$projectName")
   const { userName, projectName } = routeApi.useParams()
+  type CalkitKind =
+    | "figure"
+    | "publication"
+    | "dataset"
+    | "environment"
+    | "references"
+    | null
   const {
     register,
     unregister,
@@ -51,7 +58,15 @@ const EditFileInfo = ({ isOpen, onClose, item }: EditFileProps) => {
     mode: "onBlur",
     criteriaMode: "all",
     defaultValues: {
-      kind: item.calkit_object?.kind ? item.calkit_object?.kind : null,
+      kind: [
+        "publication",
+        "figure",
+        "dataset",
+        "environment",
+        "references",
+      ].includes(String(item.calkit_object?.kind))
+        ? (item.calkit_object?.kind as CalkitKind)
+        : null,
     },
   })
   const mutation = useMutation({
@@ -105,7 +120,9 @@ const EditFileInfo = ({ isOpen, onClose, item }: EditFileProps) => {
       unregister("attrs.description")
     }
     if (item.calkit_object && item.calkit_object.kind === watchKind) {
-      let attrs = { description: item.calkit_object.description }
+      const attrs: Record<string, unknown> = {
+        description: item.calkit_object.description,
+      }
       if (kindsWithTitle.includes(String(watchKind))) {
         attrs.title = item.calkit_object.title
       }
