@@ -231,6 +231,11 @@ export type ProjectsData = {
     ownerName: string
     projectName: string
   }
+  PutProjectCollaborator: {
+    githubUsername: string
+    ownerName: string
+    projectName: string
+  }
   DeleteProjectCollaborator: {
     githubUsername: string
     ownerName: string
@@ -1316,6 +1321,29 @@ export class ProjectsService {
       path: {
         owner_name: ownerName,
         project_name: projectName,
+      },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Put Project Collaborator
+   * @returns Message Successful Response
+   * @throws ApiError
+   */
+  public static putProjectCollaborator(
+    data: ProjectsData["PutProjectCollaborator"],
+  ): CancelablePromise<Message> {
+    const { ownerName, projectName, githubUsername } = data
+    return __request(OpenAPI, {
+      method: "PUT",
+      url: "/api/v1/projects/{owner_name}/{project_name}/collaborators/{github_username}",
+      path: {
+        owner_name: ownerName,
+        project_name: projectName,
+        github_username: githubUsername,
       },
       errors: {
         422: `Validation Error`,

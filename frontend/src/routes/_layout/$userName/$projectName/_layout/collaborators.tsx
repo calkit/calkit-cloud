@@ -23,6 +23,7 @@ import { createFileRoute } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
 
 import Navbar from "../../../../../components/Common/Navbar"
+import AddCollaborator from "../../../../../components/Projects/AddCollaborator"
 import { ProjectsService } from "../../../../../client"
 import useAuth from "../../../../../hooks/useAuth"
 import Delete from "../../../../../components/Common/DeleteAlert"
@@ -94,7 +95,7 @@ function Collaborators() {
   return (
     <Box>
       <Heading size={"md"}>Collaborators</Heading>
-      <Navbar type="collaborator" addModalAs={Box} />
+      <Navbar type="collaborator" addModalAs={AddCollaborator} />
       <TableContainer>
         <Table size={{ base: "sm", md: "md" }}>
           <Thead>
@@ -102,7 +103,7 @@ function Collaborators() {
               <Th width="20%">Username</Th>
               <Th width="20%">Full name</Th>
               <Th width="50%">Email</Th>
-              <Th width="10%">Role</Th>
+              <Th width="10%">Access</Th>
               <Th width="10%">Actions</Th>
             </Tr>
           </Thead>
