@@ -32,6 +32,7 @@ from app.models import (
     ProjectCreate,
     ProjectsPublic,
     Question,
+    User,
     Workflow,
 )
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
@@ -1066,3 +1067,56 @@ def get_project_workflow(
     return Workflow(
         stages=dvc_pipeline["stages"], mermaid=mermaid, yaml=content
     )
+
+
+class Collaborator(BaseModel):
+    user_id: uuid.UUID | None = None
+    github_username: str
+    full_name: str | None = None
+    email: str | None = None
+    access_level: str
+
+
+@router.get("/projects/{owner_name}/{project_name}/collaborators")
+def get_project_collaborators(
+    owner_name: str,
+    project_name: str,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> list[Collaborator]:
+    project = get_project_by_name(
+        owner_name=owner_name,
+        project_name=project_name,
+        session=session,
+        current_user=current_user,
+    )
+    # TODO: Collaborator access
+    if project.owner != current_user:
+        raise HTTPException(401)
+    token = users.get_github_token(session=session, user=current_user)
+    url = (
+        f"https://api.github.com/repos/{owner_name}/{project_name}/"
+        "collaborators"
+    )
+    resp = requests.get(url, headers={"Authorization": f"Bearer {token}"})
+    if not resp.status_code == 200:
+        raise HTTPException(resp.status_code, resp.json()["message"])
+    resp_json = resp.json()
+    collabs = []
+    for gh_user in resp_json:
+        # TODO: Organization handling
+        if gh_user["type"] != "User":
+            continue
+        user = session.exec(
+            select(User).where(User.github_username == gh_user["login"])
+        ).first()
+        obj = dict(
+            github_username=gh_user["login"],
+            access_level=gh_user["role_name"],
+        )
+        if user is not None:
+            obj["email"] = user.email
+            obj["full_name"] = user.full_name
+            obj["user_id"] = user.id
+        collabs.append(Collaborator.model_validate(obj))
+    return collabs
