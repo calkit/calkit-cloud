@@ -19,6 +19,14 @@ export type Body_projects_put_project_contents = {
   file: Blob | File
 }
 
+export type Collaborator = {
+  user_id?: string | null
+  github_username: string
+  full_name?: string | null
+  email?: string | null
+  access_level: string
+}
+
 export type ContentPatch = {
   kind:
     | "figure"

@@ -20,6 +20,7 @@ import type {
   ItemUpdate,
   Body_projects_post_project_figure,
   Body_projects_put_project_contents,
+  Collaborator,
   ContentPatch,
   ContentsItem,
   Dataset,
@@ -223,6 +224,15 @@ export type ProjectsData = {
     projectName: string
   }
   GetProjectWorkflow: {
+    ownerName: string
+    projectName: string
+  }
+  GetProjectCollaborators: {
+    ownerName: string
+    projectName: string
+  }
+  DeleteProjectCollaborator: {
+    githubUsername: string
     ownerName: string
     projectName: string
   }
@@ -1284,6 +1294,51 @@ export class ProjectsService {
       path: {
         owner_name: ownerName,
         project_name: projectName,
+      },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Get Project Collaborators
+   * @returns Collaborator Successful Response
+   * @throws ApiError
+   */
+  public static getProjectCollaborators(
+    data: ProjectsData["GetProjectCollaborators"],
+  ): CancelablePromise<Array<Collaborator>> {
+    const { ownerName, projectName } = data
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/api/v1/projects/{owner_name}/{project_name}/collaborators",
+      path: {
+        owner_name: ownerName,
+        project_name: projectName,
+      },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Delete Project Collaborator
+   * @returns Message Successful Response
+   * @throws ApiError
+   */
+  public static deleteProjectCollaborator(
+    data: ProjectsData["DeleteProjectCollaborator"],
+  ): CancelablePromise<Message> {
+    const { ownerName, projectName, githubUsername } = data
+    return __request(OpenAPI, {
+      method: "DELETE",
+      url: "/api/v1/projects/{owner_name}/{project_name}/collaborators/{github_username}",
+      path: {
+        owner_name: ownerName,
+        project_name: projectName,
+        github_username: githubUsername,
       },
       errors: {
         422: `Validation Error`,

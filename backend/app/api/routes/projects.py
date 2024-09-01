@@ -1146,6 +1146,9 @@ def delete_project_collaborator(
         f"collaborators/{github_username}"
     )
     resp = requests.delete(url, headers={"Authorization": f"Bearer {token}"})
-    if not resp.status_code >= 400:
-        raise HTTPException(resp.status_code, resp.json()["message"])
+    if resp.status_code >= 400:
+        logger.error(
+            f"Failed to delete collaborator ({resp.status_code}): {resp.text}"
+        )
+        raise HTTPException(resp.status_code)
     return Message(message="Success")

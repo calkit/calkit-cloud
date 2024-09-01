@@ -11,7 +11,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query"
 import React from "react"
 import { useForm } from "react-hook-form"
 
-import { ItemsService, UsersService } from "../../client"
+import { ItemsService, UsersService, ProjectsService } from "../../client"
 import useCustomToast from "../../hooks/useCustomToast"
 
 interface DeleteProps {
@@ -19,9 +19,18 @@ interface DeleteProps {
   id: string
   isOpen: boolean
   onClose: () => void
+  projectOwner?: string
+  projectName?: string
 }
 
-const Delete = ({ type, id, isOpen, onClose }: DeleteProps) => {
+const Delete = ({
+  type,
+  id,
+  isOpen,
+  onClose,
+  projectOwner,
+  projectName,
+}: DeleteProps) => {
   const queryClient = useQueryClient()
   const showToast = useCustomToast()
   const cancelRef = React.useRef<HTMLButtonElement | null>(null)
@@ -35,6 +44,12 @@ const Delete = ({ type, id, isOpen, onClose }: DeleteProps) => {
       await ItemsService.deleteItem({ id: id })
     } else if (type === "User") {
       await UsersService.deleteUser({ userId: id })
+    } else if (type === "Collaborator" && projectOwner && projectName) {
+      await ProjectsService.deleteProjectCollaborator({
+        githubUsername: id,
+        ownerName: projectOwner,
+        projectName: projectName,
+      })
     } else {
       throw new Error(`Unexpected type: ${type}`)
     }
@@ -79,18 +94,16 @@ const Delete = ({ type, id, isOpen, onClose }: DeleteProps) => {
       >
         <AlertDialogOverlay>
           <AlertDialogContent as="form" onSubmit={handleSubmit(onSubmit)}>
-            <AlertDialogHeader>Delete {type}</AlertDialogHeader>
-
+            <AlertDialogHeader>Delete {type.toLowerCase()}</AlertDialogHeader>
             <AlertDialogBody>
               {type === "User" && (
                 <span>
                   All items associated with this user will also be{" "}
-                  <strong>permantly deleted. </strong>
+                  <strong>permanently deleted. </strong>
                 </span>
               )}
               Are you sure? You will not be able to undo this action.
             </AlertDialogBody>
-
             <AlertDialogFooter gap={3}>
               <Button variant="danger" type="submit" isLoading={isSubmitting}>
                 Delete

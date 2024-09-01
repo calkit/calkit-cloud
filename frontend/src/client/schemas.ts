@@ -99,6 +99,53 @@ export const $Body_projects_put_project_contents = {
   },
 } as const
 
+export const $Collaborator = {
+  properties: {
+    user_id: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          format: "uuid",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    github_username: {
+      type: "string",
+      isRequired: true,
+    },
+    full_name: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    email: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    access_level: {
+      type: "string",
+      isRequired: true,
+    },
+  },
+} as const
+
 export const $ContentPatch = {
   properties: {
     kind: {
