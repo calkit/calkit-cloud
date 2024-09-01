@@ -47,7 +47,13 @@ function ProjectDataView() {
         <Heading size="md">Datasets</Heading>
         <Menu>
           <MenuButton>
-            <Button height={"25px"} width={"9px"} px={0.5} ml={2}>
+            <Button
+              height={"25px"}
+              width={"9px"}
+              px={0.5}
+              ml={2}
+              variant="primary"
+            >
               <Icon as={FaPlus} fontSize={"xs"} />
             </Button>
           </MenuButton>
