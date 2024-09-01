@@ -8,9 +8,17 @@ import {
   Badge,
   SimpleGrid,
   Card,
+  Menu,
+  MenuButton,
+  Icon,
+  MenuList,
+  MenuItem,
+  Button,
+  useDisclosure,
 } from "@chakra-ui/react"
 import { useQuery } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
+import { FaPlus } from "react-icons/fa"
 
 import { ProjectsService } from "../../../../../client"
 
@@ -30,12 +38,29 @@ function ProjectDataView() {
         projectName: projectName,
       }),
   })
+  const uploadDataModal = useDisclosure()
+  const labelDataModal = useDisclosure()
 
   return (
     <>
-      <Heading size="md" mb={2}>
-        Datasets
-      </Heading>
+      <Flex align={"center"} mb={2}>
+        <Heading size="md">Datasets</Heading>
+        <Menu>
+          <MenuButton>
+            <Button height={"25px"} width={"9px"} px={0.5} ml={2}>
+              <Icon as={FaPlus} fontSize={"xs"} />
+            </Button>
+          </MenuButton>
+          <MenuList>
+            <MenuItem onClick={uploadDataModal.onOpen}>
+              Upload new dataset
+            </MenuItem>
+            <MenuItem onClick={labelDataModal.onOpen}>
+              Label existing file or folder as dataset
+            </MenuItem>
+          </MenuList>
+        </Menu>
+      </Flex>
       {dataPending ? (
         <Flex justify="center" align="center" height="100vh" width="full">
           <Spinner size="xl" color="ui.main" />

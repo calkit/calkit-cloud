@@ -552,6 +552,7 @@ def put_project_contents(
     os.makedirs(os.path.join(repo.working_dir, dirname), exist_ok=True)
     with open(os.path.join(repo.working_dir, path), "wb") as f:
         f.write(file.file.read())
+    # TODO: If this file is large or of certain type, we should put in DVC?
     repo.git.add(path)
     if repo.git.diff(["--staged", path]):
         repo.git.commit(["-m", f"Upload {path} from web"])
