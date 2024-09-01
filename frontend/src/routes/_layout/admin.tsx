@@ -163,7 +163,7 @@ function Admin() {
       <Heading size="lg" textAlign={{ base: "center", md: "left" }} pt={12}>
         User management
       </Heading>
-      <Navbar type={"User"} addModalAs={AddUser} />
+      <Navbar type={"user"} addModalAs={AddUser} />
       <UsersTable />
     </Container>
   )
