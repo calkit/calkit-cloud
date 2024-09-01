@@ -1120,3 +1120,32 @@ def get_project_collaborators(
             obj["user_id"] = user.id
         collabs.append(Collaborator.model_validate(obj))
     return collabs
+
+
+@router.delete(
+    "/projects/{owner_name}/{project_name}/collaborators/{github_username}"
+)
+def delete_project_collaborator(
+    owner_name: str,
+    project_name: str,
+    github_username: str,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> Message:
+    project = get_project_by_name(
+        owner_name=owner_name,
+        project_name=project_name,
+        session=session,
+        current_user=current_user,
+    )
+    if project.owner != current_user:
+        raise HTTPException(401)
+    token = users.get_github_token(session=session, user=current_user)
+    url = (
+        f"https://api.github.com/repos/{owner_name}/{project_name}/"
+        f"collaborators/{github_username}"
+    )
+    resp = requests.delete(url, headers={"Authorization": f"Bearer {token}"})
+    if not resp.status_code >= 400:
+        raise HTTPException(resp.status_code, resp.json()["message"])
+    return Message(message="Success")
