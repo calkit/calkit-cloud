@@ -9,7 +9,6 @@ import {
   Th,
   Thead,
   Badge,
-  Flex,
   Menu,
   MenuItem,
   MenuButton,
@@ -19,7 +18,7 @@ import {
   MenuList,
 } from "@chakra-ui/react"
 import { BsThreeDotsVertical } from "react-icons/bs"
-import { FiEdit, FiTrash } from "react-icons/fi"
+import { FiTrash } from "react-icons/fi"
 import { createFileRoute } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
 
