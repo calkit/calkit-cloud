@@ -145,10 +145,14 @@ function Publications() {
               <Flex align={"center"} mb={1}>
                 <Heading size={"md"}>Publications</Heading>
                 <Menu>
-                  <MenuButton>
-                    <Button height={"25px"} width={"9px"} px={0.5} ml={2}>
-                      <Icon as={FaPlus} fontSize={"xs"} />
-                    </Button>
+                  <MenuButton
+                    as={Button}
+                    height={"25px"}
+                    width={"9px"}
+                    px={0.5}
+                    ml={2}
+                  >
+                    <Icon as={FaPlus} fontSize={"xs"} />
                   </MenuButton>
                   <MenuList>
                     <MenuItem onClick={uploadPubModal.onOpen}>
