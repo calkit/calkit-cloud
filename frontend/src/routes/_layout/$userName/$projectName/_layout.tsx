@@ -23,7 +23,7 @@ import {
 } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
 import { ExternalLinkIcon } from "@chakra-ui/icons"
-import { FaGithub, FaQuestion, FaPlus } from "react-icons/fa"
+import { FaGithub, FaQuestion } from "react-icons/fa"
 
 import Sidebar from "../../../../components/Common/Sidebar"
 import NotFound from "../../../../components/Common/NotFound"
