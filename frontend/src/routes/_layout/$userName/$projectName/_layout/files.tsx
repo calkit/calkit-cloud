@@ -103,18 +103,33 @@ function sortByTypeAndName(a: ContentsItem, b: ContentsItem) {
   return 0
 }
 
+// Determine if a given path should be expanded based on whether or not it is
+// a parent directory of the selected path
+function pathShouldBeExpanded(path: string, selectedPath: string) {
+  if (path === selectedPath) {
+    return true
+  }
+  // From https://stackoverflow.com/a/42355848/2284865
+  const parentTokens = path.split("/").filter((i) => i.length)
+  const childTokens = selectedPath.split("/").filter((i) => i.length)
+  return parentTokens.every((t, i) => childTokens[i] === t)
+}
+
 interface ItemProps {
   item: ContentsItem
   level?: number
+  selectedPath: string
   setSelectedPath: (path: string) => void
 }
 
 // A component to render an individual item in the list of contents
 // If a directory, expand to show files when clicked
 // If a file, get content and display to the right in a viewer
-function Item({ item, level, setSelectedPath }: ItemProps) {
+function Item({ item, level, selectedPath, setSelectedPath }: ItemProps) {
   const indent = level ? level : 0
-  const [isExpanded, setIsExpanded] = useState(false)
+  const [isExpanded, setIsExpanded] = useState(
+    pathShouldBeExpanded(item.path, selectedPath),
+  )
   const { userName, projectName } = Route.useParams()
   const { data } = useQuery({
     queryKey: ["projects", userName, projectName, "files", item.path],
@@ -153,6 +168,7 @@ function Item({ item, level, setSelectedPath }: ItemProps) {
               key={subItem.name}
               item={subItem}
               level={indent + 1}
+              selectedPath={selectedPath}
               setSelectedPath={setSelectedPath}
             />
           ))}
@@ -367,6 +383,7 @@ function Files() {
                   <Item
                     key={file.name}
                     item={file}
+                    selectedPath={selectedPath}
                     setSelectedPath={setSelectedPath}
                   />
                 ))
