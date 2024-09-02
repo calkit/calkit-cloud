@@ -237,7 +237,7 @@ function SelectedItemInfo({
   const fileInfoModal = useDisclosure()
 
   return (
-    <Box>
+    <Box minW="300px">
       <Text>Name: {selectedItem.name}</Text>
       {selectedItem.type ? <Text>Type: {selectedItem.type}</Text> : ""}
       {selectedItem.size ? <Text>Size: {selectedItem.size}</Text> : ""}
