@@ -29,6 +29,7 @@ import {
 } from "react-icons/fa"
 import { MdEdit } from "react-icons/md"
 import { ExternalLinkIcon } from "@chakra-ui/icons"
+import { z } from "zod"
 
 import { ProjectsService, type ContentsItem } from "../../../../../client"
 import { BsFiletypeYml } from "react-icons/bs"
@@ -36,10 +37,13 @@ import UploadFile from "../../../../../components/Files/UploadFile"
 import EditFileInfo from "../../../../../components/Files/EditFileInfo"
 import Markdown from "../../../../../components/Common/Markdown"
 
+const fileSearchSchema = z.object({ path: z.string().catch("") })
+
 export const Route = createFileRoute(
   "/_layout/$userName/$projectName/_layout/files",
 )({
   component: Files,
+  validateSearch: (search) => fileSearchSchema.parse(search),
 })
 
 const getIcon = (item: ContentsItem, isExpanded = false) => {
@@ -102,13 +106,13 @@ function sortByTypeAndName(a: ContentsItem, b: ContentsItem) {
 interface ItemProps {
   item: ContentsItem
   level?: number
-  setSelectedFile: (file: ContentsItem) => void
+  setSelectedPath: (path: string) => void
 }
 
 // A component to render an individual item in the list of contents
 // If a directory, expand to show files when clicked
 // If a file, get content and display to the right in a viewer
-function Item({ item, level, setSelectedFile }: ItemProps) {
+function Item({ item, level, setSelectedPath }: ItemProps) {
   const indent = level ? level : 0
   const [isExpanded, setIsExpanded] = useState(false)
   const { userName, projectName } = Route.useParams()
@@ -124,7 +128,7 @@ function Item({ item, level, setSelectedFile }: ItemProps) {
   })
   const handleClick = () => {
     setIsExpanded(!isExpanded)
-    setSelectedFile(item)
+    setSelectedPath(item.path)
   }
 
   if (Array.isArray(data)) {
@@ -149,7 +153,7 @@ function Item({ item, level, setSelectedFile }: ItemProps) {
               key={subItem.name}
               item={subItem}
               level={indent + 1}
-              setSelectedFile={setSelectedFile}
+              setSelectedPath={setSelectedPath}
             />
           ))}
         </Box>
@@ -202,13 +206,13 @@ function FileContent({ name, content }: FileContentProps) {
 }
 
 interface SelectedItemProps {
-  selectedFile: ContentsItem
+  selectedItem: ContentsItem
   ownerName: string
   projectName: string
 }
 
-function SelectedInfo({
-  selectedFile,
+function SelectedItemInfo({
+  selectedItem,
   ownerName,
   projectName,
 }: SelectedItemProps) {
@@ -216,9 +220,9 @@ function SelectedInfo({
 
   return (
     <Box>
-      <Text>Name: {selectedFile.name}</Text>
-      {selectedFile.type ? <Text>Type: {selectedFile.type}</Text> : ""}
-      {selectedFile.size ? <Text>Size: {selectedFile.size}</Text> : ""}
+      <Text>Name: {selectedItem.name}</Text>
+      {selectedItem.type ? <Text>Type: {selectedItem.type}</Text> : ""}
+      {selectedItem.size ? <Text>Size: {selectedItem.size}</Text> : ""}
       <HStack alignContent={"center"} mt={4} mb={1} gap={1}>
         <Heading size={"sm"}>Artifact info</Heading>
         <IconButton
@@ -234,15 +238,15 @@ function SelectedInfo({
         <EditFileInfo
           isOpen={fileInfoModal.isOpen}
           onClose={fileInfoModal.onClose}
-          item={selectedFile}
+          item={selectedItem}
         />
       </HStack>
       <Text>
         Type:
-        {selectedFile.calkit_object?.kind ? (
+        {selectedItem.calkit_object?.kind ? (
           <>
             <Badge ml={1} bgColor="green.500">
-              {String(selectedFile.calkit_object.kind)}
+              {String(selectedItem.calkit_object.kind)}
             </Badge>
           </>
         ) : (
@@ -251,34 +255,34 @@ function SelectedInfo({
           </Badge>
         )}
       </Text>
-      {selectedFile.calkit_object?.name ? (
-        <Text>Name: {String(selectedFile.calkit_object.name)}</Text>
+      {selectedItem.calkit_object?.name ? (
+        <Text>Name: {String(selectedItem.calkit_object.name)}</Text>
       ) : (
         ""
       )}
-      {selectedFile.calkit_object?.title ? (
-        <Text>Title: {String(selectedFile.calkit_object.title)}</Text>
+      {selectedItem.calkit_object?.title ? (
+        <Text>Title: {String(selectedItem.calkit_object.title)}</Text>
       ) : (
         ""
       )}
-      {selectedFile.calkit_object?.description ? (
+      {selectedItem.calkit_object?.description ? (
         <Text>
-          Description: {String(selectedFile.calkit_object.description)}
+          Description: {String(selectedItem.calkit_object.description)}
         </Text>
       ) : (
         ""
       )}
-      {selectedFile.calkit_object?.stage ? (
+      {selectedItem.calkit_object?.stage ? (
         <Text>
           Workflow stage:{" "}
-          <Code>{String(selectedFile.calkit_object.stage)}</Code>
+          <Code>{String(selectedItem.calkit_object.stage)}</Code>
         </Text>
       ) : (
         ""
       )}
-      {selectedFile.type === "file" && selectedFile.in_repo ? (
+      {selectedItem.type === "file" && selectedItem.in_repo ? (
         <Link
-          href={`https://github.dev/${ownerName}/${projectName}/blob/main/${selectedFile.path}`}
+          href={`https://github.dev/${ownerName}/${projectName}/blob/main/${selectedItem.path}`}
           isExternal
         >
           <Button mt={4}>
@@ -294,6 +298,7 @@ function SelectedInfo({
 
 function Files() {
   const { userName, projectName } = Route.useParams()
+  const { path } = Route.useSearch()
   const { isPending: filesPending, data: files } = useQuery({
     queryKey: ["projects", userName, projectName, "files"],
     queryFn: () =>
@@ -302,18 +307,16 @@ function Files() {
         projectName: projectName,
       }),
   })
-  const [selectedFile, setSelectedFile] = useState<ContentsItem | undefined>(
-    undefined,
-  )
-  const selectedFileQuery = useQuery({
-    queryKey: ["projects", userName, projectName, "files", selectedFile?.path],
+  const [selectedPath, setSelectedPath] = useState<string>(path)
+  const selectedItemQuery = useQuery({
+    queryKey: ["projects", userName, projectName, "files", selectedPath],
     queryFn: () =>
       ProjectsService.getProjectContents({
         ownerName: userName,
         projectName: projectName,
-        path: selectedFile?.path,
+        path: selectedPath,
       }),
-    enabled: selectedFile !== undefined,
+    enabled: selectedPath !== undefined,
   })
   const fileUploadModal = useDisclosure()
 
@@ -364,23 +367,23 @@ function Files() {
                   <Item
                     key={file.name}
                     item={file}
-                    setSelectedFile={setSelectedFile}
+                    setSelectedPath={setSelectedPath}
                   />
                 ))
               : ""}
           </Box>
           <Box minW={"685px"} borderRadius={"lg"} borderWidth={1}>
-            {selectedFile !== undefined &&
-            (selectedFileQuery.isPending || selectedFileQuery.isRefetching) ? (
+            {selectedPath !== undefined &&
+            (selectedItemQuery.isPending || selectedItemQuery.isRefetching) ? (
               <Flex justify="center" align="center" height="full" width="full">
                 <Spinner size="xl" color="ui.main" />
               </Flex>
             ) : (
               <>
-                {selectedFileQuery?.data?.content ? (
+                {selectedItemQuery?.data?.content ? (
                   <FileContent
-                    name={selectedFileQuery?.data?.name}
-                    content={selectedFileQuery?.data?.content}
+                    name={selectedItemQuery?.data?.name}
+                    content={selectedItemQuery?.data?.content}
                   />
                 ) : (
                   ""
@@ -390,14 +393,14 @@ function Files() {
           </Box>
           <Box mx={5}>
             <Heading size="md">Info</Heading>
-            {selectedFile !== undefined &&
-            (selectedFileQuery.isPending || selectedFileQuery.isRefetching) ? (
+            {selectedPath !== undefined &&
+            (selectedItemQuery.isPending || selectedItemQuery.isRefetching) ? (
               ""
             ) : (
               <>
-                {selectedFileQuery?.data && selectedFile !== undefined ? (
-                  <SelectedInfo
-                    selectedFile={selectedFileQuery.data}
+                {selectedItemQuery?.data && selectedPath !== undefined ? (
+                  <SelectedItemInfo
+                    selectedItem={selectedItemQuery.data}
                     ownerName={userName}
                     projectName={projectName}
                   />
