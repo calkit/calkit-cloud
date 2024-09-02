@@ -252,16 +252,15 @@ function ProjectFigures() {
             <Flex mb={2}>
               <Heading size="md">Figures</Heading>
               <Menu>
-                <MenuButton>
-                  <Button
-                    variant="primary"
-                    height={"25px"}
-                    width={"9px"}
-                    px={1}
-                    ml={2}
-                  >
-                    <Icon as={FaPlus} fontSize={"sm"} />
-                  </Button>
+                <MenuButton
+                  as={Button}
+                  variant="primary"
+                  height={"25px"}
+                  width={"9px"}
+                  px={1}
+                  ml={2}
+                >
+                  <Icon as={FaPlus} fontSize={"xs"} />
                 </MenuButton>
                 <MenuList>
                   <MenuItem onClick={uploadFigureModal.onOpen}>
