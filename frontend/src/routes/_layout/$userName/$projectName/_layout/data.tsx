@@ -46,16 +46,15 @@ function ProjectDataView() {
       <Flex align={"center"} mb={2}>
         <Heading size="md">Datasets</Heading>
         <Menu>
-          <MenuButton>
-            <Button
-              height={"25px"}
-              width={"9px"}
-              px={0.5}
-              ml={2}
-              variant="primary"
-            >
-              <Icon as={FaPlus} fontSize={"xs"} />
-            </Button>
+          <MenuButton
+            as={Button}
+            height={"25px"}
+            width={"9px"}
+            px={0.5}
+            ml={2}
+            variant="primary"
+          >
+            <Icon as={FaPlus} fontSize={"xs"} />
           </MenuButton>
           <MenuList>
             <MenuItem onClick={uploadDataModal.onOpen}>
