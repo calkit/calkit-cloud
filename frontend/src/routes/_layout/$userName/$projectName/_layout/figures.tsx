@@ -175,8 +175,8 @@ function FigureView({ figure }: FigureProps) {
 
   return (
     <>
-      <Flex pt={1}>
-        <Box maxW={"640px"}>
+      <Flex pt={1} height={"100%"}>
+        <Box minW={"640px"}>
           <Heading size="md" mb={1}>
             {figure.title}
           </Heading>
@@ -197,7 +197,9 @@ function FigureView({ figure }: FigureProps) {
               ""
             )}
           </Box>
-          <FigureComments figure={figure} />
+          <Box minW="33%" maxH={"550px"}>
+            <FigureComments figure={figure} />
+          </Box>
         </Box>
       </Flex>
     </>
@@ -231,39 +233,8 @@ function ProjectFigures() {
   return (
     <>
       <Flex>
+        {/* A bit of a nav bar with all the figures listed */}
         <Box>
-          <Flex mb={2}>
-            <Heading size="md">Figures</Heading>
-            <Menu>
-              <MenuButton>
-                <Button
-                  variant="primary"
-                  height={"25px"}
-                  width={"9px"}
-                  px={1}
-                  ml={2}
-                >
-                  <Icon as={FaPlus} fontSize={"sm"} />
-                </Button>
-              </MenuButton>
-              <MenuList>
-                <MenuItem onClick={uploadFigureModal.onOpen}>
-                  Upload new figure
-                </MenuItem>
-                <MenuItem onClick={labelFigureModal.onOpen}>
-                  Label existing file as figure
-                </MenuItem>
-              </MenuList>
-            </Menu>
-            <UploadFigure
-              isOpen={uploadFigureModal.isOpen}
-              onClose={uploadFigureModal.onClose}
-            />
-            <LabelAsFigure
-              isOpen={labelFigureModal.isOpen}
-              onClose={labelFigureModal.onClose}
-            />
-          </Flex>
           <Box
             minW={"200px"}
             px={0}
@@ -278,6 +249,38 @@ function ProjectFigures() {
             position={"sticky"}
             top="55"
           >
+            <Flex mb={2}>
+              <Heading size="md">Figures</Heading>
+              <Menu>
+                <MenuButton>
+                  <Button
+                    variant="primary"
+                    height={"25px"}
+                    width={"9px"}
+                    px={1}
+                    ml={2}
+                  >
+                    <Icon as={FaPlus} fontSize={"sm"} />
+                  </Button>
+                </MenuButton>
+                <MenuList>
+                  <MenuItem onClick={uploadFigureModal.onOpen}>
+                    Upload new figure
+                  </MenuItem>
+                  <MenuItem onClick={labelFigureModal.onOpen}>
+                    Label existing file as figure
+                  </MenuItem>
+                </MenuList>
+              </Menu>
+              <UploadFigure
+                isOpen={uploadFigureModal.isOpen}
+                onClose={uploadFigureModal.onClose}
+              />
+              <LabelAsFigure
+                isOpen={labelFigureModal.isOpen}
+                onClose={labelFigureModal.onClose}
+              />
+            </Flex>
             {figures
               ? figures.map((figure) => (
                   <Box key={figure.path}>
@@ -308,15 +311,13 @@ function ProjectFigures() {
               <Spinner size="xl" color="ui.main" />
             </Flex>
           ) : (
-            <Flex>
-              <Box>
-                {figures?.map((figure) => (
-                  <Box id={figure.path} key={figure.title}>
-                    <FigureView figure={figure} />
-                  </Box>
-                ))}
-              </Box>
-            </Flex>
+            <Box>
+              {figures?.map((figure) => (
+                <Box id={figure.path} key={figure.title}>
+                  <FigureView figure={figure} />
+                </Box>
+              ))}
+            </Box>
           )}
         </>
       </Flex>
