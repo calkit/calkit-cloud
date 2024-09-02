@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router"
+import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import {
   Box,
   Flex,
@@ -126,6 +126,7 @@ interface ItemProps {
 // If a directory, expand to show files when clicked
 // If a file, get content and display to the right in a viewer
 function Item({ item, level, selectedPath, setSelectedPath }: ItemProps) {
+  const navigate = useNavigate({ from: Route.fullPath })
   const indent = level ? level : 0
   const [isExpanded, setIsExpanded] = useState(
     pathShouldBeExpanded(item.path, selectedPath),
@@ -144,6 +145,7 @@ function Item({ item, level, selectedPath, setSelectedPath }: ItemProps) {
   const handleClick = () => {
     setIsExpanded(!isExpanded)
     setSelectedPath(item.path)
+    navigate({ search: { path: item.path } })
   }
 
   if (Array.isArray(data)) {
