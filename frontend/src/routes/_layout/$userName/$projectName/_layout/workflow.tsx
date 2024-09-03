@@ -32,11 +32,6 @@ function ProjectWorkflow() {
 
   return (
     <>
-      <Box>
-        This page is dedicated to describing this project's workflow. The
-        workflow describes the steps that produce various artifacts, e.g.,
-        datasets, figures, publications.
-      </Box>
       {workflowQuery.isPending ? (
         <Flex justify="center" align="center" height="100vh" width="full">
           <Spinner size="xl" color="ui.main" />
@@ -57,7 +52,7 @@ function ProjectWorkflow() {
                   borderRadius={"lg"}
                   display="block"
                   whiteSpace="pre"
-                  height="78vh"
+                  height="80vh"
                   overflowY="auto"
                 >
                   {String(workflowQuery?.data?.yaml)}
