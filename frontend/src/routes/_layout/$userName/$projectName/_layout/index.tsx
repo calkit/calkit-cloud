@@ -7,6 +7,7 @@ import {
   OrderedList,
   ListItem,
   useColorModeValue,
+  Checkbox,
 } from "@chakra-ui/react"
 import { useQuery } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
@@ -30,6 +31,15 @@ function ProjectView() {
         ownerName: userName,
         projectName: projectName,
         path: "README.md",
+      }),
+  })
+  const issuesRequest = useQuery({
+    queryKey: ["projects", userName, projectName, "issues"],
+    queryFn: () =>
+      ProjectsService.getProjectIssues({
+        ownerName: userName,
+        projectName: projectName,
+        state: "all",
       }),
   })
   const removeFirstLine = (txt: any) => {
@@ -56,6 +66,38 @@ function ProjectView() {
               <Markdown>
                 {removeFirstLine(atob(String(readmeRequest?.data?.content)))}
               </Markdown>
+            </Box>
+            {/* To-dos (issues) */}
+            <Box py={4} px={6} mb={4} borderRadius="lg" bg={secBgColor}>
+              <Heading size="md" mb={2}>
+                To-do
+              </Heading>
+              {issuesRequest.isPending ? (
+                <Flex
+                  justify="center"
+                  align="center"
+                  height="100%"
+                  width="100%"
+                >
+                  <Spinner size="xl" color="ui.main" />
+                </Flex>
+              ) : (
+                <>
+                  {issuesRequest?.data?.map((issue) => (
+                    <Flex
+                      key={issue.number}
+                      alignItems={"center"}
+                      alignContent={"center"}
+                    >
+                      <Checkbox
+                        isChecked={issue.state === "closed"}
+                        isDisabled
+                      />
+                      <Text ml={2}> {issue.title}</Text>
+                    </Flex>
+                  ))}
+                </>
+              )}
             </Box>
           </Box>
           <Box width={"40%"}>
