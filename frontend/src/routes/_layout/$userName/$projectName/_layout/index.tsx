@@ -51,13 +51,13 @@ function ProjectView() {
       ) : (
         <Flex mt={1}>
           <Box width="50%" mr={8}>
-            <Box p={4} mb={4} borderRadius="lg" bg={secBgColor}>
+            <Box py={4} px={6} mb={4} borderRadius="lg" bg={secBgColor}>
               <Heading size="md">About</Heading>
               <Markdown>
                 {removeFirstLine(atob(String(readmeRequest?.data?.content)))}
               </Markdown>
             </Box>
-            <Box p={4} borderRadius="lg" bg={secBgColor}>
+            <Box py={4} px={6} borderRadius="lg" bg={secBgColor}>
               <Heading size="md" mb={2}>
                 Questions
               </Heading>
@@ -69,14 +69,14 @@ function ProjectView() {
             </Box>
           </Box>
           <Box width={"50%"}>
-            <Box p={4} mb={4} borderRadius="lg" bg={secBgColor}>
+            <Box py={4} px={6} mb={4} borderRadius="lg" bg={secBgColor}>
               <Heading size="md" mb={2}>
                 Recent activity
               </Heading>
               <Text>Bob did this...</Text>
               <Text>Joe did that...</Text>
             </Box>
-            <Box p={4} borderRadius="lg" bg={secBgColor}>
+            <Box py={4} px={6} borderRadius="lg" bg={secBgColor}>
               <Heading size="md" mb={2}>
                 Stats
               </Heading>
