@@ -121,6 +121,16 @@ export type HTTPValidationError = {
   detail?: Array<ValidationError>
 }
 
+export type Issue = {
+  id: number
+  number: number
+  url: string
+  user_github_username: string
+  state: "open" | "closed"
+  title: string
+  body: string | null
+}
+
 export type ItemCreate = {
   title: string
   description?: string | null

@@ -606,6 +606,48 @@ export const $HTTPValidationError = {
   },
 } as const
 
+export const $Issue = {
+  properties: {
+    id: {
+      type: "number",
+      isRequired: true,
+    },
+    number: {
+      type: "number",
+      isRequired: true,
+    },
+    url: {
+      type: "string",
+      isRequired: true,
+    },
+    user_github_username: {
+      type: "string",
+      isRequired: true,
+    },
+    state: {
+      type: "Enum",
+      enum: ["open", "closed"],
+      isRequired: true,
+    },
+    title: {
+      type: "string",
+      isRequired: true,
+    },
+    body: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      isRequired: true,
+    },
+  },
+} as const
+
 export const $ItemCreate = {
   properties: {
     title: {

@@ -29,6 +29,7 @@ import type {
   FigureCommentPost,
   GitItem,
   GitItemWithContents,
+  Issue,
   Project,
   ProjectCreate,
   ProjectsPublic,
@@ -240,6 +241,13 @@ export type ProjectsData = {
     githubUsername: string
     ownerName: string
     projectName: string
+  }
+  GetProjectIssues: {
+    ownerName: string
+    page?: number
+    perPage?: number
+    projectName: string
+    state?: "open" | "closed" | "all"
   }
 }
 
@@ -1367,6 +1375,39 @@ export class ProjectsService {
         owner_name: ownerName,
         project_name: projectName,
         github_username: githubUsername,
+      },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Get Project Issues
+   * @returns Issue Successful Response
+   * @throws ApiError
+   */
+  public static getProjectIssues(
+    data: ProjectsData["GetProjectIssues"],
+  ): CancelablePromise<Array<Issue>> {
+    const {
+      ownerName,
+      projectName,
+      page = 1,
+      perPage = 30,
+      state = "open",
+    } = data
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/api/v1/projects/{owner_name}/{project_name}/issues",
+      path: {
+        owner_name: ownerName,
+        project_name: projectName,
+      },
+      query: {
+        page,
+        per_page: perPage,
+        state,
       },
       errors: {
         422: `Validation Error`,
