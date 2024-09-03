@@ -6,6 +6,7 @@ import logging
 import os
 import subprocess
 import uuid
+from datetime import datetime
 from pathlib import Path
 from typing import Annotated, Literal, Optional
 
@@ -1185,3 +1186,59 @@ def delete_project_collaborator(
         )
         raise HTTPException(resp.status_code)
     return Message(message="Success")
+
+
+class Issue(BaseModel):
+    id: int
+    number: int
+    url: str
+    user_github_username: str
+    state: Literal["open", "closed"]
+    title: str
+    body: str | None
+
+
+@router.get("/projects/{owner_name}/{project_name}/issues")
+def get_project_issues(
+    owner_name: str,
+    project_name: str,
+    current_user: CurrentUser,
+    session: SessionDep,
+    page: int = 1,
+    per_page: int = 30,
+    state: Literal["open", "closed", "all"] = "open",
+) -> list[Issue]:
+    project = get_project_by_name(
+        owner_name=owner_name,
+        project_name=project_name,
+        session=session,
+        current_user=current_user,
+    )
+    # TODO: Collaborator access
+    if project.owner != current_user:
+        raise HTTPException(401)
+    token = users.get_github_token(session=session, user=current_user)
+    url = f"https://api.github.com/repos/{owner_name}/{project_name}/issues"
+    resp = requests.get(
+        url,
+        headers={"Authorization": f"Bearer {token}"},
+        params=dict(page=page, per_page=per_page, state=state),
+    )
+    if not resp.status_code == 200:
+        raise HTTPException(resp.status_code, resp.json()["message"])
+    resp_json = resp.json()
+    # Format these with a defined schema
+    resp_fmt = []
+    for issue in resp_json:
+        resp_fmt.append(
+            Issue(
+                id=issue["id"],
+                number=issue["number"],
+                url=issue["url"],
+                user_github_username=issue["user"]["login"],
+                state=issue["state"],
+                title=issue["title"],
+                body=issue["body"],
+            )
+        )
+    return resp_fmt
