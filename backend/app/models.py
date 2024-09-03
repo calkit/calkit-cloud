@@ -184,7 +184,7 @@ class ProjectCreate(ProjectBase):
 class WorkflowStage(SQLModel):
     cmd: str
     deps: list[str] | None = None
-    outs: list[str]
+    outs: list[str | dict[str, dict]] | None = None
     desc: str | None = None
     meta: dict | None = None
     wdir: str | None = None
