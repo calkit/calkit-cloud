@@ -3,7 +3,6 @@ import { Link } from "@tanstack/react-router"
 import {
   FiHome,
   FiUsers,
-  FiCheckCircle,
   FiHardDrive,
   FiBookOpen,
   FiDatabase,
@@ -17,7 +16,6 @@ import { BsGear } from "react-icons/bs"
 
 const items = [
   { icon: FiHome, title: "Project home", path: "" },
-  { icon: FiCheckCircle, title: "Questions", path: "/questions" },
   { icon: BsGear, title: "Workflow", path: "/workflow" },
   { icon: FiDatabase, title: "Data", path: "/data" },
   { icon: FiImage, title: "Figures", path: "/figures" },
