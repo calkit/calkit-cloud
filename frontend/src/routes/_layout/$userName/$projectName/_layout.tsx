@@ -171,10 +171,7 @@ function HelpContent() {
     <>
       <Text mb={mb}>
         Welcome to your Calkit project! To get started, try adding some{" "}
-        <Link as={RouterLink} to={`/${userName}/${projectName}/questions`}>
-          questions
-        </Link>{" "}
-        you'd like to answer, or start defining the{" "}
+        questions you'd like to answer, or start defining the{" "}
         <Link as={RouterLink} to={`/${userName}/${projectName}/workflow`}>
           workflow
         </Link>{" "}
