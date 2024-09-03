@@ -73,9 +73,16 @@ const Delete = ({
       )
     },
     onSettled: () => {
-      queryClient.invalidateQueries({
-        queryKey: [type === "Item" ? "items" : "users"],
-      })
+      if (["Item", "User"].includes(type)) {
+        queryClient.invalidateQueries({
+          queryKey: [type === "Item" ? "items" : "users"],
+        })
+      }
+      if (type === "Collaborator") {
+        queryClient.invalidateQueries({
+          queryKey: ["projects", projectOwner, projectName, "collaborators"],
+        })
+      }
     },
   })
 
