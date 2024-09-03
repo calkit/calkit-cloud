@@ -50,14 +50,16 @@ function ProjectView() {
         </Flex>
       ) : (
         <Flex mt={1}>
-          <Box width="50%" mr={8}>
+          <Box width="60%" mr={8}>
             <Box py={4} px={6} mb={4} borderRadius="lg" bg={secBgColor}>
               <Heading size="md">About</Heading>
               <Markdown>
                 {removeFirstLine(atob(String(readmeRequest?.data?.content)))}
               </Markdown>
             </Box>
-            <Box py={4} px={6} borderRadius="lg" bg={secBgColor}>
+          </Box>
+          <Box width={"40%"}>
+            <Box py={4} px={6} mb={4} borderRadius="lg" bg={secBgColor}>
               <Heading size="md" mb={2}>
                 Questions
               </Heading>
@@ -67,8 +69,6 @@ function ProjectView() {
                 ))}
               </OrderedList>
             </Box>
-          </Box>
-          <Box width={"50%"}>
             <Box py={4} px={6} mb={4} borderRadius="lg" bg={secBgColor}>
               <Heading size="md" mb={2}>
                 Recent activity
