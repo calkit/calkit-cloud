@@ -19,6 +19,7 @@ CATEGORIES_SINGULAR_TO_PLURAL = {
     "publication": "publications",
     "environment": "environments",
     "references": "references",
+    "software": "software",
 }
 CATEGORIES_PLURAL_TO_SINGULAR = {
     v: k for k, v in CATEGORIES_SINGULAR_TO_PLURAL.items()
