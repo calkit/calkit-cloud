@@ -306,7 +306,7 @@ export type Workflow = {
 export type WorkflowStage = {
   cmd: string
   deps?: Array<string> | null
-  outs: Array<string>
+  outs?: Array<string | Record<string, Record<string, unknown>>> | null
   desc?: string | null
   meta?: Record<string, unknown> | null
   wdir?: string | null

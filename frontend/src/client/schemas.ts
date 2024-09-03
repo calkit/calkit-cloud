@@ -1556,11 +1556,32 @@ export const $WorkflowStage = {
       ],
     },
     outs: {
-      type: "array",
-      contains: {
-        type: "string",
-      },
-      isRequired: true,
+      type: "any-of",
+      contains: [
+        {
+          type: "array",
+          contains: {
+            type: "any-of",
+            contains: [
+              {
+                type: "string",
+              },
+              {
+                type: "dictionary",
+                contains: {
+                  type: "dictionary",
+                  contains: {
+                    properties: {},
+                  },
+                },
+              },
+            ],
+          },
+        },
+        {
+          type: "null",
+        },
+      ],
     },
     desc: {
       type: "any-of",
