@@ -1234,7 +1234,7 @@ def get_project_issues(
             Issue(
                 id=issue["id"],
                 number=issue["number"],
-                url=issue["url"],
+                url=issue["html_url"],
                 user_github_username=issue["user"]["login"],
                 state=issue["state"],
                 title=issue["title"],
@@ -1278,7 +1278,11 @@ def post_project_issue(
         raise HTTPException(resp.status_code)
     resp_json = resp.json()
     return Issue.model_validate(
-        resp_json | dict(user_github_username=resp_json["user"]["login"])
+        resp_json
+        | dict(
+            user_github_username=resp_json["user"]["login"],
+            url=resp_json["html_url"],
+        )
     )
 
 

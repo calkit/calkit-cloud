@@ -14,6 +14,7 @@ import {
   Spacer,
   useDisclosure,
   IconButton,
+  Link,
 } from "@chakra-ui/react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
@@ -164,7 +165,14 @@ function ProjectView() {
                         onChange={onTodoCheckbox}
                         id={String(issue.number)}
                       />
-                      <Text ml={2}> {issue.title}</Text>
+                      <Text ml={2}>
+                        {" "}
+                        {issue.title} (
+                        <Link isExternal href={issue.url}>
+                          #{issue.number}
+                        </Link>
+                        )
+                      </Text>
                     </Flex>
                   ))}
                 </>
