@@ -108,7 +108,7 @@ const EditItem = ({ item, isOpen, onClose }: EditItemProps) => {
             <Button
               variant="primary"
               type="submit"
-              isLoading={isSubmitting}
+              isLoading={isSubmitting || mutation.isPending}
               isDisabled={!isDirty}
             >
               Save

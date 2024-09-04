@@ -164,7 +164,7 @@ const EditUser = ({ user, isOpen, onClose }: EditUserProps) => {
             <Button
               variant="primary"
               type="submit"
-              isLoading={isSubmitting}
+              isLoading={isSubmitting || mutation.isPending}
               isDisabled={!isDirty}
             >
               Save

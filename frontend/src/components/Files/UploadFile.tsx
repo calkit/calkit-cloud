@@ -124,7 +124,11 @@ const UploadFile = ({ isOpen, onClose }: UploadFileProps) => {
             </FormControl>
           </ModalBody>
           <ModalFooter gap={3}>
-            <Button variant="primary" type="submit" isLoading={isSubmitting}>
+            <Button
+              variant="primary"
+              type="submit"
+              isLoading={isSubmitting || mutation.isPending}
+            >
               Save
             </Button>
             <Button onClick={onClose}>Cancel</Button>

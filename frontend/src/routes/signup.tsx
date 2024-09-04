@@ -146,7 +146,11 @@ function SignUp() {
               </FormErrorMessage>
             )}
           </FormControl>
-          <Button variant="primary" type="submit" isLoading={isSubmitting}>
+          <Button
+            variant="primary"
+            type="submit"
+            isLoading={isSubmitting || signUpMutation.isPending}
+          >
             Sign Up
           </Button>
           <Text>

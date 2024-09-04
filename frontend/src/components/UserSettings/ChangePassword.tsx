@@ -110,7 +110,7 @@ const ChangePassword = () => {
             variant="primary"
             mt={4}
             type="submit"
-            isLoading={isSubmitting}
+            isLoading={isSubmitting || mutation.isPending}
           >
             Save
           </Button>

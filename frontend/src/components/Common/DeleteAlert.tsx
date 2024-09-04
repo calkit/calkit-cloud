@@ -112,7 +112,11 @@ const Delete = ({
               Are you sure? You will not be able to undo this action.
             </AlertDialogBody>
             <AlertDialogFooter gap={3}>
-              <Button variant="danger" type="submit" isLoading={isSubmitting}>
+              <Button
+                variant="danger"
+                type="submit"
+                isLoading={isSubmitting || mutation.isPending}
+              >
                 Delete
               </Button>
               <Button

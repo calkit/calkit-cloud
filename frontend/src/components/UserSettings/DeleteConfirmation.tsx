@@ -75,7 +75,11 @@ const DeleteConfirmation = ({ isOpen, onClose }: DeleteProps) => {
             </AlertDialogBody>
 
             <AlertDialogFooter gap={3}>
-              <Button variant="danger" type="submit" isLoading={isSubmitting}>
+              <Button
+                variant="danger"
+                type="submit"
+                isLoading={isSubmitting || mutation.isPending}
+              >
                 Confirm
               </Button>
               <Button

@@ -96,7 +96,11 @@ function RecoverPassword() {
           <FormErrorMessage>{errors.email.message}</FormErrorMessage>
         )}
       </FormControl>
-      <Button variant="primary" type="submit" isLoading={isSubmitting}>
+      <Button
+        variant="primary"
+        type="submit"
+        isLoading={isSubmitting || mutation.isPending}
+      >
         Continue
       </Button>
     </Container>
