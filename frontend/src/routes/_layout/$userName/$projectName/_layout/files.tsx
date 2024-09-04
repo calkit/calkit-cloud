@@ -26,6 +26,7 @@ import {
   FaList,
   FaRegFileImage,
   FaRegFolderOpen,
+  FaSync,
 } from "react-icons/fa"
 import { MdEdit } from "react-icons/md"
 import { ExternalLinkIcon } from "@chakra-ui/icons"
@@ -317,7 +318,12 @@ function SelectedItemInfo({
 function Files() {
   const { userName, projectName } = Route.useParams()
   const { path } = Route.useSearch()
-  const { isPending: filesPending, data: files } = useQuery({
+  const {
+    isPending: filesPending,
+    data: files,
+    refetch,
+    isRefetching,
+  } = useQuery({
     queryKey: ["projects", userName, projectName, "files"],
     queryFn: () =>
       ProjectsService.getProjectContents({
@@ -337,14 +343,17 @@ function Files() {
     enabled: selectedPath !== undefined,
   })
   const fileUploadModal = useDisclosure()
-
   if (Array.isArray(files?.dir_items)) {
     files.dir_items.sort(sortByTypeAndName)
+  }
+  const refresh = () => {
+    refetch()
+    selectedItemQuery.refetch()
   }
 
   return (
     <>
-      {filesPending ? (
+      {filesPending || isRefetching ? (
         <Flex justify="center" align="center" height="full" width="full">
           <Spinner size="xl" color="ui.main" />
         </Flex>
@@ -363,18 +372,20 @@ function Files() {
               <Heading size="md" mb={1}>
                 All files
               </Heading>
-              <Button
+              <IconButton
                 variant="primary"
                 height="25px"
-                p={3}
-                pl={2}
                 fontSize={"sm"}
-                mb={1}
                 onClick={fileUploadModal.onOpen}
-              >
-                <Icon as={FaPlus} height={"14px"} />
-                Upload
-              </Button>
+                icon={<FaPlus />}
+                aria-label="upload"
+              />
+              <IconButton
+                aria-label="refresh"
+                height="25px"
+                icon={<FaSync />}
+                onClick={refresh}
+              />
             </Flex>
             <UploadFile
               isOpen={fileUploadModal.isOpen}
