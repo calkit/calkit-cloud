@@ -1031,6 +1031,19 @@ def post_project_sync(
     It would probably be better to use Git for that, so we can handle
     asynchronous edits with merges.
     """
+    # First refresh the local cache of the repo
+    project = get_project_by_name(
+        owner_name=owner_name,
+        project_name=project_name,
+        session=session,
+        current_user=current_user,
+    )
+    # TODO: Collaborator access
+    if project.owner != current_user:
+        raise HTTPException(401)
+    get_repo(
+        project=project, user=current_user, session=session, ttl=None
+    )
     # Get and save project questions
     # Figures
     # Datasets
