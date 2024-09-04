@@ -13,7 +13,7 @@ import {
   Switch,
   Spacer,
 } from "@chakra-ui/react"
-import { useQuery } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 import { useState } from "react"
 
@@ -27,6 +27,7 @@ export const Route = createFileRoute(
 })
 
 function ProjectView() {
+  const queryClient = useQueryClient()
   const secBgColor = useColorModeValue("ui.secondary", "ui.darkSlate")
   const { userName, projectName } = Route.useParams()
   const [showClosedTodos, setShowClosedTodos] = useState(true)
@@ -59,6 +60,29 @@ function ProjectView() {
   ]
   const onClosedTodosSwitch = (e: any) => {
     setShowClosedTodos(e.target.checked)
+  }
+  interface IssueStateChange {
+    state: "open" | "closed"
+    issueNumber: number
+  }
+  const issueStateMutation = useMutation({
+    mutationFn: (data: IssueStateChange) =>
+      ProjectsService.patchProjectIssue({
+        ownerName: userName,
+        projectName: projectName,
+        issueNumber: data.issueNumber,
+        requestBody: { state: data.state },
+      }),
+    onSettled: () =>
+      queryClient.invalidateQueries({
+        queryKey: ["projects", userName, projectName, "issues"],
+      }),
+  })
+  const onTodoCheckbox = (e: any) => {
+    issueStateMutation.mutate({
+      issueNumber: e.target.id as number,
+      state: e.target.checked ? "closed" : "open",
+    })
   }
 
   return (
@@ -96,7 +120,9 @@ function ProjectView() {
                   </FormControl>
                 </Box>
               </Flex>
-              {issuesRequest.isPending || issuesRequest.isRefetching ? (
+              {issuesRequest.isPending ||
+              issuesRequest.isRefetching ||
+              issueStateMutation.isPending ? (
                 <Flex
                   justify="center"
                   align="center"
@@ -115,7 +141,8 @@ function ProjectView() {
                     >
                       <Checkbox
                         isChecked={issue.state === "closed"}
-                        isDisabled
+                        onChange={onTodoCheckbox}
+                        id={String(issue.number)}
                       />
                       <Text ml={2}> {issue.title}</Text>
                     </Flex>
