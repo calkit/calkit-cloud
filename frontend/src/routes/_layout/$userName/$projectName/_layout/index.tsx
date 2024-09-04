@@ -114,8 +114,8 @@ function ProjectView() {
                     <IconButton
                       aria-label="Add to-do"
                       height="25px"
-                      width="25px"
-                      ml={2}
+                      width="28px"
+                      ml={1.5}
                       icon={<FaPlus />}
                       size={"xs"}
                       onClick={newIssueModal.onOpen}
