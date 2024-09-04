@@ -12,13 +12,17 @@ import {
   FormLabel,
   Switch,
   Spacer,
+  useDisclosure,
+  IconButton,
 } from "@chakra-ui/react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 import { useState } from "react"
+import { FaPlus } from "react-icons/fa"
 
 import { ProjectsService } from "../../../../../client"
 import Markdown from "../../../../../components/Common/Markdown"
+import CreateIssue from "../../../../../components/Projects/CreateIssue"
 
 export const Route = createFileRoute(
   "/_layout/$userName/$projectName/_layout/",
@@ -84,6 +88,7 @@ function ProjectView() {
       state: e.target.checked ? "closed" : "open",
     })
   }
+  const newIssueModal = useDisclosure()
 
   return (
     <>
@@ -104,7 +109,22 @@ function ProjectView() {
             <Box py={4} px={6} mb={4} borderRadius="lg" bg={secBgColor}>
               <Flex width="full" alignItems="center" mb={2}>
                 <Box>
-                  <Heading size="md">To-do</Heading>
+                  <Flex>
+                    <Heading size="md">To-do</Heading>
+                    <IconButton
+                      aria-label="Add to-do"
+                      height="25px"
+                      width="25px"
+                      ml={2}
+                      icon={<FaPlus />}
+                      size={"xs"}
+                      onClick={newIssueModal.onOpen}
+                    />
+                  </Flex>
+                  <CreateIssue
+                    isOpen={newIssueModal.isOpen}
+                    onClose={newIssueModal.onClose}
+                  />
                 </Box>
                 <Spacer />
                 <Box>
