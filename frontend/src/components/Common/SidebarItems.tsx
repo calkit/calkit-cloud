@@ -42,7 +42,7 @@ const SidebarItems = ({ onClose, basePath }: SidebarItemsProps) => {
     error: localServerError,
     data: localServerData,
   } = useQuery({
-    queryKey: ["local-server"],
+    queryKey: ["local-server-sidebar"],
     queryFn: () => axios.get("http://localhost:8866"),
     retry: false,
   })
