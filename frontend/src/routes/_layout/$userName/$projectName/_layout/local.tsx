@@ -20,9 +20,10 @@ export const Route = createFileRoute(
 })
 
 function LocalServer() {
-  const cwdQuery = useQuery({
-    queryKey: ["local-cwd"],
-    queryFn: () => axios.get("http://localhost:8866/cwd"),
+  const { userName, projectName } = Route.useParams()
+  const localServerQuery = useQuery({
+    queryKey: ["local-server"],
+    queryFn: () => axios.get("http://localhost:8866"),
     retry: false,
   })
   // TODO: We should be sending some information about the project so we open
@@ -33,6 +34,9 @@ function LocalServer() {
   const runGitPull = () => {
     axios.post("http://localhost:8866/git/pull")
   }
+  const isThisProject =
+    localServerQuery.data?.data.owner_name === userName &&
+    localServerQuery.data?.data.project_name === projectName
 
   return (
     <>
@@ -40,17 +44,15 @@ function LocalServer() {
         <Heading size="md" mb={1}>
           Local machine
         </Heading>
-        {cwdQuery.isPending ? (
+        {localServerQuery.isPending ? (
           <Flex justify="center" align="center" height="100vh" width="full">
             <Spinner size="xl" color="ui.main" />
           </Flex>
         ) : (
           <Flex>
-            {!cwdQuery.error ? (
+            {!localServerQuery.error && isThisProject ? (
               <Box>
-                <Text>
-                  Current working directory: <Code>{cwdQuery?.data?.data}</Code>
-                </Text>
+                <Text>The local server is running.</Text>
                 <Button m={2} variant="primary" onClick={openVSCode}>
                   Open in VSCode <Icon ml={1} as={FiExternalLink} />
                 </Button>

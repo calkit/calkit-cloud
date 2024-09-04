@@ -1,5 +1,5 @@
 import { Box, Flex, Icon, Text, useColorModeValue } from "@chakra-ui/react"
-import { Link } from "@tanstack/react-router"
+import { Link, getRouteApi } from "@tanstack/react-router"
 import {
   FiHome,
   FiUsers,
@@ -35,14 +35,24 @@ const SidebarItems = ({ onClose, basePath }: SidebarItemsProps) => {
   const textColor = useColorModeValue("ui.main", "ui.light")
   const bgActive = useColorModeValue("#E2E8F0", "#4A5568")
   const finalItems = items
-  // TODO: Check that our current project matches the local server project?
-  const { isPending: localServerPending, error: localServerError } = useQuery({
-    queryKey: ["local-server-health"],
-    queryFn: () => axios.get("http://localhost:8866/health"),
+  const routeApi = getRouteApi("/_layout/$userName/$projectName")
+  const { userName, projectName } = routeApi.useParams()
+  const {
+    isPending: localServerPending,
+    error: localServerError,
+    data: localServerData,
+  } = useQuery({
+    queryKey: ["local-server"],
+    queryFn: () => axios.get("http://localhost:8866"),
     retry: false,
   })
+  const isThisProject =
+    localServerData?.data.owner_name === userName &&
+    localServerData?.data.project_name === projectName
   const localMachineColor =
-    localServerError || localServerPending ? "gray" : "ui.success"
+    localServerError || localServerPending || !isThisProject
+      ? "gray"
+      : "ui.success"
 
   const listItems = finalItems.map(({ icon, title, path }) => (
     <Flex
