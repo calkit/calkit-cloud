@@ -648,6 +648,36 @@ export const $Issue = {
   },
 } as const
 
+export const $IssuePatch = {
+  properties: {
+    state: {
+      type: "Enum",
+      enum: ["open", "closed"],
+      isRequired: true,
+    },
+  },
+} as const
+
+export const $IssuePost = {
+  properties: {
+    title: {
+      type: "string",
+      isRequired: true,
+    },
+    body: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+  },
+} as const
+
 export const $ItemCreate = {
   properties: {
     title: {

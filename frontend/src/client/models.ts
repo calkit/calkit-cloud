@@ -131,6 +131,15 @@ export type Issue = {
   body: string | null
 }
 
+export type IssuePatch = {
+  state: "open" | "closed"
+}
+
+export type IssuePost = {
+  title: string
+  body?: string | null
+}
+
 export type ItemCreate = {
   title: string
   description?: string | null

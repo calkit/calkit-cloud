@@ -30,6 +30,8 @@ import type {
   GitItem,
   GitItemWithContents,
   Issue,
+  IssuePatch,
+  IssuePost,
   Project,
   ProjectCreate,
   ProjectsPublic,
@@ -248,6 +250,17 @@ export type ProjectsData = {
     perPage?: number
     projectName: string
     state?: "open" | "closed" | "all"
+  }
+  PostProjectIssue: {
+    ownerName: string
+    projectName: string
+    requestBody: IssuePost
+  }
+  PatchProjectIssue: {
+    issueNumber: number
+    ownerName: string
+    projectName: string
+    requestBody: IssuePatch
   }
 }
 
@@ -1409,6 +1422,55 @@ export class ProjectsService {
         per_page: perPage,
         state,
       },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Post Project Issue
+   * @returns Issue Successful Response
+   * @throws ApiError
+   */
+  public static postProjectIssue(
+    data: ProjectsData["PostProjectIssue"],
+  ): CancelablePromise<Issue> {
+    const { ownerName, projectName, requestBody } = data
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/api/v1/projects/{owner_name}/{project_name}/issues",
+      path: {
+        owner_name: ownerName,
+        project_name: projectName,
+      },
+      body: requestBody,
+      mediaType: "application/json",
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Patch Project Issue
+   * @returns Message Successful Response
+   * @throws ApiError
+   */
+  public static patchProjectIssue(
+    data: ProjectsData["PatchProjectIssue"],
+  ): CancelablePromise<Message> {
+    const { ownerName, projectName, issueNumber, requestBody } = data
+    return __request(OpenAPI, {
+      method: "PATCH",
+      url: "/api/v1/projects/{owner_name}/{project_name}/issues/{issue_number}",
+      path: {
+        owner_name: ownerName,
+        project_name: projectName,
+        issue_number: issueNumber,
+      },
+      body: requestBody,
+      mediaType: "application/json",
       errors: {
         422: `Validation Error`,
       },

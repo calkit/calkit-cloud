@@ -1242,3 +1242,78 @@ def get_project_issues(
             )
         )
     return resp_fmt
+
+
+class IssuePost(BaseModel):
+    title: str
+    body: str | None = None
+
+
+@router.post("/projects/{owner_name}/{project_name}/issues")
+def post_project_issue(
+    owner_name: str,
+    project_name: str,
+    current_user: CurrentUser,
+    session: SessionDep,
+    req: IssuePost,
+) -> Issue:
+    project = get_project_by_name(
+        owner_name=owner_name,
+        project_name=project_name,
+        session=session,
+        current_user=current_user,
+    )
+    # TODO: Collaborator access
+    if project.owner != current_user:
+        raise HTTPException(401)
+    token = users.get_github_token(session=session, user=current_user)
+    url = f"https://api.github.com/repos/{owner_name}/{project_name}/issues"
+    resp = requests.post(
+        url,
+        headers={"Authorization": f"Bearer {token}"},
+        json=req.model_dump(),
+    )
+    if resp.status_code != 201:
+        logger.error(f"Call to post issue failed ({resp.status_code})")
+        raise HTTPException(resp.status_code)
+    resp_json = resp.json()
+    return Issue.model_validate(
+        resp_json | dict(user_github_username=resp_json["user"]["login"])
+    )
+
+
+class IssuePatch(BaseModel):
+    state: Literal["open", "closed"]
+
+
+@router.patch("/projects/{owner_name}/{project_name}/issues/{issue_number}")
+def patch_project_issue(
+    owner_name: str,
+    project_name: str,
+    issue_number: int,
+    req: IssuePatch,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> Message:
+    project = get_project_by_name(
+        owner_name=owner_name,
+        project_name=project_name,
+        session=session,
+        current_user=current_user,
+    )
+    # TODO: Collaborator access
+    if project.owner != current_user:
+        raise HTTPException(401)
+    token = users.get_github_token(session=session, user=current_user)
+    url = (
+        f"https://api.github.com/repos/{owner_name}/{project_name}/"
+        f"issues/{issue_number}"
+    )
+    resp = requests.patch(
+        url,
+        headers={"Authorization": f"Bearer {token}"},
+        json=req.model_dump(),
+    )
+    if resp.status_code != 200:
+        raise HTTPException(resp.status_code, resp.json()["message"])
+    return Message(message="Success")
