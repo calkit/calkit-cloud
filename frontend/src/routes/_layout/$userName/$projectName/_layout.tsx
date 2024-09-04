@@ -216,6 +216,10 @@ function ProjectLayout() {
     retry: false,
   })
   const [jupyterLabHidden, setJupyterLabHidden] = useState(true)
+  const isThisProject =
+    !localServerQuery.error &&
+    localServerQuery.data?.data.owner_name === userName &&
+    localServerQuery.data?.data.project_name === projectName
 
   return (
     <>
@@ -254,9 +258,7 @@ function ProjectLayout() {
               </Heading>
               <Spacer />
               {/* Show a switch to show JupyterLab in an iframe */}
-              {localServerQuery.data?.data.owner_name === userName &&
-              localServerQuery.data?.data.project_name === projectName &&
-              localServerQuery.data?.data.jupyter_url ? (
+              {isThisProject && localServerQuery.data?.data.jupyter_url ? (
                 <Switch
                   position={"fixed"}
                   right={"10px"}
@@ -289,9 +291,7 @@ function ProjectLayout() {
             </DrawerContent>
           </Drawer>
           {/* A JupyterLab box that covers everything when not hidden */}
-          {localServerQuery.data?.data.owner_name === userName &&
-          localServerQuery.data?.data.project_name === projectName &&
-          localServerQuery.data?.data.jupyter_url ? (
+          {isThisProject && localServerQuery.data?.data.jupyter_url ? (
             <Box
               hidden={jupyterLabHidden}
               position={"fixed"}

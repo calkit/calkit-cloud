@@ -35,6 +35,7 @@ function LocalServer() {
     axios.post("http://localhost:8866/git/pull")
   }
   const isThisProject =
+    !localServerQuery.error &&
     localServerQuery.data?.data.owner_name === userName &&
     localServerQuery.data?.data.project_name === projectName
 
