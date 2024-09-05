@@ -66,8 +66,12 @@ def get_repo(
             subprocess.call(["touch", lock_fpath])
             logger.info("Updating remote in case token was refreshed")
             repo.remote().set_url(git_clone_url)
-            logger.info("Git pulling")
-            repo.git.pull()
+            logger.info("Git fetching")
+            branch_name = repo.active_branch.name
+            repo.git.fetch(["origin", branch_name])
+            repo.git.checkout([f"origin/{branch_name}"])
+            repo.git.branch(["-D", branch_name])
+            repo.git.checkout(["-b", branch_name])
             try:
                 os.remove(lock_fpath)
             except FileNotFoundError:
