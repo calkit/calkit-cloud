@@ -392,7 +392,7 @@ def get_project_contents(
     # Let's restructure as a dictionary keyed by path
     ck_objects = {}
     for category, itemlist in ck_info.items():
-        if not isinstance(itemlist):
+        if not isinstance(itemlist, list):
             logger.warning(
                 f"{owner_name}/{project_name} {category} is not a list"
             )
