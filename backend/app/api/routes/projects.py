@@ -1354,3 +1354,55 @@ def patch_project_issue(
     if resp.status_code != 200:
         raise HTTPException(resp.status_code, resp.json()["message"])
     return Message(message="Success")
+
+
+class ImportInfo(BaseModel):
+    project_owner: str
+    project_name: str
+    git_rev: str | None = None
+    path: str
+
+
+class ReferenceEntry(BaseModel):
+    type: str
+    key: str
+    attrs: dict
+
+
+class ReferenceFile(BaseModel):
+    path: str
+    key: str
+
+
+class References(BaseModel):
+    path: str
+    files: list[ReferenceFile] | None = None
+    entries: list[ReferenceEntry] | None = None
+    imported_from: ImportInfo | None = None
+
+
+@router.get("/projects/{owner_name}/{project_name}/references")
+def get_project_references(
+    owner_name: str,
+    project_name: str,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> list[References]:
+    project = get_project_by_name(
+        owner_name=owner_name,
+        project_name=project_name,
+        session=session,
+        current_user=current_user,
+    )
+    # TODO: Collaborator access
+    if project.owner != current_user:
+        raise HTTPException(401)
+    ck_info = get_ck_info(
+        project=project, user=current_user, session=session, ttl=300
+    )
+    ref_collections = ck_info.get("references", [])
+    resp = []
+    for ref_collection in ref_collections:
+        # TODO: Read entries?
+        resp.append(References.model_validate(ref_collection))
+    return resp
