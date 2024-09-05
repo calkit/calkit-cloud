@@ -79,34 +79,45 @@ def create_project(
     project_in: ProjectCreate,
 ) -> Project:
     """Create new project."""
-    # First, create a repo for this on GitHub
+    # First, check if this user already owns this repo on GitHub
     token = users.get_github_token(session=session, user=current_user)
-    repo_name = project_in.git_repo_url.split("/")[-1]
-    logger.info(
-        f"Creating GitHub repo for {current_user.github_username}: {repo_name}"
-    )
-    body = {
-        "name": repo_name,
-        "description": project_in.description,
-        "homepage": (
-            f"https://calkit.io/{current_user.github_username}/{repo_name}"
-        ),
-        "private": not project_in.is_public,
-    }
-    resp = requests.post(
-        "https://api.github.com/user/repos",
-        json=body,
-        headers={"Authorization": f"Bearer {token}"},
-    )
-    if not resp.status_code == 201:
-        logger.warning(f"Failed to create: {resp.json()}")
-        try:
-            message = resp.json()["errors"][0]["message"].capitalize()
-        except:
-            message = "Failed to create GitHub repo"
-        raise HTTPException(resp.status_code, message)
-    resp_json = resp.json()
-    logger.info(f"Create GitHub repo with URL: {resp_json['html_url']}")
+    headers = {"Authorization": f"Bearer {token}"}
+    owner_name, repo_name = project_in.git_repo_url.split("/")[-2:]
+    # TODO: Organization access
+    if owner_name != current_user.github_username:
+        raise HTTPException(403, "You must own this repo to import it")
+    url = f"https://api.github.com/repos/{owner_name}/{repo_name}"
+    resp = requests.get(url, headers=headers)
+    if resp.status_code == 404:
+        # If not, create it
+        logger.info(f"Creating GitHub repo for {owner_name}: {repo_name}")
+        body = {
+            "name": repo_name,
+            "description": project_in.description,
+            "homepage": (
+                f"https://calkit.io/{current_user.github_username}/{repo_name}"
+            ),
+            "private": not project_in.is_public,
+            "has_discussions": True,
+            "has_issues": True,
+            "has_wiki": True,
+        }
+        resp = requests.post(
+            "https://api.github.com/user/repos",
+            json=body,
+            headers=headers,
+        )
+        if not resp.status_code == 201:
+            logger.warning(f"Failed to create: {resp.json()}")
+            try:
+                message = resp.json()["errors"][0]["message"].capitalize()
+            except:
+                message = "Failed to create GitHub repo"
+            raise HTTPException(resp.status_code, message)
+        resp_json = resp.json()
+        logger.info(f"Create GitHub repo with URL: {resp_json['html_url']}")
+    elif resp.status_code == 200:
+        logger.info(f"Repo exists on GitHub as {owner_name}/{repo_name}")
     logger.info("Adding to database")
     project = Project.model_validate(
         project_in, update={"owner_user_id": current_user.id}
