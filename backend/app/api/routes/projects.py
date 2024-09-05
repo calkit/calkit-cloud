@@ -392,6 +392,10 @@ def get_project_contents(
     # Let's restructure as a dictionary keyed by path
     ck_objects = {}
     for category, itemlist in ck_info.items():
+        if not isinstance(itemlist):
+            logger.warning(
+                f"{owner_name}/{project_name} {category} is not a list"
+            )
         for item in itemlist:
             item["kind"] = CATEGORIES_PLURAL_TO_SINGULAR[category]
             ck_objects[item["path"]] = item
