@@ -160,6 +160,21 @@ function HelpContent() {
       </>
     )
   }
+  if (page === "references") {
+    return (
+      <>
+        <Text mb={mb}>
+          On this page you can add references relevant to your project. These
+          can be part of collections, e.g., in BibTeX files, or standalone
+          references. You can also import a reference from another project.
+        </Text>
+        <Text mb={mb}>
+          You can also upload PDFs of each reference in case they are not openly
+          available on the web.
+        </Text>
+      </>
+    )
+  }
   if (page === "local") {
     return (
       <>
