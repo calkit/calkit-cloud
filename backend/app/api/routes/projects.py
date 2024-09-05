@@ -339,6 +339,7 @@ def get_project_contents(
     session: SessionDep,
     current_user: CurrentUser,
     path: str | None = None,
+    ttl: int | None = 300,
 ) -> ContentsItem:
     project = get_project_by_name(
         owner_name=owner_name,
@@ -353,7 +354,7 @@ def get_project_contents(
     # Note this will make the repo our working directory
     # TODO: Stop using a TTL and rely on latest commit hash
     repo = get_repo(
-        project=project, user=current_user, session=session, ttl=300
+        project=project, user=current_user, session=session, ttl=ttl
     )
     repo_dir = repo.working_dir
     # Load Calkit entities
@@ -1041,9 +1042,7 @@ def post_project_sync(
     # TODO: Collaborator access
     if project.owner != current_user:
         raise HTTPException(401)
-    get_repo(
-        project=project, user=current_user, session=session, ttl=None
-    )
+    get_repo(project=project, user=current_user, session=session, ttl=None)
     # Get and save project questions
     # Figures
     # Datasets
