@@ -23,6 +23,7 @@ import {
   createFileRoute,
   Outlet,
   Link as RouterLink,
+  notFound,
 } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
 import { ExternalLinkIcon } from "@chakra-ui/icons"
@@ -31,7 +32,6 @@ import { useState } from "react"
 import axios from "axios"
 
 import Sidebar from "../../../../components/Common/Sidebar"
-import NotFound from "../../../../components/Common/NotFound"
 import { ProjectsService } from "../../../../client"
 
 export const Route = createFileRoute("/_layout/$userName/$projectName/_layout")(
@@ -222,7 +222,7 @@ function ProjectLayout() {
     },
   })
   if (error?.message === "Not Found") {
-    return <NotFound />
+    throw notFound()
   }
   const helpDrawer = useDisclosure()
   const localServerQuery = useQuery({
