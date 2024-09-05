@@ -239,7 +239,7 @@ function ProjectLayout() {
   return (
     <>
       {isPending || localServerQuery.isPending ? (
-        <Flex justify="center" align="center" height="90%" width="full">
+        <Flex justify="center" align="center" height="100vh" width="full">
           <Spinner size="xl" color="ui.main" />
         </Flex>
       ) : (
