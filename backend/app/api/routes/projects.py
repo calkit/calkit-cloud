@@ -396,6 +396,12 @@ def get_project_contents(
             logger.warning(
                 f"{owner_name}/{project_name} {category} is not a list"
             )
+            continue
+        if category not in CATEGORIES_PLURAL_TO_SINGULAR:
+            logger.warning(
+                f"{owner_name}/{project_name} {category} not understood"
+            )
+            continue
         for item in itemlist:
             item["kind"] = CATEGORIES_PLURAL_TO_SINGULAR[category]
             ck_objects[item["path"]] = item
