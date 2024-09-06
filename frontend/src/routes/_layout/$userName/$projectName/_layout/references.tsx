@@ -35,7 +35,28 @@ interface ReferenceEntryTableProps {
 }
 
 function ReferenceEntryTable({ referenceEntry }: ReferenceEntryTableProps) {
-  return <>This is a table {String(referenceEntry)}</>
+  return (
+    <TableContainer mb={4}>
+      <Table variant="simple" size={"sm"}>
+        <Thead>
+          <Tr>
+            <Th>Property</Th>
+            <Th>Value</Th>
+          </Tr>
+        </Thead>
+        <Tbody>
+          {referenceEntry.attrs
+            ? Object.entries(referenceEntry.attrs).map(([k, v]) => (
+                <Tr key={k}>
+                  <Td>{k}</Td>
+                  <Td>{v}</Td>
+                </Tr>
+              ))
+            : ""}
+        </Tbody>
+      </Table>
+    </TableContainer>
+  )
 }
 
 function References() {
@@ -69,7 +90,15 @@ function References() {
             </Box>
           ) : (
             <Flex>
-              <Box bg={secBgColor} px={4} py={2} borderRadius="lg" mr={4}>
+              <Box
+                bg={secBgColor}
+                px={4}
+                py={2}
+                borderRadius="lg"
+                mr={8}
+                position={"sticky"}
+                top={50}
+              >
                 <Heading size="md" mb={1}>
                   References
                 </Heading>
@@ -110,6 +139,7 @@ function References() {
                         <Heading
                           size="sm"
                           mb={1}
+                          pl={4}
                           id={references.path + entry.key}
                         >
                           {entry.key}
