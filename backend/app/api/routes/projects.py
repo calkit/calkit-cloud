@@ -402,6 +402,7 @@ def get_project_contents(
                 f"{owner_name}/{project_name} {category} not understood"
             )
             continue
+        # TODO: Handle files inside references objects
         for item in itemlist:
             item["kind"] = CATEGORIES_PLURAL_TO_SINGULAR[category]
             ck_objects[item["path"]] = item

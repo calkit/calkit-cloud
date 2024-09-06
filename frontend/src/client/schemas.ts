@@ -606,6 +606,34 @@ export const $HTTPValidationError = {
   },
 } as const
 
+export const $ImportInfo = {
+  properties: {
+    project_owner: {
+      type: "string",
+      isRequired: true,
+    },
+    project_name: {
+      type: "string",
+      isRequired: true,
+    },
+    git_rev: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    path: {
+      type: "string",
+      isRequired: true,
+    },
+  },
+} as const
+
 export const $Issue = {
   properties: {
     id: {
@@ -1163,6 +1191,87 @@ export const $Question = {
     question: {
       type: "string",
       isRequired: true,
+    },
+  },
+} as const
+
+export const $ReferenceEntry = {
+  properties: {
+    type: {
+      type: "string",
+      isRequired: true,
+    },
+    key: {
+      type: "string",
+      isRequired: true,
+    },
+    attrs: {
+      type: "dictionary",
+      contains: {
+        properties: {},
+      },
+      isRequired: true,
+    },
+  },
+} as const
+
+export const $ReferenceFile = {
+  properties: {
+    path: {
+      type: "string",
+      isRequired: true,
+    },
+    key: {
+      type: "string",
+      isRequired: true,
+    },
+  },
+} as const
+
+export const $References = {
+  properties: {
+    path: {
+      type: "string",
+      isRequired: true,
+    },
+    files: {
+      type: "any-of",
+      contains: [
+        {
+          type: "array",
+          contains: {
+            type: "ReferenceFile",
+          },
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    entries: {
+      type: "any-of",
+      contains: [
+        {
+          type: "array",
+          contains: {
+            type: "ReferenceEntry",
+          },
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    imported_from: {
+      type: "any-of",
+      contains: [
+        {
+          type: "ImportInfo",
+        },
+        {
+          type: "null",
+        },
+      ],
     },
   },
 } as const

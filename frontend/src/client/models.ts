@@ -121,6 +121,13 @@ export type HTTPValidationError = {
   detail?: Array<ValidationError>
 }
 
+export type ImportInfo = {
+  project_owner: string
+  project_name: string
+  git_rev?: string | null
+  path: string
+}
+
 export type Issue = {
   id: number
   number: number
@@ -235,6 +242,24 @@ export type Question = {
   id?: string
   project_id: string
   question: string
+}
+
+export type ReferenceEntry = {
+  type: string
+  key: string
+  attrs: Record<string, unknown>
+}
+
+export type ReferenceFile = {
+  path: string
+  key: string
+}
+
+export type References = {
+  path: string
+  files?: Array<ReferenceFile> | null
+  entries?: Array<ReferenceEntry> | null
+  imported_from?: ImportInfo | null
 }
 
 export type Stage = {

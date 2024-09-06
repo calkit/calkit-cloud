@@ -37,6 +37,7 @@ import type {
   ProjectsPublic,
   Publication,
   Question,
+  References,
   Workflow,
 } from "./models"
 
@@ -168,11 +169,13 @@ export type ProjectsData = {
     ownerName: string
     path?: string | null
     projectName: string
+    ttl?: number | null
   }
   GetProjectContents1: {
     ownerName: string
     path: string | null
     projectName: string
+    ttl?: number | null
   }
   PutProjectContents: {
     formData: Body_projects_put_project_contents
@@ -261,6 +264,10 @@ export type ProjectsData = {
     ownerName: string
     projectName: string
     requestBody: IssuePatch
+  }
+  GetProjectReferences: {
+    ownerName: string
+    projectName: string
   }
 }
 
@@ -1001,7 +1008,7 @@ export class ProjectsService {
   public static getProjectContents(
     data: ProjectsData["GetProjectContents"],
   ): CancelablePromise<ContentsItem> {
-    const { ownerName, projectName, path } = data
+    const { ownerName, projectName, path, ttl } = data
     return __request(OpenAPI, {
       method: "GET",
       url: "/api/v1/projects/{owner_name}/{project_name}/contents",
@@ -1011,6 +1018,7 @@ export class ProjectsService {
       },
       query: {
         path,
+        ttl,
       },
       errors: {
         422: `Validation Error`,
@@ -1026,7 +1034,7 @@ export class ProjectsService {
   public static getProjectContents1(
     data: ProjectsData["GetProjectContents1"],
   ): CancelablePromise<ContentsItem> {
-    const { ownerName, projectName, path } = data
+    const { ownerName, projectName, path, ttl } = data
     return __request(OpenAPI, {
       method: "GET",
       url: "/api/v1/projects/{owner_name}/{project_name}/contents/{path}",
@@ -1034,6 +1042,9 @@ export class ProjectsService {
         owner_name: ownerName,
         project_name: projectName,
         path,
+      },
+      query: {
+        ttl,
       },
       errors: {
         422: `Validation Error`,
@@ -1471,6 +1482,28 @@ export class ProjectsService {
       },
       body: requestBody,
       mediaType: "application/json",
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Get Project References
+   * @returns References Successful Response
+   * @throws ApiError
+   */
+  public static getProjectReferences(
+    data: ProjectsData["GetProjectReferences"],
+  ): CancelablePromise<Array<References>> {
+    const { ownerName, projectName } = data
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/api/v1/projects/{owner_name}/{project_name}/references",
+      path: {
+        owner_name: ownerName,
+        project_name: projectName,
+      },
       errors: {
         422: `Validation Error`,
       },
