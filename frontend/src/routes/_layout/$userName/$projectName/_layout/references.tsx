@@ -136,14 +136,14 @@ function References() {
                     </Heading>
                     {references.entries?.map((entry) => (
                       <Box key={entry.key}>
-                        <Heading
-                          size="sm"
-                          mb={1}
-                          pl={4}
-                          id={references.path + entry.key}
-                        >
-                          {entry.key}
-                        </Heading>
+                        <Flex alignItems={"center"} mb={1} pl={4}>
+                          <Heading size="sm" id={references.path + entry.key}>
+                            {entry.key}
+                          </Heading>
+                          <Text ml={1} fontSize={"sm"}>
+                            {entry.file_path ? `(${entry.file_path})` : ""}
+                          </Text>
+                        </Flex>
                         <ReferenceEntryTable referenceEntry={entry} />
                       </Box>
                     ))}
