@@ -164,13 +164,11 @@ function HelpContent() {
     return (
       <>
         <Text mb={mb}>
-          On this page you can add references relevant to your project. These
-          can be part of collections, e.g., in BibTeX files, or standalone
-          references. You can also import a reference from another project.
-        </Text>
-        <Text mb={mb}>
-          You can also upload PDFs of each reference in case they are not openly
-          available on the web.
+          On this page you can view references added to your project. These
+          references are part of collections in BibTeX files. To add references
+          to a collection, edit the BibTeX file directly. To add a new
+          collection, add a BibTeX file to the project repo and add it to the{" "}
+          <Code>references</Code> section of the <Code>calkit.yaml</Code> file.
         </Text>
       </>
     )
