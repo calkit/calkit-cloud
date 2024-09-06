@@ -15,6 +15,7 @@ import {
   Td,
   TableCaption,
   TableContainer,
+  Link,
 } from "@chakra-ui/react"
 import { createFileRoute } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
@@ -36,11 +37,11 @@ interface ReferenceEntryTableProps {
 
 function ReferenceEntryTable({ referenceEntry }: ReferenceEntryTableProps) {
   return (
-    <TableContainer mb={4}>
+    <TableContainer mb={6} whiteSpace={"wrap"}>
       <Table variant="simple" size={"sm"}>
         <Thead>
           <Tr>
-            <Th>Property</Th>
+            <Th width={"100px"}>Property</Th>
             <Th>Value</Th>
           </Tr>
         </Thead>
@@ -49,7 +50,7 @@ function ReferenceEntryTable({ referenceEntry }: ReferenceEntryTableProps) {
             ? Object.entries(referenceEntry.attrs).map(([k, v]) => (
                 <Tr key={k}>
                   <Td>{k}</Td>
-                  <Td>{v}</Td>
+                  <Td>{String(v)}</Td>
                 </Tr>
               ))
             : ""}
@@ -74,7 +75,6 @@ function References() {
         projectName: projectName,
       }),
   })
-  const [selectedRefsIndex, setSelectedRefsIndex] = useState(0)
 
   return (
     <>
@@ -89,54 +89,62 @@ function References() {
               <Text>Could not read references</Text>
             </Box>
           ) : (
-            <Flex>
-              <Box
-                bg={secBgColor}
-                px={4}
-                py={2}
-                borderRadius="lg"
-                mr={8}
-                position={"sticky"}
-                top={50}
-              >
-                <Heading size="md" mb={1}>
-                  References
-                </Heading>
-                {allReferences?.map((references, index) => (
-                  <Box key={references.path}>
-                    <Flex
-                      alignItems="center"
-                      cursor="pointer"
-                      onClick={() => setSelectedRefsIndex(index)}
-                    >
-                      <Icon mr={1} as={IoLibraryOutline} />
-                      <Text>{references.path}</Text>
-                    </Flex>
-                    {index === selectedRefsIndex && references ? (
-                      <>
-                        {references.entries?.map((entry) => (
-                          <Flex ml={3} key={entry.key} alignItems="center">
-                            <Icon as={FiFile} mr={1} />
-                            <Text>{entry.key}</Text>
-                          </Flex>
-                        ))}
-                      </>
-                    ) : (
-                      ""
-                    )}
-                  </Box>
-                ))}
+            <Flex width={"full"}>
+              {/* References table of contents */}
+              <Box>
+                <Box
+                  bg={secBgColor}
+                  px={4}
+                  py={2}
+                  borderRadius="lg"
+                  mr={8}
+                  position={"sticky"}
+                  top={50}
+                  maxH="80%"
+                  overflowY="auto"
+                >
+                  <Heading size="md" mb={1}>
+                    References
+                  </Heading>
+                  {allReferences?.map((references) => (
+                    <Box key={references.path}>
+                      <Link href={`#${references.path}`}>
+                        <Flex alignItems="center">
+                          <Icon mr={1} as={IoLibraryOutline} />
+                          <Text>{references.path}</Text>
+                        </Flex>
+                      </Link>
+                      {references ? (
+                        <>
+                          {references.entries?.map((entry) => (
+                            <Link
+                              key={entry.key}
+                              href={`#${references.path}${entry.key}`}
+                            >
+                              <Flex ml={3} alignItems="center">
+                                <Icon as={FiFile} mr={1} />
+                                <Text>{entry.key}</Text>
+                              </Flex>
+                            </Link>
+                          ))}
+                        </>
+                      ) : (
+                        ""
+                      )}
+                    </Box>
+                  ))}
+                </Box>
               </Box>
               {/* A view for all the reference items' content */}
-              <Box minW={"60%"}>
+              <Box pr={4}>
                 {allReferences?.map((references) => (
-                  <Box key={references.path}>
+                  <Box key={references.path} mb={4}>
                     <Heading size="md" id={references.path} mb={2}>
                       {references.path}
                     </Heading>
                     {references.entries?.map((entry) => (
                       <Box key={entry.key}>
-                        <Flex alignItems={"center"} mb={1} pl={4}>
+                        <Flex alignItems={"center"} mb={2} pl={3}>
                           <Heading size="sm" id={references.path + entry.key}>
                             {entry.key}
                           </Heading>
