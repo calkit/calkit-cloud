@@ -69,7 +69,7 @@ function References() {
                     {index === selectedRefsIndex && references ? (
                       <>
                         {references.entries?.map((entry) => (
-                          <Flex ml={2} key={entry.key} alignItems="center">
+                          <Flex ml={3} key={entry.key} alignItems="center">
                             <Icon as={FiFile} mr={1} />
                             <Text>{entry.key}</Text>
                           </Flex>

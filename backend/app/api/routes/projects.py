@@ -40,6 +40,7 @@ from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlmodel import func, select
+import bibtexparser
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -1398,12 +1399,30 @@ def get_project_references(
     # TODO: Collaborator access
     if project.owner != current_user:
         raise HTTPException(401)
+    repo = get_repo(
+        project=project, user=current_user, session=session, ttl=300
+    )
     ck_info = get_ck_info(
         project=project, user=current_user, session=session, ttl=300
     )
     ref_collections = ck_info.get("references", [])
     resp = []
     for ref_collection in ref_collections:
-        # TODO: Read entries?
+        # Read entries
+        path = ref_collection["path"]
+        if os.path.isfile(os.path.join(repo.working_dir, path)):
+            with open(os.path.join(repo.working_dir, path)) as f:
+                refs = bibtexparser.load(f)
+            entries = refs.entries
+            final_entries = []
+            for entry in entries:
+                key = entry.pop("ID")
+                reftype = entry.pop("ENTRYTYPE")
+                final_entries.append(
+                    ReferenceEntry.model_validate(
+                        dict(key=key, type=reftype, attrs=entry)
+                    )
+                )
+            ref_collection["entries"] = final_entries
         resp.append(References.model_validate(ref_collection))
     return resp
