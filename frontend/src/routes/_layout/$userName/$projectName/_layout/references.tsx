@@ -6,13 +6,22 @@ import {
   Spinner,
   Text,
   Icon,
+  Table,
+  Thead,
+  Tbody,
+  Tfoot,
+  Tr,
+  Th,
+  Td,
+  TableCaption,
+  TableContainer,
 } from "@chakra-ui/react"
 import { createFileRoute } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
 import { IoLibraryOutline } from "react-icons/io5"
 import { FiFile } from "react-icons/fi"
 
-import { ProjectsService } from "../../../../../client"
+import { ProjectsService, type ReferenceEntry } from "../../../../../client"
 import { useState } from "react"
 
 export const Route = createFileRoute(
@@ -20,6 +29,14 @@ export const Route = createFileRoute(
 )({
   component: References,
 })
+
+interface ReferenceEntryTableProps {
+  referenceEntry: ReferenceEntry
+}
+
+function ReferenceEntryTable({ referenceEntry }: ReferenceEntryTableProps) {
+  return <>This is a table {String(referenceEntry)}</>
+}
 
 function References() {
   const secBgColor = useColorModeValue("ui.secondary", "ui.darkSlate")
@@ -52,7 +69,7 @@ function References() {
             </Box>
           ) : (
             <Flex>
-              <Box bg={secBgColor} px={4} py={2} borderRadius="lg">
+              <Box bg={secBgColor} px={4} py={2} borderRadius="lg" mr={4}>
                 <Heading size="md" mb={1}>
                   References
                 </Heading>
@@ -78,6 +95,28 @@ function References() {
                     ) : (
                       ""
                     )}
+                  </Box>
+                ))}
+              </Box>
+              {/* A view for all the reference items' content */}
+              <Box minW={"60%"}>
+                {allReferences?.map((references) => (
+                  <Box key={references.path}>
+                    <Heading size="md" id={references.path} mb={2}>
+                      {references.path}
+                    </Heading>
+                    {references.entries?.map((entry) => (
+                      <Box key={entry.key}>
+                        <Heading
+                          size="sm"
+                          mb={1}
+                          id={references.path + entry.key}
+                        >
+                          {entry.key}
+                        </Heading>
+                        <ReferenceEntryTable referenceEntry={entry} />
+                      </Box>
+                    ))}
                   </Box>
                 ))}
               </Box>

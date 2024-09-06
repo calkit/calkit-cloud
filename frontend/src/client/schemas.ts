@@ -1205,6 +1205,17 @@ export const $ReferenceEntry = {
       type: "string",
       isRequired: true,
     },
+    file_path: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
     attrs: {
       type: "dictionary",
       contains: {
@@ -1267,6 +1278,17 @@ export const $References = {
       contains: [
         {
           type: "ImportInfo",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    raw_text: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
         },
         {
           type: "null",

@@ -1368,6 +1368,7 @@ class ImportInfo(BaseModel):
 class ReferenceEntry(BaseModel):
     type: str
     key: str
+    file_path: str | None = None
     attrs: dict
 
 
@@ -1381,6 +1382,7 @@ class References(BaseModel):
     files: list[ReferenceFile] | None = None
     entries: list[ReferenceEntry] | None = None
     imported_from: ImportInfo | None = None
+    raw_text: str | None = None
 
 
 @router.get("/projects/{owner_name}/{project_name}/references")
@@ -1412,15 +1414,25 @@ def get_project_references(
         path = ref_collection["path"]
         if os.path.isfile(os.path.join(repo.working_dir, path)):
             with open(os.path.join(repo.working_dir, path)) as f:
-                refs = bibtexparser.load(f)
+                raw_text = f.read()
+            ref_collection["raw_text"] = raw_text
+            refs = bibtexparser.loads(raw_text)
             entries = refs.entries
             final_entries = []
+            file_paths = {
+                f["key"]: f["path"] for f in ref_collection.get("files", [])
+            }
             for entry in entries:
                 key = entry.pop("ID")
                 reftype = entry.pop("ENTRYTYPE")
                 final_entries.append(
                     ReferenceEntry.model_validate(
-                        dict(key=key, type=reftype, attrs=entry)
+                        dict(
+                            key=key,
+                            type=reftype,
+                            attrs=entry,
+                            file_path=file_paths.get(key),
+                        )
                     )
                 )
             ref_collection["entries"] = final_entries

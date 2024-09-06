@@ -247,6 +247,7 @@ export type Question = {
 export type ReferenceEntry = {
   type: string
   key: string
+  file_path?: string | null
   attrs: Record<string, unknown>
 }
 
@@ -260,6 +261,7 @@ export type References = {
   files?: Array<ReferenceFile> | null
   entries?: Array<ReferenceEntry> | null
   imported_from?: ImportInfo | null
+  raw_text?: string | null
 }
 
 export type Stage = {
