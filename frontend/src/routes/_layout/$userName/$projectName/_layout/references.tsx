@@ -144,7 +144,7 @@ function References() {
                     </Heading>
                     {references.entries?.map((entry) => (
                       <Box key={entry.key}>
-                        <Flex alignItems={"center"} mb={2} pl={3}>
+                        <Flex alignItems={"center"} mb={2}>
                           <Heading size="sm" id={references.path + entry.key}>
                             {entry.key}
                           </Heading>
