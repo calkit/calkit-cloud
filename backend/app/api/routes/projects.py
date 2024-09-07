@@ -710,9 +710,10 @@ def get_project_questions(
     # TODO: Ensure these go in the database and use real IDs
     return [
         Question.model_validate(
-            q | {"project_id": uuid.uuid4(), "id": uuid.uuid4()}
+            q
+            | {"project_id": uuid.uuid4(), "id": uuid.uuid4(), "number": n + 1}
         )
-        for q in questions
+        for n, q in enumerate(questions)
     ]
 
 

@@ -159,6 +159,7 @@ class Project(ProjectBase, table=True):
     owner_user_id: uuid.UUID = Field(foreign_key="user.id")
     # Relationships
     owner: User | None = Relationship(back_populates="owned_projects")
+    questions: list["Question"] = Relationship(back_populates="project")
 
     @computed_field
     @property
@@ -199,7 +200,10 @@ class Workflow(SQLModel):
 class Question(SQLModel):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     project_id: uuid.UUID = Field(foreign_key="project.id")
+    number: int
     question: str
+    # Relationships
+    project: Project = Relationship(back_populates="questions")
 
 
 class Figure(SQLModel):
