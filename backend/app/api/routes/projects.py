@@ -6,7 +6,7 @@ import logging
 import os
 import subprocess
 import uuid
-from datetime import datetime
+from copy import deepcopy
 from pathlib import Path
 from typing import Annotated, Literal, Optional
 
@@ -706,15 +706,31 @@ def get_project_questions(
     ck_info = get_ck_info(
         project=project, user=current_user, session=session, ttl=300
     )
-    questions = ck_info.get("questions", [])
-    # TODO: Ensure these go in the database and use real IDs
-    return [
-        Question.model_validate(
-            q
-            | {"project_id": uuid.uuid4(), "id": uuid.uuid4(), "number": n + 1}
+    questions_ck = list(ck_info.get("questions", []))
+    questions = deepcopy(questions_ck)
+    logger.info(f"Found {len(questions)} questions in Calkit info")
+    # Put these in the database idempotently
+    existing_questions = project.questions
+    logger.info(f"Found {len(existing_questions)} existing questions in DB")
+    for n, (new, existing) in enumerate(zip(questions_ck, existing_questions)):
+        logger.info(f"Updating existing question number {n + 1}")
+        existing.question = questions.pop(0)  # Just a list of strings
+        existing.number = n + 1  # Should already be done, but just in case
+    start_number = len(existing_questions) + 1
+    logger.info(f"Adding {len(questions)} new questions")
+    for n, new in enumerate(questions):
+        project.questions.append(
+            Question(number=start_number + 1, question=new)
         )
-        for n, q in enumerate(questions)
-    ]
+    # Delete extra questions in DB
+    while len(project.questions) > len(questions_ck):
+        q = project.questions.pop(-1)
+        logger.info(f"Deleting question number {q.number}")
+        session.delete(q)
+    session.commit()
+    session.refresh(project)
+    # TODO: Maybe questions don't belong in the Calkit file?
+    return project.questions
 
 
 @router.get("/projects/{owner_name}/{project_name}/figures")

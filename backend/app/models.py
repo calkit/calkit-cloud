@@ -197,7 +197,7 @@ class Workflow(SQLModel):
     yaml: str
 
 
-class Question(SQLModel):
+class Question(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     project_id: uuid.UUID = Field(foreign_key="project.id")
     number: int
