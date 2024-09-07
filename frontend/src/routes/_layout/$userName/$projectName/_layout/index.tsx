@@ -53,6 +53,8 @@ function ProjectView() {
         projectName: projectName,
         state: showClosedTodos ? "all" : "open",
       }),
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
   })
   const removeFirstLine = (txt: any) => {
     let lines = String(txt).split("\n")
