@@ -178,11 +178,11 @@ function HelpContent() {
       <>
         <Text mb={mb}>
           This page serves as an index for software created for and/or used in
-          the project, which includes environments, packages, apps, and scripts.
-          The main purpose of including this information is to ensure anything
-          produced with the software can be reproduced. A secondary purpose is
-          to make it easier for others to use the software in their own projects
-          by importing into them.
+          the project, which includes environments, packages or libraries, apps,
+          and scripts. The main purpose of including this information is to
+          ensure anything produced with the software can be reproduced. A
+          secondary purpose is to make it easier for others to use the software
+          in their own projects by importing into them.
         </Text>
       </>
     )
