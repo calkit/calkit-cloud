@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Annotated, Literal, Optional
 
 import app.projects
+import bibtexparser
 import requests
 import s3fs
 import yaml
@@ -22,7 +23,12 @@ from app.core import (
     ryaml,
 )
 from app.dvc import make_mermaid_diagram, output_from_pipeline
-from app.git import get_ck_info, get_dvc_pipeline, get_repo
+from app.git import (
+    get_ck_info,
+    get_ck_info_from_repo,
+    get_dvc_pipeline,
+    get_repo,
+)
 from app.models import (
     Dataset,
     Figure,
@@ -40,7 +46,6 @@ from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlmodel import func, select
-import bibtexparser
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -1404,9 +1409,7 @@ def get_project_references(
     repo = get_repo(
         project=project, user=current_user, session=session, ttl=300
     )
-    ck_info = get_ck_info(
-        project=project, user=current_user, session=session, ttl=300
-    )
+    ck_info = get_ck_info_from_repo(repo)
     ref_collections = ck_info.get("references", [])
     resp = []
     for ref_collection in ref_collections:
@@ -1438,3 +1441,44 @@ def get_project_references(
             ref_collection["entries"] = final_entries
         resp.append(References.model_validate(ref_collection))
     return resp
+
+
+class Environment(BaseModel):
+    kind: Literal["docker", "conda"]
+    path: str
+    file_content: str | None = None
+
+
+class Software(BaseModel):
+    environments: list[Environment]
+    # TODO: Add scripts, packages, apps?
+
+
+@router.get("/projects/{owner_name}/{project_name}/software")
+def get_project_software(
+    owner_name: str,
+    project_name: str,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> Software:
+    project = get_project_by_name(
+        owner_name=owner_name,
+        project_name=project_name,
+        session=session,
+        current_user=current_user,
+    )
+    # TODO: Collaborator access
+    if project.owner != current_user:
+        raise HTTPException(401)
+    repo = get_repo(
+        project=project, user=current_user, session=session, ttl=300
+    )
+    ck_info = get_ck_info_from_repo(repo)
+    envs = ck_info.get("environments", [])
+    resp = []
+    for env in envs:
+        fpath = os.path.join(repo.working_dir, env["path"])
+        with open(fpath) as f:
+            env["file_content"] = f.read()
+        resp.append(Environment.model_validate(env))
+    return Software(environments=resp)

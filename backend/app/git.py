@@ -89,16 +89,20 @@ def get_repo(
     return repo
 
 
-def get_ck_info(
-    project: Project, user: User, session: Session, ttl=None
-) -> dict:
-    """Load the calkit.yaml file contents into a dictionary."""
-    repo = get_repo(project=project, user=user, session=session, ttl=ttl)
+def get_ck_info_from_repo(repo: git.Repo) -> dict:
     if os.path.isfile(os.path.join(repo.working_dir, "calkit.yaml")):
         with open(os.path.join(repo.working_dir, "calkit.yaml")) as f:
             return ryaml.load(f)
     else:
         return {}
+
+
+def get_ck_info(
+    project: Project, user: User, session: Session, ttl=None
+) -> dict:
+    """Load the calkit.yaml file contents into a dictionary."""
+    repo = get_repo(project=project, user=user, session=session, ttl=ttl)
+    return get_ck_info_from_repo(repo=repo)
 
 
 def get_dvc_pipeline(
