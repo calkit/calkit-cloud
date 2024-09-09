@@ -221,14 +221,13 @@ function ProjectView() {
               <Heading size="md" mb={2}>
                 Recent activity
               </Heading>
-              <Text>Bob did this...</Text>
-              <Text>Joe did that...</Text>
+              <Text>Coming soon!</Text>
             </Box>
             <Box py={4} px={6} borderRadius="lg" bg={secBgColor}>
               <Heading size="md" mb={2}>
                 Stats
               </Heading>
-              <Text>Publications: TODO</Text>
+              <Text>Coming soon!</Text>
             </Box>
           </Box>
         </Flex>
