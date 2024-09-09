@@ -78,7 +78,7 @@ class User(UserBase, table=True):
     @computed_field
     @property
     def github_username(self) -> str:
-        return self.account.name
+        return self.account.github_name
 
 
 # Properties to return via API, id is always required
