@@ -218,23 +218,24 @@ class ProjectBase(SQLModel):
         max_length=40, nullable=True, default=None
     )
 
-    @computed_field
-    @property
-    def name_slug(self) -> str:
-        return slugify(self.name)
-
 
 class Project(ProjectBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    owner_user_id: uuid.UUID = Field(foreign_key="user.id")
+    owner_user_id: uuid.UUID = Field(foreign_key="user.id", nullable=True)
+    owner_org_id: uuid.UUID = Field(foreign_key="org.id", nullable=True)
     # Relationships
     owner: User | None = Relationship(back_populates="owned_projects")
+    org: Org | None = Relationship(back_populates="projects")
     questions: list["Question"] = Relationship(back_populates="project")
 
     @computed_field
     @property
-    def owner_github_username(self) -> str:
-        return self.owner.github_username
+    def owner_github_username(self) -> str | None:
+        if self.owner_user_id is not None:
+            return self.owner.github_username
+        elif self.owner_org_id is not None:
+            return self.org.github_name
+
 
 
 class ProjectPublic(ProjectBase):
