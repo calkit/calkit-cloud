@@ -82,7 +82,6 @@ class UserGitHubToken(SQLModel, table=True):
 # Database model, database table inferred from class name
 class User(UserBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    account_id: uuid.UUID = Field(foreign_key="account.id")
     hashed_password: str
     # Relationships
     account: Account = Relationship(back_populates="user")
