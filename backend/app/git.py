@@ -21,7 +21,7 @@ def get_repo(
     Note that we need to handle concurrency here in case multiple API calls
     have been made at the same time that request the repo.
     """
-    owner_name = project.owner_github_username
+    owner_name = project.owner_github_name
     project_name = project.name
     # Add the file to the repo(s) -- we may need to clone it
     # If it already exists, just git pull
@@ -38,6 +38,7 @@ def get_repo(
         f"{project.git_repo_url.removeprefix('https://')}.git"
     )
     newly_cloned = False
+    repo = None
     if not os.path.isdir(repo_dir):
         newly_cloned = True
         logger.info(f"Git cloning into {repo_dir}")
@@ -76,6 +77,8 @@ def get_repo(
                     subprocess.call(["touch", updated_fpath])
         except Timeout:
             logger.warning("Git repo lock timed out")
+    if repo is None:
+        repo = git.Repo(repo_dir)
     return repo
 
 

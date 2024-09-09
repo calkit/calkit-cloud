@@ -7,7 +7,7 @@ import requests
 from app import logger, utcnow
 from app.config import settings
 from app.github import token_resp_text_to_dict
-from app.models import User, UserCreate, UserGitHubToken, UserUpdate
+from app.models import Account, User, UserCreate, UserGitHubToken, UserUpdate
 from app.security import (
     decrypt_secret,
     encrypt_secret,
@@ -20,7 +20,13 @@ from sqlmodel import Session, select
 def create_user(*, session: Session, user_create: UserCreate) -> User:
     db_obj = User.model_validate(
         user_create,
-        update={"hashed_password": get_password_hash(user_create.password)},
+        update={
+            "hashed_password": get_password_hash(user_create.password),
+            "account": Account(
+                name=user_create.github_username,
+                github_name=user_create.github_username,
+            ),
+        },
     )
     session.add(db_obj)
     session.commit()
@@ -75,9 +81,7 @@ def get_github_token(session: Session, user: User) -> str:
                 client_id=settings.GITHUB_CLIENT_ID,
                 client_secret=settings.GITHUB_CLIENT_SECRET,
                 grant_type="refresh_token",
-                refresh_token=decrypt_secret(
-                    user.github_token.refresh_token
-                ),
+                refresh_token=decrypt_secret(user.github_token.refresh_token),
             ),
         )
         logger.info("Refreshed GitHub token")

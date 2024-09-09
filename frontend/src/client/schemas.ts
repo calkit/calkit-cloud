@@ -857,7 +857,7 @@ export const $NewPassword = {
   },
 } as const
 
-export const $Project = {
+export const $ProjectCreate = {
   properties: {
     name: {
       type: "string",
@@ -865,89 +865,7 @@ export const $Project = {
       maxLength: 255,
       minLength: 4,
     },
-    description: {
-      type: "any-of",
-      contains: [
-        {
-          type: "string",
-          maxLength: 2048,
-          minLength: 0,
-        },
-        {
-          type: "null",
-        },
-      ],
-    },
-    is_public: {
-      type: "boolean",
-      default: false,
-    },
-    created: {
-      type: "any-of",
-      contains: [
-        {
-          type: "string",
-          format: "date-time",
-        },
-        {
-          type: "null",
-        },
-      ],
-    },
-    updated: {
-      type: "any-of",
-      contains: [
-        {
-          type: "string",
-          format: "date-time",
-        },
-        {
-          type: "null",
-        },
-      ],
-    },
-    git_repo_url: {
-      type: "string",
-      isRequired: true,
-      maxLength: 2048,
-    },
-    latest_git_rev: {
-      type: "any-of",
-      contains: [
-        {
-          type: "string",
-          maxLength: 40,
-        },
-        {
-          type: "null",
-        },
-      ],
-    },
-    id: {
-      type: "string",
-      format: "uuid",
-    },
-    owner_user_id: {
-      type: "string",
-      isRequired: true,
-      format: "uuid",
-    },
-    name_slug: {
-      type: "string",
-      isReadOnly: true,
-      isRequired: true,
-    },
-    owner_github_username: {
-      type: "string",
-      isReadOnly: true,
-      isRequired: true,
-    },
-  },
-} as const
-
-export const $ProjectCreate = {
-  properties: {
-    name: {
+    title: {
       type: "string",
       isRequired: true,
       maxLength: 255,
@@ -1022,6 +940,12 @@ export const $ProjectPublic = {
       maxLength: 255,
       minLength: 4,
     },
+    title: {
+      type: "string",
+      isRequired: true,
+      maxLength: 255,
+      minLength: 4,
+    },
     description: {
       type: "any-of",
       contains: [
@@ -1085,26 +1009,17 @@ export const $ProjectPublic = {
       isRequired: true,
       format: "uuid",
     },
-    owner_user_id: {
+    owner_account_id: {
       type: "string",
       isRequired: true,
       format: "uuid",
     },
-    owner_github_username: {
-      type: "any-of",
-      contains: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
+    owner_account_name: {
+      type: "string",
       isRequired: true,
     },
-    name_slug: {
+    owner_account_type: {
       type: "string",
-      isReadOnly: true,
       isRequired: true,
     },
   },
@@ -1479,23 +1394,15 @@ export const $UserCreate = {
         },
       ],
     },
-    github_username: {
-      type: "any-of",
-      contains: [
-        {
-          type: "string",
-          maxLength: 255,
-        },
-        {
-          type: "null",
-        },
-      ],
-    },
     password: {
       type: "string",
       isRequired: true,
       maxLength: 40,
       minLength: 8,
+    },
+    github_username: {
+      type: "string",
+      maxLength: 64,
     },
   },
 } as const
@@ -1528,22 +1435,14 @@ export const $UserPublic = {
         },
       ],
     },
-    github_username: {
-      type: "any-of",
-      contains: [
-        {
-          type: "string",
-          maxLength: 255,
-        },
-        {
-          type: "null",
-        },
-      ],
-    },
     id: {
       type: "string",
       isRequired: true,
       format: "uuid",
+    },
+    github_username: {
+      type: "string",
+      isRequired: true,
     },
   },
 } as const
@@ -1601,18 +1500,6 @@ export const $UserUpdate = {
       default: false,
     },
     full_name: {
-      type: "any-of",
-      contains: [
-        {
-          type: "string",
-          maxLength: 255,
-        },
-        {
-          type: "null",
-        },
-      ],
-    },
-    github_username: {
       type: "any-of",
       contains: [
         {

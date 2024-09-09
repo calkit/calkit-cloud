@@ -83,7 +83,7 @@ function ProjectsTable() {
         <Table size={{ base: "sm", md: "md" }}>
           <Thead>
             <Tr>
-              <Th>Name</Th>
+              <Th>Title</Th>
               <Th>GitHub URL</Th>
               <Th>Description</Th>
               <Th>Actions</Th>
@@ -107,9 +107,9 @@ function ProjectsTable() {
                     {/* TODO: Project paths should be forced to match GitHub URL? */}
                     <Link
                       as={RouterLink}
-                      to={item.owner_github_username + "/" + item.name_slug}
+                      to={item.owner_account_name + "/" + item.name}
                     >
-                      {item.name}
+                      {item.title}
                     </Link>
                   </Td>
                   <Td isTruncated maxWidth="150px">
@@ -181,7 +181,7 @@ function PublicProjectsTable() {
         <Table size={{ base: "sm", md: "md" }}>
           <Thead>
             <Tr>
-              <Th>Name</Th>
+              <Th>Title</Th>
               <Th>GitHub URL</Th>
               <Th>Description</Th>
             </Tr>
@@ -201,7 +201,7 @@ function PublicProjectsTable() {
               {items?.data.map((item) => (
                 <Tr key={item.id} opacity={isPlaceholderData ? 0.5 : 1}>
                   <Td isTruncated maxWidth="150px">
-                    {item.name}
+                    {item.title}
                   </Td>
                   <Td isTruncated maxWidth="150px">
                     <Link href={item.git_repo_url} isExternal>

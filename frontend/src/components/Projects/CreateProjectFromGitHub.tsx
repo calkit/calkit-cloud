@@ -49,6 +49,7 @@ const CreateProjectFromGitHub = ({ isOpen, onClose }: AddProjectProps) => {
     mode: "onBlur",
     criteriaMode: "all",
     defaultValues: {
+      title: "",
       name: "",
       description: "",
       git_repo_url: `https://github.com/${githubUsername}/`,
@@ -57,8 +58,11 @@ const CreateProjectFromGitHub = ({ isOpen, onClose }: AddProjectProps) => {
   })
 
   const mutation = useMutation({
-    mutationFn: (data: ProjectCreate) =>
-      ProjectsService.createProject({ requestBody: data }),
+    mutationFn: (data: ProjectCreate) => {
+      const projectName = String(data.git_repo_url.split("/").at(-1))
+      data.name = projectName
+      return ProjectsService.createProject({ requestBody: data })
+    },
     onSuccess: () => {
       showToast("Success!", "Project created successfully.", "success")
       reset()
@@ -90,17 +94,19 @@ const CreateProjectFromGitHub = ({ isOpen, onClose }: AddProjectProps) => {
           <ModalCloseButton />
           <ModalBody pb={6}>
             <FormControl isRequired isInvalid={!!errors.name}>
-              <FormLabel htmlFor="name">Name</FormLabel>
+              <FormLabel htmlFor="title">Title</FormLabel>
               <Input
-                id="name"
-                {...register("name", {
-                  required: "Name is required.",
+                id="title"
+                {...register("title", {
+                  required: "Title is required.",
                 })}
-                placeholder="Ex: Coherent structures in high Reynolds number boundary layers"
+                placeholder={
+                  "Ex: Coherent structures in high Reynolds number boundary layers"
+                }
                 type="text"
               />
-              {errors.name && (
-                <FormErrorMessage>{errors.name.message}</FormErrorMessage>
+              {errors.title && (
+                <FormErrorMessage>{errors.title.message}</FormErrorMessage>
               )}
             </FormControl>
             <FormControl mt={4} isRequired isInvalid={!!errors.git_repo_url}>
@@ -136,7 +142,6 @@ const CreateProjectFromGitHub = ({ isOpen, onClose }: AddProjectProps) => {
               </FormControl>
             </Flex>
           </ModalBody>
-
           <ModalFooter gap={3}>
             <Button
               variant="primary"
