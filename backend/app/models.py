@@ -91,7 +91,7 @@ class User(UserBase, table=True):
         back_populates="owner", cascade_delete=True
     )
     github_token: UserGitHubToken | None = Relationship()
-    account: Account = Relationship()
+    account: Account = Relationship(back_populates="user")
 
     @computed_field
     @property
@@ -118,6 +118,7 @@ class UserPublic(UserBase):
 class UsersPublic(SQLModel):
     data: list[UserPublic]
     count: int
+
 
 # Track user membership in an org
 class UserOrgMembership(SQLModel):
@@ -165,6 +166,8 @@ class DiscountCode(SQLModel):
 class UserSubscription(SQLModel):
     user_id: uuid.UUID
     subscription_id: uuid.UUID
+
+
 class Org(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     display_name: str = Field(min_length=2, max_length=255)
