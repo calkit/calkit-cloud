@@ -9,18 +9,26 @@ from slugify import slugify
 from sqlmodel import Field, Relationship, SQLModel
 
 
+class Account(SQLModel, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    name: str = Field(min_length=2, max_length=64, unique=True)
+    user_id: uuid.UUID = Field(foreign_key="user.id", nullable=True)
+    org_id: uuid.UUID = Field(foreign_key="org.id", nullable=True)
+    github_name: str | None
+
+
 # Shared properties
 class UserBase(SQLModel):
     email: EmailStr = Field(unique=True, index=True, max_length=255)
     is_active: bool = True
     is_superuser: bool = False
     full_name: str | None = Field(default=None, max_length=255)
-    github_username: str | None = Field(default=None, max_length=255)
 
 
 # Properties to receive via API on creation
 class UserCreate(UserBase):
     password: str = Field(min_length=8, max_length=40)
+    github_username: str = Field(default=None, max_length=64)
 
 
 class UserRegister(SQLModel):
@@ -60,21 +68,35 @@ class User(UserBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     hashed_password: str
     # Relationships
+    account: Account = Relationship()
     items: list["Item"] = Relationship(
         back_populates="owner", cascade_delete=True
     )
     owned_projects: list["Project"] = Relationship(back_populates="owner")
     github_token: UserGitHubToken | None = Relationship()
 
+    @computed_field
+    @property
+    def github_username(self) -> str:
+        return self.account.name
+
 
 # Properties to return via API, id is always required
 class UserPublic(UserBase):
     id: uuid.UUID
+    github_username: str
 
 
 class UsersPublic(SQLModel):
     data: list[UserPublic]
     count: int
+
+
+class Org(SQLModel, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    display_name: str = Field(min_length=2, max_length=255)
+    # Relationships
+    account: Account = Relationship()
 
 
 # Shared properties
