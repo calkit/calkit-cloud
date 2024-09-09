@@ -2,6 +2,7 @@
 
 import uuid
 from datetime import datetime
+from typing import Literal
 
 from app import utcnow
 from pydantic import EmailStr, computed_field

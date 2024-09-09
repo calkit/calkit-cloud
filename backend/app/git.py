@@ -22,7 +22,7 @@ def get_repo(
     have been made at the same time that request the repo.
     """
     owner_name = project.owner_github_username
-    project_name = project.name_slug
+    project_name = project.name
     # Add the file to the repo(s) -- we may need to clone it
     # If it already exists, just git pull
     base_dir = f"/tmp/{user.github_username}/{owner_name}/{project_name}"
