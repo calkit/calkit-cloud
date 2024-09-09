@@ -6,11 +6,10 @@ import time
 
 import git
 from app import users
-from app.core import logger
+from app.core import logger, ryaml
 from app.models import Project, User
+from filelock import FileLock
 from sqlmodel import Session
-
-from app.core import ryaml
 
 
 def get_repo(
@@ -30,6 +29,7 @@ def get_repo(
     repo_dir = os.path.join(base_dir, "repo")
     updated_fpath = os.path.join(base_dir, "updated.txt")
     lock_fpath = os.path.join(base_dir, "updating.lock")
+    lock = FileLock(lock_fpath, timeout=1)
     os.makedirs(base_dir, exist_ok=True)
     # Clone the repo if it doesn't exist -- it will be in a "repo" dir
     access_token = users.get_github_token(session=session, user=user)
@@ -38,54 +38,40 @@ def get_repo(
         f"{project.git_repo_url.removeprefix('https://')}.git"
     )
     newly_cloned = False
-    if not os.path.isdir(repo_dir) and not os.path.isfile(lock_fpath):
+    if not os.path.isdir(repo_dir):
         newly_cloned = True
         logger.info(f"Git cloning into {repo_dir}")
-        subprocess.call(["touch", lock_fpath])
-        subprocess.call(
-            ["git", "clone", "--depth", "1", git_clone_url, repo_dir]
-        )
-        # Touch a file so we can compute a TTL
-        subprocess.call(["touch", updated_fpath])
-        repo = git.Repo(repo_dir)
-        # Run git config so we make commits as this user
-        repo.git.config(["user.name", user.full_name])
-        repo.git.config(["user.email", user.email])
-        os.remove(lock_fpath)
+        with lock:
+            subprocess.call(
+                ["git", "clone", "--depth", "1", git_clone_url, repo_dir]
+            )
+            # Touch a file so we can compute a TTL
+            subprocess.call(["touch", updated_fpath])
+            repo = git.Repo(repo_dir)
+            # Run git config so we make commits as this user
+            repo.git.config(["user.name", user.full_name])
+            repo.git.config(["user.email", user.email])
     if os.path.isfile(updated_fpath):
         last_updated = os.path.getmtime(updated_fpath)
     else:
         last_updated = 0
     if not newly_cloned:
-        repo = git.Repo(repo_dir)
         # TODO: Only pull if we know we need to, perhaps with a call to GitHub
         # for the latest rev
-        if (
-            ttl is None or ((time.time() - last_updated) > ttl)
-        ) and not os.path.isfile(lock_fpath):
-            subprocess.call(["touch", lock_fpath])
-            logger.info("Updating remote in case token was refreshed")
-            repo.remote().set_url(git_clone_url)
-            logger.info("Git fetching")
-            branch_name = repo.active_branch.name
-            repo.git.fetch(["origin", branch_name])
-            repo.git.checkout([f"origin/{branch_name}"])
-            repo.git.branch(["-D", branch_name])
-            repo.git.checkout(["-b", branch_name])
-            try:
-                os.remove(lock_fpath)
-            except FileNotFoundError:
-                logger.warning(
-                    "Can't delete lock file because it doesn't exist"
-                )
-            subprocess.call(["touch", updated_fpath])
-    # Timeout lock in case an operation failed last time
-    n = 1
-    while os.path.isfile(lock_fpath):
-        n += 1
-        time.sleep(0.01)
-        if n > 1000:
-            os.remove(lock_fpath)
+        repo = git.Repo(repo_dir)
+        with lock:
+            if (
+                ttl is None or ((time.time() - last_updated) > ttl)
+            ) and not os.path.isfile(lock_fpath):
+                logger.info("Updating remote in case token was refreshed")
+                repo.remote().set_url(git_clone_url)
+                logger.info("Git fetching")
+                branch_name = repo.active_branch.name
+                repo.git.fetch(["origin", branch_name])
+                repo.git.checkout([f"origin/{branch_name}"])
+                repo.git.branch(["-D", branch_name])
+                repo.git.checkout(["-b", branch_name])
+                subprocess.call(["touch", updated_fpath])
     return repo
 
 
