@@ -10,6 +10,13 @@ from slugify import slugify
 from sqlmodel import Field, Relationship, SQLModel
 
 
+class Account(SQLModel):
+    id: uuid.UUID
+    name: str  # All lowercase, no spaces, etc.
+    display_name: str
+    github_name: str
+
+
 # Shared properties
 class UserBase(SQLModel):
     email: EmailStr = Field(unique=True, index=True, max_length=255)
@@ -59,6 +66,7 @@ class UserGitHubToken(SQLModel, table=True):
 # Database model, database table inferred from class name
 class User(UserBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    account_id: uuid.UUID = Field(foreign_key="account.id")
     hashed_password: str
     # Relationships
     items: list["Item"] = Relationship(
@@ -66,6 +74,12 @@ class User(UserBase, table=True):
     )
     owned_projects: list["Project"] = Relationship(back_populates="owner")
     github_token: UserGitHubToken | None = Relationship()
+    account: Account = Relationship()
+
+    @computed_field
+    @property
+    def name(self) -> str:
+        return self.account.name
 
 
 # Properties to return via API, id is always required
