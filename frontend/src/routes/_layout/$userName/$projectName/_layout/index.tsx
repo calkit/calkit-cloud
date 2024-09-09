@@ -102,7 +102,15 @@ function ProjectView() {
       ) : (
         <Flex mt={1}>
           <Box width="60%" mr={8}>
-            <Box py={4} px={6} mb={4} borderRadius="lg" bg={secBgColor}>
+            <Box
+              py={4}
+              px={6}
+              mb={4}
+              borderRadius="lg"
+              bg={secBgColor}
+              maxH={"60vh"}
+              overflow="auto"
+            >
               <Heading size="md">About</Heading>
               <Markdown>
                 {removeFirstLine(atob(String(readmeRequest?.data?.content)))}
