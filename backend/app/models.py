@@ -222,7 +222,7 @@ class Project(ProjectBase, table=True):
     @computed_field
     @property
     def owner_github_name(self) -> str:
-        return self.owner.github_name
+        return self.owner_account.github_name
 
     @computed_field
     @property
