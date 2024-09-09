@@ -20,8 +20,8 @@ class Account(SQLModel, table=True):
     owned_projects: list["Project"] = Relationship(
         back_populates="owner_account"
     )
-    user: Union["User", None] = Relationship()
-    org: Union["Org", None] = Relationship()
+    user: Union["User", None] = Relationship(back_populates="account")
+    org: Union["Org", None] = Relationship(back_populates="account")
 
     @computed_field
     @property
@@ -85,7 +85,7 @@ class User(UserBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     hashed_password: str
     # Relationships
-    account: Account = Relationship()
+    account: Account = Relationship(back_populates="user")
     items: list["Item"] = Relationship(
         back_populates="owner", cascade_delete=True
     )
@@ -117,7 +117,7 @@ class Org(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     display_name: str = Field(min_length=2, max_length=255)
     # Relationships
-    account: Account = Relationship()
+    account: Account = Relationship(back_populates="org")
 
     @computed_field
     @property
@@ -185,6 +185,7 @@ class NewPassword(SQLModel):
 
 class ProjectBase(SQLModel):
     name: str = Field(min_length=4, max_length=255)
+    title: str = Field(min_length=4, max_length=255)
     description: str | None = Field(
         default=None, min_length=0, max_length=2048
     )
@@ -195,11 +196,6 @@ class ProjectBase(SQLModel):
     latest_git_rev: str | None = Field(
         max_length=40, nullable=True, default=None
     )
-
-    @computed_field
-    @property
-    def name_slug(self) -> str:
-        return slugify(self.name)
 
 
 class Project(ProjectBase, table=True):

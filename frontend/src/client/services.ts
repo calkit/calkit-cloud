@@ -135,6 +135,10 @@ export type ProjectsData = {
     ownerName: string
     projectName: string
   }
+  DeleteProject: {
+    ownerName: string
+    projectName: string
+  }
   GetProjectGitRepo: {
     ownerName: string
     projectName: string
@@ -856,6 +860,28 @@ export class ProjectsService {
     const { ownerName, projectName } = data
     return __request(OpenAPI, {
       method: "GET",
+      url: "/api/v1/projects/{owner_name}/{project_name}",
+      path: {
+        owner_name: ownerName,
+        project_name: projectName,
+      },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Delete Project
+   * @returns Message Successful Response
+   * @throws ApiError
+   */
+  public static deleteProject(
+    data: ProjectsData["DeleteProject"],
+  ): CancelablePromise<Message> {
+    const { ownerName, projectName } = data
+    return __request(OpenAPI, {
+      method: "DELETE",
       url: "/api/v1/projects/{owner_name}/{project_name}",
       path: {
         owner_name: ownerName,

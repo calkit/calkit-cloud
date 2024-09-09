@@ -165,6 +165,24 @@ def get_project_by_name(
     return project
 
 
+@router.delete("/projects/{owner_name}/{project_name}")
+def delete_project(
+    owner_name: str,
+    project_name: str,
+    session: SessionDep,
+    current_user: CurrentUser,
+) -> Message:
+    project = app.projects.get_project(
+        session=session, owner_name=owner_name, project_name=project_name
+    )
+    # TODO: Check for collaborator access
+    if project.owner != current_user:
+        raise HTTPException(403)
+    session.delete(project)
+    session.commit()
+    return Message(message="success")
+
+
 @router.get("/projects/{owner_name}/{project_name}/git/repo")
 def get_project_git_repo(
     owner_name: str,
