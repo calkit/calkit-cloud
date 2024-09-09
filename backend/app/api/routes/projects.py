@@ -163,7 +163,6 @@ def get_project_by_name(
     # TODO: Check for collaborator access
     if project.owner != current_user:
         raise HTTPException(403)
-    logger.info(f"Found project: {project}")
     return project
 
 
