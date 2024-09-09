@@ -2,6 +2,7 @@
 
 import uuid
 from datetime import datetime
+from typing import Union
 
 from app import utcnow
 from pydantic import EmailStr, computed_field
@@ -14,7 +15,13 @@ class Account(SQLModel, table=True):
     name: str = Field(min_length=2, max_length=64, unique=True)
     user_id: uuid.UUID = Field(foreign_key="user.id", nullable=True)
     org_id: uuid.UUID = Field(foreign_key="org.id", nullable=True)
-    github_name: str | None
+    github_name: str
+    # Relationships
+    owned_projects: list["Project"] = Relationship(
+        back_populates="owner_account"
+    )
+    user: Union["User", None] = Relationship()
+    org: Union["Org", None] = Relationship()
 
 
 # Shared properties
@@ -72,13 +79,17 @@ class User(UserBase, table=True):
     items: list["Item"] = Relationship(
         back_populates="owner", cascade_delete=True
     )
-    owned_projects: list["Project"] = Relationship(back_populates="owner")
     github_token: UserGitHubToken | None = Relationship()
 
     @computed_field
     @property
     def github_username(self) -> str:
         return self.account.github_name
+
+    @computed_field
+    @property
+    def owned_projects(self) -> list["Project"]:
+        return self.account.owned_projects
 
 
 # Properties to return via API, id is always required
@@ -97,6 +108,11 @@ class Org(SQLModel, table=True):
     display_name: str = Field(min_length=2, max_length=255)
     # Relationships
     account: Account = Relationship()
+
+    @computed_field
+    @property
+    def owned_projects(self) -> list["Project"]:
+        return self.account.owned_projects
 
 
 # Shared properties
@@ -178,15 +194,25 @@ class ProjectBase(SQLModel):
 
 class Project(ProjectBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    owner_user_id: uuid.UUID = Field(foreign_key="user.id")
+    owner_account_id: uuid.UUID = Field(foreign_key="account.id")
     # Relationships
-    owner: User | None = Relationship(back_populates="owned_projects")
+    owner_account: Account = Relationship(back_populates="owned_projects")
     questions: list["Question"] = Relationship(back_populates="project")
 
     @computed_field
     @property
-    def owner_github_username(self) -> str:
-        return self.owner.github_username
+    def owner_github_name(self) -> str:
+        return self.owner.github_name
+
+    @computed_field
+    @property
+    def owner(self) -> User | Org:
+        if self.owner_account.user is not None:
+            return self.owner_account.user
+        elif self.owner_account.org is not None:
+            return self.owner_account.org
+        else:
+            raise ValueError("Project has no owner")
 
 
 class ProjectPublic(ProjectBase):

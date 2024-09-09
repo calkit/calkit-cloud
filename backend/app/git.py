@@ -21,7 +21,7 @@ def get_repo(
     Note that we need to handle concurrency here in case multiple API calls
     have been made at the same time that request the repo.
     """
-    owner_name = project.owner_github_username
+    owner_name = project.owner_github_name
     project_name = project.name_slug
     # Add the file to the repo(s) -- we may need to clone it
     # If it already exists, just git pull
