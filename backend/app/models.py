@@ -6,7 +6,6 @@ from typing import Literal, Union
 
 from app import utcnow
 from pydantic import EmailStr, computed_field
-from slugify import slugify
 from sqlmodel import Field, Relationship, SQLModel
 
 
