@@ -220,7 +220,6 @@ class Project(ProjectBase, table=True):
     def owner_github_name(self) -> str:
         return self.owner_account.github_name
 
-    @computed_field
     @property
     def owner(self) -> User | Org:
         if self.owner_account_type == "user":
