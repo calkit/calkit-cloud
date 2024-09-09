@@ -92,15 +92,9 @@ class User(UserBase, table=True):
 
     @computed_field
     @property
-    def name(self) -> str:
-        return self.account.name
-
-    @computed_field
-    @property
     def github_username(self) -> str:
         return self.account.github_name
 
-    @computed_field
     @property
     def owned_projects(self) -> list["Project"]:
         return self.account.owned_projects
