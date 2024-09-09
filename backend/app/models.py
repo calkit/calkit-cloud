@@ -89,7 +89,6 @@ class User(UserBase, table=True):
         back_populates="owner", cascade_delete=True
     )
     github_token: UserGitHubToken | None = Relationship()
-    account: Account = Relationship(back_populates="user")
 
     @computed_field
     @property
