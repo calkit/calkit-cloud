@@ -32,8 +32,8 @@ import type {
   Issue,
   IssuePatch,
   IssuePost,
-  Project,
   ProjectCreate,
+  ProjectPublic,
   ProjectsPublic,
   Publication,
   Question,
@@ -810,12 +810,12 @@ export class ProjectsService {
   /**
    * Create Project
    * Create new project.
-   * @returns Project Successful Response
+   * @returns ProjectPublic Successful Response
    * @throws ApiError
    */
   public static createProject(
     data: ProjectsData["CreateProject"],
-  ): CancelablePromise<Project> {
+  ): CancelablePromise<ProjectPublic> {
     const { requestBody } = data
     return __request(OpenAPI, {
       method: "POST",
@@ -830,12 +830,12 @@ export class ProjectsService {
 
   /**
    * Get Project
-   * @returns Project Successful Response
+   * @returns ProjectPublic Successful Response
    * @throws ApiError
    */
   public static getProject(
     data: ProjectsData["GetProject"],
-  ): CancelablePromise<Project> {
+  ): CancelablePromise<ProjectPublic> {
     const { projectId } = data
     return __request(OpenAPI, {
       method: "GET",
@@ -851,12 +851,12 @@ export class ProjectsService {
 
   /**
    * Get Project By Name
-   * @returns Project Successful Response
+   * @returns ProjectPublic Successful Response
    * @throws ApiError
    */
   public static getProjectByName(
     data: ProjectsData["GetProjectByName"],
-  ): CancelablePromise<Project> {
+  ): CancelablePromise<ProjectPublic> {
     const { ownerName, projectName } = data
     return __request(OpenAPI, {
       method: "GET",

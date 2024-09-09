@@ -37,6 +37,7 @@ from app.models import (
     Message,
     Project,
     ProjectCreate,
+    ProjectPublic,
     ProjectsPublic,
     Question,
     User,
@@ -83,7 +84,7 @@ def create_project(
     session: SessionDep,
     current_user: CurrentUser,
     project_in: ProjectCreate,
-) -> Project:
+) -> ProjectPublic:
     """Create new project."""
     # First, check if this user already owns this repo on GitHub
     token = users.get_github_token(session=session, user=current_user)
@@ -138,7 +139,7 @@ def create_project(
 @router.get("/projects/{project_id}")
 def get_project(
     *, project_id: uuid.UUID, current_user: CurrentUser, session: SessionDep
-) -> Project:
+) -> ProjectPublic:
     project = session.get(Project, project_id)
     if project is None:
         logger.info(f"Project ID {project_id} not found")
@@ -155,13 +156,14 @@ def get_project_by_name(
     project_name: str,
     session: SessionDep,
     current_user: CurrentUser,
-) -> Project:
+) -> ProjectPublic:
     project = app.projects.get_project(
         session=session, owner_name=owner_name, project_name=project_name
     )
     # TODO: Check for collaborator access
     if project.owner != current_user:
         raise HTTPException(403)
+    logger.info(f"Found project: {project}")
     return project
 
 

@@ -184,29 +184,6 @@ export type NewPassword = {
   new_password: string
 }
 
-export type Org = {
-  id?: string
-  display_name: string
-  readonly owned_projects: Array<Project>
-}
-
-export type Project = {
-  name: string
-  title: string
-  description?: string | null
-  is_public?: boolean
-  created?: string | null
-  updated?: string | null
-  git_repo_url: string
-  latest_git_rev?: string | null
-  id?: string
-  owner_account_id: string
-  readonly owner_account_name: string
-  readonly owner_account_type: string
-  readonly owner_github_name: string
-  readonly owner: User | Org
-}
-
 export type ProjectCreate = {
   name: string
   title: string
@@ -307,17 +284,6 @@ export type Token = {
 export type UpdatePassword = {
   current_password: string
   new_password: string
-}
-
-export type User = {
-  email: string
-  is_active?: boolean
-  is_superuser?: boolean
-  full_name?: string | null
-  id?: string
-  hashed_password: string
-  readonly github_username: string
-  readonly owned_projects: Array<Project>
 }
 
 export type UserCreate = {
