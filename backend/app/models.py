@@ -92,6 +92,60 @@ class UsersPublic(SQLModel):
     count: int
 
 
+class Org(SQLModel):
+    name: str
+    display_name: str
+    subscription_id: uuid.UUID
+    github_name: str
+
+# Track user membership in an org
+class UserOrgMembership(SQLModel):
+    user_id: uuid.UUID
+    org_id: uuid.UUID
+
+
+SubscriptionLevel = Literal["standard", "pro", "enterprise"]
+
+
+class Subscription(SQLModel):
+    id: uuid.UUID
+    created: datetime
+    period: Literal["month", "year"]
+    admin_user_id: uuid.UUID
+    level: SubscriptionLevel
+    n_users: int = 1
+    org_id: uuid.UUID | None = None
+    is_active: bool
+    price: float
+
+
+class SubscriptionPeriod(SQLModel):
+    subscription_id: uuid.UUID
+    created: datetime
+    start: datetime
+    end: datetime
+    settled: datetime | None = None
+    price_paid: float | None = None
+
+
+class DiscountCode(SQLModel):
+    id: uuid.UUID
+    code: str
+    created: datetime
+    created_by_user_id: uuid.UUID
+    valid_from: datetime | None
+    valid_until: datetime | None
+    subscription_level: SubscriptionLevel
+    price: float
+    redeemed: datetime | None = None
+    redeemed_by_user_id: uuid.UUID
+
+
+class UserSubscription(SQLModel):
+    user_id: uuid.UUID
+    subscription_id: uuid.UUID
+
+
 # Shared properties
 class ItemBase(SQLModel):
     title: str = Field(min_length=1, max_length=255)
