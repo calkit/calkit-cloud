@@ -38,6 +38,7 @@ def get_repo(
         f"{project.git_repo_url.removeprefix('https://')}.git"
     )
     newly_cloned = False
+    repo = None
     if not os.path.isdir(repo_dir):
         newly_cloned = True
         logger.info(f"Git cloning into {repo_dir}")
@@ -76,6 +77,8 @@ def get_repo(
                     subprocess.call(["touch", updated_fpath])
         except Timeout:
             logger.warning("Git repo lock timed out")
+    if repo is None:
+        repo = git.Repo(repo_dir)
     return repo
 
 
