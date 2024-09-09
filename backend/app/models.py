@@ -205,7 +205,8 @@ class NewPassword(SQLModel):
 
 
 class ProjectBase(SQLModel):
-    name: str = Field(min_length=4, max_length=255)
+    name: str = Field(min_length=1, max_length=255)
+    title: str = Field(min_length=4, max_length=255)
     description: str | None = Field(
         default=None, min_length=0, max_length=2048
     )
