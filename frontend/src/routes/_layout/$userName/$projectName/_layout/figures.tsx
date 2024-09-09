@@ -19,7 +19,7 @@ import {
   Tooltip,
 } from "@chakra-ui/react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { createFileRoute } from "@tanstack/react-router"
+import { createFileRoute, Link as RouterLink } from "@tanstack/react-router"
 import { useState } from "react"
 import { FaPlus, FaRegFileImage, FaRegFilePdf } from "react-icons/fa"
 import { FiFile } from "react-icons/fi"
@@ -188,7 +188,16 @@ function FigureView({ figure }: FigureProps) {
             <Heading size={"sm"} mb={0.5}>
               Info
             </Heading>
-            <Text>Path: {figure.path}</Text>
+            <Text>
+              Path:{" "}
+              <Link
+                as={RouterLink}
+                to={"../files"}
+                search={{ path: figure.path }}
+              >
+                {figure.path}
+              </Link>
+            </Text>
             {figure.stage ? (
               <Text>
                 Stage: <Code>{figure.stage}</Code>
