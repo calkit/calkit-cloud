@@ -37,9 +37,9 @@ def get_repo(
         f"https://x-access-token:{access_token}@"
         f"{project.git_repo_url.removeprefix('https://')}.git"
     )
-    cloned = False
+    newly_cloned = False
     if not os.path.isdir(repo_dir) and not os.path.isfile(lock_fpath):
-        cloned = True
+        newly_cloned = True
         logger.info(f"Git cloning into {repo_dir}")
         subprocess.call(["touch", lock_fpath])
         subprocess.call(
@@ -56,7 +56,7 @@ def get_repo(
         last_updated = os.path.getmtime(updated_fpath)
     else:
         last_updated = 0
-    if not cloned:
+    if not newly_cloned:
         repo = git.Repo(repo_dir)
         # TODO: Only pull if we know we need to, perhaps with a call to GitHub
         # for the latest rev
