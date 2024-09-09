@@ -396,8 +396,11 @@ def get_project_contents(
     if path is not None and path in ignore_paths:
         raise HTTPException(404)
     # Let's restructure as a dictionary keyed by path
+    categories_no_path = ["questions"]
     ck_objects = {}
     for category, itemlist in ck_info.items():
+        if category in categories_no_path:
+            continue
         if not isinstance(itemlist, list):
             logger.warning(
                 f"{owner_name}/{project_name} {category} is not a list"
