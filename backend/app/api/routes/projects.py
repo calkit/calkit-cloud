@@ -160,8 +160,8 @@ def get_project_by_name(
         session=session, owner_name=owner_name, project_name=project_name
     )
     # TODO: Check for collaborator access
-    if project.owner_user_id != current_user.id:
-        raise HTTPException(401)
+    if project.owner != current_user:
+        raise HTTPException(403)
     return project
 
 
