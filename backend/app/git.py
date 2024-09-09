@@ -8,7 +8,7 @@ import git
 from app import users
 from app.core import logger, ryaml
 from app.models import Project, User
-from filelock import FileLock
+from filelock import FileLock, Timeout
 from sqlmodel import Session
 
 
@@ -41,16 +41,19 @@ def get_repo(
     if not os.path.isdir(repo_dir):
         newly_cloned = True
         logger.info(f"Git cloning into {repo_dir}")
-        with lock:
-            subprocess.call(
-                ["git", "clone", "--depth", "1", git_clone_url, repo_dir]
-            )
-            # Touch a file so we can compute a TTL
-            subprocess.call(["touch", updated_fpath])
-            repo = git.Repo(repo_dir)
-            # Run git config so we make commits as this user
-            repo.git.config(["user.name", user.full_name])
-            repo.git.config(["user.email", user.email])
+        try:
+            with lock:
+                subprocess.call(
+                    ["git", "clone", "--depth", "1", git_clone_url, repo_dir]
+                )
+                # Touch a file so we can compute a TTL
+                subprocess.call(["touch", updated_fpath])
+                repo = git.Repo(repo_dir)
+                # Run git config so we make commits as this user
+                repo.git.config(["user.name", user.full_name])
+                repo.git.config(["user.email", user.email])
+        except Timeout:
+            logger.warning("Git repo lock timed out")
     if os.path.isfile(updated_fpath):
         last_updated = os.path.getmtime(updated_fpath)
     else:
@@ -59,19 +62,20 @@ def get_repo(
         # TODO: Only pull if we know we need to, perhaps with a call to GitHub
         # for the latest rev
         repo = git.Repo(repo_dir)
-        with lock:
-            if (
-                ttl is None or ((time.time() - last_updated) > ttl)
-            ) and not os.path.isfile(lock_fpath):
-                logger.info("Updating remote in case token was refreshed")
-                repo.remote().set_url(git_clone_url)
-                logger.info("Git fetching")
-                branch_name = repo.active_branch.name
-                repo.git.fetch(["origin", branch_name])
-                repo.git.checkout([f"origin/{branch_name}"])
-                repo.git.branch(["-D", branch_name])
-                repo.git.checkout(["-b", branch_name])
-                subprocess.call(["touch", updated_fpath])
+        try:
+            with lock:
+                if ttl is None or ((time.time() - last_updated) > ttl):
+                    logger.info("Updating remote in case token was refreshed")
+                    repo.remote().set_url(git_clone_url)
+                    logger.info("Git fetching")
+                    branch_name = repo.active_branch.name
+                    repo.git.fetch(["origin", branch_name])
+                    repo.git.checkout([f"origin/{branch_name}"])
+                    repo.git.branch(["-D", branch_name])
+                    repo.git.checkout(["-b", branch_name])
+                    subprocess.call(["touch", updated_fpath])
+        except Timeout:
+            logger.warning("Git repo lock timed out")
     return repo
 
 
