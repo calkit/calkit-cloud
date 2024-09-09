@@ -2,11 +2,36 @@
 
 import uuid
 from datetime import datetime
+from typing import Union
 
 from app import utcnow
 from pydantic import EmailStr, computed_field
 from slugify import slugify
 from sqlmodel import Field, Relationship, SQLModel
+
+
+class Account(SQLModel, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    name: str = Field(min_length=2, max_length=64, unique=True)
+    user_id: uuid.UUID = Field(foreign_key="user.id", nullable=True)
+    org_id: uuid.UUID = Field(foreign_key="org.id", nullable=True)
+    github_name: str
+    # Relationships
+    owned_projects: list["Project"] = Relationship(
+        back_populates="owner_account"
+    )
+    user: Union["User", None] = Relationship(back_populates="account")
+    org: Union["Org", None] = Relationship(back_populates="account")
+
+    @computed_field
+    @property
+    def type(self) -> str:
+        if self.user_id is not None:
+            return "user"
+        elif self.org_id is not None:
+            return "org"
+        else:
+            raise ValueError("Account is neither a user nor org account")
 
 
 # Shared properties
@@ -15,12 +40,12 @@ class UserBase(SQLModel):
     is_active: bool = True
     is_superuser: bool = False
     full_name: str | None = Field(default=None, max_length=255)
-    github_username: str | None = Field(default=None, max_length=255)
 
 
 # Properties to receive via API on creation
 class UserCreate(UserBase):
     password: str = Field(min_length=8, max_length=40)
+    github_username: str = Field(default=None, max_length=64)
 
 
 class UserRegister(SQLModel):
@@ -60,21 +85,44 @@ class User(UserBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     hashed_password: str
     # Relationships
+    account: Account = Relationship(back_populates="user")
     items: list["Item"] = Relationship(
         back_populates="owner", cascade_delete=True
     )
-    owned_projects: list["Project"] = Relationship(back_populates="owner")
     github_token: UserGitHubToken | None = Relationship()
+
+    @computed_field
+    @property
+    def github_username(self) -> str:
+        return self.account.github_name
+
+    @computed_field
+    @property
+    def owned_projects(self) -> list["Project"]:
+        return self.account.owned_projects
 
 
 # Properties to return via API, id is always required
 class UserPublic(UserBase):
     id: uuid.UUID
+    github_username: str
 
 
 class UsersPublic(SQLModel):
     data: list[UserPublic]
     count: int
+
+
+class Org(SQLModel, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    display_name: str = Field(min_length=2, max_length=255)
+    # Relationships
+    account: Account = Relationship(back_populates="org")
+
+    @computed_field
+    @property
+    def owned_projects(self) -> list["Project"]:
+        return self.account.owned_projects
 
 
 # Shared properties
@@ -137,6 +185,7 @@ class NewPassword(SQLModel):
 
 class ProjectBase(SQLModel):
     name: str = Field(min_length=4, max_length=255)
+    title: str = Field(min_length=4, max_length=255)
     description: str | None = Field(
         default=None, min_length=0, max_length=2048
     )
@@ -148,29 +197,42 @@ class ProjectBase(SQLModel):
         max_length=40, nullable=True, default=None
     )
 
-    @computed_field
-    @property
-    def name_slug(self) -> str:
-        return slugify(self.name)
-
 
 class Project(ProjectBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    owner_user_id: uuid.UUID = Field(foreign_key="user.id")
+    owner_account_id: uuid.UUID = Field(foreign_key="account.id")
     # Relationships
-    owner: User | None = Relationship(back_populates="owned_projects")
+    owner_account: Account = Relationship(back_populates="owned_projects")
     questions: list["Question"] = Relationship(back_populates="project")
 
     @computed_field
     @property
-    def owner_github_username(self) -> str:
-        return self.owner.github_username
+    def owner_account_name(self) -> str:
+        return self.owner_account.name
+
+    @computed_field
+    @property
+    def owner_account_type(self) -> str:
+        return self.owner_account.type
+
+    @computed_field
+    @property
+    def owner_github_name(self) -> str:
+        return self.owner_account.github_name
+
+    @property
+    def owner(self) -> User | Org:
+        if self.owner_account_type == "user":
+            return self.owner_account.user
+        elif self.owner_account_type == "org":
+            return self.owner_account.org
 
 
 class ProjectPublic(ProjectBase):
     id: uuid.UUID
-    owner_user_id: uuid.UUID
-    owner_github_username: str | None
+    owner_account_id: uuid.UUID
+    owner_account_name: str
+    owner_account_type: str
 
 
 class ProjectsPublic(SQLModel):

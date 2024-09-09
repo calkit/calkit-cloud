@@ -184,22 +184,9 @@ export type NewPassword = {
   new_password: string
 }
 
-export type Project = {
-  name: string
-  description?: string | null
-  is_public?: boolean
-  created?: string | null
-  updated?: string | null
-  git_repo_url: string
-  latest_git_rev?: string | null
-  id?: string
-  owner_user_id: string
-  readonly name_slug: string
-  readonly owner_github_username: string
-}
-
 export type ProjectCreate = {
   name: string
+  title: string
   description?: string | null
   is_public?: boolean
   created?: string | null
@@ -210,6 +197,7 @@ export type ProjectCreate = {
 
 export type ProjectPublic = {
   name: string
+  title: string
   description?: string | null
   is_public?: boolean
   created?: string | null
@@ -217,9 +205,9 @@ export type ProjectPublic = {
   git_repo_url: string
   latest_git_rev?: string | null
   id: string
-  owner_user_id: string
-  owner_github_username: string | null
-  readonly name_slug: string
+  owner_account_id: string
+  owner_account_name: string
+  owner_account_type: string
 }
 
 export type ProjectsPublic = {
@@ -303,8 +291,8 @@ export type UserCreate = {
   is_active?: boolean
   is_superuser?: boolean
   full_name?: string | null
-  github_username?: string | null
   password: string
+  github_username?: string
 }
 
 export type UserPublic = {
@@ -312,8 +300,8 @@ export type UserPublic = {
   is_active?: boolean
   is_superuser?: boolean
   full_name?: string | null
-  github_username?: string | null
   id: string
+  github_username: string
 }
 
 export type UserRegister = {
@@ -327,7 +315,6 @@ export type UserUpdate = {
   is_active?: boolean
   is_superuser?: boolean
   full_name?: string | null
-  github_username?: string | null
   password?: string | null
 }
 

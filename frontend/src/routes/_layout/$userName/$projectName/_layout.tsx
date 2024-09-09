@@ -266,7 +266,7 @@ function ProjectLayout() {
                 mt={6}
                 mb={3}
               >
-                {project?.name}
+                {project?.title}
                 {project?.git_repo_url ? (
                   <Link href={project?.git_repo_url} isExternal>
                     <Icon height="45%" as={FaGithub} pl={3} pr={0} mr={0} />

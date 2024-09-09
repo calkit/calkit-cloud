@@ -49,6 +49,7 @@ const AddProject = ({ isOpen, onClose }: AddProjectProps) => {
     mode: "onBlur",
     criteriaMode: "all",
     defaultValues: {
+      title: "",
       name: "",
       description: "",
       git_repo_url: `https://github.com/${githubUsername}/`,
@@ -76,12 +77,13 @@ const AddProject = ({ isOpen, onClose }: AddProjectProps) => {
     mutation.mutate(data)
   }
 
-  const onNameChange = (e: any) => {
+  const onTitleChange = (e: any) => {
     const projectName = String(e.target.value)
       .toLowerCase()
       .replace(/\s+/g, "-")
     const repoUrl = `https://github.com/${githubUsername}/${projectName}`
     setValue("git_repo_url", repoUrl)
+    setValue("name", projectName)
   }
 
   return (
@@ -97,19 +99,19 @@ const AddProject = ({ isOpen, onClose }: AddProjectProps) => {
           <ModalHeader>Create project</ModalHeader>
           <ModalCloseButton />
           <ModalBody pb={6}>
-            <FormControl isRequired isInvalid={!!errors.name}>
-              <FormLabel htmlFor="name">Name</FormLabel>
+            <FormControl isRequired isInvalid={!!errors.title}>
+              <FormLabel htmlFor="title">Title</FormLabel>
               <Input
                 id="name"
-                {...register("name", {
-                  required: "Name is required.",
+                {...register("title", {
+                  required: "Title is required.",
                 })}
                 placeholder="Ex: Coherent structures in high Reynolds number boundary layers"
                 type="text"
-                onChange={onNameChange}
+                onChange={onTitleChange}
               />
-              {errors.name && (
-                <FormErrorMessage>{errors.name.message}</FormErrorMessage>
+              {errors.title && (
+                <FormErrorMessage>{errors.title.message}</FormErrorMessage>
               )}
             </FormControl>
             <FormControl mt={4} isInvalid={!!errors.git_repo_url}>

@@ -17,13 +17,11 @@ def get_project(
     project_name: str,
     if_not_exists: Literal["ignore", "error"] = "error",
 ) -> Project:
-    """Fetch a project by owner and name.
-
-    TODO: Don't depend on GitHub URL for this!
-    """
-    query = select(Project).where(
-        Project.git_repo_url
-        == f"https://github.com/{owner_name}/{project_name}"
+    """Fetch a project by owner and name."""
+    query = (
+        select(Project)
+        .where(Project.owner_account.has(name=owner_name))
+        .where(Project.name == project_name)
     )
     project = session.exec(query).first()
     if project is None and if_not_exists == "error":

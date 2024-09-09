@@ -37,6 +37,7 @@ from app.models import (
     Message,
     Project,
     ProjectCreate,
+    ProjectPublic,
     ProjectsPublic,
     Question,
     User,
@@ -64,12 +65,12 @@ def get_owned_projects(
     count_statement = (
         select(func.count())
         .select_from(Project)
-        .where(Project.owner_user_id == current_user.id)
+        .where(Project.owner_account_id == current_user.account.id)
     )
     count = session.exec(count_statement).one()
     statement = (
         select(Project)
-        .where(Project.owner_user_id == current_user.id)
+        .where(Project.owner_account_id == current_user.account.id)
         .offset(offset)
         .limit(limit)
     )
@@ -83,7 +84,7 @@ def create_project(
     session: SessionDep,
     current_user: CurrentUser,
     project_in: ProjectCreate,
-) -> Project:
+) -> ProjectPublic:
     """Create new project."""
     # First, check if this user already owns this repo on GitHub
     token = users.get_github_token(session=session, user=current_user)
@@ -126,7 +127,7 @@ def create_project(
         logger.info(f"Repo exists on GitHub as {owner_name}/{repo_name}")
     logger.info("Adding to database")
     project = Project.model_validate(
-        project_in, update={"owner_user_id": current_user.id}
+        project_in, update={"owner_account_id": current_user.account.id}
     )
     session.add(project)
     session.commit()
@@ -138,7 +139,7 @@ def create_project(
 @router.get("/projects/{project_id}")
 def get_project(
     *, project_id: uuid.UUID, current_user: CurrentUser, session: SessionDep
-) -> Project:
+) -> ProjectPublic:
     project = session.get(Project, project_id)
     if project is None:
         logger.info(f"Project ID {project_id} not found")
@@ -155,14 +156,32 @@ def get_project_by_name(
     project_name: str,
     session: SessionDep,
     current_user: CurrentUser,
-) -> Project:
+) -> ProjectPublic:
     project = app.projects.get_project(
         session=session, owner_name=owner_name, project_name=project_name
     )
     # TODO: Check for collaborator access
-    if project.owner_user_id != current_user.id:
-        raise HTTPException(401)
+    if project.owner != current_user:
+        raise HTTPException(403)
     return project
+
+
+@router.delete("/projects/{owner_name}/{project_name}")
+def delete_project(
+    owner_name: str,
+    project_name: str,
+    session: SessionDep,
+    current_user: CurrentUser,
+) -> Message:
+    project = app.projects.get_project(
+        session=session, owner_name=owner_name, project_name=project_name
+    )
+    # TODO: Check for collaborator access
+    if project.owner != current_user:
+        raise HTTPException(403)
+    session.delete(project)
+    session.commit()
+    return Message(message="success")
 
 
 @router.get("/projects/{owner_name}/{project_name}/git/repo")
