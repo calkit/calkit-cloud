@@ -9,11 +9,9 @@ import {
   Table,
   Thead,
   Tbody,
-  Tfoot,
   Tr,
   Th,
   Td,
-  TableCaption,
   TableContainer,
   Link,
 } from "@chakra-ui/react"
@@ -23,7 +21,6 @@ import { IoLibraryOutline } from "react-icons/io5"
 import { FiFile } from "react-icons/fi"
 
 import { ProjectsService, type ReferenceEntry } from "../../../../../client"
-import { useState } from "react"
 
 export const Route = createFileRoute(
   "/_layout/$userName/$projectName/_layout/references",
