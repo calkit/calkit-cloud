@@ -701,7 +701,7 @@ def _sync_questions_with_db(
         existing.question = questions.pop(0)  # Just a list of strings
         existing.number = n + 1  # Should already be done, but just in case
     start_number = len(existing_questions) + 1
-    logger.info(f"Adding {len(questions)} new questions")
+    logger.info(f"Adding {len(questions)} new questions to DB")
     for n, new in enumerate(questions):
         number = start_number + n
         logger.info(f"Appending new question with number: {number}")
