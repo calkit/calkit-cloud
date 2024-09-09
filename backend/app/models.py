@@ -23,6 +23,16 @@ class Account(SQLModel, table=True):
     user: Union["User", None] = Relationship()
     org: Union["Org", None] = Relationship()
 
+    @computed_field
+    @property
+    def type(self) -> str:
+        if self.user_id is not None:
+            return "user"
+        elif self.org_id is not None:
+            return "org"
+        else:
+            raise ValueError("Account is neither a user nor org account")
+
 
 # Shared properties
 class UserBase(SQLModel):
@@ -201,24 +211,33 @@ class Project(ProjectBase, table=True):
 
     @computed_field
     @property
+    def owner_account_name(self) -> str:
+        return self.owner_account.name
+
+    @computed_field
+    @property
+    def owner_account_type(self) -> str:
+        return self.owner_account.type
+
+    @computed_field
+    @property
     def owner_github_name(self) -> str:
         return self.owner.github_name
 
     @computed_field
     @property
     def owner(self) -> User | Org:
-        if self.owner_account.user is not None:
+        if self.owner_account_type == "user":
             return self.owner_account.user
-        elif self.owner_account.org is not None:
+        elif self.owner_account_type == "org":
             return self.owner_account.org
-        else:
-            raise ValueError("Project has no owner")
 
 
 class ProjectPublic(ProjectBase):
     id: uuid.UUID
-    owner_user_id: uuid.UUID
-    owner_github_username: str | None
+    owner_account_id: uuid.UUID
+    owner_account_name: str
+    owner_account_type: str
 
 
 class ProjectsPublic(SQLModel):

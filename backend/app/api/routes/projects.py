@@ -64,12 +64,12 @@ def get_owned_projects(
     count_statement = (
         select(func.count())
         .select_from(Project)
-        .where(Project.owner_user_id == current_user.id)
+        .where(Project.owner_account_id == current_user.account.id)
     )
     count = session.exec(count_statement).one()
     statement = (
         select(Project)
-        .where(Project.owner_user_id == current_user.id)
+        .where(Project.owner_account_id == current_user.account.id)
         .offset(offset)
         .limit(limit)
     )
@@ -126,7 +126,7 @@ def create_project(
         logger.info(f"Repo exists on GitHub as {owner_name}/{repo_name}")
     logger.info("Adding to database")
     project = Project.model_validate(
-        project_in, update={"owner_user_id": current_user.id}
+        project_in, update={"owner_account_id": current_user.account.id}
     )
     session.add(project)
     session.commit()
