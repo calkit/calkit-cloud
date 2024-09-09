@@ -45,7 +45,7 @@ from app.models import (
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from sqlmodel import func, select
+from sqlmodel import Session, func, select
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -687,6 +687,35 @@ def patch_project_contents(
     return current_object
 
 
+def _sync_questions_with_db(
+    ck_info: dict, project: Project, session: Session
+) -> Project:
+    questions_ck = list(ck_info.get("questions", []))
+    questions = deepcopy(questions_ck)
+    logger.info(f"Found {len(questions)} questions in Calkit info")
+    # Put these in the database idempotently
+    existing_questions = project.questions
+    logger.info(f"Found {len(existing_questions)} existing questions in DB")
+    for n, (new, existing) in enumerate(zip(questions_ck, existing_questions)):
+        logger.info(f"Updating existing question number {n + 1}")
+        existing.question = questions.pop(0)  # Just a list of strings
+        existing.number = n + 1  # Should already be done, but just in case
+    start_number = len(existing_questions) + 1
+    logger.info(f"Adding {len(questions)} new questions")
+    for n, new in enumerate(questions):
+        number = start_number + n
+        logger.info(f"Appending new question with number: {number}")
+        project.questions.append(Question(number=number, question=new))
+    # Delete extra questions in DB
+    while len(project.questions) > len(questions_ck):
+        q = project.questions.pop(-1)
+        logger.info(f"Deleting question number {q.number}")
+        session.delete(q)
+    session.commit()
+    session.refresh(project)
+    return project
+
+
 @router.get("/projects/{owner_name}/{project_name}/questions")
 def get_project_questions(
     owner_name: str,
@@ -706,31 +735,50 @@ def get_project_questions(
     ck_info = get_ck_info(
         project=project, user=current_user, session=session, ttl=300
     )
-    questions_ck = list(ck_info.get("questions", []))
-    questions = deepcopy(questions_ck)
-    logger.info(f"Found {len(questions)} questions in Calkit info")
-    # Put these in the database idempotently
-    existing_questions = project.questions
-    logger.info(f"Found {len(existing_questions)} existing questions in DB")
-    for n, (new, existing) in enumerate(zip(questions_ck, existing_questions)):
-        logger.info(f"Updating existing question number {n + 1}")
-        existing.question = questions.pop(0)  # Just a list of strings
-        existing.number = n + 1  # Should already be done, but just in case
-    start_number = len(existing_questions) + 1
-    logger.info(f"Adding {len(questions)} new questions")
-    for n, new in enumerate(questions):
-        project.questions.append(
-            Question(number=start_number + 1, question=new)
-        )
-    # Delete extra questions in DB
-    while len(project.questions) > len(questions_ck):
-        q = project.questions.pop(-1)
-        logger.info(f"Deleting question number {q.number}")
-        session.delete(q)
-    session.commit()
-    session.refresh(project)
+    project = _sync_questions_with_db(
+        ck_info=ck_info, project=project, session=session
+    )
     # TODO: Maybe questions don't belong in the Calkit file?
     return project.questions
+
+
+class QuestionPost(BaseModel):
+    question: str
+
+
+@router.post("/projects/{owner_name}/{project_name}/questions")
+def post_project_question(
+    owner_name: str,
+    project_name: str,
+    req: QuestionPost,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> Question:
+    project = get_project_by_name(
+        owner_name=owner_name,
+        project_name=project_name,
+        session=session,
+        current_user=current_user,
+    )
+    # TODO: Handle collaborators
+    if project.owner != current_user:
+        raise HTTPException(401)
+    repo = get_repo(
+        project=project, user=current_user, session=session, ttl=None
+    )
+    ck_info = get_ck_info_from_repo(repo)
+    ck_questions = ck_info.get("questions", [])
+    ck_questions.append(req.question)
+    ck_info["questions"] = ck_questions
+    with open(os.path.join(repo.working_dir, "calkit.yaml"), "w") as f:
+        ryaml.dump(ck_info, f)
+    repo.git.add("calkit.yaml")
+    repo.git.commit(["-m", "Add question"])
+    repo.git.push(["origin", repo.active_branch.name])
+    project = _sync_questions_with_db(
+        ck_info=ck_info, project=project, session=session
+    )
+    return project.questions[-1]
 
 
 @router.get("/projects/{owner_name}/{project_name}/figures")
