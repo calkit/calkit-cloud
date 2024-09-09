@@ -102,7 +102,7 @@ def create_project(
             "name": repo_name,
             "description": project_in.description,
             "homepage": (
-                f"https://calkit.io/{current_user.github_username}/{repo_name}"
+                f"https://calkit.io/{owner_name}/{repo_name}"
             ),
             "private": not project_in.is_public,
             "has_discussions": True,

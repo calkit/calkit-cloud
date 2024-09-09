@@ -2,11 +2,10 @@
 
 import uuid
 from datetime import datetime
-from typing import Union
+from typing import Literal, Union
 
 from app import utcnow
 from pydantic import EmailStr, computed_field
-from slugify import slugify
 from sqlmodel import Field, Relationship, SQLModel
 
 
@@ -96,7 +95,6 @@ class User(UserBase, table=True):
     def github_username(self) -> str:
         return self.account.github_name
 
-    @computed_field
     @property
     def owned_projects(self) -> list["Project"]:
         return self.account.owned_projects
@@ -111,6 +109,54 @@ class UserPublic(UserBase):
 class UsersPublic(SQLModel):
     data: list[UserPublic]
     count: int
+
+
+# Track user membership in an org
+class UserOrgMembership(SQLModel):
+    user_id: uuid.UUID
+    org_id: uuid.UUID
+
+
+SubscriptionLevel = Literal["standard", "pro", "enterprise"]
+
+
+class Subscription(SQLModel):
+    id: uuid.UUID
+    created: datetime
+    period: Literal["month", "year"]
+    admin_user_id: uuid.UUID
+    level: SubscriptionLevel
+    n_users: int = 1
+    org_id: uuid.UUID | None = None
+    is_active: bool
+    price: float
+
+
+class SubscriptionPeriod(SQLModel):
+    subscription_id: uuid.UUID
+    created: datetime
+    start: datetime
+    end: datetime
+    settled: datetime | None = None
+    price_paid: float | None = None
+
+
+class DiscountCode(SQLModel):
+    id: uuid.UUID
+    code: str
+    created: datetime
+    created_by_user_id: uuid.UUID
+    valid_from: datetime | None
+    valid_until: datetime | None
+    subscription_level: SubscriptionLevel
+    price: float
+    redeemed: datetime | None = None
+    redeemed_by_user_id: uuid.UUID
+
+
+class UserSubscription(SQLModel):
+    user_id: uuid.UUID
+    subscription_id: uuid.UUID
 
 
 class Org(SQLModel, table=True):

@@ -118,9 +118,13 @@ function ProjectView() {
               overflow="auto"
             >
               <Heading size="md">About</Heading>
-              <Markdown>
-                {removeFirstLine(atob(String(readmeRequest?.data?.content)))}
-              </Markdown>
+              {readmeRequest.data ? (
+                <Markdown>
+                  {removeFirstLine(atob(String(readmeRequest?.data?.content)))}
+                </Markdown>
+              ) : (
+                ""
+              )}
             </Box>
             {/* To-dos (issues) */}
             <Box py={4} px={6} mb={4} borderRadius="lg" bg={secBgColor}>
