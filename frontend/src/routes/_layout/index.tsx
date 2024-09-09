@@ -262,7 +262,7 @@ function Projects() {
         pt={10}
         pb={5}
       >
-        Other public projects
+        All projects
       </Heading>
       <PublicProjectsTable />
     </Container>
