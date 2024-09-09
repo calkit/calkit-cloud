@@ -19,7 +19,10 @@ import { Route as RecoverPasswordImport } from './routes/recover-password'
 import { Route as LoginImport } from './routes/login'
 import { Route as LayoutImport } from './routes/_layout'
 import { Route as LayoutIndexImport } from './routes/_layout/index'
+import { Route as LayoutSoftwareImport } from './routes/_layout/software'
 import { Route as LayoutSettingsImport } from './routes/_layout/settings'
+import { Route as LayoutFiguresImport } from './routes/_layout/figures'
+import { Route as LayoutDataImport } from './routes/_layout/data'
 import { Route as LayoutBrowseImport } from './routes/_layout/browse'
 import { Route as LayoutAdminImport } from './routes/_layout/admin'
 import { Route as LayoutUserNameProjectNameLayoutImport } from './routes/_layout/$userName/$projectName/_layout'
@@ -72,8 +75,23 @@ const LayoutIndexRoute = LayoutIndexImport.update({
   getParentRoute: () => LayoutRoute,
 } as any)
 
+const LayoutSoftwareRoute = LayoutSoftwareImport.update({
+  path: '/software',
+  getParentRoute: () => LayoutRoute,
+} as any)
+
 const LayoutSettingsRoute = LayoutSettingsImport.update({
   path: '/settings',
+  getParentRoute: () => LayoutRoute,
+} as any)
+
+const LayoutFiguresRoute = LayoutFiguresImport.update({
+  path: '/figures',
+  getParentRoute: () => LayoutRoute,
+} as any)
+
+const LayoutDataRoute = LayoutDataImport.update({
+  path: '/data',
   getParentRoute: () => LayoutRoute,
 } as any)
 
@@ -211,11 +229,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutBrowseImport
       parentRoute: typeof LayoutImport
     }
+    '/_layout/data': {
+      id: '/_layout/data'
+      path: '/data'
+      fullPath: '/data'
+      preLoaderRoute: typeof LayoutDataImport
+      parentRoute: typeof LayoutImport
+    }
+    '/_layout/figures': {
+      id: '/_layout/figures'
+      path: '/figures'
+      fullPath: '/figures'
+      preLoaderRoute: typeof LayoutFiguresImport
+      parentRoute: typeof LayoutImport
+    }
     '/_layout/settings': {
       id: '/_layout/settings'
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof LayoutSettingsImport
+      parentRoute: typeof LayoutImport
+    }
+    '/_layout/software': {
+      id: '/_layout/software'
+      path: '/software'
+      fullPath: '/software'
+      preLoaderRoute: typeof LayoutSoftwareImport
       parentRoute: typeof LayoutImport
     }
     '/_layout/': {
@@ -318,7 +357,10 @@ export const routeTree = rootRoute.addChildren({
   LayoutRoute: LayoutRoute.addChildren({
     LayoutAdminRoute,
     LayoutBrowseRoute,
+    LayoutDataRoute,
+    LayoutFiguresRoute,
     LayoutSettingsRoute,
+    LayoutSoftwareRoute,
     LayoutIndexRoute,
     LayoutUserNameProjectNameRoute: LayoutUserNameProjectNameRoute.addChildren({
       LayoutUserNameProjectNameLayoutRoute:
@@ -362,7 +404,10 @@ export const routeTree = rootRoute.addChildren({
       "children": [
         "/_layout/admin",
         "/_layout/browse",
+        "/_layout/data",
+        "/_layout/figures",
         "/_layout/settings",
+        "/_layout/software",
         "/_layout/",
         "/_layout/$userName/$projectName"
       ]
@@ -387,8 +432,20 @@ export const routeTree = rootRoute.addChildren({
       "filePath": "_layout/browse.tsx",
       "parent": "/_layout"
     },
+    "/_layout/data": {
+      "filePath": "_layout/data.tsx",
+      "parent": "/_layout"
+    },
+    "/_layout/figures": {
+      "filePath": "_layout/figures.tsx",
+      "parent": "/_layout"
+    },
     "/_layout/settings": {
       "filePath": "_layout/settings.tsx",
+      "parent": "/_layout"
+    },
+    "/_layout/software": {
+      "filePath": "_layout/software.tsx",
       "parent": "/_layout"
     },
     "/_layout/": {
