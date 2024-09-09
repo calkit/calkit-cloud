@@ -352,6 +352,31 @@ export const $Dataset = {
   },
 } as const
 
+export const $Environment = {
+  properties: {
+    kind: {
+      type: "Enum",
+      enum: ["docker", "conda"],
+      isRequired: true,
+    },
+    path: {
+      type: "string",
+      isRequired: true,
+    },
+    file_content: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+  },
+} as const
+
 export const $Figure = {
   properties: {
     path: {
@@ -1188,6 +1213,19 @@ export const $Question = {
       isRequired: true,
       format: "uuid",
     },
+    number: {
+      type: "number",
+      isRequired: true,
+    },
+    question: {
+      type: "string",
+      isRequired: true,
+    },
+  },
+} as const
+
+export const $QuestionPost = {
+  properties: {
     question: {
       type: "string",
       isRequired: true,
@@ -1294,6 +1332,18 @@ export const $References = {
           type: "null",
         },
       ],
+    },
+  },
+} as const
+
+export const $Software = {
+  properties: {
+    environments: {
+      type: "array",
+      contains: {
+        type: "Environment",
+      },
+      isRequired: true,
     },
   },
 } as const

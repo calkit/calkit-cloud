@@ -61,10 +61,14 @@ function ProjectView() {
     lines.splice(0, 1)
     return lines.join("\n")
   }
-  const questions: Array<string> = [
-    "Can we do something cool?",
-    "Can we do something great?",
-  ]
+  const questionsRequest = useQuery({
+    queryKey: ["projects", userName, projectName, "questions"],
+    queryFn: () =>
+      ProjectsService.getProjectQuestions({
+        ownerName: userName,
+        projectName: projectName,
+      }),
+  })
   const onClosedTodosSwitch = (e: any) => {
     setShowClosedTodos(e.target.checked)
   }
@@ -194,11 +198,24 @@ function ProjectView() {
               <Heading size="md" mb={2}>
                 Questions
               </Heading>
-              <OrderedList>
-                {questions?.map((question) => (
-                  <ListItem key={question}>{question}</ListItem>
-                ))}
-              </OrderedList>
+              {questionsRequest.isPending ? (
+                <Flex
+                  justify="center"
+                  align="center"
+                  height="100px"
+                  width="full"
+                >
+                  <Spinner size="xl" color="ui.main" />
+                </Flex>
+              ) : (
+                <OrderedList>
+                  {questionsRequest.data?.map((question) => (
+                    <ListItem key={question.question}>
+                      {question.question}
+                    </ListItem>
+                  ))}
+                </OrderedList>
+              )}
             </Box>
             <Box py={4} px={6} mb={4} borderRadius="lg" bg={secBgColor}>
               <Heading size="md" mb={2}>

@@ -37,7 +37,9 @@ import type {
   ProjectsPublic,
   Publication,
   Question,
+  QuestionPost,
   References,
+  Software,
   Workflow,
 } from "./models"
 
@@ -193,6 +195,11 @@ export type ProjectsData = {
     ownerName: string
     projectName: string
   }
+  PostProjectQuestion: {
+    ownerName: string
+    projectName: string
+    requestBody: QuestionPost
+  }
   GetProjectFigures: {
     ownerName: string
     projectName: string
@@ -266,6 +273,10 @@ export type ProjectsData = {
     requestBody: IssuePatch
   }
   GetProjectReferences: {
+    ownerName: string
+    projectName: string
+  }
+  GetProjectSoftware: {
     ownerName: string
     projectName: string
   }
@@ -1125,6 +1136,30 @@ export class ProjectsService {
   }
 
   /**
+   * Post Project Question
+   * @returns Question Successful Response
+   * @throws ApiError
+   */
+  public static postProjectQuestion(
+    data: ProjectsData["PostProjectQuestion"],
+  ): CancelablePromise<Question> {
+    const { ownerName, projectName, requestBody } = data
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/api/v1/projects/{owner_name}/{project_name}/questions",
+      path: {
+        owner_name: ownerName,
+        project_name: projectName,
+      },
+      body: requestBody,
+      mediaType: "application/json",
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
    * Get Project Figures
    * @returns Figure Successful Response
    * @throws ApiError
@@ -1500,6 +1535,28 @@ export class ProjectsService {
     return __request(OpenAPI, {
       method: "GET",
       url: "/api/v1/projects/{owner_name}/{project_name}/references",
+      path: {
+        owner_name: ownerName,
+        project_name: projectName,
+      },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Get Project Software
+   * @returns Software Successful Response
+   * @throws ApiError
+   */
+  public static getProjectSoftware(
+    data: ProjectsData["GetProjectSoftware"],
+  ): CancelablePromise<Software> {
+    const { ownerName, projectName } = data
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/api/v1/projects/{owner_name}/{project_name}/software",
       path: {
         owner_name: ownerName,
         project_name: projectName,

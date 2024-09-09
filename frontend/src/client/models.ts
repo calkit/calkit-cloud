@@ -62,6 +62,12 @@ export type Dataset = {
   url?: string | null
 }
 
+export type Environment = {
+  kind: "docker" | "conda"
+  path: string
+  file_content?: string | null
+}
+
 export type Figure = {
   path: string
   title: string
@@ -241,6 +247,11 @@ export type Publication = {
 export type Question = {
   id?: string
   project_id: string
+  number: number
+  question: string
+}
+
+export type QuestionPost = {
   question: string
 }
 
@@ -262,6 +273,10 @@ export type References = {
   entries?: Array<ReferenceEntry> | null
   imported_from?: ImportInfo | null
   raw_text?: string | null
+}
+
+export type Software = {
+  environments: Array<Environment>
 }
 
 export type Stage = {
