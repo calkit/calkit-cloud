@@ -24,6 +24,7 @@ import { FaPlus } from "react-icons/fa"
 import { ProjectsService } from "../../../../../client"
 import Markdown from "../../../../../components/Common/Markdown"
 import CreateIssue from "../../../../../components/Projects/CreateIssue"
+import CreateQuestion from "../../../../../components/Projects/CreateQuestion"
 
 export const Route = createFileRoute(
   "/_layout/$userName/$projectName/_layout/",
@@ -96,6 +97,7 @@ function ProjectView() {
     })
   }
   const newIssueModal = useDisclosure()
+  const newQuestionModal = useDisclosure()
 
   return (
     <>
@@ -195,9 +197,24 @@ function ProjectView() {
           </Box>
           <Box width={"40%"}>
             <Box py={4} px={6} mb={4} borderRadius="lg" bg={secBgColor}>
-              <Heading size="md" mb={2}>
-                Questions
-              </Heading>
+              <Flex>
+                <Heading size="md" mb={2}>
+                  Questions
+                </Heading>
+                <IconButton
+                  aria-label="Add question"
+                  height="25px"
+                  width="28px"
+                  ml={1.5}
+                  icon={<FaPlus />}
+                  size={"xs"}
+                  onClick={newQuestionModal.onOpen}
+                />
+                <CreateQuestion
+                  isOpen={newQuestionModal.isOpen}
+                  onClose={newQuestionModal.onClose}
+                />
+              </Flex>
               {questionsRequest.isPending ? (
                 <Flex
                   justify="center"
