@@ -153,28 +153,6 @@ export type IssuePost = {
   body?: string | null
 }
 
-export type ItemCreate = {
-  title: string
-  description?: string | null
-}
-
-export type ItemPublic = {
-  title: string
-  description?: string | null
-  id: string
-  owner_id: string
-}
-
-export type ItemUpdate = {
-  title?: string | null
-  description?: string | null
-}
-
-export type ItemsPublic = {
-  data: Array<ItemPublic>
-  count: number
-}
-
 export type Message = {
   message: string
 }
@@ -193,6 +171,11 @@ export type ProjectCreate = {
   updated?: string | null
   git_repo_url: string
   latest_git_rev?: string | null
+}
+
+export type ProjectPatch = {
+  title?: string | null
+  description?: string | null
 }
 
 export type ProjectPublic = {

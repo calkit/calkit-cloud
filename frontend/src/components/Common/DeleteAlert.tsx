@@ -11,7 +11,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query"
 import React from "react"
 import { useForm } from "react-hook-form"
 
-import { ItemsService, UsersService, ProjectsService } from "../../client"
+import { UsersService, ProjectsService } from "../../client"
 import useCustomToast from "../../hooks/useCustomToast"
 
 interface DeleteProps {
@@ -40,8 +40,11 @@ const Delete = ({
   } = useForm()
 
   const deleteEntity = async (id: string) => {
-    if (type === "Item") {
-      await ItemsService.deleteItem({ id: id })
+    if (type === "Project" && projectOwner && projectName) {
+      await ProjectsService.deleteProject({
+        ownerName: projectOwner,
+        projectName: projectName,
+      })
     } else if (type === "User") {
       await UsersService.deleteUser({ userId: id })
     } else if (type === "Collaborator" && projectOwner && projectName) {

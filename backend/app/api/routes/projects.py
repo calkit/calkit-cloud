@@ -166,6 +166,33 @@ def get_project_by_name(
     return project
 
 
+class ProjectPatch(BaseModel):
+    title: str | None = None
+    description: str | None = None
+
+
+@router.patch("/projects/{owner_name}/{project_name}")
+def patch_project(
+    owner_name: str,
+    project_name: str,
+    session: SessionDep,
+    current_user: CurrentUser,
+    req: ProjectPatch,
+) -> ProjectPublic:
+    project = app.projects.get_project(
+        session=session, owner_name=owner_name, project_name=project_name
+    )
+    # TODO: Check for collaborator access
+    if project.owner != current_user:
+        raise HTTPException(403)
+    if req.title is not None:
+        project.title = req.title
+    project.description = req.description
+    session.commit()
+    session.refresh(project)
+    return ProjectPublic.model_validate(project)
+
+
 @router.delete("/projects/{owner_name}/{project_name}")
 def delete_project(
     owner_name: str,

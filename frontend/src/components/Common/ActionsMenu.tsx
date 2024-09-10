@@ -56,7 +56,7 @@ const ActionsMenu = ({ type, value, disabled }: ActionsMenuProps) => {
           />
         ) : (
           <EditProject
-            item={value as ProjectPublic}
+            project={value as ProjectPublic}
             isOpen={editUserModal.isOpen}
             onClose={editUserModal.onClose}
           />

@@ -8,7 +8,6 @@ from app.api.deps import CurrentUser, SessionDep, get_current_active_superuser
 from app.config import settings
 from app.messaging import generate_new_account_email, send_email
 from app.models import (
-    Item,
     Message,
     UpdatePassword,
     User,
@@ -19,7 +18,7 @@ from app.models import (
     UserUpdate,
     UserUpdateMe,
 )
-from app.security import decrypt_secret, get_password_hash, verify_password
+from app.security import get_password_hash, verify_password
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import col, delete, func, select
 
@@ -121,7 +120,6 @@ def delete_current_user(
             detail="Super users are not allowed to delete themselves",
         )
     # Delete all this user's items
-    statement = delete(Item).where(col(Item.owner_id) == current_user.id)
     session.exec(statement)  # type: ignore
     session.delete(current_user)
     session.commit()
@@ -207,7 +205,6 @@ def delete_user(
             status_code=403,
             detail="Super users are not allowed to delete themselves",
         )
-    statement = delete(Item).where(col(Item.owner_id) == user_id)
     session.exec(statement)  # type: ignore
     session.delete(user)
     session.commit()

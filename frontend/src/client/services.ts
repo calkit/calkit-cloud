@@ -14,10 +14,6 @@ import type {
   UsersPublic,
   UserUpdate,
   UserUpdateMe,
-  ItemCreate,
-  ItemPublic,
-  ItemsPublic,
-  ItemUpdate,
   Body_projects_post_project_figure,
   Body_projects_put_project_contents,
   Collaborator,
@@ -33,6 +29,7 @@ import type {
   IssuePatch,
   IssuePost,
   ProjectCreate,
+  ProjectPatch,
   ProjectPublic,
   ProjectsPublic,
   Publication,
@@ -100,26 +97,6 @@ export type MiscData = {
   }
 }
 
-export type ItemsData = {
-  ReadItems: {
-    limit?: number
-    skip?: number
-  }
-  CreateItem: {
-    requestBody: ItemCreate
-  }
-  ReadItem: {
-    id: string
-  }
-  UpdateItem: {
-    id: string
-    requestBody: ItemUpdate
-  }
-  DeleteItem: {
-    id: string
-  }
-}
-
 export type ProjectsData = {
   GetOwnedProjects: {
     limit?: number
@@ -134,6 +111,11 @@ export type ProjectsData = {
   GetProjectByName: {
     ownerName: string
     projectName: string
+  }
+  PatchProject: {
+    ownerName: string
+    projectName: string
+    requestBody: ProjectPatch
   }
   DeleteProject: {
     ownerName: string
@@ -670,120 +652,6 @@ export class MiscService {
   }
 }
 
-export class ItemsService {
-  /**
-   * Read Items
-   * Retrieve items.
-   * @returns ItemsPublic Successful Response
-   * @throws ApiError
-   */
-  public static readItems(
-    data: ItemsData["ReadItems"] = {},
-  ): CancelablePromise<ItemsPublic> {
-    const { skip = 0, limit = 100 } = data
-    return __request(OpenAPI, {
-      method: "GET",
-      url: "/api/v1/items/",
-      query: {
-        skip,
-        limit,
-      },
-      errors: {
-        422: `Validation Error`,
-      },
-    })
-  }
-
-  /**
-   * Create Item
-   * Create new item.
-   * @returns ItemPublic Successful Response
-   * @throws ApiError
-   */
-  public static createItem(
-    data: ItemsData["CreateItem"],
-  ): CancelablePromise<ItemPublic> {
-    const { requestBody } = data
-    return __request(OpenAPI, {
-      method: "POST",
-      url: "/api/v1/items/",
-      body: requestBody,
-      mediaType: "application/json",
-      errors: {
-        422: `Validation Error`,
-      },
-    })
-  }
-
-  /**
-   * Read Item
-   * Get item by ID.
-   * @returns ItemPublic Successful Response
-   * @throws ApiError
-   */
-  public static readItem(
-    data: ItemsData["ReadItem"],
-  ): CancelablePromise<ItemPublic> {
-    const { id } = data
-    return __request(OpenAPI, {
-      method: "GET",
-      url: "/api/v1/items/{id}",
-      path: {
-        id,
-      },
-      errors: {
-        422: `Validation Error`,
-      },
-    })
-  }
-
-  /**
-   * Update Item
-   * Update an item.
-   * @returns ItemPublic Successful Response
-   * @throws ApiError
-   */
-  public static updateItem(
-    data: ItemsData["UpdateItem"],
-  ): CancelablePromise<ItemPublic> {
-    const { id, requestBody } = data
-    return __request(OpenAPI, {
-      method: "PUT",
-      url: "/api/v1/items/{id}",
-      path: {
-        id,
-      },
-      body: requestBody,
-      mediaType: "application/json",
-      errors: {
-        422: `Validation Error`,
-      },
-    })
-  }
-
-  /**
-   * Delete Item
-   * Delete an item.
-   * @returns Message Successful Response
-   * @throws ApiError
-   */
-  public static deleteItem(
-    data: ItemsData["DeleteItem"],
-  ): CancelablePromise<Message> {
-    const { id } = data
-    return __request(OpenAPI, {
-      method: "DELETE",
-      url: "/api/v1/items/{id}",
-      path: {
-        id,
-      },
-      errors: {
-        422: `Validation Error`,
-      },
-    })
-  }
-}
-
 export class ProjectsService {
   /**
    * Get Owned Projects
@@ -865,6 +733,30 @@ export class ProjectsService {
         owner_name: ownerName,
         project_name: projectName,
       },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Patch Project
+   * @returns ProjectPublic Successful Response
+   * @throws ApiError
+   */
+  public static patchProject(
+    data: ProjectsData["PatchProject"],
+  ): CancelablePromise<ProjectPublic> {
+    const { ownerName, projectName, requestBody } = data
+    return __request(OpenAPI, {
+      method: "PATCH",
+      url: "/api/v1/projects/{owner_name}/{project_name}",
+      path: {
+        owner_name: ownerName,
+        project_name: projectName,
+      },
+      body: requestBody,
+      mediaType: "application/json",
       errors: {
         422: `Validation Error`,
       },

@@ -17,20 +17,20 @@ import { type SubmitHandler, useForm } from "react-hook-form"
 
 import {
   type ApiError,
-  type ItemUpdate,
+  type ProjectPatch,
   type ProjectPublic,
-  ItemsService,
+  ProjectsService,
 } from "../../client"
 import useCustomToast from "../../hooks/useCustomToast"
 import { handleError } from "../../utils"
 
-interface EditItemProps {
-  item: ProjectPublic
+interface EditProjectProps {
+  project: ProjectPublic
   isOpen: boolean
   onClose: () => void
 }
 
-const EditItem = ({ item, isOpen, onClose }: EditItemProps) => {
+const EditProject = ({ project, isOpen, onClose }: EditProjectProps) => {
   const queryClient = useQueryClient()
   const showToast = useCustomToast()
   const {
@@ -38,28 +38,32 @@ const EditItem = ({ item, isOpen, onClose }: EditItemProps) => {
     handleSubmit,
     reset,
     formState: { isSubmitting, errors, isDirty },
-  } = useForm<ItemUpdate>({
+  } = useForm<ProjectPatch>({
     mode: "onBlur",
     criteriaMode: "all",
-    defaultValues: item,
+    defaultValues: project,
   })
 
   const mutation = useMutation({
-    mutationFn: (data: ItemUpdate) =>
-      ItemsService.updateItem({ id: item.id, requestBody: data }),
+    mutationFn: (data: ProjectPatch) =>
+      ProjectsService.patchProject({
+        ownerName: project.owner_account_name,
+        projectName: project.name,
+        requestBody: data,
+      }),
     onSuccess: () => {
-      showToast("Success!", "Item updated successfully.", "success")
+      showToast("Success!", "Project updated successfully.", "success")
       onClose()
     },
     onError: (err: ApiError) => {
       handleError(err, showToast)
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["items"] })
+      queryClient.invalidateQueries({ queryKey: ["projects"] })
     },
   })
 
-  const onSubmit: SubmitHandler<ItemUpdate> = async (data) => {
+  const onSubmit: SubmitHandler<ProjectPatch> = async (data) => {
     mutation.mutate(data)
   }
 
@@ -121,4 +125,4 @@ const EditItem = ({ item, isOpen, onClose }: EditItemProps) => {
   )
 }
 
-export default EditItem
+export default EditProject
