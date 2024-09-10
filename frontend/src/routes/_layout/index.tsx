@@ -31,7 +31,7 @@ import CreateProject from "../../components/Projects/CreateProject"
 import CreateProjectFromGitHub from "../../components/Projects/CreateProjectFromGitHub"
 import { pageWidthNoSidebar } from "../../utils"
 
-const itemsSearchSchema = z.object({
+const projectsSearchSchema = z.object({
   page: z.number().catch(1),
 })
 
@@ -41,7 +41,7 @@ export const Route = createFileRoute("/_layout/")({
 
 const PER_PAGE = 5
 
-function getItemsQueryOptions({ page }: { page: number }) {
+function getProjectsQueryOptions({ page }: { page: number }) {
   return {
     queryFn: () =>
       ProjectsService.getOwnedProjects({
@@ -54,26 +54,26 @@ function getItemsQueryOptions({ page }: { page: number }) {
 
 function ProjectsTable() {
   const queryClient = useQueryClient()
-  const { page } = itemsSearchSchema.parse(Route.useSearch())
+  const { page } = projectsSearchSchema.parse(Route.useSearch())
   const navigate = useNavigate({ from: Route.fullPath })
   const setPage = (page: number) =>
     navigate({ search: (prev) => ({ ...prev, page }) })
 
   const {
-    data: items,
+    data: projects,
     isPending,
     isPlaceholderData,
   } = useQuery({
-    ...getItemsQueryOptions({ page }),
+    ...getProjectsQueryOptions({ page }),
     placeholderData: (prevData) => prevData,
   })
 
-  const hasNextPage = !isPlaceholderData && items?.data.length === PER_PAGE
+  const hasNextPage = !isPlaceholderData && projects?.data.length === PER_PAGE
   const hasPreviousPage = page > 1
 
   useEffect(() => {
     if (hasNextPage) {
-      queryClient.prefetchQuery(getItemsQueryOptions({ page: page + 1 }))
+      queryClient.prefetchQuery(getProjectsQueryOptions({ page: page + 1 }))
     }
   }, [page, queryClient, hasNextPage])
 
@@ -101,31 +101,30 @@ function ProjectsTable() {
             </Tbody>
           ) : (
             <Tbody>
-              {items?.data.map((item) => (
-                <Tr key={item.id} opacity={isPlaceholderData ? 0.5 : 1}>
+              {projects?.data.map((project) => (
+                <Tr key={project.id} opacity={isPlaceholderData ? 0.5 : 1}>
                   <Td isTruncated maxWidth="150px">
-                    {/* TODO: Project paths should be forced to match GitHub URL? */}
                     <Link
                       as={RouterLink}
-                      to={item.owner_account_name + "/" + item.name}
+                      to={project.owner_account_name + "/" + project.name}
                     >
-                      {item.title}
+                      {project.title}
                     </Link>
                   </Td>
                   <Td isTruncated maxWidth="150px">
-                    <Link href={item.git_repo_url} isExternal>
-                      <ExternalLinkIcon mx="2px" /> {item.git_repo_url}
+                    <Link href={project.git_repo_url} isExternal>
+                      <ExternalLinkIcon mx="2px" /> {project.git_repo_url}
                     </Link>
                   </Td>
                   <Td
-                    color={!item.description ? "ui.dim" : "inherit"}
+                    color={!project.description ? "ui.dim" : "inherit"}
                     isTruncated
                     maxWidth="150px"
                   >
-                    {item.description || "N/A"}
+                    {project.description || "N/A"}
                   </Td>
                   <Td>
-                    <ActionsMenu type={"Project"} value={item} />
+                    <ActionsMenu type={"Project"} value={project} />
                   </Td>
                 </Tr>
               ))}
@@ -163,7 +162,7 @@ function PublicProjectsTable() {
     isPending,
     isPlaceholderData,
   } = useQuery({
-    ...getItemsQueryOptions({ page }),
+    ...getProjectsQueryOptions({ page }),
     placeholderData: (prevData) => prevData,
   })
 
@@ -171,7 +170,7 @@ function PublicProjectsTable() {
 
   useEffect(() => {
     if (hasNextPage) {
-      queryClient.prefetchQuery(getItemsQueryOptions({ page }))
+      queryClient.prefetchQuery(getProjectsQueryOptions({ page }))
     }
   }, [page, queryClient, hasNextPage])
 

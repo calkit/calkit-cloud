@@ -101,9 +101,7 @@ def create_project(
         body = {
             "name": repo_name,
             "description": project_in.description,
-            "homepage": (
-                f"https://calkit.io/{owner_name}/{repo_name}"
-            ),
+            "homepage": (f"https://calkit.io/{owner_name}/{repo_name}"),
             "private": not project_in.is_public,
             "has_discussions": True,
             "has_issues": True,
@@ -203,6 +201,23 @@ def delete_project(
     project = app.projects.get_project(
         session=session, owner_name=owner_name, project_name=project_name
     )
+    # TODO: Check for collaborator access
+    if project.owner != current_user:
+        raise HTTPException(403)
+    session.delete(project)
+    session.commit()
+    return Message(message="success")
+
+
+@router.delete("/projects/{project_id}")
+def delete_project_by_id(
+    project_id: uuid.UUID,
+    session: SessionDep,
+    current_user: CurrentUser,
+) -> Message:
+    project = session.get(Project, project_id)
+    if project is None:
+        raise HTTPException(404)
     # TODO: Check for collaborator access
     if project.owner != current_user:
         raise HTTPException(403)

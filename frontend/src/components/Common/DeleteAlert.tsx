@@ -40,10 +40,9 @@ const Delete = ({
   } = useForm()
 
   const deleteEntity = async (id: string) => {
-    if (type === "Project" && projectOwner && projectName) {
-      await ProjectsService.deleteProject({
-        ownerName: projectOwner,
-        projectName: projectName,
+    if (type === "Project") {
+      await ProjectsService.deleteProjectById({
+        projectId: id,
       })
     } else if (type === "User") {
       await UsersService.deleteUser({ userId: id })
@@ -76,9 +75,9 @@ const Delete = ({
       )
     },
     onSettled: () => {
-      if (["Item", "User"].includes(type)) {
+      if (["Project", "User"].includes(type)) {
         queryClient.invalidateQueries({
-          queryKey: [type === "Item" ? "items" : "users"],
+          queryKey: [type === "Project" ? "projects" : "users"],
         })
       }
       if (type === "Collaborator") {
