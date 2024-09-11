@@ -755,6 +755,51 @@ export const $NewPassword = {
   },
 } as const
 
+export const $OrgMemberPost = {
+  properties: {
+    username: {
+      type: "string",
+      isRequired: true,
+    },
+    role: {
+      type: "Enum",
+      enum: ["read", "write", "admin", "owner"],
+      isRequired: true,
+    },
+  },
+} as const
+
+export const $OrgPost = {
+  properties: {
+    github_name: {
+      type: "string",
+      isRequired: true,
+    },
+  },
+} as const
+
+export const $OrgPublic = {
+  properties: {
+    id: {
+      type: "string",
+      isRequired: true,
+      format: "uuid",
+    },
+    display_name: {
+      type: "string",
+      isRequired: true,
+    },
+    github_name: {
+      type: "string",
+      isRequired: true,
+    },
+    role: {
+      type: "string",
+      isRequired: true,
+    },
+  },
+} as const
+
 export const $ProjectCreate = {
   properties: {
     name: {

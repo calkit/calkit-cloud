@@ -38,6 +38,9 @@ import type {
   References,
   Software,
   Workflow,
+  OrgMemberPost,
+  OrgPost,
+  OrgPublic,
 } from "./models"
 
 export type LoginData = {
@@ -268,6 +271,16 @@ export type ProjectsData = {
   GetProjectSoftware: {
     ownerName: string
     projectName: string
+  }
+}
+
+export type OrgsData = {
+  PostOrg: {
+    requestBody: OrgPost
+  }
+  AddOrgMember: {
+    orgName: string
+    requestBody: OrgMemberPost
   }
 }
 
@@ -1503,6 +1516,63 @@ export class ProjectsService {
         owner_name: ownerName,
         project_name: projectName,
       },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+}
+
+export class OrgsService {
+  /**
+   * Get User Orgs
+   * @returns OrgPublic Successful Response
+   * @throws ApiError
+   */
+  public static getUserOrgs(): CancelablePromise<Array<OrgPublic>> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/api/v1/user/orgs",
+    })
+  }
+
+  /**
+   * Post Org
+   * @returns OrgPublic Successful Response
+   * @throws ApiError
+   */
+  public static postOrg(
+    data: OrgsData["PostOrg"],
+  ): CancelablePromise<OrgPublic> {
+    const { requestBody } = data
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/api/v1/orgs",
+      body: requestBody,
+      mediaType: "application/json",
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Add Org Member
+   * @returns Message Successful Response
+   * @throws ApiError
+   */
+  public static addOrgMember(
+    data: OrgsData["AddOrgMember"],
+  ): CancelablePromise<Message> {
+    const { orgName, requestBody } = data
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/api/v1/orgs/{org_name}/members",
+      path: {
+        org_name: orgName,
+      },
+      body: requestBody,
+      mediaType: "application/json",
       errors: {
         422: `Validation Error`,
       },

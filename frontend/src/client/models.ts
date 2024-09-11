@@ -162,6 +162,22 @@ export type NewPassword = {
   new_password: string
 }
 
+export type OrgMemberPost = {
+  username: string
+  role: "read" | "write" | "admin" | "owner"
+}
+
+export type OrgPost = {
+  github_name: string
+}
+
+export type OrgPublic = {
+  id: string
+  display_name: string
+  github_name: string
+  role: string
+}
+
 export type ProjectCreate = {
   name: string
   title: string
