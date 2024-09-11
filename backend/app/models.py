@@ -167,17 +167,6 @@ class UserSubscription(_SubscriptionBase, table=True):
     user: User = Relationship(back_populates="subscription")
 
 
-class SubscriptionPeriod(SQLModel):
-    subscription_id: uuid.UUID = Field(
-        foreign_key="subscription.id", primary_key=True
-    )
-    created: datetime = Field(default_factory=utcnow)
-    start: datetime = Field(primary_key=True)
-    end: datetime
-    settled: datetime | None = None
-    price_paid: float | None = None
-
-
 class DiscountCode(SQLModel):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     created: datetime = Field(default_factory=utcnow)
