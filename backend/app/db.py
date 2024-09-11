@@ -4,7 +4,7 @@ import logging
 
 from app import users
 from app.config import settings
-from app.models import User, UserCreate, Account
+from app.models import User, UserCreate
 from sqlalchemy import Engine
 from sqlmodel import Session, create_engine, select
 from tenacity import (
