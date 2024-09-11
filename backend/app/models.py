@@ -105,6 +105,7 @@ class User(UserBase, table=True):
 class UserPublic(UserBase):
     id: uuid.UUID
     github_username: str
+    subscription: Union["UserSubscription", None]
 
 
 class UsersPublic(SQLModel):

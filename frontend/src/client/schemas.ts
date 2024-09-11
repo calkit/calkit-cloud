@@ -1414,6 +1414,18 @@ export const $UserPublic = {
       type: "string",
       isRequired: true,
     },
+    subscription: {
+      type: "any-of",
+      contains: [
+        {
+          type: "UserSubscription",
+        },
+        {
+          type: "null",
+        },
+      ],
+      isRequired: true,
+    },
   },
 } as const
 
@@ -1442,6 +1454,92 @@ export const $UserRegister = {
           type: "null",
         },
       ],
+    },
+  },
+} as const
+
+export const $UserSubscription = {
+  properties: {
+    id: {
+      type: "string",
+      format: "uuid",
+    },
+    created: {
+      type: "string",
+      format: "date-time",
+    },
+    period_months: {
+      type: "number",
+      isRequired: true,
+    },
+    price: {
+      type: "number",
+      isRequired: true,
+    },
+    paid_until: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    type_id: {
+      type: "number",
+      isRequired: true,
+      maximum: 2,
+      minimum: 0,
+    },
+    is_active: {
+      type: "boolean",
+      default: true,
+    },
+    processor: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    processor_plan_id: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    processor_subscription_id: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    user_id: {
+      type: "string",
+      isRequired: true,
+      format: "uuid",
+    },
+    type_name: {
+      type: "string",
+      isReadOnly: true,
+      isRequired: true,
     },
   },
 } as const

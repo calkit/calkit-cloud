@@ -301,12 +301,28 @@ export type UserPublic = {
   full_name?: string | null
   id: string
   github_username: string
+  subscription: UserSubscription | null
 }
 
 export type UserRegister = {
   email: string
   password: string
   full_name?: string | null
+}
+
+export type UserSubscription = {
+  id?: string
+  created?: string
+  period_months: number
+  price: number
+  paid_until?: string | null
+  type_id: number
+  is_active?: boolean
+  processor?: string | null
+  processor_plan_id?: string | null
+  processor_subscription_id?: string | null
+  user_id: string
+  readonly type_name: string
 }
 
 export type UserUpdate = {
