@@ -128,30 +128,54 @@ class Org(SQLModel, table=True):
         return self.account.owned_projects
 
 
+# These could be put in the database, but that seems unnecessary
+ROLE_IDS = {
+    name: n for n, name in enumerate(["read", "write", "admin", "owner"])
+}
+ROLE_NAMES = {i: name for name, i in ROLE_IDS.items()}
+SUBSCRIPTION_TYPE_IDS = {
+    level: n
+    for n, level in enumerate(["standard", "professional", "enterprise"])
+}
+SUBSCRIPTION_TYPE_NAMES = {
+    i: level for level, i in SUBSCRIPTION_TYPE_IDS.items()
+}
+
+
 # Track user membership in an org
-class UserOrgMembership(SQLModel):
+class UserOrgMembership(SQLModel, table=True):
     user_id: uuid.UUID = Field(foreign_key="user.id", primary_key=True)
     org_id: uuid.UUID = Field(foreign_key="org.id", primary_key=True)
-    role: Literal["read", "write", "admin", "owner"]
+    role_id: int = Field(ge=min(ROLE_IDS.values()), le=max(ROLE_IDS.values()))
     # Relationships
     user: User = Relationship(back_populates="org_memberships")
     org: Org = Relationship(back_populates="user_memberships")
 
-
-SubscriptionLevel = Literal["standard", "pro", "enterprise"]
+    @computed_field
+    @property
+    def role_name(self) -> str:
+        return ROLE_NAMES[self.role_id]
 
 
 class _SubscriptionBase(SQLModel):
     id: uuid.UUID = Field(default_factory=uuid.uuid4)
     created: datetime = Field(default_factory=utcnow)
-    period: Literal["month", "year"]
+    period_months: int
     price: float
     paid_until: datetime | None = None
-    level: SubscriptionLevel
+    type_id: int = Field(
+        ge=min(SUBSCRIPTION_TYPE_IDS.values()),
+        le=max(SUBSCRIPTION_TYPE_IDS.values()),
+    )
     is_active: bool = True
     processor: str | None = None
     processor_plan_id: str | None = None
     processor_subscription_id: str | None = None
+
+    @computed_field
+    @property
+    def type_name(self) -> str:
+        return SUBSCRIPTION_TYPE_IDS[self.type_id]
 
 
 class OrgSubscription(_SubscriptionBase, table=True):
@@ -167,14 +191,17 @@ class UserSubscription(_SubscriptionBase, table=True):
     user: User = Relationship(back_populates="subscription")
 
 
-class DiscountCode(SQLModel):
+class DiscountCode(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     created: datetime = Field(default_factory=utcnow)
     created_by_user_id: uuid.UUID = Field(foreign_key="user.id")
     created_for_account_id: uuid.UUID = Field(foreign_key="account.id")
     valid_from: datetime | None = None
     valid_until: datetime | None = None
-    subscription_level: SubscriptionLevel
+    subscription_type_id: int = Field(
+        ge=min(SUBSCRIPTION_TYPE_IDS.values()),
+        le=max(SUBSCRIPTION_TYPE_IDS.values()),
+    )
     price: float
     months: int
     n_users: int = 1
