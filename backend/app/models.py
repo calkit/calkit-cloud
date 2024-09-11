@@ -143,14 +143,18 @@ SubscriptionLevel = Literal["standard", "pro", "enterprise"]
 
 
 class Subscription(SQLModel):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4)
     account_id: uuid.UUID = Field(foreign_key="account.id", primary_key=True)
     created: datetime = Field(default_factory=utcnow)
     period: Literal["month", "year"]
-    paid_until: datetime
+    price: float
+    paid_until: datetime | None = None
     level: SubscriptionLevel
     n_users: int = 1
-    is_active: bool
-    price: float
+    is_active: bool = True
+    processor: str | None = None
+    processor_plan_id: str | None = None
+    processor_subscription_id: str | None = None
     # Relationships
     account: Account = Relationship(back_populates="subscriptions")
 
