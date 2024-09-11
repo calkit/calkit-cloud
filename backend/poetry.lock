@@ -1054,13 +1054,13 @@ pgp = ["gpg"]
 
 [[package]]
 name = "dvc"
-version = "3.54.1"
+version = "3.55.2"
 description = "Git for data scientists - manage your code and data together"
 optional = false
 python-versions = ">=3.9"
 files = [
-    {file = "dvc-3.54.1-py3-none-any.whl", hash = "sha256:9534ddfdde9cec654f44ae4a565fdbbf45d1f4b656d6d68ffb18bcef7a075db5"},
-    {file = "dvc-3.54.1.tar.gz", hash = "sha256:00cbfd2dc1268af7bd8739c8e2dfdc493134d243bfc9687579a94a2646d438ef"},
+    {file = "dvc-3.55.2-py3-none-any.whl", hash = "sha256:1324e4a5471618a4300dd0a7c33ac877d5e057fbe48940812116494865d0e4e2"},
+    {file = "dvc-3.55.2.tar.gz", hash = "sha256:2fbb38385753d51b25967c80e672cf9dea046bdac182c159a2c1d1f246d15ce0"},
 ]
 
 [package.dependencies]
@@ -1114,7 +1114,7 @@ dev = ["dvc[azure,gdrive,gs,hdfs,lint,oss,s3,ssh,tests,webdav,webhdfs]"]
 gdrive = ["dvc-gdrive (>=3,<4)"]
 gs = ["dvc-gs (>=3,<4)"]
 hdfs = ["dvc-hdfs (>=3,<4)"]
-lint = ["mypy (==1.11.1)", "pandas-stubs", "types-colorama", "types-psutil", "types-pyinstaller", "types-requests", "types-tabulate", "types-toml", "types-tqdm", "typing-extensions"]
+lint = ["mypy (==1.11.2)", "pandas-stubs", "types-colorama", "types-psutil", "types-pyinstaller", "types-requests", "types-tabulate", "types-toml", "types-tqdm", "typing-extensions"]
 oss = ["dvc-oss (>=3,<4)"]
 s3 = ["dvc-s3 (>=3.2.0,<4)"]
 ssh = ["dvc-ssh (>=4,<5)"]

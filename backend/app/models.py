@@ -21,6 +21,9 @@ class Account(SQLModel, table=True):
     )
     user: Union["User", None] = Relationship(back_populates="account")
     org: Union["Org", None] = Relationship(back_populates="account")
+    subscriptions: list["Subscription"] = Relationship(
+        back_populates="account"
+    )
 
     @computed_field
     @property
@@ -86,6 +89,9 @@ class User(UserBase, table=True):
     # Relationships
     account: Account = Relationship(back_populates="user")
     github_token: UserGitHubToken | None = Relationship()
+    org_memberships: list["UserOrgMembership"] = Relationship(
+        back_populates="user"
+    )
 
     @computed_field
     @property
@@ -108,64 +114,76 @@ class UsersPublic(SQLModel):
     count: int
 
 
+class Org(SQLModel, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    display_name: str = Field(min_length=2, max_length=255)
+    # Relationships
+    account: Account = Relationship(back_populates="org")
+    user_memberships: list["UserOrgMembership"] = Relationship(
+        back_populates="org"
+    )
+
+    @computed_field
+    @property
+    def owned_projects(self) -> list["Project"]:
+        return self.account.owned_projects
+
+
 # Track user membership in an org
 class UserOrgMembership(SQLModel):
-    user_id: uuid.UUID
-    org_id: uuid.UUID
+    user_id: uuid.UUID = Field(foreign_key="user.id", primary_key=True)
+    org_id: uuid.UUID = Field(foreign_key="org.id", primary_key=True)
+    role: Literal["read", "write", "admin", "owner"]
+    # Relationships
+    user: User = Relationship(back_populates="org_memberships")
+    org: Org = Relationship(back_populates="user_memberships")
 
 
 SubscriptionLevel = Literal["standard", "pro", "enterprise"]
 
 
 class Subscription(SQLModel):
-    id: uuid.UUID
-    created: datetime
+    account_id: uuid.UUID = Field(foreign_key="account.id", primary_key=True)
+    created: datetime = Field(default_factory=utcnow)
     period: Literal["month", "year"]
-    admin_user_id: uuid.UUID
+    paid_until: datetime
     level: SubscriptionLevel
     n_users: int = 1
-    org_id: uuid.UUID | None = None
     is_active: bool
     price: float
+    # Relationships
+    account: Account = Relationship(back_populates="subscriptions")
 
 
 class SubscriptionPeriod(SQLModel):
-    subscription_id: uuid.UUID
-    created: datetime
-    start: datetime
+    subscription_id: uuid.UUID = Field(
+        foreign_key="subscription.id", primary_key=True
+    )
+    created: datetime = Field(default_factory=utcnow)
+    start: datetime = Field(primary_key=True)
     end: datetime
     settled: datetime | None = None
     price_paid: float | None = None
 
 
 class DiscountCode(SQLModel):
-    id: uuid.UUID
-    code: str
-    created: datetime
-    created_by_user_id: uuid.UUID
-    valid_from: datetime | None
-    valid_until: datetime | None
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    created: datetime = Field(default_factory=utcnow)
+    created_by_user_id: uuid.UUID = Field(foreign_key="user.id")
+    created_for_account_id: uuid.UUID = Field(foreign_key="account.id")
+    valid_from: datetime | None = None
+    valid_until: datetime | None = None
     subscription_level: SubscriptionLevel
     price: float
     redeemed: datetime | None = None
-    redeemed_by_user_id: uuid.UUID
+    redeemed_by_user_id: uuid.UUID = Field(foreign_key="user.id")
 
 
 class UserSubscription(SQLModel):
-    user_id: uuid.UUID
-    subscription_id: uuid.UUID
-
-
-class Org(SQLModel, table=True):
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    display_name: str = Field(min_length=2, max_length=255)
-    # Relationships
-    account: Account = Relationship(back_populates="org")
-
-    @computed_field
-    @property
-    def owned_projects(self) -> list["Project"]:
-        return self.account.owned_projects
+    user_id: uuid.UUID = Field(foreign_key="user.id", primary_key=True)
+    subscription_id: uuid.UUID = Field(
+        foreign_key="subscription.id", primary_key=True
+    )
 
 
 # Generic message
