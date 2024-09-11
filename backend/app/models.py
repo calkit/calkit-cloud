@@ -124,6 +124,10 @@ class Org(SQLModel, table=True):
 
     @computed_field
     @property
+    def github_name(self) -> str:
+        return self.account.github_name
+
+    @property
     def owned_projects(self) -> list["Project"]:
         return self.account.owned_projects
 
