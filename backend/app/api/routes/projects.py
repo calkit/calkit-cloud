@@ -35,6 +35,7 @@ from app.models import (
     FigureComment,
     FigureCommentPost,
     Message,
+    Org,
     Project,
     ProjectCreate,
     ProjectPublic,
@@ -90,12 +91,11 @@ def create_project(
     token = users.get_github_token(session=session, user=current_user)
     headers = {"Authorization": f"Bearer {token}"}
     owner_name, repo_name = project_in.git_repo_url.split("/")[-2:]
-    # TODO: Organization access
-    if owner_name != current_user.github_username:
-        raise HTTPException(403, "You must own this repo to import it")
     url = f"https://api.github.com/repos/{owner_name}/{repo_name}"
     resp = requests.get(url, headers=headers)
     if resp.status_code == 404:
+        if owner_name != current_user.github_username:
+            raise HTTPException(403, "Can only create new repos for yourself")
         # If not, create it
         logger.info(f"Creating GitHub repo for {owner_name}: {repo_name}")
         body = {
@@ -123,9 +123,24 @@ def create_project(
         logger.info(f"Create GitHub repo with URL: {resp_json['html_url']}")
     elif resp.status_code == 200:
         logger.info(f"Repo exists on GitHub as {owner_name}/{repo_name}")
+        repo = resp.json()
+        if owner_name != current_user.github_username:
+            # This is either an org repo, or someone else's that we shouldn't
+            # be able to import
+            if repo["owner"]["type"] != "Organization":
+                raise HTTPException(400, "Non-user repos must be from an org")
+            # This org must exist in Calkit and the user must have access to it
+            query = select(Org).where(Org.account.has(github_name=owner_name))
+            org = session.exec(query).first()
+            if org is None:
+                logger.info(f"Org '{owner_name}' does not exist in DB")
+                raise HTTPException(404, "This org does not exist in Calkit")
+            owner_account_id = org.account.id
+        else:
+            owner_account_id = current_user.account.id
     logger.info("Adding to database")
     project = Project.model_validate(
-        project_in, update={"owner_account_id": current_user.account.id}
+        project_in, update={"owner_account_id": owner_account_id}
     )
     session.add(project)
     session.commit()
