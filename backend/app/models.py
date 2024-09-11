@@ -21,9 +21,6 @@ class Account(SQLModel, table=True):
     )
     user: Union["User", None] = Relationship(back_populates="account")
     org: Union["Org", None] = Relationship(back_populates="account")
-    subscriptions: list["Subscription"] = Relationship(
-        back_populates="account"
-    )
 
     @computed_field
     @property
@@ -92,6 +89,7 @@ class User(UserBase, table=True):
     org_memberships: list["UserOrgMembership"] = Relationship(
         back_populates="user"
     )
+    subscription: "UserSubscription" = Relationship(back_populates="user")
 
     @computed_field
     @property
@@ -122,6 +120,7 @@ class Org(SQLModel, table=True):
     user_memberships: list["UserOrgMembership"] = Relationship(
         back_populates="org"
     )
+    subscription: "OrgSubscription" = Relationship(back_populates="org")
 
     @computed_field
     @property
@@ -142,21 +141,30 @@ class UserOrgMembership(SQLModel):
 SubscriptionLevel = Literal["standard", "pro", "enterprise"]
 
 
-class Subscription(SQLModel):
+class _SubscriptionBase(SQLModel):
     id: uuid.UUID = Field(default_factory=uuid.uuid4)
-    account_id: uuid.UUID = Field(foreign_key="account.id", primary_key=True)
     created: datetime = Field(default_factory=utcnow)
     period: Literal["month", "year"]
     price: float
     paid_until: datetime | None = None
     level: SubscriptionLevel
-    n_users: int = 1
     is_active: bool = True
     processor: str | None = None
     processor_plan_id: str | None = None
     processor_subscription_id: str | None = None
+
+
+class OrgSubscription(_SubscriptionBase, table=True):
+    org_id: uuid.UUID = Field(foreign_key="org.id", primary_key=True)
+    n_users: int = Field(ge=1)
     # Relationships
-    account: Account = Relationship(back_populates="subscriptions")
+    org: Org = Relationship(back_populates="subscription")
+
+
+class UserSubscription(_SubscriptionBase, table=True):
+    user_id: uuid.UUID = Field(foreign_key="user.id", primary_key=True)
+    # Relationships
+    user: User = Relationship(back_populates="subscription")
 
 
 class SubscriptionPeriod(SQLModel):
@@ -183,16 +191,6 @@ class DiscountCode(SQLModel):
     n_users: int = 1
     redeemed: datetime | None = None
     redeemed_by_user_id: uuid.UUID = Field(foreign_key="user.id")
-
-
-class UserSubscription(SQLModel):
-    user_id: uuid.UUID = Field(foreign_key="user.id", primary_key=True)
-    subscription_id: uuid.UUID = Field(
-        foreign_key="subscription.id", primary_key=True
-    )
-    # Relationships
-    subscriber_account: Account = Relationship()
-    user: User = Relationship(back_populates="subscriptions")
 
 
 # Generic message
