@@ -180,6 +180,7 @@ class DiscountCode(SQLModel):
     subscription_level: SubscriptionLevel
     price: float
     months: int
+    n_users: int = 1
     redeemed: datetime | None = None
     redeemed_by_user_id: uuid.UUID = Field(foreign_key="user.id")
 
@@ -189,6 +190,9 @@ class UserSubscription(SQLModel):
     subscription_id: uuid.UUID = Field(
         foreign_key="subscription.id", primary_key=True
     )
+    # Relationships
+    subscriber_account: Account = Relationship()
+    user: User = Relationship(back_populates="subscriptions")
 
 
 # Generic message
