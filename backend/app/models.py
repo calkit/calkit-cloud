@@ -175,6 +175,7 @@ class DiscountCode(SQLModel):
     valid_until: datetime | None = None
     subscription_level: SubscriptionLevel
     price: float
+    months: int
     redeemed: datetime | None = None
     redeemed_by_user_id: uuid.UUID = Field(foreign_key="user.id")
 
