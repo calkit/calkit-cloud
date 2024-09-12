@@ -14,6 +14,8 @@ import {
   UnorderedList,
   ListItem,
   Link,
+  Switch,
+  useBoolean,
 } from "@chakra-ui/react"
 import { Outlet, createFileRoute, redirect } from "@tanstack/react-router"
 import useAuth, { isLoggedIn } from "../hooks/useAuth"
@@ -36,11 +38,25 @@ interface PickSubscriptionProps {
 }
 
 function PickSubscription({ user }: PickSubscriptionProps) {
+  const [annual, setAnnual] = useBoolean(false)
+  const [team, setTeam] = useBoolean(false)
+  // TODO: These plans should probably come from the back end
   const plans = [
     { name: "Free", price: null, privateProjects: 1, storageGb: 1 },
     { name: "Standard", price: 10, privateProjects: 2, storageGb: 10 },
     { name: "Professional", price: 50, privateProjects: 10, storageGb: 100 },
   ]
+  const annualDiscount = 0.9
+  const calcPrice = (price: number | null) => {
+    if (!price) {
+      return price
+    }
+    if (annual) {
+      return price * annualDiscount
+    }
+    return price
+  }
+  const preferredPlanName = "Standard"
 
   return (
     <Flex
@@ -52,64 +68,63 @@ function PickSubscription({ user }: PickSubscriptionProps) {
     >
       <Box>
         <Flex justify={"center"}>
-          <Heading size="lg" mb={6}>
+          <Heading size="lg" mb={4}>
             Choose your plan, {user?.github_username}:
           </Heading>
         </Flex>
+        <Flex mb={4} align={"center"} justify={"center"} alignItems={"center"}>
+          <Text mr={1}>Monthly/annual</Text>
+          <Switch
+            isChecked={annual}
+            onChange={setAnnual.toggle}
+            mr={4}
+            colorScheme="green"
+          />
+          <Text mr={1}>Individual/team</Text>
+          <Switch
+            isChecked={team}
+            onChange={setTeam.toggle}
+            colorScheme="blue"
+          />
+        </Flex>
         <Box mb={4}>
           <SimpleGrid spacing={4} columns={3}>
-            {/* Free plan card */}
-            <Card align={"center"}>
-              <CardHeader>
-                <Heading size="md">Free</Heading>
-              </CardHeader>
-              <CardBody>
-                <UnorderedList>
-                  <ListItem>Unlimited collaborators</ListItem>
-                  <ListItem>Unlimited public projects</ListItem>
-                  <ListItem>1 private project</ListItem>
-                  <ListItem>1 GB storage</ListItem>
-                </UnorderedList>
-              </CardBody>
-              <CardFooter>
-                <Button>Let's go!</Button>
-              </CardFooter>
-            </Card>
-            {/* Standard plan card */}
-            <Card align={"center"} borderWidth={2} borderColor={"green.500"}>
-              <CardHeader>
-                <Heading size="md">Standard: $15/mo</Heading>
-              </CardHeader>
-              <CardBody>
-                <UnorderedList>
-                  <ListItem>Unlimited collaborators</ListItem>
-                  <ListItem>Unlimited public projects</ListItem>
-                  <ListItem>2 private projects</ListItem>
-                  <ListItem>10 GB storage</ListItem>
-                </UnorderedList>
-              </CardBody>
-              <CardFooter>
-                <Button variant={"primary"}>🚀 Let's go!</Button>
-              </CardFooter>
-            </Card>
-            {/* Professional plan card */}
-            <Card align={"center"}>
-              <CardHeader>
-                <Heading size="md">Professional: $50/mo</Heading>
-              </CardHeader>
-              <CardBody>
-                <UnorderedList>
-                  <ListItem>Unlimited collaborators</ListItem>
-                  <ListItem>Unlimited public projects</ListItem>
-                  <ListItem>10 private projects</ListItem>
-                  <ListItem>100 GB storage</ListItem>
-                </UnorderedList>
-              </CardBody>
-              <CardFooter>
-                <Button>Let's go!</Button>
-              </CardFooter>
-            </Card>
-            {/* TODO: Enterprise/contact us card? */}
+            {/* Cards for each plan */}
+            {plans.map((plan) => (
+              <Card
+                align={"center"}
+                key={plan.name}
+                borderWidth={plan.name === preferredPlanName ? 2 : 0}
+                borderColor={"green.500"}
+              >
+                <CardHeader>
+                  <Heading size="md">
+                    {plan.name}
+                    {plan.price ? `: $${calcPrice(plan.price)}/mo` : ""}
+                  </Heading>
+                </CardHeader>
+                <CardBody>
+                  <UnorderedList>
+                    <ListItem>Unlimited collaborators</ListItem>
+                    <ListItem>Unlimited public projects</ListItem>
+                    <ListItem>
+                      {plan.privateProjects} private project
+                      {plan.privateProjects > 1 ? "s" : ""}
+                    </ListItem>
+                    <ListItem>{plan.storageGb} GB storage</ListItem>
+                  </UnorderedList>
+                </CardBody>
+                <CardFooter>
+                  <Button
+                    variant={
+                      plan.name === preferredPlanName ? "primary" : undefined
+                    }
+                  >
+                    {plan.name === preferredPlanName ? "🚀 " : ""}Let's go!
+                  </Button>
+                </CardFooter>
+              </Card>
+            ))}
           </SimpleGrid>
         </Box>
         <Flex justifyItems={"center"} justifyContent="center" width={"100%"}>
@@ -122,7 +137,7 @@ function PickSubscription({ user }: PickSubscriptionProps) {
             <Box mt={2}>
               <Link>
                 <Text fontSize="sm">
-                  Looking for enterprise, on prem installations? Click here.
+                  Looking for enterprise, on prem? Click here.
                 </Text>
               </Link>
             </Box>
