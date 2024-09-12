@@ -62,6 +62,40 @@ export type Dataset = {
   url?: string | null
 }
 
+export type DiscountCode = {
+  id?: string
+  created?: string
+  created_by_user_id: string
+  created_for_account_id?: string | null
+  valid_from?: string | null
+  valid_until?: string | null
+  subscription_type_id: number
+  price: number
+  months: number
+  n_users?: number
+  redeemed?: string | null
+  redeemed_by_user_id?: string | null
+}
+
+export type DiscountCodePost = {
+  valid_from?: string | null
+  valid_until?: string | null
+  created_for_account_name?: string | null
+  n_users?: number
+  subscription_type: "standard" | "professional"
+  price: number
+  months: number
+}
+
+export type DiscountCodePublic = {
+  id: string
+  is_valid?: boolean
+  reason?: string | null
+  n_users?: number | null
+  price?: number | null
+  months?: number | null
+}
+
 export type Environment = {
   kind: "docker" | "conda"
   path: string

@@ -25,11 +25,13 @@ import {
   IconButton,
 } from "@chakra-ui/react"
 import { Outlet, createFileRoute, redirect } from "@tanstack/react-router"
-import useAuth, { isLoggedIn } from "../hooks/useAuth"
-import Topbar from "../components/Common/Topbar"
-import { type UserPublic } from "../client"
 import { MdCancel, MdCheck } from "react-icons/md"
 import { useState } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+
+import useAuth, { isLoggedIn } from "../hooks/useAuth"
+import Topbar from "../components/Common/Topbar"
+import { MiscService, type UserPublic } from "../client"
 
 export const Route = createFileRoute("/_layout")({
   component: Layout,
@@ -54,7 +56,7 @@ function PickSubscription({ user }: PickSubscriptionProps) {
   // TODO: These plans should probably come from the back end
   const plans = [
     { name: "Free", price: null, privateProjects: 1, storageGb: 1 },
-    { name: "Standard", price: 15, privateProjects: 2, storageGb: 10 },
+    { name: "Standard", price: 10, privateProjects: 2, storageGb: 10 },
     { name: "Professional", price: 50, privateProjects: 10, storageGb: 500 },
   ]
   const annualDiscount = 0.9
@@ -80,6 +82,16 @@ function PickSubscription({ user }: PickSubscriptionProps) {
     }
     return plans
   }
+  const [discountCode, setDiscountCode] = useState<string>("")
+  const [discountQueryEnabled, setDiscountQueryEnabled] = useBoolean(false)
+  const discountCodeCheckQuery = useQuery({
+    queryKey: ["discount-codes", discountCode],
+    queryFn: () => MiscService.getDiscountCode({ discountCode }),
+    enabled:
+      Boolean(discountCode) && discountQueryEnabled && discountCodeVisible,
+    retry: 1,
+  })
+  const queryClient = useQueryClient()
 
   return (
     <Flex
@@ -184,7 +196,15 @@ function PickSubscription({ user }: PickSubscriptionProps) {
               {discountCodeVisible ? (
                 <>
                   <Flex align={"center"}>
-                    <Input placeholder="Enter discount code here" />
+                    <Input
+                      value={discountCode}
+                      onChange={({ target }) => setDiscountCode(target.value)}
+                      placeholder="Enter discount code here"
+                      isDisabled={
+                        discountCodeCheckQuery.isLoading ||
+                        discountCodeCheckQuery.data?.is_valid
+                      }
+                    />
                     <IconButton
                       aria-label="apply"
                       icon={<MdCheck />}
@@ -192,6 +212,12 @@ function PickSubscription({ user }: PickSubscriptionProps) {
                       size={"s"}
                       p={1}
                       ml={1}
+                      isDisabled={
+                        !Boolean(discountCode) ||
+                        discountCodeCheckQuery.data?.is_valid
+                      }
+                      isLoading={discountCodeCheckQuery.isLoading}
+                      onClick={() => setDiscountQueryEnabled.on()}
                     />
                     <IconButton
                       aria-label="cancel"
@@ -199,9 +225,30 @@ function PickSubscription({ user }: PickSubscriptionProps) {
                       bg="none"
                       size={"s"}
                       p={1}
-                      onClick={setDiscountCodeVisible.toggle}
+                      onClick={() => {
+                        setDiscountCodeVisible.toggle()
+                        setDiscountQueryEnabled.off()
+                        queryClient.resetQueries({
+                          queryKey: ["discount-codes"],
+                        })
+                        setDiscountCode("")
+                      }}
                     />
                   </Flex>
+                  {discountCodeCheckQuery.error ? (
+                    <Text mt={1} color={"red"} fontSize="sm">
+                      Discount code invalid.
+                    </Text>
+                  ) : (
+                    ""
+                  )}
+                  {discountCodeCheckQuery.data?.is_valid ? (
+                    <Text mt={1} color={"green.500"} fontSize="sm">
+                      Discount code applied!
+                    </Text>
+                  ) : (
+                    ""
+                  )}
                 </>
               ) : (
                 <Link onClick={setDiscountCodeVisible.toggle}>

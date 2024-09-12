@@ -352,6 +352,217 @@ export const $Dataset = {
   },
 } as const
 
+export const $DiscountCode = {
+  properties: {
+    id: {
+      type: "string",
+      format: "uuid",
+    },
+    created: {
+      type: "string",
+      format: "date-time",
+    },
+    created_by_user_id: {
+      type: "string",
+      isRequired: true,
+      format: "uuid",
+    },
+    created_for_account_id: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          format: "uuid",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    valid_from: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    valid_until: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    subscription_type_id: {
+      type: "number",
+      isRequired: true,
+      maximum: 2,
+      minimum: 0,
+    },
+    price: {
+      type: "number",
+      isRequired: true,
+    },
+    months: {
+      type: "number",
+      isRequired: true,
+    },
+    n_users: {
+      type: "number",
+      default: 1,
+    },
+    redeemed: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    redeemed_by_user_id: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          format: "uuid",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+  },
+} as const
+
+export const $DiscountCodePost = {
+  properties: {
+    valid_from: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    valid_until: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    created_for_account_name: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    n_users: {
+      type: "number",
+      default: 1,
+    },
+    subscription_type: {
+      type: "Enum",
+      enum: ["standard", "professional"],
+      isRequired: true,
+    },
+    price: {
+      type: "number",
+      isRequired: true,
+    },
+    months: {
+      type: "number",
+      isRequired: true,
+    },
+  },
+} as const
+
+export const $DiscountCodePublic = {
+  properties: {
+    id: {
+      type: "string",
+      isRequired: true,
+      format: "uuid",
+    },
+    is_valid: {
+      type: "boolean",
+      default: true,
+    },
+    reason: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    n_users: {
+      type: "any-of",
+      contains: [
+        {
+          type: "number",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    price: {
+      type: "any-of",
+      contains: [
+        {
+          type: "number",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    months: {
+      type: "any-of",
+      contains: [
+        {
+          type: "number",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+  },
+} as const
+
 export const $Environment = {
   properties: {
     kind: {

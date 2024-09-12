@@ -14,6 +14,9 @@ import type {
   UsersPublic,
   UserUpdate,
   UserUpdateMe,
+  DiscountCode,
+  DiscountCodePost,
+  DiscountCodePublic,
   Body_projects_post_project_figure,
   Body_projects_put_project_contents,
   Collaborator,
@@ -97,6 +100,12 @@ export type UsersData = {
 export type MiscData = {
   TestEmail: {
     emailTo: string
+  }
+  GetDiscountCode: {
+    discountCode: string
+  }
+  PostDiscountCode: {
+    requestBody: DiscountCodePost
   }
 }
 
@@ -661,6 +670,47 @@ export class MiscService {
       query: {
         email_to: emailTo,
       },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Get Discount Code
+   * @returns DiscountCodePublic Successful Response
+   * @throws ApiError
+   */
+  public static getDiscountCode(
+    data: MiscData["GetDiscountCode"],
+  ): CancelablePromise<DiscountCodePublic> {
+    const { discountCode } = data
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/api/v1/discount-codes/{discount_code}",
+      path: {
+        discount_code: discountCode,
+      },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Post Discount Code
+   * @returns DiscountCode Successful Response
+   * @throws ApiError
+   */
+  public static postDiscountCode(
+    data: MiscData["PostDiscountCode"],
+  ): CancelablePromise<DiscountCode> {
+    const { requestBody } = data
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/api/v1/discount-codes",
+      body: requestBody,
+      mediaType: "application/json",
       errors: {
         422: `Validation Error`,
       },
