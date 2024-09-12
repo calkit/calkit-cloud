@@ -53,6 +53,7 @@ def get_discount_code(
     discount_code: str,
     session: SessionDep,
     current_user: CurrentUser,
+    n_users: int = 1,
 ) -> DiscountCodePublic:
     try:
         code = session.get(DiscountCode, discount_code)
@@ -83,6 +84,12 @@ def get_discount_code(
                 is_valid=False,
                 reason="Code was not created for this account",
             )
+    if code.n_users != n_users:
+        return DiscountCodePublic(
+            id=code.id,
+            is_valid=False,
+            reason=f"Number of users does not match ({code.n_users})",
+        )
     return DiscountCodePublic.model_validate(
         code.model_dump() | {"subscription_type": code.subscription_type_name}
     )

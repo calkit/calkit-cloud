@@ -103,6 +103,7 @@ export type MiscData = {
   }
   GetDiscountCode: {
     discountCode: string
+    nUsers?: number
   }
   PostDiscountCode: {
     requestBody: DiscountCodePost
@@ -684,12 +685,15 @@ export class MiscService {
   public static getDiscountCode(
     data: MiscData["GetDiscountCode"],
   ): CancelablePromise<DiscountCodePublic> {
-    const { discountCode } = data
+    const { discountCode, nUsers = 1 } = data
     return __request(OpenAPI, {
       method: "GET",
       url: "/api/v1/discount-codes/{discount_code}",
       path: {
         discount_code: discountCode,
+      },
+      query: {
+        n_users: nUsers,
       },
       errors: {
         422: `Validation Error`,

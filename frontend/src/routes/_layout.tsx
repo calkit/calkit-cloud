@@ -76,8 +76,12 @@ function PickSubscription({ user }: PickSubscriptionProps) {
   const [discountCode, setDiscountCode] = useState<string>("")
   const [discountQueryEnabled, setDiscountQueryEnabled] = useBoolean(false)
   const discountCodeCheckQuery = useQuery({
-    queryKey: ["discount-codes", discountCode],
-    queryFn: () => MiscService.getDiscountCode({ discountCode }),
+    queryKey: ["discount-codes", discountCode, team, teamSize],
+    queryFn: () =>
+      MiscService.getDiscountCode({
+        discountCode,
+        nUsers: team ? teamSize : 1,
+      }),
     enabled:
       Boolean(discountCode) && discountQueryEnabled && discountCodeVisible,
     retry: 1,
@@ -259,7 +263,16 @@ function PickSubscription({ user }: PickSubscriptionProps) {
                       {discountCodeCheckQuery.data.price}/mo)
                     </Text>
                   ) : (
-                    ""
+                    <>
+                      {discountCodeCheckQuery.data?.reason ? (
+                        <Text mt={1} color={"red"} fontSize="sm">
+                          Discount code invalid.{" "}
+                          {discountCodeCheckQuery.data?.reason}
+                        </Text>
+                      ) : (
+                        ""
+                      )}
+                    </>
                   )}
                 </>
               ) : (
