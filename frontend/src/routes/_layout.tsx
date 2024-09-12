@@ -146,6 +146,7 @@ function PickSubscription({ user }: PickSubscriptionProps) {
                       bg="none"
                       size={"s"}
                       p={1}
+                      ml={1}
                     />
                     <IconButton
                       aria-label="cancel"
