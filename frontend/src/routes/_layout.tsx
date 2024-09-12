@@ -1,4 +1,20 @@
-import { Flex, Spinner, Box, Container, Text } from "@chakra-ui/react"
+import {
+  Flex,
+  Spinner,
+  Box,
+  Container,
+  Text,
+  SimpleGrid,
+  Card,
+  CardHeader,
+  CardBody,
+  CardFooter,
+  Button,
+  Heading,
+  UnorderedList,
+  ListItem,
+  Link,
+} from "@chakra-ui/react"
 import { Outlet, createFileRoute, redirect } from "@tanstack/react-router"
 import useAuth, { isLoggedIn } from "../hooks/useAuth"
 import Topbar from "../components/Common/Topbar"
@@ -21,9 +37,78 @@ interface PickSubscriptionProps {
 
 function PickSubscription({ user }: PickSubscriptionProps) {
   return (
-    <Box>
-      <Text>You need to pick a subscription {user?.github_username}</Text>
-    </Box>
+    <Flex
+      alignItems={"center"}
+      alignContent={"center"}
+      justifyContent={"center"}
+      height={"100vh"}
+      width={"full"}
+    >
+      <Box>
+        <Flex justify={"center"}>
+          <Heading size="lg" mb={4}>
+            Choose your plan, {user?.github_username}:
+          </Heading>
+        </Flex>
+        <Box mb={4}>
+          <SimpleGrid spacing={4} columns={3}>
+            {/* Free plan card */}
+            <Card align={"center"}>
+              <CardHeader>
+                <Heading size="md">Free</Heading>
+              </CardHeader>
+              <CardBody>
+                <UnorderedList>
+                  <ListItem>1 private project</ListItem>
+                  <ListItem>1 GB storage</ListItem>
+                </UnorderedList>
+              </CardBody>
+              <CardFooter>
+                <Button>Let's go!</Button>
+              </CardFooter>
+            </Card>
+            {/* Standard plan card */}
+            <Card align={"center"}>
+              <CardHeader>
+                <Heading size="md">Standard: $10/mo</Heading>
+              </CardHeader>
+              <CardBody>
+                <UnorderedList>
+                  <ListItem>2 private projects</ListItem>
+                  <ListItem>10 GB storage</ListItem>
+                </UnorderedList>
+              </CardBody>
+              <CardFooter>
+                <Button>Let's go!</Button>
+              </CardFooter>
+            </Card>
+            {/* Professional plan card */}
+            <Card align={"center"}>
+              <CardHeader>
+                <Heading size="md">Professional: $50/mo</Heading>
+              </CardHeader>
+              <CardBody>
+                <UnorderedList>
+                  <ListItem>10 private projects</ListItem>
+                  <ListItem>100 GB storage</ListItem>
+                </UnorderedList>
+              </CardBody>
+              <CardFooter>
+                <Button>Let's go!</Button>
+              </CardFooter>
+            </Card>
+            {/* TODO: Enterprise/contact us card? */}
+          </SimpleGrid>
+        </Box>
+        <Flex justifyItems={"center"} justifyContent="center" width={"100%"}>
+          <Link>
+            <Text justifyContent={"center"}>
+              Have a discount code? Click here.
+            </Text>
+          </Link>
+        </Flex>
+      </Box>
+    </Flex>
   )
 }
 
