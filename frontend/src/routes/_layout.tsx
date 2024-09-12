@@ -16,8 +16,11 @@ import {
   Link,
   Switch,
   useBoolean,
-  FormControl,
-  Textarea,
+  NumberInput,
+  NumberInputField,
+  NumberInputStepper,
+  NumberIncrementStepper,
+  NumberDecrementStepper,
   Input,
   IconButton,
 } from "@chakra-ui/react"
@@ -26,6 +29,7 @@ import useAuth, { isLoggedIn } from "../hooks/useAuth"
 import Topbar from "../components/Common/Topbar"
 import { type UserPublic } from "../client"
 import { MdCancel, MdCheck } from "react-icons/md"
+import { useState } from "react"
 
 export const Route = createFileRoute("/_layout")({
   component: Layout,
@@ -46,6 +50,7 @@ function PickSubscription({ user }: PickSubscriptionProps) {
   const [annual, setAnnual] = useBoolean(false)
   const [team, setTeam] = useBoolean(false)
   const [discountCodeVisible, setDiscountCodeVisible] = useBoolean(false)
+  const [teamSize, setTeamSize] = useState(5)
   // TODO: These plans should probably come from the back end
   const plans = [
     { name: "Free", price: null, privateProjects: 1, storageGb: 1 },
@@ -63,6 +68,12 @@ function PickSubscription({ user }: PickSubscriptionProps) {
     return price
   }
   const preferredPlanName = "Standard"
+  const getPriceUnits = () => {
+    if (team) {
+      return "/user/mo"
+    }
+    return "/mo"
+  }
 
   return (
     <Flex
@@ -93,6 +104,29 @@ function PickSubscription({ user }: PickSubscriptionProps) {
             colorScheme="blue"
           />
         </Flex>
+        {team ? (
+          <Flex mb={4} justify={"center"} align={"center"}>
+            <Text mr={2}>GitHub org name:</Text>
+            <Input width="150px" placeholder="Ex: my-lab" mr={2} />
+            <Text mr={2}>Team size:</Text>
+            <NumberInput
+              defaultValue={5}
+              min={2}
+              max={50}
+              width={"75px"}
+              value={teamSize}
+              onChange={(valueString) => setTeamSize(Number(valueString))}
+            >
+              <NumberInputField />
+              <NumberInputStepper>
+                <NumberIncrementStepper />
+                <NumberDecrementStepper />
+              </NumberInputStepper>
+            </NumberInput>
+          </Flex>
+        ) : (
+          ""
+        )}
         <Box mb={4}>
           <SimpleGrid spacing={4} columns={3}>
             {/* Cards for each plan */}
@@ -106,7 +140,9 @@ function PickSubscription({ user }: PickSubscriptionProps) {
                 <CardHeader>
                   <Heading size="md">
                     {plan.name}
-                    {plan.price ? `: $${calcPrice(plan.price)}/mo` : ""}
+                    {plan.price
+                      ? `: $${calcPrice(plan.price)}${getPriceUnits()}`
+                      : ""}
                   </Heading>
                 </CardHeader>
                 <CardBody>
@@ -116,8 +152,11 @@ function PickSubscription({ user }: PickSubscriptionProps) {
                     <ListItem>
                       {plan.privateProjects} private project
                       {plan.privateProjects > 1 ? "s" : ""}
+                      {team ? "/user" : ""}
                     </ListItem>
-                    <ListItem>{plan.storageGb} GB storage</ListItem>
+                    <ListItem>
+                      {plan.storageGb} GB storage{team ? "/user" : ""}
+                    </ListItem>
                   </UnorderedList>
                 </CardBody>
                 <CardFooter>
