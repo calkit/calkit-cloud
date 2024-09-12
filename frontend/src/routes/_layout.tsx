@@ -74,6 +74,12 @@ function PickSubscription({ user }: PickSubscriptionProps) {
     }
     return "/mo"
   }
+  const getPlans = () => {
+    if (team) {
+      return plans.filter((plan) => plan.name !== "Free")
+    }
+    return plans
+  }
 
   return (
     <Flex
@@ -128,9 +134,9 @@ function PickSubscription({ user }: PickSubscriptionProps) {
           ""
         )}
         <Box mb={4}>
-          <SimpleGrid spacing={4} columns={3}>
+          <SimpleGrid spacing={4} columns={team ? 2 : 3}>
             {/* Cards for each plan */}
-            {plans.map((plan) => (
+            {getPlans().map((plan) => (
               <Card
                 align={"center"}
                 key={plan.name}
