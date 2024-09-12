@@ -54,7 +54,7 @@ function PickSubscription({ user }: PickSubscriptionProps) {
   // TODO: These plans should probably come from the back end
   const plans = [
     { name: "Free", price: null, privateProjects: 1, storageGb: 1 },
-    { name: "Standard", price: 10, privateProjects: 2, storageGb: 10 },
+    { name: "Standard", price: 15, privateProjects: 2, storageGb: 10 },
     { name: "Professional", price: 50, privateProjects: 10, storageGb: 500 },
   ]
   const annualDiscount = 0.9
@@ -215,7 +215,7 @@ function PickSubscription({ user }: PickSubscriptionProps) {
                 isExternal
               >
                 <Text fontSize="sm">
-                  Looking for enterprise, on prem? Click here.
+                  Looking for enterprise, on prem? Email us.
                 </Text>
               </Link>
             </Box>
