@@ -57,7 +57,12 @@ function PickSubscription({ user }: PickSubscriptionProps) {
   const plans = [
     { name: "Free", price: null, privateProjects: 1, storageGb: 1 },
     { name: "Standard", price: 10, privateProjects: 2, storageGb: 10 },
-    { name: "Professional", price: 50, privateProjects: 10, storageGb: 500 },
+    {
+      name: "Professional",
+      price: 50,
+      privateProjects: "Unlimited",
+      storageGb: 500,
+    },
   ]
   const annualDiscount = 0.9
   const preferredPlanName = "Standard"
@@ -178,7 +183,10 @@ function PickSubscription({ user }: PickSubscriptionProps) {
                     <ListItem>Unlimited public projects</ListItem>
                     <ListItem>
                       {plan.privateProjects} private project
-                      {plan.privateProjects > 1 ? "s" : ""}
+                      {typeof plan.privateProjects === "string" ||
+                      plan.privateProjects > 1
+                        ? "s"
+                        : ""}
                       {team ? "/user" : ""}
                     </ListItem>
                     <ListItem>
