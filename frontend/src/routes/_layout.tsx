@@ -16,11 +16,16 @@ import {
   Link,
   Switch,
   useBoolean,
+  FormControl,
+  Textarea,
+  Input,
+  IconButton,
 } from "@chakra-ui/react"
 import { Outlet, createFileRoute, redirect } from "@tanstack/react-router"
 import useAuth, { isLoggedIn } from "../hooks/useAuth"
 import Topbar from "../components/Common/Topbar"
 import { type UserPublic } from "../client"
+import { MdCancel, MdCheck } from "react-icons/md"
 
 export const Route = createFileRoute("/_layout")({
   component: Layout,
@@ -40,6 +45,7 @@ interface PickSubscriptionProps {
 function PickSubscription({ user }: PickSubscriptionProps) {
   const [annual, setAnnual] = useBoolean(false)
   const [team, setTeam] = useBoolean(false)
+  const [discountCodeVisible, setDiscountCodeVisible] = useBoolean(false)
   // TODO: These plans should probably come from the back end
   const plans = [
     { name: "Free", price: null, privateProjects: 1, storageGb: 1 },
@@ -130,9 +136,32 @@ function PickSubscription({ user }: PickSubscriptionProps) {
         <Flex justifyItems={"center"} justifyContent="center" width={"100%"}>
           <Box>
             <Box textAlign={"center"}>
-              <Link>
-                <Text>Have a discount code? Click here.</Text>
-              </Link>
+              {discountCodeVisible ? (
+                <>
+                  <Flex align={"center"}>
+                    <Input placeholder="Enter discount code here" />
+                    <IconButton
+                      aria-label="apply"
+                      icon={<MdCheck />}
+                      bg="none"
+                      size={"s"}
+                      p={1}
+                    />
+                    <IconButton
+                      aria-label="cancel"
+                      icon={<MdCancel />}
+                      bg="none"
+                      size={"s"}
+                      p={1}
+                      onClick={setDiscountCodeVisible.toggle}
+                    />
+                  </Flex>
+                </>
+              ) : (
+                <Link onClick={setDiscountCodeVisible.toggle}>
+                  <Text>Have a discount code? Click here.</Text>
+                </Link>
+              )}
             </Box>
             <Box mt={2}>
               <Link>
