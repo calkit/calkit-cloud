@@ -210,7 +210,10 @@ function PickSubscription({ user }: PickSubscriptionProps) {
               )}
             </Box>
             <Box mt={2}>
-              <Link>
+              <Link
+                href="mailto:sales@calkit.io?subject=Calkit enterprise license"
+                isExternal
+              >
                 <Text fontSize="sm">
                   Looking for enterprise, on prem? Click here.
                 </Text>
