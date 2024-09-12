@@ -6,17 +6,17 @@ from app.api.deps import CurrentUser, SessionDep, get_current_active_superuser
 from app.core import utcnow
 from app.messaging import generate_test_email, send_email
 from app.models import (
+    SUBSCRIPTION_TYPE_IDS,
     Account,
     DiscountCode,
     DiscountCodePost,
     Message,
     User,
-    SUBSCRIPTION_TYPE_IDS,
 )
-from app.orgs import get_org_from_db
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from pydantic.networks import EmailStr
+from sqlalchemy.exc import DataError
 from sqlmodel import select
 
 router = APIRouter()
@@ -53,9 +53,12 @@ def get_discount_code(
     session: SessionDep,
     current_user: CurrentUser,
 ) -> DiscountCodePublic:
-    code = session.get(DiscountCode, discount_code)
+    try:
+        code = session.get(DiscountCode, discount_code)
+    except DataError:
+        raise HTTPException(422, "Code is invalid")
     if code is None:
-        return HTTPException(404, "Code does not exist")
+        raise HTTPException(404, "Code does not exist")
     # Check if this code has been redeemed
     if code.redeemed is not None:
         return DiscountCodePublic(
