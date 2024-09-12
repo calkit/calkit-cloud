@@ -250,7 +250,12 @@ function PickSubscription({ user }: PickSubscriptionProps) {
                   {discountCodeCheckQuery.data?.is_valid ? (
                     <Text mt={1} color={"green.500"} fontSize="sm">
                       Discount code applied! (
-                      {discountCodeCheckQuery.data.months} months @ $
+                      {discountCodeCheckQuery.data.n_users} user
+                      {discountCodeCheckQuery.data.n_users &&
+                      discountCodeCheckQuery.data.n_users > 1
+                        ? "s"
+                        : ""}{" "}
+                      for {discountCodeCheckQuery.data.months} months @ $
                       {discountCodeCheckQuery.data.price}/mo)
                     </Text>
                   ) : (
