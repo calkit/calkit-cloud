@@ -1,13 +1,18 @@
 """Routes for users."""
 
+import logging
 import uuid
+from datetime import timedelta
+from typing import Literal
 
 import requests
 from app import users
 from app.api.deps import CurrentUser, SessionDep, get_current_active_superuser
 from app.config import settings
+from app.core import utcnow
 from app.messaging import generate_new_account_email, send_email
 from app.models import (
+    DiscountCode,
     Message,
     UpdatePassword,
     User,
@@ -15,12 +20,19 @@ from app.models import (
     UserPublic,
     UserRegister,
     UsersPublic,
+    UserSubscription,
     UserUpdate,
     UserUpdateMe,
 )
 from app.security import get_password_hash, verify_password
+from app.subscriptions import SUBSCRIPTION_TYPE_IDS, get_monthly_price
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
+from sqlalchemy.exc import DataError
 from sqlmodel import col, delete, func, select
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -228,3 +240,54 @@ def get_user_github_repos(
     if not resp.status_code == 200:
         raise HTTPException(400, f"GitHub request failed: {resp.text}")
     return resp.json()
+
+
+class SubscriptionUpdate(BaseModel):
+    type: Literal["free", "standard", "professional"]
+    period: Literal["monthly", "annual"]
+    discount_code: str | None = None
+
+
+@router.put("/user/subscription")
+def put_user_subscription(
+    req: SubscriptionUpdate, current_user: CurrentUser, session: SessionDep
+) -> UserSubscription:
+    current_subscription = current_user.subscription
+    discount_code = None
+    subscription_type_id = SUBSCRIPTION_TYPE_IDS[req.type]
+    period_months = 1 if req.period == "monthly" else 12
+    if req.discount_code is not None:
+        try:
+            discount_code = session.get(DiscountCode, req.discount_code)
+            if discount_code.redeemed is not None:
+                raise HTTPException(
+                    400, "Discount code has already been redeemed"
+                )
+        except DataError:
+            logger.info("User provided invalid discount code")
+    if discount_code is not None:
+        price = discount_code.price
+        months = discount_code.months
+        paid_until = utcnow().date() + timedelta(months=months)
+        discount_code.redeemed = utcnow()
+        discount_code.redeemed_by_user_id = current_user.id
+    else:
+        price = get_monthly_price(req.type, period=req.period)
+        paid_until = None
+    if current_subscription is None:
+        logger.info(f"Creating new subscription for {current_user.email}")
+        # TODO: If this is paid, ensure we have payment information setup
+        current_user.subscription = UserSubscription(
+            period_months=period_months,
+            type_id=subscription_type_id,
+            price=price,
+            paid_until=paid_until,
+        )
+    else:
+        logger.info(f"Updating subscription for {current_user.email}")
+        # TODO: Handle what we need to handle if subscription has changed
+        current_subscription.period_months = period_months
+        current_subscription.price = price
+    session.commit()
+    session.refresh(current_user.subscription)
+    return current_user.subscription

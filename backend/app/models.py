@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import Literal, Union
 
 from app import utcnow
+from app.subscriptions import SUBSCRIPTION_TYPE_IDS, SUBSCRIPTION_TYPE_NAMES
 from pydantic import BaseModel, EmailStr, computed_field
 from sqlmodel import Field, Relationship, SQLModel
 
@@ -138,14 +139,6 @@ ROLE_IDS = {
     name: n for n, name in enumerate(["read", "write", "admin", "owner"])
 }
 ROLE_NAMES = {i: name for name, i in ROLE_IDS.items()}
-SUBSCRIPTION_TYPE_IDS = {
-    level: n
-    for n, level in enumerate(["standard", "professional", "enterprise"])
-}
-SUBSCRIPTION_TYPE_NAMES = {
-    i: level for level, i in SUBSCRIPTION_TYPE_IDS.items()
-}
-
 
 # Track user membership in an org
 class UserOrgMembership(SQLModel, table=True):
