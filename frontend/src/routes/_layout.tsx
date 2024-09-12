@@ -222,8 +222,7 @@ function PickSubscription({ user }: PickSubscriptionProps) {
                       p={1}
                       mx={1}
                       isDisabled={
-                        !Boolean(discountCode) ||
-                        discountCodeCheckQuery.data?.is_valid
+                        !discountCode || discountCodeCheckQuery.data?.is_valid
                       }
                       isLoading={discountCodeCheckQuery.isLoading}
                       onClick={() => setDiscountQueryEnabled.on()}
