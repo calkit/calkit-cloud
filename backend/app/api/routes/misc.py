@@ -45,6 +45,7 @@ class DiscountCodePublic(BaseModel):
     n_users: int | None = None
     price: float | None = None
     months: int | None = None
+    subscription_type: str | None = None
 
 
 @router.get("/discount-codes/{discount_code}")
@@ -82,7 +83,9 @@ def get_discount_code(
                 is_valid=False,
                 reason="Code was not created for this account",
             )
-    return DiscountCodePublic.model_validate(code.model_dump())
+    return DiscountCodePublic.model_validate(
+        code.model_dump() | {"subscription_type": code.subscription_type_name}
+    )
 
 
 @router.post("/discount-codes")
@@ -104,9 +107,7 @@ def post_discount_code(
         update=dict(
             created_by_user_id=current_user.id,
             created_for_account_id=created_for_account_id,
-            subscription_type_id=SUBSCRIPTION_TYPE_IDS[
-                req.subscription_type
-            ],
+            subscription_type_id=SUBSCRIPTION_TYPE_IDS[req.subscription_type],
         ),
     )
     session.add(code)

@@ -60,15 +60,6 @@ function PickSubscription({ user }: PickSubscriptionProps) {
     { name: "Professional", price: 50, privateProjects: 10, storageGb: 500 },
   ]
   const annualDiscount = 0.9
-  const calcPrice = (price: number | null) => {
-    if (!price) {
-      return price
-    }
-    if (annual) {
-      return price * annualDiscount
-    }
-    return price
-  }
   const preferredPlanName = "Standard"
   const getPriceUnits = () => {
     if (team) {
@@ -92,6 +83,20 @@ function PickSubscription({ user }: PickSubscriptionProps) {
     retry: 1,
   })
   const queryClient = useQueryClient()
+  const calcPrice = (price: number | null, planName: string) => {
+    const discountedPrice = discountCodeCheckQuery.data?.price
+    const discountedPlanName = discountCodeCheckQuery.data?.subscription_type
+    if (planName.toLowerCase() === discountedPlanName) {
+      return discountedPrice
+    }
+    if (!price) {
+      return price
+    }
+    if (annual) {
+      return price * annualDiscount
+    }
+    return price
+  }
 
   return (
     <Flex
@@ -159,7 +164,7 @@ function PickSubscription({ user }: PickSubscriptionProps) {
                   <Heading size="md">
                     {plan.name}
                     {plan.price
-                      ? `: $${calcPrice(plan.price)}${getPriceUnits()}`
+                      ? `: $${calcPrice(plan.price, plan.name)}${getPriceUnits()}`
                       : ""}
                   </Heading>
                 </CardHeader>
@@ -224,7 +229,7 @@ function PickSubscription({ user }: PickSubscriptionProps) {
                       icon={<MdCancel />}
                       bg="none"
                       size={"s"}
-                      p={1}
+                      pl={1}
                       onClick={() => {
                         setDiscountCodeVisible.toggle()
                         setDiscountQueryEnabled.off()
@@ -244,7 +249,9 @@ function PickSubscription({ user }: PickSubscriptionProps) {
                   )}
                   {discountCodeCheckQuery.data?.is_valid ? (
                     <Text mt={1} color={"green.500"} fontSize="sm">
-                      Discount code applied!
+                      Discount code applied! (
+                      {discountCodeCheckQuery.data.months} months @ $
+                      {discountCodeCheckQuery.data.price}/mo)
                     </Text>
                   ) : (
                     ""
@@ -256,7 +263,7 @@ function PickSubscription({ user }: PickSubscriptionProps) {
                 </Link>
               )}
             </Box>
-            <Box mt={2}>
+            <Box mt={2} textAlign={"center"}>
               <Link
                 href="mailto:sales@calkit.io?subject=Calkit enterprise license"
                 isExternal

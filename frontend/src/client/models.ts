@@ -94,6 +94,7 @@ export type DiscountCodePublic = {
   n_users?: number | null
   price?: number | null
   months?: number | null
+  subscription_type?: string | null
 }
 
 export type Environment = {

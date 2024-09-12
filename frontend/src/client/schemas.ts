@@ -560,6 +560,17 @@ export const $DiscountCodePublic = {
         },
       ],
     },
+    subscription_type: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
   },
 } as const
 

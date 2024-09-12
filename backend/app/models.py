@@ -221,6 +221,10 @@ class DiscountCode(SQLModel, table=True):
         default=None,
     )
 
+    @property
+    def subscription_type_name(self) -> str:
+        return SUBSCRIPTION_TYPE_NAMES[self.subscription_type_id]
+
 
 class DiscountCodePost(BaseModel):
     valid_from: datetime | None = None
