@@ -220,7 +220,7 @@ function PickSubscription({ user }: PickSubscriptionProps) {
                       bg="none"
                       size={"s"}
                       p={1}
-                      ml={1}
+                      mx={1}
                       isDisabled={
                         !Boolean(discountCode) ||
                         discountCodeCheckQuery.data?.is_valid
@@ -233,7 +233,6 @@ function PickSubscription({ user }: PickSubscriptionProps) {
                       icon={<MdCancel />}
                       bg="none"
                       size={"s"}
-                      pl={1}
                       onClick={() => {
                         setDiscountCodeVisible.toggle()
                         setDiscountQueryEnabled.off()
