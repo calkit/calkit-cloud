@@ -55,7 +55,7 @@ function PickSubscription({ user }: PickSubscriptionProps) {
   const plans = [
     { name: "Free", price: null, privateProjects: 1, storageGb: 1 },
     { name: "Standard", price: 10, privateProjects: 2, storageGb: 10 },
-    { name: "Professional", price: 50, privateProjects: 10, storageGb: 100 },
+    { name: "Professional", price: 50, privateProjects: 10, storageGb: 500 },
   ]
   const annualDiscount = 0.9
   const calcPrice = (price: number | null) => {
