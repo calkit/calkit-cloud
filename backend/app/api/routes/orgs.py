@@ -8,6 +8,7 @@ import requests
 from app.api.deps import CurrentUser, SessionDep
 from app.core import utcnow
 from app.models import ROLE_IDS, Account, Message, Org, User, UserOrgMembership
+from app.orgs import get_org_from_db
 from app.users import get_github_token
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
@@ -45,11 +46,6 @@ def get_user_orgs(
     return resp
 
 
-def _get_org_from_db(org_name: str, session: Session) -> Org | None:
-    query = select(Org).where(Org.account.has(name=org_name))
-    return session.exec(query).first()
-
-
 class OrgPost(BaseModel):
     github_name: str
 
@@ -59,7 +55,7 @@ def post_org(
     req: OrgPost, session: SessionDep, current_user: CurrentUser
 ) -> OrgPublic:
     org_name = req.github_name
-    if _get_org_from_db(org_name=req.github_name, session=session) is not None:
+    if get_org_from_db(org_name=req.github_name, session=session) is not None:
         raise HTTPException(400, "This org already exists")
     token = get_github_token(session=session, user=current_user)
     headers = {"Authorization": f"Bearer {token}"}
@@ -126,7 +122,7 @@ def add_org_member(
     session: SessionDep,
     current_user: CurrentUser,
 ) -> Message:
-    org = _get_org_from_db(org_name=org_name, session=session)
+    org = get_org_from_db(org_name=org_name, session=session)
     if org is None:
         logger.info("Org '{org_name}' does not exist")
         raise HTTPException(404)

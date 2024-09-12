@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Literal, Union
 
 from app import utcnow
-from pydantic import EmailStr, computed_field
+from pydantic import BaseModel, EmailStr, computed_field
 from sqlmodel import Field, Relationship, SQLModel
 
 
@@ -200,7 +200,11 @@ class DiscountCode(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     created: datetime = Field(default_factory=utcnow)
     created_by_user_id: uuid.UUID = Field(foreign_key="user.id")
-    created_for_account_id: uuid.UUID = Field(foreign_key="account.id")
+    created_for_account_id: uuid.UUID | None = Field(
+        foreign_key="account.id",
+        nullable=True,
+        default=None,
+    )
     valid_from: datetime | None = None
     valid_until: datetime | None = None
     subscription_type_id: int = Field(
@@ -211,7 +215,21 @@ class DiscountCode(SQLModel, table=True):
     months: int
     n_users: int = 1
     redeemed: datetime | None = None
-    redeemed_by_user_id: uuid.UUID = Field(foreign_key="user.id")
+    redeemed_by_user_id: uuid.UUID | None = Field(
+        foreign_key="user.id",
+        nullable=True,
+        default=None,
+    )
+
+
+class DiscountCodePost(BaseModel):
+    valid_from: datetime | None = None
+    valid_until: datetime | None = None
+    created_for_account_name: str | None = None
+    n_users: int = 1
+    subscription_type: Literal["standard", "professional"]
+    price: float
+    months: int
 
 
 # Generic message
