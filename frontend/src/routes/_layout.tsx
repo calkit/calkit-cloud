@@ -36,6 +36,12 @@ interface PickSubscriptionProps {
 }
 
 function PickSubscription({ user }: PickSubscriptionProps) {
+  const plans = [
+    { name: "Free", price: null, privateProjects: 1, storageGb: 1 },
+    { name: "Standard", price: 10, privateProjects: 2, storageGb: 10 },
+    { name: "Professional", price: 50, privateProjects: 10, storageGb: 100 },
+  ]
+
   return (
     <Flex
       alignItems={"center"}
@@ -46,7 +52,7 @@ function PickSubscription({ user }: PickSubscriptionProps) {
     >
       <Box>
         <Flex justify={"center"}>
-          <Heading size="lg" mb={4}>
+          <Heading size="lg" mb={6}>
             Choose your plan, {user?.github_username}:
           </Heading>
         </Flex>
@@ -59,6 +65,8 @@ function PickSubscription({ user }: PickSubscriptionProps) {
               </CardHeader>
               <CardBody>
                 <UnorderedList>
+                  <ListItem>Unlimited collaborators</ListItem>
+                  <ListItem>Unlimited public projects</ListItem>
                   <ListItem>1 private project</ListItem>
                   <ListItem>1 GB storage</ListItem>
                 </UnorderedList>
@@ -68,18 +76,20 @@ function PickSubscription({ user }: PickSubscriptionProps) {
               </CardFooter>
             </Card>
             {/* Standard plan card */}
-            <Card align={"center"}>
+            <Card align={"center"} borderWidth={2} borderColor={"green.500"}>
               <CardHeader>
-                <Heading size="md">Standard: $10/mo</Heading>
+                <Heading size="md">Standard: $15/mo</Heading>
               </CardHeader>
               <CardBody>
                 <UnorderedList>
+                  <ListItem>Unlimited collaborators</ListItem>
+                  <ListItem>Unlimited public projects</ListItem>
                   <ListItem>2 private projects</ListItem>
                   <ListItem>10 GB storage</ListItem>
                 </UnorderedList>
               </CardBody>
               <CardFooter>
-                <Button>Let's go!</Button>
+                <Button variant={"primary"}>🚀 Let's go!</Button>
               </CardFooter>
             </Card>
             {/* Professional plan card */}
@@ -89,6 +99,8 @@ function PickSubscription({ user }: PickSubscriptionProps) {
               </CardHeader>
               <CardBody>
                 <UnorderedList>
+                  <ListItem>Unlimited collaborators</ListItem>
+                  <ListItem>Unlimited public projects</ListItem>
                   <ListItem>10 private projects</ListItem>
                   <ListItem>100 GB storage</ListItem>
                 </UnorderedList>
@@ -101,11 +113,20 @@ function PickSubscription({ user }: PickSubscriptionProps) {
           </SimpleGrid>
         </Box>
         <Flex justifyItems={"center"} justifyContent="center" width={"100%"}>
-          <Link>
-            <Text justifyContent={"center"}>
-              Have a discount code? Click here.
-            </Text>
-          </Link>
+          <Box>
+            <Box textAlign={"center"}>
+              <Link>
+                <Text>Have a discount code? Click here.</Text>
+              </Link>
+            </Box>
+            <Box mt={2}>
+              <Link>
+                <Text fontSize="sm">
+                  Looking for enterprise, on prem installations? Click here.
+                </Text>
+              </Link>
+            </Box>
+          </Box>
         </Flex>
       </Box>
     </Flex>
