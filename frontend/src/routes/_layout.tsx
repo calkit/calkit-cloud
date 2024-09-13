@@ -128,6 +128,9 @@ function PickSubscription({ user }: PickSubscriptionProps) {
         })
       }
     },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["currentUser"] })
+    },
   })
   type PlanName = "free" | "standard" | "professional"
   const handleSubmit = (planName: string) => {
