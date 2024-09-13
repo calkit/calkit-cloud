@@ -16,7 +16,17 @@ def get_prices():
 
 
 def get_customers():
-    return stripe.Customer.list()
+    return list(stripe.Customer.list())
+
+
+def get_customer(email: EmailStr):
+    res = stripe.Customer.search(query=f"email: '{email}'")
+    res = list(res["data"])
+    if not res:
+        return
+    if len(res) > 1:
+        raise ValueError("There are two customers with this email")
+    return res[0]
 
 
 def create_customer(email: EmailStr):
