@@ -79,6 +79,7 @@ def get_price(
             f"AND metadata['period']:'{period}'"
         )
     )
+    res = list(res["data"])
     if not res:
         return
     if len(res) > 1:
