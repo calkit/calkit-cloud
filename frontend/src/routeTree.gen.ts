@@ -17,6 +17,7 @@ import { Route as SignupImport } from './routes/signup'
 import { Route as ResetPasswordImport } from './routes/reset-password'
 import { Route as RecoverPasswordImport } from './routes/recover-password'
 import { Route as LoginImport } from './routes/login'
+import { Route as CheckoutImport } from './routes/checkout'
 import { Route as LayoutImport } from './routes/_layout'
 import { Route as LayoutIndexImport } from './routes/_layout/index'
 import { Route as LayoutSoftwareImport } from './routes/_layout/software'
@@ -62,6 +63,11 @@ const RecoverPasswordRoute = RecoverPasswordImport.update({
 
 const LoginRoute = LoginImport.update({
   path: '/login',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const CheckoutRoute = CheckoutImport.update({
+  path: '/checkout',
   getParentRoute: () => rootRoute,
 } as any)
 
@@ -185,6 +191,13 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: ''
       preLoaderRoute: typeof LayoutImport
+      parentRoute: typeof rootRoute
+    }
+    '/checkout': {
+      id: '/checkout'
+      path: '/checkout'
+      fullPath: '/checkout'
+      preLoaderRoute: typeof CheckoutImport
       parentRoute: typeof rootRoute
     }
     '/login': {
@@ -378,6 +391,7 @@ export const routeTree = rootRoute.addChildren({
         }),
     }),
   }),
+  CheckoutRoute,
   LoginRoute,
   RecoverPasswordRoute,
   ResetPasswordRoute,
@@ -393,6 +407,7 @@ export const routeTree = rootRoute.addChildren({
       "filePath": "__root.tsx",
       "children": [
         "/_layout",
+        "/checkout",
         "/login",
         "/recover-password",
         "/reset-password",
@@ -411,6 +426,9 @@ export const routeTree = rootRoute.addChildren({
         "/_layout/",
         "/_layout/$userName/$projectName"
       ]
+    },
+    "/checkout": {
+      "filePath": "checkout.tsx"
     },
     "/login": {
       "filePath": "login.tsx"
