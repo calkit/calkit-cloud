@@ -1,3 +1,5 @@
+"""App configuration."""
+
 import secrets
 import warnings
 from typing import Annotated, Any, Literal
@@ -46,7 +48,6 @@ class Settings(BaseSettings):
     BACKEND_CORS_ORIGINS: Annotated[
         list[AnyUrl] | str, BeforeValidator(parse_cors)
     ] = []
-
     PROJECT_NAME: str
     SENTRY_DSN: HttpUrl | None = None
     POSTGRES_SERVER: str
@@ -100,6 +101,8 @@ class Settings(BaseSettings):
     # GitHub
     GITHUB_CLIENT_ID: str
     GITHUB_CLIENT_SECRET: str
+    # Stripe
+    STRIPE_SECRET_KEY: str
 
     def _check_default_secret(self, var_name: str, value: str | None) -> None:
         if value == "changethis":
@@ -119,7 +122,6 @@ class Settings(BaseSettings):
         self._check_default_secret(
             "FIRST_SUPERUSER_PASSWORD", self.FIRST_SUPERUSER_PASSWORD
         )
-
         return self
 
 
