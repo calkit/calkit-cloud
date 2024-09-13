@@ -103,6 +103,7 @@ class Settings(BaseSettings):
     GITHUB_CLIENT_SECRET: str
     # Stripe
     STRIPE_SECRET_KEY: str
+    STRIPE_PUBLISHABLE_KEY: str
 
     def _check_default_secret(self, var_name: str, value: str | None) -> None:
         if value == "changethis":
