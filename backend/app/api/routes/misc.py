@@ -1,9 +1,7 @@
 """Miscellaneous routes."""
 
-import uuid
 import os
-import json
-import stripe
+import uuid
 
 from app.api.deps import CurrentUser, SessionDep, get_current_active_superuser
 from app.core import utcnow
@@ -16,6 +14,7 @@ from app.models import (
     Message,
     User,
 )
+from app.stripe import stripe
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from pydantic.networks import EmailStr
