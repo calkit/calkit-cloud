@@ -236,7 +236,7 @@ export type OrgSubscription = {
 }
 
 export type OrgSubscriptionUpdate = {
-  plan_name: "free" | "standard" | "professional"
+  plan_name: "standard" | "professional"
   period: "monthly" | "annual"
   discount_code?: string | null
   n_users: number

@@ -1157,7 +1157,7 @@ export const $OrgSubscriptionUpdate = {
   properties: {
     plan_name: {
       type: "Enum",
-      enum: ["free", "standard", "professional"],
+      enum: ["standard", "professional"],
       isRequired: true,
     },
     period: {
