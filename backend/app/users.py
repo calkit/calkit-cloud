@@ -1,8 +1,10 @@
 """Functionality for working with users."""
 
-from datetime import UTC, timedelta
+import logging
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
+import app.stripe
 import requests
 from app import logger, utcnow
 from app.config import settings
@@ -15,6 +17,9 @@ from app.security import (
     verify_password,
 )
 from sqlmodel import Session, select
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 def create_user(*, session: Session, user_create: UserCreate) -> User:
@@ -126,3 +131,36 @@ def save_github_token(
     session.commit()
     session.refresh(user.github_token)
     return
+
+
+def check_user_subscription_active(session: Session, user: User) -> bool:
+    logger.info(f"Checking subscription for {user.email}")
+    subscription = user.subscription
+    if subscription is None:
+        logger.info(f"{user.email} has no subscription")
+        return False
+    if subscription.plan_id == 0:
+        logger.info(f"{user.email} has a free subscription")
+        return True
+    if (
+        subscription.paid_until is not None
+        and subscription.paid_until >= utcnow()
+    ):
+        return True
+    # Check with Stripe if the subscription has been paid
+    customer = app.stripe.get_customer(email=user.email)
+    if customer is None:
+        return False
+    stripe_subs = app.stripe.get_customer_subscriptions(
+        customer_id=customer.id, status="active"
+    )
+    if not stripe_subs:
+        return False
+    sub_period_end_timestamps = [
+        sub.current_period_end for sub in stripe_subs
+    ]
+    subscription.paid_until = datetime.fromtimestamp(
+        max(sub_period_end_timestamps)
+    )
+    session.commit()
+    return True

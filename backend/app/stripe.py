@@ -22,7 +22,7 @@ def get_customers():
     return list(stripe.Customer.list())
 
 
-def get_customer(email: EmailStr):
+def get_customer(email: EmailStr) -> stripe.Customer | None:
     res = stripe.Customer.search(query=f"email: '{email}'")
     res = list(res["data"])
     if not res:
@@ -104,9 +104,13 @@ def cancel_subscription(subscription_id):
     return stripe.Subscription.delete(subscription_id)
 
 
-def get_customer_subscriptions(customer_id):
-    return stripe.Subscription.list(
-        customer=customer_id,
-        status="all",
-        expand=["data.default_payment_method"],
+def get_customer_subscriptions(
+    customer_id, status: Literal["all", "active", "canceled", "ended"] = "all"
+) -> list[stripe.Subscription]:
+    return list(
+        stripe.Subscription.list(
+            customer=customer_id,
+            status=status,
+            expand=["data.default_payment_method"],
+        )["data"]
     )
