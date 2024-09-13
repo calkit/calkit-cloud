@@ -1,5 +1,7 @@
 """Functionality for working with Stripe."""
 
+from typing import Literal
+
 import stripe
 from app.config import settings
 from pydantic import EmailStr
@@ -8,11 +10,11 @@ stripe.api_key = settings.STRIPE_SECRET_KEY
 
 
 def get_products():
-    return stripe.Product.list()
+    return list(stripe.Product.list())
 
 
 def get_prices():
-    return stripe.Price.list()
+    return list(stripe.Price.list())
 
 
 def get_customers():
@@ -31,6 +33,48 @@ def get_customer(email: EmailStr):
 
 def create_customer(email: EmailStr):
     return stripe.Customer.create(email=email)
+
+
+def interval_from_period(period: Literal["monthly", "annual"]) -> str:
+    return {"monthly": "month", "annual": "year"}[period]
+
+
+def create_product(
+    name: str,
+    price_dollars: float,
+    period: Literal["monthly", "annual"],
+    plan_id: int,
+    plan_name: str,
+) -> stripe.Product:
+    """Create a new product.
+
+    Note that ``name`` is meant to be displayable to the customer.
+    """
+    return stripe.Product.create(
+        name=name,
+        metadata=dict(plan_name=plan_name, plan_id=plan_id),
+        default_price_data=dict(
+            currency="usd",
+            recurring=dict(interval=interval_from_period(period)),
+            unit_amount=int(price_dollars * 100),
+        ),
+    )
+
+
+def create_price(
+    product_id: str,
+    monthly_price_dollars: float,
+    period: Literal["monthly", "annual"],
+) -> stripe.Price:
+    unit_amount = int(monthly_price_dollars * 100)
+    if period == "annual":
+        unit_amount *= 12
+    return stripe.Price.create(
+        product=product_id,
+        currency="usd",
+        recurring=dict(interval=interval_from_period(period)),
+        unit_amount=unit_amount,
+    )
 
 
 def create_subscription(customer_id, price_id):
