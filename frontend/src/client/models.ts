@@ -69,7 +69,7 @@ export type DiscountCode = {
   created_for_account_id?: string | null
   valid_from?: string | null
   valid_until?: string | null
-  subscription_type_id: number
+  plan_id: number
   price: number
   months: number
   n_users?: number
@@ -82,7 +82,7 @@ export type DiscountCodePost = {
   valid_until?: string | null
   created_for_account_name?: string | null
   n_users?: number
-  subscription_type: "standard" | "professional"
+  plan_name: "standard" | "professional"
   price: number
   months: number
 }
@@ -94,7 +94,7 @@ export type DiscountCodePublic = {
   n_users?: number | null
   price?: number | null
   months?: number | null
-  subscription_type?: string | null
+  plan_name?: string | null
 }
 
 export type Environment = {
@@ -310,6 +310,12 @@ export type Stage = {
   meta?: Record<string, unknown> | null
 }
 
+export type SubscriptionUpdate = {
+  plan_name: "free" | "standard" | "professional"
+  period: "monthly" | "annual"
+  discount_code?: string | null
+}
+
 export type Token = {
   access_token: string
   token_type?: string
@@ -351,10 +357,11 @@ export type UserSubscription = {
   period_months: number
   price: number
   paid_until?: string | null
-  type_id: number
+  plan_id: number
   is_active?: boolean
   processor?: string | null
-  processor_plan_id?: string | null
+  processor_product_id?: string | null
+  processor_price_id?: string | null
   processor_subscription_id?: string | null
   user_id: string
   readonly type_name: string

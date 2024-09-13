@@ -403,10 +403,10 @@ export const $DiscountCode = {
         },
       ],
     },
-    subscription_type_id: {
+    plan_id: {
       type: "number",
       isRequired: true,
-      maximum: 2,
+      maximum: 3,
       minimum: 0,
     },
     price: {
@@ -489,7 +489,7 @@ export const $DiscountCodePost = {
       type: "number",
       default: 1,
     },
-    subscription_type: {
+    plan_name: {
       type: "Enum",
       enum: ["standard", "professional"],
       isRequired: true,
@@ -560,7 +560,7 @@ export const $DiscountCodePublic = {
         },
       ],
     },
-    subscription_type: {
+    plan_name: {
       type: "any-of",
       contains: [
         {
@@ -1528,6 +1528,32 @@ export const $Stage = {
   },
 } as const
 
+export const $SubscriptionUpdate = {
+  properties: {
+    plan_name: {
+      type: "Enum",
+      enum: ["free", "standard", "professional"],
+      isRequired: true,
+    },
+    period: {
+      type: "Enum",
+      enum: ["monthly", "annual"],
+      isRequired: true,
+    },
+    discount_code: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+  },
+} as const
+
 export const $Token = {
   properties: {
     access_token: {
@@ -1710,10 +1736,10 @@ export const $UserSubscription = {
         },
       ],
     },
-    type_id: {
+    plan_id: {
       type: "number",
       isRequired: true,
-      maximum: 2,
+      maximum: 3,
       minimum: 0,
     },
     is_active: {
@@ -1731,7 +1757,18 @@ export const $UserSubscription = {
         },
       ],
     },
-    processor_plan_id: {
+    processor_product_id: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    processor_price_id: {
       type: "any-of",
       contains: [
         {

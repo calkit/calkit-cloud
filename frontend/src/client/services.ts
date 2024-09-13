@@ -8,10 +8,12 @@ import type {
   NewPassword,
   Token,
   UserPublic,
+  SubscriptionUpdate,
   UpdatePassword,
   UserCreate,
   UserRegister,
   UsersPublic,
+  UserSubscription,
   UserUpdate,
   UserUpdateMe,
   DiscountCode,
@@ -94,6 +96,9 @@ export type UsersData = {
   GetUserGithubRepos: {
     page?: number
     perPage?: number
+  }
+  PutUserSubscription: {
+    requestBody: SubscriptionUpdate
   }
 }
 
@@ -647,6 +652,26 @@ export class UsersService {
         per_page: perPage,
         page,
       },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Put User Subscription
+   * @returns UserSubscription Successful Response
+   * @throws ApiError
+   */
+  public static putUserSubscription(
+    data: UsersData["PutUserSubscription"],
+  ): CancelablePromise<UserSubscription> {
+    const { requestBody } = data
+    return __request(OpenAPI, {
+      method: "PUT",
+      url: "/api/v1/user/subscription",
+      body: requestBody,
+      mediaType: "application/json",
       errors: {
         422: `Validation Error`,
       },
