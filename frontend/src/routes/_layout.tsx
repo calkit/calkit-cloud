@@ -122,19 +122,22 @@ function PickSubscription({ user }: PickSubscriptionProps) {
           </Heading>
         </Flex>
         <Flex mb={4} align={"center"} justify={"center"} alignItems={"center"}>
-          <Text mr={1}>Monthly/annual</Text>
+          <Text mr={1}>Monthly</Text>
           <Switch
             isChecked={annual}
             onChange={setAnnual.toggle}
-            mr={4}
+            mr={1}
             colorScheme="green"
           />
-          <Text mr={1}>Individual/team</Text>
+          <Text mr={6}>Annual</Text>
+          <Text mr={1}>Individual</Text>
           <Switch
+            mr={1}
             isChecked={team}
             onChange={setTeam.toggle}
             colorScheme="blue"
           />
+          <Text>Team</Text>
         </Flex>
         {team ? (
           <Flex mb={4} justify={"center"} align={"center"}>
