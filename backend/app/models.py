@@ -192,6 +192,17 @@ class UserSubscription(_SubscriptionBase, table=True):
     user: User = Relationship(back_populates="subscription")
 
 
+class SubscriptionUpdate(BaseModel):
+    plan_name: Literal["free", "standard", "professional"]
+    period: Literal["monthly", "annual"]
+    discount_code: str | None = None
+
+
+class NewSubscriptionResponse(BaseModel):
+    subscription: UserSubscription | OrgSubscription
+    stripe_session_client_secret: str | None
+
+
 class DiscountCode(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     created: datetime = Field(default_factory=utcnow)

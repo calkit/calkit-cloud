@@ -980,7 +980,15 @@ export const $NewPassword = {
 export const $NewSubscriptionResponse = {
   properties: {
     subscription: {
-      type: "UserSubscription",
+      type: "any-of",
+      contains: [
+        {
+          type: "UserSubscription",
+        },
+        {
+          type: "OrgSubscription",
+        },
+      ],
       isRequired: true,
     },
     stripe_session_client_secret: {
@@ -1038,6 +1046,138 @@ export const $OrgPublic = {
     },
     role: {
       type: "string",
+      isRequired: true,
+    },
+  },
+} as const
+
+export const $OrgSubscription = {
+  properties: {
+    id: {
+      type: "string",
+      format: "uuid",
+    },
+    created: {
+      type: "string",
+      format: "date-time",
+    },
+    period_months: {
+      type: "number",
+      isRequired: true,
+    },
+    price: {
+      type: "number",
+      isRequired: true,
+    },
+    paid_until: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    plan_id: {
+      type: "number",
+      isRequired: true,
+      maximum: 3,
+      minimum: 0,
+    },
+    is_active: {
+      type: "boolean",
+      default: true,
+    },
+    processor: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    processor_product_id: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    processor_price_id: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    processor_subscription_id: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    org_id: {
+      type: "string",
+      isRequired: true,
+      format: "uuid",
+    },
+    n_users: {
+      type: "number",
+      isRequired: true,
+      minimum: 1,
+    },
+    plan_name: {
+      type: "string",
+      isReadOnly: true,
+      isRequired: true,
+    },
+  },
+} as const
+
+export const $OrgSubscriptionUpdate = {
+  properties: {
+    plan_name: {
+      type: "Enum",
+      enum: ["free", "standard", "professional"],
+      isRequired: true,
+    },
+    period: {
+      type: "Enum",
+      enum: ["monthly", "annual"],
+      isRequired: true,
+    },
+    discount_code: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    n_users: {
+      type: "number",
       isRequired: true,
     },
   },
@@ -1562,17 +1702,6 @@ export const $SubscriptionUpdate = {
       isRequired: true,
     },
     discount_code: {
-      type: "any-of",
-      contains: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
-    },
-    stripe_checkout_session_id: {
       type: "any-of",
       contains: [
         {

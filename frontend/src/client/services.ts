@@ -47,6 +47,7 @@ import type {
   OrgMemberPost,
   OrgPost,
   OrgPublic,
+  OrgSubscriptionUpdate,
 } from "./models"
 
 export type LoginData = {
@@ -300,6 +301,10 @@ export type OrgsData = {
   AddOrgMember: {
     orgName: string
     requestBody: OrgMemberPost
+  }
+  PostOrgSubscription: {
+    orgName: string
+    requestBody: OrgSubscriptionUpdate
   }
 }
 
@@ -1671,6 +1676,29 @@ export class OrgsService {
     return __request(OpenAPI, {
       method: "POST",
       url: "/api/v1/orgs/{org_name}/members",
+      path: {
+        org_name: orgName,
+      },
+      body: requestBody,
+      mediaType: "application/json",
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Post Org Subscription
+   * @returns NewSubscriptionResponse Successful Response
+   * @throws ApiError
+   */
+  public static postOrgSubscription(
+    data: OrgsData["PostOrgSubscription"],
+  ): CancelablePromise<NewSubscriptionResponse> {
+    const { orgName, requestBody } = data
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/api/v1/orgs/{org_name}/subscription",
       path: {
         org_name: orgName,
       },

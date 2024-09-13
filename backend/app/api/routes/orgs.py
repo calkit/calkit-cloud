@@ -2,16 +2,32 @@
 
 import logging
 import uuid
+from datetime import timedelta
 from typing import Literal
 
+import app.stripe
 import requests
 from app.api.deps import CurrentUser, SessionDep
+from app.config import settings
 from app.core import utcnow
-from app.models import ROLE_IDS, Account, Message, Org, User, UserOrgMembership
+from app.models import (
+    ROLE_IDS,
+    Account,
+    DiscountCode,
+    Message,
+    NewSubscriptionResponse,
+    Org,
+    OrgSubscription,
+    SubscriptionUpdate,
+    User,
+    UserOrgMembership,
+)
 from app.orgs import get_org_from_db
+from app.subscriptions import PLAN_IDS, get_monthly_price
 from app.users import get_github_token
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+from sqlalchemy.exc import DataError
 from sqlmodel import Session, select
 
 logging.basicConfig(level=logging.INFO)
@@ -159,3 +175,103 @@ def add_org_member(
     session.add(membership)
     session.commit()
     return Message(message="success")
+
+
+class OrgSubscriptionUpdate(SubscriptionUpdate):
+    plan_name: Literal["standard", "professional"]
+    n_users: int
+
+
+@router.post("/orgs/{org_name}/subscription")
+def post_org_subscription(
+    org_name: str,
+    req: OrgSubscriptionUpdate,
+    session: SessionDep,
+    current_user: CurrentUser,
+) -> NewSubscriptionResponse:
+    # First check if this org exists, and if not, create it
+    org = get_org_from_db(org_name=org_name, session=session)
+    if org is None:
+        logger.info("Org '{org_name}' does not exist")
+        post_org(
+            OrgPost(github_name=org_name),
+            session=session,
+            current_user=current_user,
+        )
+        org = get_org_from_db(org_name=org_name, session=session)
+    else:
+        if org.subscription is not None:
+            raise HTTPException(400, "Org already has a subscription")
+        # Ensure this user is an owner
+        membership = None
+        for m in org.user_memberships:
+            if m.user == current_user:
+                membership = m
+                break
+        if membership is None:
+            raise HTTPException(400, "Must be an org owner")
+    plan_id = PLAN_IDS[req.plan_name]
+    discount_code = None
+    period_months = 1 if req.period == "monthly" else 12
+    if req.discount_code is not None:
+        try:
+            discount_code = session.get(DiscountCode, req.discount_code)
+            if discount_code.redeemed is not None:
+                raise HTTPException(
+                    400, "Discount code has already been redeemed"
+                )
+        except DataError:
+            logger.info("User provided invalid discount code")
+    if discount_code is not None:
+        if discount_code.n_users != req.n_users:
+            raise HTTPException(
+                400, "Discount code number of users does not match"
+            )
+        price = discount_code.price
+        months = discount_code.months
+        paid_until = utcnow().date() + timedelta(months=months)
+        discount_code.redeemed = utcnow()
+        discount_code.redeemed_by_user_id = current_user.id
+    else:
+        price = get_monthly_price(req.plan_name, period=req.period)
+        paid_until = None
+    org.subscription = OrgSubscription(
+        price=price,
+        paid_until=paid_until,
+        period_months=period_months,
+        plan_id=plan_id,
+    )
+    # Handle any discount codes
+    if price > 0.0:
+        # We need to setup payment stuff in Stripe
+        customer = app.stripe.get_customer(email=current_user.email)
+        if customer is None:
+            customer = app.stripe.create_customer(
+                email=current_user.email,
+                full_name=current_user.full_name,
+                user_id=current_user.id,
+            )
+        # Get the Stripe price object for this plan
+        stripe_price = app.stripe.get_price(plan_id=plan_id, period=req.period)
+        stripe_session = app.stripe.stripe.checkout.Session.create(
+            client_reference_id=current_user.id,
+            customer=customer.id,
+            mode="subscription",
+            line_items=[dict(price=stripe_price.id, quantity=req.n_users)],
+            ui_mode="embedded",
+            return_url=(settings.server_host),
+        )
+        session_secret = stripe_session.client_secret
+        stripe_subscription = app.stripe.create_subscription(
+            customer_id=customer.id, price_id=stripe_price.id, org_id=org.id
+        )
+        org.subscription.processor_price_id = stripe_price.id
+        org.subscription.processor = "stripe"
+        org.subscription.processor_subscription_id = stripe_subscription.id
+    # If the current user doesn't have a subscription, give them a free one
+    session.commit()
+    session.refresh(org.subscription)
+    return NewSubscriptionResponse(
+        subscription=org.subscription,
+        stripe_session_client_secret=session_secret,
+    )

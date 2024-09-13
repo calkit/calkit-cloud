@@ -198,7 +198,7 @@ export type NewPassword = {
 }
 
 export type NewSubscriptionResponse = {
-  subscription: UserSubscription
+  subscription: UserSubscription | OrgSubscription
   stripe_session_client_secret: string | null
 }
 
@@ -216,6 +216,30 @@ export type OrgPublic = {
   display_name: string
   github_name: string
   role: string
+}
+
+export type OrgSubscription = {
+  id?: string
+  created?: string
+  period_months: number
+  price: number
+  paid_until?: string | null
+  plan_id: number
+  is_active?: boolean
+  processor?: string | null
+  processor_product_id?: string | null
+  processor_price_id?: string | null
+  processor_subscription_id?: string | null
+  org_id: string
+  n_users: number
+  readonly plan_name: string
+}
+
+export type OrgSubscriptionUpdate = {
+  plan_name: "free" | "standard" | "professional"
+  period: "monthly" | "annual"
+  discount_code?: string | null
+  n_users: number
 }
 
 export type ProjectCreate = {
@@ -319,7 +343,6 @@ export type SubscriptionUpdate = {
   plan_name: "free" | "standard" | "professional"
   period: "monthly" | "annual"
   discount_code?: string | null
-  stripe_checkout_session_id?: string | null
 }
 
 export type Token = {

@@ -15,6 +15,8 @@ from app.messaging import generate_new_account_email, send_email
 from app.models import (
     DiscountCode,
     Message,
+    NewSubscriptionResponse,
+    SubscriptionUpdate,
     UpdatePassword,
     User,
     UserCreate,
@@ -241,18 +243,6 @@ def get_user_github_repos(
     if not resp.status_code == 200:
         raise HTTPException(400, f"GitHub request failed: {resp.text}")
     return resp.json()
-
-
-class SubscriptionUpdate(BaseModel):
-    plan_name: Literal["free", "standard", "professional"]
-    period: Literal["monthly", "annual"]
-    discount_code: str | None = None
-    stripe_checkout_session_id: str | None = None
-
-
-class NewSubscriptionResponse(BaseModel):
-    subscription: UserSubscription
-    stripe_session_client_secret: str | None
 
 
 @router.post("/user/subscription")
