@@ -370,7 +370,7 @@ export type UserSubscription = {
   processor_price_id?: string | null
   processor_subscription_id?: string | null
   user_id: string
-  readonly type_name: string
+  readonly plan_name: string
 }
 
 export type UserUpdate = {

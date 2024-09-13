@@ -1827,7 +1827,7 @@ export const $UserSubscription = {
       isRequired: true,
       format: "uuid",
     },
-    type_name: {
+    plan_name: {
       type: "string",
       isReadOnly: true,
       isRequired: true,
