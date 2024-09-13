@@ -24,7 +24,12 @@ import {
   Input,
   IconButton,
 } from "@chakra-ui/react"
-import { Outlet, createFileRoute, redirect } from "@tanstack/react-router"
+import {
+  Outlet,
+  createFileRoute,
+  redirect,
+  useNavigate,
+} from "@tanstack/react-router"
 import { MdCancel, MdCheck } from "react-icons/md"
 import { useState } from "react"
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query"
@@ -58,6 +63,7 @@ function PickSubscription({ user }: PickSubscriptionProps) {
   const [team, setTeam] = useBoolean(false)
   const [discountCodeVisible, setDiscountCodeVisible] = useBoolean(false)
   const [teamSize, setTeamSize] = useState(5)
+  const navigate = useNavigate()
   // TODO: These plans should probably come from the back end
   const plans = [
     { name: "Free", price: null, privateProjects: 1, storageGb: 1 },
@@ -116,7 +122,7 @@ function PickSubscription({ user }: PickSubscriptionProps) {
       UsersService.postUserSubscription({ requestBody: data }),
     onSuccess: (data) => {
       if (data.stripe_session_client_secret) {
-        redirect({
+        navigate({
           to: "/checkout",
           search: { client_secret: data.stripe_session_client_secret },
         })

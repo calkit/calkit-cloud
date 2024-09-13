@@ -307,10 +307,7 @@ def post_user_subscription(
             mode="subscription",
             line_items=[dict(price=stripe_price.id, quantity=1)],
             ui_mode="embedded",
-            return_url=(
-                settings.server_host
-                + "/checkout/return?session_id={CHECKOUT_SESSION_ID}"
-            ),
+            return_url=(settings.server_host),
         )
         session_secret = stripe_session.client_secret
         stripe_subscription = app.stripe.create_subscription(
