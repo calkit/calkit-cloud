@@ -15,9 +15,7 @@ PLAN_IDS = {
         ["free", "standard", "professional", "enterprise"]
     )
 }
-PLAN_NAMES = {
-    i: level for level, i in PLAN_IDS.items()
-}
+PLAN_NAMES = {i: level for level, i in PLAN_IDS.items()}
 PRICES_BY_PLAN_NAME = {
     "free": 0.0,
     "standard": 10.0,
@@ -55,13 +53,10 @@ def sync_with_stripe():
             logger.info(f"Creating product: {plan_name}")
             product = app.stripe.create_product(
                 name=f"Calkit {plan_name.title()}",
-                price_dollars=PRICES_BY_PLAN_NAME[plan_name],
                 plan_id=plan_id,
-                plan_name=plan_name,
-                period="monthly",
             )
             products.append(product)
-            products_by_plan_id[plan_id] = product
+            products_by_plan_id[str(plan_id)] = product
         else:
             logger.info(f"Product exists for {plan_name}")
     # TODO: Make sure we don't have any products we don't want, and deactivate
@@ -103,6 +98,7 @@ def sync_with_stripe():
                     product_id=product.id,
                     monthly_price_dollars=monthly_price,
                     period=period,
+                    plan_id=plan_id,
                 )
             else:
                 logger.info(f"{period.title()} price exists for {plan_name}")

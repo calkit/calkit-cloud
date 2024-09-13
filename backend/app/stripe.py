@@ -1,5 +1,6 @@
 """Functionality for working with Stripe."""
 
+import uuid
 from typing import Literal
 
 import stripe
@@ -31,40 +32,31 @@ def get_customer(email: EmailStr):
     return res[0]
 
 
-def create_customer(email: EmailStr):
-    return stripe.Customer.create(email=email)
+def create_customer(
+    email: EmailStr, full_name: str | None, user_id: uuid.UUID
+) -> stripe.Customer:
+    return stripe.Customer.create(
+        email=email, name=full_name, metadata=dict(user_id=user_id)
+    )
 
 
 def interval_from_period(period: Literal["monthly", "annual"]) -> str:
     return {"monthly": "month", "annual": "year"}[period]
 
 
-def create_product(
-    name: str,
-    price_dollars: float,
-    period: Literal["monthly", "annual"],
-    plan_id: int,
-    plan_name: str,
-) -> stripe.Product:
+def create_product(name: str, plan_id: int) -> stripe.Product:
     """Create a new product.
 
     Note that ``name`` is meant to be displayable to the customer.
     """
-    return stripe.Product.create(
-        name=name,
-        metadata=dict(plan_name=plan_name, plan_id=plan_id),
-        default_price_data=dict(
-            currency="usd",
-            recurring=dict(interval=interval_from_period(period)),
-            unit_amount=int(price_dollars * 100),
-        ),
-    )
+    return stripe.Product.create(name=name, metadata=dict(plan_id=plan_id))
 
 
 def create_price(
     product_id: str,
     monthly_price_dollars: float,
     period: Literal["monthly", "annual"],
+    plan_id: int,
 ) -> stripe.Price:
     unit_amount = int(monthly_price_dollars * 100)
     if period == "annual":
@@ -74,10 +66,27 @@ def create_price(
         currency="usd",
         recurring=dict(interval=interval_from_period(period)),
         unit_amount=unit_amount,
+        metadata=dict(plan_id=plan_id, period=period),
     )
 
 
-def create_subscription(customer_id, price_id):
+def get_price(
+    plan_id: int, period: Literal["monthly", "annual"]
+) -> stripe.Price | None:
+    res = stripe.Price.search(
+        query=(
+            f"metadata['plan_id']:'{plan_id}' "
+            f"AND metadata['period']:'{period}'"
+        )
+    )
+    if not res:
+        return
+    if len(res) > 1:
+        raise ValueError("There are two prices with this information")
+    return res[0]
+
+
+def create_subscription(customer_id, price_id) -> stripe.Subscription:
     return stripe.Subscription.create(
         customer=customer_id,
         items=[
