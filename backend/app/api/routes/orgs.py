@@ -28,7 +28,7 @@ from app.users import get_github_token
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.exc import DataError
-from sqlmodel import Session, select
+from sqlmodel import Field, Session, select
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -179,7 +179,7 @@ def add_org_member(
 
 class OrgSubscriptionUpdate(SubscriptionUpdate):
     plan_name: Literal["standard", "professional"]
-    n_users: int
+    n_users: int = Field(ge=2)
 
 
 @router.post("/orgs/{org_name}/subscription")
