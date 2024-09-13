@@ -27,4 +27,5 @@ CATEGORIES_PLURAL_TO_SINGULAR = {
 
 
 def utcnow():
-    return datetime.now(UTC)
+    """Return a timezone-naive timestamp for now in UTC."""
+    return datetime.now(UTC).replace(tzinfo=None)

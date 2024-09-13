@@ -78,7 +78,7 @@ def get_github_token(session: Session, user: User) -> str:
     """
     # Refresh token if necessary
     # Should also handle tokens that don't exist?
-    if user.github_token.expires.replace(tzinfo=UTC) <= utcnow():
+    if user.github_token.expires <= utcnow():
         logger.info("Refreshing GitHub token")
         resp = requests.post(
             "https://github.com/login/oauth/access_token",
