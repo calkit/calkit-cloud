@@ -1,6 +1,9 @@
 """Miscellaneous routes."""
 
 import uuid
+import os
+import json
+import stripe
 
 from app.api.deps import CurrentUser, SessionDep, get_current_active_superuser
 from app.core import utcnow
@@ -18,6 +21,7 @@ from pydantic import BaseModel
 from pydantic.networks import EmailStr
 from sqlalchemy.exc import DataError
 from sqlmodel import select
+from starlette.requests import Request
 
 router = APIRouter()
 
@@ -121,3 +125,73 @@ def post_discount_code(
     session.commit()
     session.refresh(code)
     return code
+
+
+@router.post("/stripe-events", include_in_schema=False)
+async def post_stripe_event(request: Request):
+    # This comes directly from the Stripe example server app
+    # You can use webhooks to receive information about asynchronous payment
+    # events
+    # For more about our webhook events check out
+    # https://stripe.com/docs/webhooks
+    webhook_secret = os.getenv("STRIPE_WEBHOOK_SECRET")
+    request_data = await request.json()
+    if webhook_secret:
+        # Retrieve the event by verifying the signature using the raw body and
+        # secret if webhook signing is configured
+        signature = request.headers.get("stripe-signature")
+        try:
+            event = stripe.Webhook.construct_event(
+                payload=request.data,
+                sig_header=signature,
+                secret=webhook_secret,
+            )
+            data = event["data"]
+        except Exception as e:
+            return e
+        event_type = event["type"]
+    else:
+        data = request_data["data"]
+        event_type = request_data["type"]
+    data_object = data["object"]
+    if event_type == "invoice.payment_succeeded":
+        if data_object["billing_reason"] == "subscription_create":
+            # The subscription automatically activates after successful payment
+            # Set the payment method used to pay the first invoice
+            # as the default payment method for that subscription
+            subscription_id = data_object["subscription"]
+            payment_intent_id = data_object["payment_intent"]
+
+            # Retrieve the payment intent used to pay the subscription
+            payment_intent = stripe.PaymentIntent.retrieve(payment_intent_id)
+
+            # Set the default payment method
+            stripe.Subscription.modify(
+                subscription_id,
+                default_payment_method=payment_intent.payment_method,
+            )
+
+            print(
+                "Default payment method set for subscription:"
+                + payment_intent.payment_method
+            )
+    elif event_type == "invoice.payment_failed":
+        # If the payment fails or the customer does not have a valid payment
+        # method,
+        # an invoice.payment_failed event is sent, the subscription becomes
+        # past_due
+        # Use this webhook to notify your user that their payment has
+        # failed and to retrieve new card details.
+        # print(data)
+        print("Invoice payment failed: %s", event.id)
+    elif event_type == "invoice.finalized":
+        # If you want to manually send out invoices to your customers
+        # or store them locally to reference to avoid hitting Stripe rate
+        # limits
+        # print(data)
+        print("Invoice finalized: %s", event.id)
+    elif event_type == "customer.subscription.deleted":
+        # handle subscription cancelled automatically based
+        # upon your subscription settings. Or if the user cancels it.
+        # print(data)
+        print("Subscription canceled: %s", event.id)
