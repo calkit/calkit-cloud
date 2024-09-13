@@ -301,7 +301,7 @@ def post_user_subscription(
             )
         # Get the Stripe price object for this plan
         stripe_price = app.stripe.get_price(plan_id=plan_id, period=req.period)
-        session = app.stripe.stripe.checkout.Session.create(
+        stripe_session = app.stripe.stripe.checkout.Session.create(
             client_reference_id=current_user.id,
             customer=customer.id,
             mode="subscription",
@@ -312,7 +312,7 @@ def post_user_subscription(
                 + "/checkout/return?session_id={CHECKOUT_SESSION_ID}"
             ),
         )
-        session_secret = session.client_secret
+        session_secret = stripe_session.client_secret
         stripe_subscription = app.stripe.create_subscription(
             customer_id=customer.id, price_id=stripe_price.id
         )
