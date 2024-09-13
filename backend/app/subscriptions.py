@@ -9,16 +9,16 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 ANNUAL_DISCOUNT_FACTOR = 0.9
-SUBSCRIPTION_TYPE_IDS = {
+PLAN_IDS = {
     level: n
     for n, level in enumerate(
         ["free", "standard", "professional", "enterprise"]
     )
 }
-SUBSCRIPTION_TYPE_NAMES = {
-    i: level for level, i in SUBSCRIPTION_TYPE_IDS.items()
+PLAN_NAMES = {
+    i: level for level, i in PLAN_IDS.items()
 }
-PRICES_BY_SUBSCRIPTION_TYPE_NAME = {
+PRICES_BY_PLAN_NAME = {
     "free": 0.0,
     "standard": 10.0,
     "professional": 50.0,
@@ -26,10 +26,10 @@ PRICES_BY_SUBSCRIPTION_TYPE_NAME = {
 
 
 def get_monthly_price(
-    subscription_type_name: Literal["free", "standard", "professional"],
+    plan_name: Literal["free", "standard", "professional"],
     period: Literal["monthly", "annual"],
 ) -> float:
-    price = PRICES_BY_SUBSCRIPTION_TYPE_NAME[subscription_type_name]
+    price = PRICES_BY_PLAN_NAME[plan_name]
     if period == "annual":
         price = price * ANNUAL_DISCOUNT_FACTOR
     return price
@@ -48,14 +48,14 @@ def sync_with_stripe():
         return products_by_plan_id.get(str(plan_id)) is not None
 
     # First make sure all products exist
-    for plan_name, plan_id in SUBSCRIPTION_TYPE_IDS.items():
+    for plan_name, plan_id in PLAN_IDS.items():
         if plan_name in skip_plan_names:
             continue
         if not product_exists(plan_id):
             logger.info(f"Creating product: {plan_name}")
             product = app.stripe.create_product(
                 name=f"Calkit {plan_name.title()}",
-                price_dollars=PRICES_BY_SUBSCRIPTION_TYPE_NAME[plan_name],
+                price_dollars=PRICES_BY_PLAN_NAME[plan_name],
                 plan_id=plan_id,
                 plan_name=plan_name,
                 period="monthly",
@@ -87,7 +87,7 @@ def sync_with_stripe():
                 return True
         return False
 
-    for plan_name, plan_id in SUBSCRIPTION_TYPE_IDS.items():
+    for plan_name, plan_id in PLAN_IDS.items():
         if plan_name in skip_plan_names:
             continue
         product = products_by_plan_id[str(plan_id)]

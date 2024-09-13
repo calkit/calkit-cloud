@@ -25,7 +25,7 @@ from app.models import (
     UserUpdateMe,
 )
 from app.security import get_password_hash, verify_password
-from app.subscriptions import SUBSCRIPTION_TYPE_IDS, get_monthly_price
+from app.subscriptions import PLAN_IDS, get_monthly_price
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.exc import DataError
@@ -254,7 +254,7 @@ def put_user_subscription(
 ) -> UserSubscription:
     current_subscription = current_user.subscription
     discount_code = None
-    subscription_type_id = SUBSCRIPTION_TYPE_IDS[req.type]
+    plan_id = PLAN_IDS[req.type]
     period_months = 1 if req.period == "monthly" else 12
     if req.discount_code is not None:
         try:
@@ -279,7 +279,7 @@ def put_user_subscription(
         # TODO: If this is paid, ensure we have payment information setup
         current_user.subscription = UserSubscription(
             period_months=period_months,
-            type_id=subscription_type_id,
+            plan_id=plan_id,
             price=price,
             paid_until=paid_until,
         )

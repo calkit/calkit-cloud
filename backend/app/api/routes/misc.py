@@ -9,7 +9,7 @@ from app.api.deps import CurrentUser, SessionDep, get_current_active_superuser
 from app.core import utcnow
 from app.messaging import generate_test_email, send_email
 from app.models import (
-    SUBSCRIPTION_TYPE_IDS,
+    PLAN_IDS,
     Account,
     DiscountCode,
     DiscountCodePost,
@@ -49,7 +49,7 @@ class DiscountCodePublic(BaseModel):
     n_users: int | None = None
     price: float | None = None
     months: int | None = None
-    subscription_type: str | None = None
+    plan_name: str | None = None
 
 
 @router.get("/discount-codes/{discount_code}")
@@ -95,7 +95,7 @@ def get_discount_code(
             reason=f"Number of users does not match ({code.n_users})",
         )
     return DiscountCodePublic.model_validate(
-        code.model_dump() | {"subscription_type": code.subscription_type_name}
+        code.model_dump() | {"plan_name": code.plan_name}
     )
 
 
@@ -118,7 +118,7 @@ def post_discount_code(
         update=dict(
             created_by_user_id=current_user.id,
             created_for_account_id=created_for_account_id,
-            subscription_type_id=SUBSCRIPTION_TYPE_IDS[req.subscription_type],
+            plan_id=PLAN_IDS[req.plan_name],
         ),
     )
     session.add(code)

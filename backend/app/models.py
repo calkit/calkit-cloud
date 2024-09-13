@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Literal, Union
 
 from app import utcnow
-from app.subscriptions import SUBSCRIPTION_TYPE_IDS, SUBSCRIPTION_TYPE_NAMES
+from app.subscriptions import PLAN_IDS, PLAN_NAMES
 from pydantic import BaseModel, EmailStr, computed_field
 from sqlmodel import Field, Relationship, SQLModel
 
@@ -162,19 +162,20 @@ class _SubscriptionBase(SQLModel):
     period_months: int
     price: float
     paid_until: datetime | None = None
-    type_id: int = Field(
-        ge=min(SUBSCRIPTION_TYPE_IDS.values()),
-        le=max(SUBSCRIPTION_TYPE_IDS.values()),
+    plan_id: int = Field(
+        ge=min(PLAN_IDS.values()),
+        le=max(PLAN_IDS.values()),
     )
     is_active: bool = True
     processor: str | None = None
-    processor_plan_id: str | None = None
+    processor_product_id: str | None = None
+    processor_price_id: str | None = None
     processor_subscription_id: str | None = None
 
     @computed_field
     @property
     def type_name(self) -> str:
-        return SUBSCRIPTION_TYPE_IDS[self.type_id]
+        return PLAN_IDS[self.plan_id]
 
 
 class OrgSubscription(_SubscriptionBase, table=True):
@@ -201,9 +202,9 @@ class DiscountCode(SQLModel, table=True):
     )
     valid_from: datetime | None = None
     valid_until: datetime | None = None
-    subscription_type_id: int = Field(
-        ge=min(SUBSCRIPTION_TYPE_IDS.values()),
-        le=max(SUBSCRIPTION_TYPE_IDS.values()),
+    plan_id: int = Field(
+        ge=min(PLAN_IDS.values()),
+        le=max(PLAN_IDS.values()),
     )
     price: float
     months: int
@@ -216,8 +217,8 @@ class DiscountCode(SQLModel, table=True):
     )
 
     @property
-    def subscription_type_name(self) -> str:
-        return SUBSCRIPTION_TYPE_NAMES[self.subscription_type_id]
+    def plan_name(self) -> str:
+        return PLAN_NAMES[self.plan_id]
 
 
 class DiscountCodePost(BaseModel):
@@ -225,7 +226,7 @@ class DiscountCodePost(BaseModel):
     valid_until: datetime | None = None
     created_for_account_name: str | None = None
     n_users: int = 1
-    subscription_type: Literal["standard", "professional"]
+    plan_name: Literal["standard", "professional"]
     price: float
     months: int
 
