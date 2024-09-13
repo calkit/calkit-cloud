@@ -8,6 +8,7 @@ import type {
   NewPassword,
   Token,
   UserPublic,
+  NewSubscriptionResponse,
   SubscriptionUpdate,
   UpdatePassword,
   UserCreate,
@@ -98,6 +99,9 @@ export type UsersData = {
     perPage?: number
   }
   PutUserSubscription: {
+    requestBody: SubscriptionUpdate
+  }
+  PostUserSubscription: {
     requestBody: SubscriptionUpdate
   }
 }
@@ -669,6 +673,26 @@ export class UsersService {
     const { requestBody } = data
     return __request(OpenAPI, {
       method: "PUT",
+      url: "/api/v1/user/subscription",
+      body: requestBody,
+      mediaType: "application/json",
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Post User Subscription
+   * @returns NewSubscriptionResponse Successful Response
+   * @throws ApiError
+   */
+  public static postUserSubscription(
+    data: UsersData["PostUserSubscription"],
+  ): CancelablePromise<NewSubscriptionResponse> {
+    const { requestBody } = data
+    return __request(OpenAPI, {
+      method: "POST",
       url: "/api/v1/user/subscription",
       body: requestBody,
       mediaType: "application/json",

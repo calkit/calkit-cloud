@@ -27,11 +27,16 @@ import {
 import { Outlet, createFileRoute, redirect } from "@tanstack/react-router"
 import { MdCancel, MdCheck } from "react-icons/md"
 import { useState } from "react"
-import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query"
 
 import useAuth, { isLoggedIn } from "../hooks/useAuth"
 import Topbar from "../components/Common/Topbar"
-import { MiscService, type UserPublic } from "../client"
+import {
+  MiscService,
+  type SubscriptionUpdate,
+  type UserPublic,
+  UsersService,
+} from "../client"
 
 export const Route = createFileRoute("/_layout")({
   component: Layout,
@@ -94,7 +99,7 @@ function PickSubscription({ user }: PickSubscriptionProps) {
   const queryClient = useQueryClient()
   const calcPrice = (price: number | null, planName: string) => {
     const discountedPrice = discountCodeCheckQuery.data?.price
-    const discountedPlanName = discountCodeCheckQuery.data?.subscription_type
+    const discountedPlanName = discountCodeCheckQuery.data?.plan_name
     if (planName.toLowerCase() === discountedPlanName) {
       return discountedPrice
     }
@@ -105,6 +110,29 @@ function PickSubscription({ user }: PickSubscriptionProps) {
       return price * annualDiscount
     }
     return price
+  }
+  const userSubscriptionMutation = useMutation({
+    mutationFn: (data: SubscriptionUpdate) =>
+      UsersService.postUserSubscription({ requestBody: data }),
+    onSuccess: (data) => {
+      if (data.stripe_session_client_secret) {
+        redirect({
+          to: "/checkout",
+          search: { client_secret: data.stripe_session_client_secret },
+        })
+      }
+    },
+  })
+  type PlanName = "free" | "standard" | "professional"
+  const handleSubmit = (planName: string) => {
+    if (!team) {
+      userSubscriptionMutation.mutate({
+        plan_name: planName as PlanName,
+        period: annual ? "annual" : "monthly",
+        discount_code: discountCode ? discountCode : null,
+      })
+    }
+    // TODO: Handle team subscription
   }
 
   return (
@@ -202,6 +230,8 @@ function PickSubscription({ user }: PickSubscriptionProps) {
                     variant={
                       plan.name === preferredPlanName ? "primary" : undefined
                     }
+                    isLoading={userSubscriptionMutation.isPending}
+                    onClick={() => handleSubmit(plan.name.toLowerCase())}
                   >
                     {plan.name === preferredPlanName ? "🚀 " : ""}Let's go!
                   </Button>

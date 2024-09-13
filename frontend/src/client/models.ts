@@ -197,6 +197,11 @@ export type NewPassword = {
   new_password: string
 }
 
+export type NewSubscriptionResponse = {
+  subscription: UserSubscription
+  stripe_session_client_secret: string | null
+}
+
 export type OrgMemberPost = {
   username: string
   role: "read" | "write" | "admin" | "owner"
@@ -314,6 +319,7 @@ export type SubscriptionUpdate = {
   plan_name: "free" | "standard" | "professional"
   period: "monthly" | "annual"
   discount_code?: string | null
+  stripe_checkout_session_id?: string | null
 }
 
 export type Token = {

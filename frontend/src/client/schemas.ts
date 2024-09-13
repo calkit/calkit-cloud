@@ -977,6 +977,27 @@ export const $NewPassword = {
   },
 } as const
 
+export const $NewSubscriptionResponse = {
+  properties: {
+    subscription: {
+      type: "UserSubscription",
+      isRequired: true,
+    },
+    stripe_session_client_secret: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      isRequired: true,
+    },
+  },
+} as const
+
 export const $OrgMemberPost = {
   properties: {
     username: {
@@ -1541,6 +1562,17 @@ export const $SubscriptionUpdate = {
       isRequired: true,
     },
     discount_code: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    stripe_checkout_session_id: {
       type: "any-of",
       contains: [
         {

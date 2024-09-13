@@ -174,8 +174,8 @@ class _SubscriptionBase(SQLModel):
 
     @computed_field
     @property
-    def type_name(self) -> str:
-        return PLAN_IDS[self.plan_id]
+    def plan_name(self) -> str:
+        return PLAN_NAMES[self.plan_id]
 
 
 class OrgSubscription(_SubscriptionBase, table=True):

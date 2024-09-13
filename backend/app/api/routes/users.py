@@ -5,6 +5,7 @@ import uuid
 from datetime import timedelta
 from typing import Literal
 
+import app.stripe
 import requests
 from app import users
 from app.api.deps import CurrentUser, SessionDep, get_current_active_superuser
@@ -246,6 +247,86 @@ class SubscriptionUpdate(BaseModel):
     plan_name: Literal["free", "standard", "professional"]
     period: Literal["monthly", "annual"]
     discount_code: str | None = None
+    stripe_checkout_session_id: str | None = None
+
+
+class NewSubscriptionResponse(BaseModel):
+    subscription: UserSubscription
+    stripe_session_client_secret: str | None
+
+
+@router.post("/user/subscription")
+def post_user_subscription(
+    req: SubscriptionUpdate, current_user: CurrentUser, session: SessionDep
+) -> NewSubscriptionResponse:
+    current_subscription = current_user.subscription
+    if current_subscription is not None:
+        raise HTTPException(400, "User already has a subscription")
+    plan_id = PLAN_IDS[req.plan_name]
+    discount_code = None
+    period_months = 1 if req.period == "monthly" else 12
+    if req.discount_code is not None:
+        try:
+            discount_code = session.get(DiscountCode, req.discount_code)
+            if discount_code.redeemed is not None:
+                raise HTTPException(
+                    400, "Discount code has already been redeemed"
+                )
+        except DataError:
+            logger.info("User provided invalid discount code")
+    if discount_code is not None:
+        price = discount_code.price
+        months = discount_code.months
+        paid_until = utcnow().date() + timedelta(months=months)
+        discount_code.redeemed = utcnow()
+        discount_code.redeemed_by_user_id = current_user.id
+    else:
+        price = get_monthly_price(req.plan_name, period=req.period)
+        paid_until = None
+    current_user.subscription = UserSubscription(
+        period_months=period_months,
+        plan_id=plan_id,
+        price=price,
+        paid_until=paid_until,
+    )
+    session_secret = None
+    if price > 0:
+        # We need to setup payment stuff in Stripe
+        customer = app.stripe.get_customer(email=current_user.email)
+        if customer is None:
+            customer = app.stripe.create_customer(
+                email=current_user.email,
+                full_name=current_user.full_name,
+                user_id=current_user.id,
+            )
+        # Get the Stripe price object for this plan
+        stripe_price = app.stripe.get_price(plan_id=plan_id, period=req.period)
+        session = app.stripe.stripe.checkout.Session.create(
+            client_reference_id=current_user.id,
+            customer=customer.id,
+            mode="subscription",
+            line_items=[dict(price=stripe_price.id, quantity=1)],
+            ui_mode="embedded",
+            return_url=(
+                settings.server_host
+                + "/checkout/return?session_id={CHECKOUT_SESSION_ID}"
+            ),
+        )
+        session_secret = session.client_secret
+        stripe_subscription = app.stripe.create_subscription(
+            customer_id=customer.id, price_id=stripe_price.id
+        )
+        current_user.subscription.processor_price_id = stripe_price.id
+        current_user.subscription.processor = "stripe"
+        current_user.subscription.processor_subscription_id = (
+            stripe_subscription.id
+        )
+    session.commit()
+    session.refresh(current_user.subscription)
+    return NewSubscriptionResponse(
+        subscription=current_user.subscription,
+        stripe_session_client_secret=session_secret,
+    )
 
 
 @router.put("/user/subscription")
