@@ -243,7 +243,7 @@ def get_user_github_repos(
 
 
 class SubscriptionUpdate(BaseModel):
-    type: Literal["free", "standard", "professional"]
+    plan_name: Literal["free", "standard", "professional"]
     period: Literal["monthly", "annual"]
     discount_code: str | None = None
 
@@ -254,7 +254,7 @@ def put_user_subscription(
 ) -> UserSubscription:
     current_subscription = current_user.subscription
     discount_code = None
-    plan_id = PLAN_IDS[req.type]
+    plan_id = PLAN_IDS[req.plan_name]
     period_months = 1 if req.period == "monthly" else 12
     if req.discount_code is not None:
         try:
@@ -272,7 +272,7 @@ def put_user_subscription(
         discount_code.redeemed = utcnow()
         discount_code.redeemed_by_user_id = current_user.id
     else:
-        price = get_monthly_price(req.type, period=req.period)
+        price = get_monthly_price(req.plan_name, period=req.period)
         paid_until = None
     if current_subscription is None:
         logger.info(f"Creating new subscription for {current_user.email}")
