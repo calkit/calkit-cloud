@@ -141,6 +141,7 @@ ROLE_IDS = {
 }
 ROLE_NAMES = {i: name for name, i in ROLE_IDS.items()}
 
+
 # Track user membership in an org
 class UserOrgMembership(SQLModel, table=True):
     user_id: uuid.UUID = Field(foreign_key="user.id", primary_key=True)
