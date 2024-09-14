@@ -266,7 +266,7 @@ def get_project_git_repo(
 
 def _get_minio_fs() -> s3fs.S3FileSystem:
     return s3fs.S3FileSystem(
-        endpoint_url=f"http://objects.{settings.DOMAIN}",
+        endpoint_url=f"http://minio:9000",
         key="root",
         secret=os.getenv("MINIO_ROOT_PASSWORD"),  # TODO: User lower privs
     )
@@ -274,6 +274,27 @@ def _get_minio_fs() -> s3fs.S3FileSystem:
 
 def _make_data_fpath(project_id: str, idx: str, md5: str) -> str:
     return f"s3://data/project_id={project_id}/{idx}/{md5}"
+
+
+def _get_object_url(
+    fpath: str,
+    fname: str = None,
+    expires: int = 3600 * 24,
+    fs: s3fs.S3FileSystem | None = None,
+) -> str:
+    """Get a presigned URL for an object in object storage.
+
+    TODO: Generalize this for external object storage, not just MinIO on
+    the deployed domain.
+    """
+    if fs is None:
+        fs = _get_minio_fs()
+    kws = {}
+    kws["ResponseContentDisposition"] = f"filename={fname}"
+    url: str = fs.url(fpath, expires=expires, **kws)
+    return url.replace(
+        "http://minio:9000", f"http://objects.{settings.DOMAIN}"
+    )
 
 
 @router.post("/projects/{owner_name}/{project_name}/dvc/files/md5/{idx}/{md5}")
