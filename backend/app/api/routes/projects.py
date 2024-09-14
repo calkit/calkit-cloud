@@ -17,6 +17,7 @@ import s3fs
 import yaml
 from app import users
 from app.api.deps import CurrentUser, SessionDep
+from app.config import settings
 from app.core import (
     CATEGORIES_PLURAL_TO_SINGULAR,
     CATEGORIES_SINGULAR_TO_PLURAL,
@@ -263,9 +264,9 @@ def get_project_git_repo(
     return resp.json()
 
 
-def _get_minio_fs(host="minio") -> s3fs.S3FileSystem:
+def _get_minio_fs() -> s3fs.S3FileSystem:
     return s3fs.S3FileSystem(
-        endpoint_url=f"http://{host}:9000",
+        endpoint_url=f"http://objects.{settings.DOMAIN}",
         key="root",
         secret=os.getenv("MINIO_ROOT_PASSWORD"),  # TODO: User lower privs
     )

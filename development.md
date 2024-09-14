@@ -14,6 +14,15 @@ After performing those steps you should be able to open: http://localhost.tiango
 
 Check all the corresponding available URLs in the section at the end.
 
+### Allowing access to other services on localhost
+
+Add something like this to `/etc/hosts`:
+
+```
+127.0.0.1 api.localhost
+127.0.0.1 objects.localhost
+```
+
 ## Development with a custom IP
 
 If you are running Docker in an IP address different than `127.0.0.1` (`localhost`), you will need to perform some additional steps. That will be the case if you are running a custom Virtual Machine or your Docker is located in a different machine in your network.
