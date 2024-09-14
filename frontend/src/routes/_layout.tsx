@@ -37,11 +37,16 @@ import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query"
 import useAuth, { isLoggedIn } from "../hooks/useAuth"
 import Topbar from "../components/Common/Topbar"
 import {
+  type ApiError,
   MiscService,
   type SubscriptionUpdate,
+  type OrgSubscriptionUpdate,
   type UserPublic,
   UsersService,
+  OrgsService,
 } from "../client"
+import { handleError } from "../utils"
+import useCustomToast from "../hooks/useCustomToast"
 
 export const Route = createFileRoute("/_layout")({
   component: Layout,
@@ -63,6 +68,7 @@ function PickSubscription({ user }: PickSubscriptionProps) {
   const [team, setTeam] = useBoolean(false)
   const [discountCodeVisible, setDiscountCodeVisible] = useBoolean(false)
   const [teamSize, setTeamSize] = useState(5)
+  const [orgName, setOrgName] = useState("")
   const navigate = useNavigate()
   // TODO: These plans should probably come from the back end
   const plans = [
@@ -117,10 +123,16 @@ function PickSubscription({ user }: PickSubscriptionProps) {
     }
     return price
   }
-  const userSubscriptionMutation = useMutation({
-    mutationFn: (data: SubscriptionUpdate) =>
-      UsersService.postUserSubscription({ requestBody: data }),
+  const showToast = useCustomToast()
+  const subscriptionMutation = useMutation({
+    mutationFn: (data: SubscriptionUpdate | OrgSubscriptionUpdate) => {
+      if (team && "n_users" in data) {
+        return OrgsService.postOrgSubscription({ requestBody: data, orgName })
+      }
+      return UsersService.postUserSubscription({ requestBody: data })
+    },
     onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["currentUser"] })
       if (data.stripe_session_client_secret) {
         navigate({
           to: "/checkout",
@@ -128,20 +140,26 @@ function PickSubscription({ user }: PickSubscriptionProps) {
         })
       }
     },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["currentUser"] })
+    onError: (err: ApiError) => {
+      handleError(err, showToast)
     },
   })
   type PlanName = "free" | "standard" | "professional"
   const handleSubmit = (planName: string) => {
     if (!team) {
-      userSubscriptionMutation.mutate({
+      subscriptionMutation.mutate({
         plan_name: planName as PlanName,
         period: annual ? "annual" : "monthly",
         discount_code: discountCode ? discountCode : null,
       })
+    } else {
+      subscriptionMutation.mutate({
+        plan_name: planName as PlanName,
+        period: annual ? "annual" : "monthly",
+        discount_code: discountCode ? discountCode : null,
+        n_users: teamSize,
+      } as OrgSubscriptionUpdate)
     }
-    // TODO: Handle team subscription
   }
 
   return (
@@ -179,7 +197,13 @@ function PickSubscription({ user }: PickSubscriptionProps) {
         {team ? (
           <Flex mb={4} justify={"center"} align={"center"}>
             <Text mr={2}>GitHub org name:</Text>
-            <Input width="150px" placeholder="Ex: my-lab" mr={2} />
+            <Input
+              width="150px"
+              placeholder="Ex: my-lab"
+              mr={2}
+              value={orgName}
+              onChange={(e) => setOrgName(e.target.value)}
+            />
             <Text mr={2}>Team size:</Text>
             <NumberInput
               defaultValue={5}
@@ -239,8 +263,9 @@ function PickSubscription({ user }: PickSubscriptionProps) {
                     variant={
                       plan.name === preferredPlanName ? "primary" : undefined
                     }
-                    isLoading={userSubscriptionMutation.isPending}
+                    isLoading={subscriptionMutation.isPending}
                     onClick={() => handleSubmit(plan.name.toLowerCase())}
+                    isDisabled={team && !orgName}
                   >
                     {plan.name === preferredPlanName ? "🚀 " : ""}Let's go!
                   </Button>

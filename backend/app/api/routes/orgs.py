@@ -21,6 +21,7 @@ from app.models import (
     SubscriptionUpdate,
     User,
     UserOrgMembership,
+    UserSubscription,
 )
 from app.orgs import get_org_from_db
 from app.subscriptions import PLAN_IDS, get_monthly_price
@@ -210,6 +211,9 @@ def post_org_subscription(
                 break
         if membership is None:
             raise HTTPException(400, "Must be an org owner")
+    # Make sure there are enough seats for this org's current members
+    if len(org.user_memberships) > req.n_users:
+        raise HTTPException(400, "Not enough seats for current org size")
     plan_id = PLAN_IDS[req.plan_name]
     discount_code = None
     period_months = 1 if req.period == "monthly" else 12
@@ -240,6 +244,8 @@ def post_org_subscription(
         paid_until=paid_until,
         period_months=period_months,
         plan_id=plan_id,
+        n_users=req.n_users,
+        subscriber_user_id=current_user.id,
     )
     # Handle any discount codes
     if price > 0.0:
@@ -260,15 +266,21 @@ def post_org_subscription(
             line_items=[dict(price=stripe_price.id, quantity=req.n_users)],
             ui_mode="embedded",
             return_url=(settings.server_host),
+            subscription_data={
+                "description": f"{req.n_users} users for {org_name}.",
+                "metadata": {"org_id": org.id, "plan_id": plan_id},
+            },
         )
         session_secret = stripe_session.client_secret
-        stripe_subscription = app.stripe.create_subscription(
-            customer_id=customer.id, price_id=stripe_price.id, org_id=org.id
-        )
         org.subscription.processor_price_id = stripe_price.id
         org.subscription.processor = "stripe"
-        org.subscription.processor_subscription_id = stripe_subscription.id
     # If the current user doesn't have a subscription, give them a free one
+    if current_user.subscription is None:
+        current_user.subscription = UserSubscription(
+            plan_id=0,
+            price=0.0,
+            period_months=1,
+        )
     session.commit()
     session.refresh(org.subscription)
     return NewSubscriptionResponse(

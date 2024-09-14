@@ -91,7 +91,9 @@ class User(UserBase, table=True):
     org_memberships: list["UserOrgMembership"] = Relationship(
         back_populates="user"
     )
-    subscription: "UserSubscription" = Relationship(back_populates="user")
+    subscription: Union["UserSubscription", None] = Relationship(
+        back_populates="user"
+    )
 
     @computed_field
     @property
@@ -182,6 +184,7 @@ class _SubscriptionBase(SQLModel):
 class OrgSubscription(_SubscriptionBase, table=True):
     org_id: uuid.UUID = Field(foreign_key="org.id", primary_key=True)
     n_users: int = Field(ge=1)
+    subscriber_user_id: uuid.UUID = Field(foreign_key="user.id")
     # Relationships
     org: Org = Relationship(back_populates="subscription")
 

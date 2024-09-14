@@ -298,16 +298,13 @@ def post_user_subscription(
             line_items=[dict(price=stripe_price.id, quantity=1)],
             ui_mode="embedded",
             return_url=(settings.server_host),
+            subscription_data={
+                "metadata": {"user_id": current_user.id, "plan_id": plan_id}
+            },
         )
         session_secret = stripe_session.client_secret
-        stripe_subscription = app.stripe.create_subscription(
-            customer_id=customer.id, price_id=stripe_price.id
-        )
         current_user.subscription.processor_price_id = stripe_price.id
         current_user.subscription.processor = "stripe"
-        current_user.subscription.processor_subscription_id = (
-            stripe_subscription.id
-        )
     session.commit()
     session.refresh(current_user.subscription)
     return NewSubscriptionResponse(

@@ -1179,6 +1179,7 @@ export const $OrgSubscriptionUpdate = {
     n_users: {
       type: "number",
       isRequired: true,
+      minimum: 2,
     },
   },
 } as const

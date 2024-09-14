@@ -88,7 +88,10 @@ def get_price(
 
 
 def create_subscription(
-    customer_id, price_id, org_id: int | None = None
+    customer_id,
+    price_id,
+    org_id: int | None = None,
+    description: str | None = None,
 ) -> stripe.Subscription:
     return stripe.Subscription.create(
         customer=customer_id,
@@ -100,6 +103,7 @@ def create_subscription(
         payment_behavior="default_incomplete",
         expand=["latest_invoice.payment_intent"],
         metadata=dict(org_id=org_id),
+        description=description,
     )
 
 
