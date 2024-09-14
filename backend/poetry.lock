@@ -2201,6 +2201,22 @@ files = [
 ]
 
 [[package]]
+name = "mixpanel"
+version = "4.10.1"
+description = "Official Mixpanel library for Python"
+optional = false
+python-versions = ">=2.7, !=3.4.*"
+files = [
+    {file = "mixpanel-4.10.1-py2.py3-none-any.whl", hash = "sha256:a7a338b7197327e36356dbc1903086e7626db6d88367ccdd732b3f3c60d3b3ed"},
+    {file = "mixpanel-4.10.1.tar.gz", hash = "sha256:29a6b5773dd34f05cf8e249f4e1d16e7b6280d6b58894551ce9a5aad7700a115"},
+]
+
+[package.dependencies]
+requests = ">=2.4.2"
+six = ">=1.9.0"
+urllib3 = "*"
+
+[[package]]
 name = "more-itertools"
 version = "10.3.0"
 description = "More routines for operating on iterables, beyond itertools"
@@ -4282,4 +4298,4 @@ test = ["zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "ae7cf4f6d11c7ba14d921fe95241e6e5e7080ad5abdd353d68c9b780c86bacf8"
+content-hash = "acc0e1645e214d89b18f55d203936afa20d9d299ebaf8c7872aa4c0c756167dd"
