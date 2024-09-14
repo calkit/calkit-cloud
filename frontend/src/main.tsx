@@ -2,8 +2,9 @@ import { ChakraProvider } from "@chakra-ui/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { RouterProvider, createRouter } from "@tanstack/react-router"
 import ReactDOM from "react-dom/client"
-import { routeTree } from "./routeTree.gen"
+import mixpanel from "mixpanel-browser"
 
+import { routeTree } from "./routeTree.gen"
 import { StrictMode } from "react"
 import { OpenAPI } from "./client"
 import theme from "./theme"
@@ -13,6 +14,13 @@ OpenAPI.BASE = import.meta.env.VITE_API_URL
 OpenAPI.TOKEN = async () => {
   return localStorage.getItem("access_token") || ""
 }
+
+const mixpanelToken = import.meta.env.VITE_MIXPANEL_TOKEN
+mixpanel.init(mixpanelToken, {
+  debug: String(import.meta.env.VITE_API_URL).startsWith("http://localhost"),
+  track_pageview: true,
+  persistence: "localStorage",
+})
 
 const queryClient = new QueryClient()
 
