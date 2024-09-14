@@ -17,7 +17,7 @@ docker compose up -d
 
 Frontend, built with Docker, with routes handled based on the path: http://localhost
 
-Backend, JSON based web API based on OpenAPI: http://localhost/api/
+Backend, JSON based web API based on OpenAPI: http://api.localhost
 
 Automatic interactive documentation with Swagger UI (from the OpenAPI backend): http://localhost/docs
 

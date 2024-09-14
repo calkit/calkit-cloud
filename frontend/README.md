@@ -4,7 +4,7 @@ The frontend is built with [Vite](https://vitejs.dev/), [React](https://reactjs.
 
 ## Frontend development
 
-Before you begin, ensure that you have either the Node Version Manager (nvm) or Fast Node Manager (fnm) installed on your system. 
+Before you begin, ensure that you have either the Node Version Manager (nvm) or Fast Node Manager (fnm) installed on your system.
 
 * To install fnm follow the [official fnm guide](https://github.com/Schniz/fnm#installation). If you prefer nvm, you can install it using the [official nvm guide](https://github.com/nvm-sh/nvm#installing-and-updating).
 
@@ -27,7 +27,7 @@ nvm install
 
 ```bash
 # If using fnm
-fnm use 
+fnm use
 
 # If using nvm
 nvm use
@@ -76,7 +76,7 @@ But it would be only to clean them up, leaving them won't really have any effect
 
 * Start the Docker Compose stack.
 
-* Download the OpenAPI JSON file from `http://localhost/api/v1/openapi.json` and copy it to a new file `openapi.json` at the root of the `frontend` directory.
+* Download the OpenAPI JSON file from `http://api.localhost/openapi.json` and copy it to a new file `openapi.json` at the root of the `frontend` directory.
 
 * To simplify the names in the generated frontend client code, modify the `openapi.json` file by running the following script:
 

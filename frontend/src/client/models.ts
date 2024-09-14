@@ -232,6 +232,7 @@ export type OrgSubscription = {
   processor_subscription_id?: string | null
   org_id: string
   n_users: number
+  subscriber_user_id: string
   readonly plan_name: string
 }
 

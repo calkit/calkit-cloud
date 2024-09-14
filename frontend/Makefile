@@ -1,7 +1,7 @@
 .PHONY: client
 client:
 	rm -f openapi.json
-	wget http://localhost/api/v1/openapi.json
+	curl http://api.localhost/openapi.json -o openapi.json
 	node modify-openapi-operationids.js
 	npm run generate-client
 

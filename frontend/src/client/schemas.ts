@@ -1145,6 +1145,11 @@ export const $OrgSubscription = {
       isRequired: true,
       minimum: 1,
     },
+    subscriber_user_id: {
+      type: "string",
+      isRequired: true,
+      format: "uuid",
+    },
     plan_name: {
       type: "string",
       isReadOnly: true,

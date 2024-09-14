@@ -321,7 +321,7 @@ export class LoginService {
     const { formData } = data
     return __request(OpenAPI, {
       method: "POST",
-      url: "/api/v1/login/access-token",
+      url: "/login/access-token",
       formData: formData,
       mediaType: "application/x-www-form-urlencoded",
       errors: {
@@ -339,7 +339,7 @@ export class LoginService {
   public static testToken(): CancelablePromise<UserPublic> {
     return __request(OpenAPI, {
       method: "POST",
-      url: "/api/v1/login/test-token",
+      url: "/login/test-token",
     })
   }
 
@@ -354,7 +354,7 @@ export class LoginService {
     const { email } = data
     return __request(OpenAPI, {
       method: "POST",
-      url: "/api/v1/password-recovery/{email}",
+      url: "/password-recovery/{email}",
       path: {
         email,
       },
@@ -376,7 +376,7 @@ export class LoginService {
     const { requestBody } = data
     return __request(OpenAPI, {
       method: "POST",
-      url: "/api/v1/reset-password/",
+      url: "/reset-password/",
       body: requestBody,
       mediaType: "application/json",
       errors: {
@@ -397,7 +397,7 @@ export class LoginService {
     const { email } = data
     return __request(OpenAPI, {
       method: "POST",
-      url: "/api/v1/password-recovery-html-content/{email}",
+      url: "/password-recovery-html-content/{email}",
       path: {
         email,
       },
@@ -432,7 +432,7 @@ export class LoginService {
     const { code } = data
     return __request(OpenAPI, {
       method: "GET",
-      url: "/api/v1/login/github",
+      url: "/login/github",
       query: {
         code,
       },
@@ -456,7 +456,7 @@ export class UsersService {
     const { skip = 0, limit = 100 } = data
     return __request(OpenAPI, {
       method: "GET",
-      url: "/api/v1/users",
+      url: "/users",
       query: {
         skip,
         limit,
@@ -479,7 +479,7 @@ export class UsersService {
     const { requestBody } = data
     return __request(OpenAPI, {
       method: "POST",
-      url: "/api/v1/users",
+      url: "/users",
       body: requestBody,
       mediaType: "application/json",
       errors: {
@@ -497,7 +497,7 @@ export class UsersService {
   public static getCurrentUser(): CancelablePromise<UserPublic> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/api/v1/user",
+      url: "/user",
     })
   }
 
@@ -510,7 +510,7 @@ export class UsersService {
   public static deleteCurrentUser(): CancelablePromise<Message> {
     return __request(OpenAPI, {
       method: "DELETE",
-      url: "/api/v1/user",
+      url: "/user",
     })
   }
 
@@ -526,7 +526,7 @@ export class UsersService {
     const { requestBody } = data
     return __request(OpenAPI, {
       method: "PATCH",
-      url: "/api/v1/user",
+      url: "/user",
       body: requestBody,
       mediaType: "application/json",
       errors: {
@@ -547,7 +547,7 @@ export class UsersService {
     const { requestBody } = data
     return __request(OpenAPI, {
       method: "PATCH",
-      url: "/api/v1/user/password",
+      url: "/user/password",
       body: requestBody,
       mediaType: "application/json",
       errors: {
@@ -568,7 +568,7 @@ export class UsersService {
     const { requestBody } = data
     return __request(OpenAPI, {
       method: "POST",
-      url: "/api/v1/users/signup",
+      url: "/users/signup",
       body: requestBody,
       mediaType: "application/json",
       errors: {
@@ -589,7 +589,7 @@ export class UsersService {
     const { userId } = data
     return __request(OpenAPI, {
       method: "GET",
-      url: "/api/v1/users/{user_id}",
+      url: "/users/{user_id}",
       path: {
         user_id: userId,
       },
@@ -611,7 +611,7 @@ export class UsersService {
     const { userId, requestBody } = data
     return __request(OpenAPI, {
       method: "PATCH",
-      url: "/api/v1/users/{user_id}",
+      url: "/users/{user_id}",
       path: {
         user_id: userId,
       },
@@ -635,7 +635,7 @@ export class UsersService {
     const { userId } = data
     return __request(OpenAPI, {
       method: "DELETE",
-      url: "/api/v1/users/{user_id}",
+      url: "/users/{user_id}",
       path: {
         user_id: userId,
       },
@@ -656,7 +656,7 @@ export class UsersService {
     const { perPage = 30, page = 1 } = data
     return __request(OpenAPI, {
       method: "GET",
-      url: "/api/v1/user/github/repos",
+      url: "/user/github/repos",
       query: {
         per_page: perPage,
         page,
@@ -678,7 +678,7 @@ export class UsersService {
     const { requestBody } = data
     return __request(OpenAPI, {
       method: "PUT",
-      url: "/api/v1/user/subscription",
+      url: "/user/subscription",
       body: requestBody,
       mediaType: "application/json",
       errors: {
@@ -698,7 +698,7 @@ export class UsersService {
     const { requestBody } = data
     return __request(OpenAPI, {
       method: "POST",
-      url: "/api/v1/user/subscription",
+      url: "/user/subscription",
       body: requestBody,
       mediaType: "application/json",
       errors: {
@@ -721,7 +721,7 @@ export class MiscService {
     const { emailTo } = data
     return __request(OpenAPI, {
       method: "POST",
-      url: "/api/v1/test-email/",
+      url: "/test-email/",
       query: {
         email_to: emailTo,
       },
@@ -742,7 +742,7 @@ export class MiscService {
     const { discountCode, nUsers = 1 } = data
     return __request(OpenAPI, {
       method: "GET",
-      url: "/api/v1/discount-codes/{discount_code}",
+      url: "/discount-codes/{discount_code}",
       path: {
         discount_code: discountCode,
       },
@@ -766,7 +766,7 @@ export class MiscService {
     const { requestBody } = data
     return __request(OpenAPI, {
       method: "POST",
-      url: "/api/v1/discount-codes",
+      url: "/discount-codes",
       body: requestBody,
       mediaType: "application/json",
       errors: {
@@ -788,7 +788,7 @@ export class ProjectsService {
     const { limit = 100, offset = 0 } = data
     return __request(OpenAPI, {
       method: "GET",
-      url: "/api/v1/projects/owned",
+      url: "/projects/owned",
       query: {
         limit,
         offset,
@@ -811,7 +811,7 @@ export class ProjectsService {
     const { requestBody } = data
     return __request(OpenAPI, {
       method: "POST",
-      url: "/api/v1/projects",
+      url: "/projects",
       body: requestBody,
       mediaType: "application/json",
       errors: {
@@ -831,7 +831,7 @@ export class ProjectsService {
     const { projectId } = data
     return __request(OpenAPI, {
       method: "GET",
-      url: "/api/v1/projects/{project_id}",
+      url: "/projects/{project_id}",
       path: {
         project_id: projectId,
       },
@@ -852,7 +852,7 @@ export class ProjectsService {
     const { projectId } = data
     return __request(OpenAPI, {
       method: "DELETE",
-      url: "/api/v1/projects/{project_id}",
+      url: "/projects/{project_id}",
       path: {
         project_id: projectId,
       },
@@ -873,7 +873,7 @@ export class ProjectsService {
     const { ownerName, projectName } = data
     return __request(OpenAPI, {
       method: "GET",
-      url: "/api/v1/projects/{owner_name}/{project_name}",
+      url: "/projects/{owner_name}/{project_name}",
       path: {
         owner_name: ownerName,
         project_name: projectName,
@@ -895,7 +895,7 @@ export class ProjectsService {
     const { ownerName, projectName, requestBody } = data
     return __request(OpenAPI, {
       method: "PATCH",
-      url: "/api/v1/projects/{owner_name}/{project_name}",
+      url: "/projects/{owner_name}/{project_name}",
       path: {
         owner_name: ownerName,
         project_name: projectName,
@@ -919,7 +919,7 @@ export class ProjectsService {
     const { ownerName, projectName } = data
     return __request(OpenAPI, {
       method: "DELETE",
-      url: "/api/v1/projects/{owner_name}/{project_name}",
+      url: "/projects/{owner_name}/{project_name}",
       path: {
         owner_name: ownerName,
         project_name: projectName,
@@ -941,7 +941,7 @@ export class ProjectsService {
     const { ownerName, projectName } = data
     return __request(OpenAPI, {
       method: "GET",
-      url: "/api/v1/projects/{owner_name}/{project_name}/git/repo",
+      url: "/projects/{owner_name}/{project_name}/git/repo",
       path: {
         owner_name: ownerName,
         project_name: projectName,
@@ -963,7 +963,7 @@ export class ProjectsService {
     const { ownerName, projectName, idx, md5 } = data
     return __request(OpenAPI, {
       method: "POST",
-      url: "/api/v1/projects/{owner_name}/{project_name}/dvc/files/md5/{idx}/{md5}",
+      url: "/projects/{owner_name}/{project_name}/dvc/files/md5/{idx}/{md5}",
       path: {
         owner_name: ownerName,
         project_name: projectName,
@@ -987,7 +987,7 @@ export class ProjectsService {
     const { ownerName, projectName, idx, md5 } = data
     return __request(OpenAPI, {
       method: "GET",
-      url: "/api/v1/projects/{owner_name}/{project_name}/dvc/files/md5/{idx}/{md5}",
+      url: "/projects/{owner_name}/{project_name}/dvc/files/md5/{idx}/{md5}",
       path: {
         owner_name: ownerName,
         project_name: projectName,
@@ -1011,7 +1011,7 @@ export class ProjectsService {
     const { ownerName, projectName } = data
     return __request(OpenAPI, {
       method: "GET",
-      url: "/api/v1/projects/{owner_name}/{project_name}/dvc/files/md5",
+      url: "/projects/{owner_name}/{project_name}/dvc/files/md5",
       path: {
         owner_name: ownerName,
         project_name: projectName,
@@ -1033,7 +1033,7 @@ export class ProjectsService {
     const { ownerName, projectName, path, astype = "" } = data
     return __request(OpenAPI, {
       method: "GET",
-      url: "/api/v1/projects/{owner_name}/{project_name}/git/contents",
+      url: "/projects/{owner_name}/{project_name}/git/contents",
       path: {
         owner_name: ownerName,
         project_name: projectName,
@@ -1059,7 +1059,7 @@ export class ProjectsService {
     const { ownerName, projectName, path, astype = "" } = data
     return __request(OpenAPI, {
       method: "GET",
-      url: "/api/v1/projects/{owner_name}/{project_name}/git/contents/{path}",
+      url: "/projects/{owner_name}/{project_name}/git/contents/{path}",
       path: {
         owner_name: ownerName,
         project_name: projectName,
@@ -1085,7 +1085,7 @@ export class ProjectsService {
     const { ownerName, projectName, path, ttl } = data
     return __request(OpenAPI, {
       method: "GET",
-      url: "/api/v1/projects/{owner_name}/{project_name}/contents",
+      url: "/projects/{owner_name}/{project_name}/contents",
       path: {
         owner_name: ownerName,
         project_name: projectName,
@@ -1111,7 +1111,7 @@ export class ProjectsService {
     const { ownerName, projectName, path, ttl } = data
     return __request(OpenAPI, {
       method: "GET",
-      url: "/api/v1/projects/{owner_name}/{project_name}/contents/{path}",
+      url: "/projects/{owner_name}/{project_name}/contents/{path}",
       path: {
         owner_name: ownerName,
         project_name: projectName,
@@ -1137,7 +1137,7 @@ export class ProjectsService {
     const { ownerName, projectName, path, formData } = data
     return __request(OpenAPI, {
       method: "PUT",
-      url: "/api/v1/projects/{owner_name}/{project_name}/contents/{path}",
+      url: "/projects/{owner_name}/{project_name}/contents/{path}",
       path: {
         owner_name: ownerName,
         project_name: projectName,
@@ -1162,7 +1162,7 @@ export class ProjectsService {
     const { ownerName, projectName, path, requestBody } = data
     return __request(OpenAPI, {
       method: "PATCH",
-      url: "/api/v1/projects/{owner_name}/{project_name}/contents/{path}",
+      url: "/projects/{owner_name}/{project_name}/contents/{path}",
       path: {
         owner_name: ownerName,
         project_name: projectName,
@@ -1187,7 +1187,7 @@ export class ProjectsService {
     const { ownerName, projectName } = data
     return __request(OpenAPI, {
       method: "GET",
-      url: "/api/v1/projects/{owner_name}/{project_name}/questions",
+      url: "/projects/{owner_name}/{project_name}/questions",
       path: {
         owner_name: ownerName,
         project_name: projectName,
@@ -1209,7 +1209,7 @@ export class ProjectsService {
     const { ownerName, projectName, requestBody } = data
     return __request(OpenAPI, {
       method: "POST",
-      url: "/api/v1/projects/{owner_name}/{project_name}/questions",
+      url: "/projects/{owner_name}/{project_name}/questions",
       path: {
         owner_name: ownerName,
         project_name: projectName,
@@ -1233,7 +1233,7 @@ export class ProjectsService {
     const { ownerName, projectName } = data
     return __request(OpenAPI, {
       method: "GET",
-      url: "/api/v1/projects/{owner_name}/{project_name}/figures",
+      url: "/projects/{owner_name}/{project_name}/figures",
       path: {
         owner_name: ownerName,
         project_name: projectName,
@@ -1255,7 +1255,7 @@ export class ProjectsService {
     const { ownerName, projectName, formData } = data
     return __request(OpenAPI, {
       method: "POST",
-      url: "/api/v1/projects/{owner_name}/{project_name}/figures",
+      url: "/projects/{owner_name}/{project_name}/figures",
       path: {
         owner_name: ownerName,
         project_name: projectName,
@@ -1279,7 +1279,7 @@ export class ProjectsService {
     const { ownerName, projectName, figurePath } = data
     return __request(OpenAPI, {
       method: "GET",
-      url: "/api/v1/projects/{owner_name}/{project_name}/figures/{figure_path}",
+      url: "/projects/{owner_name}/{project_name}/figures/{figure_path}",
       path: {
         owner_name: ownerName,
         project_name: projectName,
@@ -1302,7 +1302,7 @@ export class ProjectsService {
     const { ownerName, projectName, figurePath } = data
     return __request(OpenAPI, {
       method: "GET",
-      url: "/api/v1/projects/{owner_name}/{project_name}/figure-comments",
+      url: "/projects/{owner_name}/{project_name}/figure-comments",
       path: {
         owner_name: ownerName,
         project_name: projectName,
@@ -1327,7 +1327,7 @@ export class ProjectsService {
     const { ownerName, projectName, requestBody } = data
     return __request(OpenAPI, {
       method: "POST",
-      url: "/api/v1/projects/{owner_name}/{project_name}/figure-comments",
+      url: "/projects/{owner_name}/{project_name}/figure-comments",
       path: {
         owner_name: ownerName,
         project_name: projectName,
@@ -1351,7 +1351,7 @@ export class ProjectsService {
     const { ownerName, projectName } = data
     return __request(OpenAPI, {
       method: "GET",
-      url: "/api/v1/projects/{owner_name}/{project_name}/data",
+      url: "/projects/{owner_name}/{project_name}/data",
       path: {
         owner_name: ownerName,
         project_name: projectName,
@@ -1373,7 +1373,7 @@ export class ProjectsService {
     const { ownerName, projectName } = data
     return __request(OpenAPI, {
       method: "GET",
-      url: "/api/v1/projects/{owner_name}/{project_name}/publications",
+      url: "/projects/{owner_name}/{project_name}/publications",
       path: {
         owner_name: ownerName,
         project_name: projectName,
@@ -1403,7 +1403,7 @@ export class ProjectsService {
     const { ownerName, projectName } = data
     return __request(OpenAPI, {
       method: "POST",
-      url: "/api/v1/projects/{owner_name}/{project_name}/syncs",
+      url: "/projects/{owner_name}/{project_name}/syncs",
       path: {
         owner_name: ownerName,
         project_name: projectName,
@@ -1425,7 +1425,7 @@ export class ProjectsService {
     const { ownerName, projectName } = data
     return __request(OpenAPI, {
       method: "GET",
-      url: "/api/v1/projects/{owner_name}/{project_name}/workflow",
+      url: "/projects/{owner_name}/{project_name}/workflow",
       path: {
         owner_name: ownerName,
         project_name: projectName,
@@ -1447,7 +1447,7 @@ export class ProjectsService {
     const { ownerName, projectName } = data
     return __request(OpenAPI, {
       method: "GET",
-      url: "/api/v1/projects/{owner_name}/{project_name}/collaborators",
+      url: "/projects/{owner_name}/{project_name}/collaborators",
       path: {
         owner_name: ownerName,
         project_name: projectName,
@@ -1469,7 +1469,7 @@ export class ProjectsService {
     const { ownerName, projectName, githubUsername } = data
     return __request(OpenAPI, {
       method: "PUT",
-      url: "/api/v1/projects/{owner_name}/{project_name}/collaborators/{github_username}",
+      url: "/projects/{owner_name}/{project_name}/collaborators/{github_username}",
       path: {
         owner_name: ownerName,
         project_name: projectName,
@@ -1492,7 +1492,7 @@ export class ProjectsService {
     const { ownerName, projectName, githubUsername } = data
     return __request(OpenAPI, {
       method: "DELETE",
-      url: "/api/v1/projects/{owner_name}/{project_name}/collaborators/{github_username}",
+      url: "/projects/{owner_name}/{project_name}/collaborators/{github_username}",
       path: {
         owner_name: ownerName,
         project_name: projectName,
@@ -1521,7 +1521,7 @@ export class ProjectsService {
     } = data
     return __request(OpenAPI, {
       method: "GET",
-      url: "/api/v1/projects/{owner_name}/{project_name}/issues",
+      url: "/projects/{owner_name}/{project_name}/issues",
       path: {
         owner_name: ownerName,
         project_name: projectName,
@@ -1548,7 +1548,7 @@ export class ProjectsService {
     const { ownerName, projectName, requestBody } = data
     return __request(OpenAPI, {
       method: "POST",
-      url: "/api/v1/projects/{owner_name}/{project_name}/issues",
+      url: "/projects/{owner_name}/{project_name}/issues",
       path: {
         owner_name: ownerName,
         project_name: projectName,
@@ -1572,7 +1572,7 @@ export class ProjectsService {
     const { ownerName, projectName, issueNumber, requestBody } = data
     return __request(OpenAPI, {
       method: "PATCH",
-      url: "/api/v1/projects/{owner_name}/{project_name}/issues/{issue_number}",
+      url: "/projects/{owner_name}/{project_name}/issues/{issue_number}",
       path: {
         owner_name: ownerName,
         project_name: projectName,
@@ -1597,7 +1597,7 @@ export class ProjectsService {
     const { ownerName, projectName } = data
     return __request(OpenAPI, {
       method: "GET",
-      url: "/api/v1/projects/{owner_name}/{project_name}/references",
+      url: "/projects/{owner_name}/{project_name}/references",
       path: {
         owner_name: ownerName,
         project_name: projectName,
@@ -1619,7 +1619,7 @@ export class ProjectsService {
     const { ownerName, projectName } = data
     return __request(OpenAPI, {
       method: "GET",
-      url: "/api/v1/projects/{owner_name}/{project_name}/software",
+      url: "/projects/{owner_name}/{project_name}/software",
       path: {
         owner_name: ownerName,
         project_name: projectName,
@@ -1640,7 +1640,7 @@ export class OrgsService {
   public static getUserOrgs(): CancelablePromise<Array<OrgPublic>> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/api/v1/user/orgs",
+      url: "/user/orgs",
     })
   }
 
@@ -1655,7 +1655,7 @@ export class OrgsService {
     const { requestBody } = data
     return __request(OpenAPI, {
       method: "POST",
-      url: "/api/v1/orgs",
+      url: "/orgs",
       body: requestBody,
       mediaType: "application/json",
       errors: {
@@ -1675,7 +1675,7 @@ export class OrgsService {
     const { orgName, requestBody } = data
     return __request(OpenAPI, {
       method: "POST",
-      url: "/api/v1/orgs/{org_name}/members",
+      url: "/orgs/{org_name}/members",
       path: {
         org_name: orgName,
       },
@@ -1698,7 +1698,7 @@ export class OrgsService {
     const { orgName, requestBody } = data
     return __request(OpenAPI, {
       method: "POST",
-      url: "/api/v1/orgs/{org_name}/subscription",
+      url: "/orgs/{org_name}/subscription",
       path: {
         org_name: orgName,
       },

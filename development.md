@@ -148,7 +148,7 @@ Development URLs, for local development.
 
 Frontend: http://localhost
 
-Backend: http://localhost/api/
+Backend: http://api.localhost
 
 Automatic Interactive Docs (Swagger UI): http://localhost/docs
 
