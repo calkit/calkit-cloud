@@ -291,6 +291,8 @@ def _get_object_url(
         fs = _get_minio_fs()
     kws = {}
     kws["ResponseContentDisposition"] = f"filename={fname}"
+    if fname.endswith(".pdf"):
+        kws["ResponseContentType"] = "application/pdf"
     url: str = fs.url(fpath, expires=expires, **kws)
     return url.replace(
         "http://minio:9000", f"http://objects.{settings.DOMAIN}"
@@ -907,6 +909,7 @@ def get_project_figures(
             path=fig["path"],
         )
         fig["content"] = item.content
+        fig["url"] = item.url
     return [Figure.model_validate(fig) for fig in figures]
 
 
