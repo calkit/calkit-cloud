@@ -18,7 +18,7 @@ OpenAPI.TOKEN = async () => {
 const mixpanelToken = import.meta.env.VITE_MIXPANEL_TOKEN
 mixpanel.init(mixpanelToken, {
   debug: String(import.meta.env.VITE_API_URL).startsWith("http://localhost"),
-  track_pageview: true,
+  track_pageview: "url-with-path",
   persistence: "localStorage",
 })
 
