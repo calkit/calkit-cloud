@@ -633,11 +633,7 @@ def get_project_contents(
             fp = _make_data_fpath(
                 project_id=project.id, idx=md5[:2], md5=md5[2:]
             )
-            kws = {}
-            kws["ResponseContentDisposition"] = (
-                f"filename={os.path.basename(path)}"
-            )
-            url = fs.url(fp, expires=3600 * 24, **kws)
+            url = _get_object_url(fp, fname=os.path.basename(path), fs=fs)
             # Get content is the size is small enough
             if size is not None and size <= 5_000_000 and fs.exists(fp):
                 with fs.open(fp, "rb") as f:
