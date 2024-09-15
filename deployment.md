@@ -29,7 +29,7 @@ You need to do these next steps only once.
 mkdir -p /root/code/traefik-public/
 ```
 
-Copy the Traefik Docker Compose file to your server. You could do it by running the command `rsync` in your local terminal:
+Copy the Traefik Docker Compose file to your server. You could do it by running the command `scp` or `rsync` in your local terminal:
 
 ```bash
 rsync -a docker-compose.traefik.yml root@your-server.example.com:/root/code/traefik-public/
@@ -78,16 +78,14 @@ echo $HASHED_PASSWORD
 - Create an environment variable with the domain name for your server, e.g.:
 
 ```bash
-export DOMAIN=fastapi-project.example.com
+export DOMAIN=calkit.io
 ```
 
 - Create an environment variable with the email for Let's Encrypt, e.g.:
 
 ```bash
-export EMAIL=admin@example.com
+export EMAIL=admin@$DOMAIN
 ```
-
-**Note**: you need to set a different email, an email `@example.com` won't work.
 
 ### Start the Traefik Docker Compose
 
@@ -122,7 +120,7 @@ export ENVIRONMENT=production
 Set the `DOMAIN`, by default `localhost` (for development), but when deploying you would use your own domain, for example:
 
 ```bash
-export DOMAIN=fastapi-project.example.com
+export DOMAIN=calkit.io
 ```
 
 You can set several variables, like:
@@ -276,28 +274,26 @@ If you need to add extra environments you could use those as a starting point.
 
 ## URLs
 
-Replace `fastapi-project.example.com` with your domain.
-
 ### Main Traefik Dashboard
 
-Traefik UI: `https://traefik.fastapi-project.example.com`
+Traefik UI: `https://traefik.calkit.io`
 
 ### Production
 
-Frontend: `https://fastapi-project.example.com`
+Frontend: `https://calkit.io`
 
-Backend API docs: `https://fastapi-project.example.com/docs`
+Backend API docs: `https://api.calkit.io/docs`
 
-Backend API base URL: `https://fastapi-project.example.com/api/`
+Backend API base URL: `https://api.calkit.io`
 
-Adminer: `https://adminer.fastapi-project.example.com`
+Adminer: `https://adminer.calkit.io`
 
 ### Staging
 
-Frontend: `https://staging.fastapi-project.example.com`
+Frontend: `https://staging.calkit.io`
 
-Backend API docs: `https://staging.fastapi-project.example.com/docs`
+Backend API docs: `https://api.staging.calkit.io/docs`
 
-Backend API base URL: `https://staging.fastapi-project.example.com/api/`
+Backend API base URL: `https://api.staging.calkit.io`
 
-Adminer: `https://adminer.staging.fastapi-project.example.com`
+Adminer: `https://adminer.staging.calkit.io`
