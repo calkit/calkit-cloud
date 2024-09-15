@@ -42,6 +42,8 @@ services:
 
   db:
     restart: "no"
+    env_file:
+      - .env
     ports:
       - "5433:5432"
 
@@ -52,6 +54,8 @@ services:
 
   backend:
     restart: "no"
+    env_file:
+      - .env
     ports:
       - "8888:8888"
     volumes:
