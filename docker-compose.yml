@@ -103,6 +103,7 @@ services:
         - VITE_API_URL=https://api.${DOMAIN?Variable not set}
         - VITE_STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY?Variable not set}
         - VITE_MIXPANEL_TOKEN=${MIXPANEL_TOKEN?Variable not set}
+        - VITE_GH_CLIENT_ID=${GH_CLIENT_ID?Variable not set}
         - NODE_ENV=production
     labels:
       - traefik.enable=true

@@ -28,7 +28,7 @@ function Login() {
   const { code: ghAuthCode, state: ghAuthStateRecv } = Route.useSearch()
   const isMounted = useRef(false)
 
-  const clientId = "Iv23li37fyOhqbAYUDZ1"
+  const clientId = import.meta.env.VITE_GH_CLIENT_ID
   const ghAuthStateParam = "sdkjh4e0934t" // TODO: Generate randomly
 
   useEffect(() => {
