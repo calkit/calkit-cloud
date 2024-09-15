@@ -82,9 +82,6 @@ services:
     build:
       context: ./frontend
       args:
-        - VITE_API_URL=http://api.${DOMAIN?Variable not set}
-        - VITE_STRIPE_PUBLISHABLE_KEY=${VITE_STRIPE_PUBLISHABLE_KEY?Variable not set}
-        - VITE_MIXPANEL_TOKEN=${VITE_MIXPANEL_TOKEN?Variable not set}
         - NODE_ENV=development
 
   minio:
