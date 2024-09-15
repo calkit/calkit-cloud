@@ -1,4 +1,6 @@
-name: Deploy to Production
+name: Deploy to production
+
+concurrency: production
 
 on:
   release:
@@ -7,26 +9,41 @@ on:
 
 jobs:
   deploy:
-    # Do not deploy in the main repository, only in user projects
-    if: github.repository_owner != 'fastapi'
+    environment: production
     runs-on:
       - self-hosted
       - production
     env:
       ENVIRONMENT: production
-      DOMAIN: ${{ secrets.DOMAIN_PRODUCTION }}
-      STACK_NAME: ${{ secrets.STACK_NAME_PRODUCTION }}
+      PROJECT_NAME: ${{ vars.PROJECT_NAME }}
+      DOMAIN: ${{ vars.DOMAIN }}
+      BACKEND_CORS_ORIGINS: "https://${{ vars.DOMAIN }}"
+      STACK_NAME: ${{ vars.STACK_NAME }}
       SECRET_KEY: ${{ secrets.SECRET_KEY }}
-      FIRST_SUPERUSER: ${{ secrets.FIRST_SUPERUSER }}
+      FERNET_KEY: "${{ secrets.FERNET_KEY }}"
+      FIRST_SUPERUSER: ${{ vars.FIRST_SUPERUSER }}
       FIRST_SUPERUSER_PASSWORD: ${{ secrets.FIRST_SUPERUSER_PASSWORD }}
       SMTP_HOST: ${{ secrets.SMTP_HOST }}
       SMTP_USER: ${{ secrets.SMTP_USER }}
       SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
-      EMAILS_FROM_EMAIL: ${{ secrets.EMAILS_FROM_EMAIL }}
+      EMAILS_FROM_EMAIL: ${{ vars.EMAILS_FROM_EMAIL }}
+      POSTGRES_USER: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: app
       POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
       SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+      DOCKER_IMAGE_BACKEND: "backend-${{ vars.STACK_NAME }}"
+      DOCKER_IMAGE_FRONTEND: "frontend-${{ vars.STACK_NAME }}"
+      GH_CLIENT_ID: TODO
+      GH_CLIENT_SECRET: TODO
+      MINIO_ROOT_PASSWORD: TODO
+      STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+      STRIPE_PUBLISHABLE_KEY: ${{ secrets.STRIPE_PUBLISHABLE_KEY }}
+      VITE_API_URL: "https://api.${{ vars.DOMAIN }}"
+      VITE_STRIPE_PUBLISHABLE_KEY: ${{ secrets.STRIPE_PUBLISHABLE_KEY }}
+      VITE_MIXPANEL_TOKEN: ${{ secrets.MIXPANEL_TOKEN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - run: docker compose -f docker-compose.yml --project-name ${{ secrets.STACK_NAME_PRODUCTION }} build
-      - run: docker compose -f docker-compose.yml --project-name ${{ secrets.STACK_NAME_PRODUCTION }} up -d
+      - run: docker compose -f docker-compose.yml --project-name ${{ vars.STACK_NAME }} build
+      - run: docker compose -f docker-compose.yml --project-name ${{ vars.STACK_NAME }} up -d

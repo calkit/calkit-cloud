@@ -141,6 +141,7 @@ You can set several variables, like:
 - `POSTGRES_USER`: The Postgres user, you can leave the default.
 - `POSTGRES_DB`: The database name to use for this application. You can leave the default of `app`.
 - `SENTRY_DSN`: The DSN for Sentry, if you are using it.
+- others in the `.env.template` file
 
 ## GitHub Actions Environment Variables
 
