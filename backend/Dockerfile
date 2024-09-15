@@ -19,7 +19,7 @@ ENV PYTHONPATH=/app
 
 ENV PYTHONUNBUFFERED=1
 
-COPY ./scripts/ /app/
+COPY ./scripts /app/scripts
 
 COPY ./alembic.ini /app/
 
