@@ -40,9 +40,7 @@ jobs:
       MINIO_ROOT_PASSWORD: TODO
       STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
       STRIPE_PUBLISHABLE_KEY: ${{ secrets.STRIPE_PUBLISHABLE_KEY }}
-      VITE_API_URL: "https://api.${{ vars.DOMAIN }}"
-      VITE_STRIPE_PUBLISHABLE_KEY: ${{ secrets.STRIPE_PUBLISHABLE_KEY }}
-      VITE_MIXPANEL_TOKEN: ${{ secrets.MIXPANEL_TOKEN }}
+      MIXPANEL_TOKEN: ${{ secrets.MIXPANEL_TOKEN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
