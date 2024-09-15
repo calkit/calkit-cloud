@@ -84,7 +84,7 @@ class UserGitHubToken(SQLModel, table=True):
 class User(UserBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     hashed_password: str
-    stripe_customer_id: str | None
+    stripe_customer_id: str | None = None
     # Relationships
     account: Account = Relationship(back_populates="user")
     github_token: UserGitHubToken | None = Relationship()
