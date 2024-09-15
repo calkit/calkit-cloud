@@ -99,8 +99,8 @@ class Settings(BaseSettings):
     FIRST_SUPERUSER_GITHUB_USERNAME: str
 
     # GitHub
-    GITHUB_CLIENT_ID: str
-    GITHUB_CLIENT_SECRET: str
+    GH_CLIENT_ID: str
+    GH_CLIENT_SECRET: str
     # Stripe
     STRIPE_SECRET_KEY: str
     STRIPE_PUBLISHABLE_KEY: str

@@ -8,7 +8,7 @@ import jwt
 
 def create_app_token() -> str:
     pem_fpath = "../../calkit.2024-08-08.private-key.pem"
-    client_id = os.environ["GITHUB_CLIENT_ID"]
+    client_id = os.environ["GH_CLIENT_ID"]
     # Open PEM
     with open(pem_fpath, "rb") as pem_file:
         signing_key = pem_file.read()

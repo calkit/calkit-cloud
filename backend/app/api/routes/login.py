@@ -144,8 +144,8 @@ def login_with_github(code: str, session: SessionDep) -> Token:
         "https://github.com/login/oauth/access_token",
         params=dict(
             code=code,
-            client_id=settings.GITHUB_CLIENT_ID,
-            client_secret=settings.GITHUB_CLIENT_SECRET,
+            client_id=settings.GH_CLIENT_ID,
+            client_secret=settings.GH_CLIENT_SECRET,
         ),
     )
     # Make sure we got a 200 response, and if so, use the token to fetch

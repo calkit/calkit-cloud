@@ -83,8 +83,8 @@ def get_github_token(session: Session, user: User) -> str:
         resp = requests.post(
             "https://github.com/login/oauth/access_token",
             json=dict(
-                client_id=settings.GITHUB_CLIENT_ID,
-                client_secret=settings.GITHUB_CLIENT_SECRET,
+                client_id=settings.GH_CLIENT_ID,
+                client_secret=settings.GH_CLIENT_SECRET,
                 grant_type="refresh_token",
                 refresh_token=decrypt_secret(user.github_token.refresh_token),
             ),
