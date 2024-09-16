@@ -12,6 +12,7 @@ from typing import Annotated, Literal, Optional
 
 import app.projects
 import bibtexparser
+import gcsfs
 import requests
 import s3fs
 import yaml
@@ -264,39 +265,51 @@ def get_project_git_repo(
     return resp.json()
 
 
-def _get_minio_fs() -> s3fs.S3FileSystem:
-    return s3fs.S3FileSystem(
-        endpoint_url=f"http://minio:9000",
-        key="root",
-        secret=os.getenv("MINIO_ROOT_PASSWORD"),  # TODO: User lower privs
-    )
+def _get_object_fs() -> s3fs.S3FileSystem | gcsfs.GCSFileSystem:
+    if settings.ENVIRONMENT == "local":
+        return s3fs.S3FileSystem(
+            endpoint_url=f"http://minio:9000",
+            key="root",
+            secret=os.getenv("MINIO_ROOT_PASSWORD"),
+        )
+    return gcsfs.GCSFileSystem()
 
 
 def _make_data_fpath(project_id: str, idx: str, md5: str) -> str:
-    return f"s3://data/project_id={project_id}/{idx}/{md5}"
+    if settings.ENVIRONMENT == "local":
+        prefix = "s3://"
+    else:
+        prefix = "gcs://"
+    return f"{prefix}data/project_id={project_id}/{idx}/{md5}"
 
 
 def _get_object_url(
     fpath: str,
     fname: str = None,
     expires: int = 3600 * 24,
-    fs: s3fs.S3FileSystem | None = None,
+    fs: s3fs.S3FileSystem | gcsfs.GCSFileSystem | None = None,
 ) -> str:
-    """Get a presigned URL for an object in object storage.
-
-    TODO: Generalize this for external object storage, not just MinIO on
-    the deployed domain.
-    """
+    """Get a presigned URL for an object in object storage."""
     if fs is None:
-        fs = _get_minio_fs()
-    kws = {}
-    kws["ResponseContentDisposition"] = f"filename={fname}"
-    if fname.endswith(".pdf"):
-        kws["ResponseContentType"] = "application/pdf"
-    url: str = fs.url(fpath, expires=expires, **kws)
-    return url.replace(
-        "http://minio:9000", f"http://objects.{settings.DOMAIN}"
-    )
+        fs = _get_object_fs()
+    if settings.ENVIRONMENT == "local":
+        kws = {}
+        if fname is not None:
+            kws["ResponseContentDisposition"] = f"filename={fname}"
+        if fname.endswith(".pdf"):
+            kws["ResponseContentType"] = "application/pdf"
+    else:
+        kws = {}
+        if fname is not None:
+            kws["response_disposition"] = f"attachment;filename={fname}"
+        if fname.endswith(".pdf"):
+            kws["content_type"] = "application/pdf"
+    url: str = fs.sign(fpath, expires=expires, **kws)
+    if settings.ENVIRONMENT == "local":
+        url = url.replace(
+            "http://minio:9000", f"http://objects.{settings.DOMAIN}"
+        )
+    return url
 
 
 @router.post("/projects/{owner_name}/{project_name}/dvc/files/md5/{idx}/{md5}")
@@ -322,7 +335,7 @@ async def post_project_dvc_file(
     if project.owner != current_user:
         raise HTTPException(401)
     # TODO: Check if this user has write access to this project
-    fs = _get_minio_fs()
+    fs = _get_object_fs()
     # Create bucket if it doesn't exist
     if not fs.exists("s3://data"):
         fs.makedir("s3://data")
@@ -352,7 +365,7 @@ def get_project_dvc_file(
     if project.owner != current_user:
         raise HTTPException(401)
     # If file doesn't exist, return 404
-    fs = _get_minio_fs()
+    fs = _get_object_fs()
     fpath = _make_data_fpath(project.id, idx, md5)
     logger.info(f"Checking for {fpath}")
     if not fs.exists(fpath):
@@ -631,7 +644,7 @@ def get_project_contents(
         url = None
         # Create presigned url
         if md5:
-            fs = _get_minio_fs()
+            fs = _get_object_fs()
             fp = _make_data_fpath(
                 project_id=project.id, idx=md5[:2], md5=md5[2:]
             )
@@ -1022,7 +1035,7 @@ def post_project_figure(
         with open(os.path.join(repo.working_dir, path + ".dvc")) as f:
             dvc_yaml = yaml.safe_load(f)
         md5 = dvc_yaml["outs"][0]["md5"]
-        fs = _get_minio_fs()
+        fs = _get_object_fs()
         fpath = _make_data_fpath(
             project_id=project.id, idx=md5[:2], md5=md5[2:]
         )
