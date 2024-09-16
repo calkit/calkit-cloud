@@ -275,14 +275,17 @@ def _get_object_fs() -> s3fs.S3FileSystem | gcsfs.GCSFileSystem:
     return gcsfs.GCSFileSystem()
 
 
+def _get_data_prefix() -> str:
+    if settings.ENVIRONMENT == "local":
+        return "s3://data"
+    else:
+        return f"gcs://calkit-{settings.ENVIRONMENT}/data"
+
+
 def _make_data_fpath(
     owner_name: str, project_name: str, idx: str, md5: str
 ) -> str:
-    if settings.ENVIRONMENT == "local":
-        prefix = "s3://"
-    else:
-        prefix = "gcs://"
-    return f"{prefix}data/{owner_name}/{project_name}/{idx}/{md5}"
+    return f"{_get_data_prefix()}/{owner_name}/{project_name}/{idx}/{md5}"
 
 
 def _get_object_url(
@@ -338,9 +341,9 @@ async def post_project_dvc_file(
         raise HTTPException(401)
     # TODO: Check if this user has write access to this project
     fs = _get_object_fs()
-    # Create bucket if it doesn't exist
-    if not fs.exists("s3://data"):
-        fs.makedir("s3://data")
+    # Create bucket if it doesn't exist -- only necessary with MinIO
+    if settings.ENVIRONMENT == "local" and not fs.exists(_get_data_prefix()):
+        fs.makedir(_get_data_prefix())
     fpath = _make_data_fpath(
         owner_name=owner_name, project_name=project_name, idx=idx, md5=md5
     )
