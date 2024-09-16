@@ -1734,6 +1734,86 @@ export const $Token = {
   },
 } as const
 
+export const $TokenPatch = {
+  properties: {
+    is_active: {
+      type: "boolean",
+      isRequired: true,
+    },
+  },
+} as const
+
+export const $TokenPost = {
+  properties: {
+    expires_days: {
+      type: "number",
+      isRequired: true,
+      maximum: 1095,
+      minimum: 1,
+    },
+    scope: {
+      type: "any-of",
+      contains: [
+        {
+          type: "Enum",
+          enum: ["dvc"],
+        },
+        {
+          type: "null",
+        },
+      ],
+      isRequired: true,
+    },
+  },
+} as const
+
+export const $TokenResp = {
+  properties: {
+    access_token: {
+      type: "string",
+      isRequired: true,
+    },
+    token_type: {
+      type: "string",
+      default: "bearer",
+    },
+    id: {
+      type: "string",
+      format: "uuid",
+    },
+    user_id: {
+      type: "string",
+      format: "uuid",
+    },
+    scope: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    created: {
+      type: "string",
+      format: "date-time",
+    },
+    updated: {
+      type: "string",
+      format: "date-time",
+    },
+    expires: {
+      type: "string",
+      format: "date-time",
+    },
+    is_active: {
+      type: "boolean",
+    },
+  },
+} as const
+
 export const $UpdatePassword = {
   properties: {
     current_password: {
@@ -1965,6 +2045,48 @@ export const $UserSubscription = {
     plan_name: {
       type: "string",
       isReadOnly: true,
+      isRequired: true,
+    },
+  },
+} as const
+
+export const $UserToken = {
+  properties: {
+    id: {
+      type: "string",
+      format: "uuid",
+    },
+    user_id: {
+      type: "string",
+      isRequired: true,
+      format: "uuid",
+    },
+    scope: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    created: {
+      type: "string",
+      format: "date-time",
+    },
+    updated: {
+      type: "string",
+      format: "date-time",
+    },
+    expires: {
+      type: "string",
+      isRequired: true,
+      format: "date-time",
+    },
+    is_active: {
+      type: "boolean",
       isRequired: true,
     },
   },

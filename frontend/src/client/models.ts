@@ -351,6 +351,27 @@ export type Token = {
   token_type?: string
 }
 
+export type TokenPatch = {
+  is_active: boolean
+}
+
+export type TokenPost = {
+  expires_days: number
+  scope: "dvc" | null
+}
+
+export type TokenResp = {
+  access_token: string
+  token_type?: string
+  id?: string
+  user_id?: string
+  scope?: string | null
+  created?: string
+  updated?: string
+  expires?: string
+  is_active?: boolean
+}
+
 export type UpdatePassword = {
   current_password: string
   new_password: string
@@ -395,6 +416,16 @@ export type UserSubscription = {
   processor_subscription_id?: string | null
   user_id: string
   readonly plan_name: string
+}
+
+export type UserToken = {
+  id?: string
+  user_id: string
+  scope?: string | null
+  created?: string
+  updated?: string
+  expires: string
+  is_active: boolean
 }
 
 export type UserUpdate = {

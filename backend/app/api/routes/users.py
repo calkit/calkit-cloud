@@ -373,6 +373,7 @@ def get_user_tokens(
     query = select(UserToken).where(UserToken.user_id == current_user.id)
     if is_active is not None:
         query = query.where(UserToken.is_active == is_active)
+    query = query.order_by(UserToken.created)
     tokens = session.exec(query).fetchall()
     return tokens
 
