@@ -275,12 +275,14 @@ def _get_object_fs() -> s3fs.S3FileSystem | gcsfs.GCSFileSystem:
     return gcsfs.GCSFileSystem()
 
 
-def _make_data_fpath(project_id: str, idx: str, md5: str) -> str:
+def _make_data_fpath(
+    owner_name: str, project_name: str, idx: str, md5: str
+) -> str:
     if settings.ENVIRONMENT == "local":
         prefix = "s3://"
     else:
         prefix = "gcs://"
-    return f"{prefix}data/project_id={project_id}/{idx}/{md5}"
+    return f"{prefix}data/{owner_name}/{project_name}/{idx}/{md5}"
 
 
 def _get_object_url(
@@ -339,7 +341,9 @@ async def post_project_dvc_file(
     # Create bucket if it doesn't exist
     if not fs.exists("s3://data"):
         fs.makedir("s3://data")
-    fpath = _make_data_fpath(project.id, idx, md5)
+    fpath = _make_data_fpath(
+        owner_name=owner_name, project_name=project_name, idx=idx, md5=md5
+    )
     with fs.open(fpath, "wb") as f:
         # See https://stackoverflow.com/q/73322065/2284865
         async for chunk in req.stream():
@@ -366,7 +370,9 @@ def get_project_dvc_file(
         raise HTTPException(401)
     # If file doesn't exist, return 404
     fs = _get_object_fs()
-    fpath = _make_data_fpath(project.id, idx, md5)
+    fpath = _make_data_fpath(
+        owner_name=owner_name, project_name=project_name, idx=idx, md5=md5
+    )
     logger.info(f"Checking for {fpath}")
     if not fs.exists(fpath):
         logger.info(f"{fpath} does not exist")
@@ -646,7 +652,10 @@ def get_project_contents(
         if md5:
             fs = _get_object_fs()
             fp = _make_data_fpath(
-                project_id=project.id, idx=md5[:2], md5=md5[2:]
+                owner_name=owner_name,
+                project_name=project_name,
+                idx=md5[:2],
+                md5=md5[2:],
             )
             url = _get_object_url(fp, fname=os.path.basename(path), fs=fs)
             # Get content is the size is small enough
@@ -1037,7 +1046,10 @@ def post_project_figure(
         md5 = dvc_yaml["outs"][0]["md5"]
         fs = _get_object_fs()
         fpath = _make_data_fpath(
-            project_id=project.id, idx=md5[:2], md5=md5[2:]
+            owner_name=owner_name,
+            project_name=project_name,
+            idx=md5[:2],
+            md5=md5[2:],
         )
         with fs.open(fpath, "wb") as f:
             f.write(file_data)
