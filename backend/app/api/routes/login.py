@@ -47,7 +47,7 @@ def login_access_token(
     )
     return Token(
         access_token=security.create_access_token(
-            user.id, expires_delta=access_token_expires
+            subject=user.id, expires_delta=access_token_expires
         )
     )
 
@@ -191,7 +191,7 @@ def login_with_github(code: str, session: SessionDep) -> Token:
     # Lastly, generate an access token for this user
     return Token(
         access_token=security.create_access_token(
-            user.id,
+            subject=user.id,
             expires_delta=timedelta(
                 minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
             ),
