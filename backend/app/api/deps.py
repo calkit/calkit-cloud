@@ -29,7 +29,36 @@ SessionDep = Annotated[Session, Depends(get_db)]
 TokenDep = Annotated[str, Depends(reusable_oauth2)]
 
 
-def get_current_user(
+def get_current_user(session: SessionDep, token: TokenDep) -> User:
+    try:
+        payload = jwt.decode(
+            token, settings.SECRET_KEY, algorithms=[security.ALGORITHM]
+        )
+        token_data = TokenPayload(**payload)
+        token_scope = payload.get("scope")
+        if token_scope is not None:
+            raise HTTPException(403, "Invalid token scope")
+        if "token_id" in payload:
+            token_id = payload["token_id"]
+            token_active = session.exec(
+                select(UserToken.is_active).where(UserToken.id == token_id)
+            ).first()
+            if not token_active:
+                raise HTTPException(403, "Token has been deactivated")
+    except (InvalidTokenError, ValidationError):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Could not validate credentials",
+        )
+    user = session.get(User, token_data.sub)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if not user.is_active:
+        raise HTTPException(status_code=400, detail="Inactive user")
+    return user
+
+
+def get_current_user_with_token_scope(
     session: SessionDep, token: TokenDep, scope: str | None = None
 ) -> User:
     try:
@@ -62,7 +91,7 @@ def get_current_user(
 
 CurrentUser = Annotated[User, Depends(get_current_user)]
 CurrentUserDvcScope = Annotated[
-    User, Depends(partial(get_current_user, scope="dvc"))
+    User, Depends(partial(get_current_user_with_token_scope, scope="dvc"))
 ]
 
 
