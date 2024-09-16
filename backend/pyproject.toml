@@ -36,6 +36,7 @@ bibtexparser = "^1.4.1"
 filelock = "^3.16.0"
 stripe = "^10.11.0"
 mixpanel = "^4.10.1"
+gcsfs = "^2024.9.0.post1"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.4.3"
