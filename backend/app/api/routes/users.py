@@ -2,7 +2,7 @@
 
 import logging
 import uuid
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Literal
 
 import app.stripe
@@ -17,6 +17,7 @@ from app.models import (
     Message,
     NewSubscriptionResponse,
     SubscriptionUpdate,
+    Token,
     UpdatePassword,
     User,
     UserCreate,
@@ -24,15 +25,20 @@ from app.models import (
     UserRegister,
     UsersPublic,
     UserSubscription,
+    UserToken,
     UserUpdate,
     UserUpdateMe,
 )
-from app.security import get_password_hash, verify_password
+from app.security import (
+    create_access_token,
+    get_password_hash,
+    verify_password,
+)
 from app.subscriptions import PLAN_IDS, get_monthly_price
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.exc import DataError
-from sqlmodel import col, delete, func, select
+from sqlmodel import Field, col, delete, func, select
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -356,3 +362,72 @@ def put_user_subscription(
     session.commit()
     session.refresh(current_user.subscription)
     return current_user.subscription
+
+
+@router.get("/user/tokens")
+def get_user_tokens(
+    session: SessionDep,
+    current_user: CurrentUser,
+    is_active: bool | None = None,
+) -> list[UserToken]:
+    query = select(UserToken).where(UserToken.user_id == current_user.id)
+    if is_active is not None:
+        query = query.where(UserToken.is_active == is_active)
+    tokens = session.exec(query).fetchall()
+    return tokens
+
+
+class TokenPost(BaseModel):
+    expires_days: int = Field(ge=1, le=(365 * 3))
+    scope: Literal["dvc"] | None
+
+
+class TokenResp(UserToken, Token):
+    pass
+
+
+@router.post("/user/tokens")
+def post_user_token(
+    session: SessionDep, current_user: CurrentUser, req: TokenPost
+) -> TokenResp:
+    token = UserToken(
+        user_id=current_user.id,
+        expires=utcnow() + timedelta(days=req.expires_days),
+        scope=req.scope,
+        is_active=True,
+    )
+    session.add(token)
+    session.commit()
+    session.refresh(token)
+    # Create the token and put its ID in the payload so we can disable it
+    access_token = create_access_token(
+        subject=current_user.id,
+        expires_delta=timedelta(days=req.expires_days),
+        scope=req.scope,
+        token_id=token.id,
+    )
+    return TokenResp.model_validate(
+        token, update=dict(access_token=access_token)
+    )
+
+
+class TokenPatch(BaseModel):
+    is_active: bool
+
+
+@router.patch("/user/tokens/{token_id}")
+def patch_user_token(
+    session: SessionDep,
+    current_user: CurrentUser,
+    token_id: uuid.UUID,
+    req: TokenPatch,
+) -> UserToken:
+    token = session.get(UserToken, token_id)
+    if token is None:
+        raise HTTPException(404)
+    if token.user_id != current_user.id:
+        raise HTTPException(403, "Not your token")
+    token.is_active = req.is_active
+    session.commit()
+    session.refresh(token)
+    return token

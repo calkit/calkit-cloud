@@ -1,14 +1,14 @@
 """Authentication."""
 
+import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import jwt
 from app.config import settings
+from cryptography.fernet import Fernet
 from jwt.exceptions import InvalidTokenError
 from passlib.context import CryptContext
-
-from cryptography.fernet import Fernet
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -17,7 +17,11 @@ SCOPES = ["dvc"]
 
 
 def create_access_token(
-    subject: str | Any, expires_delta: timedelta, scope: str | None = None
+    subject: str | Any,
+    expires_delta: timedelta,
+    scope: str | None = None,
+    add_payload: dict | None = None,
+    token_id: uuid.UUID | None = None,
 ) -> str:
     """Create an access token.
 
@@ -38,6 +42,8 @@ def create_access_token(
             if s not in SCOPES:
                 raise ValueError(f"{s} is not a valid scope")
         to_encode["scope"] = scope
+    if token_id is not None:
+        to_encode["token_id"] = str(token_id)
     encoded_jwt = jwt.encode(
         to_encode, settings.SECRET_KEY, algorithm=ALGORITHM
     )

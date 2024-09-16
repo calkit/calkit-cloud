@@ -262,6 +262,16 @@ class TokenPayload(SQLModel):
     sub: str | None = None
 
 
+class UserToken(SQLModel, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="user.id")
+    scope: str | None = None
+    created: datetime = Field(default_factory=utcnow)
+    updated: datetime = Field(default_factory=utcnow)
+    expires: datetime
+    is_active: bool
+
+
 class NewPassword(SQLModel):
     token: str
     new_password: str = Field(min_length=8, max_length=40)
