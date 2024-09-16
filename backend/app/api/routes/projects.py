@@ -306,7 +306,7 @@ def _get_object_url(
             kws["response_disposition"] = f"attachment;filename={fname}"
         if fname.endswith(".pdf"):
             kws["content_type"] = "application/pdf"
-    url: str = fs.sign(fpath, expires=expires, **kws)
+    url: str = fs.sign(fpath, expiration=expires, **kws)
     if settings.ENVIRONMENT == "local":
         url = url.replace(
             "http://minio:9000", f"http://objects.{settings.DOMAIN}"
