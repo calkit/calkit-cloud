@@ -42,13 +42,14 @@ function UserTokens() {
               <Th>ID</Th>
               <Th>Created</Th>
               <Th>Expires</Th>
+              <Th>Scope</Th>
               <Th>Active</Th>
             </Tr>
           </Thead>
           {tokensQuery.isPending || tokenActiveMutation.isPending ? (
             <Tbody>
               <Tr>
-                {new Array(4).fill(null).map((_, index) => (
+                {new Array(5).fill(null).map((_, index) => (
                   <Td key={index}>
                     <SkeletonText noOfLines={1} paddingBlock="16px" />
                   </Td>
@@ -70,6 +71,9 @@ function UserTokens() {
                   </Td>
                   <Td isTruncated maxWidth="150px">
                     {token.expires}
+                  </Td>
+                  <Td isTruncated maxWidth="150px">
+                    {token.scope ? token.scope : ""}
                   </Td>
                   <Td isTruncated maxWidth="150px">
                     <Checkbox
