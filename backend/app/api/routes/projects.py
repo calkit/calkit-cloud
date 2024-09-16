@@ -272,7 +272,7 @@ def _get_object_fs() -> s3fs.S3FileSystem | gcsfs.GCSFileSystem:
             key="root",
             secret=os.getenv("MINIO_ROOT_PASSWORD"),
         )
-    return gcsfs.GCSFileSystem()
+    return gcsfs.GCSFileSystem(token="cloud")
 
 
 def _get_data_prefix() -> str:
