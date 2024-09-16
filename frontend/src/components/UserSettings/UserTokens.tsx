@@ -8,10 +8,13 @@ import {
   Tbody,
   SkeletonText,
   Checkbox,
+  Button,
+  useDisclosure,
 } from "@chakra-ui/react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 
 import { UsersService, type TokenPatch } from "../../client"
+import NewToken from "./NewToken"
 
 function UserTokens() {
   const queryClient = useQueryClient()
@@ -32,9 +35,14 @@ function UserTokens() {
     onSettled: () =>
       queryClient.invalidateQueries({ queryKey: ["user", "tokens"] }),
   })
+  const newTokenModal = useDisclosure()
 
   return (
     <>
+      <Button variant={"primary"} mb={4} ml={4} onClick={newTokenModal.onOpen}>
+        Create new token
+      </Button>
+      <NewToken isOpen={newTokenModal.isOpen} onClose={newTokenModal.onClose} />
       <TableContainer>
         <Table size={{ base: "sm", md: "md" }}>
           <Thead>
