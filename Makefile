@@ -1,6 +1,8 @@
+DOCKER_COMPOSE_DEV=docker compose -f docker-compose.yml -f docker-compose.override.yml
+
 .PHONY: api-dev
 api-dev:
-	docker compose -f docker-compose.yml -f docker-compose.override.yml up backend
+	${DOCKER_COMPOSE_DEV} up backend
 
 .PHONY: local-api
 local-api:
@@ -8,4 +10,8 @@ local-api:
 
 .PHONY: dev
 dev:
-	docker compose -f docker-compose.yml -f docker-compose.override.yml up
+	${DOCKER_COMPOSE_DEV} up
+
+.PHONY: build-dev
+build-dev:
+	${DOCKER_COMPOSE_DEV} build
