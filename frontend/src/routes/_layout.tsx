@@ -73,7 +73,7 @@ function PickSubscription({ user }: PickSubscriptionProps) {
   // TODO: These plans should probably come from the back end
   const plans = [
     { name: "Free", price: null, privateProjects: 1, storageGb: 1 },
-    { name: "Standard", price: 10, privateProjects: 2, storageGb: 10 },
+    { name: "Standard", price: 10, privateProjects: 2, storageGb: 50 },
     {
       name: "Professional",
       price: 50,
