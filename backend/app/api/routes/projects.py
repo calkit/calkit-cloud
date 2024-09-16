@@ -17,7 +17,7 @@ import requests
 import s3fs
 import yaml
 from app import users
-from app.api.deps import CurrentUser, SessionDep
+from app.api.deps import CurrentUser, CurrentUserDvcScope, SessionDep
 from app.config import settings
 from app.core import (
     CATEGORIES_PLURAL_TO_SINGULAR,
@@ -322,7 +322,7 @@ async def post_project_dvc_file(
     idx: str,
     md5: str,
     session: SessionDep,
-    current_user: CurrentUser,
+    current_user: CurrentUserDvcScope,
     req: Request,
 ) -> Message:
     logger.info(
@@ -359,7 +359,7 @@ def get_project_dvc_file(
     idx: str,
     md5: str,
     session: SessionDep,
-    current_user: CurrentUser,
+    current_user: CurrentUserDvcScope,
 ) -> StreamingResponse:
     logger.info(f"{current_user.email} requesting to GET data")
     project = app.projects.get_project(

@@ -1,17 +1,19 @@
+"""Dependencies to use in API routes."""
+
 from collections.abc import Generator
+from functools import partial
 from typing import Annotated
 
 import jwt
+from app import security
+from app.config import settings
+from app.db import engine
+from app.models import TokenPayload, User
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jwt.exceptions import InvalidTokenError
 from pydantic import ValidationError
 from sqlmodel import Session
-
-from app import security
-from app.config import settings
-from app.db import engine
-from app.models import TokenPayload, User
 
 reusable_oauth2 = OAuth2PasswordBearer(
     tokenUrl=f"{settings.API_V1_STR}/login/access-token"
@@ -27,12 +29,17 @@ SessionDep = Annotated[Session, Depends(get_db)]
 TokenDep = Annotated[str, Depends(reusable_oauth2)]
 
 
-def get_current_user(session: SessionDep, token: TokenDep) -> User:
+def get_current_user(
+    session: SessionDep, token: TokenDep, scope: str | None = None
+) -> User:
     try:
         payload = jwt.decode(
             token, settings.SECRET_KEY, algorithms=[security.ALGORITHM]
         )
         token_data = TokenPayload(**payload)
+        token_scope = payload.get("scope")
+        if token_scope is not None and token_scope != scope:
+            raise HTTPException(403, "Invalid token scope")
     except (InvalidTokenError, ValidationError):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -47,6 +54,9 @@ def get_current_user(session: SessionDep, token: TokenDep) -> User:
 
 
 CurrentUser = Annotated[User, Depends(get_current_user)]
+CurrentUserDvcScope = Annotated[
+    User, Depends(partial(get_current_user, scope="dvc"))
+]
 
 
 def get_current_active_superuser(current_user: CurrentUser) -> User:
