@@ -344,6 +344,8 @@ async def post_project_dvc_file(
     # Create bucket if it doesn't exist -- only necessary with MinIO
     if settings.ENVIRONMENT == "local" and not fs.exists(_get_data_prefix()):
         fs.makedir(_get_data_prefix())
+    # TODO: Create presigned PUT to upload the file so it doesn't need to pass
+    # through this server
     fpath = _make_data_fpath(
         owner_name=owner_name, project_name=project_name, idx=idx, md5=md5
     )
