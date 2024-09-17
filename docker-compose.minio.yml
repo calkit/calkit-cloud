@@ -1,0 +1,6 @@
+volumes:
+  minio-data:
+    name: calkit-${ENVIRONMENT}
+    driver: ofekmeister/gcsfs
+    driver_opts:
+      key: ${GOOGLE_CREDENTIALS}
