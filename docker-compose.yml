@@ -148,6 +148,7 @@ services:
       - traefik.http.routers.${STACK_NAME?Variable not set}-minio-https.entrypoints=https
       - traefik.http.routers.${STACK_NAME?Variable not set}-minio-https.tls=true
       - traefik.http.routers.${STACK_NAME?Variable not set}-minio-https.tls.certresolver=le
+      - traefik.http.routers.${STACK_NAME?Variable not set}-minio-https.service=${STACK_NAME?Variable not set}-minio
       - traefik.http.services.${STACK_NAME?Variable not set}-minio.loadbalancer.server.port=9000
       # Labels for admin console
       - traefik.http.routers.${STACK_NAME?Variable not set}-minio-admin-http.rule=Host(`console.objects.${DOMAIN?Variable not set}`)
