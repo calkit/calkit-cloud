@@ -165,6 +165,14 @@ def login_with_github(code: str, session: SessionDep) -> Token:
         headers={"Authorization": f"Bearer {out['access_token']}"},
     ).json()
     logger.debug(f"Received GitHub user: {gh_user}")
+    if settings.ENVIRONMENT == "staging" and gh_user["login"] not in [
+        "petebachant",
+        "abachant",
+    ]:
+        logger.warning(
+            f"GitHub user {gh_user['login']} attempting to log in on staging"
+        )
+        raise HTTPException(403)
     user = users.get_user_by_email(session=session, email=gh_user["email"])
     if user is None:
         logger.info("Creating new user")
