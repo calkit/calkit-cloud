@@ -163,6 +163,8 @@ services:
 
 volumes:
   app-db-data:
+  minio-data:
+    driver: local
 
 networks:
   traefik-public:

@@ -84,39 +84,6 @@ services:
       args:
         - NODE_ENV=development
 
-  minio:
-    image: quay.io/minio/minio
-    command: server /data --console-address ":9001"
-    restart: always
-    networks:
-      - traefik-public
-      - default
-    ports:
-      - '9000:9000'
-      - '9001:9001'
-    volumes:
-      - 'minio-data:/data'
-    environment:
-      - MINIO_ROOT_USER=root
-      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD?Variable not set}
-      - MINIO_DEFAULT_BUCKETS=data
-    labels:
-      - traefik.enable=true
-      - traefik.docker.network=traefik-public
-      - traefik.constraint-label=traefik-public
-      - traefik.http.routers.${STACK_NAME?Variable not set}-minio-http.rule=Host(`objects.${DOMAIN?Variable not set}`)
-      - traefik.http.routers.${STACK_NAME?Variable not set}-minio-http.entrypoints=http
-      - traefik.http.routers.${STACK_NAME?Variable not set}-minio-http.middlewares=https-redirect
-      - traefik.http.routers.${STACK_NAME?Variable not set}-minio-https.rule=Host(`objects.${DOMAIN?Variable not set}`)
-      - traefik.http.routers.${STACK_NAME?Variable not set}-minio-https.entrypoints=https
-      - traefik.http.routers.${STACK_NAME?Variable not set}-minio-https.tls=true
-      - traefik.http.routers.${STACK_NAME?Variable not set}-minio-https.tls.certresolver=le
-      - traefik.http.services.${STACK_NAME?Variable not set}-minio.loadbalancer.server.port=9000
-
-volumes:
-  minio-data:
-    driver: local
-
 networks:
   traefik-public:
     # For local dev, don't expect an external Traefik network
