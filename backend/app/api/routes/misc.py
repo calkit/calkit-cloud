@@ -2,6 +2,7 @@
 
 import os
 import uuid
+from typing import Literal
 
 from app.api.deps import CurrentUser, SessionDep, get_current_active_superuser
 from app.core import utcnow
@@ -194,3 +195,19 @@ async def post_stripe_event(request: Request):
         # upon your subscription settings. Or if the user cancels it.
         # print(data)
         print("Subscription canceled: %s", event.id)
+
+
+class PresignedUrlRequest(BaseModel):
+    path: str
+    client_method: Literal["get_object", "put_object"] = "get_object"
+
+
+@router.post("/presigned-urls", include_in_schema=False)
+def post_presigned_url(
+    current_user: CurrentUser, session: SessionDep, req: PresignedUrlRequest
+):
+    from app.api.routes.projects import _get_object_url
+
+    if not current_user.is_superuser:
+        raise HTTPException(403)
+    return _get_object_url(req.path, client_method=req.client_method)
