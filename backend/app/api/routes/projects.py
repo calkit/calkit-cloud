@@ -353,12 +353,21 @@ async def post_project_dvc_file(
     )
     # TODO: Use a pending path during upload so we can rename after
     sig = hashlib.md5()
-    with fs.open(fpath, "wb") as f:
+    with fs.open(fpath + ".pending", "wb") as f:
         # See https://stackoverflow.com/q/73322065/2284865
         async for chunk in req.stream():
             f.write(chunk)
             sig.update(chunk)
-    logger.info(f"Computed MD5 from DVC post: {sig.hexdigest()}")
+    digest = sig.hexdigest()
+    logger.info(f"Computed MD5 from DVC post: {digest}")
+    if md5.endswith(".dir"):
+        digest += ".dir"
+    if digest == idx + md5:
+        logger.info("MD5 matches; removing pending suffix")
+        fs.mv(fpath + ".pending", fpath)
+    else:
+        logger.warning("MD5 does not match")
+        raise HTTPException(400, "MD5 does not match")
     return Message(message="Success")
 
 
