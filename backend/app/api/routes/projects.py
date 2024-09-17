@@ -351,6 +351,7 @@ async def post_project_dvc_file(
     fpath = _make_data_fpath(
         owner_name=owner_name, project_name=project_name, idx=idx, md5=md5
     )
+    # TODO: Use a pending path during upload so we can rename after
     sig = hashlib.md5()
     with fs.open(fpath, "wb") as f:
         # See https://stackoverflow.com/q/73322065/2284865
@@ -386,20 +387,6 @@ def get_project_dvc_file(
     logger.info(f"Checking for {fpath}")
     if not fs.exists(fpath):
         logger.info(f"{fpath} does not exist")
-        raise HTTPException(404)
-    # Check the MD5 hash of this object is correct
-    sig = hashlib.md5()
-    with fs.open(fpath, "rb") as f:
-        chunker = functools.partial(f.read, 4_000_000)
-        for chunk in iter(chunker, b""):
-            sig.update(chunk)
-    digest = sig.hexdigest()
-    logger.info(f"Computed MD5: {digest}")
-    if md5.endswith(".dir"):
-        digest += ".dir"
-    if digest != idx + md5:
-        logger.warning("Object MD5 does not match")
-        # The file is corrupted or incomplete, so should be reuploaded
         raise HTTPException(404)
     # TODO: Check if this user has read access to this project
     # Stream the file contents back to the user
