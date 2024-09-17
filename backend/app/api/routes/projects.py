@@ -269,7 +269,7 @@ def get_project_git_repo(
 def _get_object_fs() -> s3fs.S3FileSystem | gcsfs.GCSFileSystem:
     if settings.ENVIRONMENT == "local":
         return s3fs.S3FileSystem(
-            endpoint_url=f"http://minio:9000",
+            endpoint_url="http://objects.localhost",
             key="root",
             secret=os.getenv("MINIO_ROOT_PASSWORD"),
         )
