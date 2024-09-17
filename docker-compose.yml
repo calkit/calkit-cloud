@@ -149,7 +149,17 @@ services:
       - traefik.http.routers.${STACK_NAME?Variable not set}-minio-https.tls=true
       - traefik.http.routers.${STACK_NAME?Variable not set}-minio-https.tls.certresolver=le
       - traefik.http.services.${STACK_NAME?Variable not set}-minio.loadbalancer.server.port=9000
-      - traefik.http.services.${STACK_NAME?Variable not set}-minio.loadbalancer.server.port=9001
+      # Labels for admin console
+      - traefik.http.routers.${STACK_NAME?Variable not set}-minio-admin-http.rule=Host(`console.objects.${DOMAIN?Variable not set}`)
+      - traefik.http.routers.${STACK_NAME?Variable not set}-minio-admin-http.entrypoints=http
+      - traefik.http.routers.${STACK_NAME?Variable not set}-minio-admin-http.middlewares=https-redirect
+      - traefik.http.routers.${STACK_NAME?Variable not set}-minio-admin-http.service=${STACK_NAME?Variable not set}-minio-admin
+      - traefik.http.routers.${STACK_NAME?Variable not set}-minio-admin-https.rule=Host(`console.objects.${DOMAIN?Variable not set}`)
+      - traefik.http.routers.${STACK_NAME?Variable not set}-minio-admin-https.entrypoints=https
+      - traefik.http.routers.${STACK_NAME?Variable not set}-minio-admin-https.tls=true
+      - traefik.http.routers.${STACK_NAME?Variable not set}-minio-admin-https.tls.certresolver=le
+      - traefik.http.routers.${STACK_NAME?Variable not set}-minio-admin-https.service=${STACK_NAME?Variable not set}-minio-admin
+      - traefik.http.services.${STACK_NAME?Variable not set}-minio-admin.loadbalancer.server.port=9001
 
 volumes:
   app-db-data:
