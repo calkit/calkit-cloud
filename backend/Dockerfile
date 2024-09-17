@@ -17,7 +17,7 @@ RUN bash -c "if [ $INSTALL_DEV == 'true' ] ; then poetry install --no-root ; els
 
 # Add Google credentials if specified
 ARG GOOGLE_CREDENTIALS
-RUN bash -c "if [ $GOOGLE_CREDENTIALS ] ; then mkdir -p /root/.config/gcloud && echo $GOOGLE_CREDENTIALS > /root/.config/gcloud/application_default_credentials.json ; fi"
+RUN bash -c "if [ '$GOOGLE_CREDENTIALS' ] ; then mkdir -p /root/.config/gcloud && echo '$GOOGLE_CREDENTIALS' > /root/.config/gcloud/application_default_credentials.json ; fi"
 
 ENV PYTHONPATH=/app
 
