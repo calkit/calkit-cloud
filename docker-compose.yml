@@ -137,7 +137,6 @@ services:
       - MINIO_ROOT_USER=root
       - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD?Variable not set}
       - MINIO_DEFAULT_BUCKETS=data
-      - MINIO_BROWSER_REDIRECT_URL=console.objects.${DOMAIN?Variable not set}`
     labels:
       - traefik.enable=true
       - traefik.docker.network=traefik-public
