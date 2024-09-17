@@ -71,6 +71,7 @@ services:
       context: ./backend
       args:
         INSTALL_DEV: ${INSTALL_DEV-false}
+        GOOGLE_CREDENTIALS: ${GOOGLE_CREDENTIALS-}
     platform: linux/amd64 # Patch for M1 Mac
     labels:
       - traefik.enable=true

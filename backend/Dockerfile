@@ -15,6 +15,10 @@ COPY ./pyproject.toml ./poetry.lock* /app/
 ARG INSTALL_DEV=false
 RUN bash -c "if [ $INSTALL_DEV == 'true' ] ; then poetry install --no-root ; else poetry install --no-root --only main ; fi"
 
+# Add Google credentials if specified
+ARG GOOGLE_CREDENTIALS
+RUN bash -c "if [ $GOOGLE_CREDENTIALS ] ; then mkdir -p /root/.config/gcloud && echo $GOOGLE_CREDENTIALS > /root/.config/gcloud/application_default_credentials.json ; fi"
+
 ENV PYTHONPATH=/app
 
 ENV PYTHONUNBUFFERED=1
