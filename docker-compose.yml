@@ -149,6 +149,7 @@ services:
       - traefik.http.routers.${STACK_NAME?Variable not set}-minio-https.tls=true
       - traefik.http.routers.${STACK_NAME?Variable not set}-minio-https.tls.certresolver=le
       - traefik.http.services.${STACK_NAME?Variable not set}-minio.loadbalancer.server.port=9000
+      - traefik.http.services.${STACK_NAME?Variable not set}-minio.loadbalancer.server.port=9001
 
 volumes:
   app-db-data:
