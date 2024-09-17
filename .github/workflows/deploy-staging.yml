@@ -37,7 +37,7 @@ jobs:
       DOCKER_IMAGE_FRONTEND: "frontend-${{ vars.STACK_NAME }}"
       GH_CLIENT_ID: ${{ secrets.GH_CLIENT_ID }}
       GH_CLIENT_SECRET: ${{ secrets.GH_CLIENT_SECRET }}
-      MINIO_ROOT_PASSWORD: TODO
+      MINIO_ROOT_PASSWORD: ${{ secrets.MINIO_ROOT_PASSWORD }}
       STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
       STRIPE_PUBLISHABLE_KEY: ${{ secrets.STRIPE_PUBLISHABLE_KEY }}
       MIXPANEL_TOKEN: ${{ secrets.MIXPANEL_TOKEN }}
