@@ -144,6 +144,7 @@ services:
       - traefik.http.routers.${STACK_NAME?Variable not set}-minio-http.rule=Host(`objects.${DOMAIN?Variable not set}`)
       - traefik.http.routers.${STACK_NAME?Variable not set}-minio-http.entrypoints=http
       - traefik.http.routers.${STACK_NAME?Variable not set}-minio-http.middlewares=https-redirect
+      - traefik.http.routers.${STACK_NAME?Variable not set}-minio-http.service=${STACK_NAME?Variable not set}-minio
       - traefik.http.routers.${STACK_NAME?Variable not set}-minio-https.rule=Host(`objects.${DOMAIN?Variable not set}`)
       - traefik.http.routers.${STACK_NAME?Variable not set}-minio-https.entrypoints=https
       - traefik.http.routers.${STACK_NAME?Variable not set}-minio-https.tls=true
