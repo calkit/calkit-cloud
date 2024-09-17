@@ -293,6 +293,7 @@ def _get_object_url(
     fname: str = None,
     expires: int = 3600 * 24,
     fs: s3fs.S3FileSystem | gcsfs.GCSFileSystem | None = None,
+    **kwargs,
 ) -> str:
     """Get a presigned URL for an object in object storage."""
     if fs is None:
@@ -301,15 +302,15 @@ def _get_object_url(
         kws = {}
         if fname is not None:
             kws["ResponseContentDisposition"] = f"filename={fname}"
-        if fname.endswith(".pdf"):
-            kws["ResponseContentType"] = "application/pdf"
+            if fname.endswith(".pdf"):
+                kws["ResponseContentType"] = "application/pdf"
     else:
         kws = {}
         if fname is not None:
             kws["response_disposition"] = f"attachment;filename={fname}"
-        if fname.endswith(".pdf"):
-            kws["content_type"] = "application/pdf"
-    url: str = fs.sign(fpath, expiration=expires, **kws)
+            if fname.endswith(".pdf"):
+                kws["content_type"] = "application/pdf"
+    url: str = fs.sign(fpath, expiration=expires, **(kws | kwargs))
     if settings.ENVIRONMENT == "local":
         url = url.replace(
             "http://minio:9000", f"http://objects.{settings.DOMAIN}"
