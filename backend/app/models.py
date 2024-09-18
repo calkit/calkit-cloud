@@ -4,6 +4,7 @@ import uuid
 from datetime import datetime
 from typing import Literal, Union
 
+import sqlalchemy
 from app import utcnow
 from app.subscriptions import PLAN_IDS, PLAN_NAMES
 from pydantic import BaseModel, EmailStr, computed_field
@@ -13,6 +14,12 @@ from sqlmodel import Field, Relationship, SQLModel
 class Account(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     name: str = Field(min_length=2, max_length=64, unique=True)
+    created: datetime = Field(
+        default_factory=utcnow,
+        sa_column_kwargs=dict(
+            server_default=sqlalchemy.func.current_timestamp()
+        ),
+    )
     user_id: uuid.UUID = Field(foreign_key="user.id", nullable=True)
     org_id: uuid.UUID = Field(foreign_key="org.id", nullable=True)
     github_name: str
