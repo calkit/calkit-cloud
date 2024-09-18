@@ -6,7 +6,7 @@ from datetime import timedelta
 from typing import Annotated, Any
 
 import requests
-from app import security, users
+from app import mixpanel, security, users
 from app.api.deps import CurrentUser, SessionDep, get_current_active_superuser
 from app.config import settings
 from app.github import token_resp_text_to_dict
@@ -187,6 +187,7 @@ def login_with_github(code: str, session: SessionDep) -> Token:
                 password=secrets.token_urlsafe(32),
             ),
         )
+        mixpanel.user_signed_up(user)
     if user.github_username != gh_user["login"]:
         logger.info("GitHub usernames do not match")
         # Check that GitHub username matches, else fail?
