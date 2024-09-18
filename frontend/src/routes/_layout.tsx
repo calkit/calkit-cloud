@@ -33,6 +33,7 @@ import {
 import { MdCancel, MdCheck } from "react-icons/md"
 import { useState } from "react"
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query"
+import mixpanel from "mixpanel-browser"
 
 import useAuth, { isLoggedIn } from "../hooks/useAuth"
 import Topbar from "../components/Common/Topbar"
@@ -373,6 +374,15 @@ function PickSubscription({ user }: PickSubscriptionProps) {
 
 function Layout() {
   const { isLoading, user } = useAuth()
+  if (user) {
+    mixpanel.identify(user.id)
+    mixpanel.people.set({
+      $name: user.full_name,
+      $email: user.email,
+      $github_username: user.github_username,
+      $plan_name: user.subscription?.plan_name,
+    })
+  }
 
   return (
     <Box>

@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
 import { useState } from "react"
+import mixpanel from "mixpanel-browser"
 
 import { AxiosError } from "axios"
 import {
@@ -104,6 +105,7 @@ const useAuth = () => {
 
   const logout = () => {
     localStorage.removeItem("access_token")
+    mixpanel.reset()
     navigate({ to: "/login" })
   }
 
