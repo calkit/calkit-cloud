@@ -5,6 +5,7 @@ import Logo from "/assets/images/kdot.svg"
 import useAuth, { isLoggedIn } from "../hooks/useAuth"
 import { z } from "zod"
 import { useEffect, useRef } from "react"
+import mixpanel from "mixpanel-browser"
 
 const githubAuthParamsSchema = z.object({
   code: z.string().optional(),
@@ -48,6 +49,11 @@ function Login() {
     }
   }, [])
 
+  const handleLoginClicked = () => {
+    mixpanel.track("Clicked login")
+    location.href = `https://github.com/login/oauth/authorize?client_id=${clientId}&state=${ghAuthStateParam}`
+  }
+
   return (
     <>
       <Container
@@ -69,9 +75,7 @@ function Login() {
         <Button
           variant="primary"
           isLoading={loginGitHubMutation.isPending}
-          onClick={() =>
-            (location.href = `https://github.com/login/oauth/authorize?client_id=${clientId}&state=${ghAuthStateParam}`)
-          }
+          onClick={handleLoginClicked}
         >
           Sign in with GitHub
         </Button>

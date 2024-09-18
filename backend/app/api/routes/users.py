@@ -407,7 +407,7 @@ def post_user_token(
         scope=req.scope,
         token_id=token.id,
     )
-    mixpanel.created_new_token(
+    mixpanel.user_created_new_token(
         current_user, scope=req.scope, expires_days=req.expires_days
     )
     return TokenResp.model_validate(

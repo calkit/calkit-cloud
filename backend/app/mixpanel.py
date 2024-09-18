@@ -18,9 +18,17 @@ def track(
     )
 
 
-def created_new_token(user: User, scope: str, expires_days: int):
+def user_created_new_token(user: User, scope: str, expires_days: int):
     track(
         user,
         "Created new token",
         add_event_info=dict(scope=scope, expires_days=expires_days),
     )
+
+
+def user_logged_in(user: User):
+    track(user, "Logged in")
+
+
+def user_signed_up(user: User):
+    track(user, "Signed up")

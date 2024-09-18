@@ -198,6 +198,7 @@ def login_with_github(code: str, session: SessionDep) -> Token:
     # Save the user's GitHub token for later
     users.save_github_token(session=session, user=user, github_resp=out)
     # Lastly, generate an access token for this user
+    mixpanel.user_logged_in(user)
     return Token(
         access_token=security.create_access_token(
             subject=user.id,
