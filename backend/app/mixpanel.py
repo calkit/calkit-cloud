@@ -14,7 +14,10 @@ def track(
     meta: dict | None = None,
 ):
     return mp.track(
-        user.id, event_name=event_name, properties=add_event_info, meta=meta
+        str(user.id),
+        event_name=event_name,
+        properties=add_event_info,
+        meta=meta,
     )
 
 
