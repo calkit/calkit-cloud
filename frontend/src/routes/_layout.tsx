@@ -373,7 +373,7 @@ function PickSubscription({ user }: PickSubscriptionProps) {
 }
 
 function Layout() {
-  const { isLoading, user } = useAuth()
+  const { isLoading, user, logout } = useAuth()
   if (user) {
     mixpanel.identify(user.id)
     mixpanel.people.set({
@@ -382,6 +382,8 @@ function Layout() {
       $github_username: user.github_username,
       $plan_name: user.subscription?.plan_name,
     })
+  } else if (!isLoading && !user) {
+    logout()
   }
 
   return (
