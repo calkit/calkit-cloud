@@ -16,3 +16,11 @@ def track(
     return mp.track(
         user.id, event_name=event_name, properties=add_event_info, meta=meta
     )
+
+
+def created_new_token(user: User, scope: str, expires_days: int):
+    track(
+        user,
+        "Created new token",
+        add_event_info=dict(scope=scope, expires_days=expires_days),
+    )

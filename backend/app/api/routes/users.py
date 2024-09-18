@@ -7,7 +7,7 @@ from typing import Literal
 
 import app.stripe
 import requests
-from app import users
+from app import mixpanel, users
 from app.api.deps import CurrentUser, SessionDep, get_current_active_superuser
 from app.config import settings
 from app.core import utcnow
@@ -406,6 +406,9 @@ def post_user_token(
         expires_delta=timedelta(days=req.expires_days),
         scope=req.scope,
         token_id=token.id,
+    )
+    mixpanel.created_new_token(
+        current_user, scope=req.scope, expires_days=req.expires_days
     )
     return TokenResp.model_validate(
         token, update=dict(access_token=access_token)
