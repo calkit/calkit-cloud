@@ -16,6 +16,7 @@ import {
 } from "@chakra-ui/react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { type SubmitHandler, useForm } from "react-hook-form"
+import mixpanel from "mixpanel-browser"
 
 import {
   type ApiError,
@@ -61,6 +62,7 @@ const AddProject = ({ isOpen, onClose }: AddProjectProps) => {
     mutationFn: (data: ProjectCreate) =>
       ProjectsService.createProject({ requestBody: data }),
     onSuccess: () => {
+      mixpanel.track("Created new project")
       showToast("Success!", "Project created successfully.", "success")
       reset()
       onClose()

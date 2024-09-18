@@ -16,6 +16,7 @@ import {
 } from "@chakra-ui/react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { type SubmitHandler, useForm } from "react-hook-form"
+import mixpanel from "mixpanel-browser"
 
 import {
   type ApiError,
@@ -64,6 +65,7 @@ const CreateProjectFromGitHub = ({ isOpen, onClose }: AddProjectProps) => {
       return ProjectsService.createProject({ requestBody: data })
     },
     onSuccess: () => {
+      mixpanel.track("Created project from GitHub")
       showToast("Success!", "Project created successfully.", "success")
       reset()
       onClose()
