@@ -104,6 +104,8 @@ class Settings(BaseSettings):
     # Stripe
     STRIPE_SECRET_KEY: str
     STRIPE_PUBLISHABLE_KEY: str
+    # Mixpanel
+    MIXPANEL_TOKEN: str
 
     def _check_default_secret(self, var_name: str, value: str | None) -> None:
         if value == "changethis":
