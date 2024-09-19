@@ -167,6 +167,7 @@ def login_with_github(code: str, session: SessionDep) -> Token:
     logger.debug(f"Received GitHub user: {gh_user}")
     if settings.ENVIRONMENT == "staging" and gh_user["login"] not in [
         "petebachant",
+        "pbachant",
         "abachant",
     ]:
         logger.warning(
