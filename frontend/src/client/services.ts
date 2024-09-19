@@ -136,12 +136,16 @@ export type MiscData = {
 }
 
 export type ProjectsData = {
-  GetOwnedProjects: {
+  GetProjects: {
     limit?: number
     offset?: number
   }
   CreateProject: {
     requestBody: ProjectCreate
+  }
+  GetOwnedProjects: {
+    limit?: number
+    offset?: number
   }
   GetProject: {
     projectId: string
@@ -871,17 +875,17 @@ export class MiscService {
 
 export class ProjectsService {
   /**
-   * Get Owned Projects
+   * Get Projects
    * @returns ProjectsPublic Successful Response
    * @throws ApiError
    */
-  public static getOwnedProjects(
-    data: ProjectsData["GetOwnedProjects"] = {},
+  public static getProjects(
+    data: ProjectsData["GetProjects"] = {},
   ): CancelablePromise<ProjectsPublic> {
     const { limit = 100, offset = 0 } = data
     return __request(OpenAPI, {
       method: "GET",
-      url: "/user/projects",
+      url: "/projects",
       query: {
         limit,
         offset,
@@ -907,6 +911,28 @@ export class ProjectsService {
       url: "/projects",
       body: requestBody,
       mediaType: "application/json",
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Get Owned Projects
+   * @returns ProjectsPublic Successful Response
+   * @throws ApiError
+   */
+  public static getOwnedProjects(
+    data: ProjectsData["GetOwnedProjects"] = {},
+  ): CancelablePromise<ProjectsPublic> {
+    const { limit = 100, offset = 0 } = data
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/user/projects",
+      query: {
+        limit,
+        offset,
+      },
       errors: {
         422: `Validation Error`,
       },

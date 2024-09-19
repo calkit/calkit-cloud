@@ -50,12 +50,46 @@ from app.models import (
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from sqlmodel import Session, func, select
+from sqlmodel import Session, func, or_, select
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+@router.get("/projects")
+def get_projects(
+    session: SessionDep,
+    current_user: CurrentUser,
+    limit: int = 100,
+    offset: int = 0,
+) -> ProjectsPublic:
+    # TODO: Handle collaborator access in addition to public
+    count_query = (
+        select(func.count())
+        .select_from(Project)
+        .where(
+            or_(
+                Project.is_public,
+                Project.owner_account_id == current_user.account.id,
+            )
+        )
+    )
+    count = session.exec(count_query).one()
+    select_query = (
+        select(Project)
+        .where(
+            or_(
+                Project.is_public,
+                Project.owner_account_id == current_user.account.id,
+            )
+        )
+        .limit(limit)
+        .offset(offset)
+    )
+    projects = session.exec(select_query).all()
+    return ProjectsPublic(data=projects, count=count)
 
 
 @router.get("/user/projects")
@@ -397,6 +431,7 @@ def get_project_dvc_file(
     if not fs.exists(fpath):
         logger.info(f"{fpath} does not exist")
         raise HTTPException(404)
+
     # TODO: Check if this user has read access to this project
     # Stream the file contents back to the user
     def iterfile():
