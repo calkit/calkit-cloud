@@ -458,5 +458,6 @@ def get_user_github_app_installations(
         )
     resp_json = resp.json()
     n = resp_json["total_count"]
-    logger.info(f"User {current_user.email} has {n} installations")
+    accounts = [i["account"]["login"] for i in resp_json["installations"]]
+    logger.info(f"User {current_user.email} has {n} installations: {accounts}")
     return GitHubInstallations.model_validate(resp_json)
