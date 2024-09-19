@@ -435,3 +435,25 @@ def patch_user_token(
     session.commit()
     session.refresh(token)
     return token
+
+
+class GitHubInstallations(BaseModel):
+    total_count: int
+    installations: list[dict]
+
+
+@router.get("/user/github-app-installations")
+def get_user_github_app_installations(
+    session: SessionDep, current_user: CurrentUser
+) -> GitHubInstallations:
+    token = users.get_github_token(session=session, user=current_user)
+    url = f"https://api.github.com/user/installations"
+    logger.info(f"Making request to: {url}")
+    headers = {"Authorization": f"Bearer {token}"}
+    resp = requests.get(url, headers=headers)
+    logger.info(f"Response status code from GitHub: {resp.status_code}")
+    if resp.status_code != 200:
+        raise HTTPException(
+            resp.status_code, "Could not fetch GitHub installations"
+        )
+    return GitHubInstallations.model_validate(resp.json())
