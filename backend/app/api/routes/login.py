@@ -164,7 +164,12 @@ def login_with_github(code: str, session: SessionDep) -> Token:
         "https://api.github.com/user",
         headers={"Authorization": f"Bearer {out['access_token']}"},
     ).json()
-    logger.debug(f"Received GitHub user: {gh_user}")
+    logger.info(
+        f"Received GitHub user {gh_user['login']} with email: "
+        f"{gh_user['email']}"
+    )
+    if gh_user["email"] is None:
+        raise HTTPException(400, "Email in GitHub profile is empty")
     if settings.ENVIRONMENT == "staging" and gh_user["login"] not in [
         "petebachant",
         "pbachant",
