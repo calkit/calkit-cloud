@@ -1072,11 +1072,7 @@ def post_project_figure(
         )
         with fs.open(fpath, "wb") as f:
             f.write(file_data)
-        kws = {}
-        kws["ResponseContentDisposition"] = (
-            f"filename={os.path.basename(path)}"
-        )
-        url = fs.url(fpath, expires=3600 * 24, **kws)
+        url = _get_object_url(fpath=fpath, fname=os.path.basename(path))
         # Finally, remove the figure from the cached repo
         os.remove(full_fig_path)
     return Figure(
