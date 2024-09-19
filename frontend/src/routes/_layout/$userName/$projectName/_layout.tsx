@@ -238,7 +238,7 @@ function ProjectLayout() {
   }
   const helpDrawer = useDisclosure()
   const localServerQuery = useQuery({
-    queryKey: ["local-server"],
+    queryKey: ["local-server", userName, projectName],
     queryFn: () =>
       axios.get(`http://localhost:8866/projects/${userName}/${projectName}`),
     retry: false,

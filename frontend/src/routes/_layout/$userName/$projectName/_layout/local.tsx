@@ -22,7 +22,7 @@ export const Route = createFileRoute(
 function LocalServer() {
   const { userName, projectName } = Route.useParams()
   const localServerQuery = useQuery({
-    queryKey: ["local-server-main"],
+    queryKey: ["local-server", userName, projectName],
     queryFn: () =>
       axios.get(`http://localhost:8866/projects/${userName}/${projectName}`),
     retry: false,
@@ -39,10 +39,6 @@ function LocalServer() {
       `http://localhost:8866/projects/${userName}/${projectName}/git/pull`,
     )
   }
-  const isThisProject =
-    !localServerQuery.error &&
-    localServerQuery.data?.data.owner_name === userName &&
-    localServerQuery.data?.data.project_name === projectName
 
   return (
     <>
@@ -56,7 +52,7 @@ function LocalServer() {
           </Flex>
         ) : (
           <Flex>
-            {!localServerQuery.error && isThisProject ? (
+            {!localServerQuery.error ? (
               <Box>
                 <Text>The local server is running.</Text>
                 <Button m={2} variant="primary" onClick={openVSCode}>
