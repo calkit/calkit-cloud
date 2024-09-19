@@ -32,7 +32,6 @@ const useAuth = () => {
   const signUpMutation = useMutation({
     mutationFn: (data: UserRegister) =>
       UsersService.registerUser({ requestBody: data }),
-
     onSuccess: () => {
       navigate({ to: "/login" })
       showToast(
@@ -43,11 +42,9 @@ const useAuth = () => {
     },
     onError: (err: ApiError) => {
       let errDetail = (err.body as any)?.detail
-
       if (err instanceof AxiosError) {
         errDetail = err.message
       }
-
       showToast("Something went wrong.", errDetail, "error")
     },
     onSettled: () => {
@@ -99,6 +96,7 @@ const useAuth = () => {
       if (Array.isArray(errDetail)) {
         errDetail = "Something went wrong"
       }
+      showToast("Something went wrong.", errDetail, "error")
       setError(errDetail)
     },
   })
