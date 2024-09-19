@@ -413,6 +413,8 @@ function Layout() {
   const ghAppInstalledQuery = useQuery({
     queryKey: ["user", "github-app-installations"],
     queryFn: () => UsersService.getUserGithubAppInstallations(),
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
   })
   const appNameBase = "calkit"
   const apiUrl = String(import.meta.env.VITE_API_URL)
@@ -425,7 +427,7 @@ function Layout() {
     }
     return appNameBase
   }
-  if (!ghAppInstalledQuery.data?.total_count) {
+  if (ghAppInstalledQuery.data && ghAppInstalledQuery.data?.total_count < 1) {
     location.href = `https://github.com/apps/${getAppName()}/installations/new`
   }
 

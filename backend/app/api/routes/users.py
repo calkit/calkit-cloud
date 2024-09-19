@@ -456,4 +456,7 @@ def get_user_github_app_installations(
         raise HTTPException(
             resp.status_code, "Could not fetch GitHub installations"
         )
-    return GitHubInstallations.model_validate(resp.json())
+    resp_json = resp.json()
+    n = resp_json["total_count"]
+    logger.info(f"User {current_user.email} has {n} installations")
+    return GitHubInstallations.model_validate(resp_json)
