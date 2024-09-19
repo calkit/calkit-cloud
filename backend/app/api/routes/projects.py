@@ -58,7 +58,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@router.get("/projects/owned")
+@router.get("/user/projects")
 def get_owned_projects(
     *,
     session: SessionDep,

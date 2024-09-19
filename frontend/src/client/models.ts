@@ -132,6 +132,11 @@ export type FigureCommentPost = {
   comment: string
 }
 
+export type GitHubInstallations = {
+  total_count: number
+  installations: Array<Record<string, unknown>>
+}
+
 export type GitItem = {
   name: string
   path: string

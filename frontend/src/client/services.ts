@@ -8,6 +8,7 @@ import type {
   NewPassword,
   Token,
   UserPublic,
+  GitHubInstallations,
   NewSubscriptionResponse,
   SubscriptionUpdate,
   TokenPatch,
@@ -786,6 +787,18 @@ export class UsersService {
       },
     })
   }
+
+  /**
+   * Get User Github App Installations
+   * @returns GitHubInstallations Successful Response
+   * @throws ApiError
+   */
+  public static getUserGithubAppInstallations(): CancelablePromise<GitHubInstallations> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/user/github-app-installations",
+    })
+  }
 }
 
 export class MiscService {
@@ -868,7 +881,7 @@ export class ProjectsService {
     const { limit = 100, offset = 0 } = data
     return __request(OpenAPI, {
       method: "GET",
-      url: "/projects/owned",
+      url: "/user/projects",
       query: {
         limit,
         offset,

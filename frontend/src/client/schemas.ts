@@ -736,6 +736,25 @@ export const $FigureCommentPost = {
   },
 } as const
 
+export const $GitHubInstallations = {
+  properties: {
+    total_count: {
+      type: "number",
+      isRequired: true,
+    },
+    installations: {
+      type: "array",
+      contains: {
+        type: "dictionary",
+        contains: {
+          properties: {},
+        },
+      },
+      isRequired: true,
+    },
+  },
+} as const
+
 export const $GitItem = {
   properties: {
     name: {
