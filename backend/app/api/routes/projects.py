@@ -211,7 +211,7 @@ def get_project_by_name(
         session=session, owner_name=owner_name, project_name=project_name
     )
     # TODO: Check for collaborator access
-    if project.owner != current_user:
+    if not project.is_public and project.owner != current_user:
         raise HTTPException(403)
     return project
 
