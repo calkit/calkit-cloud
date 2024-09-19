@@ -817,7 +817,13 @@ def patch_project_contents(
     current_index = None
     updated = False
     for category, objlist in ck_info.items():
+        if not isinstance(objlist, list):
+            continue
         for obj in objlist:
+            # TODO: We need a better way to say which categories have objects
+            # with paths
+            if not isinstance(obj, dict):
+                continue
             if obj["path"] == path:
                 current_category = category
                 current_category_singular = CATEGORIES_PLURAL_TO_SINGULAR[
