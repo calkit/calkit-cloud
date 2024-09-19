@@ -239,7 +239,8 @@ function ProjectLayout() {
   const helpDrawer = useDisclosure()
   const localServerQuery = useQuery({
     queryKey: ["local-server"],
-    queryFn: () => axios.get("http://localhost:8866"),
+    queryFn: () =>
+      axios.get(`http://localhost:8866/projects/${userName}/${projectName}`),
     retry: false,
   })
   const [jupyterLabHidden, setJupyterLabHidden] = useState(true)

@@ -30,10 +30,14 @@ function LocalServer() {
   // TODO: We should be sending some information about the project so we open
   // the correct directory
   const openVSCode = () => {
-    axios.post("http://localhost:8866/open/vscode")
+    axios.post(
+      `http://localhost:8866/projects/${userName}/${projectName}/open/vscode`,
+    )
   }
   const runGitPull = () => {
-    axios.post("http://localhost:8866/git/pull")
+    axios.post(
+      `http://localhost:8866/projects/${userName}/${projectName}/git/pull`,
+    )
   }
   const isThisProject =
     !localServerQuery.error &&
