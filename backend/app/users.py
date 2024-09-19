@@ -91,7 +91,7 @@ def get_github_token(session: Session, user: User) -> str:
         )
         logger.info("Refreshed GitHub token")
         gh_resp = token_resp_text_to_dict(resp.text)
-        logger.info(f"GitHub token response: {gh_resp}")
+        logger.info(f"GitHub token response keys: {list(gh_resp.keys())}")
         # TODO: Handle failure, since all are 200 response codes
         save_github_token(
             session,
