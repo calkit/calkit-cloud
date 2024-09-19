@@ -41,7 +41,7 @@ export const Route = createFileRoute("/_layout/")({
 
 const PER_PAGE = 5
 
-function getProjectsQueryOptions({ page }: { page: number }) {
+function getOwnedProjectsQueryOptions({ page }: { page: number }) {
   return {
     queryFn: () =>
       ProjectsService.getOwnedProjects({
@@ -49,6 +49,17 @@ function getProjectsQueryOptions({ page }: { page: number }) {
         limit: PER_PAGE,
       }),
     queryKey: ["projects", { page }],
+  }
+}
+
+function getAllProjectsQueryOptions({ page }: { page: number }) {
+  return {
+    queryFn: () =>
+      ProjectsService.getProjects({
+        offset: (page - 1) * PER_PAGE,
+        limit: PER_PAGE,
+      }),
+    queryKey: ["projects-all", { page }],
   }
 }
 
@@ -64,7 +75,7 @@ function ProjectsTable() {
     isPending,
     isPlaceholderData,
   } = useQuery({
-    ...getProjectsQueryOptions({ page }),
+    ...getOwnedProjectsQueryOptions({ page }),
     placeholderData: (prevData) => prevData,
   })
 
@@ -73,7 +84,9 @@ function ProjectsTable() {
 
   useEffect(() => {
     if (hasNextPage) {
-      queryClient.prefetchQuery(getProjectsQueryOptions({ page: page + 1 }))
+      queryClient.prefetchQuery(
+        getOwnedProjectsQueryOptions({ page: page + 1 }),
+      )
     }
   }, [page, queryClient, hasNextPage])
 
@@ -106,7 +119,7 @@ function ProjectsTable() {
                   <Td isTruncated maxWidth="150px">
                     <Link
                       as={RouterLink}
-                      to={project.owner_account_name + "/" + project.name}
+                      to={`${project.owner_account_name}/${project.name}`}
                     >
                       {project.title}
                     </Link>
@@ -155,22 +168,20 @@ function PublicProjectsTable() {
   const queryClient = useQueryClient()
   const page = 1
 
-  // TODO: Get public projects from API
-
   const {
-    data: items,
+    data: projects,
     isPending,
     isPlaceholderData,
   } = useQuery({
-    ...getProjectsQueryOptions({ page }),
+    ...getAllProjectsQueryOptions({ page }),
     placeholderData: (prevData) => prevData,
   })
 
-  const hasNextPage = !isPlaceholderData && items?.data.length === PER_PAGE
+  const hasNextPage = !isPlaceholderData && projects?.data.length === PER_PAGE
 
   useEffect(() => {
     if (hasNextPage) {
-      queryClient.prefetchQuery(getProjectsQueryOptions({ page }))
+      queryClient.prefetchQuery(getAllProjectsQueryOptions({ page }))
     }
   }, [page, queryClient, hasNextPage])
 
@@ -197,22 +208,27 @@ function PublicProjectsTable() {
             </Tbody>
           ) : (
             <Tbody>
-              {items?.data.map((item) => (
-                <Tr key={item.id} opacity={isPlaceholderData ? 0.5 : 1}>
+              {projects?.data.map((project) => (
+                <Tr key={project.id} opacity={isPlaceholderData ? 0.5 : 1}>
                   <Td isTruncated maxWidth="150px">
-                    {item.title}
+                    <Link
+                      as={RouterLink}
+                      to={`${project.owner_account_name}/${project.name}`}
+                    >
+                      {project.title}
+                    </Link>
                   </Td>
                   <Td isTruncated maxWidth="150px">
-                    <Link href={item.git_repo_url} isExternal>
-                      <ExternalLinkIcon mx="2px" /> {item.git_repo_url}
+                    <Link href={project.git_repo_url} isExternal>
+                      <ExternalLinkIcon mx="2px" /> {project.git_repo_url}
                     </Link>
                   </Td>
                   <Td
-                    color={!item.description ? "ui.dim" : "inherit"}
+                    color={!project.description ? "ui.dim" : "inherit"}
                     isTruncated
                     maxWidth="150px"
                   >
-                    {item.description || "N/A"}
+                    {project.description || "N/A"}
                   </Td>
                 </Tr>
               ))}

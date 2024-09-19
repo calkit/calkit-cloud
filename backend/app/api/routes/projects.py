@@ -1326,6 +1326,7 @@ def get_project_workflow(
     current_user: CurrentUser,
     session: SessionDep,
 ) -> Workflow | None:
+    # TODO: Collaborator access
     project = get_project_by_name(
         owner_name=owner_name,
         project_name=project_name,
