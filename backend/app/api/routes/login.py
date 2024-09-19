@@ -164,37 +164,42 @@ def login_with_github(code: str, session: SessionDep) -> Token:
         "https://api.github.com/user",
         headers={"Authorization": f"Bearer {out['access_token']}"},
     ).json()
+    github_username = gh_user["login"]
+    github_email = gh_user["email"]
     logger.info(
-        f"Received GitHub user {gh_user['login']} with email: "
-        f"{gh_user['email']}"
+        f"Received GitHub user {github_username} with email: {github_email}"
     )
-    if gh_user["email"] is None:
-        raise HTTPException(400, "Email in GitHub profile is empty")
-    if settings.ENVIRONMENT == "staging" and gh_user["login"] not in [
+    if github_email is None:
+        logger.info("Looking up private GitHub email")
+        github_email = requests.get(
+            "https://api.github.com/user/emails",
+            headers={"Authorization": f"Bearer {out['access_token']}"},
+        ).json()[0]["email"]
+    if settings.ENVIRONMENT == "staging" and github_username not in [
         "petebachant",
         "pbachant",
         "abachant",
     ]:
         logger.warning(
-            f"GitHub user {gh_user['login']} attempting to log in on staging"
+            f"GitHub user {github_username} attempting to log in on staging"
         )
         raise HTTPException(403)
-    user = users.get_user_by_email(session=session, email=gh_user["email"])
+    user = users.get_user_by_email(session=session, email=github_email)
     if user is None:
         logger.info("Creating new user")
         user = users.create_user(
             session=session,
             user_create=UserCreate(
-                email=gh_user["email"],
+                email=github_email,
                 full_name=gh_user["name"],
-                github_username=gh_user["login"],
+                github_username=github_username,
                 # Generate random password for this user, which they can reset
                 # later
                 password=secrets.token_urlsafe(16),
             ),
         )
         mixpanel.user_signed_up(user)
-    if user.github_username != gh_user["login"]:
+    if user.github_username != github_username:
         logger.info("GitHub usernames do not match")
         # Check that GitHub username matches, else fail?
         raise HTTPException(400, "GitHub usernames do not match")
