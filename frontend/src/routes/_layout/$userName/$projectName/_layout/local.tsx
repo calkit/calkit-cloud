@@ -22,7 +22,7 @@ export const Route = createFileRoute(
 function LocalServer() {
   const { userName, projectName } = Route.useParams()
   const localServerQuery = useQuery({
-    queryKey: ["local-server", userName, projectName],
+    queryKey: ["local-server-main", userName, projectName],
     queryFn: () =>
       axios.get(`http://localhost:8866/projects/${userName}/${projectName}`),
     retry: false,
