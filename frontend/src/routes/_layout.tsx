@@ -372,6 +372,31 @@ function PickSubscription({ user }: PickSubscriptionProps) {
   )
 }
 
+function InstallGitHubApp() {
+  const appNameBase = "calkit"
+  const apiUrl = String(import.meta.env.VITE_API_URL)
+  const getAppName = () => {
+    if (apiUrl.includes("localhost")) {
+      return appNameBase + "-dev"
+    }
+    if (apiUrl.includes("staging")) {
+      return appNameBase + "-staging"
+    }
+    return appNameBase
+  }
+  return (
+    <>
+      <Flex height="100vh" width="full" justify="center" align="center">
+        <Link
+          href={`https://github.com/apps/${getAppName()}/installations/new`}
+        >
+          <Button variant={"primary"}>Add the Calkit app to GitHub</Button>
+        </Link>
+      </Flex>
+    </>
+  )
+}
+
 function Layout() {
   const { isLoading, user, logout } = useAuth()
   if (user) {
@@ -385,25 +410,49 @@ function Layout() {
   } else if (!isLoading && !user) {
     logout()
   }
+  const ghAppInstalledQuery = useQuery({
+    queryKey: ["user", "github-app-installations"],
+    queryFn: () => UsersService.getUserGithubAppInstallations(),
+  })
+  const appNameBase = "calkit"
+  const apiUrl = String(import.meta.env.VITE_API_URL)
+  const getAppName = () => {
+    if (apiUrl.includes("localhost")) {
+      return appNameBase + "-dev"
+    }
+    if (apiUrl.includes("staging")) {
+      return appNameBase + "-staging"
+    }
+    return appNameBase
+  }
+  if (!ghAppInstalledQuery.data?.total_count) {
+    location.href = `https://github.com/apps/${getAppName()}/installations/new`
+  }
 
   return (
     <Box>
-      {isLoading ? (
+      {isLoading || ghAppInstalledQuery.isPending ? (
         <Flex justify="center" align="center" height="100vh" width="full">
           <Spinner size="xl" color="ui.main" />
         </Flex>
       ) : (
         <>
-          {/* If the user doesn't have a subscription, they need to pick one */}
-          {user?.subscription ? (
-            <Box>
-              <Topbar />
-              <Container px={0} maxW="full">
-                <Outlet />
-              </Container>
-            </Box>
+          {!ghAppInstalledQuery.data?.total_count ? (
+            <InstallGitHubApp />
           ) : (
-            <PickSubscription user={user} />
+            <>
+              {/* If the user doesn't have a subscription, they need to pick one */}
+              {user?.subscription ? (
+                <Box>
+                  <Topbar />
+                  <Container px={0} maxW="full">
+                    <Outlet />
+                  </Container>
+                </Box>
+              ) : (
+                <PickSubscription user={user} />
+              )}
+            </>
           )}
         </>
       )}
