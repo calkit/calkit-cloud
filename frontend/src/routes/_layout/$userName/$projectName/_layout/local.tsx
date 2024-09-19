@@ -23,7 +23,8 @@ function LocalServer() {
   const { userName, projectName } = Route.useParams()
   const localServerQuery = useQuery({
     queryKey: ["local-server-main"],
-    queryFn: () => axios.get("http://localhost:8866"),
+    queryFn: () =>
+      axios.get(`http://localhost:8866/projects/${userName}/${projectName}`),
     retry: false,
   })
   // TODO: We should be sending some information about the project so we open

@@ -45,14 +45,12 @@ const SidebarItems = ({ onClose, basePath }: SidebarItemsProps) => {
     data: localServerData,
   } = useQuery({
     queryKey: ["local-server-sidebar"],
-    queryFn: () => axios.get("http://localhost:8866"),
+    queryFn: () =>
+      axios.get(`http://localhost:8866/projects/${userName}/${projectName}`),
     retry: false,
   })
-  const isThisProject =
-    localServerData?.data.owner_name === userName &&
-    localServerData?.data.project_name === projectName
   const localMachineColor =
-    localServerError || localServerPending || !isThisProject
+    localServerError || localServerPending || !localServerData
       ? "gray"
       : "ui.success"
 
