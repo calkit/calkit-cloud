@@ -184,7 +184,7 @@ def login_with_github(code: str, session: SessionDep) -> Token:
                 github_username=gh_user["login"],
                 # Generate random password for this user, which they can reset
                 # later
-                password=secrets.token_urlsafe(32),
+                password=secrets.token_urlsafe(16),
             ),
         )
         mixpanel.user_signed_up(user)
