@@ -192,6 +192,9 @@ function FileContent({ name, content }: FileContentProps) {
   if (name.endsWith(".png")) {
     return <Image src={`data:image/png;base64,${content}`} width={"100%"} />
   }
+  if (name.endsWith(".jpg") || name.endsWith(".jpeg")) {
+    return <Image src={`data:image/jpeg;base64,${content}`} width={"100%"} />
+  }
   if (name.endsWith(".pdf")) {
     return (
       <embed
