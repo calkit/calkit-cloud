@@ -37,6 +37,7 @@ from app.models import (
     Figure,
     FigureComment,
     FigureCommentPost,
+    FileLock,
     Message,
     Org,
     Project,
@@ -2080,3 +2081,84 @@ def get_project_software(
             env["file_content"] = f.read()
         resp.append(Environment.model_validate(env))
     return Software(environments=resp)
+
+
+@router.get("/projects/{owner_name}/{project_name}/file-locks")
+def get_project_file_locks(
+    owner_name: str,
+    project_name: str,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> list[FileLock]:
+    project = get_project_by_name(
+        owner_name=owner_name,
+        project_name=project_name,
+        session=session,
+        current_user=current_user,
+    )
+    # TODO: Collaborator access
+    if project.owner != current_user:
+        raise HTTPException(401)
+    return project.file_locks
+
+
+class FileLockPost(BaseModel):
+    path: str
+
+
+@router.post("/projects/{owner_name}/{project_name}/file-locks")
+def post_project_file_lock(
+    owner_name: str,
+    project_name: str,
+    current_user: CurrentUser,
+    session: SessionDep,
+    req: FileLockPost,
+) -> FileLock:
+    project = get_project_by_name(
+        owner_name=owner_name,
+        project_name=project_name,
+        session=session,
+        current_user=current_user,
+    )
+    # TODO: Collaborator access
+    if project.owner != current_user:
+        raise HTTPException(401)
+    existing = project.file_locks
+    for lock in existing:
+        if lock.path == req.path:
+            raise HTTPException(400, "File is already locked")
+    lock = FileLock(
+        project_id=project.id, user_id=current_user.id, path=req.path
+    )
+    session.add(lock)
+    session.commit()
+    session.refresh(lock)
+    return lock
+
+
+@router.delete("/projects/{owner_name}/{project_name}/file-locks")
+def delete_project_file_lock(
+    owner_name: str,
+    project_name: str,
+    current_user: CurrentUser,
+    session: SessionDep,
+    req: FileLockPost,
+) -> Message:
+    project = get_project_by_name(
+        owner_name=owner_name,
+        project_name=project_name,
+        session=session,
+        current_user=current_user,
+    )
+    # TODO: Collaborator access
+    if project.owner != current_user:
+        raise HTTPException(401)
+    existing = project.file_locks
+    for lock in existing:
+        if lock.path == req.path:
+            if lock.user != current_user:
+                raise HTTPException(403, "Cannot delete someone else's lock")
+            session.delete(lock)
+            session.commit()
+            return Message(message="success")
+    raise HTTPException(404, "Lock not found")

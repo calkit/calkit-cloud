@@ -450,3 +450,13 @@ class FileLock(SQLModel, table=True):
     # Relationships
     project: Project = Relationship(back_populates="file_locks")
     user: User = Relationship()
+
+    @computed_field
+    @property
+    def user_github_username(self) -> str:
+        return self.user.github_username
+
+    @computed_field
+    @property
+    def user_email(self) -> str:
+        return self.user.email
