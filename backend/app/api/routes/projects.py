@@ -1248,6 +1248,9 @@ def post_project_dataset_label(
     )
     ck_info = get_ck_info_from_repo(repo)
     datasets = ck_info.get("datasets", [])
+    ds_paths = [ds.get("path") for ds in datasets]
+    if req.path in ds_paths:
+        raise HTTPException(400, "Dataset already exists")
     ds = dict(path=req.path)
     for k, v in req.model_dump().items():
         if k == "path":
