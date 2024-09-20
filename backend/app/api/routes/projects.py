@@ -1197,7 +1197,7 @@ def get_project_data(
     project = app.projects.get_project(
         session=session, owner_name=owner_name, project_name=project_name
     )
-    # TODO: Centralize permissions
+    # TODO: Collaborator access
     if project.owner != current_user:
         raise HTTPException(401)
     # Read the datasets file from the repo
@@ -1213,6 +1213,59 @@ def get_project_data(
         # TODO: If this is imported, get title, description, etc. from the
         # source dataset
     return [Dataset.model_validate(d) for d in datasets]
+
+
+class LabelDatasetPost(BaseModel):
+    imported_from: str | None = None
+    path: str
+    title: str | None = None
+    tabular: bool | None = None
+    stage: str | None = None
+    description: str | None = None
+
+
+@router.post("/projects/{owner_name}/{project_name}/datasets/label")
+def post_project_dataset_label(
+    owner_name: str,
+    project_name: str,
+    current_user: CurrentUser,
+    session: SessionDep,
+    req: LabelDatasetPost,
+) -> Dataset:
+    project = app.projects.get_project(
+        session=session, owner_name=owner_name, project_name=project_name
+    )
+    # TODO: Collaborator access
+    if project.owner != current_user:
+        raise HTTPException(401)
+    if not req.imported_from:
+        if not req.title or not req.description:
+            raise HTTPException(
+                400, "Non-imported datasets must have titles and descriptions"
+            )
+    repo = get_repo(
+        project=project, user=current_user, session=session, ttl=None
+    )
+    ck_info = get_ck_info_from_repo(repo)
+    datasets = ck_info.get("datasets", [])
+    ds = dict(path=req.path)
+    for k, v in req.model_dump().items():
+        if k == "path":
+            continue
+        if v is not None:
+            ds[k] = v
+    datasets.append(ds)
+    ck_info["datasets"] = datasets
+    with open(os.path.join(repo.working_dir, "calkit.yaml"), "w") as f:
+        ryaml.dump(ck_info, f)
+    repo.git.add("calkit.yaml")
+    # Make a commit
+    repo.git.commit(["-m", f"Add dataset {req.path}"])
+    repo.git.push(["origin", repo.active_branch.name])
+    # TODO: Put datasets into database
+    return Dataset.model_validate(
+        ds | dict(project_id=project.id, id=uuid.uuid4())
+    )
 
 
 class Stage(BaseModel):
