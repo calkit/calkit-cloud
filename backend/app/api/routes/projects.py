@@ -1251,6 +1251,11 @@ def post_project_dataset_label(
     ds_paths = [ds.get("path") for ds in datasets]
     if req.path in ds_paths:
         raise HTTPException(400, "Dataset already exists")
+    local_path = os.path.join(repo.working_dir, req.path)
+    if not req.imported_from and not (
+        os.path.isfile(local_path) or os.path.isfile(local_path + ".dvc")
+    ):
+        raise HTTPException(400, "Path does not exist in the repo")
     ds = dict(path=req.path)
     for k, v in req.model_dump().items():
         if k == "path":
