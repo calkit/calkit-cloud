@@ -325,6 +325,17 @@ export const $ContentsItem = {
         },
       ],
     },
+    lock: {
+      type: "any-of",
+      contains: [
+        {
+          type: "ItemLock",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
     dir_items: {
       type: "any-of",
       contains: [
@@ -810,6 +821,48 @@ export const $FigureCommentPost = {
   },
 } as const
 
+export const $FileLock = {
+  properties: {
+    project_id: {
+      type: "string",
+      isRequired: true,
+      format: "uuid",
+    },
+    path: {
+      type: "string",
+      isRequired: true,
+    },
+    created: {
+      type: "string",
+      format: "date-time",
+    },
+    user_id: {
+      type: "string",
+      isRequired: true,
+      format: "uuid",
+    },
+    user_github_username: {
+      type: "string",
+      isReadOnly: true,
+      isRequired: true,
+    },
+    user_email: {
+      type: "string",
+      isReadOnly: true,
+      isRequired: true,
+    },
+  },
+} as const
+
+export const $FileLockPost = {
+  properties: {
+    path: {
+      type: "string",
+      isRequired: true,
+    },
+  },
+} as const
+
 export const $GitHubInstallations = {
   properties: {
     total_count: {
@@ -1042,6 +1095,29 @@ export const $IssuePost = {
           type: "null",
         },
       ],
+    },
+  },
+} as const
+
+export const $ItemLock = {
+  properties: {
+    created: {
+      type: "string",
+      isRequired: true,
+      format: "date-time",
+    },
+    user_id: {
+      type: "string",
+      isRequired: true,
+      format: "uuid",
+    },
+    user_email: {
+      type: "string",
+      isRequired: true,
+    },
+    user_github_username: {
+      type: "string",
+      isRequired: true,
     },
   },
 } as const
@@ -2572,6 +2648,17 @@ export const $_ContentsItemBase = {
           contains: {
             properties: {},
           },
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    lock: {
+      type: "any-of",
+      contains: [
+        {
+          type: "ItemLock",
         },
         {
           type: "null",

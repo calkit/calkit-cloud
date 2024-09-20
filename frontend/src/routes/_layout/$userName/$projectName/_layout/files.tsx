@@ -17,7 +17,7 @@ import {
 } from "@chakra-ui/react"
 import { useQuery } from "@tanstack/react-query"
 import { FiFolder, FiFile, FiDatabase } from "react-icons/fi"
-import { FaMarkdown, FaPlus } from "react-icons/fa6"
+import { FaMarkdown, FaPlus, FaLock } from "react-icons/fa6"
 import { AiOutlinePython } from "react-icons/ai"
 import { SiAnaconda, SiJupyter } from "react-icons/si"
 import { useState } from "react"
@@ -163,6 +163,17 @@ function Item({ item, level, selectedPath, setSelectedPath }: ItemProps) {
           color={item.calkit_object ? "green.500" : "default"}
         />
         <Text>{item.name}</Text>
+        {item.lock ? (
+          <Icon
+            as={FaLock}
+            ml={0.1}
+            color={"yellow.500"}
+            alignSelf={"center"}
+            height={"12px"}
+          />
+        ) : (
+          ""
+        )}
       </Flex>
       {isExpanded && item.type === "dir" ? (
         <Box>
