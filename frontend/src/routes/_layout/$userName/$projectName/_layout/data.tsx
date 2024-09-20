@@ -15,12 +15,15 @@ import {
   MenuItem,
   Button,
   useDisclosure,
+  Link,
 } from "@chakra-ui/react"
 import { useQuery } from "@tanstack/react-query"
-import { createFileRoute } from "@tanstack/react-router"
+import { createFileRoute, Link as RouterLink } from "@tanstack/react-router"
 import { FaPlus } from "react-icons/fa"
 
 import { ProjectsService } from "../../../../../client"
+import DatasetFromExisting from "../../../../../components/Datasets/DatasetFromExisting"
+import UploadDataset from "../../../../../components/Datasets/UploadDataset"
 
 export const Route = createFileRoute(
   "/_layout/$userName/$projectName/_layout/data",
@@ -65,6 +68,14 @@ function ProjectDataView() {
             </MenuItem>
           </MenuList>
         </Menu>
+        <DatasetFromExisting
+          onClose={labelDataModal.onClose}
+          isOpen={labelDataModal.isOpen}
+        />
+        <UploadDataset
+          onClose={uploadDataModal.onClose}
+          isOpen={uploadDataModal.isOpen}
+        />
       </Flex>
       {dataPending ? (
         <Flex justify="center" align="center" height="100vh" width="full">
@@ -77,7 +88,13 @@ function ProjectDataView() {
               <Card key={dataset.path} p={6} variant="elevated">
                 <Heading size={"sm"} mb={2}>
                   <Code p={1}>
-                    {dataset.path}
+                    <Link
+                      as={RouterLink}
+                      to={"../files"}
+                      search={{ path: dataset.path }}
+                    >
+                      {dataset.path}
+                    </Link>
                     {dataset.imported_from ? (
                       <Badge ml={1} bgColor="green.500">
                         imported

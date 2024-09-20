@@ -49,6 +49,28 @@ export const $Body_login_login_access_token = {
   },
 } as const
 
+export const $Body_projects_post_project_dataset_upload = {
+  properties: {
+    path: {
+      type: "string",
+      isRequired: true,
+    },
+    title: {
+      type: "string",
+      isRequired: true,
+    },
+    description: {
+      type: "string",
+      isRequired: true,
+    },
+    file: {
+      type: "binary",
+      isRequired: true,
+      format: "binary",
+    },
+  },
+} as const
+
 export const $Body_projects_post_project_figure = {
   properties: {
     path: {
@@ -959,6 +981,70 @@ export const $IssuePost = {
       isRequired: true,
     },
     body: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+  },
+} as const
+
+export const $LabelDatasetPost = {
+  properties: {
+    imported_from: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    path: {
+      type: "string",
+      isRequired: true,
+    },
+    title: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    tabular: {
+      type: "any-of",
+      contains: [
+        {
+          type: "boolean",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    stage: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    description: {
       type: "any-of",
       contains: [
         {

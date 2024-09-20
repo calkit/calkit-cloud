@@ -47,7 +47,16 @@ from app.models import (
     User,
     Workflow,
 )
-from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    Header,
+    HTTPException,
+    Request,
+    UploadFile,
+)
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlmodel import Session, func, or_, select
@@ -716,7 +725,13 @@ def get_project_contents(
             )
             url = _get_object_url(fp, fname=os.path.basename(path), fs=fs)
             # Get content is the size is small enough
-            if size is not None and size <= 5_000_000 and fs.exists(fp):
+            if (
+                size is not None
+                and size <= 5_000_000
+                and fs.exists(fp)
+                and not path.endswith(".h5")
+                and not path.endswith(".parquet")
+            ):
                 with fs.open(fp, "rb") as f:
                     content = base64.b64encode(f.read()).decode()
         return ContentsItem.model_validate(
@@ -1197,7 +1212,7 @@ def get_project_data(
     project = app.projects.get_project(
         session=session, owner_name=owner_name, project_name=project_name
     )
-    # TODO: Centralize permissions
+    # TODO: Collaborator access
     if project.owner != current_user:
         raise HTTPException(401)
     # Read the datasets file from the repo
@@ -1213,6 +1228,179 @@ def get_project_data(
         # TODO: If this is imported, get title, description, etc. from the
         # source dataset
     return [Dataset.model_validate(d) for d in datasets]
+
+
+class LabelDatasetPost(BaseModel):
+    imported_from: str | None = None
+    path: str
+    title: str | None = None
+    tabular: bool | None = None
+    stage: str | None = None
+    description: str | None = None
+
+
+@router.post("/projects/{owner_name}/{project_name}/datasets/label")
+def post_project_dataset_label(
+    owner_name: str,
+    project_name: str,
+    current_user: CurrentUser,
+    session: SessionDep,
+    req: LabelDatasetPost,
+) -> Dataset:
+    project = app.projects.get_project(
+        session=session, owner_name=owner_name, project_name=project_name
+    )
+    # TODO: Collaborator access
+    if project.owner != current_user:
+        raise HTTPException(401)
+    if not req.imported_from:
+        if not req.title or not req.description:
+            raise HTTPException(
+                400, "Non-imported datasets must have titles and descriptions"
+            )
+    repo = get_repo(
+        project=project, user=current_user, session=session, ttl=None
+    )
+    ck_info = get_ck_info_from_repo(repo)
+    datasets = ck_info.get("datasets", [])
+    ds_paths = [ds.get("path") for ds in datasets]
+    if req.path in ds_paths:
+        raise HTTPException(400, "Dataset already exists")
+    local_path = os.path.join(repo.working_dir, req.path)
+    if not req.imported_from and not (
+        os.path.isfile(local_path) or os.path.isfile(local_path + ".dvc")
+    ):
+        raise HTTPException(400, "Path does not exist in the repo")
+    ds = dict(path=req.path)
+    for k, v in req.model_dump().items():
+        if k == "path":
+            continue
+        if v is not None:
+            ds[k] = v
+    datasets.append(ds)
+    ck_info["datasets"] = datasets
+    with open(os.path.join(repo.working_dir, "calkit.yaml"), "w") as f:
+        ryaml.dump(ck_info, f)
+    repo.git.add("calkit.yaml")
+    # Make a commit
+    repo.git.commit(["-m", f"Add dataset {req.path}"])
+    repo.git.push(["origin", repo.active_branch.name])
+    # TODO: Put datasets into database
+    return Dataset.model_validate(
+        ds | dict(project_id=project.id, id=uuid.uuid4())
+    )
+
+
+def _valid_dataset_size(content_length: int = Header(lt=50_000_000)):
+    """Check content length header.
+
+    From https://github.com/fastapi/fastapi/issues/362#issuecomment-584104025
+    """
+    return content_length
+
+
+@router.post(
+    "/projects/{owner_name}/{project_name}/datasets/upload",
+    dependencies=[Depends(_valid_dataset_size)],
+)
+def post_project_dataset_upload(
+    owner_name: str,
+    project_name: str,
+    current_user: CurrentUser,
+    session: SessionDep,
+    path: Annotated[str, Form()],
+    title: Annotated[str, Form()],
+    description: Annotated[str, Form()],
+    file: Annotated[UploadFile, File()],
+) -> Dataset:
+    logger.info(
+        f"Received dataset file {path} with content type: "
+        f"{file.content_type}"
+    )
+    project = app.projects.get_project(
+        session=session, owner_name=owner_name, project_name=project_name
+    )
+    # TODO: Check write collaborator access to this project
+    if project.owner != current_user:
+        raise HTTPException(401)
+    repo = get_repo(
+        project=project, user=current_user, session=session, ttl=None
+    )
+    # Handle projects that aren't yet Calkit projects
+    ck_info = get_ck_info_from_repo(repo)
+    datasets = ck_info.get("datasets", [])
+    # Make sure a dataset with this path doesn't already exist
+    dspaths = [ds["path"] for ds in datasets]
+    if path in dspaths:
+        raise HTTPException(400, "A dataset already exists at this path")
+    # Add the file to the repo(s)
+    # Save the file to the desired path
+    os.makedirs(
+        os.path.join(repo.working_dir, os.path.dirname(path)),
+        exist_ok=True,
+    )
+    file_data = file.file.read()
+    full_ds_path = os.path.join(repo.working_dir, path)
+    with open(full_ds_path, "wb") as f:
+        f.write(file_data)
+    # Either git add {path} or dvc add {path}
+    # If we DVC add, we'll get output like
+    # To track the changes with git, run:
+
+    #         git add figures/.gitignore figures/my-figure.png.dvc
+
+    # To enable auto staging, run:
+
+    #         dvc config core.autostage true
+    # Initialize DVC if it's never been
+    if not os.path.isdir(os.path.join(repo.working_dir, ".dvc")):
+        logger.info("Calling dvc init since .dvc directory is missing")
+        subprocess.call(["dvc", "init"], cwd=repo.working_dir)
+    dvc_out = subprocess.check_output(
+        ["dvc", "add", path], cwd=repo.working_dir
+    ).decode()
+    for line in dvc_out.split("\n"):
+        if line.strip().startswith("git add"):
+            cmd = line.strip().split()
+            logger.info(f"Calling {cmd}")
+            repo.git.add(cmd[2:])
+    # Update figures
+    datasets.append(dict(path=path, title=title, description=description))
+    ck_info["datasets"] = datasets
+    with open(os.path.join(repo.working_dir, "calkit.yaml"), "w") as f:
+        ryaml.dump(ck_info, f)
+    repo.git.add("calkit.yaml")
+    # Make a commit
+    repo.git.commit(["-m", f"Add dataset {path}"])
+    # Push to GitHub, and optionally DVC remote if we used it
+    repo.git.push(["origin", repo.active_branch.name])
+    # If using the DVC remote, we can just put it in the expected location
+    # since we'll have the md5 hash in the dvc file
+    with open(os.path.join(repo.working_dir, path + ".dvc")) as f:
+        dvc_yaml = yaml.safe_load(f)
+    md5 = dvc_yaml["outs"][0]["md5"]
+    fs = _get_object_fs()
+    fpath = _make_data_fpath(
+        owner_name=owner_name,
+        project_name=project_name,
+        idx=md5[:2],
+        md5=md5[2:],
+    )
+    with fs.open(fpath, "wb") as f:
+        f.write(file_data)
+    url = _get_object_url(fpath=fpath, fname=os.path.basename(path))
+    # Finally, remove the dataset from the cached repo
+    os.remove(full_ds_path)
+    # TODO: Put this dataset into the database
+    return Dataset(
+        project_id=project.id,
+        id=uuid.uuid4(),  # TODO: Should be in DB
+        path=path,
+        title=title,
+        description=description,
+        content=None,
+        url=url,
+    )
 
 
 class Stage(BaseModel):
