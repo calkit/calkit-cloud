@@ -25,6 +25,7 @@ import { FiFile } from "react-icons/fi"
 import { FaPlus } from "react-icons/fa"
 
 import { ProjectsService, type Publication } from "../../../../../client"
+import NewPublication from "../../../../../components/Publications/NewPublication"
 
 export const Route = createFileRoute(
   "/_layout/$userName/$projectName/_layout/publications",
@@ -163,6 +164,16 @@ function Publications() {
                     </MenuItem>
                   </MenuList>
                 </Menu>
+                <NewPublication
+                  isOpen={uploadPubModal.isOpen}
+                  onClose={uploadPubModal.onClose}
+                  uploadFile={true}
+                />
+                <NewPublication
+                  isOpen={labelPubModal.isOpen}
+                  onClose={labelPubModal.onClose}
+                  uploadFile={false}
+                />
               </Flex>
               {/* Iterate over all publications to create an anchor link for
              each */}

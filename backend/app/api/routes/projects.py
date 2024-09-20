@@ -1456,6 +1456,7 @@ class Publication(BaseModel):
     stage: str | None = None
     content: str | None = None
     stage_info: Stage | None = None
+    url: str | None = None
 
 
 @router.get("/projects/{owner_name}/{project_name}/publications")
@@ -1505,6 +1506,139 @@ def get_project_publications(
             pass
         resp.append(Publication.model_validate(pub))
     return resp
+
+
+@router.post("/projects/{owner_name}/{project_name}/publications")
+def post_project_publication(
+    owner_name: str,
+    project_name: str,
+    current_user: CurrentUser,
+    session: SessionDep,
+    path: Annotated[str, Form()],
+    kind: Annotated[
+        Literal[
+            "journal-article",
+            "conference-paper",
+            "presentation",
+            "poster",
+            "report",
+            "book",
+        ],
+        Form(),
+    ],
+    title: Annotated[str, Form()],
+    description: Annotated[str, Form()],
+    stage: Optional[Annotated[str, Form()]] = Form(None),
+    file: Optional[Annotated[UploadFile, File()]] = Form(None),
+) -> Publication:
+    if file is not None:
+        logger.info(
+            f"Received publication file {path} with content type: "
+            f"{file.content_type}"
+        )
+    else:
+        logger.info(f"Received request to create publication from {path}")
+    if file is not None and stage is not None:
+        raise HTTPException(
+            400, "DVC outputs should be uploaded with `dvc push`"
+        )
+    project = app.projects.get_project(
+        session=session, owner_name=owner_name, project_name=project_name
+    )
+    # TODO: Check write collaborator access to this project
+    if project.owner != current_user:
+        raise HTTPException(401)
+    repo = get_repo(
+        project=project, user=current_user, session=session, ttl=None
+    )
+    # Handle projects that aren't yet Calkit projects
+    ck_info = get_ck_info_from_repo(repo)
+    publications = ck_info.get("publications", [])
+    # Make sure a publication with this path doesn't already exist
+    pubpaths = [pub["path"] for pub in publications]
+    if path in pubpaths:
+        raise HTTPException(400, "A publication already exists at this path")
+    if file is not None:
+        # Add the file to the repo(s)
+        # Save the file to the desired path
+        os.makedirs(
+            os.path.join(repo.working_dir, os.path.dirname(path)),
+            exist_ok=True,
+        )
+        file_data = file.file.read()
+        full_fig_path = os.path.join(repo.working_dir, path)
+        with open(full_fig_path, "wb") as f:
+            f.write(file_data)
+        # Either git add {path} or dvc add {path}
+        # If we DVC add, we'll get output like
+        # To track the changes with git, run:
+
+        #         git add figures/.gitignore figures/my-figure.png.dvc
+
+        # To enable auto staging, run:
+
+        #         dvc config core.autostage true
+        # Initialize DVC if it's never been
+        if not os.path.isdir(os.path.join(repo.working_dir, ".dvc")):
+            logger.info("Calling dvc init since .dvc directory is missing")
+            subprocess.call(["dvc", "init"], cwd=repo.working_dir)
+        dvc_out = subprocess.check_output(
+            ["dvc", "add", path], cwd=repo.working_dir
+        ).decode()
+        for line in dvc_out.split("\n"):
+            if line.strip().startswith("git add"):
+                cmd = line.strip().split()
+                logger.info(f"Calling {cmd}")
+                repo.git.add(cmd[2:])
+    elif not os.path.isfile(os.path.join(repo.working_dir, path)):
+        raise HTTPException(
+            400, "File must exist in repo if not being uploaded"
+        )
+    # Update figures
+    publications.append(
+        dict(
+            path=path,
+            type=kind,
+            title=title,
+            description=description,
+            stage=stage,
+        )
+    )
+    ck_info["publications"] = publications
+    with open(os.path.join(repo.working_dir, "calkit.yaml"), "w") as f:
+        ryaml.dump(ck_info, f)
+    repo.git.add("calkit.yaml")
+    # Make a commit
+    repo.git.commit(["-m", f"Add publication {path} ({kind})"])
+    # Push to GitHub, and optionally DVC remote if we used it
+    repo.git.push(["origin", repo.active_branch.name])
+    url = None
+    if file is not None:
+        # If using the DVC remote, we can just put it in the expected location
+        # since we'll have the md5 hash in the dvc file
+        with open(os.path.join(repo.working_dir, path + ".dvc")) as f:
+            dvc_yaml = yaml.safe_load(f)
+        md5 = dvc_yaml["outs"][0]["md5"]
+        fs = _get_object_fs()
+        fpath = _make_data_fpath(
+            owner_name=owner_name,
+            project_name=project_name,
+            idx=md5[:2],
+            md5=md5[2:],
+        )
+        with fs.open(fpath, "wb") as f:
+            f.write(file_data)
+        url = _get_object_url(fpath=fpath, fname=os.path.basename(path))
+        # Finally, remove the figure from the cached repo
+        os.remove(full_fig_path)
+    return Publication(
+        path=path,
+        title=title,
+        description=description,
+        stage=stage,
+        content=None,
+        url=url,
+    )
 
 
 @router.post("/projects/{owner_name}/{project_name}/syncs")

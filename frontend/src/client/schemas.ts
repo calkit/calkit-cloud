@@ -111,6 +111,58 @@ export const $Body_projects_post_project_figure = {
   },
 } as const
 
+export const $Body_projects_post_project_publication = {
+  properties: {
+    path: {
+      type: "string",
+      isRequired: true,
+    },
+    kind: {
+      type: "Enum",
+      enum: [
+        "journal-article",
+        "conference-paper",
+        "presentation",
+        "poster",
+        "report",
+        "book",
+      ],
+      isRequired: true,
+    },
+    title: {
+      type: "string",
+      isRequired: true,
+    },
+    description: {
+      type: "string",
+      isRequired: true,
+    },
+    stage: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    file: {
+      type: "any-of",
+      contains: [
+        {
+          type: "binary",
+          format: "binary",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+  },
+} as const
+
 export const $Body_projects_put_project_contents = {
   properties: {
     file: {
@@ -301,6 +353,10 @@ export const $Dataset = {
       isRequired: true,
       format: "uuid",
     },
+    path: {
+      type: "string",
+      isRequired: true,
+    },
     imported_from: {
       type: "any-of",
       contains: [
@@ -311,10 +367,6 @@ export const $Dataset = {
           type: "null",
         },
       ],
-    },
-    path: {
-      type: "string",
-      isRequired: true,
     },
     title: {
       type: "any-of",
@@ -1572,6 +1624,17 @@ export const $Publication = {
       contains: [
         {
           type: "Stage",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    url: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
         },
         {
           type: "null",
