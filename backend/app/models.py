@@ -306,6 +306,7 @@ class Project(ProjectBase, table=True):
     owner_account: Account = Relationship(back_populates="owned_projects")
     questions: list["Question"] = Relationship(back_populates="project")
     datasets: list["Dataset"] = Relationship(back_populates="project")
+    file_locks: list["FileLock"] = Relationship(back_populates="project")
 
     @computed_field
     @property
@@ -439,3 +440,13 @@ class ImportedDataset(SQLModel):
 
     project_id: uuid.UUID = Field(foreign_key="project.id", primary_key=True)
     dataset_id: uuid.UUID = Field(foreign_key="dataset.id", primary_key=True)
+
+
+class FileLock(SQLModel, table=True):
+    project_id: uuid.UUID = Field(foreign_key="project.id", primary_key=True)
+    path: str = Field(primary_key=True)
+    created: datetime = Field(default_factory=utcnow)
+    user_id: uuid.UUID = Field(foreign_key="user.id")
+    # Relationships
+    project: Project = Relationship(back_populates="file_locks")
+    user: User = Relationship()
