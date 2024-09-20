@@ -626,6 +626,10 @@ def get_project_contents(
                 path=p, stage_name=stage_name, pipeline=pipeline, lock=dvc_lock
             )
             ck_outs[p] = out
+    file_locks_by_path = {
+        lock.path: ItemLock.model_validate(lock.model_dump())
+        for lock in project.file_locks
+    }
     # See if we're listing off a directory
     if path is None or os.path.isdir(os.path.join(repo_dir, path)):
         # We're listing off the top of the repo
@@ -645,6 +649,7 @@ def get_project_contents(
                 path=p,
                 size=os.path.getsize(os.path.join(repo_dir, p)),
                 in_repo=True,
+                lock=file_locks_by_path.get(p),
             )
             if os.path.isfile(os.path.join(repo_dir, p)):
                 obj["type"] = "file"
@@ -682,6 +687,7 @@ def get_project_contents(
                             else "file"
                         ),
                         calkit_object=ck_obj,
+                        lock=file_locks_by_path.get(ck_path),
                     )
                 )
                 contents.append(obj)
@@ -695,11 +701,6 @@ def get_project_contents(
             in_repo=os.path.isdir(os.path.join(repo.working_dir, dirname)),
         )
     # We're looking for a file
-    # See if this file is locked
-    lock = None
-    for file_lock in project.file_locks:
-        if file_lock.path == path:
-            lock = ItemLock.model_validate(file_lock.model_dump())
     # Check if it exists in the repo,
     # but only if it doesn't exist in the DVC outputs
     if (
@@ -717,7 +718,7 @@ def get_project_contents(
                 in_repo=True,
                 content=base64.b64encode(content).decode(),
                 calkit_object=ck_objects.get(path),
-                lock=lock,
+                lock=file_locks_by_path.get(path),
             )
         )
     # The file isn't in the repo, but maybe it's in the Calkit objects
@@ -760,7 +761,7 @@ def get_project_contents(
                 content=content,
                 url=url,
                 calkit_object=ck_objects[path],
-                lock=lock,
+                lock=file_locks_by_path.get(path),
             )
         )
     else:
