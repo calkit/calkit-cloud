@@ -15,9 +15,9 @@ import {
   IconButton,
   HStack,
 } from "@chakra-ui/react"
-import { useQuery } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { FiFolder, FiFile, FiDatabase } from "react-icons/fi"
-import { FaMarkdown, FaPlus } from "react-icons/fa6"
+import { FaMarkdown, FaPlus, FaLock } from "react-icons/fa6"
 import { AiOutlinePython } from "react-icons/ai"
 import { SiAnaconda, SiJupyter } from "react-icons/si"
 import { useState } from "react"
@@ -27,16 +27,18 @@ import {
   FaRegFileImage,
   FaRegFolderOpen,
   FaSync,
+  FaTimesCircle,
 } from "react-icons/fa"
 import { MdEdit } from "react-icons/md"
 import { ExternalLinkIcon } from "@chakra-ui/icons"
+import { BsFiletypeYml } from "react-icons/bs"
 import { z } from "zod"
 
 import { ProjectsService, type ContentsItem } from "../../../../../client"
-import { BsFiletypeYml } from "react-icons/bs"
 import UploadFile from "../../../../../components/Files/UploadFile"
 import EditFileInfo from "../../../../../components/Files/EditFileInfo"
 import Markdown from "../../../../../components/Common/Markdown"
+import useAuth from "../../../../../hooks/useAuth"
 
 const fileSearchSchema = z.object({ path: z.string().catch("") })
 
@@ -163,6 +165,17 @@ function Item({ item, level, selectedPath, setSelectedPath }: ItemProps) {
           color={item.calkit_object ? "green.500" : "default"}
         />
         <Text>{item.name}</Text>
+        {item.lock ? (
+          <Icon
+            as={FaLock}
+            ml={0.1}
+            color={"yellow.500"}
+            alignSelf={"center"}
+            height={"12px"}
+          />
+        ) : (
+          ""
+        )}
       </Flex>
       {isExpanded && item.type === "dir" ? (
         <Box>
@@ -227,6 +240,82 @@ function FileContent({ name, content }: FileContentProps) {
   )
 }
 
+interface FileLockProps {
+  item: ContentsItem
+  ownerName: string
+  projectName: string
+}
+
+function FileLock({ item, ownerName, projectName }: FileLockProps) {
+  const { user: currentUser } = useAuth()
+  const queryClient = useQueryClient()
+  const createLockMutation = useMutation({
+    mutationFn: () =>
+      ProjectsService.postProjectFileLock({
+        ownerName,
+        projectName,
+        requestBody: { path: item.path },
+      }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: ["projects", ownerName, projectName, "files"],
+      }),
+  })
+  const deleteLockMutation = useMutation({
+    mutationFn: () =>
+      ProjectsService.deleteProjectFileLock({
+        ownerName,
+        projectName,
+        requestBody: { path: item.path },
+      }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: ["projects", ownerName, projectName, "files"],
+      }),
+  })
+
+  if (!item.lock) {
+    if (item.type === "file") {
+      return (
+        <Flex mt={2}>
+          <Button
+            aria-label="Lock file"
+            onClick={() => createLockMutation.mutate()}
+          >
+            <Icon mr={1} as={FaLock} /> Lock file for editing
+          </Button>
+        </Flex>
+      )
+    }
+    return <></>
+  }
+  return (
+    <Flex color={"yellow.500"} align={"center"} mt={2} py={2}>
+      <Icon as={FaLock} mr={1} height={"13px"} />
+      <Text fontWeight={"bold"}>
+        Locked by {item.lock.user_github_username}
+      </Text>
+      {item.lock.user_github_username === currentUser?.github_username ? (
+        <>
+          <IconButton
+            aria-label="Clear file lock"
+            icon={<FaTimesCircle />}
+            height={"12px"}
+            size={"20px"}
+            borderRadius={3}
+            bg="none"
+            ml={1}
+            color={"yellow.500"}
+            onClick={() => deleteLockMutation.mutate()}
+          />
+        </>
+      ) : (
+        ""
+      )}
+    </Flex>
+  )
+}
+
 interface SelectedItemProps {
   selectedItem: ContentsItem
   ownerName: string
@@ -245,6 +334,11 @@ function SelectedItemInfo({
       <Text>Name: {selectedItem.name}</Text>
       {selectedItem.type ? <Text>Type: {selectedItem.type}</Text> : ""}
       {selectedItem.size ? <Text>Size: {selectedItem.size}</Text> : ""}
+      <FileLock
+        item={selectedItem}
+        ownerName={ownerName}
+        projectName={projectName}
+      />
       <HStack alignContent={"center"} mt={4} mb={1} gap={1}>
         <Heading size={"sm"}>Artifact info</Heading>
         <IconButton

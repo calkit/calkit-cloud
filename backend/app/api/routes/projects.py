@@ -8,6 +8,7 @@ import os
 import subprocess
 import uuid
 from copy import deepcopy
+from datetime import datetime
 from pathlib import Path
 from typing import Annotated, Literal, Optional
 
@@ -37,6 +38,7 @@ from app.models import (
     Figure,
     FigureComment,
     FigureCommentPost,
+    FileLock,
     Message,
     Org,
     Project,
@@ -518,6 +520,13 @@ def get_project_git_contents(
         return resp.text
 
 
+class ItemLock(BaseModel):
+    created: datetime
+    user_id: uuid.UUID
+    user_email: str
+    user_github_username: str
+
+
 class _ContentsItemBase(BaseModel):
     name: str
     path: str
@@ -527,6 +536,7 @@ class _ContentsItemBase(BaseModel):
     content: str | None = None
     url: str | None = None
     calkit_object: dict | None = None
+    lock: ItemLock | None = None
 
 
 class ContentsItem(_ContentsItemBase):
@@ -543,11 +553,10 @@ def get_project_contents(
     path: str | None = None,
     ttl: int | None = 300,
 ) -> ContentsItem:
-    project = get_project_by_name(
+    project = app.projects.get_project(
         owner_name=owner_name,
         project_name=project_name,
         session=session,
-        current_user=current_user,
     )
     # TODO: Collaborator access
     if project.owner != current_user:
@@ -617,6 +626,10 @@ def get_project_contents(
                 path=p, stage_name=stage_name, pipeline=pipeline, lock=dvc_lock
             )
             ck_outs[p] = out
+    file_locks_by_path = {
+        lock.path: ItemLock.model_validate(lock.model_dump())
+        for lock in project.file_locks
+    }
     # See if we're listing off a directory
     if path is None or os.path.isdir(os.path.join(repo_dir, path)):
         # We're listing off the top of the repo
@@ -636,6 +649,7 @@ def get_project_contents(
                 path=p,
                 size=os.path.getsize(os.path.join(repo_dir, p)),
                 in_repo=True,
+                lock=file_locks_by_path.get(p),
             )
             if os.path.isfile(os.path.join(repo_dir, p)):
                 obj["type"] = "file"
@@ -673,6 +687,7 @@ def get_project_contents(
                             else "file"
                         ),
                         calkit_object=ck_obj,
+                        lock=file_locks_by_path.get(ck_path),
                     )
                 )
                 contents.append(obj)
@@ -685,7 +700,8 @@ def get_project_contents(
             calkit_object=ck_objects.get(path),
             in_repo=os.path.isdir(os.path.join(repo.working_dir, dirname)),
         )
-    # We're looking for a file, so let's first check if it exists in the repo,
+    # We're looking for a file
+    # Check if it exists in the repo,
     # but only if it doesn't exist in the DVC outputs
     if (
         os.path.isfile(os.path.join(repo_dir, path))
@@ -702,6 +718,7 @@ def get_project_contents(
                 in_repo=True,
                 content=base64.b64encode(content).decode(),
                 calkit_object=ck_objects.get(path),
+                lock=file_locks_by_path.get(path),
             )
         )
     # The file isn't in the repo, but maybe it's in the Calkit objects
@@ -744,6 +761,7 @@ def get_project_contents(
                 content=content,
                 url=url,
                 calkit_object=ck_objects[path],
+                lock=file_locks_by_path.get(path),
             )
         )
     else:
@@ -2080,3 +2098,84 @@ def get_project_software(
             env["file_content"] = f.read()
         resp.append(Environment.model_validate(env))
     return Software(environments=resp)
+
+
+@router.get("/projects/{owner_name}/{project_name}/file-locks")
+def get_project_file_locks(
+    owner_name: str,
+    project_name: str,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> list[FileLock]:
+    project = get_project_by_name(
+        owner_name=owner_name,
+        project_name=project_name,
+        session=session,
+        current_user=current_user,
+    )
+    # TODO: Collaborator access
+    if project.owner != current_user:
+        raise HTTPException(401)
+    return project.file_locks
+
+
+class FileLockPost(BaseModel):
+    path: str
+
+
+@router.post("/projects/{owner_name}/{project_name}/file-locks")
+def post_project_file_lock(
+    owner_name: str,
+    project_name: str,
+    current_user: CurrentUser,
+    session: SessionDep,
+    req: FileLockPost,
+) -> FileLock:
+    project = get_project_by_name(
+        owner_name=owner_name,
+        project_name=project_name,
+        session=session,
+        current_user=current_user,
+    )
+    # TODO: Collaborator access
+    if project.owner != current_user:
+        raise HTTPException(401)
+    existing = project.file_locks
+    for lock in existing:
+        if lock.path == req.path:
+            raise HTTPException(400, "File is already locked")
+    lock = FileLock(
+        project_id=project.id, user_id=current_user.id, path=req.path
+    )
+    session.add(lock)
+    session.commit()
+    session.refresh(lock)
+    return lock
+
+
+@router.delete("/projects/{owner_name}/{project_name}/file-locks")
+def delete_project_file_lock(
+    owner_name: str,
+    project_name: str,
+    current_user: CurrentUser,
+    session: SessionDep,
+    req: FileLockPost,
+) -> Message:
+    project = get_project_by_name(
+        owner_name=owner_name,
+        project_name=project_name,
+        session=session,
+        current_user=current_user,
+    )
+    # TODO: Collaborator access
+    if project.owner != current_user:
+        raise HTTPException(401)
+    existing = project.file_locks
+    for lock in existing:
+        if lock.path == req.path:
+            if lock.user != current_user:
+                raise HTTPException(403, "Cannot delete someone else's lock")
+            session.delete(lock)
+            session.commit()
+            return Message(message="success")
+    raise HTTPException(404, "Lock not found")

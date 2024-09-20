@@ -69,6 +69,7 @@ export type ContentsItem = {
   content?: string | null
   url?: string | null
   calkit_object?: Record<string, unknown> | null
+  lock?: ItemLock | null
   dir_items?: Array<_ContentsItemBase> | null
 }
 
@@ -154,6 +155,19 @@ export type FigureCommentPost = {
   comment: string
 }
 
+export type FileLock = {
+  project_id: string
+  path: string
+  created?: string
+  user_id: string
+  readonly user_github_username: string
+  readonly user_email: string
+}
+
+export type FileLockPost = {
+  path: string
+}
+
 export type GitHubInstallations = {
   total_count: number
   installations: Array<Record<string, unknown>>
@@ -213,6 +227,13 @@ export type IssuePatch = {
 export type IssuePost = {
   title: string
   body?: string | null
+}
+
+export type ItemLock = {
+  created: string
+  user_id: string
+  user_email: string
+  user_github_username: string
 }
 
 export type LabelDatasetPost = {
@@ -514,4 +535,5 @@ export type _ContentsItemBase = {
   content?: string | null
   url?: string | null
   calkit_object?: Record<string, unknown> | null
+  lock?: ItemLock | null
 }

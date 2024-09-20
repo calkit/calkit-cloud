@@ -36,6 +36,8 @@ import type {
   Figure,
   FigureComment,
   FigureCommentPost,
+  FileLock,
+  FileLockPost,
   GitItem,
   GitItemWithContents,
   Issue,
@@ -331,6 +333,20 @@ export type ProjectsData = {
   GetProjectSoftware: {
     ownerName: string
     projectName: string
+  }
+  GetProjectFileLocks: {
+    ownerName: string
+    projectName: string
+  }
+  PostProjectFileLock: {
+    ownerName: string
+    projectName: string
+    requestBody: FileLockPost
+  }
+  DeleteProjectFileLock: {
+    ownerName: string
+    projectName: string
+    requestBody: FileLockPost
   }
 }
 
@@ -1843,6 +1859,76 @@ export class ProjectsService {
         owner_name: ownerName,
         project_name: projectName,
       },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Get Project File Locks
+   * @returns FileLock Successful Response
+   * @throws ApiError
+   */
+  public static getProjectFileLocks(
+    data: ProjectsData["GetProjectFileLocks"],
+  ): CancelablePromise<Array<FileLock>> {
+    const { ownerName, projectName } = data
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/projects/{owner_name}/{project_name}/file-locks",
+      path: {
+        owner_name: ownerName,
+        project_name: projectName,
+      },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Post Project File Lock
+   * @returns FileLock Successful Response
+   * @throws ApiError
+   */
+  public static postProjectFileLock(
+    data: ProjectsData["PostProjectFileLock"],
+  ): CancelablePromise<FileLock> {
+    const { ownerName, projectName, requestBody } = data
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/projects/{owner_name}/{project_name}/file-locks",
+      path: {
+        owner_name: ownerName,
+        project_name: projectName,
+      },
+      body: requestBody,
+      mediaType: "application/json",
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Delete Project File Lock
+   * @returns Message Successful Response
+   * @throws ApiError
+   */
+  public static deleteProjectFileLock(
+    data: ProjectsData["DeleteProjectFileLock"],
+  ): CancelablePromise<Message> {
+    const { ownerName, projectName, requestBody } = data
+    return __request(OpenAPI, {
+      method: "DELETE",
+      url: "/projects/{owner_name}/{project_name}/file-locks",
+      path: {
+        owner_name: ownerName,
+        project_name: projectName,
+      },
+      body: requestBody,
+      mediaType: "application/json",
       errors: {
         422: `Validation Error`,
       },
