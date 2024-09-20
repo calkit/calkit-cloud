@@ -21,6 +21,7 @@ import { createFileRoute } from "@tanstack/react-router"
 import { FaPlus } from "react-icons/fa"
 
 import { ProjectsService } from "../../../../../client"
+import DatasetFromExisting from "../../../../../components/Datasets/DatasetFromExisting"
 
 export const Route = createFileRoute(
   "/_layout/$userName/$projectName/_layout/data",
@@ -65,6 +66,10 @@ function ProjectDataView() {
             </MenuItem>
           </MenuList>
         </Menu>
+        <DatasetFromExisting
+          onClose={labelDataModal.onClose}
+          isOpen={labelDataModal.isOpen}
+        />
       </Flex>
       {dataPending ? (
         <Flex justify="center" align="center" height="100vh" width="full">

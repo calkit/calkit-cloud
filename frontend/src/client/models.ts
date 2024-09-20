@@ -193,6 +193,15 @@ export type IssuePost = {
   body?: string | null
 }
 
+export type LabelDatasetPost = {
+  imported_from?: string | null
+  path: string
+  title?: string | null
+  tabular?: boolean | null
+  stage?: string | null
+  description?: string | null
+}
+
 export type Message = {
   message: string
 }

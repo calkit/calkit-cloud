@@ -39,6 +39,7 @@ import type {
   Issue,
   IssuePatch,
   IssuePost,
+  LabelDatasetPost,
   ProjectCreate,
   ProjectPatch,
   ProjectPublic,
@@ -260,6 +261,11 @@ export type ProjectsData = {
   GetProjectData: {
     ownerName: string
     projectName: string
+  }
+  PostProjectDatasetLabel: {
+    ownerName: string
+    projectName: string
+    requestBody: LabelDatasetPost
   }
   GetProjectPublications: {
     ownerName: string
@@ -1481,6 +1487,30 @@ export class ProjectsService {
         owner_name: ownerName,
         project_name: projectName,
       },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Post Project Dataset Label
+   * @returns Dataset Successful Response
+   * @throws ApiError
+   */
+  public static postProjectDatasetLabel(
+    data: ProjectsData["PostProjectDatasetLabel"],
+  ): CancelablePromise<Dataset> {
+    const { ownerName, projectName, requestBody } = data
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/projects/{owner_name}/{project_name}/datasets/label",
+      path: {
+        owner_name: ownerName,
+        project_name: projectName,
+      },
+      body: requestBody,
+      mediaType: "application/json",
       errors: {
         422: `Validation Error`,
       },
