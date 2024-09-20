@@ -27,6 +27,7 @@ import type {
   DiscountCodePublic,
   Body_projects_post_project_dataset_upload,
   Body_projects_post_project_figure,
+  Body_projects_post_project_publication,
   Body_projects_put_project_contents,
   Collaborator,
   ContentPatch,
@@ -275,6 +276,11 @@ export type ProjectsData = {
     projectName: string
   }
   GetProjectPublications: {
+    ownerName: string
+    projectName: string
+  }
+  PostProjectPublication: {
+    formData: Body_projects_post_project_publication
     ownerName: string
     projectName: string
   }
@@ -1567,6 +1573,30 @@ export class ProjectsService {
         owner_name: ownerName,
         project_name: projectName,
       },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Post Project Publication
+   * @returns Publication Successful Response
+   * @throws ApiError
+   */
+  public static postProjectPublication(
+    data: ProjectsData["PostProjectPublication"],
+  ): CancelablePromise<Publication> {
+    const { ownerName, projectName, formData } = data
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/projects/{owner_name}/{project_name}/publications",
+      path: {
+        owner_name: ownerName,
+        project_name: projectName,
+      },
+      formData: formData,
+      mediaType: "application/x-www-form-urlencoded",
       errors: {
         422: `Validation Error`,
       },

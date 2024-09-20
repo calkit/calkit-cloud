@@ -22,6 +22,21 @@ export type Body_projects_post_project_figure = {
   file?: Blob | File | null
 }
 
+export type Body_projects_post_project_publication = {
+  path: string
+  kind:
+    | "journal-article"
+    | "conference-paper"
+    | "presentation"
+    | "poster"
+    | "report"
+    | "book"
+  title: string
+  description: string
+  stage?: string | null
+  file?: Blob | File | null
+}
+
 export type Body_projects_put_project_contents = {
   file: Blob | File
 }
@@ -60,8 +75,8 @@ export type ContentsItem = {
 export type Dataset = {
   id?: string
   project_id: string
-  imported_from?: string | null
   path: string
+  imported_from?: string | null
   title?: string | null
   tabular?: boolean | null
   stage?: string | null
@@ -315,6 +330,7 @@ export type Publication = {
   stage?: string | null
   content?: string | null
   stage_info?: Stage | null
+  url?: string | null
 }
 
 export type Question = {
