@@ -160,7 +160,11 @@ function FigureView({ figure }: FigureProps) {
         />
       </Box>
     )
-  } else if (figure.path.endsWith(".png")) {
+  } else if (
+    figure.path.endsWith(".png") ||
+    figure.path.endsWith(".jpg") ||
+    figure.path.endsWith(".jpeg")
+  ) {
     figView = (
       <Box width="635px">
         <Image
