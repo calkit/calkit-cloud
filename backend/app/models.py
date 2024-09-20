@@ -305,6 +305,7 @@ class Project(ProjectBase, table=True):
     # Relationships
     owner_account: Account = Relationship(back_populates="owned_projects")
     questions: list["Question"] = Relationship(back_populates="project")
+    datasets: list["Dataset"] = Relationship(back_populates="project")
 
     @computed_field
     @property
@@ -414,13 +415,13 @@ class FigureCommentPost(SQLModel):
     comment: str
 
 
-class Dataset(SQLModel):
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+class Dataset(SQLModel, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4)
     # Project in which is was created
-    project_id: uuid.UUID = Field(foreign_key="project.id")
+    project_id: uuid.UUID = Field(foreign_key="project.id", primary_key=True)
+    path: str = Field(primary_key=True)
     # Full path to origin project and dataset, if this is imported
     imported_from: str | None = None
-    path: str
     title: str | None = None
     tabular: bool | None = None
     stage: str | None = None
@@ -429,6 +430,8 @@ class Dataset(SQLModel):
     # TODO: Track version somehow, and link to DVC remote MD5?
     # TODO: Is this a directory of files?
     # TODO: Track size? -- basically all DVC properties
+    # Relationships
+    project: Project = Relationship(back_populates="datasets")
 
 
 class ImportedDataset(SQLModel):
