@@ -1202,6 +1202,37 @@ def post_figure_comment(
     return comment
 
 
+def _sync_datasets_with_db(
+    ck_info: dict, project: Project, session: Session
+) -> Project:
+    datasets_ck = list(ck_info.get("datasets", []))
+    datasets = deepcopy(datasets_ck)
+    logger.info(f"Found {len(datasets)} datasets in Calkit info")
+    # Put these in the database idempotently
+    existing_datasets = project.datasets
+    logger.info(f"Found {len(existing_datasets)} existing datasets in DB")
+    # First update any existing datasets, identified by path
+    existing_keyed_by_path = {ds.path: ds for ds in existing_datasets}
+    update_keyed_by_path = {ds["path"]: ds for ds in datasets_ck}
+    for path, ds in existing_keyed_by_path.items():
+        if path in update_keyed_by_path:
+            logger.info(f"Updating dataset with path: {path}")
+            ds.sqlmodel_update(update_keyed_by_path[path])
+        else:
+            logger.info(f"Deleting dataset with path: {path}")
+            session.delete(ds)
+    # Now add any new ones missing
+    for path, ds in update_keyed_by_path.items():
+        if path not in existing_keyed_by_path:
+            logger.info(f"Adding new dataset at path: {path}")
+            project.datasets.append(
+                Dataset.model_validate(ds, update=dict(project_id=project.id))
+            )
+    session.commit()
+    session.refresh(project)
+    return project
+
+
 @router.get("/projects/{owner_name}/{project_name}/data")
 def get_project_data(
     owner_name: str,
@@ -1219,15 +1250,10 @@ def get_project_data(
     ck_info = get_ck_info(
         project=project, user=current_user, session=session, ttl=300
     )
-    datasets = ck_info.get("datasets", [])
-    for dataset in datasets:
-        # Create a dummy ID
-        # TODO: Don't do this -- put in the DB or not
-        dataset["id"] = uuid.uuid4()
-        dataset["project_id"] = project.id
-        # TODO: If this is imported, get title, description, etc. from the
-        # source dataset
-    return [Dataset.model_validate(d) for d in datasets]
+    project = _sync_datasets_with_db(
+        ck_info=ck_info, project=project, session=session
+    )
+    return project.datasets
 
 
 class LabelDatasetPost(BaseModel):
