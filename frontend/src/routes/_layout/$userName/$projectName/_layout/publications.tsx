@@ -98,7 +98,7 @@ function PubView({ publication }: PubViewProps) {
           )}
           {publication.type ? (
             <Text>
-              Type:<Badge>{publication.type}</Badge>
+              Type: <Badge>{publication.type}</Badge>
             </Text>
           ) : (
             ""
