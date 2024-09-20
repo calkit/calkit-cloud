@@ -8,6 +8,7 @@ import os
 import subprocess
 import uuid
 from copy import deepcopy
+from datetime import datetime
 from pathlib import Path
 from typing import Annotated, Literal, Optional
 
@@ -519,6 +520,13 @@ def get_project_git_contents(
         return resp.text
 
 
+class ItemLock(BaseModel):
+    created: datetime
+    user_id: uuid.UUID
+    user_email: str
+    user_github_username: str
+
+
 class _ContentsItemBase(BaseModel):
     name: str
     path: str
@@ -528,6 +536,7 @@ class _ContentsItemBase(BaseModel):
     content: str | None = None
     url: str | None = None
     calkit_object: dict | None = None
+    lock: ItemLock | None = None
 
 
 class ContentsItem(_ContentsItemBase):
@@ -544,11 +553,10 @@ def get_project_contents(
     path: str | None = None,
     ttl: int | None = 300,
 ) -> ContentsItem:
-    project = get_project_by_name(
+    project = app.projects.get_project(
         owner_name=owner_name,
         project_name=project_name,
         session=session,
-        current_user=current_user,
     )
     # TODO: Collaborator access
     if project.owner != current_user:
@@ -686,7 +694,13 @@ def get_project_contents(
             calkit_object=ck_objects.get(path),
             in_repo=os.path.isdir(os.path.join(repo.working_dir, dirname)),
         )
-    # We're looking for a file, so let's first check if it exists in the repo,
+    # We're looking for a file
+    # See if this file is locked
+    lock = None
+    for file_lock in project.file_locks:
+        if file_lock.path == path:
+            lock = ItemLock.model_validate(file_lock.model_dump())
+    # Check if it exists in the repo,
     # but only if it doesn't exist in the DVC outputs
     if (
         os.path.isfile(os.path.join(repo_dir, path))
@@ -703,6 +717,7 @@ def get_project_contents(
                 in_repo=True,
                 content=base64.b64encode(content).decode(),
                 calkit_object=ck_objects.get(path),
+                lock=lock,
             )
         )
     # The file isn't in the repo, but maybe it's in the Calkit objects
@@ -745,6 +760,7 @@ def get_project_contents(
                 content=content,
                 url=url,
                 calkit_object=ck_objects[path],
+                lock=lock,
             )
         )
     else:
