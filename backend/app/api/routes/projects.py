@@ -725,7 +725,13 @@ def get_project_contents(
             )
             url = _get_object_url(fp, fname=os.path.basename(path), fs=fs)
             # Get content is the size is small enough
-            if size is not None and size <= 5_000_000 and fs.exists(fp):
+            if (
+                size is not None
+                and size <= 5_000_000
+                and fs.exists(fp)
+                and not path.endswith(".h5")
+                and not path.endswith(".parquet")
+            ):
                 with fs.open(fp, "rb") as f:
                     content = base64.b64encode(f.read()).decode()
         return ContentsItem.model_validate(
