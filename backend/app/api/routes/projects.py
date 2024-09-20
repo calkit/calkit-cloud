@@ -328,6 +328,7 @@ def _get_object_url(
     fname: str = None,
     expires: int = 3600 * 24,
     fs: s3fs.S3FileSystem | gcsfs.GCSFileSystem | None = None,
+    method: Literal["get", "put"] = "get",
     **kwargs,
 ) -> str:
     """Get a presigned URL for an object in object storage."""
@@ -339,12 +340,14 @@ def _get_object_url(
             kws["ResponseContentDisposition"] = f"filename={fname}"
             if fname.endswith(".pdf"):
                 kws["ResponseContentType"] = "application/pdf"
+        kws["client_method"] = f"{method}_object"
     else:
         kws = {}
         if fname is not None:
             kws["response_disposition"] = f"attachment;filename={fname}"
             if fname.endswith(".pdf"):
                 kws["content_type"] = "application/pdf"
+        kws["method"] = method.upper()
     url: str = fs.sign(fpath, expiration=expires, **(kws | kwargs))
     if settings.ENVIRONMENT == "local":
         url = url.replace(

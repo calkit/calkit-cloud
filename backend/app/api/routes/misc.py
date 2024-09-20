@@ -199,7 +199,7 @@ async def post_stripe_event(request: Request):
 
 class PresignedUrlRequest(BaseModel):
     path: str
-    client_method: Literal["get_object", "put_object"] = "get_object"
+    method: Literal["get", "put"] = "get"
 
 
 @router.post("/presigned-urls", include_in_schema=False)
@@ -210,4 +210,4 @@ def post_presigned_url(
 
     if not current_user.is_superuser:
         raise HTTPException(403)
-    return _get_object_url(req.path, client_method=req.client_method)
+    return _get_object_url(req.path, method=req.method)
