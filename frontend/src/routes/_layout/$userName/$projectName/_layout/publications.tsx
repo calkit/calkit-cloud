@@ -19,7 +19,7 @@ import {
   Alert,
   AlertIcon,
 } from "@chakra-ui/react"
-import { createFileRoute } from "@tanstack/react-router"
+import { createFileRoute, Link as RouterLink } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
 import { FiFile } from "react-icons/fi"
 import { FaPlus } from "react-icons/fa"
@@ -82,7 +82,20 @@ function PubView({ publication }: PubViewProps) {
       <Box width={"33%"}>
         <Box bg={secBgColor} borderRadius={"lg"} p={2} mb={2}>
           <Heading size="sm">Info</Heading>
-          {publication.path ? <Text>Path: {publication.path}</Text> : ""}
+          {publication.path ? (
+            <Text>
+              Path:{" "}
+              <Link
+                as={RouterLink}
+                to="../files"
+                search={{ path: publication.path }}
+              >
+                {publication.path}
+              </Link>
+            </Text>
+          ) : (
+            ""
+          )}
           {publication.type ? (
             <Text>
               Type:<Badge>{publication.type}</Badge>
