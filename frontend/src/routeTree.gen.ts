@@ -13,7 +13,6 @@ import { createFileRoute } from '@tanstack/react-router'
 // Import Routes
 
 import { Route as rootRoute } from './routes/__root'
-import { Route as SignupImport } from './routes/signup'
 import { Route as ResetPasswordImport } from './routes/reset-password'
 import { Route as RecoverPasswordImport } from './routes/recover-password'
 import { Route as LoginImport } from './routes/login'
@@ -45,11 +44,6 @@ const LayoutUserNameProjectNameImport = createFileRoute(
 )()
 
 // Create/Update Routes
-
-const SignupRoute = SignupImport.update({
-  path: '/signup',
-  getParentRoute: () => rootRoute,
-} as any)
 
 const ResetPasswordRoute = ResetPasswordImport.update({
   path: '/reset-password',
@@ -221,13 +215,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResetPasswordImport
       parentRoute: typeof rootRoute
     }
-    '/signup': {
-      id: '/signup'
-      path: '/signup'
-      fullPath: '/signup'
-      preLoaderRoute: typeof SignupImport
-      parentRoute: typeof rootRoute
-    }
     '/_layout/admin': {
       id: '/_layout/admin'
       path: '/admin'
@@ -395,7 +382,6 @@ export const routeTree = rootRoute.addChildren({
   LoginRoute,
   RecoverPasswordRoute,
   ResetPasswordRoute,
-  SignupRoute,
 })
 
 /* prettier-ignore-end */
@@ -410,8 +396,7 @@ export const routeTree = rootRoute.addChildren({
         "/checkout",
         "/login",
         "/recover-password",
-        "/reset-password",
-        "/signup"
+        "/reset-password"
       ]
     },
     "/_layout": {
@@ -438,9 +423,6 @@ export const routeTree = rootRoute.addChildren({
     },
     "/reset-password": {
       "filePath": "reset-password.tsx"
-    },
-    "/signup": {
-      "filePath": "signup.tsx"
     },
     "/_layout/admin": {
       "filePath": "_layout/admin.tsx",
