@@ -49,6 +49,28 @@ export const $Body_login_login_access_token = {
   },
 } as const
 
+export const $Body_projects_post_project_dataset_upload = {
+  properties: {
+    path: {
+      type: "string",
+      isRequired: true,
+    },
+    title: {
+      type: "string",
+      isRequired: true,
+    },
+    description: {
+      type: "string",
+      isRequired: true,
+    },
+    file: {
+      type: "binary",
+      isRequired: true,
+      format: "binary",
+    },
+  },
+} as const
+
 export const $Body_projects_post_project_figure = {
   properties: {
     path: {

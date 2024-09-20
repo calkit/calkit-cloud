@@ -25,6 +25,7 @@ import type {
   DiscountCode,
   DiscountCodePost,
   DiscountCodePublic,
+  Body_projects_post_project_dataset_upload,
   Body_projects_post_project_figure,
   Body_projects_put_project_contents,
   Collaborator,
@@ -266,6 +267,12 @@ export type ProjectsData = {
     ownerName: string
     projectName: string
     requestBody: LabelDatasetPost
+  }
+  PostProjectDatasetUpload: {
+    contentLength: number
+    formData: Body_projects_post_project_dataset_upload
+    ownerName: string
+    projectName: string
   }
   GetProjectPublications: {
     ownerName: string
@@ -1511,6 +1518,33 @@ export class ProjectsService {
       },
       body: requestBody,
       mediaType: "application/json",
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Post Project Dataset Upload
+   * @returns Dataset Successful Response
+   * @throws ApiError
+   */
+  public static postProjectDatasetUpload(
+    data: ProjectsData["PostProjectDatasetUpload"],
+  ): CancelablePromise<Dataset> {
+    const { ownerName, projectName, contentLength, formData } = data
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/projects/{owner_name}/{project_name}/datasets/upload",
+      path: {
+        owner_name: ownerName,
+        project_name: projectName,
+      },
+      headers: {
+        "content-length": contentLength,
+      },
+      formData: formData,
+      mediaType: "multipart/form-data",
       errors: {
         422: `Validation Error`,
       },

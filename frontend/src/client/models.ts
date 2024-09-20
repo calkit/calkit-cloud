@@ -7,6 +7,13 @@ export type Body_login_login_access_token = {
   client_secret?: string | null
 }
 
+export type Body_projects_post_project_dataset_upload = {
+  path: string
+  title: string
+  description: string
+  file: Blob | File
+}
+
 export type Body_projects_post_project_figure = {
   path: string
   title: string

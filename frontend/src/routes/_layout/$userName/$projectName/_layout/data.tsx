@@ -23,6 +23,7 @@ import { FaPlus } from "react-icons/fa"
 
 import { ProjectsService } from "../../../../../client"
 import DatasetFromExisting from "../../../../../components/Datasets/DatasetFromExisting"
+import UploadDataset from "../../../../../components/Datasets/UploadDataset"
 
 export const Route = createFileRoute(
   "/_layout/$userName/$projectName/_layout/data",
@@ -70,6 +71,10 @@ function ProjectDataView() {
         <DatasetFromExisting
           onClose={labelDataModal.onClose}
           isOpen={labelDataModal.isOpen}
+        />
+        <UploadDataset
+          onClose={uploadDataModal.onClose}
+          isOpen={uploadDataModal.isOpen}
         />
       </Flex>
       {dataPending ? (
