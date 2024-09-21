@@ -8,7 +8,7 @@ import {
   Flex,
   Icon,
 } from "@chakra-ui/react"
-import { useQuery } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 import axios from "axios"
 import { FiExternalLink } from "react-icons/fi"
@@ -20,11 +20,20 @@ export const Route = createFileRoute(
 })
 
 function LocalServer() {
+  const queryClient = useQueryClient()
   const { userName, projectName } = Route.useParams()
   const localServerQuery = useQuery({
     queryKey: ["local-server-main", userName, projectName],
     queryFn: () =>
       axios.get(`http://localhost:8866/projects/${userName}/${projectName}`),
+    retry: false,
+  })
+  const jupyterServerQuery = useQuery({
+    queryKey: ["jupyter-server", userName, projectName],
+    queryFn: () =>
+      axios.get(
+        `http://localhost:8866/projects/${userName}/${projectName}/jupyter-server`,
+      ),
     retry: false,
   })
   const openVSCode = () => {
@@ -37,6 +46,25 @@ function LocalServer() {
       `http://localhost:8866/projects/${userName}/${projectName}/git/pull`,
     )
   }
+  const jupyterServerMutation = useMutation({
+    mutationFn: () =>
+      axios.get(
+        `http://localhost:8866/projects/${userName}/${projectName}/jupyter-server`,
+        { params: { autostart: true } },
+      ),
+    onSettled: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["local-server", userName, projectName],
+      })
+      queryClient.invalidateQueries({
+        queryKey: ["jupyter-server", userName, projectName],
+      })
+      jupyterServerQuery.refetch()
+      queryClient.refetchQueries({
+        queryKey: ["local-server", userName, projectName],
+      })
+    },
+  })
 
   return (
     <>
@@ -58,6 +86,21 @@ function LocalServer() {
                 </Button>
                 <Button m={2} variant="primary" onClick={runGitPull}>
                   Pull changes from cloud
+                </Button>
+                <Button
+                  m={2}
+                  variant="primary"
+                  onClick={() => jupyterServerMutation.mutate()}
+                  isDisabled={jupyterServerQuery.data?.data?.url}
+                  isLoading={
+                    jupyterServerQuery.isPending ||
+                    jupyterServerMutation.isPending ||
+                    jupyterServerQuery.isRefetching
+                  }
+                >
+                  {!jupyterServerQuery.data?.data?.url
+                    ? "Start Jupyter server"
+                    : "Jupyter server running"}
                 </Button>
               </Box>
             ) : (
