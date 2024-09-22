@@ -327,6 +327,7 @@ function ProjectLayout() {
                 height="100%"
                 width="100%"
                 title="jupyterlab"
+                referrerPolicy="unsafe-url"
                 src={localServerQuery.data.data.jupyter_url}
               />
             </Box>
