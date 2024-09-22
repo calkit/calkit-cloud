@@ -323,7 +323,7 @@ function ProjectLayout() {
               height={"94vh"}
               width={"100vw"}
             >
-              <iframe
+              <embed
                 height="100%"
                 width="100%"
                 title="jupyterlab"
