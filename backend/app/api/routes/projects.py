@@ -139,9 +139,13 @@ def create_project(
     token = users.get_github_token(session=session, user=current_user)
     headers = {"Authorization": f"Bearer {token}"}
     owner_name, repo_name = project_in.git_repo_url.split("/")[-2:]
-    url = f"https://api.github.com/repos/{owner_name}/{repo_name}"
-    resp = requests.get(url, headers=headers)
-    if resp.status_code == 404:
+    repo_html_url = f"https://github.com/{owner_name}/{repo_name}"
+    repo_api_url = f"https://api.github.com/repos/{owner_name}/{repo_name}"
+    resp = requests.get(repo_api_url, headers=headers)
+    # Check if the repo is already associated with a project
+    if app.projects.is_git_repo_url_in_use(session, owner_name, repo_html_url):
+        raise HTTPException(409, "Repos can only be associated with 1 Project")
+    elif resp.status_code == 404:
         if owner_name != current_user.github_username:
             raise HTTPException(403, "Can only create new repos for yourself")
         # If not, create it
