@@ -7,6 +7,7 @@ import {
   Spinner,
   Flex,
   Icon,
+  Link,
 } from "@chakra-ui/react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
@@ -47,11 +48,13 @@ function LocalServer() {
     )
   }
   const jupyterServerMutation = useMutation({
-    mutationFn: () =>
-      axios.get(
-        `http://localhost:8866/projects/${userName}/${projectName}/jupyter-server`,
-        { params: { autostart: true } },
-      ),
+    mutationFn: () => {
+      const url = `http://localhost:8866/projects/${userName}/${projectName}/jupyter-server`
+      if (!jupyterServerQuery.data?.data?.url) {
+        return axios.get(url, { params: { autostart: true, no_browser: true } })
+      }
+      return axios.delete(url)
+    },
     onSettled: () => {
       queryClient.invalidateQueries({
         queryKey: ["local-server", userName, projectName],
@@ -91,7 +94,6 @@ function LocalServer() {
                   m={2}
                   variant="primary"
                   onClick={() => jupyterServerMutation.mutate()}
-                  isDisabled={jupyterServerQuery.data?.data?.url}
                   isLoading={
                     jupyterServerQuery.isPending ||
                     jupyterServerMutation.isPending ||
@@ -100,8 +102,17 @@ function LocalServer() {
                 >
                   {!jupyterServerQuery.data?.data?.url
                     ? "Start Jupyter server"
-                    : "Jupyter server running"}
+                    : "Stop Jupyter server"}
                 </Button>
+                {jupyterServerQuery.data?.data?.url ? (
+                  <Link isExternal href={jupyterServerQuery.data?.data.url}>
+                    <Button variant="primary" m={2}>
+                      Open JupyterLab <Icon ml={1} as={FiExternalLink} />
+                    </Button>
+                  </Link>
+                ) : (
+                  ""
+                )}
               </Box>
             ) : (
               <Box>
