@@ -77,6 +77,7 @@ function UsersTable() {
           <Thead>
             <Tr>
               <Th width="20%">Full name</Th>
+              <Th width="20%">GitHub username</Th>
               <Th width="50%">Email</Th>
               <Th width="10%">Role</Th>
               <Th width="10%">Status</Th>
@@ -108,6 +109,9 @@ function UsersTable() {
                         You
                       </Badge>
                     )}
+                  </Td>
+                  <Td isTruncated maxWidth="150px">
+                    {user.github_username}
                   </Td>
                   <Td isTruncated maxWidth="150px">
                     {user.email}
