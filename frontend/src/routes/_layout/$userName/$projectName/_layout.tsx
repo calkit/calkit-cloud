@@ -5,7 +5,6 @@ import {
   Heading,
   Link,
   Icon,
-  Box,
   Drawer,
   IconButton,
   useDisclosure,
@@ -16,8 +15,6 @@ import {
   DrawerBody,
   Text,
   Code,
-  Spacer,
-  Switch,
 } from "@chakra-ui/react"
 import {
   createFileRoute,
@@ -28,7 +25,6 @@ import {
 import { useQuery } from "@tanstack/react-query"
 import { ExternalLinkIcon } from "@chakra-ui/icons"
 import { FaGithub, FaQuestion } from "react-icons/fa"
-import { useState } from "react"
 import axios from "axios"
 
 import Sidebar from "../../../../components/Common/Sidebar"
@@ -243,7 +239,6 @@ function ProjectLayout() {
       axios.get(`http://localhost:8866/projects/${userName}/${projectName}`),
     retry: false,
   })
-  const [jupyterLabHidden, setJupyterLabHidden] = useState(true)
 
   return (
     <>
@@ -280,23 +275,6 @@ function ProjectLayout() {
                   icon={<FaQuestion />}
                 />
               </Heading>
-              <Spacer />
-              {/* Show a switch to show JupyterLab in an iframe */}
-              {!localServerQuery.isPending &&
-              localServerQuery.data?.data.jupyter_url ? (
-                <Switch
-                  position={"fixed"}
-                  right={"10px"}
-                  mt={1}
-                  aria-label="Open JupyterLab"
-                  onChange={() => {
-                    setJupyterLabHidden(!jupyterLabHidden)
-                  }}
-                  zIndex={10}
-                />
-              ) : (
-                ""
-              )}
             </Flex>
             <Outlet />
           </Container>
@@ -315,24 +293,6 @@ function ProjectLayout() {
               </DrawerBody>
             </DrawerContent>
           </Drawer>
-          {/* A JupyterLab box that covers everything when not hidden */}
-          {localServerQuery.data?.data.jupyter_url ? (
-            <Box
-              hidden={jupyterLabHidden}
-              position={"fixed"}
-              height={"94vh"}
-              width={"100vw"}
-            >
-              <embed
-                height="100%"
-                width="100%"
-                title="jupyterlab"
-                src={localServerQuery.data.data.jupyter_url}
-              />
-            </Box>
-          ) : (
-            ""
-          )}
         </Flex>
       )}
     </>
