@@ -262,7 +262,7 @@ function ProjectFigures() {
             position="sticky"
             top={55}
           >
-            <Flex mb={2}>
+            <Flex align="center" mb={2}>
               <Heading size="md">Figures</Heading>
               <Menu>
                 <MenuButton
