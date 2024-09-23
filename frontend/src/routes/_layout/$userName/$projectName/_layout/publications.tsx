@@ -138,7 +138,7 @@ function Publications() {
   return (
     <>
       {pubsQuery.isPending ? (
-        <Flex justify="center" align="center" height={"100vh" }width="full">
+        <Flex justify="center" align="center" height={"100vh"} width="full">
           <Spinner size="xl" color="ui.main" />
         </Flex>
       ) : (
@@ -148,11 +148,15 @@ function Publications() {
           <Box>
             <Box
               minW={"200px"}
-              bg={secBgColor}
-              borderRadius="lg"
-              px={3}
+              px={0}
               py={2}
-              mr={4}
+              mr={6}
+              mt={0}
+              pl={3}
+              pb={2}
+              borderRadius="lg"
+              bg={secBgColor}
+              borderWidth={0}
               position="sticky"
               top={55}
             >
