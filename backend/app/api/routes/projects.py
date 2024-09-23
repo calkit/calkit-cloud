@@ -150,7 +150,7 @@ def create_project(
     project = session.exec(query).first()
     git_repo_url_is_occupied = project is not None
     if git_repo_url_is_occupied:
-        raise HTTPException(409, "Repos can only be associated with 1 Project")
+        raise HTTPException(409, "Repos can only be associated with 1 project")
     elif resp.status_code == 404:
         if owner_name != current_user.github_username:
             raise HTTPException(403, "Can only create new repos for yourself")
