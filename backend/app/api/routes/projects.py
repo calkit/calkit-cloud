@@ -149,7 +149,6 @@ def create_project(
     )
     project = session.exec(query).first()
     git_repo_url_is_occupied = project is not None
-
     if git_repo_url_is_occupied:
         raise HTTPException(409, "Repos can only be associated with 1 Project")
     elif resp.status_code == 404:
