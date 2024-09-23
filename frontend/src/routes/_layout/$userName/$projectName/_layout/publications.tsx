@@ -161,9 +161,10 @@ function Publications() {
                 <Menu>
                   <MenuButton
                     as={Button}
+                    variant="primary"
                     height={"25px"}
                     width={"9px"}
-                    px={0.5}
+                    px={1}
                     ml={2}
                   >
                     <Icon as={FaPlus} fontSize={"xs"} />
