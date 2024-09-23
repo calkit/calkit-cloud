@@ -70,17 +70,17 @@ function PubView({ publication }: PubViewProps) {
     <Flex mb={2}>
       {/* A heading and content view */}
       <Box width={"66%"} mr={4}>
-        <Heading size={"md"} id={publication.path}>
+        <Heading size="md" id={publication.path}>
           {publication.title}
         </Heading>
         <Text>{publication.description}</Text>
-        <Box my={2} height={"80vh"} borderRadius={"lg"}>
+        <Box my={2} height={"80vh"} borderRadius="lg">
           {contentView}
         </Box>
       </Box>
       {/* Information about the publication */}
       <Box width={"33%"}>
-        <Box bg={secBgColor} borderRadius={"lg"} p={2} mb={2}>
+        <Box bg={secBgColor} borderRadius="lg" p={2} mb={2}>
           <Heading size="sm">Info</Heading>
           {publication.path ? (
             <Text>
@@ -112,7 +112,7 @@ function PubView({ publication }: PubViewProps) {
           )}
         </Box>
         {/* Comments */}
-        <Box bg={secBgColor} borderRadius={"lg"} p={2}>
+        <Box bg={secBgColor} borderRadius="lg" p={2}>
           <Heading size="sm">Comments</Heading>
           Coming soon!
         </Box>
@@ -138,7 +138,7 @@ function Publications() {
   return (
     <>
       {pubsQuery.isPending ? (
-        <Flex justify="center" align="center" height="100vh" width="full">
+        <Flex justify="center" align="center" height={"100vh" }width="full">
           <Spinner size="xl" color="ui.main" />
         </Flex>
       ) : (
@@ -149,15 +149,15 @@ function Publications() {
             <Box
               minW={"200px"}
               bg={secBgColor}
-              borderRadius={"lg"}
+              borderRadius="lg"
               px={3}
               py={2}
               mr={4}
-              position={"sticky"}
-              top="55"
+              position="sticky"
+              top={55}
             >
-              <Flex align={"center"} mb={1}>
-                <Heading size={"md"}>Publications</Heading>
+              <Flex align="center" mb={2}>
+                <Heading size="md">Publications</Heading>
                 <Menu>
                   <MenuButton
                     as={Button}
@@ -167,7 +167,7 @@ function Publications() {
                     px={1}
                     ml={2}
                   >
-                    <Icon as={FaPlus} fontSize={"xs"} />
+                    <Icon as={FaPlus} fontSize="xs" />
                   </MenuButton>
                   <MenuList>
                     <MenuItem onClick={uploadPubModal.onOpen}>

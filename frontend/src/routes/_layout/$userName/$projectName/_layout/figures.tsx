@@ -189,7 +189,7 @@ function FigureView({ figure }: FigureProps) {
         </Box>
         <Box mx={4} width={"100%"} maxH={"550px"} pt={1}>
           <Box mb={2}>
-            <Heading size={"sm"} mb={0.5}>
+            <Heading size="sm" mb={0.5}>
               Info
             </Heading>
             <Text>
@@ -210,7 +210,7 @@ function FigureView({ figure }: FigureProps) {
               ""
             )}
           </Box>
-          <Box minW="33%" maxH={"550px"}>
+          <Box minW={"33%"} maxH={"550px"}>
             <FigureComments figure={figure} />
           </Box>
         </Box>
@@ -256,11 +256,11 @@ function ProjectFigures() {
             mt={0}
             pl={3}
             pb={2}
-            borderRadius={"lg"}
+            borderRadius="lg"
             bg={secBgColor}
             borderWidth={0}
-            position={"sticky"}
-            top="55"
+            position="sticky"
+            top={55}
           >
             <Flex mb={2}>
               <Heading size="md">Figures</Heading>
@@ -273,7 +273,7 @@ function ProjectFigures() {
                   px={1}
                   ml={2}
                 >
-                  <Icon as={FaPlus} fontSize={"xs"} />
+                  <Icon as={FaPlus} fontSize="xs" />
                 </MenuButton>
                 <MenuList>
                   <MenuItem onClick={uploadFigureModal.onOpen}>
@@ -319,7 +319,7 @@ function ProjectFigures() {
         </Box>
         <>
           {figuresPending ? (
-            <Flex justify="center" align="center" height="100vh" width="full">
+            <Flex justify="center" align="center" height={"100vh"} width="full">
               <Spinner size="xl" color="ui.main" />
             </Flex>
           ) : (
