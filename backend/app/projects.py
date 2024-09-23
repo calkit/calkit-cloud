@@ -28,17 +28,3 @@ def get_project(
         logger.info(f"Project {owner_name}/{project_name} does not exist")
         raise HTTPException(404)
     return project
-
-def is_git_repo_url_in_use(
-    session: Session,
-    owner_name: str,
-    git_repo_url: str,
-) -> bool:
-    """Check if a project with the given owner and git repo URL exists."""
-    query = (
-        select(Project)
-        .where(Project.owner_account.has(name=owner_name))
-        .where(Project.git_repo_url == git_repo_url)
-    )
-    project = session.exec(query).first()
-    return project is not None
