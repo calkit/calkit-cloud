@@ -1,5 +1,5 @@
-import { Button, Container, Image, Text } from "@chakra-ui/react"
-import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router"
+import { Container, Text } from "@chakra-ui/react"
+import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { z } from "zod"
 import { useEffect, useRef } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
