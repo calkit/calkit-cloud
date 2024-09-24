@@ -80,7 +80,28 @@ class UpdatePassword(SQLModel):
 
 class UserGitHubToken(SQLModel, table=True):
     user_id: uuid.UUID = Field(foreign_key="user.id", primary_key=True)
-    updated: datetime = Field(default_factory=utcnow)
+    updated: datetime = Field(
+        default_factory=utcnow,
+        sa_column_kwargs=dict(
+            server_onupdate=sqlalchemy.func.now(),
+            server_default=sqlalchemy.func.now(),
+        ),
+    )
+    access_token: str  # These should be encrypted
+    refresh_token: str
+    expires: datetime | None
+    refresh_token_expires: datetime | None
+
+
+class UserZenodoToken(SQLModel, table=True):
+    user_id: uuid.UUID = Field(foreign_key="user.id", primary_key=True)
+    updated: datetime = Field(
+        default_factory=utcnow,
+        sa_column_kwargs=dict(
+            server_onupdate=sqlalchemy.func.now(),
+            server_default=sqlalchemy.func.now(),
+        ),
+    )
     access_token: str  # These should be encrypted
     refresh_token: str
     expires: datetime | None
@@ -95,6 +116,7 @@ class User(UserBase, table=True):
     # Relationships
     account: Account = Relationship(back_populates="user")
     github_token: UserGitHubToken | None = Relationship()
+    zenodo_token: UserZenodoToken | None = Relationship()
     org_memberships: list["UserOrgMembership"] = Relationship(
         back_populates="user"
     )
