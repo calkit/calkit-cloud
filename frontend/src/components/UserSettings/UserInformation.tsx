@@ -76,8 +76,8 @@ const UserInformation = () => {
   return (
     <>
       <Container maxW="full">
-        <Heading size="sm" py={4}>
-          User Information
+        <Heading size="md" py={4}>
+          User information
         </Heading>
         <Box
           w={{ sm: "full", md: "50%" }}
