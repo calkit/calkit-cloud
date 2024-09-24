@@ -49,6 +49,11 @@ export type Collaborator = {
   access_level: string
 }
 
+export type ConnectedAccounts = {
+  github: boolean
+  zenodo: boolean
+}
+
 export type ContentPatch = {
   kind:
     | "figure"

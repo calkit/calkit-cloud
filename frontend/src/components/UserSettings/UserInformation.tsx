@@ -24,6 +24,7 @@ import {
 import useAuth from "../../hooks/useAuth"
 import useCustomToast from "../../hooks/useCustomToast"
 import { emailPattern, handleError } from "../../utils"
+import ConnectedAccounts from "./ConnectedAccounts"
 
 const UserInformation = () => {
   const queryClient = useQueryClient()
@@ -149,6 +150,9 @@ const UserInformation = () => {
             )}
           </Flex>
         </Box>
+      </Container>
+      <Container maxW="full" mt={6}>
+        <ConnectedAccounts />
       </Container>
     </>
   )

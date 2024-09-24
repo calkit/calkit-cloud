@@ -53,3 +53,5 @@ export const handleError = (err: ApiError, showToast: any) => {
 }
 
 export const pageWidthNoSidebar = "85%"
+
+export const zenodoAuthStateParam = "4fdkjhsdrf84hfdkjhx" // TODO: Should be random

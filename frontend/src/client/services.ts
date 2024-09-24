@@ -8,6 +8,7 @@ import type {
   NewPassword,
   Token,
   UserPublic,
+  ConnectedAccounts,
   GitHubInstallations,
   NewSubscriptionResponse,
   SubscriptionUpdate,
@@ -124,6 +125,9 @@ export type UsersData = {
   PatchUserToken: {
     requestBody: TokenPatch
     tokenId: string
+  }
+  PostUserZenodoAuth: {
+    code: string
   }
 }
 
@@ -836,6 +840,39 @@ export class UsersService {
     return __request(OpenAPI, {
       method: "GET",
       url: "/user/github-app-installations",
+    })
+  }
+
+  /**
+   * Get User Connected Accounts
+   * @returns ConnectedAccounts Successful Response
+   * @throws ApiError
+   */
+  public static getUserConnectedAccounts(): CancelablePromise<ConnectedAccounts> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/user/connected-accounts",
+    })
+  }
+
+  /**
+   * Post User Zenodo Auth
+   * @returns Message Successful Response
+   * @throws ApiError
+   */
+  public static postUserZenodoAuth(
+    data: UsersData["PostUserZenodoAuth"],
+  ): CancelablePromise<Message> {
+    const { code } = data
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/user/zenodo-auth",
+      query: {
+        code,
+      },
+      errors: {
+        422: `Validation Error`,
+      },
     })
   }
 }

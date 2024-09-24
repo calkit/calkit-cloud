@@ -461,3 +461,57 @@ def get_user_github_app_installations(
     accounts = [i["account"]["login"] for i in resp_json["installations"]]
     logger.info(f"User {current_user.email} has {n} installations: {accounts}")
     return GitHubInstallations.model_validate(resp_json)
+
+
+class ConnectedAccounts(BaseModel):
+    github: bool
+    zenodo: bool
+
+
+@router.get("/user/connected-accounts")
+def get_user_connected_accounts(
+    session: SessionDep, current_user: CurrentUser
+) -> ConnectedAccounts:
+    return ConnectedAccounts(
+        github=current_user.github_token is not None,
+        zenodo=current_user.zenodo_token is not None,
+    )
+
+
+@router.post("/user/zenodo-auth")
+def post_user_zenodo_auth(
+    session: SessionDep, current_user: CurrentUser, code: str
+) -> Message:
+    logger.info(
+        f"Received request to authenticate with Zenodo using code: {code}"
+    )
+    # TODO: Set correct redirect URI per environment
+    body = dict(
+        client_id=settings.ZENODO_CLIENT_ID,
+        client_secret=settings.ZENODO_CLIENT_SECRET,
+        grant_type="authorization_code",
+        code=code,
+        redirect_uri="http://localhost:5173/zenodo-auth",
+    )
+    url = "https://zenodo.org/oauth/token"
+    resp = requests.post(url, data=body)
+    logger.info(f"Zenodo response status code: {resp.status_code}")
+    if resp.status_code != 200:
+        raise HTTPException(resp.status_code)
+    resp_json = resp.json()
+    # Response should have these keys
+    # - access_token
+    # - expires_in
+    # - token_type
+    # - scope
+    # - user (dict with key 'id')
+    # - refresh_token
+    zenodo_user_id = resp_json["user"]["id"]
+    current_user.zenodo_user_id = zenodo_user_id
+    logger.info(f"Setting Zenodo user ID as {zenodo_user_id}")
+    session.commit()
+    logger.info("Saving Zenodo token")
+    users.save_zenodo_token(
+        session=session, user=current_user, zenodo_resp=resp_json
+    )
+    return Message(message="success")
