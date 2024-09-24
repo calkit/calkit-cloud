@@ -5,7 +5,7 @@ import { useEffect, useRef } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 
 import { UsersService } from "../client"
-import { zenodoAuthStateParam } from "../utils"
+import { getZenodoRedirectUri, zenodoAuthStateParam } from "../utils"
 
 const authParamsSchema = z.object({
   code: z.string(),
@@ -21,7 +21,11 @@ function ZenodoAuth() {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const zenodoAuthMutation = useMutation({
-    mutationFn: (code: string) => UsersService.postUserZenodoAuth({ code }),
+    mutationFn: (code: string) =>
+      UsersService.postUserZenodoAuth({
+        code: code,
+        redirectUri: getZenodoRedirectUri(),
+      }),
     onSettled: () => {
       queryClient.invalidateQueries({
         queryKey: ["user", "connected-accounts"],

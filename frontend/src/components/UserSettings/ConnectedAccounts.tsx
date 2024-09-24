@@ -1,9 +1,9 @@
-import { Heading, HStack, Text, Icon, Link, Button } from "@chakra-ui/react"
+import { Heading, HStack, Text, Icon, Button } from "@chakra-ui/react"
 import mixpanel from "mixpanel-browser"
 import { useQuery } from "@tanstack/react-query"
 import { FaCheck } from "react-icons/fa"
 
-import { zenodoAuthStateParam } from "../../utils"
+import { zenodoAuthStateParam, getZenodoRedirectUri } from "../../utils"
 import { UsersService } from "../../client"
 
 function ConnectedAccounts() {
@@ -15,7 +15,7 @@ function ConnectedAccounts() {
       `https://zenodo.org/oauth/authorize?client_id=${clientId}` +
       `&state=${zenodoAuthStateParam}` +
       "&scope=deposit%3Awrite+deposit%3Aactions&response_type=code" +
-      `&redirect_uri=http%3A%2F%2Flocalhost%3A5173/zenodo-auth`
+      `&redirect_uri=${encodeURIComponent(getZenodoRedirectUri())}`
   }
   const connectedAccountsQuery = useQuery({
     queryFn: () => UsersService.getUserConnectedAccounts(),

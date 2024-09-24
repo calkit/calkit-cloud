@@ -128,6 +128,7 @@ export type UsersData = {
   }
   PostUserZenodoAuth: {
     code: string
+    redirectUri: string
   }
 }
 
@@ -863,12 +864,13 @@ export class UsersService {
   public static postUserZenodoAuth(
     data: UsersData["PostUserZenodoAuth"],
   ): CancelablePromise<Message> {
-    const { code } = data
+    const { code, redirectUri } = data
     return __request(OpenAPI, {
       method: "POST",
       url: "/user/zenodo-auth",
       query: {
         code,
+        redirect_uri: redirectUri,
       },
       errors: {
         422: `Validation Error`,

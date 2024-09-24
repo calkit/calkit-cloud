@@ -480,18 +480,20 @@ def get_user_connected_accounts(
 
 @router.post("/user/zenodo-auth")
 def post_user_zenodo_auth(
-    session: SessionDep, current_user: CurrentUser, code: str
+    session: SessionDep,
+    current_user: CurrentUser,
+    code: str,
+    redirect_uri: str,
 ) -> Message:
     logger.info(
         f"Received request to authenticate with Zenodo using code: {code}"
     )
-    # TODO: Set correct redirect URI per environment
     body = dict(
         client_id=settings.ZENODO_CLIENT_ID,
         client_secret=settings.ZENODO_CLIENT_SECRET,
         grant_type="authorization_code",
         code=code,
-        redirect_uri="http://localhost:5173/zenodo-auth",
+        redirect_uri=redirect_uri,
     )
     url = "https://zenodo.org/oauth/token"
     resp = requests.post(url, data=body)
