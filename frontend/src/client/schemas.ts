@@ -220,6 +220,19 @@ export const $Collaborator = {
   },
 } as const
 
+export const $ConnectedAccounts = {
+  properties: {
+    github: {
+      type: "boolean",
+      isRequired: true,
+    },
+    zenodo: {
+      type: "boolean",
+      isRequired: true,
+    },
+  },
+} as const
+
 export const $ContentPatch = {
   properties: {
     kind: {

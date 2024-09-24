@@ -13,6 +13,7 @@ import { createFileRoute } from '@tanstack/react-router'
 // Import Routes
 
 import { Route as rootRoute } from './routes/__root'
+import { Route as ZenodoAuthImport } from './routes/zenodo-auth'
 import { Route as ResetPasswordImport } from './routes/reset-password'
 import { Route as RecoverPasswordImport } from './routes/recover-password'
 import { Route as LoginImport } from './routes/login'
@@ -44,6 +45,11 @@ const LayoutUserNameProjectNameImport = createFileRoute(
 )()
 
 // Create/Update Routes
+
+const ZenodoAuthRoute = ZenodoAuthImport.update({
+  path: '/zenodo-auth',
+  getParentRoute: () => rootRoute,
+} as any)
 
 const ResetPasswordRoute = ResetPasswordImport.update({
   path: '/reset-password',
@@ -215,6 +221,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResetPasswordImport
       parentRoute: typeof rootRoute
     }
+    '/zenodo-auth': {
+      id: '/zenodo-auth'
+      path: '/zenodo-auth'
+      fullPath: '/zenodo-auth'
+      preLoaderRoute: typeof ZenodoAuthImport
+      parentRoute: typeof rootRoute
+    }
     '/_layout/admin': {
       id: '/_layout/admin'
       path: '/admin'
@@ -382,6 +395,7 @@ export const routeTree = rootRoute.addChildren({
   LoginRoute,
   RecoverPasswordRoute,
   ResetPasswordRoute,
+  ZenodoAuthRoute,
 })
 
 /* prettier-ignore-end */
@@ -396,7 +410,8 @@ export const routeTree = rootRoute.addChildren({
         "/checkout",
         "/login",
         "/recover-password",
-        "/reset-password"
+        "/reset-password",
+        "/zenodo-auth"
       ]
     },
     "/_layout": {
@@ -423,6 +438,9 @@ export const routeTree = rootRoute.addChildren({
     },
     "/reset-password": {
       "filePath": "reset-password.tsx"
+    },
+    "/zenodo-auth": {
+      "filePath": "zenodo-auth.tsx"
     },
     "/_layout/admin": {
       "filePath": "_layout/admin.tsx",

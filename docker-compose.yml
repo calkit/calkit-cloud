@@ -67,6 +67,8 @@ services:
       - STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY}
       - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
       - MIXPANEL_TOKEN=${MIXPANEL_TOKEN?Variable not set}
+      - ZENODO_CLIENT_ID=${ZENODO_CLIENT_ID?Variable not set}
+      - ZENODO_CLIENT_SECRET=${ZENODO_CLIENT_SECRET?Variable not set}
 
     build:
       context: ./backend
@@ -106,6 +108,7 @@ services:
         - VITE_STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY?Variable not set}
         - VITE_MIXPANEL_TOKEN=${MIXPANEL_TOKEN?Variable not set}
         - VITE_GH_CLIENT_ID=${GH_CLIENT_ID?Variable not set}
+        - VITE_ZENODO_CLIENT_ID=${ZENODO_CLIENT_ID?Variable not set}
         - NODE_ENV=production
     labels:
       - traefik.enable=true

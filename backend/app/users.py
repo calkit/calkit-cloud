@@ -9,7 +9,14 @@ import requests
 from app import logger, utcnow
 from app.config import settings
 from app.github import token_resp_text_to_dict
-from app.models import Account, User, UserCreate, UserGitHubToken, UserUpdate
+from app.models import (
+    Account,
+    User,
+    UserCreate,
+    UserGitHubToken,
+    UserUpdate,
+    UserZenodoToken,
+)
 from app.security import (
     decrypt_secret,
     encrypt_secret,
@@ -130,7 +137,59 @@ def save_github_token(
     session.add(user.github_token)
     session.commit()
     session.refresh(user.github_token)
-    return
+
+
+def get_zenodo_token(session: Session, user: User) -> str:
+    """Get a user's decrypted Zenodo token, automatically refreshing if
+    necessary.
+    """
+    # Refresh token if necessary
+    # Should also handle tokens that don't exist?
+    if user.zenodo_token.expires <= utcnow():
+        logger.info("Refreshing Zenodo token")
+        resp = requests.post(
+            "https://zenodo.org/oauth/token",
+            data=dict(
+                client_id=settings.ZENODO_CLIENT_ID,
+                client_secret=settings.ZENODO_CLIENT_SECRET,
+                grant_type="refresh_token",
+                refresh_token=decrypt_secret(user.zenodo_token.refresh_token),
+            ),
+        )
+        logger.info("Refreshed Zenodo token")
+        zenodo_resp = resp.json()
+        logger.info(f"Zenodo token response keys: {list(zenodo_resp.keys())}")
+        # TODO: Handle failure, since all are 200 response codes
+        save_zenodo_token(
+            session,
+            user=user,
+            zenodo_resp=zenodo_resp,
+        )
+    return decrypt_secret(user.zenodo_token.access_token)
+
+
+def save_zenodo_token(session: Session, user: User, zenodo_resp: dict):
+    now = utcnow()
+    expires = now + timedelta(seconds=int(zenodo_resp["expires_in"]))
+    if user.zenodo_token is None:
+        user.zenodo_token = UserZenodoToken(
+            user_id=user.id,
+            access_token=encrypt_secret(zenodo_resp["access_token"]),
+            refresh_token=encrypt_secret(zenodo_resp["refresh_token"]),
+            expires=expires,
+        )
+    else:
+        user.zenodo_token.access_token = encrypt_secret(
+            zenodo_resp["access_token"]
+        )
+        user.zenodo_token.refresh_token = encrypt_secret(
+            zenodo_resp["refresh_token"]
+        )
+        user.zenodo_token.expires = expires
+        user.zenodo_token.updated = now
+    session.add(user.zenodo_token)
+    session.commit()
+    session.refresh(user.zenodo_token)
 
 
 def check_user_subscription_active(session: Session, user: User) -> bool:
