@@ -143,10 +143,7 @@ def create_project(
     repo_api_url = f"https://api.github.com/repos/{owner_name}/{repo_name}"
     resp = requests.get(repo_api_url, headers=headers)
     # Check if the repo is already associated with a project
-    query = (
-        select(Project)
-        .where(Project.git_repo_url == repo_html_url)
-    )
+    query = select(Project).where(Project.git_repo_url == repo_html_url)
     project = session.exec(query).first()
     git_repo_url_is_occupied = project is not None
     if git_repo_url_is_occupied:
