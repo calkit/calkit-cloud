@@ -127,6 +127,11 @@ function PickSubscription({ user }: PickSubscriptionProps) {
   const showToast = useCustomToast()
   const subscriptionMutation = useMutation({
     mutationFn: (data: SubscriptionUpdate | OrgSubscriptionUpdate) => {
+      mixpanel.track("Clicked subscription option", {
+        team: team,
+        plan_name: data.plan_name,
+        period: data.period,
+      })
       if (team && "n_users" in data) {
         return OrgsService.postOrgSubscription({ requestBody: data, orgName })
       }
