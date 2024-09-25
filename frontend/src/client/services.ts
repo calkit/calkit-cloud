@@ -157,12 +157,6 @@ export type ProjectsData = {
     limit?: number
     offset?: number
   }
-  GetProject: {
-    projectId: string
-  }
-  DeleteProjectById: {
-    projectId: string
-  }
   GetProjectByName: {
     ownerName: string
     projectName: string
@@ -175,6 +169,9 @@ export type ProjectsData = {
   DeleteProject: {
     ownerName: string
     projectName: string
+  }
+  DeleteProjectById: {
+    projectId: string
   }
   GetProjectGitRepo: {
     ownerName: string
@@ -1014,48 +1011,6 @@ export class ProjectsService {
   }
 
   /**
-   * Get Project
-   * @returns ProjectPublic Successful Response
-   * @throws ApiError
-   */
-  public static getProject(
-    data: ProjectsData["GetProject"],
-  ): CancelablePromise<ProjectPublic> {
-    const { projectId } = data
-    return __request(OpenAPI, {
-      method: "GET",
-      url: "/projects/{project_id}",
-      path: {
-        project_id: projectId,
-      },
-      errors: {
-        422: `Validation Error`,
-      },
-    })
-  }
-
-  /**
-   * Delete Project By Id
-   * @returns Message Successful Response
-   * @throws ApiError
-   */
-  public static deleteProjectById(
-    data: ProjectsData["DeleteProjectById"],
-  ): CancelablePromise<Message> {
-    const { projectId } = data
-    return __request(OpenAPI, {
-      method: "DELETE",
-      url: "/projects/{project_id}",
-      path: {
-        project_id: projectId,
-      },
-      errors: {
-        422: `Validation Error`,
-      },
-    })
-  }
-
-  /**
    * Get Project By Name
    * @returns ProjectPublic Successful Response
    * @throws ApiError
@@ -1116,6 +1071,27 @@ export class ProjectsService {
       path: {
         owner_name: ownerName,
         project_name: projectName,
+      },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Delete Project By Id
+   * @returns Message Successful Response
+   * @throws ApiError
+   */
+  public static deleteProjectById(
+    data: ProjectsData["DeleteProjectById"],
+  ): CancelablePromise<Message> {
+    const { projectId } = data
+    return __request(OpenAPI, {
+      method: "DELETE",
+      url: "/projects/{project_id}",
+      path: {
+        project_id: projectId,
       },
       errors: {
         422: `Validation Error`,
