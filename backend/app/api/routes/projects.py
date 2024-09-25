@@ -257,11 +257,12 @@ def delete_project(
     current_user: CurrentUser,
 ) -> Message:
     project = app.projects.get_project(
-        session=session, owner_name=owner_name, project_name=project_name
+        session=session,
+        owner_name=owner_name,
+        project_name=project_name,
+        current_user=current_user,
+        min_access_level="owner",
     )
-    # TODO: Check for collaborator access
-    if project.owner != current_user:
-        raise HTTPException(403)
     session.delete(project)
     session.commit()
     return Message(message="success")
@@ -378,12 +379,13 @@ async def post_project_dvc_file(
         f"DVC file MD5 {idx}{md5}"
     )
     project = app.projects.get_project(
-        session=session, owner_name=owner_name, project_name=project_name
+        session=session,
+        owner_name=owner_name,
+        project_name=project_name,
+        current_user=current_user,
+        min_access_level="write",
     )
     logger.info(f"{current_user.email} requesting to POST data")
-    # TODO: Check collaborator access
-    if project.owner != current_user:
-        raise HTTPException(401)
     # TODO: Check if this user has write access to this project
     fs = _get_object_fs()
     # Create bucket if it doesn't exist -- only necessary with MinIO
@@ -426,11 +428,12 @@ def get_project_dvc_file(
 ) -> StreamingResponse:
     logger.info(f"{current_user.email} requesting to GET data")
     project = app.projects.get_project(
-        session=session, owner_name=owner_name, project_name=project_name
+        session=session,
+        owner_name=owner_name,
+        project_name=project_name,
+        current_user=current_user,
+        min_access_level="read",
     )
-    # TODO: Check collaborator access
-    if project.owner != current_user:
-        raise HTTPException(401)
     # If file doesn't exist, return 404
     fs = _get_object_fs()
     fpath = _make_data_fpath(
@@ -460,10 +463,12 @@ def get_project_dvc_files(
     current_user: CurrentUser,
 ):
     project = app.projects.get_project(
-        session=session, owner_name=owner_name, project_name=project_name
+        session=session,
+        owner_name=owner_name,
+        project_name=project_name,
+        current_user=current_user,
+        min_access_level="read",
     )
-    if project.owner != current_user:
-        raise HTTPException(401)
     # TODO: Return what we're supposed to return
 
 
@@ -494,6 +499,13 @@ def get_project_git_contents(
     path: str | None = None,
     astype: Literal["", ".raw", ".html", ".object"] = "",
 ) -> list[GitItem] | GitItemWithContents | str:
+    project = app.projects.get_project(
+        session=session,
+        owner_name=owner_name,
+        project_name=project_name,
+        current_user=current_user,
+        min_access_level="read",
+    )
     token = users.get_github_token(session=session, user=current_user)
     url = f"https://api.github.com/repos/{owner_name}/{project_name}/contents"
     if path is not None:
@@ -552,10 +564,9 @@ def get_project_contents(
         owner_name=owner_name,
         project_name=project_name,
         session=session,
+        current_user=current_user,
+        min_access_level="read",
     )
-    # TODO: Collaborator access
-    if project.owner != current_user:
-        raise HTTPException(401)
     # Get the repo
     # Note this will make the repo our working directory
     # TODO: Stop using a TTL and rely on latest commit hash
@@ -772,15 +783,13 @@ def put_project_contents(
     session: SessionDep,
     current_user: CurrentUser,
 ) -> ContentsItem:
-    project = get_project_by_name(
+    project = app.projects.get_project(
         owner_name=owner_name,
         project_name=project_name,
         session=session,
         current_user=current_user,
+        min_access_level="write",
     )
-    # TODO: Collaborator access!
-    if project.owner != current_user:
-        raise HTTPException(401)
     repo = get_repo(
         project=project, user=current_user, session=session, ttl=300
     )
@@ -821,15 +830,13 @@ def patch_project_contents(
     session: SessionDep,
     current_user: CurrentUser,
 ) -> dict | None:
-    project = get_project_by_name(
+    project = app.projects.get_project(
         owner_name=owner_name,
         project_name=project_name,
         session=session,
         current_user=current_user,
+        min_access_level="write",
     )
-    # TODO: Collaborator access!
-    if project.owner != current_user:
-        raise HTTPException(401)
     if "path" in req.attrs:
         raise HTTPException(501, "Object path change not supported")
     repo = get_repo(
@@ -935,15 +942,13 @@ def get_project_questions(
     current_user: CurrentUser,
     session: SessionDep,
 ) -> list[Question]:
-    project = get_project_by_name(
+    project = app.projects.get_project(
         owner_name=owner_name,
         project_name=project_name,
         session=session,
         current_user=current_user,
+        min_access_level="read",
     )
-    # TODO: Handle collaborators
-    if project.owner != current_user:
-        raise HTTPException(401)
     ck_info = get_ck_info(
         project=project, user=current_user, session=session, ttl=300
     )
@@ -966,15 +971,13 @@ def post_project_question(
     current_user: CurrentUser,
     session: SessionDep,
 ) -> Question:
-    project = get_project_by_name(
+    project = app.projects.get_project(
         owner_name=owner_name,
         project_name=project_name,
         session=session,
         current_user=current_user,
+        min_access_level="write",
     )
-    # TODO: Handle collaborators
-    if project.owner != current_user:
-        raise HTTPException(401)
     repo = get_repo(
         project=project, user=current_user, session=session, ttl=None
     )
@@ -1001,11 +1004,12 @@ def get_project_figures(
     session: SessionDep,
 ) -> list[Figure]:
     project = app.projects.get_project(
-        session=session, owner_name=owner_name, project_name=project_name
+        session=session,
+        owner_name=owner_name,
+        project_name=project_name,
+        current_user=current_user,
+        min_access_level="read",
     )
-    # TODO: Handle collaborators
-    if project.owner != current_user:
-        raise HTTPException(401)
     ck_info = get_ck_info(
         project=project, user=current_user, session=session, ttl=300
     )
@@ -1061,11 +1065,12 @@ def post_project_figure(
             400, "DVC outputs should be uploaded with `dvc push`"
         )
     project = app.projects.get_project(
-        session=session, owner_name=owner_name, project_name=project_name
+        session=session,
+        owner_name=owner_name,
+        project_name=project_name,
+        current_user=current_user,
+        min_access_level="write",
     )
-    # TODO: Check write collaborator access to this project
-    if project.owner != current_user:
-        raise HTTPException(401)
     repo = get_repo(
         project=project, user=current_user, session=session, ttl=None
     )
@@ -1166,9 +1171,12 @@ def get_figure_comments(
     figure_path: str | None = None,
 ) -> list[FigureComment]:
     project = app.projects.get_project(
-        session=session, owner_name=owner_name, project_name=project_name
+        session=session,
+        owner_name=owner_name,
+        project_name=project_name,
+        current_user=current_user,
+        min_access_level="read",
     )
-    # TODO: Check that this user has access to this project
     query = select(FigureComment).where(FigureComment.project_id == project.id)
     if figure_path is not None:
         query = query.where(FigureComment.figure_path == figure_path)
@@ -1190,11 +1198,12 @@ def post_figure_comment(
     )
     # Does this user have permission to comment on this project?
     project = app.projects.get_project(
-        session=session, owner_name=owner_name, project_name=project_name
+        session=session,
+        owner_name=owner_name,
+        project_name=project_name,
+        current_user=current_user,
+        min_access_level="write",
     )
-    # TODO: Centralize permissions
-    if not project.owner == current_user:
-        raise HTTPException(401)
     # First we need to make this this figure path exists in this project
     ck_info = get_ck_info(
         project=project, user=current_user, session=session, ttl=300
@@ -1254,11 +1263,12 @@ def get_project_data(
     session: SessionDep,
 ) -> list[Dataset]:
     project = app.projects.get_project(
-        session=session, owner_name=owner_name, project_name=project_name
+        session=session,
+        owner_name=owner_name,
+        project_name=project_name,
+        current_user=current_user,
+        min_access_level="read",
     )
-    # TODO: Collaborator access
-    if project.owner != current_user:
-        raise HTTPException(401)
     # Read the datasets file from the repo
     ck_info = get_ck_info(
         project=project, user=current_user, session=session, ttl=300
@@ -1287,11 +1297,12 @@ def post_project_dataset_label(
     req: LabelDatasetPost,
 ) -> Dataset:
     project = app.projects.get_project(
-        session=session, owner_name=owner_name, project_name=project_name
+        session=session,
+        owner_name=owner_name,
+        project_name=project_name,
+        current_user=current_user,
+        min_access_level="write",
     )
-    # TODO: Collaborator access
-    if project.owner != current_user:
-        raise HTTPException(401)
     if not req.imported_from:
         if not req.title or not req.description:
             raise HTTPException(
@@ -1357,11 +1368,12 @@ def post_project_dataset_upload(
         f"{file.content_type}"
     )
     project = app.projects.get_project(
-        session=session, owner_name=owner_name, project_name=project_name
+        session=session,
+        owner_name=owner_name,
+        project_name=project_name,
+        current_user=current_user,
+        min_access_level="write",
     )
-    # TODO: Check write collaborator access to this project
-    if project.owner != current_user:
-        raise HTTPException(401)
     repo = get_repo(
         project=project, user=current_user, session=session, ttl=None
     )
@@ -1479,15 +1491,13 @@ def get_project_publications(
     current_user: CurrentUser,
     session: SessionDep,
 ) -> list[Publication]:
-    project = get_project_by_name(
+    project = app.projects.get_project(
         owner_name=owner_name,
         project_name=project_name,
         session=session,
         current_user=current_user,
+        min_access_level="read",
     )
-    # TODO: Collaborator access
-    if project.owner != current_user:
-        raise HTTPException(401)
     ck_info = get_ck_info(
         project=project, user=current_user, session=session, ttl=300
     )
@@ -1556,11 +1566,12 @@ def post_project_publication(
             400, "DVC outputs should be uploaded with `dvc push`"
         )
     project = app.projects.get_project(
-        session=session, owner_name=owner_name, project_name=project_name
+        session=session,
+        owner_name=owner_name,
+        project_name=project_name,
+        current_user=current_user,
+        min_access_level="write",
     )
-    # TODO: Check write collaborator access to this project
-    if project.owner != current_user:
-        raise HTTPException(401)
     repo = get_repo(
         project=project, user=current_user, session=session, ttl=None
     )
@@ -1671,15 +1682,13 @@ def post_project_sync(
     asynchronous edits with merges.
     """
     # First refresh the local cache of the repo
-    project = get_project_by_name(
+    project = app.projects.get_project(
         owner_name=owner_name,
         project_name=project_name,
         session=session,
         current_user=current_user,
+        min_access_level="read",
     )
-    # TODO: Collaborator access
-    if project.owner != current_user:
-        raise HTTPException(401)
     get_repo(project=project, user=current_user, session=session, ttl=None)
     # Get and save project questions
     # Figures
@@ -1696,12 +1705,12 @@ def get_project_workflow(
     current_user: CurrentUser,
     session: SessionDep,
 ) -> Workflow | None:
-    # TODO: Collaborator access
-    project = get_project_by_name(
+    project = app.projects.get_project(
         owner_name=owner_name,
         project_name=project_name,
         session=session,
         current_user=current_user,
+        min_access_level="read",
     )
     repo = get_repo(
         project=project, user=current_user, session=session, ttl=300
@@ -1737,15 +1746,15 @@ def get_project_collaborators(
     current_user: CurrentUser,
     session: SessionDep,
 ) -> list[Collaborator]:
-    project = get_project_by_name(
+    project = app.projects.get_project(
         owner_name=owner_name,
         project_name=project_name,
         session=session,
         current_user=current_user,
+        min_access_level="read",
     )
-    # TODO: Collaborator access
-    if project.owner != current_user:
-        raise HTTPException(401)
+    # TODO: GitHub requires higher permissions to get collaborators
+    # Maybe for read-only people we should return contributors?
     token = users.get_github_token(session=session, user=current_user)
     url = (
         f"https://api.github.com/repos/{owner_name}/{project_name}/"
@@ -1785,14 +1794,13 @@ def put_project_collaborator(
     current_user: CurrentUser,
     session: SessionDep,
 ) -> Message:
-    project = get_project_by_name(
+    project = app.projects.get_project(
         owner_name=owner_name,
         project_name=project_name,
         session=session,
         current_user=current_user,
+        min_access_level="admin",
     )
-    if project.owner != current_user:
-        raise HTTPException(401)
     token = users.get_github_token(session=session, user=current_user)
     url = (
         f"https://api.github.com/repos/{owner_name}/{project_name}/"
@@ -1817,14 +1825,13 @@ def delete_project_collaborator(
     current_user: CurrentUser,
     session: SessionDep,
 ) -> Message:
-    project = get_project_by_name(
+    project = app.projects.get_project(
         owner_name=owner_name,
         project_name=project_name,
         session=session,
         current_user=current_user,
+        min_access_level="admin",
     )
-    if project.owner != current_user:
-        raise HTTPException(401)
     token = users.get_github_token(session=session, user=current_user)
     url = (
         f"https://api.github.com/repos/{owner_name}/{project_name}/"
@@ -1859,15 +1866,13 @@ def get_project_issues(
     per_page: int = 30,
     state: Literal["open", "closed", "all"] = "open",
 ) -> list[Issue]:
-    project = get_project_by_name(
+    project = app.projects.get_project(
         owner_name=owner_name,
         project_name=project_name,
         session=session,
         current_user=current_user,
+        min_access_level="read",
     )
-    # TODO: Collaborator access
-    if project.owner != current_user:
-        raise HTTPException(401)
     token = users.get_github_token(session=session, user=current_user)
     url = f"https://api.github.com/repos/{owner_name}/{project_name}/issues"
     resp = requests.get(
@@ -1908,15 +1913,13 @@ def post_project_issue(
     session: SessionDep,
     req: IssuePost,
 ) -> Issue:
-    project = get_project_by_name(
+    project = app.projects.get_project(
         owner_name=owner_name,
         project_name=project_name,
         session=session,
         current_user=current_user,
+        min_access_level="write",
     )
-    # TODO: Collaborator access
-    if project.owner != current_user:
-        raise HTTPException(401)
     token = users.get_github_token(session=session, user=current_user)
     url = f"https://api.github.com/repos/{owner_name}/{project_name}/issues"
     resp = requests.post(
@@ -1950,15 +1953,14 @@ def patch_project_issue(
     current_user: CurrentUser,
     session: SessionDep,
 ) -> Message:
-    project = get_project_by_name(
+    project = app.projects.get_project(
         owner_name=owner_name,
         project_name=project_name,
         session=session,
         current_user=current_user,
+        min_access_level="admin",
     )
-    # TODO: Collaborator access
-    if project.owner != current_user:
-        raise HTTPException(401)
+    # TODO: A user who created the issue can edit?
     token = users.get_github_token(session=session, user=current_user)
     url = (
         f"https://api.github.com/repos/{owner_name}/{project_name}/"
@@ -2008,15 +2010,13 @@ def get_project_references(
     current_user: CurrentUser,
     session: SessionDep,
 ) -> list[References]:
-    project = get_project_by_name(
+    project = app.projects.get_project(
         owner_name=owner_name,
         project_name=project_name,
         session=session,
         current_user=current_user,
+        min_access_level="read",
     )
-    # TODO: Collaborator access
-    if project.owner != current_user:
-        raise HTTPException(401)
     repo = get_repo(
         project=project, user=current_user, session=session, ttl=300
     )
@@ -2072,15 +2072,13 @@ def get_project_software(
     current_user: CurrentUser,
     session: SessionDep,
 ) -> Software:
-    project = get_project_by_name(
+    project = app.projects.get_project(
         owner_name=owner_name,
         project_name=project_name,
         session=session,
         current_user=current_user,
+        min_access_level="read",
     )
-    # TODO: Collaborator access
-    if project.owner != current_user:
-        raise HTTPException(401)
     repo = get_repo(
         project=project, user=current_user, session=session, ttl=300
     )
@@ -2102,15 +2100,13 @@ def get_project_file_locks(
     current_user: CurrentUser,
     session: SessionDep,
 ) -> list[FileLock]:
-    project = get_project_by_name(
+    project = app.projects.get_project(
         owner_name=owner_name,
         project_name=project_name,
         session=session,
         current_user=current_user,
+        min_access_level="read",
     )
-    # TODO: Collaborator access
-    if project.owner != current_user:
-        raise HTTPException(401)
     return project.file_locks
 
 
@@ -2126,15 +2122,13 @@ def post_project_file_lock(
     session: SessionDep,
     req: FileLockPost,
 ) -> FileLock:
-    project = get_project_by_name(
+    project = app.projects.get_project(
         owner_name=owner_name,
         project_name=project_name,
         session=session,
         current_user=current_user,
+        min_access_level="write",
     )
-    # TODO: Collaborator access
-    if project.owner != current_user:
-        raise HTTPException(401)
     existing = project.file_locks
     for lock in existing:
         if lock.path == req.path:
@@ -2156,15 +2150,13 @@ def delete_project_file_lock(
     session: SessionDep,
     req: FileLockPost,
 ) -> Message:
-    project = get_project_by_name(
+    project = app.projects.get_project(
         owner_name=owner_name,
         project_name=project_name,
         session=session,
         current_user=current_user,
+        min_access_level="write",
     )
-    # TODO: Collaborator access
-    if project.owner != current_user:
-        raise HTTPException(401)
     existing = project.file_locks
     for lock in existing:
         if lock.path == req.path:
