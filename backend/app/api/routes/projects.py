@@ -204,20 +204,6 @@ def create_project(
     return project
 
 
-@router.get("/projects/{project_id}")
-def get_project(
-    *, project_id: uuid.UUID, current_user: CurrentUser, session: SessionDep
-) -> ProjectPublic:
-    project = session.get(Project, project_id)
-    if project is None:
-        logger.info(f"Project ID {project_id} not found")
-        raise HTTPException(404)
-    # TODO: Check for collaborator access
-    if project.owner_user_id != current_user.id:
-        raise HTTPException(401)
-    return project
-
-
 @router.get("/projects/{owner_name}/{project_name}")
 def get_project_by_name(
     owner_name: str,
