@@ -14,6 +14,7 @@ import {
   useDisclosure,
   IconButton,
   HStack,
+  useColorModeValue,
 } from "@chakra-ui/react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { FiFolder, FiFile, FiDatabase } from "react-icons/fi"
@@ -157,7 +158,7 @@ function Item({ item, level, selectedPath, setSelectedPath }: ItemProps) {
 
   return (
     <>
-      <Flex cursor={"pointer"} onClick={handleClick} ml={indent * 4}>
+      <Flex cursor="pointer" onClick={handleClick} ml={indent * 4}>
         <Icon
           as={getIcon(item, isExpanded)}
           alignSelf="center"
@@ -170,7 +171,7 @@ function Item({ item, level, selectedPath, setSelectedPath }: ItemProps) {
             as={FaLock}
             ml={0.1}
             color={"yellow.500"}
-            alignSelf={"center"}
+            alignSelf="center"
             height={"12px"}
           />
         ) : (
@@ -227,7 +228,7 @@ function FileContent({ name, content }: FileContentProps) {
   return (
     <Code
       p={2}
-      borderRadius={"lg"}
+      borderRadius="lg"
       display="block"
       whiteSpace="pre"
       height="82vh"
@@ -290,9 +291,9 @@ function FileLock({ item, ownerName, projectName }: FileLockProps) {
     return <></>
   }
   return (
-    <Flex color={"yellow.500"} align={"center"} mt={2} py={2}>
+    <Flex color={"yellow.500"} align="center" mt={2} py={2}>
       <Icon as={FaLock} mr={1} height={"13px"} />
-      <Text fontWeight={"bold"}>
+      <Text fontWeight="bold">
         Locked by {item.lock.user_github_username}
       </Text>
       {item.lock.user_github_username === currentUser?.github_username ? (
@@ -339,8 +340,8 @@ function SelectedItemInfo({
         ownerName={ownerName}
         projectName={projectName}
       />
-      <HStack alignContent={"center"} mt={4} mb={1} gap={1}>
-        <Heading size={"sm"}>Artifact info</Heading>
+      <HStack alignContent="center" mt={4} mb={1} gap={1}>
+        <Heading size="sm">Artifact info</Heading>
         <IconButton
           aria-label="Change artifact info"
           icon={<MdEdit />}
@@ -366,7 +367,7 @@ function SelectedItemInfo({
             </Badge>
           </>
         ) : (
-          <Badge ml={1} bgColor={"gray"}>
+          <Badge ml={1} bgColor="gray">
             None
           </Badge>
         )}
@@ -415,6 +416,7 @@ function SelectedItemInfo({
 function Files() {
   const { userName, projectName } = Route.useParams()
   const { path } = Route.useSearch()
+  const secBgColor = useColorModeValue("ui.secondary", "ui.darkSlate")
   const {
     isPending: filesPending,
     data: files,
@@ -457,12 +459,21 @@ function Files() {
       ) : (
         <Flex>
           <Box
-            mr={10}
-            height="82vh"
             minW="200px"
             maxW="300px"
             overflowX="auto"
             overflowY="auto"
+            px={0}
+            py={2}
+            mr={6}
+            mt={0}
+            pl={3}
+            pb={2}
+            borderRadius="lg"
+            bg={secBgColor}
+            borderWidth={0}
+            position="sticky"
+            top={55}
           >
             {" "}
             <Flex gap={2}>
@@ -472,7 +483,7 @@ function Files() {
               <IconButton
                 variant="primary"
                 height="25px"
-                fontSize={"sm"}
+                fontSize="sm"
                 onClick={fileUploadModal.onOpen}
                 icon={<FaPlus />}
                 aria-label="upload"
@@ -499,7 +510,7 @@ function Files() {
                 ))
               : ""}
           </Box>
-          <Box minW={"685px"} borderRadius={"lg"} borderWidth={1}>
+          <Box minW={"685px"} borderRadius="lg" borderWidth={1}>
             {selectedPath !== undefined &&
             (selectedItemQuery.isPending || selectedItemQuery.isRefetching) ? (
               <Flex justify="center" align="center" height="full" width="full">

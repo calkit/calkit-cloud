@@ -34,8 +34,8 @@ interface ReferenceEntryTableProps {
 
 function ReferenceEntryTable({ referenceEntry }: ReferenceEntryTableProps) {
   return (
-    <TableContainer mb={6} whiteSpace={"wrap"}>
-      <Table variant="simple" size={"sm"}>
+    <TableContainer mb={6} whiteSpace="wrap">
+      <Table variant="simple" size="sm">
         <Thead>
           <Tr>
             <Th width={"100px"}>Property</Th>
@@ -86,19 +86,24 @@ function References() {
               <Text>Could not read references</Text>
             </Box>
           ) : (
-            <Flex width={"full"}>
+            <Flex width="full">
               {/* References table of contents */}
               <Box>
                 <Box
-                  bg={secBgColor}
-                  px={4}
-                  py={2}
-                  borderRadius="lg"
-                  mr={8}
-                  position={"sticky"}
-                  top={50}
-                  maxH="80%"
+                  maxH={"80%"}
                   overflowY="auto"
+                  minW={"200px"}
+                  px={0}
+                  py={2}
+                  mr={6}
+                  mt={0}
+                  pl={3}
+                  pb={2}
+                  borderRadius="lg"
+                  bg={secBgColor}
+                  borderWidth={0}
+                  position="sticky"
+                  top={55}
                 >
                   <Heading size="md" mb={1}>
                     References
@@ -141,11 +146,11 @@ function References() {
                     </Heading>
                     {references.entries?.map((entry) => (
                       <Box key={entry.key}>
-                        <Flex alignItems={"center"} mb={2}>
+                        <Flex alignItems="center" mb={2}>
                           <Heading size="sm" id={references.path + entry.key}>
                             {entry.key}
                           </Heading>
-                          <Text ml={1} fontSize={"sm"}>
+                          <Text ml={1} fontSize="sm">
                             {entry.file_path ? `(${entry.file_path})` : ""}
                           </Text>
                         </Flex>
