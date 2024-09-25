@@ -15,6 +15,7 @@ import {
   DrawerBody,
   Text,
   Code,
+  Badge,
 } from "@chakra-ui/react"
 import {
   createFileRoute,
@@ -259,6 +260,9 @@ function ProjectLayout() {
                 mb={3}
               >
                 {project?.title}
+                <Badge ml="2" mr="2">
+                  {project?.is_public ? "Public" : "Private"}
+                </Badge>
                 {project?.git_repo_url ? (
                   <Link href={project?.git_repo_url} isExternal>
                     <Icon height="45%" as={FaGithub} pl={3} pr={0} mr={0} />
