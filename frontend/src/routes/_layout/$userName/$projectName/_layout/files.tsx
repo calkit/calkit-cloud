@@ -282,6 +282,7 @@ function FileLock({ item, ownerName, projectName }: FileLockProps) {
           <Button
             aria-label="Lock file"
             onClick={() => createLockMutation.mutate()}
+            isLoading={createLockMutation.isPending}
           >
             <Icon mr={1} as={FaLock} /> Lock file for editing
           </Button>
@@ -308,6 +309,7 @@ function FileLock({ item, ownerName, projectName }: FileLockProps) {
             ml={1}
             color={"yellow.500"}
             onClick={() => deleteLockMutation.mutate()}
+            isLoading={deleteLockMutation.isPending}
           />
         </>
       ) : (
