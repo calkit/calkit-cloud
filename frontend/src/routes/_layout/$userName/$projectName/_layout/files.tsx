@@ -293,9 +293,7 @@ function FileLock({ item, ownerName, projectName }: FileLockProps) {
   return (
     <Flex color={"yellow.500"} align="center" mt={2} py={2}>
       <Icon as={FaLock} mr={1} height={"13px"} />
-      <Text fontWeight="bold">
-        Locked by {item.lock.user_github_username}
-      </Text>
+      <Text fontWeight="bold">Locked by {item.lock.user_github_username}</Text>
       {item.lock.user_github_username === currentUser?.github_username ? (
         <>
           <IconButton
