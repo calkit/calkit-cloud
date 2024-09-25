@@ -24,6 +24,7 @@ import { handleError } from "../../utils"
 interface UploadFileProps {
   isOpen: boolean
   onClose: () => void
+  path?: string
 }
 
 interface FilePost {
@@ -31,7 +32,7 @@ interface FilePost {
   file: FileList
 }
 
-const UploadFile = ({ isOpen, onClose }: UploadFileProps) => {
+const UploadFile = ({ isOpen, onClose, path }: UploadFileProps) => {
   const queryClient = useQueryClient()
   const showToast = useCustomToast()
   const routeApi = getRouteApi("/_layout/$userName/$projectName")
@@ -45,7 +46,7 @@ const UploadFile = ({ isOpen, onClose }: UploadFileProps) => {
     mode: "onBlur",
     criteriaMode: "all",
     defaultValues: {
-      path: "",
+      path: path ? path : "",
     },
   })
 
@@ -102,6 +103,8 @@ const UploadFile = ({ isOpen, onClose }: UploadFileProps) => {
                 })}
                 placeholder="Ex: figures/my-plot.png"
                 type="text"
+                value={path}
+                disabled={Boolean(path)}
               />
               {errors.path && (
                 <FormErrorMessage>{errors.path.message}</FormErrorMessage>

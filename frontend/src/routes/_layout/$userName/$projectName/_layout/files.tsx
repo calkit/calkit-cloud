@@ -28,6 +28,7 @@ import {
   FaRegFolderOpen,
   FaSync,
   FaTimesCircle,
+  FaUpload,
 } from "react-icons/fa"
 import { MdEdit } from "react-icons/md"
 import { ExternalLinkIcon } from "@chakra-ui/icons"
@@ -328,6 +329,7 @@ function SelectedItemInfo({
   projectName,
 }: SelectedItemProps) {
   const fileInfoModal = useDisclosure()
+  const uploadNewVersionModal = useDisclosure()
 
   return (
     <Box minW="300px">
@@ -339,6 +341,21 @@ function SelectedItemInfo({
         ownerName={ownerName}
         projectName={projectName}
       />
+      {selectedItem.type === "file" && selectedItem.in_repo ? (
+        <>
+          <Button mt={2} onClick={uploadNewVersionModal.onOpen}>
+            <Icon as={FaUpload} mr={1} />
+            Upload new version
+          </Button>
+          <UploadFile
+            onClose={uploadNewVersionModal.onClose}
+            isOpen={uploadNewVersionModal.isOpen}
+            path={selectedItem.path}
+          />
+        </>
+      ) : (
+        ""
+      )}
       <HStack alignContent={"center"} mt={4} mb={1} gap={1}>
         <Heading size={"sm"}>Artifact info</Heading>
         <IconButton
