@@ -70,7 +70,9 @@ function Login() {
           alignSelf="center"
           mb={-12}
         />
-        <Text mb={3} fontSize="md">Reproducibility simplified</Text>
+        <Text mb={3} fontSize="md">
+          Reproducibility simplified
+        </Text>
         <Button
           variant="primary"
           isLoading={loginGitHubMutation.isPending}

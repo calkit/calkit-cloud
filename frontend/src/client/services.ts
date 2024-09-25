@@ -220,6 +220,7 @@ export type ProjectsData = {
     ttl?: number | null
   }
   PutProjectContents: {
+    contentLength: number
     formData: Body_projects_put_project_contents
     ownerName: string
     path: string
@@ -1309,7 +1310,7 @@ export class ProjectsService {
   public static putProjectContents(
     data: ProjectsData["PutProjectContents"],
   ): CancelablePromise<ContentsItem> {
-    const { ownerName, projectName, path, formData } = data
+    const { ownerName, projectName, path, contentLength, formData } = data
     return __request(OpenAPI, {
       method: "PUT",
       url: "/projects/{owner_name}/{project_name}/contents/{path}",
@@ -1317,6 +1318,9 @@ export class ProjectsService {
         owner_name: ownerName,
         project_name: projectName,
         path,
+      },
+      headers: {
+        "content-length": contentLength,
       },
       formData: formData,
       mediaType: "multipart/form-data",
