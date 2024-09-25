@@ -1,7 +1,7 @@
 """Functionality for working with users."""
 
 import logging
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from typing import Any
 
 import app.stripe
@@ -23,6 +23,7 @@ from app.security import (
     get_password_hash,
     verify_password,
 )
+from fastapi import HTTPException
 from sqlmodel import Session, select
 
 logging.basicConfig(level=logging.INFO)
@@ -83,9 +84,11 @@ def get_github_token(session: Session, user: User) -> str:
     """Get a user's decrypted GitHub token, automatically refreshing if
     necessary.
     """
+    if user.github_token is None:
+        raise HTTPException(401, "User needs to authenticate with GitHub")
     # Refresh token if necessary
     # Should also handle tokens that don't exist?
-    if user.github_token.expires <= utcnow():
+    if user.github_token.expires <= (utcnow() - timedelta(minutes=5)):
         logger.info("Refreshing GitHub token")
         resp = requests.post(
             "https://github.com/login/oauth/access_token",
@@ -97,9 +100,21 @@ def get_github_token(session: Session, user: User) -> str:
             ),
         )
         logger.info("Refreshed GitHub token")
+        logger.info(f"GitHub token refresh status code: {resp.status_code}")
         gh_resp = token_resp_text_to_dict(resp.text)
         logger.info(f"GitHub token response keys: {list(gh_resp.keys())}")
-        # TODO: Handle failure, since all are 200 response codes
+        # Handle failure, since all are 200 response codes
+        if "error" in gh_resp:
+            msg = (
+                f"{gh_resp['error']}: "
+                f"{gh_resp['error_description'].replace('+', ' ')}"
+            )
+            logger.error(msg)
+            if gh_resp["error"] == "bad_refresh_token":
+                logger.info("Deleting bad GitHub token")
+                session.delete(user.github_token)
+                session.commit()
+            raise HTTPException(401, "GitHub token refresh failed")
         save_github_token(
             session,
             user=user,
@@ -215,9 +230,7 @@ def check_user_subscription_active(session: Session, user: User) -> bool:
     )
     if not stripe_subs:
         return False
-    sub_period_end_timestamps = [
-        sub.current_period_end for sub in stripe_subs
-    ]
+    sub_period_end_timestamps = [sub.current_period_end for sub in stripe_subs]
     subscription.paid_until = datetime.fromtimestamp(
         max(sub_period_end_timestamps)
     )
