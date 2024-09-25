@@ -334,6 +334,7 @@ export type ProjectPublic = {
   owner_account_id: string
   owner_account_name: string
   owner_account_type: string
+  current_user_access?: "read" | "write" | "admin" | "owner" | null
 }
 
 export type ProjectsPublic = {
