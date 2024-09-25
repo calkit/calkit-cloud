@@ -774,7 +774,18 @@ def get_project_contents(
         raise HTTPException(404)
 
 
-@router.put("/projects/{owner_name}/{project_name}/contents/{path:path}")
+def _valid_file_size(content_length: int = Header(lt=1_000_000)):
+    """Check content length header.
+
+    From https://github.com/fastapi/fastapi/issues/362#issuecomment-584104025
+    """
+    return content_length
+
+
+@router.put(
+    "/projects/{owner_name}/{project_name}/contents/{path:path}",
+    dependencies=[Depends(_valid_file_size)],
+)
 def put_project_contents(
     owner_name: str,
     project_name: str,
@@ -791,17 +802,24 @@ def put_project_contents(
         min_access_level="write",
     )
     repo = get_repo(
-        project=project, user=current_user, session=session, ttl=300
+        project=project, user=current_user, session=session, ttl=None
     )
     dirname = os.path.dirname(path)
     os.makedirs(os.path.join(repo.working_dir, dirname), exist_ok=True)
     with open(os.path.join(repo.working_dir, path), "wb") as f:
         f.write(file.file.read())
-    # TODO: If this file is large or of certain type, we should put in DVC?
     repo.git.add(path)
     if repo.git.diff(["--staged", path]):
         repo.git.commit(["-m", f"Upload {path} from web"])
         repo.git.push(["origin", repo.active_branch.name])
+    else:
+        raise HTTPException(
+            400,
+            (
+                "File is either not different or ignored by Git "
+                "and/or tracked in DVC"
+            ),
+        )
     return ContentsItem(
         name=os.path.basename(path),
         path=path,
