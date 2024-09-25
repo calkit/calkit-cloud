@@ -49,6 +49,11 @@ export type Collaborator = {
   access_level: string
 }
 
+export type ConnectedAccounts = {
+  github: boolean
+  zenodo: boolean
+}
+
 export type ContentPatch = {
   kind:
     | "figure"
@@ -329,6 +334,7 @@ export type ProjectPublic = {
   owner_account_id: string
   owner_account_name: string
   owner_account_type: string
+  current_user_access?: "read" | "write" | "admin" | "owner" | null
 }
 
 export type ProjectsPublic = {

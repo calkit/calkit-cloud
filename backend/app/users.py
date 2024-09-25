@@ -1,7 +1,7 @@
 """Functionality for working with users."""
 
 import logging
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from typing import Any
 
 import app.stripe
@@ -9,13 +9,21 @@ import requests
 from app import logger, utcnow
 from app.config import settings
 from app.github import token_resp_text_to_dict
-from app.models import Account, User, UserCreate, UserGitHubToken, UserUpdate
+from app.models import (
+    Account,
+    User,
+    UserCreate,
+    UserGitHubToken,
+    UserUpdate,
+    UserZenodoToken,
+)
 from app.security import (
     decrypt_secret,
     encrypt_secret,
     get_password_hash,
     verify_password,
 )
+from fastapi import HTTPException
 from sqlmodel import Session, select
 
 logging.basicConfig(level=logging.INFO)
@@ -76,9 +84,11 @@ def get_github_token(session: Session, user: User) -> str:
     """Get a user's decrypted GitHub token, automatically refreshing if
     necessary.
     """
+    if user.github_token is None:
+        raise HTTPException(401, "User needs to authenticate with GitHub")
     # Refresh token if necessary
     # Should also handle tokens that don't exist?
-    if user.github_token.expires <= utcnow():
+    if user.github_token.expires <= (utcnow() - timedelta(minutes=5)):
         logger.info("Refreshing GitHub token")
         resp = requests.post(
             "https://github.com/login/oauth/access_token",
@@ -90,9 +100,21 @@ def get_github_token(session: Session, user: User) -> str:
             ),
         )
         logger.info("Refreshed GitHub token")
+        logger.info(f"GitHub token refresh status code: {resp.status_code}")
         gh_resp = token_resp_text_to_dict(resp.text)
         logger.info(f"GitHub token response keys: {list(gh_resp.keys())}")
-        # TODO: Handle failure, since all are 200 response codes
+        # Handle failure, since all are 200 response codes
+        if "error" in gh_resp:
+            msg = (
+                f"{gh_resp['error']}: "
+                f"{gh_resp['error_description'].replace('+', ' ')}"
+            )
+            logger.error(msg)
+            if gh_resp["error"] == "bad_refresh_token":
+                logger.info("Deleting bad GitHub token")
+                session.delete(user.github_token)
+                session.commit()
+            raise HTTPException(401, "GitHub token refresh failed")
         save_github_token(
             session,
             user=user,
@@ -130,7 +152,59 @@ def save_github_token(
     session.add(user.github_token)
     session.commit()
     session.refresh(user.github_token)
-    return
+
+
+def get_zenodo_token(session: Session, user: User) -> str:
+    """Get a user's decrypted Zenodo token, automatically refreshing if
+    necessary.
+    """
+    # Refresh token if necessary
+    # Should also handle tokens that don't exist?
+    if user.zenodo_token.expires <= utcnow():
+        logger.info("Refreshing Zenodo token")
+        resp = requests.post(
+            "https://zenodo.org/oauth/token",
+            data=dict(
+                client_id=settings.ZENODO_CLIENT_ID,
+                client_secret=settings.ZENODO_CLIENT_SECRET,
+                grant_type="refresh_token",
+                refresh_token=decrypt_secret(user.zenodo_token.refresh_token),
+            ),
+        )
+        logger.info("Refreshed Zenodo token")
+        zenodo_resp = resp.json()
+        logger.info(f"Zenodo token response keys: {list(zenodo_resp.keys())}")
+        # TODO: Handle failure, since all are 200 response codes
+        save_zenodo_token(
+            session,
+            user=user,
+            zenodo_resp=zenodo_resp,
+        )
+    return decrypt_secret(user.zenodo_token.access_token)
+
+
+def save_zenodo_token(session: Session, user: User, zenodo_resp: dict):
+    now = utcnow()
+    expires = now + timedelta(seconds=int(zenodo_resp["expires_in"]))
+    if user.zenodo_token is None:
+        user.zenodo_token = UserZenodoToken(
+            user_id=user.id,
+            access_token=encrypt_secret(zenodo_resp["access_token"]),
+            refresh_token=encrypt_secret(zenodo_resp["refresh_token"]),
+            expires=expires,
+        )
+    else:
+        user.zenodo_token.access_token = encrypt_secret(
+            zenodo_resp["access_token"]
+        )
+        user.zenodo_token.refresh_token = encrypt_secret(
+            zenodo_resp["refresh_token"]
+        )
+        user.zenodo_token.expires = expires
+        user.zenodo_token.updated = now
+    session.add(user.zenodo_token)
+    session.commit()
+    session.refresh(user.zenodo_token)
 
 
 def check_user_subscription_active(session: Session, user: User) -> bool:
@@ -156,9 +230,7 @@ def check_user_subscription_active(session: Session, user: User) -> bool:
     )
     if not stripe_subs:
         return False
-    sub_period_end_timestamps = [
-        sub.current_period_end for sub in stripe_subs
-    ]
+    sub_period_end_timestamps = [sub.current_period_end for sub in stripe_subs]
     subscription.paid_until = datetime.fromtimestamp(
         max(sub_period_end_timestamps)
     )

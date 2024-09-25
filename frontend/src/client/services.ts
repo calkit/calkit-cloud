@@ -8,6 +8,7 @@ import type {
   NewPassword,
   Token,
   UserPublic,
+  ConnectedAccounts,
   GitHubInstallations,
   NewSubscriptionResponse,
   SubscriptionUpdate,
@@ -125,6 +126,10 @@ export type UsersData = {
     requestBody: TokenPatch
     tokenId: string
   }
+  PostUserZenodoAuth: {
+    code: string
+    redirectUri: string
+  }
 }
 
 export type MiscData = {
@@ -152,12 +157,6 @@ export type ProjectsData = {
     limit?: number
     offset?: number
   }
-  GetProject: {
-    projectId: string
-  }
-  DeleteProjectById: {
-    projectId: string
-  }
   GetProjectByName: {
     ownerName: string
     projectName: string
@@ -170,6 +169,9 @@ export type ProjectsData = {
   DeleteProject: {
     ownerName: string
     projectName: string
+  }
+  DeleteProjectById: {
+    projectId: string
   }
   GetProjectGitRepo: {
     ownerName: string
@@ -218,6 +220,7 @@ export type ProjectsData = {
     ttl?: number | null
   }
   PutProjectContents: {
+    contentLength: number
     formData: Body_projects_put_project_contents
     ownerName: string
     path: string
@@ -838,6 +841,40 @@ export class UsersService {
       url: "/user/github-app-installations",
     })
   }
+
+  /**
+   * Get User Connected Accounts
+   * @returns ConnectedAccounts Successful Response
+   * @throws ApiError
+   */
+  public static getUserConnectedAccounts(): CancelablePromise<ConnectedAccounts> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/user/connected-accounts",
+    })
+  }
+
+  /**
+   * Post User Zenodo Auth
+   * @returns Message Successful Response
+   * @throws ApiError
+   */
+  public static postUserZenodoAuth(
+    data: UsersData["PostUserZenodoAuth"],
+  ): CancelablePromise<Message> {
+    const { code, redirectUri } = data
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/user/zenodo-auth",
+      query: {
+        code,
+        redirect_uri: redirectUri,
+      },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
 }
 
 export class MiscService {
@@ -975,48 +1012,6 @@ export class ProjectsService {
   }
 
   /**
-   * Get Project
-   * @returns ProjectPublic Successful Response
-   * @throws ApiError
-   */
-  public static getProject(
-    data: ProjectsData["GetProject"],
-  ): CancelablePromise<ProjectPublic> {
-    const { projectId } = data
-    return __request(OpenAPI, {
-      method: "GET",
-      url: "/projects/{project_id}",
-      path: {
-        project_id: projectId,
-      },
-      errors: {
-        422: `Validation Error`,
-      },
-    })
-  }
-
-  /**
-   * Delete Project By Id
-   * @returns Message Successful Response
-   * @throws ApiError
-   */
-  public static deleteProjectById(
-    data: ProjectsData["DeleteProjectById"],
-  ): CancelablePromise<Message> {
-    const { projectId } = data
-    return __request(OpenAPI, {
-      method: "DELETE",
-      url: "/projects/{project_id}",
-      path: {
-        project_id: projectId,
-      },
-      errors: {
-        422: `Validation Error`,
-      },
-    })
-  }
-
-  /**
    * Get Project By Name
    * @returns ProjectPublic Successful Response
    * @throws ApiError
@@ -1077,6 +1072,27 @@ export class ProjectsService {
       path: {
         owner_name: ownerName,
         project_name: projectName,
+      },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Delete Project By Id
+   * @returns Message Successful Response
+   * @throws ApiError
+   */
+  public static deleteProjectById(
+    data: ProjectsData["DeleteProjectById"],
+  ): CancelablePromise<Message> {
+    const { projectId } = data
+    return __request(OpenAPI, {
+      method: "DELETE",
+      url: "/projects/{project_id}",
+      path: {
+        project_id: projectId,
       },
       errors: {
         422: `Validation Error`,
@@ -1294,7 +1310,7 @@ export class ProjectsService {
   public static putProjectContents(
     data: ProjectsData["PutProjectContents"],
   ): CancelablePromise<ContentsItem> {
-    const { ownerName, projectName, path, formData } = data
+    const { ownerName, projectName, path, contentLength, formData } = data
     return __request(OpenAPI, {
       method: "PUT",
       url: "/projects/{owner_name}/{project_name}/contents/{path}",
@@ -1302,6 +1318,9 @@ export class ProjectsService {
         owner_name: ownerName,
         project_name: projectName,
         path,
+      },
+      headers: {
+        "content-length": contentLength,
       },
       formData: formData,
       mediaType: "multipart/form-data",

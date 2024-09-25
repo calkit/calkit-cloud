@@ -80,7 +80,28 @@ class UpdatePassword(SQLModel):
 
 class UserGitHubToken(SQLModel, table=True):
     user_id: uuid.UUID = Field(foreign_key="user.id", primary_key=True)
-    updated: datetime = Field(default_factory=utcnow)
+    updated: datetime = Field(
+        default_factory=utcnow,
+        sa_column_kwargs=dict(
+            server_onupdate=sqlalchemy.func.now(),
+            server_default=sqlalchemy.func.now(),
+        ),
+    )
+    access_token: str  # These should be encrypted
+    refresh_token: str
+    expires: datetime | None
+    refresh_token_expires: datetime | None
+
+
+class UserZenodoToken(SQLModel, table=True):
+    user_id: uuid.UUID = Field(foreign_key="user.id", primary_key=True)
+    updated: datetime = Field(
+        default_factory=utcnow,
+        sa_column_kwargs=dict(
+            server_onupdate=sqlalchemy.func.now(),
+            server_default=sqlalchemy.func.now(),
+        ),
+    )
     access_token: str  # These should be encrypted
     refresh_token: str
     expires: datetime | None
@@ -92,9 +113,11 @@ class User(UserBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     hashed_password: str
     stripe_customer_id: str | None = None
+    zenodo_user_id: str | None = None
     # Relationships
     account: Account = Relationship(back_populates="user")
     github_token: UserGitHubToken | None = Relationship()
+    zenodo_token: UserZenodoToken | None = Relationship()
     org_memberships: list["UserOrgMembership"] = Relationship(
         back_populates="user"
     )
@@ -330,12 +353,27 @@ class Project(ProjectBase, table=True):
         elif self.owner_account_type == "org":
             return self.owner_account.org
 
+    @property
+    def current_user_access(
+        self,
+    ) -> Literal["read", "write", "admin", "owner"] | None:
+        return getattr(self, "_current_user_access", None)
+
+    @current_user_access.setter
+    def current_user_access(
+        self, val: Literal["read", "write", "admin", "owner"]
+    ):
+        self._current_user_access = val
+
 
 class ProjectPublic(ProjectBase):
     id: uuid.UUID
     owner_account_id: uuid.UUID
     owner_account_name: str
     owner_account_type: str
+    current_user_access: Literal["read", "write", "admin", "owner"] | None = (
+        None
+    )
 
 
 class ProjectsPublic(SQLModel):

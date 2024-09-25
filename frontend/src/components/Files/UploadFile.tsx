@@ -24,6 +24,7 @@ import { handleError } from "../../utils"
 interface UploadFileProps {
   isOpen: boolean
   onClose: () => void
+  path?: string
 }
 
 interface FilePost {
@@ -31,7 +32,7 @@ interface FilePost {
   file: FileList
 }
 
-const UploadFile = ({ isOpen, onClose }: UploadFileProps) => {
+const UploadFile = ({ isOpen, onClose, path }: UploadFileProps) => {
   const queryClient = useQueryClient()
   const showToast = useCustomToast()
   const routeApi = getRouteApi("/_layout/$userName/$projectName")
@@ -45,10 +46,9 @@ const UploadFile = ({ isOpen, onClose }: UploadFileProps) => {
     mode: "onBlur",
     criteriaMode: "all",
     defaultValues: {
-      path: "",
+      path: path ? path : "",
     },
   })
-
   const mutation = useMutation({
     mutationFn: (data: FilePost) =>
       ProjectsService.putProjectContents({
@@ -58,6 +58,7 @@ const UploadFile = ({ isOpen, onClose }: UploadFileProps) => {
         ownerName: userName,
         projectName: projectName,
         path: data.path,
+        contentLength: data.file[0].size,
       }),
     onSuccess: () => {
       showToast("Success!", "File uploaded successfully.", "success")
@@ -102,6 +103,8 @@ const UploadFile = ({ isOpen, onClose }: UploadFileProps) => {
                 })}
                 placeholder="Ex: figures/my-plot.png"
                 type="text"
+                value={path}
+                disabled={Boolean(path)}
               />
               {errors.path && (
                 <FormErrorMessage>{errors.path.message}</FormErrorMessage>

@@ -1,7 +1,7 @@
-import { Button, Container, Image } from "@chakra-ui/react"
+import { Button, Container, Image, Text } from "@chakra-ui/react"
 import { createFileRoute, redirect } from "@tanstack/react-router"
 
-import Logo from "/assets/images/kdot.svg"
+import Logo from "/assets/images/calkit-no-bg.svg"
 import useAuth, { isLoggedIn } from "../hooks/useAuth"
 import { z } from "zod"
 import { useEffect, useRef } from "react"
@@ -59,7 +59,6 @@ function Login() {
       <Container
         h="100vh"
         maxW="xs"
-        alignItems="stretch"
         justifyContent="center"
         gap={4}
         centerContent
@@ -67,11 +66,13 @@ function Login() {
         <Image
           src={Logo}
           alt="Logo"
-          height="10%"
-          maxW="2xs"
+          height="150px"
           alignSelf="center"
-          mb={4}
+          mb={-12}
         />
+        <Text mb={3} fontSize="md">
+          Reproducibility simplified
+        </Text>
         <Button
           variant="primary"
           isLoading={loginGitHubMutation.isPending}

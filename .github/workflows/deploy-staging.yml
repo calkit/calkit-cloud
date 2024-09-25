@@ -42,6 +42,8 @@ jobs:
       STRIPE_PUBLISHABLE_KEY: ${{ secrets.STRIPE_PUBLISHABLE_KEY }}
       MIXPANEL_TOKEN: ${{ secrets.MIXPANEL_TOKEN }}
       GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
+      ZENODO_CLIENT_ID: ${{ secrets.ZENODO_CLIENT_ID }}
+      ZENODO_CLIENT_SECRET: ${{ secrets.ZENODO_CLIENT_SECRET }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4

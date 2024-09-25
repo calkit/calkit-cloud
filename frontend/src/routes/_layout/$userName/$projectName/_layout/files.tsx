@@ -29,6 +29,7 @@ import {
   FaRegFolderOpen,
   FaSync,
   FaTimesCircle,
+  FaUpload,
 } from "react-icons/fa"
 import { MdEdit } from "react-icons/md"
 import { ExternalLinkIcon } from "@chakra-ui/icons"
@@ -282,6 +283,7 @@ function FileLock({ item, ownerName, projectName }: FileLockProps) {
           <Button
             aria-label="Lock file"
             onClick={() => createLockMutation.mutate()}
+            isLoading={createLockMutation.isPending}
           >
             <Icon mr={1} as={FaLock} /> Lock file for editing
           </Button>
@@ -306,6 +308,7 @@ function FileLock({ item, ownerName, projectName }: FileLockProps) {
             ml={1}
             color={"yellow.500"}
             onClick={() => deleteLockMutation.mutate()}
+            isLoading={deleteLockMutation.isPending}
           />
         </>
       ) : (
@@ -327,6 +330,7 @@ function SelectedItemInfo({
   projectName,
 }: SelectedItemProps) {
   const fileInfoModal = useDisclosure()
+  const uploadNewVersionModal = useDisclosure()
 
   return (
     <Box minW="300px">
@@ -338,8 +342,27 @@ function SelectedItemInfo({
         ownerName={ownerName}
         projectName={projectName}
       />
-      <HStack alignContent="center" mt={4} mb={1} gap={1}>
-        <Heading size="sm">Artifact info</Heading>
+      {selectedItem.type === "file" && selectedItem.in_repo ? (
+        <>
+          <Button
+            mt={2}
+            onClick={uploadNewVersionModal.onOpen}
+            isDisabled={Boolean(selectedItem.lock)}
+          >
+            <Icon as={FaUpload} mr={1} />
+            Upload new version
+          </Button>
+          <UploadFile
+            onClose={uploadNewVersionModal.onClose}
+            isOpen={uploadNewVersionModal.isOpen}
+            path={selectedItem.path}
+          />
+        </>
+      ) : (
+        ""
+      )}
+      <HStack alignContent={"center"} mt={4} mb={1} gap={1}>
+        <Heading size={"sm"}>Artifact info</Heading>
         <IconButton
           aria-label="Change artifact info"
           icon={<MdEdit />}

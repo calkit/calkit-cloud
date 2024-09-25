@@ -220,6 +220,19 @@ export const $Collaborator = {
   },
 } as const
 
+export const $ConnectedAccounts = {
+  properties: {
+    github: {
+      type: "boolean",
+      isRequired: true,
+    },
+    zenodo: {
+      type: "boolean",
+      isRequired: true,
+    },
+  },
+} as const
+
 export const $ContentPatch = {
   properties: {
     kind: {
@@ -1613,6 +1626,18 @@ export const $ProjectPublic = {
     owner_account_type: {
       type: "string",
       isRequired: true,
+    },
+    current_user_access: {
+      type: "any-of",
+      contains: [
+        {
+          type: "Enum",
+          enum: ["read", "write", "admin", "owner"],
+        },
+        {
+          type: "null",
+        },
+      ],
     },
   },
 } as const
