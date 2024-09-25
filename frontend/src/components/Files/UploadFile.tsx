@@ -49,7 +49,6 @@ const UploadFile = ({ isOpen, onClose, path }: UploadFileProps) => {
       path: path ? path : "",
     },
   })
-
   const mutation = useMutation({
     mutationFn: (data: FilePost) =>
       ProjectsService.putProjectContents({
@@ -59,6 +58,7 @@ const UploadFile = ({ isOpen, onClose, path }: UploadFileProps) => {
         ownerName: userName,
         projectName: projectName,
         path: data.path,
+        contentLength: data.file[0].size,
       }),
     onSuccess: () => {
       showToast("Success!", "File uploaded successfully.", "success")
