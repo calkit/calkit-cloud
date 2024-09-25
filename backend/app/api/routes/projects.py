@@ -801,6 +801,9 @@ def put_project_contents(
         current_user=current_user,
         min_access_level="write",
     )
+    locked_paths = [lock.path for lock in project.file_locks]
+    if path in locked_paths:
+        raise HTTPException(400, "Path is currently locked")
     repo = get_repo(
         project=project, user=current_user, session=session, ttl=None
     )

@@ -345,7 +345,11 @@ function SelectedItemInfo({
       />
       {selectedItem.type === "file" && selectedItem.in_repo ? (
         <>
-          <Button mt={2} onClick={uploadNewVersionModal.onOpen}>
+          <Button
+            mt={2}
+            onClick={uploadNewVersionModal.onOpen}
+            isDisabled={Boolean(selectedItem.lock)}
+          >
             <Icon as={FaUpload} mr={1} />
             Upload new version
           </Button>
