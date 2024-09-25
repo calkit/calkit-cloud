@@ -212,11 +212,12 @@ def get_project_by_name(
     current_user: CurrentUser,
 ) -> ProjectPublic:
     project = app.projects.get_project(
-        session=session, owner_name=owner_name, project_name=project_name
+        session=session,
+        owner_name=owner_name,
+        project_name=project_name,
+        current_user=current_user,
+        min_access_level="read",
     )
-    # TODO: Check for collaborator access
-    if not project.is_public and project.owner != current_user:
-        raise HTTPException(403)
     return project
 
 
@@ -234,11 +235,12 @@ def patch_project(
     req: ProjectPatch,
 ) -> ProjectPublic:
     project = app.projects.get_project(
-        session=session, owner_name=owner_name, project_name=project_name
+        session=session,
+        owner_name=owner_name,
+        project_name=project_name,
+        current_user=current_user,
+        min_access_level="write",
     )
-    # TODO: Check for collaborator access
-    if project.owner != current_user:
-        raise HTTPException(403)
     if req.title is not None:
         project.title = req.title
     project.description = req.description

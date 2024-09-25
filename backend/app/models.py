@@ -353,12 +353,27 @@ class Project(ProjectBase, table=True):
         elif self.owner_account_type == "org":
             return self.owner_account.org
 
+    @property
+    def current_user_access(
+        self,
+    ) -> Literal["read", "write", "admin", "owner"] | None:
+        return getattr(self, "_current_user_access", None)
+
+    @current_user_access.setter
+    def current_user_access(
+        self, val: Literal["read", "write", "admin", "owner"]
+    ):
+        self._current_user_access = val
+
 
 class ProjectPublic(ProjectBase):
     id: uuid.UUID
     owner_account_id: uuid.UUID
     owner_account_name: str
     owner_account_type: str
+    current_user_access: Literal["read", "write", "admin", "owner"] | None = (
+        None
+    )
 
 
 class ProjectsPublic(SQLModel):
