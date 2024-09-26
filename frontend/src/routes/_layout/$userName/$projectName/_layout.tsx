@@ -260,13 +260,16 @@ function ProjectLayout() {
                 mb={3}
               >
                 {project?.title}
-                <Badge ml="2" mr="2">
+                <Badge
+                  ml="2"
+                  color={project?.is_public ? "green.500" : "yellow.500"}
+                >
                   {project?.is_public ? "Public" : "Private"}
                 </Badge>
                 {project?.git_repo_url ? (
                   <Link href={project?.git_repo_url} isExternal>
-                    <Icon height="45%" as={FaGithub} pl={3} pr={0} mr={0} />
-                    <Icon height={"50%"} as={ExternalLinkIcon} pl={0} ml={0} />
+                    <Icon height="45%" as={FaGithub} />
+                    <Icon height={"40%"} as={ExternalLinkIcon} ml={-3} />
                   </Link>
                 ) : (
                   ""
