@@ -27,7 +27,7 @@ const p = (props: any) => {
   return <Text my={2} mt={3} {...props} />
 }
 const code = (props: any) => {
-  return <Code my={2} whiteSpace={"pre"} p={2} {...props} />
+  return <Code my={2} whiteSpace={"pre"} px={1} {...props} />
 }
 
 const Markdown = ({ children }: MarkdownProps) => {
