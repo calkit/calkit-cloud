@@ -99,6 +99,7 @@ function ProjectsTable() {
               <Th>Title</Th>
               <Th>GitHub URL</Th>
               <Th>Description</Th>
+              <Th>Visibility</Th>
               <Th>Actions</Th>
             </Tr>
           </Thead>
@@ -136,6 +137,7 @@ function ProjectsTable() {
                   >
                     {project.description || "N/A"}
                   </Td>
+                  <Td>{project.is_public ? "Public" : "Private"}</Td>
                   <Td>
                     <ActionsMenu type={"Project"} value={project} />
                   </Td>
