@@ -2203,7 +2203,7 @@ def get_project_notebooks(
     project_name: str,
     current_user: CurrentUser,
     session: SessionDep,
-) -> list[Figure]:
+) -> list[Notebook]:
     project = app.projects.get_project(
         session=session,
         owner_name=owner_name,
