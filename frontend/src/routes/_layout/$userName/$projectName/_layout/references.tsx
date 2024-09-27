@@ -65,7 +65,7 @@ function References() {
     error,
     data: allReferences,
   } = useQuery({
-    queryKey: ["projects", userName, projectName, "References"],
+    queryKey: ["projects", userName, projectName, "references"],
     queryFn: () =>
       ProjectsService.getProjectReferences({
         ownerName: userName,
