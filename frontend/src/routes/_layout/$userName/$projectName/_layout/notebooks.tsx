@@ -34,11 +34,17 @@ function NotebookContent({ notebook }: NotebookContentProps) {
   })
   return (
     <>
-      <Heading size="md">{notebook.title}</Heading>
       {data?.data ? (
-        <IpynbRenderer ipynb={data?.data} bgTransparent={false} />
+        <Box>
+          <iframe
+            width="1000px"
+            height="1000px"
+            title="notebook"
+            srcDoc={data.data}
+          />
+        </Box>
       ) : (
-        ""
+        "Loading..."
       )}
     </>
   )
@@ -119,7 +125,7 @@ function Notebooks() {
                     ))}
                   </Box>
                 </Box>
-                <Box maxW={"60%"} overflowX="scroll">
+                <Box>
                   {allNotebooks?.map((notebook) => (
                     <>
                       {notebook.title === selectedTitle && notebook.url ? (
