@@ -495,6 +495,7 @@ function Files() {
             borderWidth={0}
             position="sticky"
             top={55}
+            maxH="fit-content"
           >
             {" "}
             <Flex gap={2}>
