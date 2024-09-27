@@ -14,6 +14,7 @@ import { IoLibraryOutline } from "react-icons/io5"
 import axios from "axios"
 import { useQuery } from "@tanstack/react-query"
 import { BsGear } from "react-icons/bs"
+import { SiJupyter } from "react-icons/si"
 
 const items = [
   { icon: FiHome, title: "Project home", path: "" },
@@ -21,6 +22,7 @@ const items = [
   { icon: FiDatabase, title: "Data", path: "/data" },
   { icon: FiImage, title: "Figures", path: "/figures" },
   { icon: FiBookOpen, title: "Publications", path: "/publications" },
+  { icon: SiJupyter, title: "Notebooks", path: "/notebooks" },
   { icon: FiHardDrive, title: "Software", path: "/software" },
   { icon: FiUsers, title: "Collaborators", path: "/collaborators" },
   { icon: IoLibraryOutline, title: "References", path: "/references" },
