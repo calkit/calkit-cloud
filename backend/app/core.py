@@ -17,6 +17,7 @@ CATEGORIES_SINGULAR_TO_PLURAL = {
     "figure": "figures",
     "dataset": "datasets",
     "publication": "publications",
+    "notebook": "notebooks",
     "environment": "environments",
     "references": "references",
     "software": "software",

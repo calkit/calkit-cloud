@@ -2187,3 +2187,44 @@ def delete_project_file_lock(
             session.commit()
             return Message(message="success")
     raise HTTPException(404, "Lock not found")
+
+
+class Notebook(BaseModel):
+    path: str
+    title: str
+    description: str | None = None
+    stage: str | None = None
+    url: str | None = None
+
+
+@router.get("/projects/{owner_name}/{project_name}/notebooks")
+def get_project_notebooks(
+    owner_name: str,
+    project_name: str,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> list[Figure]:
+    project = app.projects.get_project(
+        session=session,
+        owner_name=owner_name,
+        project_name=project_name,
+        current_user=current_user,
+        min_access_level="read",
+    )
+    ck_info = get_ck_info(
+        project=project, user=current_user, session=session, ttl=300
+    )
+    notebooks = ck_info.get("notebooks", [])
+    if not notebooks:
+        return notebooks
+    # Get the figure content and base64 encode it
+    for notebook in notebooks:
+        item = get_project_contents(
+            owner_name=owner_name,
+            project_name=project_name,
+            session=session,
+            current_user=current_user,
+            path=notebook["path"],
+        )
+        notebook["url"] = item.url
+    return [Notebook.model_validate(nb) for nb in notebooks]
