@@ -46,6 +46,11 @@ def output_from_pipeline(
         return
     wdir = stage.get("wdir", "")
     outs = lock.get("stages", []).get(stage_name, {}).get("outs", [])
+    # If there's only one output, no need to check path
+    if len(outs) == 1:
+        out = outs[0]
+        out["path"] = path
+        return out
     for out in outs:
         outpath = os.path.join(wdir, out["path"])
         if os.path.abspath(outpath) == os.path.abspath(path):
