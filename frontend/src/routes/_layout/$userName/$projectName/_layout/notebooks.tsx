@@ -79,7 +79,8 @@ function NotebookContent({ notebook }: NotebookContentProps) {
 
 function Notebooks() {
   const secBgColor = useColorModeValue("ui.secondary", "ui.darkSlate")
-  const bgColor = useColorModeValue("ui.light", "ui.dark")
+  const bgActive = useColorModeValue("#E2E8F0", "#4A5568")
+
   const { userName, projectName } = Route.useParams()
   const [selectedTitle, setSelectedTitle] = useState<string>()
   const {
@@ -133,9 +134,12 @@ function Notebooks() {
                     {allNotebooks?.map((notebook) => (
                       <Box
                         px={1}
-                        borderRadius="md"
+                        py={0.5}
+                        borderRadius="lg"
                         key={notebook.path}
-                        bg={selectedTitle === notebook.title ? bgColor : "none"}
+                        bg={
+                          selectedTitle === notebook.title ? bgActive : "none"
+                        }
                       >
                         <Link
                           id={notebook.title}
