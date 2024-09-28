@@ -2,6 +2,7 @@
 
 import logging
 from datetime import UTC, datetime
+from urllib.parse import parse_qs, urlparse
 
 import ruamel.yaml
 
@@ -17,6 +18,7 @@ CATEGORIES_SINGULAR_TO_PLURAL = {
     "figure": "figures",
     "dataset": "datasets",
     "publication": "publications",
+    "notebook": "notebooks",
     "environment": "environments",
     "references": "references",
     "software": "software",
@@ -29,3 +31,8 @@ CATEGORIES_PLURAL_TO_SINGULAR = {
 def utcnow():
     """Return a timezone-naive timestamp for now in UTC."""
     return datetime.now(UTC).replace(tzinfo=None)
+
+
+def params_from_url(url: str) -> dict:
+    parsed_url = urlparse(url)
+    return parse_qs(parsed_url.query)

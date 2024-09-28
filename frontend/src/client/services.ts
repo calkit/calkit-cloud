@@ -45,6 +45,7 @@ import type {
   IssuePatch,
   IssuePost,
   LabelDatasetPost,
+  Notebook,
   ProjectCreate,
   ProjectPatch,
   ProjectPublic,
@@ -350,6 +351,10 @@ export type ProjectsData = {
     ownerName: string
     projectName: string
     requestBody: FileLockPost
+  }
+  GetProjectNotebooks: {
+    ownerName: string
+    projectName: string
   }
 }
 
@@ -1948,6 +1953,28 @@ export class ProjectsService {
       },
       body: requestBody,
       mediaType: "application/json",
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Get Project Notebooks
+   * @returns Notebook Successful Response
+   * @throws ApiError
+   */
+  public static getProjectNotebooks(
+    data: ProjectsData["GetProjectNotebooks"],
+  ): CancelablePromise<Array<Notebook>> {
+    const { ownerName, projectName } = data
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/projects/{owner_name}/{project_name}/notebooks",
+      path: {
+        owner_name: ownerName,
+        project_name: projectName,
+      },
       errors: {
         422: `Validation Error`,
       },

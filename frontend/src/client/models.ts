@@ -264,6 +264,15 @@ export type NewSubscriptionResponse = {
   stripe_session_client_secret: string | null
 }
 
+export type Notebook = {
+  path: string
+  title: string
+  description?: string | null
+  stage?: string | null
+  output_format?: "html" | "notebook" | null
+  url?: string | null
+}
+
 export type OrgMemberPost = {
   username: string
   role: "read" | "write" | "admin" | "owner"

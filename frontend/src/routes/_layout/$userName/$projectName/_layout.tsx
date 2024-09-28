@@ -170,6 +170,21 @@ function HelpContent() {
       </>
     )
   }
+  if (page === "notebooks") {
+    return (
+      <>
+        <Text mb={mb}>
+          This page is dedicated to the project's{" "}
+          <Link isExternal href="https://jupyter.org/">
+            Jupyter notebooks
+          </Link>
+          . It is possible to define a workflow stage that executes a notebook
+          and converts it to a different format, e.g., HTML, which will be shown
+          here if configured.
+        </Text>
+      </>
+    )
+  }
   if (page === "software") {
     return (
       <>

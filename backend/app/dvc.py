@@ -51,3 +51,7 @@ def output_from_pipeline(
         if os.path.abspath(outpath) == os.path.abspath(path):
             out["path"] = path
             return out
+    # If there's only one output, no need to check path if we don't have an
+    # exact match
+    if len(outs) == 1:
+        return outs[0]
