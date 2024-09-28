@@ -24,6 +24,7 @@ from app.config import settings
 from app.core import (
     CATEGORIES_PLURAL_TO_SINGULAR,
     CATEGORIES_SINGULAR_TO_PLURAL,
+    params_from_url,
     ryaml,
 )
 from app.dvc import make_mermaid_diagram, output_from_pipeline
@@ -734,6 +735,7 @@ def get_project_contents(
             dvc_out = {}
         size = dvc_out.get("size")
         md5 = dvc_out.get("md5", "")
+        dvc_fpath = dvc_out.get("path")
         dvc_type = "dir" if md5.endswith(".dir") else "file"
         content = None
         url = None
@@ -746,7 +748,7 @@ def get_project_contents(
                 idx=md5[:2],
                 md5=md5[2:],
             )
-            url = _get_object_url(fp, fname=os.path.basename(path), fs=fs)
+            url = _get_object_url(fp, fname=os.path.basename(dvc_fpath), fs=fs)
             # Get content is the size is small enough
             if (
                 size is not None
@@ -2194,6 +2196,7 @@ class Notebook(BaseModel):
     title: str
     description: str | None = None
     stage: str | None = None
+    output_format: Literal["html", "notebook"] | None = None
     url: str | None = None
 
 
@@ -2227,4 +2230,13 @@ def get_project_notebooks(
             path=notebook["path"],
         )
         notebook["url"] = item.url
+        # Figure out the output format from the URL content disposition
+        if item.url is not None:
+            params = params_from_url(item.url)
+            rcd = params.get("response-content-disposition")
+            if rcd is not None:
+                if rcd[0].endswith(".ipynb"):
+                    notebook["output_format"] = "notebook"
+                elif rcd[0].endswith(".html"):
+                    notebook["output_format"] = "html"
     return [Notebook.model_validate(nb) for nb in notebooks]
