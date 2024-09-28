@@ -29,9 +29,16 @@ interface NotebookContentProps {
 }
 
 function NotebookContent({ notebook }: NotebookContentProps) {
-  const { data } = useQuery({
+  const { userName, projectName } = Route.useParams()
+  const { data, isPending } = useQuery({
     queryFn: () => axios.get(String(notebook.url)),
-    queryKey: ["notebooks", notebook.url],
+    queryKey: [
+      "projects",
+      userName,
+      projectName,
+      "notebook-content",
+      notebook.path,
+    ],
   })
   const getOutput = (data: any) => {
     if (notebook.output_format === "html") {
@@ -51,7 +58,23 @@ function NotebookContent({ notebook }: NotebookContentProps) {
     }
     return "Cannot render notebook output"
   }
-  return <>{data?.data ? <Box>{getOutput(data.data)}</Box> : "Loading..."}</>
+  return (
+    <>
+      {isPending ? (
+        <Flex justify="center" align="center" height="full" width="full">
+          <Spinner size="xl" color="ui.main" />
+        </Flex>
+      ) : (
+        <>
+          {data?.data ? (
+            <Box>{getOutput(data.data)}</Box>
+          ) : (
+            "Notebook content could not be loaded."
+          )}
+        </>
+      )}
+    </>
+  )
 }
 
 function Notebooks() {
@@ -143,7 +166,7 @@ function Notebooks() {
                           notebook={notebook}
                         />
                       ) : (
-                        "Click a notebook to render"
+                        ""
                       )}
                     </>
                   ))}
