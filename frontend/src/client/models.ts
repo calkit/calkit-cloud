@@ -269,6 +269,7 @@ export type Notebook = {
   title: string
   description?: string | null
   stage?: string | null
+  output_format?: "html" | "notebook" | null
   url?: string | null
 }
 

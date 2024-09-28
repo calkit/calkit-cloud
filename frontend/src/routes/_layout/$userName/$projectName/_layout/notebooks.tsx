@@ -32,22 +32,25 @@ function NotebookContent({ notebook }: NotebookContentProps) {
     queryFn: () => axios.get(String(notebook.url)),
     queryKey: ["notebooks", notebook.url],
   })
-  return (
-    <>
-      {data?.data ? (
-        <Box>
+  const getOutput = (data: any) => {
+    if (notebook.output_format === "html") {
+      return (
+        <>
           <iframe
             width="1000px"
             height="1000px"
             title="notebook"
-            srcDoc={data.data}
+            srcDoc={data}
           />
-        </Box>
-      ) : (
-        "Loading..."
-      )}
-    </>
-  )
+        </>
+      )
+    }
+    if (notebook.output_format === "notebook") {
+      return <IpynbRenderer ipynb={data} />
+    }
+    return "Cannot render notebook output"
+  }
+  return <>{data?.data ? <Box>{getOutput(data.data)}</Box> : "Loading..."}</>
 }
 
 function Notebooks() {

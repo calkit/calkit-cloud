@@ -1284,6 +1284,18 @@ export const $Notebook = {
         },
       ],
     },
+    output_format: {
+      type: "any-of",
+      contains: [
+        {
+          type: "Enum",
+          enum: ["html", "notebook"],
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
     url: {
       type: "any-of",
       contains: [
