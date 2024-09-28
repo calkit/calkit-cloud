@@ -35,9 +35,19 @@ resource "local_file" "default" {
 resource "google_storage_bucket" "production" {
   name     = "calkit-production"
   location = "US"
+  cors {
+    origin          = ["https://calkit.io"]
+    method          = ["*"]
+    response_header = ["*"]
+  }
 }
 
 resource "google_storage_bucket" "staging" {
   name     = "calkit-staging"
   location = "US"
+  cors {
+    origin          = ["https://staging.calkit.io"]
+    method          = ["*"]
+    response_header = ["*"]
+  }
 }
