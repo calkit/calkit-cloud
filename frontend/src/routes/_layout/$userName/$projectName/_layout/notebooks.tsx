@@ -7,6 +7,7 @@ import {
   Heading,
   Link,
   Icon,
+  Tooltip,
 } from "@chakra-ui/react"
 import { useQuery } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
@@ -55,7 +56,9 @@ function NotebookContent({ notebook }: NotebookContentProps) {
 
 function Notebooks() {
   const secBgColor = useColorModeValue("ui.secondary", "ui.darkSlate")
+  const bgColor = useColorModeValue("ui.light", "ui.dark")
   const { userName, projectName } = Route.useParams()
+  const [selectedTitle, setSelectedTitle] = useState<string>()
   const {
     isPending,
     error,
@@ -68,7 +71,9 @@ function Notebooks() {
         projectName: projectName,
       }),
   })
-  const [selectedTitle, setSelectedTitle] = useState<string>()
+  if (allNotebooks && !selectedTitle && allNotebooks[0]) {
+    setSelectedTitle(allNotebooks[0].title)
+  }
 
   return (
     <>
@@ -104,14 +109,10 @@ function Notebooks() {
                     </Heading>
                     {allNotebooks?.map((notebook) => (
                       <Box
-                        p={1}
-                        borderRadius="sm"
+                        px={1}
+                        borderRadius="md"
                         key={notebook.path}
-                        bg={
-                          selectedTitle === notebook.title
-                            ? "black.800"
-                            : "none"
-                        }
+                        bg={selectedTitle === notebook.title ? bgColor : "none"}
                       >
                         <Link
                           id={notebook.title}
@@ -121,7 +122,12 @@ function Notebooks() {
                         >
                           <Flex alignItems="center">
                             <Icon mr={1} as={SiJupyter} />
-                            <Text>{notebook.path}</Text>
+                            <Tooltip
+                              label={`${notebook.title}: ${notebook.description}`}
+                              openDelay={600}
+                            >
+                              <Text>{notebook.path}</Text>
+                            </Tooltip>
                           </Flex>
                         </Link>
                       </Box>
