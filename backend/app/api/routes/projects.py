@@ -2061,7 +2061,9 @@ def get_project_references(
                 f["key"]: f["path"] for f in ref_collection.get("files", [])
             }
             for entry in entries:
-                file_path = file_paths.get("key")
+                key = entry.pop("ID")
+                reftype = entry.pop("ENTRYTYPE")
+                file_path = file_paths.get(key)
                 url = None
                 # If a file path is defined, read it and get the presigned URL
                 if file_path is not None:
@@ -2075,10 +2077,10 @@ def get_project_references(
                             path=file_path,
                         )
                         url = contents_item.url
-                    except HTTPException:
-                        pass
-                key = entry.pop("ID")
-                reftype = entry.pop("ENTRYTYPE")
+                    except HTTPException as e:
+                        logger.warning(
+                            f"Could not find contents for {key}: {e}"
+                        )
                 final_entries.append(
                     ReferenceEntry.model_validate(
                         dict(
