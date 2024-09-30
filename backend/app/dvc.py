@@ -63,12 +63,12 @@ def output_from_pipeline(
         return outs[0]
 
 
-def get_dvc_file_info(wdir: str, path=".") -> list[dict]:
+def get_dvc_file_info(wdir: str, path=".") -> dict[str, dict]:
     try:
         repo = Repo(wdir)
     except NotDvcRepoError:
         logger.warning(f"{wdir} is not a DVC repo")
-        return []
+        return dict()
     recursive = True
     dvc_only = True
     fs: DVCFileSystem = repo.dvcfs
@@ -77,7 +77,7 @@ def get_dvc_file_info(wdir: str, path=".") -> list[dict]:
         fs_path = fs.info(fs_path)["name"]
     except FileNotFoundError:
         logger.warning(f"{path} does not exist in repo")
-        return []
+        return dict()
     infos = {}
     if fs.isfile(fs_path):
         infos[os.path.basename(path)] = fs.info(fs_path)
