@@ -384,6 +384,7 @@ export type ReferenceEntry = {
   type: string
   key: string
   file_path?: string | null
+  url?: string | null
   attrs: Record<string, unknown>
 }
 

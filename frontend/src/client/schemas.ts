@@ -1855,6 +1855,17 @@ export const $ReferenceEntry = {
         },
       ],
     },
+    url: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
     attrs: {
       type: "dictionary",
       contains: {

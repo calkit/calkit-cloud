@@ -69,6 +69,8 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+RETURN_CONTENT_SIZE_LIMIT = 1_000_000
+
 
 @router.get("/projects")
 def get_projects(
@@ -612,10 +614,20 @@ def get_project_contents(
                 f"{owner_name}/{project_name} {category} not understood"
             )
             continue
-        # TODO: Handle files inside references objects
         for item in itemlist:
             item["kind"] = CATEGORIES_PLURAL_TO_SINGULAR[category]
             ck_objects[item["path"]] = item
+            # Handle files inside references objects
+            if category == "references":
+                ref_item_files = item.get("files", [])
+                for rif in ref_item_files:
+                    if "path" in rif:
+                        ck_objects[rif["path"]] = dict(
+                            kind="references item file",
+                            references_path=item["path"],
+                            path=rif["path"],
+                            key=rif.get("key"),
+                        )
     # Find any DVC outs for Calkit objects
     ck_outs = {}
     for p, obj in ck_objects.items():
@@ -752,7 +764,7 @@ def get_project_contents(
             # Get content is the size is small enough
             if (
                 size is not None
-                and size <= 5_000_000
+                and size <= RETURN_CONTENT_SIZE_LIMIT
                 and fs.exists(fp)
                 and not path.endswith(".h5")
                 and not path.endswith(".parquet")
@@ -773,6 +785,35 @@ def get_project_contents(
             )
         )
     else:
+        # Do we have a DVC file for this path?
+        dvc_fpath = os.path.join(repo_dir, path + ".dvc")
+        if os.path.isfile(dvc_fpath):
+            # Open the DVC file so we can get its MD5 hash
+            with open(dvc_fpath) as f:
+                dvc_info = yaml.load(f)
+            dvc_out = dvc_info["outs"][0]
+            md5 = dvc_out["md5"]
+            fs = _get_object_fs()
+            fp = _make_data_fpath(
+                owner_name=owner_name,
+                project_name=project_name,
+                idx=md5[:2],
+                md5=md5[2:],
+            )
+            url = _get_object_url(fp, fname=os.path.basename(path), fs=fs)
+            size = dvc_out["size"]
+            dvc_type = "dir" if md5.endswith(".dir") else "file"
+            return ContentsItem.model_validate(
+                dict(
+                    path=path,
+                    name=os.path.basename(path),
+                    size=size,
+                    type=dvc_type,
+                    in_repo=False,
+                    url=url,
+                    lock=file_locks_by_path.get(path),
+                )
+            )
         raise HTTPException(404)
 
 
@@ -2010,6 +2051,7 @@ class ReferenceEntry(BaseModel):
     type: str
     key: str
     file_path: str | None = None
+    url: str | None = None
     attrs: dict
 
 
@@ -2062,13 +2104,32 @@ def get_project_references(
             for entry in entries:
                 key = entry.pop("ID")
                 reftype = entry.pop("ENTRYTYPE")
+                file_path = file_paths.get(key)
+                url = None
+                # If a file path is defined, read it and get the presigned URL
+                if file_path is not None:
+                    logger.info(f"Looking for reference file: {file_path}")
+                    try:
+                        contents_item = get_project_contents(
+                            owner_name=owner_name,
+                            project_name=project_name,
+                            session=session,
+                            current_user=current_user,
+                            path=file_path,
+                        )
+                        url = contents_item.url
+                    except HTTPException as e:
+                        logger.warning(
+                            f"Could not find contents for {key}: {e}"
+                        )
                 final_entries.append(
                     ReferenceEntry.model_validate(
                         dict(
                             key=key,
                             type=reftype,
                             attrs=entry,
-                            file_path=file_paths.get(key),
+                            file_path=file_path,
+                            url=url,
                         )
                     )
                 )
