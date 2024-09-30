@@ -14,13 +14,17 @@ import {
   Td,
   TableContainer,
   Link,
+  useDisclosure,
 } from "@chakra-ui/react"
 import { createFileRoute } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
 import { IoLibraryOutline } from "react-icons/io5"
 import { FiFile } from "react-icons/fi"
+import { useState } from "react"
 
 import { ProjectsService, type ReferenceEntry } from "../../../../../client"
+import FileViewModal from "../../../../../components/References/FileViewModal"
+import { BsFilePdf } from "react-icons/bs"
 
 export const Route = createFileRoute(
   "/_layout/$userName/$projectName/_layout/references",
@@ -72,6 +76,15 @@ function References() {
         projectName: projectName,
       }),
   })
+  const fileViewModal = useDisclosure()
+  const [selectedEntry, setSelectedEntry] = useState<ReferenceEntry>()
+  const handleLinkClick = (entry: ReferenceEntry) => {
+    if (!entry.url) {
+      return
+    }
+    setSelectedEntry(entry)
+    fileViewModal.onOpen()
+  }
 
   return (
     <>
@@ -87,6 +100,11 @@ function References() {
             </Box>
           ) : (
             <Flex width={"full"}>
+              <FileViewModal
+                isOpen={fileViewModal.isOpen}
+                onClose={fileViewModal.onClose}
+                entry={selectedEntry}
+              />
               {/* References table of contents */}
               <Box>
                 <Box
@@ -119,7 +137,11 @@ function References() {
                               href={`#${references.path}${entry.key}`}
                             >
                               <Flex ml={3} alignItems="center">
-                                <Icon as={FiFile} mr={1} />
+                                <Icon
+                                  as={entry.url ? BsFilePdf : FiFile}
+                                  mr={1}
+                                  onClick={() => handleLinkClick(entry)}
+                                />
                                 <Text>{entry.key}</Text>
                               </Flex>
                             </Link>
@@ -146,7 +168,17 @@ function References() {
                             {entry.key}
                           </Heading>
                           <Text ml={1} fontSize={"sm"}>
-                            {entry.file_path ? `(${entry.file_path})` : ""}
+                            {entry.file_path ? (
+                              <Link
+                                onClick={() => {
+                                  handleLinkClick(entry)
+                                }}
+                              >
+                                {`(${entry.file_path})`}
+                              </Link>
+                            ) : (
+                              ""
+                            )}
                           </Text>
                         </Flex>
                         <ReferenceEntryTable referenceEntry={entry} />
