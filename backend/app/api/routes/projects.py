@@ -354,7 +354,7 @@ def _get_object_url(
     else:
         kws = {}
         if fname is not None:
-            kws["response_disposition"] = f"attachment;filename={fname}"
+            kws["response_disposition"] = f"filename={fname}"
             if fname.endswith(".pdf"):
                 kws["content_type"] = "application/pdf"
         kws["method"] = method.upper()
