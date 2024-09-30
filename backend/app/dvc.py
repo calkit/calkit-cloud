@@ -1,12 +1,18 @@
 """Functionality for working with DVC."""
 
+import logging
 import os
 import tempfile
 
 import ruamel.yaml
 from dvc.commands import dag
+from dvc.exceptions import NotDvcRepoError
+from dvc.fs import DVCFileSystem
 from dvc.repo import Repo
 
+logging.basicConfig(level=logging.INFO)
+
+logger = logging.getLogger(__name__)
 yaml = ruamel.yaml.YAML()
 
 
@@ -55,3 +61,50 @@ def output_from_pipeline(
     # exact match
     if len(outs) == 1:
         return outs[0]
+
+
+def get_dvc_file_info(wdir: str, path=".") -> list[dict]:
+    try:
+        repo = Repo(wdir)
+    except NotDvcRepoError:
+        logger.warning(f"{wdir} is not a DVC repo")
+        return []
+    recursive = True
+    dvc_only = True
+    fs: DVCFileSystem = repo.dvcfs
+    fs_path = fs.from_os_path(path)
+    try:
+        fs_path = fs.info(fs_path)["name"]
+    except FileNotFoundError:
+        logger.warning(f"{path} does not exist in repo")
+        return []
+    infos = {}
+    if fs.isfile(fs_path):
+        infos[os.path.basename(path)] = fs.info(fs_path)
+    else:
+        for root, dirs, files in fs.walk(
+            fs_path, dvcfiles=True, dvc_only=dvc_only, detail=True
+        ):
+            if not recursive:
+                files.update(dirs)
+
+            parts = fs.relparts(root, fs_path)
+            if parts == (".",):
+                parts = ()
+
+            for name, entry in files.items():
+                infos[os.path.join(*parts, name)] = entry
+
+            if not recursive:
+                break
+    ret = {}
+    for name, info in infos.items():
+        dvc_info = info.get("dvc_info", {})
+        ret[name] = {
+            "isout": dvc_info.get("isout", False),
+            "isdir": info["type"] == "directory",
+            "isexec": info.get("isexec", False),
+            "size": info.get("size"),
+            "md5": dvc_info.get("md5"),
+        }
+    return ret
