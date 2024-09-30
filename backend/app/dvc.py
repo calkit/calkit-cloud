@@ -3,6 +3,7 @@
 import logging
 import os
 import tempfile
+import glob
 
 import ruamel.yaml
 from dvc.commands import dag
@@ -63,48 +64,11 @@ def output_from_pipeline(
         return outs[0]
 
 
-def get_dvc_file_info(wdir: str, path=".") -> dict[str, dict]:
-    try:
-        repo = Repo(wdir)
-    except NotDvcRepoError:
-        logger.warning(f"{wdir} is not a DVC repo")
-        return dict()
-    recursive = True
-    dvc_only = True
-    fs: DVCFileSystem = repo.dvcfs
-    fs_path = fs.from_os_path(path)
-    try:
-        fs_path = fs.info(fs_path)["name"]
-    except FileNotFoundError:
-        logger.warning(f"{path} does not exist in repo")
-        return dict()
-    infos = {}
-    if fs.isfile(fs_path):
-        infos[os.path.basename(path)] = fs.info(fs_path)
-    else:
-        for root, dirs, files in fs.walk(
-            fs_path, dvcfiles=True, dvc_only=dvc_only, detail=True
-        ):
-            if not recursive:
-                files.update(dirs)
-
-            parts = fs.relparts(root, fs_path)
-            if parts == (".",):
-                parts = ()
-
-            for name, entry in files.items():
-                infos[os.path.join(*parts, name)] = entry
-
-            if not recursive:
-                break
-    ret = {}
-    for name, info in infos.items():
-        dvc_info = info.get("dvc_info", {})
-        ret[name] = {
-            "isout": dvc_info.get("isout", False),
-            "isdir": info["type"] == "directory",
-            "isexec": info.get("isexec", False),
-            "size": info.get("size"),
-            "md5": dvc_info.get("md5"),
-        }
-    return ret
+def find_dvc_files(start: str, max_depth=5) -> list[str]:
+    """Find all DVC files in the repo."""
+    res = []
+    for i in range(max_depth):
+        pattern = os.path.join(start, *["*"] * (i + 1), "*.dvc")
+        res += glob.glob(pattern)
+        res += glob.glob(pattern)
+    return res
