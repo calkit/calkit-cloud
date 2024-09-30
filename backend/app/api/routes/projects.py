@@ -69,6 +69,8 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+RETURN_CONTENT_SIZE_LIMIT = 1_000_000
+
 
 @router.get("/projects")
 def get_projects(
@@ -762,7 +764,7 @@ def get_project_contents(
             # Get content is the size is small enough
             if (
                 size is not None
-                and size <= 5_000_000
+                and size <= RETURN_CONTENT_SIZE_LIMIT
                 and fs.exists(fp)
                 and not path.endswith(".h5")
                 and not path.endswith(".parquet")

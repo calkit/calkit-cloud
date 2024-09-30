@@ -205,17 +205,38 @@ function FileContent({ item }: FileContentProps) {
   const name = item.name
   const content = item.content
   if (name.endsWith(".png")) {
-    return <Image src={`data:image/png;base64,${content}`} width={"100%"} />
+    return (
+      <Image
+        src={content ? `data:image/png;base64,${content}` : String(item.url)}
+        width={"100%"}
+      />
+    )
   }
   if (name.endsWith(".jpg") || name.endsWith(".jpeg")) {
-    return <Image src={`data:image/jpeg;base64,${content}`} width={"100%"} />
+    return (
+      <Image
+        src={content ? `data:image/jpeg;base64,${content}` : String(item.url)}
+        width={"100%"}
+      />
+    )
   }
   if (name.endsWith(".pdf")) {
+    if (content) {
+      return (
+        <embed
+          height="100%"
+          width="100%"
+          src={`data:application/pdf;base64,${content}`}
+        />
+      )
+    }
     return (
-      <embed
-        height="100%"
+      <object
+        title="content"
+        data={String(item.url)}
+        type="application/pdf"
         width="100%"
-        src={`data:application/pdf;base64,${content}`}
+        height="100%"
       />
     )
   }
