@@ -219,7 +219,7 @@ function FileContent({ item }: FileContentProps) {
       />
     )
   }
-  if (name.endsWith(".md")) {
+  if (name.endsWith(".md") && content) {
     return (
       <Box py={2} px={4} maxW={"750px"}>
         <Markdown>{atob(content)}</Markdown>
