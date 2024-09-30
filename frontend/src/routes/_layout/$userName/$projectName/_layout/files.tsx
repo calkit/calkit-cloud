@@ -198,11 +198,12 @@ function Item({ item, level, selectedPath, setSelectedPath }: ItemProps) {
 }
 
 interface FileContentProps {
-  name: string
-  content: string
+  item: ContentsItem
 }
 
-function FileContent({ name, content }: FileContentProps) {
+function FileContent({ item }: FileContentProps) {
+  const name = item.name
+  const content = item.content
   if (name.endsWith(".png")) {
     return <Image src={`data:image/png;base64,${content}`} width={"100%"} />
   }
@@ -530,11 +531,9 @@ function Files() {
               </Flex>
             ) : (
               <>
-                {selectedItemQuery?.data?.content ? (
-                  <FileContent
-                    name={selectedItemQuery?.data?.name}
-                    content={selectedItemQuery?.data?.content}
-                  />
+                {selectedItemQuery?.data?.content ||
+                selectedItemQuery?.data?.url ? (
+                  <FileContent item={selectedItemQuery?.data} />
                 ) : (
                   ""
                 )}
