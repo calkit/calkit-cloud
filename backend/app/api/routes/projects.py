@@ -612,10 +612,20 @@ def get_project_contents(
                 f"{owner_name}/{project_name} {category} not understood"
             )
             continue
-        # TODO: Handle files inside references objects
         for item in itemlist:
             item["kind"] = CATEGORIES_PLURAL_TO_SINGULAR[category]
             ck_objects[item["path"]] = item
+            # Handle files inside references objects
+            if category == "references":
+                ref_item_files = item.get("files", [])
+                for rif in ref_item_files:
+                    if "path" in rif:
+                        ck_objects[rif["path"]] = dict(
+                            kind="references item file",
+                            references_path=item["path"],
+                            path=rif["path"],
+                            key=rif.get("key"),
+                        )
     # Find any DVC outs for Calkit objects
     ck_outs = {}
     for p, obj in ck_objects.items():
@@ -773,6 +783,35 @@ def get_project_contents(
             )
         )
     else:
+        # Do we have a DVC file for this path?
+        dvc_fpath = os.path.join(repo_dir, path + ".dvc")
+        if os.path.isfile(dvc_fpath):
+            # Open the DVC file so we can get its MD5 hash
+            with open(dvc_fpath) as f:
+                dvc_info = yaml.load(f)
+            dvc_out = dvc_info["outs"][0]
+            md5 = dvc_out["md5"]
+            fs = _get_object_fs()
+            fp = _make_data_fpath(
+                owner_name=owner_name,
+                project_name=project_name,
+                idx=md5[:2],
+                md5=md5[2:],
+            )
+            url = _get_object_url(fp, fname=os.path.basename(path), fs=fs)
+            size = dvc_out["size"]
+            dvc_type = "dir" if md5.endswith(".dir") else "file"
+            return ContentsItem.model_validate(
+                dict(
+                    path=path,
+                    name=os.path.basename(path),
+                    size=size,
+                    type=dvc_type,
+                    in_repo=False,
+                    url=url,
+                    lock=file_locks_by_path.get(path),
+                )
+            )
         raise HTTPException(404)
 
 
