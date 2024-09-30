@@ -2010,6 +2010,7 @@ class ReferenceEntry(BaseModel):
     type: str
     key: str
     file_path: str | None = None
+    url: str | None = None
     attrs: dict
 
 
@@ -2060,6 +2061,22 @@ def get_project_references(
                 f["key"]: f["path"] for f in ref_collection.get("files", [])
             }
             for entry in entries:
+                file_path = file_paths.get("key")
+                url = None
+                # If a file path is defined, read it and get the presigned URL
+                if file_path is not None:
+                    logger.info(f"Looking for reference file: {file_path}")
+                    try:
+                        contents_item = get_project_contents(
+                            owner_name=owner_name,
+                            project_name=project_name,
+                            session=session,
+                            current_user=current_user,
+                            path=file_path,
+                        )
+                        url = contents_item.url
+                    except HTTPException:
+                        pass
                 key = entry.pop("ID")
                 reftype = entry.pop("ENTRYTYPE")
                 final_entries.append(
@@ -2068,7 +2085,8 @@ def get_project_references(
                             key=key,
                             type=reftype,
                             attrs=entry,
-                            file_path=file_paths.get(key),
+                            file_path=file_path,
+                            url=url,
                         )
                     )
                 )
