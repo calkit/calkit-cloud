@@ -355,8 +355,6 @@ def _get_object_url(
         kws = {}
         if fname is not None:
             kws["response_disposition"] = f"filename={fname}"
-            if fname.endswith(".pdf"):
-                kws["content_type"] = "application/pdf"
         kws["method"] = method.upper()
     url: str = fs.sign(fpath, expiration=expires, **(kws | kwargs))
     if settings.ENVIRONMENT == "local":
