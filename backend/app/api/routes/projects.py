@@ -401,9 +401,7 @@ async def post_project_dvc_file(
     )
     # Use a pending path during upload so we can rename after
     sig = hashlib.md5()
-    with fs.open(
-        fpath + ".pending", "wb", metadata={"Content-Type": None}
-    ) as f:
+    with fs.open(fpath + ".pending", "wb") as f:
         # See https://stackoverflow.com/q/73322065/2284865
         async for chunk in req.stream():
             f.write(chunk)
