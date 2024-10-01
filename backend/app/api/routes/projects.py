@@ -413,7 +413,7 @@ async def post_project_dvc_file(
     if settings.ENVIRONMENT != "local":
         client = gcs.Client()
         bucket = client.bucket(f"calkit-{settings.ENVIRONMENT}")
-        blob = bucket.blob(pending_fpath.removeprefix(f"gcs://{bucket.name}"))
+        blob = bucket.blob(pending_fpath.removeprefix(f"gcs://{bucket.name}/"))
         blob.content_type = None
         blob.patch()
     digest = sig.hexdigest()
