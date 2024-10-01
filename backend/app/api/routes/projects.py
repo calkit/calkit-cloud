@@ -406,6 +406,10 @@ async def post_project_dvc_file(
         async for chunk in req.stream():
             f.write(chunk)
             sig.update(chunk)
+    # If using Google Cloud Storage, we need to remove the content type
+    # metadata in order to set it for signed URLs
+    if settings.ENVIRONMENT != "local":
+        fs.setxattr(fpath + ".pending", content_type="")
     digest = sig.hexdigest()
     logger.info(f"Computed MD5 from DVC post: {digest}")
     if md5.endswith(".dir"):
