@@ -347,14 +347,14 @@ def _get_object_url(
     if settings.ENVIRONMENT == "local":
         kws = {}
         if fname is not None:
-            kws["ResponseContentDisposition"] = f"filename={fname}"
+            kws["ResponseContentDisposition"] = f"inline;filename={fname}"
             if fname.endswith(".pdf"):
                 kws["ResponseContentType"] = "application/pdf"
         kws["client_method"] = f"{method}_object"
     else:
         kws = {}
         if fname is not None:
-            kws["response_disposition"] = f"filename={fname}"
+            kws["response_disposition"] = f"inline;filename={fname}"
             if fname.endswith(".pdf"):
                 kws["response_type"] = "application/pdf"
         kws["method"] = method.upper()
