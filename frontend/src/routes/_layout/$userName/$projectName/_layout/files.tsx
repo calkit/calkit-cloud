@@ -221,21 +221,13 @@ function FileContent({ item }: FileContentProps) {
     )
   }
   if (name.endsWith(".pdf")) {
-    if (content) {
-      return (
-        <embed
-          height="100%"
-          width="100%"
-          src={`data:application/pdf;base64,${content}`}
-        />
-      )
-    }
     return (
-      <iframe
-        title="content"
-        src={String(item.url)}
-        width="100%"
+      <embed
         height="100%"
+        width="100%"
+        src={
+          content ? `data:application/pdf;base64,${content}` : String(item.url)
+        }
       />
     )
   }
