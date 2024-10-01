@@ -61,6 +61,7 @@ from fastapi import (
     UploadFile,
 )
 from fastapi.responses import StreamingResponse
+from google.cloud import storage as gcs
 from pydantic import BaseModel
 from sqlmodel import Session, func, or_, select
 
@@ -401,7 +402,8 @@ async def post_project_dvc_file(
     )
     # Use a pending path during upload so we can rename after
     sig = hashlib.md5()
-    with fs.open(fpath + ".pending", "wb") as f:
+    pending_fpath = fpath + ".pending"
+    with fs.open(pending_fpath, "wb") as f:
         # See https://stackoverflow.com/q/73322065/2284865
         async for chunk in req.stream():
             f.write(chunk)
@@ -409,14 +411,18 @@ async def post_project_dvc_file(
     # If using Google Cloud Storage, we need to remove the content type
     # metadata in order to set it for signed URLs
     if settings.ENVIRONMENT != "local":
-        fs.setxattr(fpath + ".pending", content_type="")
+        client = gcs.Client()
+        bucket = client.bucket(f"calkit-{settings.ENVIRONMENT}")
+        blob = bucket.blob(pending_fpath.removeprefix(f"gcs://{bucket.name}"))
+        blob.content_type = None
+        blob.patch()
     digest = sig.hexdigest()
     logger.info(f"Computed MD5 from DVC post: {digest}")
     if md5.endswith(".dir"):
         digest += ".dir"
     if digest == idx + md5:
         logger.info("MD5 matches; removing pending suffix")
-        fs.mv(fpath + ".pending", fpath)
+        fs.mv(pending_fpath, fpath)
     else:
         logger.warning("MD5 does not match")
         raise HTTPException(400, "MD5 does not match")
