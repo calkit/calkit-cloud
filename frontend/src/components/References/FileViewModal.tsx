@@ -31,12 +31,7 @@ const FileViewModal = ({ isOpen, onClose, entry }: FileViewProps) => {
           <ModalCloseButton />
           <ModalBody pb={6} px={20}>
             <Box height="80vh">
-              <iframe
-                title="content"
-                src={String(entry?.url)}
-                width="100%"
-                height="100%"
-              />
+              <embed src={String(entry?.url)} width="100%" height="100%" />
             </Box>
           </ModalBody>
         </ModalContent>

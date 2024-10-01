@@ -225,6 +225,7 @@ function FileContent({ item }: FileContentProps) {
       <embed
         height="100%"
         width="100%"
+        type="application/pdf"
         src={
           content ? `data:application/pdf;base64,${content}` : String(item.url)
         }

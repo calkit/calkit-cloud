@@ -45,24 +45,18 @@ function PubView({ publication }: PubViewProps) {
     publication.path.endsWith(".pdf") &&
     (publication.content || publication.url)
   ) {
-    if (publication.content) {
-      contentView = (
-        <embed
-          height="100%"
-          width="100%"
-          src={`data:application/pdf;base64,${publication.content}`}
-        />
-      )
-    } else {
-      contentView = (
-        <iframe
-          title="content"
-          height="100%"
-          width="100%"
-          src={String(publication.url)}
-        />
-      )
-    }
+    contentView = (
+      <embed
+        height="100%"
+        width="100%"
+        type="application/pdf"
+        src={
+          publication.content
+            ? `data:application/pdf;base64,${publication.content}`
+            : String(publication.url)
+        }
+      />
+    )
   } else if (
     publication.path.endsWith(".png") &&
     (publication.content || publication.url)

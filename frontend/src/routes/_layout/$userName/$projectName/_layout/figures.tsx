@@ -153,20 +153,16 @@ function FigureView({ figure }: FigureProps) {
   if (figure.path.endsWith(".pdf")) {
     figView = (
       <Box height="530px" width="635px">
-        {figure.content ? (
-          <embed
-            height="100%"
-            width="100%"
-            src={`data:application/pdf;base64,${figure.content}`}
-          />
-        ) : (
-          <iframe
-            title="content"
-            src={String(figure.url)}
-            height="100%"
-            width="100%"
-          />
-        )}
+        <embed
+          height="100%"
+          width="100%"
+          type="application/pdf"
+          src={
+            figure.content
+              ? `data:application/pdf;base64,${figure.content}`
+              : String(figure.url)
+          }
+        />
       </Box>
     )
   } else if (
