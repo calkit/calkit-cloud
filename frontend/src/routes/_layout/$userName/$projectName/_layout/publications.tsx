@@ -55,11 +55,11 @@ function PubView({ publication }: PubViewProps) {
       )
     } else {
       contentView = (
-        <object
+        <iframe
           title="content"
           height="100%"
           width="100%"
-          data={String(publication.url)}
+          src={String(publication.url)}
         />
       )
     }

@@ -160,9 +160,9 @@ function FigureView({ figure }: FigureProps) {
             src={`data:application/pdf;base64,${figure.content}`}
           />
         ) : (
-          <object
+          <iframe
             title="content"
-            data={String(figure.url)}
+            src={String(figure.url)}
             height="100%"
             width="100%"
           />

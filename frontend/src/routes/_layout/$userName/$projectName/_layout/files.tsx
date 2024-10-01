@@ -231,10 +231,9 @@ function FileContent({ item }: FileContentProps) {
       )
     }
     return (
-      <object
+      <iframe
         title="content"
-        data={String(item.url)}
-        type="application/pdf"
+        src={String(item.url)}
         width="100%"
         height="100%"
       />

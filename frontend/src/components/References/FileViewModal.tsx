@@ -31,10 +31,9 @@ const FileViewModal = ({ isOpen, onClose, entry }: FileViewProps) => {
           <ModalCloseButton />
           <ModalBody pb={6} px={20}>
             <Box height="80vh">
-              <object
+              <iframe
                 title="content"
-                data={String(entry?.url)}
-                type="application/pdf"
+                src={String(entry?.url)}
                 width="100%"
                 height="100%"
               />
