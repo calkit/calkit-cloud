@@ -367,6 +367,14 @@ def _get_object_url(
     return url
 
 
+def _remove_gcs_content_type(fpath):
+    client = gcs.Client()
+    bucket = client.bucket(f"calkit-{settings.ENVIRONMENT}")
+    blob = bucket.blob(fpath.removeprefix(f"gcs://{bucket.name}/"))
+    blob.content_type = None
+    blob.patch()
+
+
 @router.post("/projects/{owner_name}/{project_name}/dvc/files/md5/{idx}/{md5}")
 async def post_project_dvc_file(
     *,
@@ -411,11 +419,7 @@ async def post_project_dvc_file(
     # If using Google Cloud Storage, we need to remove the content type
     # metadata in order to set it for signed URLs
     if settings.ENVIRONMENT != "local":
-        client = gcs.Client()
-        bucket = client.bucket(f"calkit-{settings.ENVIRONMENT}")
-        blob = bucket.blob(pending_fpath.removeprefix(f"gcs://{bucket.name}/"))
-        blob.content_type = None
-        blob.patch()
+        _remove_gcs_content_type(pending_fpath)
     digest = sig.hexdigest()
     logger.info(f"Computed MD5 from DVC post: {digest}")
     if md5.endswith(".dir"):
@@ -1223,6 +1227,8 @@ def post_project_figure(
         )
         with fs.open(fpath, "wb") as f:
             f.write(file_data)
+        if settings.ENVIRONMENT != "local":
+            _remove_gcs_content_type(fpath)
         url = _get_object_url(fpath=fpath, fname=os.path.basename(path))
         # Finally, remove the figure from the cached repo
         os.remove(full_fig_path)
@@ -1513,6 +1519,8 @@ def post_project_dataset_upload(
     )
     with fs.open(fpath, "wb") as f:
         f.write(file_data)
+    if settings.ENVIRONMENT != "local":
+        _remove_gcs_content_type(fpath)
     url = _get_object_url(fpath=fpath, fname=os.path.basename(path))
     # Finally, remove the dataset from the cached repo
     os.remove(full_ds_path)
@@ -1726,6 +1734,8 @@ def post_project_publication(
         )
         with fs.open(fpath, "wb") as f:
             f.write(file_data)
+        if settings.ENVIRONMENT != "local":
+            _remove_gcs_content_type(fpath)
         url = _get_object_url(fpath=fpath, fname=os.path.basename(path))
         # Finally, remove the figure from the cached repo
         os.remove(full_fig_path)
