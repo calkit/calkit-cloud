@@ -480,24 +480,20 @@ function Files() {
       ) : (
         <Flex>
           <Box
+            h="fit-content"
             minW="200px"
             maxW="300px"
             overflowX="auto"
             overflowY="auto"
-            px={0}
-            py={2}
+            p={2}
             mr={6}
             mt={0}
-            pl={3}
-            pb={2}
             borderRadius="lg"
             bg={secBgColor}
             borderWidth={0}
             position="sticky"
             top={55}
-            maxH="fit-content"
           >
-            {" "}
             <Flex gap={2}>
               <Heading size="md" mb={1}>
                 All files
