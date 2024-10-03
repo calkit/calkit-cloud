@@ -9,9 +9,14 @@ import {
 } from "@chakra-ui/react"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
+import React from "react"
 
 interface MarkdownProps {
   children: string
+}
+
+interface codeProps extends React.HTMLAttributes<HTMLElement> {
+  insidePre?: boolean
 }
 
 const H1 = (props: any) => {
@@ -26,8 +31,25 @@ const H3 = (props: any) => {
 const p = (props: any) => {
   return <Text my={2} mt={3} {...props} />
 }
-const code = (props: any) => {
-  return <Code my={2} whiteSpace={"pre"} px={1} {...props} />
+
+// Send prop to children of <pre> to differentiate if they are block code or not
+const pre = ({ children, ...props }: any) => {
+  return (
+    <pre {...props}>
+      {React.Children.map(children, (child) => {
+        console.log(`child ${child}`)
+        return React.cloneElement(child, { insidePre: true })
+      })}
+    </pre>
+  )
+}
+
+const code = ({ insidePre = false, ...props }: codeProps) => {
+  if (insidePre) {
+    return <Code my={2} whiteSpace={"pre"} display={"block"} p={2} {...props} />
+  } else {
+    return <Code my={2} whiteSpace={"pre"} px={1} {...props} />
+  }
 }
 
 const Markdown = ({ children }: MarkdownProps) => {
@@ -41,6 +63,7 @@ const Markdown = ({ children }: MarkdownProps) => {
         ol: OrderedList,
         ul: UnorderedList,
         p: p,
+        pre: pre,
         code: code,
         a: Link,
       }}
