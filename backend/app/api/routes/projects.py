@@ -24,6 +24,7 @@ from app.config import settings
 from app.core import (
     CATEGORIES_PLURAL_TO_SINGULAR,
     CATEGORIES_SINGULAR_TO_PLURAL,
+    params_from_url,
     ryaml,
 )
 from app.dvc import make_mermaid_diagram, output_from_pipeline
@@ -60,6 +61,7 @@ from fastapi import (
     UploadFile,
 )
 from fastapi.responses import StreamingResponse
+from google.cloud import storage as gcs
 from pydantic import BaseModel
 from sqlmodel import Session, func, or_, select
 
@@ -67,6 +69,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+RETURN_CONTENT_SIZE_LIMIT = 1_000_000
 
 
 @router.get("/projects")
@@ -351,9 +355,9 @@ def _get_object_url(
     else:
         kws = {}
         if fname is not None:
-            kws["response_disposition"] = f"attachment;filename={fname}"
+            kws["response_disposition"] = f"filename={fname}"
             if fname.endswith(".pdf"):
-                kws["content_type"] = "application/pdf"
+                kws["response_type"] = "application/pdf"
         kws["method"] = method.upper()
     url: str = fs.sign(fpath, expiration=expires, **(kws | kwargs))
     if settings.ENVIRONMENT == "local":
@@ -361,6 +365,14 @@ def _get_object_url(
             "http://minio:9000", f"http://objects.{settings.DOMAIN}"
         )
     return url
+
+
+def _remove_gcs_content_type(fpath):
+    client = gcs.Client()
+    bucket = client.bucket(f"calkit-{settings.ENVIRONMENT}")
+    blob = bucket.blob(fpath.removeprefix(f"gcs://{bucket.name}/"))
+    blob.content_type = None
+    blob.patch()
 
 
 @router.post("/projects/{owner_name}/{project_name}/dvc/files/md5/{idx}/{md5}")
@@ -396,20 +408,25 @@ async def post_project_dvc_file(
     fpath = _make_data_fpath(
         owner_name=owner_name, project_name=project_name, idx=idx, md5=md5
     )
-    # TODO: Use a pending path during upload so we can rename after
+    # Use a pending path during upload so we can rename after
     sig = hashlib.md5()
-    with fs.open(fpath + ".pending", "wb") as f:
+    pending_fpath = fpath + ".pending"
+    with fs.open(pending_fpath, "wb") as f:
         # See https://stackoverflow.com/q/73322065/2284865
         async for chunk in req.stream():
             f.write(chunk)
             sig.update(chunk)
+    # If using Google Cloud Storage, we need to remove the content type
+    # metadata in order to set it for signed URLs
+    if settings.ENVIRONMENT != "local":
+        _remove_gcs_content_type(pending_fpath)
     digest = sig.hexdigest()
     logger.info(f"Computed MD5 from DVC post: {digest}")
     if md5.endswith(".dir"):
         digest += ".dir"
     if digest == idx + md5:
         logger.info("MD5 matches; removing pending suffix")
-        fs.mv(fpath + ".pending", fpath)
+        fs.mv(pending_fpath, fpath)
     else:
         logger.warning("MD5 does not match")
         raise HTTPException(400, "MD5 does not match")
@@ -611,10 +628,20 @@ def get_project_contents(
                 f"{owner_name}/{project_name} {category} not understood"
             )
             continue
-        # TODO: Handle files inside references objects
         for item in itemlist:
             item["kind"] = CATEGORIES_PLURAL_TO_SINGULAR[category]
             ck_objects[item["path"]] = item
+            # Handle files inside references objects
+            if category == "references":
+                ref_item_files = item.get("files", [])
+                for rif in ref_item_files:
+                    if "path" in rif:
+                        ck_objects[rif["path"]] = dict(
+                            kind="references item file",
+                            references_path=item["path"],
+                            path=rif["path"],
+                            key=rif.get("key"),
+                        )
     # Find any DVC outs for Calkit objects
     ck_outs = {}
     for p, obj in ck_objects.items():
@@ -734,6 +761,7 @@ def get_project_contents(
             dvc_out = {}
         size = dvc_out.get("size")
         md5 = dvc_out.get("md5", "")
+        dvc_fpath = dvc_out.get("path")
         dvc_type = "dir" if md5.endswith(".dir") else "file"
         content = None
         url = None
@@ -746,11 +774,11 @@ def get_project_contents(
                 idx=md5[:2],
                 md5=md5[2:],
             )
-            url = _get_object_url(fp, fname=os.path.basename(path), fs=fs)
+            url = _get_object_url(fp, fname=os.path.basename(dvc_fpath), fs=fs)
             # Get content is the size is small enough
             if (
                 size is not None
-                and size <= 5_000_000
+                and size <= RETURN_CONTENT_SIZE_LIMIT
                 and fs.exists(fp)
                 and not path.endswith(".h5")
                 and not path.endswith(".parquet")
@@ -771,6 +799,35 @@ def get_project_contents(
             )
         )
     else:
+        # Do we have a DVC file for this path?
+        dvc_fpath = os.path.join(repo_dir, path + ".dvc")
+        if os.path.isfile(dvc_fpath):
+            # Open the DVC file so we can get its MD5 hash
+            with open(dvc_fpath) as f:
+                dvc_info = yaml.load(f)
+            dvc_out = dvc_info["outs"][0]
+            md5 = dvc_out["md5"]
+            fs = _get_object_fs()
+            fp = _make_data_fpath(
+                owner_name=owner_name,
+                project_name=project_name,
+                idx=md5[:2],
+                md5=md5[2:],
+            )
+            url = _get_object_url(fp, fname=os.path.basename(path), fs=fs)
+            size = dvc_out["size"]
+            dvc_type = "dir" if md5.endswith(".dir") else "file"
+            return ContentsItem.model_validate(
+                dict(
+                    path=path,
+                    name=os.path.basename(path),
+                    size=size,
+                    type=dvc_type,
+                    in_repo=False,
+                    url=url,
+                    lock=file_locks_by_path.get(path),
+                )
+            )
         raise HTTPException(404)
 
 
@@ -1170,6 +1227,8 @@ def post_project_figure(
         )
         with fs.open(fpath, "wb") as f:
             f.write(file_data)
+        if settings.ENVIRONMENT != "local":
+            _remove_gcs_content_type(fpath)
         url = _get_object_url(fpath=fpath, fname=os.path.basename(path))
         # Finally, remove the figure from the cached repo
         os.remove(full_fig_path)
@@ -1460,6 +1519,8 @@ def post_project_dataset_upload(
     )
     with fs.open(fpath, "wb") as f:
         f.write(file_data)
+    if settings.ENVIRONMENT != "local":
+        _remove_gcs_content_type(fpath)
     url = _get_object_url(fpath=fpath, fname=os.path.basename(path))
     # Finally, remove the dataset from the cached repo
     os.remove(full_ds_path)
@@ -1673,6 +1734,8 @@ def post_project_publication(
         )
         with fs.open(fpath, "wb") as f:
             f.write(file_data)
+        if settings.ENVIRONMENT != "local":
+            _remove_gcs_content_type(fpath)
         url = _get_object_url(fpath=fpath, fname=os.path.basename(path))
         # Finally, remove the figure from the cached repo
         os.remove(full_fig_path)
@@ -2008,6 +2071,7 @@ class ReferenceEntry(BaseModel):
     type: str
     key: str
     file_path: str | None = None
+    url: str | None = None
     attrs: dict
 
 
@@ -2060,13 +2124,32 @@ def get_project_references(
             for entry in entries:
                 key = entry.pop("ID")
                 reftype = entry.pop("ENTRYTYPE")
+                file_path = file_paths.get(key)
+                url = None
+                # If a file path is defined, read it and get the presigned URL
+                if file_path is not None:
+                    logger.info(f"Looking for reference file: {file_path}")
+                    try:
+                        contents_item = get_project_contents(
+                            owner_name=owner_name,
+                            project_name=project_name,
+                            session=session,
+                            current_user=current_user,
+                            path=file_path,
+                        )
+                        url = contents_item.url
+                    except HTTPException as e:
+                        logger.warning(
+                            f"Could not find contents for {key}: {e}"
+                        )
                 final_entries.append(
                     ReferenceEntry.model_validate(
                         dict(
                             key=key,
                             type=reftype,
                             attrs=entry,
-                            file_path=file_paths.get(key),
+                            file_path=file_path,
+                            url=url,
                         )
                     )
                 )
@@ -2187,3 +2270,54 @@ def delete_project_file_lock(
             session.commit()
             return Message(message="success")
     raise HTTPException(404, "Lock not found")
+
+
+class Notebook(BaseModel):
+    path: str
+    title: str
+    description: str | None = None
+    stage: str | None = None
+    output_format: Literal["html", "notebook"] | None = None
+    url: str | None = None
+
+
+@router.get("/projects/{owner_name}/{project_name}/notebooks")
+def get_project_notebooks(
+    owner_name: str,
+    project_name: str,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> list[Notebook]:
+    project = app.projects.get_project(
+        session=session,
+        owner_name=owner_name,
+        project_name=project_name,
+        current_user=current_user,
+        min_access_level="read",
+    )
+    ck_info = get_ck_info(
+        project=project, user=current_user, session=session, ttl=300
+    )
+    notebooks = ck_info.get("notebooks", [])
+    if not notebooks:
+        return notebooks
+    # Get the figure content and base64 encode it
+    for notebook in notebooks:
+        item = get_project_contents(
+            owner_name=owner_name,
+            project_name=project_name,
+            session=session,
+            current_user=current_user,
+            path=notebook["path"],
+        )
+        notebook["url"] = item.url
+        # Figure out the output format from the URL content disposition
+        if item.url is not None:
+            params = params_from_url(item.url)
+            rcd = params.get("response-content-disposition")
+            if rcd is not None:
+                if rcd[0].endswith(".ipynb"):
+                    notebook["output_format"] = "notebook"
+                elif rcd[0].endswith(".html"):
+                    notebook["output_format"] = "html"
+    return [Notebook.model_validate(nb) for nb in notebooks]

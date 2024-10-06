@@ -36,7 +36,7 @@ function ProjectView() {
   const queryClient = useQueryClient()
   const secBgColor = useColorModeValue("ui.secondary", "ui.darkSlate")
   const { userName, projectName } = Route.useParams()
-  const [showClosedTodos, setShowClosedTodos] = useState(true)
+  const [showClosedTodos, setShowClosedTodos] = useState(false)
   const readmeRequest = useQuery({
     queryKey: ["projects", userName, projectName, "readme"],
     queryFn: () =>

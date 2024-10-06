@@ -15,6 +15,7 @@ import {
   DrawerBody,
   Text,
   Code,
+  Badge,
 } from "@chakra-ui/react"
 import {
   createFileRoute,
@@ -169,6 +170,21 @@ function HelpContent() {
       </>
     )
   }
+  if (page === "notebooks") {
+    return (
+      <>
+        <Text mb={mb}>
+          This page is dedicated to the project's{" "}
+          <Link isExternal href="https://jupyter.org/">
+            Jupyter notebooks
+          </Link>
+          . It is possible to define a workflow stage that executes a notebook
+          and converts it to a different format, e.g., HTML, which will be shown
+          here if configured.
+        </Text>
+      </>
+    )
+  }
   if (page === "software") {
     return (
       <>
@@ -259,10 +275,16 @@ function ProjectLayout() {
                 mb={3}
               >
                 {project?.title}
+                <Badge
+                  ml="2"
+                  color={project?.is_public ? "green.500" : "yellow.500"}
+                >
+                  {project?.is_public ? "Public" : "Private"}
+                </Badge>
                 {project?.git_repo_url ? (
                   <Link href={project?.git_repo_url} isExternal>
-                    <Icon height="45%" as={FaGithub} pl={3} pr={0} mr={0} />
-                    <Icon height={"50%"} as={ExternalLinkIcon} pl={0} ml={0} />
+                    <Icon height="45%" as={FaGithub} />
+                    <Icon height={"40%"} as={ExternalLinkIcon} ml={-3} />
                   </Link>
                 ) : (
                   ""

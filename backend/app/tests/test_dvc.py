@@ -70,4 +70,20 @@ def test_output_from_pipeline():
         pipeline=pipeline,
         lock=lock,
     )
+    assert out is not None
+    # Now check that out will be None if we have multiple outs
+    lock["stages"]["subdir_stage"]["outs"].append(
+        {
+            "path": "create-initial-data-2.py",
+            "hash": "md5",
+            "md5": "0ac9de94eb7bc991d60df6d4d8a7553c",
+            "size": 282843,
+        }
+    )
+    out = output_from_pipeline(
+        "something-that-wont/exist",
+        "subdir_stage",
+        pipeline=pipeline,
+        lock=lock,
+    )
     assert out is None

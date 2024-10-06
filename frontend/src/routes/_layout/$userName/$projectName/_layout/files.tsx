@@ -199,27 +199,41 @@ function Item({ item, level, selectedPath, setSelectedPath }: ItemProps) {
 }
 
 interface FileContentProps {
-  name: string
-  content: string
+  item: ContentsItem
 }
 
-function FileContent({ name, content }: FileContentProps) {
+function FileContent({ item }: FileContentProps) {
+  const name = item.name
+  const content = item.content
   if (name.endsWith(".png")) {
-    return <Image src={`data:image/png;base64,${content}`} width={"100%"} />
+    return (
+      <Image
+        src={content ? `data:image/png;base64,${content}` : String(item.url)}
+        width={"100%"}
+      />
+    )
   }
   if (name.endsWith(".jpg") || name.endsWith(".jpeg")) {
-    return <Image src={`data:image/jpeg;base64,${content}`} width={"100%"} />
+    return (
+      <Image
+        src={content ? `data:image/jpeg;base64,${content}` : String(item.url)}
+        width={"100%"}
+      />
+    )
   }
   if (name.endsWith(".pdf")) {
     return (
       <embed
         height="100%"
         width="100%"
-        src={`data:application/pdf;base64,${content}`}
+        type="application/pdf"
+        src={
+          content ? `data:application/pdf;base64,${content}` : String(item.url)
+        }
       />
     )
   }
-  if (name.endsWith(".md")) {
+  if (name.endsWith(".md") && content) {
     return (
       <Box py={2} px={4} maxW={"750px"}>
         <Markdown>{atob(content)}</Markdown>
@@ -536,11 +550,9 @@ function Files() {
               </Flex>
             ) : (
               <>
-                {selectedItemQuery?.data?.content ? (
-                  <FileContent
-                    name={selectedItemQuery?.data?.name}
-                    content={selectedItemQuery?.data?.content}
-                  />
+                {selectedItemQuery?.data?.content ||
+                selectedItemQuery?.data?.url ? (
+                  <FileContent item={selectedItemQuery?.data} />
                 ) : (
                   ""
                 )}

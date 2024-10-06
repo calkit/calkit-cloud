@@ -1,12 +1,19 @@
 """Functionality for working with DVC."""
 
+import logging
 import os
 import tempfile
+import glob
 
 import ruamel.yaml
 from dvc.commands import dag
+from dvc.exceptions import NotDvcRepoError
+from dvc.fs import DVCFileSystem
 from dvc.repo import Repo
 
+logging.basicConfig(level=logging.INFO)
+
+logger = logging.getLogger(__name__)
 yaml = ruamel.yaml.YAML()
 
 
@@ -51,3 +58,17 @@ def output_from_pipeline(
         if os.path.abspath(outpath) == os.path.abspath(path):
             out["path"] = path
             return out
+    # If there's only one output, no need to check path if we don't have an
+    # exact match
+    if len(outs) == 1:
+        return outs[0]
+
+
+def find_dvc_files(start: str, max_depth=5) -> list[str]:
+    """Find all DVC files in the repo."""
+    res = []
+    for i in range(max_depth):
+        pattern = os.path.join(start, *["*"] * (i + 1), "*.dvc")
+        res += glob.glob(pattern)
+        res += glob.glob(pattern)
+    return res

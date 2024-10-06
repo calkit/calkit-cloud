@@ -156,7 +156,12 @@ function FigureView({ figure }: FigureProps) {
         <embed
           height="100%"
           width="100%"
-          src={`data:application/pdf;base64,${figure.content}`}
+          type="application/pdf"
+          src={
+            figure.content
+              ? `data:application/pdf;base64,${figure.content}`
+              : String(figure.url)
+          }
         />
       </Box>
     )
@@ -169,7 +174,11 @@ function FigureView({ figure }: FigureProps) {
       <Box width="635px">
         <Image
           alt={figure.title}
-          src={`data:image/png;base64,${figure.content}`}
+          src={
+            figure.content
+              ? `data:image/png;base64,${figure.content}`
+              : String(figure.url)
+          }
         />
       </Box>
     )
@@ -185,7 +194,11 @@ function FigureView({ figure }: FigureProps) {
             {figure.title}
           </Heading>
           <Text>{figure.description}</Text>
-          {figure.content ? <Box my={3}>{figView}</Box> : "No content found"}
+          {figure.content || figure.url ? (
+            <Box my={3}>{figView}</Box>
+          ) : (
+            "No content found"
+          )}
         </Box>
         <Box mx={4} width={"100%"} maxH={"550px"} pt={1}>
           <Box mb={2}>

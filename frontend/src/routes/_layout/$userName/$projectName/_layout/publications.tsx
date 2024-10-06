@@ -41,19 +41,34 @@ function PubView({ publication }: PubViewProps) {
   const secBgColor = useColorModeValue("ui.secondary", "ui.darkSlate")
 
   let contentView = <>Not set</>
-  if (publication.path.endsWith(".pdf") && publication.content) {
+  if (
+    publication.path.endsWith(".pdf") &&
+    (publication.content || publication.url)
+  ) {
     contentView = (
       <embed
         height="100%"
         width="100%"
-        src={`data:application/pdf;base64,${publication.content}`}
+        type="application/pdf"
+        src={
+          publication.content
+            ? `data:application/pdf;base64,${publication.content}`
+            : String(publication.url)
+        }
       />
     )
-  } else if (publication.path.endsWith(".png") && publication.content) {
+  } else if (
+    publication.path.endsWith(".png") &&
+    (publication.content || publication.url)
+  ) {
     contentView = (
       <Image
         alt={publication.title}
-        src={`data:image/png;base64,${publication.content}`}
+        src={
+          publication.content
+            ? `data:image/png;base64,${publication.content}`
+            : String(publication.url)
+        }
       />
     )
   } else {

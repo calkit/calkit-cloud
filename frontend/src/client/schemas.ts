@@ -1252,6 +1252,64 @@ export const $NewSubscriptionResponse = {
   },
 } as const
 
+export const $Notebook = {
+  properties: {
+    path: {
+      type: "string",
+      isRequired: true,
+    },
+    title: {
+      type: "string",
+      isRequired: true,
+    },
+    description: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    stage: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    output_format: {
+      type: "any-of",
+      contains: [
+        {
+          type: "Enum",
+          enum: ["html", "notebook"],
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    url: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+  },
+} as const
+
 export const $OrgMemberPost = {
   properties: {
     username: {
@@ -1787,6 +1845,17 @@ export const $ReferenceEntry = {
       isRequired: true,
     },
     file_path: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    url: {
       type: "any-of",
       contains: [
         {

@@ -32,6 +32,7 @@ import { Route as LayoutUserNameProjectNameLayoutWorkflowImport } from './routes
 import { Route as LayoutUserNameProjectNameLayoutSoftwareImport } from './routes/_layout/$userName/$projectName/_layout/software'
 import { Route as LayoutUserNameProjectNameLayoutReferencesImport } from './routes/_layout/$userName/$projectName/_layout/references'
 import { Route as LayoutUserNameProjectNameLayoutPublicationsImport } from './routes/_layout/$userName/$projectName/_layout/publications'
+import { Route as LayoutUserNameProjectNameLayoutNotebooksImport } from './routes/_layout/$userName/$projectName/_layout/notebooks'
 import { Route as LayoutUserNameProjectNameLayoutLocalImport } from './routes/_layout/$userName/$projectName/_layout/local'
 import { Route as LayoutUserNameProjectNameLayoutFilesImport } from './routes/_layout/$userName/$projectName/_layout/files'
 import { Route as LayoutUserNameProjectNameLayoutFiguresImport } from './routes/_layout/$userName/$projectName/_layout/figures'
@@ -149,6 +150,12 @@ const LayoutUserNameProjectNameLayoutReferencesRoute =
 const LayoutUserNameProjectNameLayoutPublicationsRoute =
   LayoutUserNameProjectNameLayoutPublicationsImport.update({
     path: '/publications',
+    getParentRoute: () => LayoutUserNameProjectNameLayoutRoute,
+  } as any)
+
+const LayoutUserNameProjectNameLayoutNotebooksRoute =
+  LayoutUserNameProjectNameLayoutNotebooksImport.update({
+    path: '/notebooks',
     getParentRoute: () => LayoutUserNameProjectNameLayoutRoute,
   } as any)
 
@@ -326,6 +333,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutUserNameProjectNameLayoutLocalImport
       parentRoute: typeof LayoutUserNameProjectNameLayoutImport
     }
+    '/_layout/$userName/$projectName/_layout/notebooks': {
+      id: '/_layout/$userName/$projectName/_layout/notebooks'
+      path: '/notebooks'
+      fullPath: '/$userName/$projectName/notebooks'
+      preLoaderRoute: typeof LayoutUserNameProjectNameLayoutNotebooksImport
+      parentRoute: typeof LayoutUserNameProjectNameLayoutImport
+    }
     '/_layout/$userName/$projectName/_layout/publications': {
       id: '/_layout/$userName/$projectName/_layout/publications'
       path: '/publications'
@@ -383,6 +397,7 @@ export const routeTree = rootRoute.addChildren({
           LayoutUserNameProjectNameLayoutFiguresRoute,
           LayoutUserNameProjectNameLayoutFilesRoute,
           LayoutUserNameProjectNameLayoutLocalRoute,
+          LayoutUserNameProjectNameLayoutNotebooksRoute,
           LayoutUserNameProjectNameLayoutPublicationsRoute,
           LayoutUserNameProjectNameLayoutReferencesRoute,
           LayoutUserNameProjectNameLayoutSoftwareRoute,
@@ -486,6 +501,7 @@ export const routeTree = rootRoute.addChildren({
         "/_layout/$userName/$projectName/_layout/figures",
         "/_layout/$userName/$projectName/_layout/files",
         "/_layout/$userName/$projectName/_layout/local",
+        "/_layout/$userName/$projectName/_layout/notebooks",
         "/_layout/$userName/$projectName/_layout/publications",
         "/_layout/$userName/$projectName/_layout/references",
         "/_layout/$userName/$projectName/_layout/software",
@@ -511,6 +527,10 @@ export const routeTree = rootRoute.addChildren({
     },
     "/_layout/$userName/$projectName/_layout/local": {
       "filePath": "_layout/$userName/$projectName/_layout/local.tsx",
+      "parent": "/_layout/$userName/$projectName/_layout"
+    },
+    "/_layout/$userName/$projectName/_layout/notebooks": {
+      "filePath": "_layout/$userName/$projectName/_layout/notebooks.tsx",
       "parent": "/_layout/$userName/$projectName/_layout"
     },
     "/_layout/$userName/$projectName/_layout/publications": {
