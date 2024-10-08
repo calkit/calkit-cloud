@@ -41,6 +41,7 @@ import UploadFile from "../../../../../components/Files/UploadFile"
 import EditFileInfo from "../../../../../components/Files/EditFileInfo"
 import Markdown from "../../../../../components/Common/Markdown"
 import useAuth from "../../../../../hooks/useAuth"
+import PageMenu from "../../../../../components/Common/PageMenu"
 
 const fileSearchSchema = z.object({ path: z.string().catch("") })
 
@@ -451,7 +452,6 @@ function SelectedItemInfo({
 function Files() {
   const { userName, projectName } = Route.useParams()
   const { path } = Route.useSearch()
-  const secBgColor = useColorModeValue("ui.secondary", "ui.darkSlate")
   const {
     isPending: filesPending,
     data: files,
@@ -493,21 +493,7 @@ function Files() {
         </Flex>
       ) : (
         <Flex>
-          <Box
-            h="fit-content"
-            minW="200px"
-            maxW="300px"
-            overflowX="auto"
-            overflowY="auto"
-            p={2}
-            mr={6}
-            mt={0}
-            borderRadius="lg"
-            bg={secBgColor}
-            borderWidth={0}
-            position="sticky"
-            top={55}
-          >
+          <PageMenu>
             <Flex gap={2}>
               <Heading size="md" mb={1}>
                 All files
@@ -541,7 +527,7 @@ function Files() {
                   />
                 ))
               : ""}
-          </Box>
+          </PageMenu>
           <Box minW={"685px"} borderRadius="lg" borderWidth={1}>
             {selectedPath !== undefined &&
             (selectedItemQuery.isPending || selectedItemQuery.isRefetching) ? (
