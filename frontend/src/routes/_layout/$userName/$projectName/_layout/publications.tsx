@@ -200,7 +200,11 @@ function Publications() {
             {pubsQuery.data
               ? pubsQuery.data.map((pub) => (
                   <Link key={pub.path} href={`#${pub.path}`}>
-                    <Text noOfLines={1} overflow={"visible"} whiteSpace={"nowrap"}>
+                    <Text
+                      noOfLines={1}
+                      overflow={"visible"}
+                      whiteSpace={"nowrap"}
+                    >
                       <Icon pt={1} as={FiFile} /> {pub.title}
                     </Text>
                   </Link>

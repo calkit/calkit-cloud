@@ -300,7 +300,11 @@ function ProjectFigures() {
                       label={`${figure.title}: ${figure.description}`}
                       openDelay={600}
                     >
-                      <Text noOfLines={1} overflow={"visible"} whiteSpace={"nowrap"}>
+                      <Text
+                        noOfLines={1}
+                        overflow={"visible"}
+                        whiteSpace={"nowrap"}
+                      >
                         <Icon
                           height={"15px"}
                           pt={0.5}
