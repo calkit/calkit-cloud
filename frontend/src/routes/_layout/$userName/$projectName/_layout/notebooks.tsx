@@ -141,7 +141,7 @@ function Notebooks() {
                             label={`${notebook.title}: ${notebook.description}`}
                             openDelay={600}
                           >
-                            <Text>{notebook.path}</Text>
+                            <Text w="fit-content">{notebook.path}</Text>
                           </Tooltip>
                         </Flex>
                       </Link>
