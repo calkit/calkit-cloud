@@ -10,11 +10,12 @@ const PageMenu = ({ children }: PageMenuProps) => {
     <Box
       minW="200px"
       maxW="300px"
-      h={"fit-content"}
+      h="fit-content"
       maxH={"100%"}
-      overflowY="auto"
       overflowX="auto"
-      p={2}
+      overflowY="auto"
+      px={3}
+      py={2}
       mr={6}
       mt={0}
       borderRadius="lg"
