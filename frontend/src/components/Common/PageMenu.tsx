@@ -9,6 +9,7 @@ const PageMenu = ({ children }: PageMenuProps) => {
   return (
     <Box
       maxW="300px"
+      minW="200px"
       h="fit-content"
       maxH="100%"
       px={3}
