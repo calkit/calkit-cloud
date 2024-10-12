@@ -8,18 +8,16 @@ const PageMenu = ({ children }: PageMenuProps) => {
   const secBgColor = useColorModeValue("ui.secondary", "ui.darkSlate")
   return (
     <Box
-      minW="fit-content"
-      w="fit-content"
       maxW="300px"
       h="fit-content"
-      maxH={"100%"}
+      maxH="100%"
       px={3}
       py={2}
       mr={6}
       mt={0}
       borderRadius="lg"
-      bg={secBgColor}
       borderWidth={0}
+      bg={secBgColor}
       boxSizing="border-box"
     >
       {children}

@@ -115,7 +115,17 @@ function References() {
                     <Link href={`#${references.path}`}>
                       <Flex alignItems="center">
                         <Icon mr={1} as={IoLibraryOutline} />
-                        <Text>{references.path}</Text>
+                        <Text
+                          isTruncated
+                          noOfLines={1}
+                          whiteSpace="nowrap"
+                          overflow="hidden"
+                          textOverflow="ellipsis"
+                          display="inline-block"
+                          maxW="100%"
+                        >
+                          {references.path}
+                        </Text>
                       </Flex>
                     </Link>
                     {references ? (
@@ -156,7 +166,7 @@ function References() {
                             {entry.key}
                           </Heading>
 
-                          <Text ml={1} fontSize={"sm"}>
+                          <Text ml={1} fontSize="sm">
                             {entry.file_path ? (
                               <Link
                                 onClick={() => {

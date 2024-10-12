@@ -301,9 +301,13 @@ function ProjectFigures() {
                       openDelay={600}
                     >
                       <Text
+                        isTruncated
                         noOfLines={1}
-                        overflow={"visible"}
-                        whiteSpace={"nowrap"}
+                        whiteSpace="nowrap"
+                        overflow="hidden"
+                        textOverflow="ellipsis"
+                        display="inline-block"
+                        maxW="100%"
                       >
                         <Icon
                           height={"15px"}

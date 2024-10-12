@@ -167,7 +167,17 @@ function Item({ item, level, selectedPath, setSelectedPath }: ItemProps) {
           mr={1}
           color={item.calkit_object ? "green.500" : "default"}
         />
-        <Text>{item.name}</Text>
+        <Text
+          isTruncated
+          noOfLines={1}
+          whiteSpace="nowrap"
+          overflow="hidden"
+          textOverflow="ellipsis"
+          display="inline-block"
+          maxW="100%"
+        >
+          {item.name}
+        </Text>
         {item.lock ? (
           <Icon
             as={FaLock}

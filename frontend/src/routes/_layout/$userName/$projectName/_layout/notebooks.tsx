@@ -141,7 +141,17 @@ function Notebooks() {
                             label={`${notebook.title}: ${notebook.description}`}
                             openDelay={600}
                           >
-                            <Text w="fit-content">{notebook.path}</Text>
+                            <Text
+                              isTruncated
+                              noOfLines={1}
+                              whiteSpace="nowrap"
+                              overflow="hidden"
+                              textOverflow="ellipsis"
+                              display="inline-block"
+                              maxW="100%"
+                            >
+                              {notebook.path}
+                            </Text>
                           </Tooltip>
                         </Flex>
                       </Link>
