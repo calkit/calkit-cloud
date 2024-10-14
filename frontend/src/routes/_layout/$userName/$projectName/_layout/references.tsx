@@ -141,7 +141,17 @@ function References() {
                                 mr={1}
                                 onClick={() => handleLinkClick(entry)}
                               />
-                              <Text>{entry.key}</Text>
+                              <Text
+                                isTruncated
+                                noOfLines={1}
+                                whiteSpace="nowrap"
+                                overflow="hidden"
+                                textOverflow="ellipsis"
+                                display="inline-block"
+                                maxW="100%"
+                              >
+                                {entry.key}
+                              </Text>
                             </Flex>
                           </Link>
                         ))}
