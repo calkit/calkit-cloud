@@ -39,7 +39,7 @@ interface ReferenceEntryTableProps {
 
 function ReferenceEntryTable({ referenceEntry }: ReferenceEntryTableProps) {
   return (
-    <TableContainer mb={6} whiteSpace="wrap">
+    <TableContainer whiteSpace="wrap">
       <Table variant="simple" size="sm">
         <Thead>
           <Tr>
@@ -170,8 +170,15 @@ function References() {
                       {references.path}
                     </Heading>
                     {references.entries?.map((entry) => (
-                      <Box key={entry.key}>
-                        <Flex alignItems="center" mb={2}>
+                      <Box
+                        key={entry.key}
+                        borderRadius="lg"
+                        borderWidth={1}
+                        mb={2}
+                        p={2}
+                        boxSizing="border-box"
+                      >
+                        <Flex alignItems="center">
                           <Heading size="sm" id={references.path + entry.key}>
                             {entry.key}
                           </Heading>
