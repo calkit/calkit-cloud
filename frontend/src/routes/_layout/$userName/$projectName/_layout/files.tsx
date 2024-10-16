@@ -538,7 +538,7 @@ function Files() {
                 ))
               : ""}
           </PageMenu>
-          <Box minW={"685px"} borderRadius="lg" borderWidth={1}>
+          <Box minW="685px" height={"auto"} maxH="82vh">
             {selectedPath !== undefined &&
             (selectedItemQuery.isPending || selectedItemQuery.isRefetching) ? (
               <Flex justify="center" align="center" height="full" width="full">
