@@ -454,10 +454,7 @@ class FigureCommentPost(SQLModel):
     comment: str
 
 
-class Dataset(SQLModel, table=True):
-    id: uuid.UUID = Field(default_factory=uuid.uuid4)
-    # Project in which is was created
-    project_id: uuid.UUID = Field(foreign_key="project.id", primary_key=True)
+class DatasetBase(SQLModel):
     path: str = Field(primary_key=True)
     # Full path to origin project and dataset, if this is imported
     imported_from: str | None = None
@@ -466,11 +463,52 @@ class Dataset(SQLModel, table=True):
     stage: str | None = None
     description: str | None = None
     url: str | None = None  # To allow for downloads?
+
+
+class Dataset(DatasetBase, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4)
+    # Project in which is was created
+    project_id: uuid.UUID = Field(foreign_key="project.id", primary_key=True)
     # TODO: Track version somehow, and link to DVC remote MD5?
     # TODO: Is this a directory of files?
     # TODO: Track size? -- basically all DVC properties
     # Relationships
     project: Project = Relationship(back_populates="datasets")
+
+
+class DVCOut(BaseModel):
+    md5: str
+    size: int
+    hash: str = "md5"
+    path: str
+    remote: str
+    push: bool = False
+
+
+class DVCImport(BaseModel):
+    """The necessary information to import a DVC object, which can be saved to
+    a .dvc file.
+
+    For example:
+
+        outs:
+          - md5: 46ce259ab949ecb23751eb88ec753ff2
+            size: 83344240
+            hash: md5
+            path: time-ave-profiles.h5
+            remote: calkit:petebachant/boundary-layer-turbulence-modeling
+            push: false
+
+    Note this is different from the file that would be produced by
+    ``dvc import``, since they bundle in Git repo information to fetch from
+    the original project's remote.
+
+    """
+    outs: list[DVCOut]
+
+
+class DatasetDVCImport(DatasetBase):
+    dvc_import: DVCImport | None = None
 
 
 class ImportedDataset(SQLModel):

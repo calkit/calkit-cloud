@@ -47,6 +47,14 @@ def output_from_pipeline(
 ) -> dict | None:
     """Given a path and stage name, search through the DVC pipeline config and
     DVC lock files to see if the path exists as a DVC output.
+
+    What is returned will look like a single DVC output object, e.g.,
+
+        - path: environment.lock.yml
+          hash: md5
+          md5: cacb2fa264cff6fd46c76da5de7645ac
+          size: 9536
+
     """
     stage = pipeline.get("stages", {}).get(stage_name)
     if stage is None:
