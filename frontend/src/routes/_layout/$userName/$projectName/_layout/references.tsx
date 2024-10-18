@@ -43,6 +43,7 @@ function ReferenceEntryTable({ referenceEntry }: ReferenceEntryTableProps) {
       <Table variant="simple" size="sm">
         <Thead>
           <Tr>
+            <Th w="100px" />
             <Th />
           </Tr>
         </Thead>
