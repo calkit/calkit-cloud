@@ -502,7 +502,7 @@ function Files() {
           <Spinner size="xl" color="ui.main" />
         </Flex>
       ) : (
-        <Flex>
+        <Flex height={"100%"}>
           <PageMenu>
             <Flex gap={2}>
               <Heading size="md" mb={1}>
@@ -538,7 +538,7 @@ function Files() {
                 ))
               : ""}
           </PageMenu>
-          <Box minW="685px" height={"auto"} maxH="82vh">
+          <Box minW="685px" maxH="82vh">
             {selectedPath !== undefined &&
             (selectedItemQuery.isPending || selectedItemQuery.isRefetching) ? (
               <Flex justify="center" align="center" height="full" width="full">
