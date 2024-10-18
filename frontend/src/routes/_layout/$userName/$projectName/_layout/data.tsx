@@ -36,7 +36,7 @@ function ProjectDataView() {
   const { isPending: dataPending, data: datasets } = useQuery({
     queryKey: ["projects", userName, projectName, "datasets"],
     queryFn: () =>
-      ProjectsService.getProjectData({
+      ProjectsService.getProjectDatasets({
         ownerName: userName,
         projectName: projectName,
       }),

@@ -266,7 +266,7 @@ export type ProjectsData = {
     projectName: string
     requestBody: FigureCommentPost
   }
-  GetProjectData: {
+  GetProjectDatasets: {
     ownerName: string
     projectName: string
   }
@@ -1525,17 +1525,17 @@ export class ProjectsService {
   }
 
   /**
-   * Get Project Data
+   * Get Project Datasets
    * @returns Dataset Successful Response
    * @throws ApiError
    */
-  public static getProjectData(
-    data: ProjectsData["GetProjectData"],
+  public static getProjectDatasets(
+    data: ProjectsData["GetProjectDatasets"],
   ): CancelablePromise<Array<Dataset>> {
     const { ownerName, projectName } = data
     return __request(OpenAPI, {
       method: "GET",
-      url: "/projects/{owner_name}/{project_name}/data",
+      url: "/projects/{owner_name}/{project_name}/datasets",
       path: {
         owner_name: ownerName,
         project_name: projectName,

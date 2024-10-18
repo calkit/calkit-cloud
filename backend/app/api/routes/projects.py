@@ -36,6 +36,7 @@ from app.git import (
 )
 from app.models import (
     Dataset,
+    DatasetDVCImport,
     Figure,
     FigureComment,
     FigureCommentPost,
@@ -1309,13 +1310,26 @@ def _sync_datasets_with_db(
 ) -> Project:
     datasets_ck = list(ck_info.get("datasets", []))
     datasets = deepcopy(datasets_ck)
+    # Convert imported_from from dict to str for saving in the database
+    for ds in datasets:
+        if "imported_from" in ds:
+            if isinstance(ds["imported_from"], dict):
+                prj = ds["imported_from"].get("project")
+                path = ds["imported_from"].get("path")
+                if prj is None:
+                    ds["imported_from"] = None
+                else:
+                    imported_from = prj
+                    if path is not None:
+                        imported_from += "/" + path
+                    ds["imported_from"] = imported_from
     logger.info(f"Found {len(datasets)} datasets in Calkit info")
     # Put these in the database idempotently
     existing_datasets = project.datasets
     logger.info(f"Found {len(existing_datasets)} existing datasets in DB")
     # First update any existing datasets, identified by path
     existing_keyed_by_path = {ds.path: ds for ds in existing_datasets}
-    update_keyed_by_path = {ds["path"]: ds for ds in datasets_ck}
+    update_keyed_by_path = {ds["path"]: ds for ds in datasets}
     for path, ds in existing_keyed_by_path.items():
         if path in update_keyed_by_path:
             logger.info(f"Updating dataset with path: {path}")
@@ -1335,8 +1349,8 @@ def _sync_datasets_with_db(
     return project
 
 
-@router.get("/projects/{owner_name}/{project_name}/data")
-def get_project_data(
+@router.get("/projects/{owner_name}/{project_name}/datasets")
+def get_project_datasets(
     owner_name: str,
     project_name: str,
     current_user: CurrentUser,
@@ -1357,6 +1371,77 @@ def get_project_data(
         ck_info=ck_info, project=project, session=session
     )
     return project.datasets
+
+
+@router.get("/projects/{owner_name}/{project_name}/datasets/{path:path}")
+def get_project_dataset(
+    path: str,
+    owner_name: str,
+    project_name: str,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> DatasetDVCImport:
+    logger.info(f"Received request to get dataset with path: {path}")
+    project = app.projects.get_project(
+        session=session,
+        owner_name=owner_name,
+        project_name=project_name,
+        current_user=current_user,
+        min_access_level="read",
+    )
+    # Read the datasets file from the repo
+    repo = get_repo(
+        project=project, user=current_user, session=session, ttl=300
+    )
+    repo_dir = repo.working_dir
+    ck_info = get_ck_info_from_repo(repo)
+    datasets = ck_info.get("datasets", [])
+    dvc_out = dict(
+        remote=f"calkit:{owner_name}/{project_name}",
+        push=False,
+    )
+    for ds in datasets:
+        if "path" in ds and ds["path"] == path:
+            # Create the DVC import object
+            # We need to know the MD5 hash
+            stage_name = ds.get("stage")
+            if stage_name is None:
+                dvc_fp = os.path.join(repo_dir, path + ".dvc")
+                if os.path.isfile(dvc_fp):
+                    with open(dvc_fp) as f:
+                        dvo = yaml.safe_load(f)["outs"][0]
+                    dvc_out |= dvo
+                    ds["dvc_import"] = dict(outs=[dvc_out])
+                    return DatasetDVCImport.model_validate(ds)
+                else:
+                    # No stage and no .dvc file -- error
+                    logger.info("No stage nor .dvc file found")
+                    raise HTTPException(404)
+            else:
+                pipeline_fpath = os.path.join(repo_dir, "dvc.yaml")
+                if not os.path.isfile(pipeline_fpath):
+                    logger.info("No dvc.yaml file")
+                    raise HTTPException(400, "dvc.yaml file missing")
+                with open(pipeline_fpath) as f:
+                    pipeline = yaml.safe_load(f)
+                dvc_lock_fpath = os.path.join(repo_dir, "dvc.lock")
+                if not os.path.isfile(dvc_lock_fpath):
+                    logger.info("No dvc.lock file")
+                    raise HTTPException(400, "dvc.lock file missing")
+                with open(dvc_lock_fpath) as f:
+                    dvc_lock = yaml.safe_load(f)
+                out = output_from_pipeline(
+                    path=path,
+                    stage_name=stage_name,
+                    pipeline=pipeline,
+                    lock=dvc_lock,
+                )
+                if out is None:
+                    raise HTTPException(400, "Cannot find DVC object")
+                dvc_out |= out
+                ds["dvc_import"] = dict(outs=[dvc_out])
+                return DatasetDVCImport.model_validate(ds)
+    raise HTTPException(404)
 
 
 class LabelDatasetPost(BaseModel):
