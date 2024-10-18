@@ -1335,8 +1335,8 @@ def _sync_datasets_with_db(
     return project
 
 
-@router.get("/projects/{owner_name}/{project_name}/data")
-def get_project_data(
+@router.get("/projects/{owner_name}/{project_name}/datasets")
+def get_project_datasets(
     owner_name: str,
     project_name: str,
     current_user: CurrentUser,
