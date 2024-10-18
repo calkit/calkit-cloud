@@ -1310,13 +1310,26 @@ def _sync_datasets_with_db(
 ) -> Project:
     datasets_ck = list(ck_info.get("datasets", []))
     datasets = deepcopy(datasets_ck)
+    # Convert imported_from from dict to str for saving in the database
+    for ds in datasets:
+        if "imported_from" in ds:
+            if isinstance(ds["imported_from"], dict):
+                prj = ds["imported_from"].get("project")
+                path = ds["imported_from"].get("path")
+                if prj is None:
+                    ds["imported_from"] = None
+                else:
+                    imported_from = prj
+                    if path is not None:
+                        imported_from += "/" + path
+                    ds["imported_from"] = imported_from
     logger.info(f"Found {len(datasets)} datasets in Calkit info")
     # Put these in the database idempotently
     existing_datasets = project.datasets
     logger.info(f"Found {len(existing_datasets)} existing datasets in DB")
     # First update any existing datasets, identified by path
     existing_keyed_by_path = {ds.path: ds for ds in existing_datasets}
-    update_keyed_by_path = {ds["path"]: ds for ds in datasets_ck}
+    update_keyed_by_path = {ds["path"]: ds for ds in datasets}
     for path, ds in existing_keyed_by_path.items():
         if path in update_keyed_by_path:
             logger.info(f"Updating dataset with path: {path}")
