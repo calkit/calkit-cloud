@@ -8,6 +8,8 @@ const PageMenu = ({ children }: PageMenuProps) => {
   const secBgColor = useColorModeValue("ui.secondary", "ui.darkSlate")
   return (
     <Box
+      position="sticky"
+      top={16} // Height of Topbar
       maxW="300px"
       minW="200px"
       h="fit-content"
