@@ -46,18 +46,18 @@ function ProjectDataView() {
 
   return (
     <>
-      <Flex align={"center"} mb={2}>
+      <Flex align="center" mb={2}>
         <Heading size="md">Datasets</Heading>
         <Menu>
           <MenuButton
             as={Button}
+            variant="primary"
             height={"25px"}
             width={"9px"}
-            px={0.5}
+            px={1}
             ml={2}
-            variant="primary"
           >
-            <Icon as={FaPlus} fontSize={"xs"} />
+            <Icon as={FaPlus} fontSize="xs" />
           </MenuButton>
           <MenuList>
             <MenuItem onClick={uploadDataModal.onOpen}>
@@ -78,7 +78,7 @@ function ProjectDataView() {
         />
       </Flex>
       {dataPending ? (
-        <Flex justify="center" align="center" height="100vh" width="full">
+        <Flex justify="center" align="center" height={"100vh"} width="full">
           <Spinner size="xl" color="ui.main" />
         </Flex>
       ) : (
@@ -86,7 +86,7 @@ function ProjectDataView() {
           <SimpleGrid columns={[3, null, 4]} gap={6}>
             {datasets?.map((dataset) => (
               <Card key={dataset.path} p={6} variant="elevated">
-                <Heading size={"sm"} mb={2}>
+                <Heading size="sm" mb={2}>
                   <Code p={1}>
                     <Link
                       as={RouterLink}

@@ -31,6 +31,7 @@ import {
   type Figure,
   type FigureCommentPost,
 } from "../../../../../client"
+import PageMenu from "../../../../../components/Common/PageMenu"
 
 export const Route = createFileRoute(
   "/_layout/$userName/$projectName/_layout/figures",
@@ -202,7 +203,7 @@ function FigureView({ figure }: FigureProps) {
         </Box>
         <Box mx={4} width={"100%"} maxH={"550px"} pt={1}>
           <Box mb={2}>
-            <Heading size={"sm"} mb={0.5}>
+            <Heading size="sm" mb={0.5}>
               Info
             </Heading>
             <Text>
@@ -223,7 +224,7 @@ function FigureView({ figure }: FigureProps) {
               ""
             )}
           </Box>
-          <Box minW="33%" maxH={"550px"}>
+          <Box minW={"33%"} maxH={"550px"}>
             <FigureComments figure={figure} />
           </Box>
         </Box>
@@ -243,7 +244,6 @@ const getIcon = (figure: Figure) => {
 }
 
 function ProjectFigures() {
-  const secBgColor = useColorModeValue("ui.secondary", "ui.darkSlate")
   const { userName, projectName } = Route.useParams()
   const { isPending: figuresPending, data: figures } = useQuery({
     queryKey: ["projects", userName, projectName, "figures"],
@@ -260,79 +260,72 @@ function ProjectFigures() {
     <>
       <Flex>
         {/* A bit of a nav bar with all the figures listed */}
-        <Box>
-          <Box
-            minW={"200px"}
-            px={0}
-            py={2}
-            mr={6}
-            mt={0}
-            pl={3}
-            pb={2}
-            borderRadius={"lg"}
-            bg={secBgColor}
-            borderWidth={0}
-            position={"sticky"}
-            top="55"
-          >
-            <Flex mb={2}>
-              <Heading size="md">Figures</Heading>
-              <Menu>
-                <MenuButton
-                  as={Button}
-                  variant="primary"
-                  height={"25px"}
-                  width={"9px"}
-                  px={1}
-                  ml={2}
-                >
-                  <Icon as={FaPlus} fontSize={"xs"} />
-                </MenuButton>
-                <MenuList>
-                  <MenuItem onClick={uploadFigureModal.onOpen}>
-                    Upload new figure
-                  </MenuItem>
-                  <MenuItem onClick={labelFigureModal.onOpen}>
-                    Label existing file as figure
-                  </MenuItem>
-                </MenuList>
-              </Menu>
-              <UploadFigure
-                isOpen={uploadFigureModal.isOpen}
-                onClose={uploadFigureModal.onClose}
-              />
-              <LabelAsFigure
-                isOpen={labelFigureModal.isOpen}
-                onClose={labelFigureModal.onClose}
-              />
-            </Flex>
-            {figures
-              ? figures.map((figure) => (
-                  <Box key={figure.path}>
-                    <Link href={`#${figure.path}`}>
-                      <Tooltip
-                        label={`${figure.title}: ${figure.description}`}
-                        openDelay={600}
+        <PageMenu>
+          <Flex align="center" mb={2}>
+            <Heading size="md">Figures</Heading>
+            <Menu>
+              <MenuButton
+                as={Button}
+                variant="primary"
+                height={"25px"}
+                width={"9px"}
+                px={1}
+                ml={2}
+              >
+                <Icon as={FaPlus} fontSize="xs" />
+              </MenuButton>
+              <MenuList>
+                <MenuItem onClick={uploadFigureModal.onOpen}>
+                  Upload new figure
+                </MenuItem>
+                <MenuItem onClick={labelFigureModal.onOpen}>
+                  Label existing file as figure
+                </MenuItem>
+              </MenuList>
+            </Menu>
+            <UploadFigure
+              isOpen={uploadFigureModal.isOpen}
+              onClose={uploadFigureModal.onClose}
+            />
+            <LabelAsFigure
+              isOpen={labelFigureModal.isOpen}
+              onClose={labelFigureModal.onClose}
+            />
+          </Flex>
+          {figures
+            ? figures.map((figure) => (
+                <Box key={figure.path}>
+                  <Link href={`#${figure.path}`}>
+                    <Tooltip
+                      label={`${figure.title}: ${figure.description}`}
+                      openDelay={600}
+                    >
+                      <Text
+                        isTruncated
+                        noOfLines={1}
+                        whiteSpace="nowrap"
+                        overflow="hidden"
+                        textOverflow="ellipsis"
+                        display="inline-block"
+                        maxW="100%"
                       >
-                        <Text noOfLines={1}>
-                          <Icon
-                            height={"15px"}
-                            pt={0.5}
-                            mr={0.5}
-                            as={getIcon(figure)}
-                          />
-                          {figure.title}
-                        </Text>
-                      </Tooltip>
-                    </Link>
-                  </Box>
-                ))
-              : ""}
-          </Box>
-        </Box>
+                        <Icon
+                          height={"15px"}
+                          pt={0.5}
+                          mr={0.5}
+                          as={getIcon(figure)}
+                        />
+                        {figure.title}
+                      </Text>
+                    </Tooltip>
+                  </Link>
+                </Box>
+              ))
+            : ""}
+        </PageMenu>
         <>
           {figuresPending ? (
-            <Flex justify="center" align="center" height="100vh" width="full">
+            <Flex justify="center" align="center" height={"100vh"} width="full">
               <Spinner size="xl" color="ui.main" />
             </Flex>
           ) : (

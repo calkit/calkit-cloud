@@ -26,6 +26,7 @@ import { FaPlus } from "react-icons/fa"
 
 import { ProjectsService, type Publication } from "../../../../../client"
 import NewPublication from "../../../../../components/Publications/NewPublication"
+import PageMenu from "../../../../../components/Common/PageMenu"
 
 export const Route = createFileRoute(
   "/_layout/$userName/$projectName/_layout/publications",
@@ -85,17 +86,17 @@ function PubView({ publication }: PubViewProps) {
     <Flex mb={2}>
       {/* A heading and content view */}
       <Box width={"66%"} mr={4}>
-        <Heading size={"md"} id={publication.path}>
+        <Heading size="md" id={publication.path}>
           {publication.title}
         </Heading>
         <Text>{publication.description}</Text>
-        <Box my={2} height={"80vh"} borderRadius={"lg"}>
+        <Box my={2} height={"80vh"} borderRadius="lg">
           {contentView}
         </Box>
       </Box>
       {/* Information about the publication */}
       <Box width={"33%"}>
-        <Box bg={secBgColor} borderRadius={"lg"} p={2} mb={2}>
+        <Box bg={secBgColor} borderRadius="lg" p={2} mb={2}>
           <Heading size="sm">Info</Heading>
           {publication.path ? (
             <Text>
@@ -127,7 +128,7 @@ function PubView({ publication }: PubViewProps) {
           )}
         </Box>
         {/* Comments */}
-        <Box bg={secBgColor} borderRadius={"lg"} p={2}>
+        <Box bg={secBgColor} borderRadius="lg" p={2}>
           <Heading size="sm">Comments</Heading>
           Coming soon!
         </Box>
@@ -153,69 +154,67 @@ function Publications() {
   return (
     <>
       {pubsQuery.isPending ? (
-        <Flex justify="center" align="center" height="100vh" width="full">
+        <Flex justify="center" align="center" height={"100vh"} width="full">
           <Spinner size="xl" color="ui.main" />
         </Flex>
       ) : (
         <Flex>
           {/* A nav bar at the left with a heading, upload menu and list of
            pubs */}
-          <Box>
-            <Box
-              minW={"200px"}
-              bg={secBgColor}
-              borderRadius={"lg"}
-              px={3}
-              py={2}
-              mr={4}
-              position={"sticky"}
-              top="55"
-            >
-              <Flex align={"center"} mb={1}>
-                <Heading size={"md"}>Publications</Heading>
-                <Menu>
-                  <MenuButton
-                    as={Button}
-                    height={"25px"}
-                    width={"9px"}
-                    px={0.5}
-                    ml={2}
-                  >
-                    <Icon as={FaPlus} fontSize={"xs"} />
-                  </MenuButton>
-                  <MenuList>
-                    <MenuItem onClick={uploadPubModal.onOpen}>
-                      Upload new publication
-                    </MenuItem>
-                    <MenuItem onClick={labelPubModal.onOpen}>
-                      Label existing file as publication
-                    </MenuItem>
-                  </MenuList>
-                </Menu>
-                <NewPublication
-                  isOpen={uploadPubModal.isOpen}
-                  onClose={uploadPubModal.onClose}
-                  uploadFile={true}
-                />
-                <NewPublication
-                  isOpen={labelPubModal.isOpen}
-                  onClose={labelPubModal.onClose}
-                  uploadFile={false}
-                />
-              </Flex>
-              {/* Iterate over all publications to create an anchor link for
+          <PageMenu>
+            <Flex align="center" mb={2}>
+              <Heading size="md">Publications</Heading>
+              <Menu>
+                <MenuButton
+                  as={Button}
+                  variant="primary"
+                  height={"25px"}
+                  width={"9px"}
+                  px={1}
+                  ml={2}
+                >
+                  <Icon as={FaPlus} fontSize="xs" />
+                </MenuButton>
+                <MenuList>
+                  <MenuItem onClick={uploadPubModal.onOpen}>
+                    Upload new publication
+                  </MenuItem>
+                  <MenuItem onClick={labelPubModal.onOpen}>
+                    Label existing file as publication
+                  </MenuItem>
+                </MenuList>
+              </Menu>
+              <NewPublication
+                isOpen={uploadPubModal.isOpen}
+                onClose={uploadPubModal.onClose}
+                uploadFile={true}
+              />
+              <NewPublication
+                isOpen={labelPubModal.isOpen}
+                onClose={labelPubModal.onClose}
+                uploadFile={false}
+              />
+            </Flex>
+            {/* Iterate over all publications to create an anchor link for
              each */}
-              {pubsQuery.data
-                ? pubsQuery.data.map((pub) => (
-                    <Link key={pub.path} href={`#${pub.path}`}>
-                      <Text noOfLines={1}>
-                        <Icon pt={1} as={FiFile} /> {pub.title}
-                      </Text>
-                    </Link>
-                  ))
-                : ""}
-            </Box>
-          </Box>
+            {pubsQuery.data
+              ? pubsQuery.data.map((pub) => (
+                  <Link key={pub.path} href={`#${pub.path}`}>
+                    <Text
+                      isTruncated
+                      noOfLines={1}
+                      whiteSpace="nowrap"
+                      overflow="hidden"
+                      textOverflow="ellipsis"
+                      display="inline-block"
+                      maxW="100%"
+                    >
+                      <Icon pt={1} as={FiFile} /> {pub.title}
+                    </Text>
+                  </Link>
+                ))
+              : ""}
+          </PageMenu>
           {/* A box to the right that iterates over all figures, adding a view
            for the content, info, and comments */}
           <Box width={"100%"}>

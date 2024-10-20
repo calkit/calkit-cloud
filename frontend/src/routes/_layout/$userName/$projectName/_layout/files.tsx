@@ -14,6 +14,7 @@ import {
   useDisclosure,
   IconButton,
   HStack,
+  useColorModeValue,
 } from "@chakra-ui/react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { FiFolder, FiFile, FiDatabase } from "react-icons/fi"
@@ -40,6 +41,7 @@ import UploadFile from "../../../../../components/Files/UploadFile"
 import EditFileInfo from "../../../../../components/Files/EditFileInfo"
 import Markdown from "../../../../../components/Common/Markdown"
 import useAuth from "../../../../../hooks/useAuth"
+import PageMenu from "../../../../../components/Common/PageMenu"
 
 const fileSearchSchema = z.object({ path: z.string().catch("") })
 
@@ -158,20 +160,30 @@ function Item({ item, level, selectedPath, setSelectedPath }: ItemProps) {
 
   return (
     <>
-      <Flex cursor={"pointer"} onClick={handleClick} ml={indent * 4}>
+      <Flex cursor="pointer" onClick={handleClick} ml={indent * 4}>
         <Icon
           as={getIcon(item, isExpanded)}
           alignSelf="center"
           mr={1}
           color={item.calkit_object ? "green.500" : "default"}
         />
-        <Text>{item.name}</Text>
+        <Text
+          isTruncated
+          noOfLines={1}
+          whiteSpace="nowrap"
+          overflow="hidden"
+          textOverflow="ellipsis"
+          display="inline-block"
+          maxW="100%"
+        >
+          {item.name}
+        </Text>
         {item.lock ? (
           <Icon
             as={FaLock}
             ml={0.1}
             color={"yellow.500"}
-            alignSelf={"center"}
+            alignSelf="center"
             height={"12px"}
           />
         ) : (
@@ -242,7 +254,7 @@ function FileContent({ item }: FileContentProps) {
   return (
     <Code
       p={2}
-      borderRadius={"lg"}
+      borderRadius="lg"
       display="block"
       whiteSpace="pre"
       height="82vh"
@@ -306,11 +318,9 @@ function FileLock({ item, ownerName, projectName }: FileLockProps) {
     return <></>
   }
   return (
-    <Flex color={"yellow.500"} align={"center"} mt={2} py={2}>
+    <Flex color="yellow.500" align="center" mt={2} py={2}>
       <Icon as={FaLock} mr={1} height={"13px"} />
-      <Text fontWeight={"bold"}>
-        Locked by {item.lock.user_github_username}
-      </Text>
+      <Text fontWeight="bold">Locked by {item.lock.user_github_username}</Text>
       {item.lock.user_github_username === currentUser?.github_username ? (
         <>
           <IconButton
@@ -403,7 +413,7 @@ function SelectedItemInfo({
             </Badge>
           </>
         ) : (
-          <Badge ml={1} bgColor={"gray"}>
+          <Badge ml={1} bgColor="gray">
             None
           </Badge>
         )}
@@ -492,16 +502,8 @@ function Files() {
           <Spinner size="xl" color="ui.main" />
         </Flex>
       ) : (
-        <Flex>
-          <Box
-            mr={10}
-            height="82vh"
-            minW="200px"
-            maxW="300px"
-            overflowX="auto"
-            overflowY="auto"
-          >
-            {" "}
+        <Flex height={"100%"}>
+          <PageMenu>
             <Flex gap={2}>
               <Heading size="md" mb={1}>
                 All files
@@ -509,7 +511,7 @@ function Files() {
               <IconButton
                 variant="primary"
                 height="25px"
-                fontSize={"sm"}
+                fontSize="sm"
                 onClick={fileUploadModal.onOpen}
                 icon={<FaPlus />}
                 aria-label="upload"
@@ -535,8 +537,8 @@ function Files() {
                   />
                 ))
               : ""}
-          </Box>
-          <Box minW={"685px"} borderRadius={"lg"} borderWidth={1}>
+          </PageMenu>
+          <Box minW="685px" maxH="82vh">
             {selectedPath !== undefined &&
             (selectedItemQuery.isPending || selectedItemQuery.isRefetching) ? (
               <Flex justify="center" align="center" height="full" width="full">

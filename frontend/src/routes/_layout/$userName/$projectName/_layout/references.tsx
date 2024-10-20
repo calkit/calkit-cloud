@@ -25,6 +25,7 @@ import { useState } from "react"
 import { ProjectsService, type ReferenceEntry } from "../../../../../client"
 import FileViewModal from "../../../../../components/References/FileViewModal"
 import { BsFilePdf } from "react-icons/bs"
+import PageMenu from "../../../../../components/Common/PageMenu"
 
 export const Route = createFileRoute(
   "/_layout/$userName/$projectName/_layout/references",
@@ -38,12 +39,12 @@ interface ReferenceEntryTableProps {
 
 function ReferenceEntryTable({ referenceEntry }: ReferenceEntryTableProps) {
   return (
-    <TableContainer mb={6} whiteSpace={"wrap"}>
-      <Table variant="simple" size={"sm"}>
+    <TableContainer whiteSpace="wrap">
+      <Table variant="simple" size="sm">
         <Thead>
           <Tr>
-            <Th width={"100px"}>Property</Th>
-            <Th>Value</Th>
+            <Th w="100px" />
+            <Th />
           </Tr>
         </Thead>
         <Tbody>
@@ -62,7 +63,6 @@ function ReferenceEntryTable({ referenceEntry }: ReferenceEntryTableProps) {
 }
 
 function References() {
-  const secBgColor = useColorModeValue("ui.secondary", "ui.darkSlate")
   const { userName, projectName } = Route.useParams()
   const {
     isPending,
@@ -106,54 +106,62 @@ function References() {
                 entry={selectedEntry}
               />
               {/* References table of contents */}
-              <Box>
-                <Box
-                  bg={secBgColor}
-                  px={4}
-                  py={2}
-                  borderRadius="lg"
-                  mr={8}
-                  position={"sticky"}
-                  top={50}
-                  maxH="80%"
-                  overflowY="auto"
-                >
-                  <Heading size="md" mb={1}>
-                    References
-                  </Heading>
-                  {allReferences?.map((references) => (
-                    <Box key={references.path}>
-                      <Link href={`#${references.path}`}>
-                        <Flex alignItems="center">
-                          <Icon mr={1} as={IoLibraryOutline} />
-                          <Text>{references.path}</Text>
-                        </Flex>
-                      </Link>
-                      {references ? (
-                        <>
-                          {references.entries?.map((entry) => (
-                            <Link
-                              key={entry.key}
-                              href={`#${references.path}${entry.key}`}
-                            >
-                              <Flex ml={3} alignItems="center">
-                                <Icon
-                                  as={entry.url ? BsFilePdf : FiFile}
-                                  mr={1}
-                                  onClick={() => handleLinkClick(entry)}
-                                />
-                                <Text>{entry.key}</Text>
-                              </Flex>
-                            </Link>
-                          ))}
-                        </>
-                      ) : (
-                        ""
-                      )}
-                    </Box>
-                  ))}
-                </Box>
-              </Box>
+              <PageMenu>
+                <Heading size="md" mb={1}>
+                  References
+                </Heading>
+                {allReferences?.map((references) => (
+                  <Box key={references.path}>
+                    <Link href={`#${references.path}`}>
+                      <Flex alignItems="center">
+                        <Icon mr={1} as={IoLibraryOutline} />
+                        <Text
+                          isTruncated
+                          noOfLines={1}
+                          whiteSpace="nowrap"
+                          overflow="hidden"
+                          textOverflow="ellipsis"
+                          display="inline-block"
+                          maxW="100%"
+                        >
+                          {references.path}
+                        </Text>
+                      </Flex>
+                    </Link>
+                    {references ? (
+                      <>
+                        {references.entries?.map((entry) => (
+                          <Link
+                            key={entry.key}
+                            href={`#${references.path}${entry.key}`}
+                          >
+                            <Flex ml={3} alignItems="center">
+                              <Icon
+                                as={entry.url ? BsFilePdf : FiFile}
+                                mr={1}
+                                onClick={() => handleLinkClick(entry)}
+                              />
+                              <Text
+                                isTruncated
+                                noOfLines={1}
+                                whiteSpace="nowrap"
+                                overflow="hidden"
+                                textOverflow="ellipsis"
+                                display="inline-block"
+                                maxW="100%"
+                              >
+                                {entry.key}
+                              </Text>
+                            </Flex>
+                          </Link>
+                        ))}
+                      </>
+                    ) : (
+                      ""
+                    )}
+                  </Box>
+                ))}
+              </PageMenu>
               {/* A view for all the reference items' content */}
               <Box pr={4}>
                 {allReferences?.map((references) => (
@@ -162,12 +170,20 @@ function References() {
                       {references.path}
                     </Heading>
                     {references.entries?.map((entry) => (
-                      <Box key={entry.key}>
-                        <Flex alignItems={"center"} mb={2}>
+                      <Box
+                        key={entry.key}
+                        borderRadius="lg"
+                        borderWidth={1}
+                        mb={2}
+                        p={2}
+                        boxSizing="border-box"
+                      >
+                        <Flex alignItems="center">
                           <Heading size="sm" id={references.path + entry.key}>
                             {entry.key}
                           </Heading>
-                          <Text ml={1} fontSize={"sm"}>
+
+                          <Text ml={1} fontSize="sm">
                             {entry.file_path ? (
                               <Link
                                 onClick={() => {
