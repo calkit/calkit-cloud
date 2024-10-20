@@ -79,9 +79,7 @@ function NotebookContent({ notebook }: NotebookContentProps) {
 }
 
 function Notebooks() {
-  const secBgColor = useColorModeValue("ui.secondary", "ui.darkSlate")
   const bgActive = useColorModeValue("#E2E8F0", "#4A5568")
-
   const { userName, projectName } = Route.useParams()
   const [selectedTitle, setSelectedTitle] = useState<string>()
   const {

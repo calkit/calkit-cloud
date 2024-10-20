@@ -2,7 +2,6 @@ import {
   Box,
   Flex,
   Heading,
-  useColorModeValue,
   Spinner,
   Text,
   Icon,

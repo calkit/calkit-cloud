@@ -138,7 +138,6 @@ function PubView({ publication }: PubViewProps) {
 }
 
 function Publications() {
-  const secBgColor = useColorModeValue("ui.secondary", "ui.darkSlate")
   const uploadPubModal = useDisclosure()
   const labelPubModal = useDisclosure()
   const { userName, projectName } = Route.useParams()

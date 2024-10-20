@@ -14,7 +14,6 @@ import {
   useDisclosure,
   IconButton,
   HStack,
-  useColorModeValue,
 } from "@chakra-ui/react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { FiFolder, FiFile, FiDatabase } from "react-icons/fi"

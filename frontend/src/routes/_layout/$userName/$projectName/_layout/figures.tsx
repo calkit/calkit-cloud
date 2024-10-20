@@ -13,7 +13,6 @@ import {
   MenuButton,
   MenuList,
   MenuItem,
-  useColorModeValue,
   Link,
   Code,
   Tooltip,
