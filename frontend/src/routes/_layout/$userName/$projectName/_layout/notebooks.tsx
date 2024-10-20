@@ -47,7 +47,7 @@ function NotebookContent({ notebook }: NotebookContentProps) {
         <>
           <iframe
             width="1000px"
-            height="1000px"
+            height="950px"
             title="notebook"
             srcDoc={data}
           />
