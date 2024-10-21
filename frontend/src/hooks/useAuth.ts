@@ -23,7 +23,11 @@ const useAuth = () => {
   const navigate = useNavigate()
   const showToast = useCustomToast()
   const queryClient = useQueryClient()
-  const { data: user, isLoading } = useQuery<UserPublic | null, Error>({
+  const {
+    data: user,
+    isLoading,
+    error: getUserError,
+  } = useQuery<UserPublic | null, Error>({
     queryKey: ["currentUser"],
     queryFn: UsersService.getCurrentUser,
     enabled: isLoggedIn(),
@@ -105,6 +109,10 @@ const useAuth = () => {
     localStorage.removeItem("access_token")
     mixpanel.reset()
     navigate({ to: "/login" })
+  }
+
+  if (getUserError) {
+    logout()
   }
 
   return {
