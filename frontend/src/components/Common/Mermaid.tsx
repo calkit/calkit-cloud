@@ -8,11 +8,11 @@ interface MermaidProps {
 }
 
 const Mermaid = ({ children }: MermaidProps) => {
-  const handleZoom = () => {
-    const svgNode = select(".mermaid svg").node()
+  const handleZoom = (svgSelection: any) => {
+    const svgNode = svgSelection.node()
     if (svgNode instanceof Element) {
-      const transform = zoomTransform(svgNode as Element)
-      const gSelection = select(".mermaid svg g")
+      const transform = zoomTransform(svgNode)
+      const gSelection = svgSelection.select("g")
       gSelection.attr("transform", transform.toString())
     }
   }
@@ -29,7 +29,7 @@ const Mermaid = ({ children }: MermaidProps) => {
       const svgSelection = select<Element, unknown>(".mermaid svg")
       svgSelection.call(
         zoom<Element, unknown>().on("zoom", () => {
-          handleZoom()
+          handleZoom(svgSelection)
         }),
       )
     }
