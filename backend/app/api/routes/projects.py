@@ -185,6 +185,10 @@ def create_project(
         project = Project.model_validate(
             project_in, update={"owner_account_id": current_user.account.id}
         )
+        logger.info("Adding project to database")
+        session.add(project)
+        session.commit()
+        session.refresh(project)
         # Clone the repo and setup the Calkit DVC remote
         repo = get_repo(
             project=project,
@@ -238,11 +242,10 @@ def create_project(
         project = Project.model_validate(
             project_in, update={"owner_account_id": owner_account_id}
         )
-    logger.info("Adding to database")
-    session.add(project)
-    session.commit()
-    session.refresh(project)
-    # TODO: Create calkit.yaml file, README, DVC init
+        logger.info("Adding project to database")
+        session.add(project)
+        session.commit()
+        session.refresh(project)
     return project
 
 
