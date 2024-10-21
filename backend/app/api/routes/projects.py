@@ -166,7 +166,7 @@ def create_project(
             "has_discussions": True,
             "has_issues": True,
             "has_wiki": True,
-            "gitignore_template": "python",
+            "gitignore_template": "Python",
         }
         resp = requests.post(
             "https://api.github.com/user/repos",
