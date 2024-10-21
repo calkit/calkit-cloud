@@ -214,10 +214,12 @@ def create_project(
         base_url = "https://api.calkit.io"
         remote_url = f"{base_url}/projects/{project.name}/dvc"
         subprocess.call(
-            ["dvc", "remote", "add", "-d", "-f", "calkit", remote_url]
+            ["dvc", "remote", "add", "-d", "-f", "calkit", remote_url],
+            cwd=repo.working_dir,
         )
         subprocess.call(
-            ["dvc", "remote", "modify", "calkit", "auth", "custom"]
+            ["dvc", "remote", "modify", "calkit", "auth", "custom"],
+            cwd=repo.working_dir,
         )
         repo.git.add(".dvc")
         repo.git.commit(["-m", "Create README and initialize DVC config"])
