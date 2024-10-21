@@ -9,8 +9,11 @@ interface MermaidProps {
 
 const Mermaid = ({ children }: MermaidProps) => {
   const handleZoom = () => {
-    const transform = zoomTransform(select(".mermaid svg").node())
-    select(".mermaid svg g").attr("transform", transform)
+    const svgNode = select(".mermaid svg").node()
+    if (svgNode instanceof Element) {
+      const transform = zoomTransform(svgNode as Element)
+      select(".mermaid svg g").attr("transform", transform.toString())
+    }
   }
 
   useEffect(() => {
@@ -22,14 +25,15 @@ const Mermaid = ({ children }: MermaidProps) => {
         fontFamily: "monospace",
       })
       await mermaid.run({ querySelector: ".mermaid" })
-      select(".mermaid svg").call(
-        zoom().on("zoom", () => {
+      select<Element, unknown>(".mermaid svg").call(
+        zoom<Element, unknown>().on("zoom", () => {
           handleZoom()
         }),
       )
     }
     renderDiagram()
   }, [])
+
   return <div className="mermaid">{children}</div>
 }
 
