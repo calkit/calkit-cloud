@@ -34,6 +34,9 @@ const Mermaid = ({ children }: MermaidProps) => {
       )
     }
     renderDiagram()
+    return () => {
+      select(".mermaid svg").on("zoom", null)
+    }
   }, [])
 
   return <div className="mermaid">{children}</div>
