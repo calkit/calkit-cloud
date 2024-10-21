@@ -432,6 +432,9 @@ function Layout() {
     }
     return appNameBase
   }
+  if (ghAppInstalledQuery.error) {
+    logout()
+  }
   if (ghAppInstalledQuery.data && ghAppInstalledQuery.data?.total_count < 1) {
     location.href = `https://github.com/apps/${getAppName()}/installations/new`
   }
