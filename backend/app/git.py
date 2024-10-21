@@ -1,6 +1,7 @@
 """Functionality for working with Git."""
 
 import os
+import shutil
 import subprocess
 import time
 
@@ -13,7 +14,11 @@ from sqlmodel import Session
 
 
 def get_repo(
-    project: Project, user: User, session: Session, ttl=None
+    project: Project,
+    user: User,
+    session: Session,
+    ttl=None,
+    fresh=False,
 ) -> git.Repo:
     """Ensure that the repo exists and is ready for operating upon for the
     user.
@@ -31,6 +36,9 @@ def get_repo(
     lock_fpath = os.path.join(base_dir, "updating.lock")
     lock = FileLock(lock_fpath, timeout=1)
     os.makedirs(base_dir, exist_ok=True)
+    if os.path.isdir(repo_dir) and fresh:
+        logger.info("Deleting repo directory to clone a fresh copy")
+        shutil.rmtree(repo_dir, ignore_errors=True)
     # Clone the repo if it doesn't exist -- it will be in a "repo" dir
     access_token = users.get_github_token(session=session, user=user)
     git_clone_url = (

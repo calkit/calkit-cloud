@@ -194,6 +194,7 @@ def create_project(
             project=project,
             session=session,
             user=current_user,
+            fresh=True,
         )
         # Add to the README
         logger.info("Creating README.md")
@@ -205,14 +206,14 @@ def create_project(
         repo.git.add("README.md")
         # Setup the DVC remote
         logger.info("Running DVC init")
-        subprocess.call(["dvc", "init"], cwd=repo.working_dir)
+        subprocess.call(["dvc", "init", "--force"], cwd=repo.working_dir)
         logger.info("Enabling DVC autostage")
         subprocess.call(
             ["dvc", "config", "core.autostage", "true"], cwd=repo.working_dir
         )
         logger.info("Setting up default DVC remote")
         base_url = "https://api.calkit.io"
-        remote_url = f"{base_url}/projects/{project.name}/dvc"
+        remote_url = f"{base_url}/projects/{owner_name}/{project.name}/dvc"
         subprocess.call(
             ["dvc", "remote", "add", "-d", "-f", "calkit", remote_url],
             cwd=repo.working_dir,
