@@ -12,7 +12,8 @@ const Mermaid = ({ children }: MermaidProps) => {
     const svgNode = select(".mermaid svg").node()
     if (svgNode instanceof Element) {
       const transform = zoomTransform(svgNode as Element)
-      select(".mermaid svg g").attr("transform", transform.toString())
+      const gSelection = select(".mermaid svg g")
+      gSelection.attr("transform", transform.toString())
     }
   }
 
@@ -25,7 +26,8 @@ const Mermaid = ({ children }: MermaidProps) => {
         fontFamily: "monospace",
       })
       await mermaid.run({ querySelector: ".mermaid" })
-      select<Element, unknown>(".mermaid svg").call(
+      const svgSelection = select<Element, unknown>(".mermaid svg")
+      svgSelection.call(
         zoom<Element, unknown>().on("zoom", () => {
           handleZoom()
         }),
