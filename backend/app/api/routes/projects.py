@@ -183,7 +183,7 @@ def create_project(
         resp_json = resp.json()
         logger.info(f"Created GitHub repo with URL: {resp_json['html_url']}")
         project = Project.model_validate(
-            project_in, update={"owner_account_id": owner_account_id}
+            project_in, update={"owner_account_id": current_user.account.id}
         )
         # Clone the repo and setup the Calkit DVC remote
         repo = get_repo(
