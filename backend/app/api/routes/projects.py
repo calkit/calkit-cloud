@@ -166,6 +166,7 @@ def create_project(
             "has_discussions": True,
             "has_issues": True,
             "has_wiki": True,
+            "gitignore_template": "python",
         }
         resp = requests.post(
             "https://api.github.com/user/repos",
@@ -180,7 +181,43 @@ def create_project(
                 message = "Failed to create GitHub repo"
             raise HTTPException(resp.status_code, message)
         resp_json = resp.json()
-        logger.info(f"Create GitHub repo with URL: {resp_json['html_url']}")
+        logger.info(f"Created GitHub repo with URL: {resp_json['html_url']}")
+        project = Project.model_validate(
+            project_in, update={"owner_account_id": owner_account_id}
+        )
+        # Clone the repo and setup the Calkit DVC remote
+        repo = get_repo(
+            project=project,
+            session=session,
+            user=current_user,
+        )
+        # Add to the README
+        logger.info("Creating README.md")
+        with open(os.path.join(repo.working_dir, "README.md"), "w") as f:
+            txt = f"# {project_in.title}\n"
+            if project_in.description is not None:
+                txt += f"\n{project_in.description}\n"
+            f.write(txt)
+        repo.git.add("README.md")
+        # Setup the DVC remote
+        logger.info("Running DVC init")
+        subprocess.call(["dvc", "init"], cwd=repo.working_dir)
+        logger.info("Enabling DVC autostage")
+        subprocess.call(
+            ["dvc", "config", "core.autostage", "true"], cwd=repo.working_dir
+        )
+        logger.info("Setting up default DVC remote")
+        base_url = "https://api.calkit.io"
+        remote_url = f"{base_url}/projects/{project.name}/dvc"
+        subprocess.call(
+            ["dvc", "remote", "add", "-d", "-f", "calkit", remote_url]
+        )
+        subprocess.call(
+            ["dvc", "remote", "modify", "calkit", "auth", "custom"]
+        )
+        repo.git.add(".dvc")
+        repo.git.commit(["-m", "Create README and initialize DVC config"])
+        repo.git.push(["origin", repo.active_branch.name])
     elif resp.status_code == 200:
         logger.info(f"Repo exists on GitHub as {owner_name}/{repo_name}")
         repo = resp.json()
@@ -198,10 +235,10 @@ def create_project(
             owner_account_id = org.account.id
         else:
             owner_account_id = current_user.account.id
+        project = Project.model_validate(
+            project_in, update={"owner_account_id": owner_account_id}
+        )
     logger.info("Adding to database")
-    project = Project.model_validate(
-        project_in, update={"owner_account_id": owner_account_id}
-    )
     session.add(project)
     session.commit()
     session.refresh(project)
