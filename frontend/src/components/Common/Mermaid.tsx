@@ -19,19 +19,23 @@ const Mermaid = ({ children }: MermaidProps) => {
 
   useEffect(() => {
     const renderDiagram = async () => {
-      mermaid.initialize({
-        startOnLoad: false,
-        theme: "dark",
-        securityLevel: "loose",
-        fontFamily: "monospace",
-      })
-      await mermaid.run({ querySelector: ".mermaid" })
-      const svgSelection = select<Element, unknown>(".mermaid svg")
-      svgSelection.call(
-        zoom<Element, unknown>().on("zoom", () => {
-          handleZoom(svgSelection)
-        }),
-      )
+      try {
+        mermaid.initialize({
+          startOnLoad: false,
+          theme: "dark",
+          securityLevel: "loose",
+          fontFamily: "monospace",
+        })
+        await mermaid.run({ querySelector: ".mermaid" })
+        const svgSelection = select<Element, unknown>(".mermaid svg")
+        svgSelection.call(
+          zoom<Element, unknown>().on("zoom", () => {
+            handleZoom(svgSelection)
+          }),
+        )
+      } catch (error) {
+        console.error("Error rendering Mermaid diagram:", error)
+      }
     }
     renderDiagram()
     return () => {
