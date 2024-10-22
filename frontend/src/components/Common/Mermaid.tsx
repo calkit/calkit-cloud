@@ -43,7 +43,11 @@ const Mermaid = ({ children }: MermaidProps) => {
     }
   }, [children])
 
-  return <div className="mermaid">{children}</div>
+  return (
+    <div className="mermaid" aria-label="Mermaid diagram" role="img">
+      {children}
+    </div>
+  )
 }
 
 export default Mermaid
