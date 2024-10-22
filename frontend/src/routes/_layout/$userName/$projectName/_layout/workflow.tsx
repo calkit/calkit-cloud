@@ -22,9 +22,9 @@ export const Route = createFileRoute(
 function ProjectWorkflow() {
   const { userName, projectName } = Route.useParams()
   const workflowQuery = useQuery({
-    queryKey: [userName, projectName, "workflow"],
+    queryKey: [userName, projectName, "pipeline"],
     queryFn: () =>
-      ProjectsService.getProjectWorkflow({
+      ProjectsService.getProjectPipeline({
         ownerName: userName,
         projectName: projectName,
       }),

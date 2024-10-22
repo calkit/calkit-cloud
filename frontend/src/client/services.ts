@@ -300,7 +300,7 @@ export type ProjectsData = {
     ownerName: string
     projectName: string
   }
-  GetProjectWorkflow: {
+  GetProjectPipeline: {
     ownerName: string
     projectName: string
   }
@@ -1703,17 +1703,17 @@ export class ProjectsService {
   }
 
   /**
-   * Get Project Workflow
+   * Get Project Pipeline
    * @returns unknown Successful Response
    * @throws ApiError
    */
-  public static getProjectWorkflow(
-    data: ProjectsData["GetProjectWorkflow"],
+  public static getProjectPipeline(
+    data: ProjectsData["GetProjectPipeline"],
   ): CancelablePromise<Pipeline | null> {
     const { ownerName, projectName } = data
     return __request(OpenAPI, {
       method: "GET",
-      url: "/projects/{owner_name}/{project_name}/workflow",
+      url: "/projects/{owner_name}/{project_name}/pipeline",
       path: {
         owner_name: ownerName,
         project_name: projectName,
