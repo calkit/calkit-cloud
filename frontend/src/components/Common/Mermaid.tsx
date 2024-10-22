@@ -2,7 +2,8 @@ import { useEffect } from "react"
 import mermaid from "mermaid"
 import { zoom, zoomTransform } from "d3-zoom"
 import { select } from "d3-selection"
-import { Box, useColorModeValue } from "@chakra-ui/react"
+import { Box, Flex, IconButton, useColorModeValue } from "@chakra-ui/react"
+import { FaHome } from "react-icons/fa"
 
 interface MermaidProps {
   children: string
@@ -51,24 +52,41 @@ const Mermaid = ({ children }: MermaidProps) => {
 
   return (
     <Box
-      className="mermaid"
-      aria-label="Mermaid diagram"
-      role="img"
       borderRadius="lg"
       borderWidth={0}
       aspectRatio={1 / 1}
       bg={secBgColor}
       boxSizing="border-box"
       overflow={"hidden"}
-      p={2}
-      sx={{
-        "& svg": {
-          height: "100%",
-          width: "100%",
-        },
-      }}
+      px={3}
+      py={2}
+      position={"relative"}
     >
-      {children}
+      <Box position="relative">
+        <IconButton
+          aria-label="refresh"
+          height="25px"
+          icon={<FaHome />}
+          onClick={() => console.log("Go home")}
+          position={"absolute"}
+          right={0}
+        />
+      </Box>
+      <Box
+        className="mermaid"
+        aria-label="Mermaid diagram"
+        role="img"
+        h={"100%"}
+        w={"100%"}
+        sx={{
+          "& svg": {
+            height: "100%",
+            width: "100%",
+          },
+        }}
+      >
+        {children}
+      </Box>
     </Box>
   )
 }
