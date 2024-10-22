@@ -34,6 +34,7 @@ import type {
   ContentPatch,
   ContentsItem,
   Dataset,
+  DatasetDVCImport,
   Figure,
   FigureComment,
   FigureCommentPost,
@@ -46,6 +47,7 @@ import type {
   IssuePost,
   LabelDatasetPost,
   Notebook,
+  Pipeline,
   ProjectCreate,
   ProjectPatch,
   ProjectPublic,
@@ -55,7 +57,6 @@ import type {
   QuestionPost,
   References,
   Software,
-  Workflow,
   OrgMemberPost,
   OrgPost,
   OrgPublic,
@@ -270,6 +271,11 @@ export type ProjectsData = {
     ownerName: string
     projectName: string
   }
+  GetProjectDataset: {
+    ownerName: string
+    path: string
+    projectName: string
+  }
   PostProjectDatasetLabel: {
     ownerName: string
     projectName: string
@@ -294,7 +300,7 @@ export type ProjectsData = {
     ownerName: string
     projectName: string
   }
-  GetProjectWorkflow: {
+  GetProjectPipeline: {
     ownerName: string
     projectName: string
   }
@@ -1547,6 +1553,29 @@ export class ProjectsService {
   }
 
   /**
+   * Get Project Dataset
+   * @returns DatasetDVCImport Successful Response
+   * @throws ApiError
+   */
+  public static getProjectDataset(
+    data: ProjectsData["GetProjectDataset"],
+  ): CancelablePromise<DatasetDVCImport> {
+    const { path, ownerName, projectName } = data
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/projects/{owner_name}/{project_name}/datasets/{path}",
+      path: {
+        path,
+        owner_name: ownerName,
+        project_name: projectName,
+      },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
    * Post Project Dataset Label
    * @returns Dataset Successful Response
    * @throws ApiError
@@ -1674,17 +1703,17 @@ export class ProjectsService {
   }
 
   /**
-   * Get Project Workflow
+   * Get Project Pipeline
    * @returns unknown Successful Response
    * @throws ApiError
    */
-  public static getProjectWorkflow(
-    data: ProjectsData["GetProjectWorkflow"],
-  ): CancelablePromise<Workflow | null> {
+  public static getProjectPipeline(
+    data: ProjectsData["GetProjectPipeline"],
+  ): CancelablePromise<Pipeline | null> {
     const { ownerName, projectName } = data
     return __request(OpenAPI, {
       method: "GET",
-      url: "/projects/{owner_name}/{project_name}/workflow",
+      url: "/projects/{owner_name}/{project_name}/pipeline",
       path: {
         owner_name: ownerName,
         project_name: projectName,

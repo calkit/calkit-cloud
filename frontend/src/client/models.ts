@@ -78,9 +78,38 @@ export type ContentsItem = {
   dir_items?: Array<_ContentsItemBase> | null
 }
 
+/**
+ * The necessary information to import a DVC object, which can be saved to
+ * a .dvc file.
+ *
+ * For example:
+ *
+ * outs:
+ * - md5: 46ce259ab949ecb23751eb88ec753ff2
+ * size: 83344240
+ * hash: md5
+ * path: time-ave-profiles.h5
+ * remote: calkit:petebachant/boundary-layer-turbulence-modeling
+ * push: false
+ *
+ * Note this is different from the file that would be produced by
+ * ``dvc import``, since they bundle in Git repo information to fetch from
+ * the original project's remote.
+ */
+export type DVCImport = {
+  outs: Array<DVCOut>
+}
+
+export type DVCOut = {
+  md5: string
+  size: number
+  hash?: string
+  path: string
+  remote: string
+  push?: boolean
+}
+
 export type Dataset = {
-  id?: string
-  project_id: string
   path: string
   imported_from?: string | null
   title?: string | null
@@ -88,6 +117,19 @@ export type Dataset = {
   stage?: string | null
   description?: string | null
   url?: string | null
+  id?: string
+  project_id: string
+}
+
+export type DatasetDVCImport = {
+  path: string
+  imported_from?: string | null
+  title?: string | null
+  tabular?: boolean | null
+  stage?: string | null
+  description?: string | null
+  url?: string | null
+  dvc_import?: DVCImport | null
 }
 
 export type DiscountCode = {
@@ -171,6 +213,11 @@ export type FileLock = {
 
 export type FileLockPost = {
   path: string
+}
+
+export type ForeachStage = {
+  foreach: Array<string>
+  do: PipelineStage
 }
 
 export type GitHubInstallations = {
@@ -312,6 +359,21 @@ export type OrgSubscriptionUpdate = {
   period: "monthly" | "annual"
   discount_code?: string | null
   n_users: number
+}
+
+export type Pipeline = {
+  mermaid: string
+  stages: Record<string, PipelineStage | ForeachStage>
+  yaml: string
+}
+
+export type PipelineStage = {
+  cmd: string
+  deps?: Array<string> | null
+  outs?: Array<string | Record<string, Record<string, unknown>>> | null
+  desc?: string | null
+  meta?: Record<string, unknown> | null
+  wdir?: string | null
 }
 
 export type ProjectCreate = {
@@ -525,21 +587,6 @@ export type ValidationError = {
   loc: Array<string | number>
   msg: string
   type: string
-}
-
-export type Workflow = {
-  mermaid: string
-  stages: Record<string, WorkflowStage>
-  yaml: string
-}
-
-export type WorkflowStage = {
-  cmd: string
-  deps?: Array<string> | null
-  outs?: Array<string | Record<string, Record<string, unknown>>> | null
-  desc?: string | null
-  meta?: Record<string, unknown> | null
-  wdir?: string | null
 }
 
 export type _ContentsItemBase = {
