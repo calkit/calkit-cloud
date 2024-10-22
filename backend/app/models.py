@@ -385,7 +385,7 @@ class ProjectCreate(ProjectBase):
     pass
 
 
-class WorkflowStage(SQLModel):
+class PipelineStage(SQLModel):
     cmd: str
     deps: list[str] | None = None
     outs: list[str | dict[str, dict]] | None = None
@@ -394,9 +394,14 @@ class WorkflowStage(SQLModel):
     wdir: str | None = None
 
 
-class Workflow(SQLModel):
+class ForeachStage(SQLModel):
+    foreach: list[str]
+    do: PipelineStage
+
+
+class Pipeline(SQLModel):
     mermaid: str
-    stages: dict[str, WorkflowStage]
+    stages: dict[str, PipelineStage | ForeachStage]
     yaml: str
 
 
@@ -504,6 +509,7 @@ class DVCImport(BaseModel):
     the original project's remote.
 
     """
+
     outs: list[DVCOut]
 
 
