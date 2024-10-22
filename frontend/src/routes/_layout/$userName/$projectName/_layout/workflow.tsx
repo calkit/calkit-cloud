@@ -61,7 +61,7 @@ function ProjectWorkflow() {
             </>
           ) : (
             <Alert mt={2} status="warning" borderRadius="xl">
-              <AlertIcon />A workflow has not yet been defined for this project.
+              <AlertIcon />A pipeline has not yet been defined for this project.
               To create one, add stages to the <Code mx={1}>dvc.yaml</Code>{" "}
               file.
             </Alert>
