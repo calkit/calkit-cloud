@@ -21,7 +21,7 @@ export const Route = createFileRoute(
 
 function ProjectWorkflow() {
   const { userName, projectName } = Route.useParams()
-  const workflowQuery = useQuery({
+  const pipelineQuery = useQuery({
     queryKey: [userName, projectName, "pipeline"],
     queryFn: () =>
       ProjectsService.getProjectPipeline({
@@ -32,16 +32,16 @@ function ProjectWorkflow() {
 
   return (
     <>
-      {workflowQuery.isPending ? (
+      {pipelineQuery.isPending ? (
         <Flex justify="center" align="center" height="100vh" width="full">
           <Spinner size="xl" color="ui.main" />
         </Flex>
       ) : (
         <Flex>
-          {workflowQuery.data ? (
+          {pipelineQuery.data ? (
             <>
               <Box p={5} maxW="50%" minW="40%">
-                <Mermaid>{String(workflowQuery?.data?.mermaid)}</Mermaid>
+                <Mermaid>{String(pipelineQuery?.data?.mermaid)}</Mermaid>
               </Box>
               <Box width="680px">
                 <Heading size="md" my={2}>
@@ -55,7 +55,7 @@ function ProjectWorkflow() {
                   height="80vh"
                   overflowY="auto"
                 >
-                  {String(workflowQuery?.data?.yaml)}
+                  {String(pipelineQuery?.data?.yaml)}
                 </Code>
               </Box>
             </>
