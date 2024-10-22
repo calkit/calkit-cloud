@@ -40,7 +40,7 @@ function ProjectWorkflow() {
         <Flex>
           {workflowQuery.data ? (
             <>
-              <Box p={5} maxW="50%" minW="40%">
+              <Box px={5} py={10} maxW="50%" minW="40%">
                 <Mermaid>{String(workflowQuery?.data?.mermaid)}</Mermaid>
               </Box>
               <Box width="680px">
