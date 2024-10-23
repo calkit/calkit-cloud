@@ -2,14 +2,20 @@ import { useEffect, useRef } from "react"
 import mermaid from "mermaid"
 import { zoom, zoomIdentity, ZoomBehavior } from "d3-zoom"
 import { select } from "d3-selection"
-import { Box, IconButton } from "@chakra-ui/react"
-import { FaHome } from "react-icons/fa"
+import { Box, IconButton, Flex } from "@chakra-ui/react"
+import { FaHome, FaExpandAlt } from "react-icons/fa"
 
 interface MermaidProps {
   children: string
+  isDiagramExpanded: boolean
+  setisDiagramExpanded: Function
 }
 
-const Mermaid = ({ children }: MermaidProps) => {
+const Mermaid = ({
+  children,
+  isDiagramExpanded,
+  setisDiagramExpanded,
+}: MermaidProps) => {
   const zoomBehaviorRef = useRef<ZoomBehavior<Element, unknown> | null>(null)
 
   const handleResetZoom = () => {
@@ -17,6 +23,10 @@ const Mermaid = ({ children }: MermaidProps) => {
     if (zoomBehaviorRef.current != null) {
       svgSelection.call(zoomBehaviorRef.current.transform, zoomIdentity)
     }
+  }
+
+  const toggleisDiagramExpanded = () => {
+    setisDiagramExpanded(!isDiagramExpanded)
   }
 
   useEffect(() => {
@@ -55,23 +65,29 @@ const Mermaid = ({ children }: MermaidProps) => {
     <Box
       borderRadius="lg"
       borderWidth={1}
-      aspectRatio={1 / 1}
+      aspectRatio={isDiagramExpanded ? 2 / 1 : 1 / 1}
       boxSizing="border-box"
       overflow={"hidden"}
       px={3}
       py={2}
       position={"relative"}
     >
-      <Box position="relative">
+      <Flex position="relative" direction={"row-reverse"} h={0}>
+        <IconButton
+          aria-label="expand"
+          height="25px"
+          icon={<FaExpandAlt />}
+          onClick={toggleisDiagramExpanded}
+          right={0}
+        />
         <IconButton
           aria-label="refresh"
           height="25px"
           icon={<FaHome />}
           onClick={handleResetZoom}
-          position={"absolute"}
           right={0}
         />
-      </Box>
+      </Flex>
       <Box
         className="mermaid"
         aria-label="Mermaid diagram"
