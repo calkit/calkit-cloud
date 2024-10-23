@@ -1,8 +1,8 @@
-import { useEffect } from "react"
+import { useEffect, useRef } from "react"
 import mermaid from "mermaid"
-import { zoom, zoomTransform } from "d3-zoom"
+import { zoom, zoomIdentity, ZoomBehavior } from "d3-zoom"
 import { select } from "d3-selection"
-import { Box, Flex, IconButton, useColorModeValue } from "@chakra-ui/react"
+import { Box, IconButton, useColorModeValue } from "@chakra-ui/react"
 import { FaHome } from "react-icons/fa"
 
 interface MermaidProps {
@@ -11,13 +11,12 @@ interface MermaidProps {
 
 const Mermaid = ({ children }: MermaidProps) => {
   const secBgColor = useColorModeValue("ui.secondary", "ui.darkSlate")
+  const zoomBehaviorRef = useRef<ZoomBehavior<Element, unknown> | null>(null)
 
-  const handleZoom = (svgSelection: any) => {
-    const svgNode = svgSelection.node()
-    if (svgNode instanceof Element) {
-      const transform = zoomTransform(svgNode)
-      const gSelection = svgSelection.select("g")
-      gSelection.attr("transform", transform.toString())
+  const handleResetZoom = () => {
+    const svgSelection = select<Element, unknown>(".mermaid svg")
+    if (zoomBehaviorRef.current != null) {
+      svgSelection.call(zoomBehaviorRef.current.transform, zoomIdentity)
     }
   }
 
@@ -35,11 +34,14 @@ const Mermaid = ({ children }: MermaidProps) => {
         // Remove max-width set by mermaid-js
         svgSelection.style("max-width", "none")
 
-        svgSelection.call(
-          zoom<Element, unknown>().on("zoom", () => {
-            handleZoom(svgSelection)
-          }),
-        )
+        const zoomBehavior = zoom<Element, unknown>().on("zoom", (event) => {
+          const transform = event.transform
+          const gSelection = svgSelection.select("g")
+          gSelection.attr("transform", transform.toString())
+        })
+
+        svgSelection.call(zoomBehavior)
+        zoomBehaviorRef.current = zoomBehavior
       } catch (error) {
         console.error("Error rendering Mermaid diagram:", error)
       }
@@ -67,7 +69,7 @@ const Mermaid = ({ children }: MermaidProps) => {
           aria-label="refresh"
           height="25px"
           icon={<FaHome />}
-          onClick={() => console.log("Go home")}
+          onClick={handleResetZoom}
           position={"absolute"}
           right={0}
         />
