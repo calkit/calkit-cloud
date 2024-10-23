@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react"
 import mermaid from "mermaid"
 import { zoom, zoomIdentity, ZoomBehavior } from "d3-zoom"
 import { select } from "d3-selection"
-import { Box, IconButton, useColorModeValue } from "@chakra-ui/react"
+import { Box, IconButton } from "@chakra-ui/react"
 import { FaHome } from "react-icons/fa"
 
 interface MermaidProps {
@@ -10,7 +10,6 @@ interface MermaidProps {
 }
 
 const Mermaid = ({ children }: MermaidProps) => {
-  const secBgColor = useColorModeValue("ui.secondary", "ui.darkSlate")
   const zoomBehaviorRef = useRef<ZoomBehavior<Element, unknown> | null>(null)
 
   const handleResetZoom = () => {
@@ -55,9 +54,8 @@ const Mermaid = ({ children }: MermaidProps) => {
   return (
     <Box
       borderRadius="lg"
-      borderWidth={0}
+      borderWidth={1}
       aspectRatio={1 / 1}
-      bg={secBgColor}
       boxSizing="border-box"
       overflow={"hidden"}
       px={3}
