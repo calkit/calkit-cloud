@@ -22,10 +22,10 @@ export const Route = createFileRoute(
 
 function ProjectWorkflow() {
   const { userName, projectName } = Route.useParams()
-  const workflowQuery = useQuery({
-    queryKey: [userName, projectName, "workflow"],
+  const pipelineQuery = useQuery({
+    queryKey: [userName, projectName, "pipeline"],
     queryFn: () =>
-      ProjectsService.getProjectWorkflow({
+      ProjectsService.getProjectPipeline({
         ownerName: userName,
         projectName: projectName,
       }),
@@ -34,13 +34,13 @@ function ProjectWorkflow() {
 
   return (
     <>
-      {workflowQuery.isPending ? (
+      {pipelineQuery.isPending ? (
         <Flex justify="center" align="center" height="100vh" width="full">
           <Spinner size="xl" color="ui.main" />
         </Flex>
       ) : (
         <Flex flexDir={isDiagramExpanded ? "column" : "row"}>
-          {workflowQuery.data ? (
+          {pipelineQuery.data ? (
             <>
               <Box
                 px={isDiagramExpanded ? 0 : 5}
@@ -52,7 +52,7 @@ function ProjectWorkflow() {
                   isDiagramExpanded={isDiagramExpanded}
                   setisDiagramExpanded={setisDiagramExpanded}
                 >
-                  {String(workflowQuery?.data?.mermaid)}
+                  {String(pipelineQuery?.data?.mermaid)}
                 </Mermaid>
               </Box>
 
@@ -68,13 +68,13 @@ function ProjectWorkflow() {
                   height="80vh"
                   overflowY="auto"
                 >
-                  {String(workflowQuery?.data?.yaml)}
+                  {String(pipelineQuery?.data?.yaml)}
                 </Code>
               </Box>
             </>
           ) : (
             <Alert mt={2} status="warning" borderRadius="xl">
-              <AlertIcon />A workflow has not yet been defined for this project.
+              <AlertIcon />A pipeline has not yet been defined for this project.
               To create one, add stages to the <Code mx={1}>dvc.yaml</Code>{" "}
               file.
             </Alert>

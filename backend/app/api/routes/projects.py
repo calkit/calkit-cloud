@@ -49,7 +49,7 @@ from app.models import (
     ProjectsPublic,
     Question,
     User,
-    Workflow,
+    Pipeline,
 )
 from fastapi import (
     APIRouter,
@@ -1910,13 +1910,13 @@ def post_project_sync(
     return Message(message="success")
 
 
-@router.get("/projects/{owner_name}/{project_name}/workflow")
-def get_project_workflow(
+@router.get("/projects/{owner_name}/{project_name}/pipeline")
+def get_project_pipeline(
     owner_name: str,
     project_name: str,
     current_user: CurrentUser,
     session: SessionDep,
-) -> Workflow | None:
+) -> Pipeline | None:
     project = app.projects.get_project(
         owner_name=owner_name,
         project_name=project_name,
@@ -1938,7 +1938,7 @@ def get_project_workflow(
     logger.info(
         f"Created Mermaid diagram for {owner_name}/{project_name}:\n{mermaid}"
     )
-    return Workflow(
+    return Pipeline(
         stages=dvc_pipeline["stages"], mermaid=mermaid, yaml=content
     )
 

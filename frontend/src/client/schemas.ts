@@ -366,17 +366,65 @@ export const $ContentsItem = {
   },
 } as const
 
-export const $Dataset = {
+export const $DVCImport = {
+  description: `The necessary information to import a DVC object, which can be saved to
+a .dvc file.
+
+For example:
+
+    outs:
+      - md5: 46ce259ab949ecb23751eb88ec753ff2
+        size: 83344240
+        hash: md5
+        path: time-ave-profiles.h5
+        remote: calkit:petebachant/boundary-layer-turbulence-modeling
+        push: false
+
+Note this is different from the file that would be produced by
+\`\`dvc import\`\`, since they bundle in Git repo information to fetch from
+the original project's remote.`,
   properties: {
-    id: {
-      type: "string",
-      format: "uuid",
+    outs: {
+      type: "array",
+      contains: {
+        type: "DVCOut",
+      },
+      isRequired: true,
     },
-    project_id: {
+  },
+} as const
+
+export const $DVCOut = {
+  properties: {
+    md5: {
       type: "string",
       isRequired: true,
-      format: "uuid",
     },
+    size: {
+      type: "number",
+      isRequired: true,
+    },
+    hash: {
+      type: "string",
+      default: "md5",
+    },
+    path: {
+      type: "string",
+      isRequired: true,
+    },
+    remote: {
+      type: "string",
+      isRequired: true,
+    },
+    push: {
+      type: "boolean",
+      default: false,
+    },
+  },
+} as const
+
+export const $Dataset = {
+  properties: {
     path: {
       type: "string",
       isRequired: true,
@@ -441,6 +489,101 @@ export const $Dataset = {
       contains: [
         {
           type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    id: {
+      type: "string",
+      format: "uuid",
+    },
+    project_id: {
+      type: "string",
+      isRequired: true,
+      format: "uuid",
+    },
+  },
+} as const
+
+export const $DatasetDVCImport = {
+  properties: {
+    path: {
+      type: "string",
+      isRequired: true,
+    },
+    imported_from: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    title: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    tabular: {
+      type: "any-of",
+      contains: [
+        {
+          type: "boolean",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    stage: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    description: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    url: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    dvc_import: {
+      type: "any-of",
+      contains: [
+        {
+          type: "DVCImport",
         },
         {
           type: "null",
@@ -871,6 +1014,22 @@ export const $FileLockPost = {
   properties: {
     path: {
       type: "string",
+      isRequired: true,
+    },
+  },
+} as const
+
+export const $ForeachStage = {
+  properties: {
+    foreach: {
+      type: "array",
+      contains: {
+        type: "string",
+      },
+      isRequired: true,
+    },
+    do: {
+      type: "PipelineStage",
       isRequired: true,
     },
   },
@@ -1489,6 +1648,121 @@ export const $OrgSubscriptionUpdate = {
       type: "number",
       isRequired: true,
       minimum: 2,
+    },
+  },
+} as const
+
+export const $Pipeline = {
+  properties: {
+    mermaid: {
+      type: "string",
+      isRequired: true,
+    },
+    stages: {
+      type: "dictionary",
+      contains: {
+        type: "any-of",
+        contains: [
+          {
+            type: "PipelineStage",
+          },
+          {
+            type: "ForeachStage",
+          },
+        ],
+      },
+      isRequired: true,
+    },
+    yaml: {
+      type: "string",
+      isRequired: true,
+    },
+  },
+} as const
+
+export const $PipelineStage = {
+  properties: {
+    cmd: {
+      type: "string",
+      isRequired: true,
+    },
+    deps: {
+      type: "any-of",
+      contains: [
+        {
+          type: "array",
+          contains: {
+            type: "string",
+          },
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    outs: {
+      type: "any-of",
+      contains: [
+        {
+          type: "array",
+          contains: {
+            type: "any-of",
+            contains: [
+              {
+                type: "string",
+              },
+              {
+                type: "dictionary",
+                contains: {
+                  type: "dictionary",
+                  contains: {
+                    properties: {},
+                  },
+                },
+              },
+            ],
+          },
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    desc: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    meta: {
+      type: "any-of",
+      contains: [
+        {
+          type: "dictionary",
+          contains: {
+            properties: {},
+          },
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    wdir: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
     },
   },
 } as const
@@ -2563,113 +2837,6 @@ export const $ValidationError = {
     type: {
       type: "string",
       isRequired: true,
-    },
-  },
-} as const
-
-export const $Workflow = {
-  properties: {
-    mermaid: {
-      type: "string",
-      isRequired: true,
-    },
-    stages: {
-      type: "dictionary",
-      contains: {
-        type: "WorkflowStage",
-      },
-      isRequired: true,
-    },
-    yaml: {
-      type: "string",
-      isRequired: true,
-    },
-  },
-} as const
-
-export const $WorkflowStage = {
-  properties: {
-    cmd: {
-      type: "string",
-      isRequired: true,
-    },
-    deps: {
-      type: "any-of",
-      contains: [
-        {
-          type: "array",
-          contains: {
-            type: "string",
-          },
-        },
-        {
-          type: "null",
-        },
-      ],
-    },
-    outs: {
-      type: "any-of",
-      contains: [
-        {
-          type: "array",
-          contains: {
-            type: "any-of",
-            contains: [
-              {
-                type: "string",
-              },
-              {
-                type: "dictionary",
-                contains: {
-                  type: "dictionary",
-                  contains: {
-                    properties: {},
-                  },
-                },
-              },
-            ],
-          },
-        },
-        {
-          type: "null",
-        },
-      ],
-    },
-    desc: {
-      type: "any-of",
-      contains: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
-    },
-    meta: {
-      type: "any-of",
-      contains: [
-        {
-          type: "dictionary",
-          contains: {
-            properties: {},
-          },
-        },
-        {
-          type: "null",
-        },
-      ],
-    },
-    wdir: {
-      type: "any-of",
-      contains: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
     },
   },
 } as const
