@@ -78,14 +78,14 @@ const Mermaid = ({
           height="25px"
           icon={<FaExpandAlt />}
           onClick={toggleisDiagramExpanded}
-          right={0}
+          ml={1}
         />
         <IconButton
           aria-label="refresh"
           height="25px"
           icon={<FaHome />}
           onClick={handleResetZoom}
-          right={0}
+          mr={1}
         />
       </Flex>
       <Box
