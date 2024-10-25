@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react"
 import mermaid from "mermaid"
-import { zoom, zoomIdentity, ZoomBehavior } from "d3-zoom"
+import { zoom, zoomIdentity, ZoomBehavior, D3ZoomEvent } from "d3-zoom"
 import { select } from "d3-selection"
 import { Box, IconButton, Flex } from "@chakra-ui/react"
 import { FaHome, FaExpandAlt } from "react-icons/fa"
@@ -43,11 +43,14 @@ const Mermaid = ({
         // Remove max-width set by mermaid-js
         svgSelection.style("max-width", "none")
 
-        const zoomBehavior = zoom<Element, unknown>().on("zoom", (event) => {
-          const transform = event.transform
-          const gSelection = svgSelection.select("g")
-          gSelection.attr("transform", transform.toString())
-        })
+        const zoomBehavior = zoom<Element, unknown>().on(
+          "zoom",
+          (event: D3ZoomEvent<Element, unknown>) => {
+            const transform = event.transform
+            const gSelection = svgSelection.select("g")
+            gSelection.attr("transform", transform.toString())
+          },
+        )
 
         svgSelection.call(zoomBehavior)
         zoomBehaviorRef.current = zoomBehavior
