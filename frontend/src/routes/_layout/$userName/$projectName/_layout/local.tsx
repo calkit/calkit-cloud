@@ -113,7 +113,13 @@ function LocalServer() {
                 ) : (
                   ""
                 )}
-                <Box borderRadius="lg" borderWidth={1} p={2} mt={4}>
+                <Box
+                  borderRadius="lg"
+                  borderWidth={1}
+                  p={2}
+                  mt={4}
+                  minH="400px"
+                >
                   $ This is a fake terminal.
                 </Box>
               </Box>
@@ -125,8 +131,36 @@ function LocalServer() {
                 </Text>
               </Box>
             )}
-            <Box borderRadius="lg" borderWidth={1} width="40%" p={4}>
-              <Heading size="sm">Status</Heading>
+            {/* Right hand side status box */}
+            <Box
+              borderRadius="lg"
+              borderWidth={1}
+              width="40%"
+              p={4}
+              height="80vh"
+            >
+              <Heading size="md" mb={2}>
+                Status (refresh button)
+              </Heading>
+              <Text>The repo is cloned locally in ______.</Text>
+              <Text>There are changes in the cloud to be pulled.</Text>
+              <Heading size="sm" mb={1} mt={4}>
+                Untracked files
+              </Heading>
+              <Text color="red.500">data.xlsx</Text>
+              <Heading size="sm" mb={1} mt={4}>
+                Changed files
+              </Heading>
+              <Text color="red.500">README.md</Text>
+              <Heading size="sm" mb={1} mt={4}>
+                Pipeline
+              </Heading>
+              <Text color="yellow.500">
+                Pipeline is out-of-date and needs to be run.
+              </Text>
+              <Code>this-is-the-first-stage</Code>
+              <Text>+ Add a new stage</Text>
+              <Text>Maybe the DAG can go here?</Text>
             </Box>
           </Flex>
         )}
