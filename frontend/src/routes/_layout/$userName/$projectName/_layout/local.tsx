@@ -147,16 +147,16 @@ function LocalServer() {
               <Heading size="sm" mb={1} mt={4}>
                 Untracked files
               </Heading>
-              <Text color="red.500">data.xlsx</Text>
+              <Text color="red.500">data.xlsx [add]</Text>
               <Heading size="sm" mb={1} mt={4}>
                 Changed files
               </Heading>
-              <Text color="red.500">README.md</Text>
+              <Text color="red.500">README.md [commit]</Text>
               <Heading size="sm" mb={1} mt={4}>
                 Pipeline
               </Heading>
               <Text color="yellow.500">
-                Pipeline is out-of-date and needs to be run.
+                Pipeline is out-of-date and needs to be run. [run]
               </Text>
               <Code>this-is-the-first-stage</Code>
               <Text>+ Add a new stage</Text>
