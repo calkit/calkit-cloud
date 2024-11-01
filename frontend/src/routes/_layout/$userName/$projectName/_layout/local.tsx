@@ -83,7 +83,7 @@ function LocalServer() {
           <Flex>
             {!localServerQuery.error ? (
               <Box mr={4} width="60%">
-                <Text>The local server is running.</Text>
+                <Text>The local server is running. [search for command]</Text>
                 <Button m={2} variant="primary" onClick={openVSCode}>
                   Open in VSCode <Icon ml={1} as={FiExternalLink} />
                 </Button>
