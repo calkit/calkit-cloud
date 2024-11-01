@@ -71,7 +71,7 @@ function LocalServer() {
 
   return (
     <>
-      <Box>
+      <Box mr={4}>
         <Heading size="md" mb={1}>
           Local machine
         </Heading>
@@ -82,7 +82,7 @@ function LocalServer() {
         ) : (
           <Flex>
             {!localServerQuery.error ? (
-              <Box>
+              <Box mr={4} width="60%">
                 <Text>The local server is running.</Text>
                 <Button m={2} variant="primary" onClick={openVSCode}>
                   Open in VSCode <Icon ml={1} as={FiExternalLink} />
@@ -113,6 +113,9 @@ function LocalServer() {
                 ) : (
                   ""
                 )}
+                <Box borderRadius="lg" borderWidth={1} p={2} mt={4}>
+                  $ This is a fake terminal.
+                </Box>
               </Box>
             ) : (
               <Box>
@@ -122,6 +125,9 @@ function LocalServer() {
                 </Text>
               </Box>
             )}
+            <Box borderRadius="lg" borderWidth={1} width="40%" p={4}>
+              <Heading size="sm">Status</Heading>
+            </Box>
           </Flex>
         )}
       </Box>
