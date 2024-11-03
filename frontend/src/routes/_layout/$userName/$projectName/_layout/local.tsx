@@ -9,6 +9,7 @@ import {
   Icon,
   Link,
   IconButton,
+  Center,
 } from "@chakra-ui/react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
@@ -150,7 +151,13 @@ function LocalServer() {
                   onClick={() => console.log("refreshing")}
                 />
               </Heading>
-              <Text>The repo is cloned locally in ______.</Text>
+              <Flex>
+                <Text alignSelf={"center"}>
+                  The repo is not cloned locally.
+                </Text>
+                <Button>Clone</Button>
+              </Flex>
+
               <Text>There are changes in the cloud to be pulled.</Text>
               <Heading size="sm" mb={1} mt={4}>
                 Untracked files
