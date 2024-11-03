@@ -8,11 +8,13 @@ import {
   Flex,
   Icon,
   Link,
+  IconButton,
 } from "@chakra-ui/react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 import axios from "axios"
 import { FiExternalLink } from "react-icons/fi"
+import { FaSync } from "react-icons/fa"
 
 export const Route = createFileRoute(
   "/_layout/$userName/$projectName/_layout/local",
@@ -140,7 +142,13 @@ function LocalServer() {
               height="80vh"
             >
               <Heading size="md" mb={2}>
-                Status (refresh button)
+                Status
+                <IconButton
+                  aria-label="refresh"
+                  height="25px"
+                  icon={<FaSync />}
+                  onClick={() => console.log("refreshing")}
+                />
               </Heading>
               <Text>The repo is cloned locally in ______.</Text>
               <Text>There are changes in the cloud to be pulled.</Text>
