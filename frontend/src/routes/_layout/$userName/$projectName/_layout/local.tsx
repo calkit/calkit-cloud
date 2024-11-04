@@ -71,6 +71,14 @@ function LocalServer() {
     },
   })
   const localWorkingDir = localServerQuery.data?.data?.wdir
+  const statusQuery = useQuery({
+    queryKey: ["local-server-main", userName, projectName, "status"],
+    queryFn: () =>
+      axios.get(
+        `http://localhost:8866/projects/${userName}/${projectName}/status`,
+      ),
+    retry: false,
+  })
 
   return (
     <>
@@ -156,7 +164,28 @@ function LocalServer() {
               ) : (
                 <Text>The repo has not yet been cloned to this machine.</Text>
               )}
-              <Text>There are changes in the cloud to be pulled.</Text>
+              {!statusQuery.error ? (
+                <>
+                  {statusQuery.data?.data?.git.commits_ahead ? (
+                    <Text>There are commits to push to Git remote.</Text>
+                  ) : (
+                    ""
+                  )}
+                  {statusQuery.data?.data?.git.commits_behind ? (
+                    <Text>There are commits to pull from Git remote.</Text>
+                  ) : (
+                    ""
+                  )}
+                  {statusQuery.data?.data?.git.commits_ahead === 0 &&
+                  statusQuery.data.data.git.commits_behind === 0 ? (
+                    <Text>Repo is synced with Git remote.</Text>
+                  ) : (
+                    ""
+                  )}
+                </>
+              ) : (
+                ""
+              )}
               <Heading size="sm" mb={1} mt={4}>
                 Untracked files
               </Heading>
