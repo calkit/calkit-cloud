@@ -11,6 +11,7 @@ import {
   IconButton,
   ListItem,
   UnorderedList,
+  Badge,
 } from "@chakra-ui/react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
@@ -339,29 +340,26 @@ function LocalServer() {
                 ""
               )}
               {/* Pipeline section of status */}
-              <Heading size="sm" mb={1} mt={4}>
-                Pipeline
-              </Heading>
-              {!pipelineUpToDate ? (
-                <Flex alignItems="center">
-                  <Text color="yellow.500" mr={1}>
-                    Pipeline is out-of-date and needs to be run.
-                  </Text>
-                  <Button
-                    size="xs"
-                    variant="primary"
-                    onClick={() => runPipelineMutation.mutate()}
-                    isLoading={runPipelineMutation.isPending}
-                  >
-                    Run
-                  </Button>
-                </Flex>
-              ) : (
-                <Text>Pipeline is up-to-date.</Text>
-              )}
-              <Heading size="xs" mt={1}>
-                Stages
-              </Heading>
+              <Flex mb={1} mt={4} alignItems="center">
+                <Heading size="sm" mr={1}>
+                  Pipeline
+                </Heading>
+                {!pipelineUpToDate ? (
+                  <Flex alignItems="center">
+                    <Badge color="yellow.500">Out-of-date</Badge>
+                    <Button
+                      size="xs"
+                      variant="primary"
+                      onClick={() => runPipelineMutation.mutate()}
+                      isLoading={runPipelineMutation.isPending}
+                    >
+                      Run
+                    </Button>
+                  </Flex>
+                ) : (
+                  <Badge color="green.500">Up-to-date</Badge>
+                )}
+              </Flex>
               {!pipelineQuery.error && pipelineQuery.data?.data ? (
                 <>
                   <UnorderedList>
