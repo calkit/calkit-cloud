@@ -81,6 +81,7 @@ function LocalServer() {
   })
   const commitsAhead = statusQuery.data?.data?.git.commits_ahead
   const commitsBehind = statusQuery.data?.data?.git.commits_behind
+  const untrackedFiles = statusQuery.data?.data?.git.untracked
   const gitPushMutation = useMutation({
     mutationFn: () => {
       const url = `http://localhost:8866/projects/${userName}/${projectName}/git/push`
@@ -225,7 +226,29 @@ function LocalServer() {
               <Heading size="sm" mb={1} mt={4}>
                 Untracked files
               </Heading>
-              <Text color="red.500">data.xlsx [add]</Text>
+              {untrackedFiles ? (
+                <>
+                  {untrackedFiles.map((fpath: string) => (
+                    <Flex key={fpath} alignItems="center" mb={1}>
+                      <Text color="red.500" mr={1}>
+                        {fpath}
+                      </Text>
+                      <Button
+                        variant="primary"
+                        size="xs"
+                        onClick={() =>
+                          console.log(`Adding and committing ${fpath}`)
+                        }
+                      >
+                        Add + commit
+                      </Button>
+                    </Flex>
+                  ))}
+                </>
+              ) : (
+                ""
+              )}
+
               <Heading size="sm" mb={1} mt={4}>
                 Changed files
               </Heading>
