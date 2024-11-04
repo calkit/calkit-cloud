@@ -9,6 +9,8 @@ import {
   Icon,
   Link,
   IconButton,
+  ListItem,
+  UnorderedList,
 } from "@chakra-ui/react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
@@ -107,6 +109,14 @@ function LocalServer() {
         queryKey: ["local-server-main", userName, projectName, "status"],
       })
     },
+  })
+  const pipelineQuery = useQuery({
+    queryKey: ["local-server-main", userName, projectName, "pipeline"],
+    queryFn: () =>
+      axios.get(
+        `http://localhost:8866/projects/${userName}/${projectName}/pipeline`,
+      ),
+    retry: false,
   })
 
   return (
@@ -328,6 +338,7 @@ function LocalServer() {
               ) : (
                 ""
               )}
+              {/* Pipeline section of status */}
               <Heading size="sm" mb={1} mt={4}>
                 Pipeline
               </Heading>
@@ -348,7 +359,24 @@ function LocalServer() {
               ) : (
                 <Text>Pipeline is up-to-date.</Text>
               )}
-              <Code>this-is-the-first-stage</Code>
+              <Heading size="xs" mt={1}>
+                Stages
+              </Heading>
+              {!pipelineQuery.error && pipelineQuery.data?.data ? (
+                <>
+                  <UnorderedList>
+                    {Object.entries(pipelineQuery.data.data.stages).map(
+                      ([k, _]) => (
+                        <ListItem key={k}>
+                          <Code>{k}</Code>
+                        </ListItem>
+                      ),
+                    )}
+                  </UnorderedList>
+                </>
+              ) : (
+                ""
+              )}
               <Text>+ Add a new stage</Text>
               <Text>Maybe the DAG can go here?</Text>
             </Box>
