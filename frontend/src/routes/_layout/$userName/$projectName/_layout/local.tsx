@@ -70,6 +70,7 @@ function LocalServer() {
       })
     },
   })
+  const localWorkingDir = localServerQuery.data?.data?.wdir
 
   return (
     <>
@@ -150,7 +151,11 @@ function LocalServer() {
                   onClick={() => console.log("refreshing")}
                 />
               </Heading>
-              <Text>The repo is cloned locally in ______.</Text>
+              {localWorkingDir ? (
+                <Text>The repo is cloned locally in {localWorkingDir}.</Text>
+              ) : (
+                <Text>The repo has not yet been cloned to this machine.</Text>
+              )}
               <Text>There are changes in the cloud to be pulled.</Text>
               <Heading size="sm" mb={1} mt={4}>
                 Untracked files
