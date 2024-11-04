@@ -83,6 +83,7 @@ function LocalServer() {
   const commitsBehind = statusQuery.data?.data?.git.commits_behind
   const untrackedFiles = statusQuery.data?.data?.git.untracked
   const changedFiles = statusQuery.data?.data?.git.changed
+  const stagedFiles = statusQuery.data?.data?.git.staged
   const gitPushMutation = useMutation({
     mutationFn: () => {
       const url = `http://localhost:8866/projects/${userName}/${projectName}/git/push`
@@ -224,6 +225,29 @@ function LocalServer() {
               ) : (
                 ""
               )}
+              {/* Staged files */}
+              <Flex alignItems="center" mb={1} mt={4}>
+                <Heading size="sm" mr={1}>
+                  Staged files
+                </Heading>
+                <Button size="xs" variant="primary">
+                  Commit
+                </Button>
+              </Flex>
+              {stagedFiles ? (
+                <>
+                  {stagedFiles.map((fpath: string) => (
+                    <Flex key={fpath} alignItems="center" mb={1}>
+                      <Text color="green.500" mr={1}>
+                        {fpath}
+                      </Text>
+                    </Flex>
+                  ))}
+                </>
+              ) : (
+                ""
+              )}
+              {/* Untracked files */}
               <Heading size="sm" mb={1} mt={4}>
                 Untracked files
               </Heading>
