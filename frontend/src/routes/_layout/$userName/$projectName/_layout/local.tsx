@@ -285,8 +285,9 @@ function LocalServer() {
               ) : (
                 ""
               )}
+              {/* Changed files */}
               <Heading size="sm" mb={1} mt={4}>
-                Changed files [commit all]
+                Changed files [commit all] [discard all]
               </Heading>
               {changedFiles ? (
                 <>
