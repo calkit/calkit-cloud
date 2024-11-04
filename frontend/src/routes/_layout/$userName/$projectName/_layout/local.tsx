@@ -240,8 +240,18 @@ function LocalServer() {
                         onClick={() =>
                           console.log(`Adding and committing ${fpath}`)
                         }
+                        mr={1}
                       >
-                        Add + commit
+                        Add
+                      </Button>
+                      <Button
+                        variant="primary"
+                        size="xs"
+                        onClick={() =>
+                          console.log(`Opening ignore modal for ${fpath}`)
+                        }
+                      >
+                        Ignore
                       </Button>
                     </Flex>
                   ))}
