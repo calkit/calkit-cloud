@@ -79,6 +79,8 @@ function LocalServer() {
       ),
     retry: false,
   })
+  const commitsAhead = statusQuery.data?.data?.git.commits_ahead
+  const commitsBehind = statusQuery.data?.data?.git.commits_behind
 
   return (
     <>
@@ -166,18 +168,21 @@ function LocalServer() {
               )}
               {!statusQuery.error ? (
                 <>
-                  {statusQuery.data?.data?.git.commits_ahead ? (
-                    <Text>There are commits to push to Git remote.</Text>
+                  {commitsAhead ? (
+                    <Text>
+                      There are {commitsAhead} commits to push to Git remote.
+                    </Text>
                   ) : (
                     ""
                   )}
-                  {statusQuery.data?.data?.git.commits_behind ? (
-                    <Text>There are commits to pull from Git remote.</Text>
+                  {commitsBehind ? (
+                    <Text>
+                      There are {commitsBehind} commits to pull from Git remote.
+                    </Text>
                   ) : (
                     ""
                   )}
-                  {statusQuery.data?.data?.git.commits_ahead === 0 &&
-                  statusQuery.data?.data?.git.commits_behind === 0 ? (
+                  {commitsAhead === 0 && commitsBehind === 0 ? (
                     <Text>Repo is synced with Git remote.</Text>
                   ) : (
                     ""
