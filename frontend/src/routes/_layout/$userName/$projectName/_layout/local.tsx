@@ -82,7 +82,7 @@ function LocalServer() {
   const commitsAhead = statusQuery.data?.data?.git.commits_ahead
   const commitsBehind = statusQuery.data?.data?.git.commits_behind
   const untrackedFiles = statusQuery.data?.data?.git.untracked
-  const changedFiles = statusQuery.data?.data?.git.diff
+  const changedFiles = statusQuery.data?.data?.git.changed
   const gitPushMutation = useMutation({
     mutationFn: () => {
       const url = `http://localhost:8866/projects/${userName}/${projectName}/git/push`
