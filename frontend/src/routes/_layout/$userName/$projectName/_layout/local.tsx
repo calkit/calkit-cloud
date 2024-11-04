@@ -169,8 +169,8 @@ function LocalServer() {
               {!statusQuery.isPending && !statusQuery.error ? (
                 <>
                   {commitsAhead ? (
-                    <Flex alignItems={"center"}>
-                      <Text mr={1}>
+                    <Flex alignItems="center">
+                      <Text mr={1} color="yellow.500">
                         There are {commitsAhead} commits to push to Git remote.
                       </Text>
                       <Button variant="primary" size="xs" aria-label="push">
@@ -181,9 +181,15 @@ function LocalServer() {
                     ""
                   )}
                   {commitsBehind ? (
-                    <Text>
-                      There are {commitsBehind} commits to pull from Git remote.
-                    </Text>
+                    <Flex alignItems="center">
+                      <Text mr={1}>
+                        There are {commitsBehind} commits to pull from Git
+                        remote.
+                      </Text>
+                      <Button variant="primary" size="xs" aria-label="push">
+                        Pull
+                      </Button>
+                    </Flex>
                   ) : (
                     ""
                   )}
