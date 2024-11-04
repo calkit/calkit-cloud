@@ -97,6 +97,17 @@ function LocalServer() {
       })
     },
   })
+  const runPipelineMutation = useMutation({
+    mutationFn: () => {
+      const url = `http://localhost:8866/projects/${userName}/${projectName}/pipeline/runs`
+      return axios.post(url)
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["local-server-main", userName, projectName, "status"],
+      })
+    },
+  })
 
   return (
     <>
@@ -325,7 +336,12 @@ function LocalServer() {
                   <Text color="yellow.500" mr={1}>
                     Pipeline is out-of-date and needs to be run.
                   </Text>
-                  <Button size="xs" variant="primary">
+                  <Button
+                    size="xs"
+                    variant="primary"
+                    onClick={() => runPipelineMutation.mutate()}
+                    isLoading={runPipelineMutation.isPending}
+                  >
                     Run
                   </Button>
                 </Flex>
