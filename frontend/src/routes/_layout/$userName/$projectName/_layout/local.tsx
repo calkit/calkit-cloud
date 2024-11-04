@@ -81,6 +81,17 @@ function LocalServer() {
   })
   const commitsAhead = statusQuery.data?.data?.git.commits_ahead
   const commitsBehind = statusQuery.data?.data?.git.commits_behind
+  const gitPushMutation = useMutation({
+    mutationFn: () => {
+      const url = `http://localhost:8866/projects/${userName}/${projectName}/git/push`
+      return axios.post(url)
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["local-server-main", userName, projectName, "status"],
+      })
+    },
+  })
 
   return (
     <>
@@ -175,7 +186,13 @@ function LocalServer() {
                       <Text mr={1} color="yellow.500">
                         There are {commitsAhead} commits to push to Git remote.
                       </Text>
-                      <Button variant="primary" size="xs" aria-label="push">
+                      <Button
+                        variant="primary"
+                        size="xs"
+                        aria-label="push"
+                        onClick={() => gitPushMutation.mutate()}
+                        isLoading={gitPushMutation.isPending}
+                      >
                         Push
                       </Button>
                     </Flex>
