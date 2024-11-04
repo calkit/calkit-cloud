@@ -248,7 +248,6 @@ function LocalServer() {
               ) : (
                 ""
               )}
-
               <Heading size="sm" mb={1} mt={4}>
                 Changed files
               </Heading>
