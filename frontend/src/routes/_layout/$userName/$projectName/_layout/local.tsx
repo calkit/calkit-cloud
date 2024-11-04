@@ -272,9 +272,17 @@ function LocalServer() {
                       <Button
                         variant="primary"
                         size="xs"
+                        mr={1}
                         onClick={() => console.log(`Committing ${fpath}`)}
                       >
                         Commit
+                      </Button>
+                      <Button
+                        variant="primary"
+                        size="xs"
+                        onClick={() => console.log(`Checking out ${fpath}`)}
+                      >
+                        Discard
                       </Button>
                     </Flex>
                   ))}
