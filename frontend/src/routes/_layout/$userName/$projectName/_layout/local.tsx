@@ -171,7 +171,8 @@ function LocalServer() {
                   aria-label="refresh"
                   height="25px"
                   icon={<FaSync />}
-                  onClick={() => console.log("refreshing")}
+                  onClick={() => statusQuery.refetch()}
+                  isLoading={statusQuery.isRefetching}
                 />
               </Flex>
               {localWorkingDir ? (
