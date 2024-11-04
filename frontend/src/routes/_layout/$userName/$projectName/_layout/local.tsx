@@ -152,15 +152,17 @@ function LocalServer() {
               p={4}
               height="80vh"
             >
-              <Heading size="md" mb={2}>
-                Status
+              <Flex>
+                <Heading size="md" mb={2} mr={1}>
+                  Status
+                </Heading>
                 <IconButton
                   aria-label="refresh"
                   height="25px"
                   icon={<FaSync />}
                   onClick={() => console.log("refreshing")}
                 />
-              </Heading>
+              </Flex>
               {localWorkingDir ? (
                 <Text>The repo is cloned locally in {localWorkingDir}.</Text>
               ) : (
