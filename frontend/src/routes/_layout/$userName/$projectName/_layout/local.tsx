@@ -177,7 +177,7 @@ function LocalServer() {
                     ""
                   )}
                   {statusQuery.data?.data?.git.commits_ahead === 0 &&
-                  statusQuery.data.data.git.commits_behind === 0 ? (
+                  statusQuery.data?.data?.git.commits_behind === 0 ? (
                     <Text>Repo is synced with Git remote.</Text>
                   ) : (
                     ""
