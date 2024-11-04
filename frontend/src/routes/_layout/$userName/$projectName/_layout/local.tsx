@@ -166,7 +166,7 @@ function LocalServer() {
               ) : (
                 <Text>The repo has not yet been cloned to this machine.</Text>
               )}
-              {!statusQuery.error ? (
+              {!statusQuery.isPending && !statusQuery.error ? (
                 <>
                   {commitsAhead ? (
                     <Text>
