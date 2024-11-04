@@ -84,6 +84,8 @@ function LocalServer() {
   const untrackedFiles = statusQuery.data?.data?.git.untracked
   const changedFiles = statusQuery.data?.data?.git.changed
   const stagedFiles = statusQuery.data?.data?.git.staged
+  const pipelineUpToDate =
+    JSON.stringify(statusQuery.data?.data?.dvc.pipeline) === "{}"
   const gitPushMutation = useMutation({
     mutationFn: () => {
       const url = `http://localhost:8866/projects/${userName}/${projectName}/git/push`
@@ -317,9 +319,18 @@ function LocalServer() {
               <Heading size="sm" mb={1} mt={4}>
                 Pipeline
               </Heading>
-              <Text color="yellow.500">
-                Pipeline is out-of-date and needs to be run. [run]
-              </Text>
+              {!pipelineUpToDate ? (
+                <Flex alignItems="center">
+                  <Text color="yellow.500" mr={1}>
+                    Pipeline is out-of-date and needs to be run.
+                  </Text>
+                  <Button size="xs" variant="primary">
+                    Run
+                  </Button>
+                </Flex>
+              ) : (
+                <Text>Pipeline is up-to-date.</Text>
+              )}
               <Code>this-is-the-first-stage</Code>
               <Text>+ Add a new stage</Text>
               <Text>Maybe the DAG can go here?</Text>
