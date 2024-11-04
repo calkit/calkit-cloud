@@ -9,7 +9,8 @@ import {
   Icon,
   Link,
   IconButton,
-  Center,
+  ListItem,
+  UnorderedList,
 } from "@chakra-ui/react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
@@ -70,6 +71,52 @@ function LocalServer() {
         queryKey: ["local-server", userName, projectName],
       })
     },
+  })
+  const localWorkingDir = localServerQuery.data?.data?.wdir
+  const statusQuery = useQuery({
+    queryKey: ["local-server-main", userName, projectName, "status"],
+    queryFn: () =>
+      axios.get(
+        `http://localhost:8866/projects/${userName}/${projectName}/status`,
+      ),
+    retry: false,
+  })
+  const commitsAhead = statusQuery.data?.data?.git.commits_ahead
+  const commitsBehind = statusQuery.data?.data?.git.commits_behind
+  const untrackedFiles = statusQuery.data?.data?.git.untracked
+  const changedFiles = statusQuery.data?.data?.git.changed
+  const stagedFiles = statusQuery.data?.data?.git.staged
+  const pipelineUpToDate =
+    JSON.stringify(statusQuery.data?.data?.dvc.pipeline) === "{}"
+  const gitPushMutation = useMutation({
+    mutationFn: () => {
+      const url = `http://localhost:8866/projects/${userName}/${projectName}/git/push`
+      return axios.post(url)
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["local-server-main", userName, projectName, "status"],
+      })
+    },
+  })
+  const runPipelineMutation = useMutation({
+    mutationFn: () => {
+      const url = `http://localhost:8866/projects/${userName}/${projectName}/pipeline/runs`
+      return axios.post(url)
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["local-server-main", userName, projectName, "status"],
+      })
+    },
+  })
+  const pipelineQuery = useQuery({
+    queryKey: ["local-server-main", userName, projectName, "pipeline"],
+    queryFn: () =>
+      axios.get(
+        `http://localhost:8866/projects/${userName}/${projectName}/pipeline`,
+      ),
+    retry: false,
   })
 
   return (
@@ -142,38 +189,194 @@ function LocalServer() {
               p={4}
               height="80vh"
             >
-              <Heading size="md" mb={2}>
-                Status
+              <Flex>
+                <Heading size="md" mb={2} mr={1}>
+                  Status
+                </Heading>
                 <IconButton
                   aria-label="refresh"
                   height="25px"
                   icon={<FaSync />}
-                  onClick={() => console.log("refreshing")}
+                  onClick={() => statusQuery.refetch()}
+                  isLoading={statusQuery.isRefetching}
                 />
-              </Heading>
-              <Flex>
-                <Text alignSelf={"center"}>
-                  The repo is not cloned locally.
-                </Text>
-                <Button>Clone</Button>
               </Flex>
-
-              <Text>There are changes in the cloud to be pulled.</Text>
+              {localWorkingDir ? (
+                <Text>The repo is cloned locally in {localWorkingDir}.</Text>
+              ) : (
+                <Text>The repo has not yet been cloned to this machine.</Text>
+              )}
+              {!statusQuery.isPending && !statusQuery.error ? (
+                <>
+                  {commitsAhead ? (
+                    <Flex alignItems="center">
+                      <Text mr={1} color="yellow.500">
+                        There are {commitsAhead} commits to push to Git remote.
+                      </Text>
+                      <Button
+                        variant="primary"
+                        size="xs"
+                        aria-label="push"
+                        onClick={() => gitPushMutation.mutate()}
+                        isLoading={gitPushMutation.isPending}
+                      >
+                        Push
+                      </Button>
+                    </Flex>
+                  ) : (
+                    ""
+                  )}
+                  {commitsBehind ? (
+                    <Flex alignItems="center">
+                      <Text mr={1}>
+                        There are {commitsBehind} commits to pull from Git
+                        remote.
+                      </Text>
+                      <Button variant="primary" size="xs" aria-label="push">
+                        Pull
+                      </Button>
+                    </Flex>
+                  ) : (
+                    ""
+                  )}
+                  {commitsAhead === 0 && commitsBehind === 0 ? (
+                    <Text>Repo is synced with Git remote.</Text>
+                  ) : (
+                    ""
+                  )}
+                </>
+              ) : (
+                ""
+              )}
+              {/* Staged files */}
+              <Flex alignItems="center" mb={1} mt={4}>
+                <Heading size="sm" mr={1}>
+                  Staged files
+                </Heading>
+                <Button size="xs" variant="primary">
+                  Commit
+                </Button>
+              </Flex>
+              {stagedFiles ? (
+                <>
+                  {stagedFiles.map((fpath: string) => (
+                    <Flex key={fpath} alignItems="center" mb={1}>
+                      <Text color="green.500" mr={1}>
+                        {fpath}
+                      </Text>
+                    </Flex>
+                  ))}
+                </>
+              ) : (
+                ""
+              )}
+              {/* Untracked files */}
               <Heading size="sm" mb={1} mt={4}>
                 Untracked files
               </Heading>
-              <Text color="red.500">data.xlsx [add]</Text>
+              {untrackedFiles ? (
+                <>
+                  {untrackedFiles.map((fpath: string) => (
+                    <Flex key={fpath} alignItems="center" mb={1}>
+                      <Text color="red.500" mr={1}>
+                        {fpath}
+                      </Text>
+                      <Button
+                        variant="primary"
+                        size="xs"
+                        onClick={() =>
+                          console.log(`Adding and committing ${fpath}`)
+                        }
+                        mr={1}
+                      >
+                        Add
+                      </Button>
+                      <Button
+                        variant="primary"
+                        size="xs"
+                        onClick={() =>
+                          console.log(`Opening ignore modal for ${fpath}`)
+                        }
+                      >
+                        Ignore
+                      </Button>
+                    </Flex>
+                  ))}
+                </>
+              ) : (
+                ""
+              )}
+              {/* Changed files */}
               <Heading size="sm" mb={1} mt={4}>
-                Changed files
+                Changed files [commit all] [discard all]
               </Heading>
-              <Text color="red.500">README.md [commit]</Text>
+              {changedFiles ? (
+                <>
+                  {changedFiles.map((fpath: string) => (
+                    <Flex key={fpath} alignItems="center" mb={1}>
+                      <Text color="red.500" mr={1}>
+                        {fpath}
+                      </Text>
+                      <Button
+                        variant="primary"
+                        size="xs"
+                        mr={1}
+                        onClick={() => console.log(`Committing ${fpath}`)}
+                      >
+                        Commit
+                      </Button>
+                      <Button
+                        variant="primary"
+                        size="xs"
+                        onClick={() => console.log(`Checking out ${fpath}`)}
+                      >
+                        Discard
+                      </Button>
+                    </Flex>
+                  ))}
+                </>
+              ) : (
+                ""
+              )}
+              {/* Pipeline section of status */}
               <Heading size="sm" mb={1} mt={4}>
                 Pipeline
               </Heading>
-              <Text color="yellow.500">
-                Pipeline is out-of-date and needs to be run. [run]
-              </Text>
-              <Code>this-is-the-first-stage</Code>
+              {!pipelineUpToDate ? (
+                <Flex alignItems="center">
+                  <Text color="yellow.500" mr={1}>
+                    Pipeline is out-of-date and needs to be run.
+                  </Text>
+                  <Button
+                    size="xs"
+                    variant="primary"
+                    onClick={() => runPipelineMutation.mutate()}
+                    isLoading={runPipelineMutation.isPending}
+                  >
+                    Run
+                  </Button>
+                </Flex>
+              ) : (
+                <Text>Pipeline is up-to-date.</Text>
+              )}
+              <Heading size="xs" mt={1}>
+                Stages
+              </Heading>
+              {!pipelineQuery.error && pipelineQuery.data?.data ? (
+                <>
+                  <UnorderedList>
+                    {Object.entries(pipelineQuery.data.data.stages).map(
+                      ([k, _]) => (
+                        <ListItem key={k}>
+                          <Code>{k}</Code>
+                        </ListItem>
+                      ),
+                    )}
+                  </UnorderedList>
+                </>
+              ) : (
+                ""
+              )}
               <Text>+ Add a new stage</Text>
               <Text>Maybe the DAG can go here?</Text>
             </Box>
