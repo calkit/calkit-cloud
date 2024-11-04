@@ -82,6 +82,7 @@ function LocalServer() {
   const commitsAhead = statusQuery.data?.data?.git.commits_ahead
   const commitsBehind = statusQuery.data?.data?.git.commits_behind
   const untrackedFiles = statusQuery.data?.data?.git.untracked
+  const changedFiles = statusQuery.data?.data?.git.diff
   const gitPushMutation = useMutation({
     mutationFn: () => {
       const url = `http://localhost:8866/projects/${userName}/${projectName}/git/push`
@@ -249,9 +250,28 @@ function LocalServer() {
                 ""
               )}
               <Heading size="sm" mb={1} mt={4}>
-                Changed files
+                Changed files [commit all]
               </Heading>
-              <Text color="red.500">README.md [commit]</Text>
+              {changedFiles ? (
+                <>
+                  {changedFiles.map((fpath: string) => (
+                    <Flex key={fpath} alignItems="center" mb={1}>
+                      <Text color="red.500" mr={1}>
+                        {fpath}
+                      </Text>
+                      <Button
+                        variant="primary"
+                        size="xs"
+                        onClick={() => console.log(`Committing ${fpath}`)}
+                      >
+                        Commit
+                      </Button>
+                    </Flex>
+                  ))}
+                </>
+              ) : (
+                ""
+              )}
               <Heading size="sm" mb={1} mt={4}>
                 Pipeline
               </Heading>
