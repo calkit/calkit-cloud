@@ -169,9 +169,14 @@ function LocalServer() {
               {!statusQuery.isPending && !statusQuery.error ? (
                 <>
                   {commitsAhead ? (
-                    <Text>
-                      There are {commitsAhead} commits to push to Git remote.
-                    </Text>
+                    <Flex alignItems={"center"}>
+                      <Text mr={1}>
+                        There are {commitsAhead} commits to push to Git remote.
+                      </Text>
+                      <Button variant="primary" size="xs" aria-label="push">
+                        Push
+                      </Button>
+                    </Flex>
                   ) : (
                     ""
                   )}
