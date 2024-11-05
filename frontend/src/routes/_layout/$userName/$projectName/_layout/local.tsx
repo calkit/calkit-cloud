@@ -19,6 +19,8 @@ import axios from "axios"
 import { FiExternalLink } from "react-icons/fi"
 import { FaSync } from "react-icons/fa"
 
+import { type ProjectPublic } from "../../../../../client"
+
 export const Route = createFileRoute(
   "/_layout/$userName/$projectName/_layout/local",
 )({
@@ -28,6 +30,11 @@ export const Route = createFileRoute(
 function LocalServer() {
   const queryClient = useQueryClient()
   const { userName, projectName } = Route.useParams()
+  const project = queryClient.getQueryData<ProjectPublic>([
+    "projects",
+    userName,
+    projectName,
+  ])
   const localServerRunningQuery = useQuery({
     queryKey: ["local-server-main"],
     queryFn: () => axios.get("http://localhost:8866/health"),
@@ -130,6 +137,18 @@ function LocalServer() {
       ),
     retry: false,
   })
+  const gitCloneMutation = useMutation({
+    mutationFn: () => {
+      const url = "http://localhost:8866/git/clone"
+      const data = { git_repo_url: project?.git_repo_url }
+      return axios.post(url, data)
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["local-server-main", userName, projectName, "status"],
+      })
+    },
+  })
 
   return (
     <>
@@ -220,7 +239,17 @@ function LocalServer() {
                   <Link onClick={openFolder}>{localWorkingDir}</Link>.
                 </Text>
               ) : (
-                <Text>The repo has not yet been cloned to this machine.</Text>
+                <Flex alignItems="center">
+                  <Text>The repo has not yet been cloned to this machine.</Text>
+                  <Button
+                    ml={1}
+                    size="xs"
+                    variant="primary"
+                    onClick={() => gitCloneMutation.mutate()}
+                  >
+                    Clone
+                  </Button>
+                </Flex>
               )}
               {!statusQuery.isPending && !statusQuery.error ? (
                 <>
