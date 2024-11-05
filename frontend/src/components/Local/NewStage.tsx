@@ -157,6 +157,7 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
       const idx = formValues.excelChartIndex
       const cmd = `calkit excel-chart-to-png ${inputPath} --chart-index=${idx} --output ${outputPath}`
       setValue("cmd", cmd)
+      setValue("deps", [inputPath])
     }
   }
 
