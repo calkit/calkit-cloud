@@ -361,7 +361,9 @@ function LocalServer() {
                 </Heading>
                 {!pipelineUpToDate ? (
                   <Flex alignItems="center">
-                    <Badge color="yellow.500">Out-of-date</Badge>
+                    <Badge mr={1} color="yellow.500">
+                      Out-of-date
+                    </Badge>
                     <Button
                       size="xs"
                       variant="primary"
