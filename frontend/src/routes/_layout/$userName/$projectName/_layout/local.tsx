@@ -40,7 +40,6 @@ function LocalServer() {
       axios.get(`http://localhost:8866/projects/${userName}/${projectName}`),
     retry: false,
   })
-  const repoClonedLocally = !localServerQuery.error
   const jupyterServerQuery = useQuery({
     queryKey: ["jupyter-server", userName, projectName],
     queryFn: () =>
