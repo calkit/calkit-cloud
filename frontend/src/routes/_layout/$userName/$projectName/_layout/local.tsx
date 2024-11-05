@@ -28,12 +28,19 @@ export const Route = createFileRoute(
 function LocalServer() {
   const queryClient = useQueryClient()
   const { userName, projectName } = Route.useParams()
+  const localServerRunningQuery = useQuery({
+    queryKey: ["local-server-main"],
+    queryFn: () => axios.get("http://localhost:8866/health"),
+    retry: false,
+  })
+  const localServerRunning = localServerRunningQuery.data?.data === "All good!"
   const localServerQuery = useQuery({
     queryKey: ["local-server-main", userName, projectName],
     queryFn: () =>
       axios.get(`http://localhost:8866/projects/${userName}/${projectName}`),
     retry: false,
   })
+  const repoClonedLocally = !localServerQuery.error
   const jupyterServerQuery = useQuery({
     queryKey: ["jupyter-server", userName, projectName],
     queryFn: () =>
@@ -137,9 +144,10 @@ function LocalServer() {
           </Flex>
         ) : (
           <Flex>
-            {!localServerQuery.error ? (
+            {localServerRunning ? (
               <Box mr={4} width="60%">
                 <Text>The local server is running. [search for command]</Text>
+                {/* TODO: Can't do this unless repo has been cloned */}
                 <Button m={2} variant="primary" onClick={openVSCode}>
                   Open in VSCode <Icon ml={1} as={FiExternalLink} />
                 </Button>
