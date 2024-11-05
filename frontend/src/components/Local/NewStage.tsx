@@ -119,6 +119,19 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
           <ModalHeader>Add new pipeline stage</ModalHeader>
           <ModalCloseButton />
           <ModalBody pb={4}>
+            <FormControl mb={2}>
+              <FormLabel htmlFor="template">Template</FormLabel>
+              <Select
+                id="template"
+                placeholder="Select a template..."
+                defaultValue=""
+              >
+                <option value="">None</option>
+                <option value="pyscript">Run Python script</option>
+                <option value="figure-from-excel">Figure from Excel</option>
+                <option value="word-to-pdf">Word doc to PDF</option>
+              </Select>
+            </FormControl>
             <FormControl isRequired isInvalid={!!errors.cmd} mb={2}>
               <FormLabel htmlFor="cmd">Command</FormLabel>
               <Input
