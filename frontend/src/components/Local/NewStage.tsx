@@ -124,7 +124,7 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
               <Input
                 id="cmd"
                 {...register("cmd", {})}
-                placeholder="Ex: calkit runenv scripts/my-script.py"
+                placeholder="Ex: calkit runenv python scripts/my-script.py"
               />
               {errors.cmd && (
                 <FormErrorMessage>{errors.cmd.message}</FormErrorMessage>
