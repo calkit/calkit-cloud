@@ -30,7 +30,6 @@ interface NewStageProps {
 }
 
 type OutputObject = {
-  path: string
   title: string
   description: string
 }
@@ -95,6 +94,9 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
     onSettled: () => {
       queryClient.invalidateQueries({
         queryKey: ["local-server-main", userName, projectName, "status"],
+      })
+      queryClient.invalidateQueries({
+        queryKey: ["local-server-main", userName, projectName, "pipeline"],
       })
     },
   })
