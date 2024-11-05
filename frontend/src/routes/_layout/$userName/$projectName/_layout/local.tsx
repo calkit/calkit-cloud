@@ -165,36 +165,43 @@ function LocalServer() {
             {localServerRunning ? (
               <Box mr={4} width="60%">
                 <Text>The local server is running. [search for command]</Text>
-                {/* TODO: Can't do this unless repo has been cloned */}
-                <Button m={2} variant="primary" onClick={openVSCode}>
-                  Open in VSCode <Icon ml={1} as={FiExternalLink} />
-                </Button>
-                <Button m={2} variant="primary" onClick={runGitPull}>
-                  Pull changes from cloud
-                </Button>
-                <Button
-                  m={2}
-                  variant="primary"
-                  onClick={() => jupyterServerMutation.mutate()}
-                  isLoading={
-                    jupyterServerQuery.isPending ||
-                    jupyterServerMutation.isPending ||
-                    jupyterServerQuery.isRefetching
-                  }
-                >
-                  {!jupyterServerQuery.data?.data?.url
-                    ? "Start Jupyter server"
-                    : "Stop Jupyter server"}
-                </Button>
-                {jupyterServerQuery.data?.data?.url ? (
-                  <Link isExternal href={jupyterServerQuery.data?.data.url}>
-                    <Button variant="primary" m={2}>
-                      Open JupyterLab <Icon ml={1} as={FiExternalLink} />
+                {/* Actions that are only possible if repo has been cloned */}
+                {localWorkingDir ? (
+                  <>
+                    <Button m={2} variant="primary" onClick={openVSCode}>
+                      Open in VSCode <Icon ml={1} as={FiExternalLink} />
                     </Button>
-                  </Link>
+                    <Button m={2} variant="primary" onClick={runGitPull}>
+                      Pull changes from cloud
+                    </Button>
+                    <Button
+                      m={2}
+                      variant="primary"
+                      onClick={() => jupyterServerMutation.mutate()}
+                      isLoading={
+                        jupyterServerQuery.isPending ||
+                        jupyterServerMutation.isPending ||
+                        jupyterServerQuery.isRefetching
+                      }
+                    >
+                      {!jupyterServerQuery.data?.data?.url
+                        ? "Start Jupyter server"
+                        : "Stop Jupyter server"}
+                    </Button>
+                    {jupyterServerQuery.data?.data?.url ? (
+                      <Link isExternal href={jupyterServerQuery.data?.data.url}>
+                        <Button variant="primary" m={2}>
+                          Open JupyterLab <Icon ml={1} as={FiExternalLink} />
+                        </Button>
+                      </Link>
+                    ) : (
+                      ""
+                    )}
+                  </>
                 ) : (
                   ""
                 )}
+                {/* The fake terminal */}
                 <Box
                   borderRadius="lg"
                   borderWidth={1}
