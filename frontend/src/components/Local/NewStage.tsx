@@ -116,11 +116,11 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
       >
         <ModalOverlay />
         <ModalContent as="form" onSubmit={handleSubmit(onSubmit)}>
-          <ModalHeader>Edit artifact info</ModalHeader>
+          <ModalHeader>Add new pipeline stage</ModalHeader>
           <ModalCloseButton />
           <ModalBody pb={4}>
             <FormControl isRequired isInvalid={!!errors.kind} mb={2}>
-              <FormLabel htmlFor="path">Artifact type</FormLabel>
+              <FormLabel htmlFor="path">Output artifact type</FormLabel>
               <Select
                 id="kind"
                 {...register("kind", {})}
