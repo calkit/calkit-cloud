@@ -156,7 +156,7 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
               )}
             </FormControl>
             <FormControl isRequired isInvalid={!!errors.out} mb={2}>
-              <FormLabel htmlFor="cmd">Output path</FormLabel>
+              <FormLabel htmlFor="out">Output path</FormLabel>
               <Input
                 id="out"
                 {...register("out", {})}
