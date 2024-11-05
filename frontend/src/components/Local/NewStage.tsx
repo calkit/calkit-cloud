@@ -140,6 +140,7 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
   const onScriptPathChange = (e: any) => {
     const scriptPath = String(e.target.value)
     setValue("cmd", `calkit runenv python ${scriptPath}`)
+    setValue("deps", scriptPath)
   }
   // If output path changes, update fields automatically
   const onOutputPathChange = (e: any) => {
@@ -161,7 +162,7 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
       const idx = formValues.excelChartIndex
       const cmd = `calkit excel-chart-to-png ${inputPath} --chart-index=${idx} --output ${outputPath}`
       setValue("cmd", cmd)
-      setValue("deps", [inputPath])
+      setValue("deps", inputPath)
     }
   }
 
