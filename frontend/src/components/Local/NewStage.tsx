@@ -43,7 +43,7 @@ type Stage = {
   deps: string | null // Comma-separated as input
   outputType: "figure" | "publication" | "dataset" | null
   outputObject: OutputObject | null
-  excelFilePath: string | null
+  inputFilePath: string | null
   excelChartIndex: number | null
   scriptPath: string | null
 }
@@ -65,7 +65,7 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
   } = useForm<Stage>({
     mode: "onBlur",
     criteriaMode: "all",
-    defaultValues: { excelChartIndex: 0, excelFilePath: "{CHANGE ME}" },
+    defaultValues: { excelChartIndex: 0, inputFilePath: "{CHANGE ME}" },
   })
   const mutation = useMutation({
     mutationFn: (data: Stage) => {
@@ -124,7 +124,7 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
     if (template === "py-script") {
       setValue("cmd", "calkit runenv python {CHANGE ME}")
       register("scriptPath")
-      unregister("excelFilePath")
+      unregister("inputFilePath")
       unregister("excelChartIndex")
     } else if (template === "figure-from-excel") {
       setValue(
@@ -132,17 +132,17 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
         "calkit excel-chart-to-png {CHANGE ME} --chart-index=0 --output {CHANGE ME}",
       )
       setValue("outputType", "figure")
-      setValue("excelFilePath", "")
+      setValue("inputFilePath", "")
       register("excelChartIndex")
-      register("excelFilePath")
+      register("inputFilePath")
       unregister("scriptPath")
     } else if (template === "word-to-pdf") {
       setValue(
         "cmd",
         "calkit word-to-pdf {CHANGE ME}.docx --output {CHANGE ME}.pdf",
       )
-      setValue("excelFilePath", "")
-      register("excelFilePath")
+      setValue("inputFilePath", "")
+      register("inputFilePath")
       unregister("scriptPath")
       unregister("excelChartIndex")
     } else {
@@ -160,18 +160,18 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
     const outputPath = String(e.target.value)
     const formValues = getValues()
     if (watchTemplate === "figure-from-excel") {
-      const inputPath = formValues.excelFilePath
+      const inputPath = formValues.inputFilePath
       const idx = formValues.excelChartIndex
       const cmd = `calkit excel-chart-to-png ${inputPath} --chart-index=${idx} --output ${outputPath}`
       setValue("cmd", cmd)
     } else if (watchTemplate === "word-to-pdf") {
-      const inputPath = formValues.excelFilePath
+      const inputPath = formValues.inputFilePath
       const cmd = `calkit word-to-pdf ${inputPath} --output ${outputPath}`
       setValue("cmd", cmd)
     }
   }
   // If Excel input file path changes, update fields accordingly
-  const onExcelFilePathChange = (e: any) => {
+  const oninputFilePathChange = (e: any) => {
     const inputPath = String(e.target.value)
     const formValues = getValues()
     if (watchTemplate === "figure-from-excel") {
@@ -271,26 +271,26 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
               ""
             )}
             {watchTemplate === "figure-from-excel" ? (
-              <FormControl isRequired isInvalid={!!errors.excelFilePath} mb={2}>
-                <FormLabel htmlFor="excelFilePath">Excel file path</FormLabel>
+              <FormControl isRequired isInvalid={!!errors.inputFilePath} mb={2}>
+                <FormLabel htmlFor="inputFilePath">Excel file path</FormLabel>
                 <Input
-                  id="excelFilePath"
-                  {...register("excelFilePath", {})}
+                  id="inputFilePath"
+                  {...register("inputFilePath", {})}
                   placeholder="Ex: my-excel-file.xlsx"
-                  onChange={onExcelFilePathChange}
+                  onChange={oninputFilePathChange}
                 />
               </FormControl>
             ) : (
               ""
             )}
             {watchTemplate === "word-to-pdf" ? (
-              <FormControl isRequired isInvalid={!!errors.excelFilePath} mb={2}>
-                <FormLabel htmlFor="excelFilePath">
+              <FormControl isRequired isInvalid={!!errors.inputFilePath} mb={2}>
+                <FormLabel htmlFor="inputFilePath">
                   Word document file path
                 </FormLabel>
                 <Input
-                  id="excelFilePath"
-                  {...register("excelFilePath", {})}
+                  id="inputFilePath"
+                  {...register("inputFilePath", {})}
                   placeholder="Ex: my-document.docx"
                   onChange={onWordDocFilePathChange}
                 />
