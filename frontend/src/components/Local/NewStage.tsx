@@ -43,7 +43,8 @@ type Stage = {
   deps: Array<string> | null
   outputType: "figure" | "publication" | "dataset" | null
   outputObject: OutputObject | null
-  excelChartIndex: number
+  excelChartIndex: number | null
+  scriptPath: string | null
 }
 
 const NewStage = ({ isOpen, onClose }: NewStageProps) => {
@@ -122,10 +123,16 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
         "calkit excel-chart-to-png --chart-index 0 --input {CHANGE ME} --output {CHANGE ME}",
       )
       setValue("outputType", "figure")
+      register("excelChartIndex")
     } else {
       setValue("cmd", "")
     }
   }, [register, unregister, watchTemplate])
+
+  const onScriptPathChange = (e: any) => {
+    const scriptPath = String(e.target.value)
+    setValue("cmd", `calkit runenv python ${scriptPath}`)
+  }
 
   return (
     <>
@@ -176,6 +183,21 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
                 <FormErrorMessage>{errors.cmd.message}</FormErrorMessage>
               )}
             </FormControl>
+            {/* Optional fields depending on template selected */}
+            {watchTemplate === "py-script" ? (
+              <FormControl isRequired isInvalid={!!errors.scriptPath} mb={2}>
+                <FormLabel htmlFor="script-path">Script path</FormLabel>
+                <Input
+                  id="scriptPath"
+                  {...register("scriptPath", {})}
+                  placeholder="Ex: scripts/my-script.py"
+                  onChange={onScriptPathChange}
+                />
+              </FormControl>
+            ) : (
+              ""
+            )}
+            {/* Output path */}
             <FormControl isRequired isInvalid={!!errors.out} mb={2}>
               <FormLabel htmlFor="out">Output path</FormLabel>
               <Input
