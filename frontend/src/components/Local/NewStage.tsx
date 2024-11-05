@@ -40,7 +40,7 @@ type Stage = {
   name: string
   cmd: string
   out: string
-  deps: Array<string> | null
+  deps: string | null // Comma-separated as input
   outputType: "figure" | "publication" | "dataset" | null
   outputObject: OutputObject | null
   excelFilePath: string | null
@@ -70,10 +70,14 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
   const mutation = useMutation({
     mutationFn: (data: Stage) => {
       const url = `http://localhost:8866/projects/${userName}/${projectName}/pipeline/stages`
+      let deps = null
+      if (data.deps) {
+        deps = data.deps.split(",")
+      }
       const postData = {
         name: data.name,
         cmd: data.cmd,
-        deps: data.deps,
+        deps: deps,
         outs: [data.out],
         calkit_type: data.outputType,
         calkit_object: data.outputObject,
@@ -208,6 +212,19 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
               />
               {errors.cmd && (
                 <FormErrorMessage>{errors.cmd.message}</FormErrorMessage>
+              )}
+            </FormControl>
+            <FormControl mb={2}>
+              <FormLabel htmlFor="deps">
+                Input dependencies (comma-separated paths)
+              </FormLabel>
+              <Input
+                id="deps"
+                {...register("deps", {})}
+                placeholder="Ex: scripts/my-script.py,data/my-data.csv"
+              />
+              {errors.deps && (
+                <FormErrorMessage>{errors.deps.message}</FormErrorMessage>
               )}
             </FormControl>
             {/* Optional fields depending on template selected */}
