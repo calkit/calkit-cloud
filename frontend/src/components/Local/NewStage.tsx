@@ -37,11 +37,13 @@ type OutputObject = {
 
 type Stage = {
   template: "py-script" | "figure-from-excel" | "word-to-pdf" | null
+  name: string
   cmd: string
   out: string
   deps: Array<string> | null
   outputType: "figure" | "publication" | "dataset" | null
   outputObject: OutputObject | null
+  excelChartIndex: number
 }
 
 const NewStage = ({ isOpen, onClose }: NewStageProps) => {
@@ -65,7 +67,15 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
   const mutation = useMutation({
     mutationFn: (data: Stage) => {
       const url = `http://localhost:8866/projects/${userName}/${projectName}/pipeline/stages`
-      return axios.post(url, data)
+      const postData = {
+        name: data.name,
+        cmd: data.cmd,
+        deps: data.deps,
+        outs: [data.out],
+        calkit_type: data.outputType,
+        calkit_object: data.outputObject,
+      }
+      return axios.post(url, postData)
     },
     onSuccess: () => {
       showToast("Success!", "Stage added.", "success")
@@ -130,6 +140,17 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
           <ModalHeader>Add new pipeline stage</ModalHeader>
           <ModalCloseButton />
           <ModalBody pb={4}>
+            <FormControl isRequired isInvalid={!!errors.name} mb={2}>
+              <FormLabel htmlFor="name">Name</FormLabel>
+              <Input
+                id="name"
+                {...register("name", {})}
+                placeholder="Ex: run-my-script"
+              />
+              {errors.name && (
+                <FormErrorMessage>{errors.name.message}</FormErrorMessage>
+              )}
+            </FormControl>
             <FormControl mb={2}>
               <FormLabel htmlFor="template">Template</FormLabel>
               <Select
