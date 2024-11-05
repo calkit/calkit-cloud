@@ -43,6 +43,7 @@ type Stage = {
   deps: Array<string> | null
   outputType: "figure" | "publication" | "dataset" | null
   outputObject: OutputObject | null
+  excelFilePath: string | null
   excelChartIndex: number | null
   scriptPath: string | null
 }
@@ -58,12 +59,13 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
     handleSubmit,
     reset,
     watch,
+    getValues,
     setValue,
     formState: { errors, isSubmitting },
   } = useForm<Stage>({
     mode: "onBlur",
     criteriaMode: "all",
-    defaultValues: {},
+    defaultValues: { excelChartIndex: 0, excelFilePath: "{CHANGE ME}" },
   })
   const mutation = useMutation({
     mutationFn: (data: Stage) => {
@@ -99,7 +101,7 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
   const watchOutputType = watch("outputType")
   const kindsWithTitle = ["publication", "figure", "dataset"]
   const watchTemplate = watch("template")
-
+  // Update output artifact form fields based on type selected
   useEffect(() => {
     if (kindsWithTitle.includes(String(watchOutputType))) {
       register("outputObject.title")
@@ -112,7 +114,7 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
       unregister("outputObject.description")
     }
   }, [register, unregister, watchOutputType])
-
+  // Update stage form fields based on template selected
   useEffect(() => {
     const template = String(watchTemplate)
     if (template === "py-script") {
@@ -120,18 +122,30 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
     } else if (template === "figure-from-excel") {
       setValue(
         "cmd",
-        "calkit excel-chart-to-png --chart-index 0 --input {CHANGE ME} --output {CHANGE ME}",
+        "calkit excel-chart-to-png {CHANGE ME} --chart-index=0 --output {CHANGE ME}",
       )
       setValue("outputType", "figure")
       register("excelChartIndex")
+      register("excelFilePath")
     } else {
       setValue("cmd", "")
     }
   }, [register, unregister, watchTemplate])
-
+  // If script path changes, update command automatically
   const onScriptPathChange = (e: any) => {
     const scriptPath = String(e.target.value)
     setValue("cmd", `calkit runenv python ${scriptPath}`)
+  }
+  // If Excel input or output path changes, update fields automatically
+  const onOutputPathChange = (e: any) => {
+    const outputPath = String(e.target.value)
+    const formValues = getValues()
+    if (watchTemplate === "figure-from-excel") {
+      const inputPath = formValues.excelFilePath
+      const idx = formValues.excelChartIndex
+      const cmd = `calkit excel-chart-to-png ${inputPath} --chart-index=${idx} --output ${outputPath}`
+      setValue("cmd", cmd)
+    }
   }
 
   return (
@@ -204,6 +218,7 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
                 id="out"
                 {...register("out", {})}
                 placeholder="Ex: figures/my-figure.png"
+                onChange={onOutputPathChange}
               />
               {errors.out && (
                 <FormErrorMessage>{errors.out.message}</FormErrorMessage>
