@@ -47,6 +47,11 @@ function LocalServer() {
       `http://localhost:8866/projects/${userName}/${projectName}/open/vscode`,
     )
   }
+  const openFolder = () => {
+    axios.post(
+      `http://localhost:8866/projects/${userName}/${projectName}/open/folder`,
+    )
+  }
   const runGitPull = () => {
     axios.post(
       `http://localhost:8866/projects/${userName}/${projectName}/git/pull`,
@@ -203,7 +208,10 @@ function LocalServer() {
                 />
               </Flex>
               {localWorkingDir ? (
-                <Text>The repo is cloned locally in {localWorkingDir}.</Text>
+                <Text>
+                  The repo is cloned locally in
+                  <Link onClick={openFolder}>{localWorkingDir}</Link>.
+                </Text>
               ) : (
                 <Text>The repo has not yet been cloned to this machine.</Text>
               )}
