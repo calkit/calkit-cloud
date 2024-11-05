@@ -36,7 +36,7 @@ type OutputObject = {
 }
 
 type Stage = {
-  template: string | null
+  template: "py-script" | "figure-from-excel" | "word-to-pdf" | null
   cmd: string
   outs: Array<string> | null
   deps: Array<string> | null
@@ -102,6 +102,21 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
     }
   }, [register, unregister, watchOutputType])
 
+  useEffect(() => {
+    const template = String(watchTemplate)
+    if (template === "py-script") {
+      setValue("cmd", "calkit runenv python {CHANGE ME}")
+    } else if (template === "figure-from-excel") {
+      setValue(
+        "cmd",
+        "calkit excel-chart-to-png --chart-index 0 --input {CHANGE ME} --output {CHANGE ME}",
+      )
+      setValue("outputType", "figure")
+    } else {
+      setValue("cmd", "")
+    }
+  }, [register, unregister, watchTemplate])
+
   return (
     <>
       <Modal
@@ -120,10 +135,11 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
               <Select
                 id="template"
                 placeholder="Select a template..."
+                {...register("template", {})}
                 defaultValue=""
               >
                 <option value="">None</option>
-                <option value="pyscript">Run Python script</option>
+                <option value="py-script">Run Python script</option>
                 <option value="figure-from-excel">Figure from Excel</option>
                 <option value="word-to-pdf">Word document to PDF</option>
               </Select>
