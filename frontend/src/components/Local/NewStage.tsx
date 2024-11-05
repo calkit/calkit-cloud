@@ -29,11 +29,19 @@ interface NewStageProps {
   onClose: () => void
 }
 
+type OutputObject = {
+  path: string
+  title: string
+  description: string
+}
+
 type Stage = {
+  template: string | null
   cmd: string
   outs: Array<string> | null
   deps: Array<string> | null
-  kind: string
+  outputType: "figure" | "publication" | "dataset" | null
+  outputObject: OutputObject | null
 }
 
 const NewStage = ({ isOpen, onClose }: NewStageProps) => {
@@ -41,13 +49,6 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
   const showToast = useCustomToast()
   const routeApi = getRouteApi("/_layout/$userName/$projectName")
   const { userName, projectName } = routeApi.useParams()
-  type CalkitKind =
-    | "figure"
-    | "publication"
-    | "dataset"
-    | "environment"
-    | "references"
-    | null
   const {
     register,
     unregister,
@@ -83,28 +84,23 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
   const onSubmit: SubmitHandler<Stage> = (data) => {
     mutation.mutate(data)
   }
-  // Add a watcher for the "kind" key so we can modify the form fields
-  const watchKind = watch("kind")
+  // Add a watcher for the "outputType" key so we can modify the form fields
+  const watchOutputType = watch("outputType")
   const kindsWithTitle = ["publication", "figure", "dataset"]
-  const kindsWithName = ["references", "environment"]
+  const watchTemplate = watch("template")
 
   useEffect(() => {
-    if (kindsWithTitle.includes(String(watchKind))) {
-      register("attrs.title")
+    if (kindsWithTitle.includes(String(watchOutputType))) {
+      register("outputObject.title")
     } else {
-      unregister("attrs.title")
+      unregister("outputObject.title")
     }
-    if (kindsWithName.includes(String(watchKind))) {
-      register("attrs.name")
+    if (watchOutputType) {
+      register("outputObject.description")
     } else {
-      unregister("attrs.name")
+      unregister("outputObject.description")
     }
-    if (watchKind) {
-      register("attrs.description")
-    } else {
-      unregister("attrs.description")
-    }
-  }, [register, unregister, watchKind, setValue])
+  }, [register, unregister, watchOutputType])
 
   return (
     <>
@@ -129,7 +125,7 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
                 <option value="">None</option>
                 <option value="pyscript">Run Python script</option>
                 <option value="figure-from-excel">Figure from Excel</option>
-                <option value="word-to-pdf">Word doc to PDF</option>
+                <option value="word-to-pdf">Word document to PDF</option>
               </Select>
             </FormControl>
             <FormControl isRequired isInvalid={!!errors.cmd} mb={2}>
@@ -143,55 +139,43 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
                 <FormErrorMessage>{errors.cmd.message}</FormErrorMessage>
               )}
             </FormControl>
-            <FormControl isRequired isInvalid={!!errors.kind} mb={2}>
-              <FormLabel htmlFor="kind">Output artifact type</FormLabel>
+            <FormControl isRequired isInvalid={!!errors.outputType} mb={2}>
+              <FormLabel htmlFor="outputType">Output artifact type</FormLabel>
               <Select
-                id="kind"
-                {...register("kind", {})}
+                id="outputType"
+                {...register("outputType", {})}
                 placeholder="Select a type..."
               >
                 <option value="">None</option>
                 <option value="figure">Figure</option>
                 <option value="dataset">Dataset</option>
                 <option value="publication">Publication</option>
-                <option value="references">References</option>
-                <option value="environment">Environment</option>
               </Select>
-              {errors.kind && (
-                <FormErrorMessage>{errors.kind.message}</FormErrorMessage>
+              {errors.outputType && (
+                <FormErrorMessage>{errors.outputType.message}</FormErrorMessage>
               )}
             </FormControl>
             {/* Add other properties depending on kind */}
-            {kindsWithTitle.includes(String(watchKind)) ? (
+            {kindsWithTitle.includes(String(watchOutputType)) ? (
               <FormControl mb={2}>
-                <FormLabel htmlFor="attrs.title">Title</FormLabel>
+                <FormLabel htmlFor="outputObject.title">Title</FormLabel>
                 <Input
-                  id="attrs.title"
-                  {...register("attrs.title", {})}
+                  id="outputObject.title"
+                  {...register("outputObject.title", {})}
                   placeholder="Enter title..."
                 />
               </FormControl>
             ) : (
               ""
             )}
-            {kindsWithName.includes(String(watchKind)) ? (
+            {watchOutputType ? (
               <FormControl mb={2}>
-                <FormLabel htmlFor="attrs.name">Name</FormLabel>
-                <Input
-                  id="attrs.name"
-                  {...register("attrs.name", {})}
-                  placeholder="Enter name..."
-                />
-              </FormControl>
-            ) : (
-              ""
-            )}
-            {watchKind ? (
-              <FormControl mb={2}>
-                <FormLabel htmlFor="attrs.description">Description</FormLabel>
+                <FormLabel htmlFor="outputObject.description">
+                  Description
+                </FormLabel>
                 <Textarea
-                  id="attrs.description"
-                  {...register("attrs.description", {})}
+                  id="outputObject.description"
+                  {...register("outputObject.description", {})}
                   placeholder="Enter description..."
                 />
               </FormControl>
