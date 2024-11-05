@@ -64,7 +64,12 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
   } = useForm<Stage>({
     mode: "onBlur",
     criteriaMode: "all",
-    defaultValues: { excelChartIndex: 0, inputFilePath: "{CHANGE ME}" },
+    defaultValues: {
+      excelChartIndex: 0,
+      inputFilePath: "{CHANGE ME}",
+      outputType: null,
+      outputObject: null,
+    },
   })
   const mutation = useMutation({
     mutationFn: (data: Stage) => {
@@ -73,12 +78,16 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
       if (data.deps) {
         deps = data.deps.split(",")
       }
+      let calkitType = null
+      if (data.outputType) {
+        calkitType = data.outputType
+      }
       const postData = {
         name: data.name,
         cmd: data.cmd,
         deps: deps,
         outs: [data.out],
-        calkit_type: data.outputType,
+        calkit_type: calkitType,
         calkit_object: data.outputObject,
       }
       return axios.post(url, postData)
@@ -147,8 +156,6 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
       register("inputFilePath")
       unregister("scriptPath")
       unregister("excelChartIndex")
-    } else {
-      setValue("cmd", "")
     }
   }, [register, unregister, watchTemplate, setValue])
   // If script path changes, update command automatically
