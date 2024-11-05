@@ -443,8 +443,6 @@ function LocalServer() {
               ) : (
                 ""
               )}
-              <Text>+ Add a new stage</Text>
-              <Text>Maybe the DAG can go here?</Text>
             </Box>
           </Flex>
         )}
