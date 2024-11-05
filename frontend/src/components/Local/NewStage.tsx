@@ -38,7 +38,7 @@ type OutputObject = {
 type Stage = {
   template: "py-script" | "figure-from-excel" | "word-to-pdf" | null
   cmd: string
-  outs: Array<string> | null
+  out: string
   deps: Array<string> | null
   outputType: "figure" | "publication" | "dataset" | null
   outputObject: OutputObject | null
@@ -153,6 +153,17 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
               />
               {errors.cmd && (
                 <FormErrorMessage>{errors.cmd.message}</FormErrorMessage>
+              )}
+            </FormControl>
+            <FormControl isRequired isInvalid={!!errors.out} mb={2}>
+              <FormLabel htmlFor="cmd">Output path</FormLabel>
+              <Input
+                id="out"
+                {...register("out", {})}
+                placeholder="Ex: figures/my-figure.png"
+              />
+              {errors.out && (
+                <FormErrorMessage>{errors.out.message}</FormErrorMessage>
               )}
             </FormControl>
             <FormControl isRequired isInvalid={!!errors.outputType} mb={2}>
