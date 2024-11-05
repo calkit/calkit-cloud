@@ -119,8 +119,19 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
           <ModalHeader>Add new pipeline stage</ModalHeader>
           <ModalCloseButton />
           <ModalBody pb={4}>
+            <FormControl isRequired isInvalid={!!errors.cmd} mb={2}>
+              <FormLabel htmlFor="cmd">Command</FormLabel>
+              <Input
+                id="cmd"
+                {...register("cmd", {})}
+                placeholder="Ex: calkit runenv scripts/my-script.py"
+              />
+              {errors.cmd && (
+                <FormErrorMessage>{errors.cmd.message}</FormErrorMessage>
+              )}
+            </FormControl>
             <FormControl isRequired isInvalid={!!errors.kind} mb={2}>
-              <FormLabel htmlFor="path">Output artifact type</FormLabel>
+              <FormLabel htmlFor="kind">Output artifact type</FormLabel>
               <Select
                 id="kind"
                 {...register("kind", {})}
