@@ -139,7 +139,7 @@ function LocalServer() {
   })
   const gitCloneMutation = useMutation({
     mutationFn: () => {
-      const url = "http://localhost:8866/actions/clone"
+      const url = "http://localhost:8866/calkit/clone"
       const data = { git_repo_url: project?.git_repo_url }
       return axios.post(url, data)
     },
