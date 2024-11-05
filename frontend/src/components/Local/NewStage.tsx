@@ -123,6 +123,9 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
     const template = String(watchTemplate)
     if (template === "py-script") {
       setValue("cmd", "calkit runenv python {CHANGE ME}")
+      register("scriptPath")
+      unregister("excelFilePath")
+      unregister("excelChartIndex")
     } else if (template === "figure-from-excel") {
       setValue(
         "cmd",
@@ -132,10 +135,20 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
       setValue("excelFilePath", "")
       register("excelChartIndex")
       register("excelFilePath")
+      unregister("scriptPath")
+    } else if (template === "word-to-pdf") {
+      setValue(
+        "cmd",
+        "calkit word-to-pdf {CHANGE ME}.docx --output {CHANGE ME}.pdf",
+      )
+      setValue("excelFilePath", "")
+      register("excelFilePath")
+      unregister("scriptPath")
+      unregister("excelChartIndex")
     } else {
       setValue("cmd", "")
     }
-  }, [register, unregister, watchTemplate])
+  }, [register, unregister, watchTemplate, setValue])
   // If script path changes, update command automatically
   const onScriptPathChange = (e: any) => {
     const scriptPath = String(e.target.value)
@@ -151,6 +164,10 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
       const idx = formValues.excelChartIndex
       const cmd = `calkit excel-chart-to-png ${inputPath} --chart-index=${idx} --output ${outputPath}`
       setValue("cmd", cmd)
+    } else if (watchTemplate === "word-to-pdf") {
+      const inputPath = formValues.excelFilePath
+      const cmd = `calkit word-to-pdf ${inputPath} --output ${outputPath}`
+      setValue("cmd", cmd)
     }
   }
   // If Excel input file path changes, update fields accordingly
@@ -161,6 +178,17 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
       const outputPath = formValues.out
       const idx = formValues.excelChartIndex
       const cmd = `calkit excel-chart-to-png ${inputPath} --chart-index=${idx} --output ${outputPath}`
+      setValue("cmd", cmd)
+      setValue("deps", inputPath)
+    }
+  }
+  // If Word doc input file path changes, update fields accordingly
+  const onWordDocFilePathChange = (e: any) => {
+    const inputPath = String(e.target.value)
+    const formValues = getValues()
+    if (watchTemplate === "word-to-pdf") {
+      const outputPath = formValues.out
+      const cmd = `calkit word-to-pdf ${inputPath} --output ${outputPath}`
       setValue("cmd", cmd)
       setValue("deps", inputPath)
     }
@@ -250,6 +278,21 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
                   {...register("excelFilePath", {})}
                   placeholder="Ex: my-excel-file.xlsx"
                   onChange={onExcelFilePathChange}
+                />
+              </FormControl>
+            ) : (
+              ""
+            )}
+            {watchTemplate === "word-to-pdf" ? (
+              <FormControl isRequired isInvalid={!!errors.excelFilePath} mb={2}>
+                <FormLabel htmlFor="excelFilePath">
+                  Word document file path
+                </FormLabel>
+                <Input
+                  id="excelFilePath"
+                  {...register("excelFilePath", {})}
+                  placeholder="Ex: my-document.docx"
+                  onChange={onWordDocFilePathChange}
                 />
               </FormControl>
             ) : (
