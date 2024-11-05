@@ -209,7 +209,7 @@ function LocalServer() {
               </Flex>
               {localWorkingDir ? (
                 <Text>
-                  The repo is cloned locally in
+                  The repo is cloned locally in{" "}
                   <Link onClick={openFolder}>{localWorkingDir}</Link>.
                 </Text>
               ) : (
