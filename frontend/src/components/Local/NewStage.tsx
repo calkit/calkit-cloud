@@ -125,6 +125,7 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
         "calkit excel-chart-to-png {CHANGE ME} --chart-index=0 --output {CHANGE ME}",
       )
       setValue("outputType", "figure")
+      setValue("excelFilePath", "")
       register("excelChartIndex")
       register("excelFilePath")
     } else {
@@ -136,12 +137,23 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
     const scriptPath = String(e.target.value)
     setValue("cmd", `calkit runenv python ${scriptPath}`)
   }
-  // If Excel input or output path changes, update fields automatically
+  // If output path changes, update fields automatically
   const onOutputPathChange = (e: any) => {
     const outputPath = String(e.target.value)
     const formValues = getValues()
     if (watchTemplate === "figure-from-excel") {
       const inputPath = formValues.excelFilePath
+      const idx = formValues.excelChartIndex
+      const cmd = `calkit excel-chart-to-png ${inputPath} --chart-index=${idx} --output ${outputPath}`
+      setValue("cmd", cmd)
+    }
+  }
+  // If Excel input file path changes, update fields accordingly
+  const onExcelFilePathChange = (e: any) => {
+    const inputPath = String(e.target.value)
+    const formValues = getValues()
+    if (watchTemplate === "figure-from-excel") {
+      const outputPath = formValues.out
       const idx = formValues.excelChartIndex
       const cmd = `calkit excel-chart-to-png ${inputPath} --chart-index=${idx} --output ${outputPath}`
       setValue("cmd", cmd)
@@ -206,6 +218,19 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
                   {...register("scriptPath", {})}
                   placeholder="Ex: scripts/my-script.py"
                   onChange={onScriptPathChange}
+                />
+              </FormControl>
+            ) : (
+              ""
+            )}
+            {watchTemplate === "figure-from-excel" ? (
+              <FormControl isRequired isInvalid={!!errors.excelFilePath} mb={2}>
+                <FormLabel htmlFor="excelFilePath">Excel file path</FormLabel>
+                <Input
+                  id="excelFilePath"
+                  {...register("excelFilePath", {})}
+                  placeholder="Ex: my-excel-file.xlsx"
+                  onChange={onExcelFilePathChange}
                 />
               </FormControl>
             ) : (
