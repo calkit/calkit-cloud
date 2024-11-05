@@ -12,6 +12,7 @@ import {
   ListItem,
   UnorderedList,
   Badge,
+  useDisclosure,
 } from "@chakra-ui/react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
@@ -20,6 +21,7 @@ import { FiExternalLink } from "react-icons/fi"
 import { FaSync } from "react-icons/fa"
 
 import { type ProjectPublic } from "../../../../../client"
+import NewStage from "../../../../../components/Local/NewStage"
 
 export const Route = createFileRoute(
   "/_layout/$userName/$projectName/_layout/local",
@@ -149,6 +151,7 @@ function LocalServer() {
       })
     },
   })
+  const newStageModal = useDisclosure()
 
   return (
     <>
@@ -412,6 +415,18 @@ function LocalServer() {
                 ) : (
                   <Badge color="green.500">Up-to-date</Badge>
                 )}
+                <Button
+                  ml={1}
+                  variant="primary"
+                  size="xs"
+                  onClick={newStageModal.onOpen}
+                >
+                  + stage
+                </Button>
+                <NewStage
+                  isOpen={newStageModal.isOpen}
+                  onClose={newStageModal.onClose}
+                />
               </Flex>
               {!pipelineQuery.error && pipelineQuery.data?.data ? (
                 <>

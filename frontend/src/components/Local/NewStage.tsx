@@ -33,6 +33,7 @@ type Stage = {
   cmd: string
   outs: Array<string> | null
   deps: Array<string> | null
+  kind: string
 }
 
 const NewStage = ({ isOpen, onClose }: NewStageProps) => {
@@ -75,7 +76,7 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
     },
     onSettled: () => {
       queryClient.invalidateQueries({
-        queryKey: ["projects", userName, projectName, "files"],
+        queryKey: ["local-server-main", userName, projectName, "status"],
       })
     },
   })
@@ -102,18 +103,6 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
       register("attrs.description")
     } else {
       unregister("attrs.description")
-    }
-    if (item.calkit_object && item.calkit_object.kind === watchKind) {
-      const attrs: Record<string, unknown> = {
-        description: item.calkit_object.description,
-      }
-      if (kindsWithTitle.includes(String(watchKind))) {
-        attrs.title = item.calkit_object.title
-      }
-      if (kindsWithName.includes(String(watchKind))) {
-        attrs.name = item.calkit_object.name
-      }
-      setValue("attrs", attrs)
     }
   }, [register, unregister, watchKind, setValue])
 
