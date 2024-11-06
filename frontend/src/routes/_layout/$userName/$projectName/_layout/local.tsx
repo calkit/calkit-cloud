@@ -171,7 +171,7 @@ function LocalServer() {
           <Flex>
             {localServerRunning ? (
               <Box mr={4} width="60%">
-                <Text>The local server is running. [search for command]</Text>
+                <Text>The local server is running.</Text>
                 {/* Actions that are only possible if repo has been cloned */}
                 {localWorkingDir ? (
                   <>
