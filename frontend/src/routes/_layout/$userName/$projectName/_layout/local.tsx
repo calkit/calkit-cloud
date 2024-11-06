@@ -12,12 +12,16 @@ import {
   ListItem,
   UnorderedList,
   Badge,
+  useDisclosure,
 } from "@chakra-ui/react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 import axios from "axios"
 import { FiExternalLink } from "react-icons/fi"
 import { FaSync } from "react-icons/fa"
+
+import { type ProjectPublic } from "../../../../../client"
+import NewStage from "../../../../../components/Local/NewStage"
 
 export const Route = createFileRoute(
   "/_layout/$userName/$projectName/_layout/local",
@@ -28,6 +32,17 @@ export const Route = createFileRoute(
 function LocalServer() {
   const queryClient = useQueryClient()
   const { userName, projectName } = Route.useParams()
+  const project = queryClient.getQueryData<ProjectPublic>([
+    "projects",
+    userName,
+    projectName,
+  ])
+  const localServerRunningQuery = useQuery({
+    queryKey: ["local-server-main"],
+    queryFn: () => axios.get("http://localhost:8866/health"),
+    retry: false,
+  })
+  const localServerRunning = localServerRunningQuery.data?.data === "All good!"
   const localServerQuery = useQuery({
     queryKey: ["local-server-main", userName, projectName],
     queryFn: () =>
@@ -45,6 +60,11 @@ function LocalServer() {
   const openVSCode = () => {
     axios.post(
       `http://localhost:8866/projects/${userName}/${projectName}/open/vscode`,
+    )
+  }
+  const openFolder = () => {
+    axios.post(
+      `http://localhost:8866/projects/${userName}/${projectName}/open/folder`,
     )
   }
   const runGitPull = () => {
@@ -119,6 +139,19 @@ function LocalServer() {
       ),
     retry: false,
   })
+  const gitCloneMutation = useMutation({
+    mutationFn: () => {
+      const url = "http://localhost:8866/calkit/clone"
+      const data = { git_repo_url: project?.git_repo_url }
+      return axios.post(url, data)
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["local-server-main", userName, projectName, "status"],
+      })
+    },
+  })
+  const newStageModal = useDisclosure()
 
   return (
     <>
@@ -132,38 +165,46 @@ function LocalServer() {
           </Flex>
         ) : (
           <Flex>
-            {!localServerQuery.error ? (
+            {localServerRunning ? (
               <Box mr={4} width="60%">
                 <Text>The local server is running. [search for command]</Text>
-                <Button m={2} variant="primary" onClick={openVSCode}>
-                  Open in VSCode <Icon ml={1} as={FiExternalLink} />
-                </Button>
-                <Button m={2} variant="primary" onClick={runGitPull}>
-                  Pull changes from cloud
-                </Button>
-                <Button
-                  m={2}
-                  variant="primary"
-                  onClick={() => jupyterServerMutation.mutate()}
-                  isLoading={
-                    jupyterServerQuery.isPending ||
-                    jupyterServerMutation.isPending ||
-                    jupyterServerQuery.isRefetching
-                  }
-                >
-                  {!jupyterServerQuery.data?.data?.url
-                    ? "Start Jupyter server"
-                    : "Stop Jupyter server"}
-                </Button>
-                {jupyterServerQuery.data?.data?.url ? (
-                  <Link isExternal href={jupyterServerQuery.data?.data.url}>
-                    <Button variant="primary" m={2}>
-                      Open JupyterLab <Icon ml={1} as={FiExternalLink} />
+                {/* Actions that are only possible if repo has been cloned */}
+                {localWorkingDir ? (
+                  <>
+                    <Button m={2} variant="primary" onClick={openVSCode}>
+                      Open in VSCode <Icon ml={1} as={FiExternalLink} />
                     </Button>
-                  </Link>
+                    <Button m={2} variant="primary" onClick={runGitPull}>
+                      Pull changes from cloud
+                    </Button>
+                    <Button
+                      m={2}
+                      variant="primary"
+                      onClick={() => jupyterServerMutation.mutate()}
+                      isLoading={
+                        jupyterServerQuery.isPending ||
+                        jupyterServerMutation.isPending ||
+                        jupyterServerQuery.isRefetching
+                      }
+                    >
+                      {!jupyterServerQuery.data?.data?.url
+                        ? "Start Jupyter server"
+                        : "Stop Jupyter server"}
+                    </Button>
+                    {jupyterServerQuery.data?.data?.url ? (
+                      <Link isExternal href={jupyterServerQuery.data?.data.url}>
+                        <Button variant="primary" m={2}>
+                          Open JupyterLab <Icon ml={1} as={FiExternalLink} />
+                        </Button>
+                      </Link>
+                    ) : (
+                      ""
+                    )}
+                  </>
                 ) : (
                   ""
                 )}
+                {/* The fake terminal */}
                 <Box
                   borderRadius="lg"
                   borderWidth={1}
@@ -203,9 +244,22 @@ function LocalServer() {
                 />
               </Flex>
               {localWorkingDir ? (
-                <Text>The repo is cloned locally in {localWorkingDir}.</Text>
+                <Text>
+                  The repo is cloned locally in{" "}
+                  <Link onClick={openFolder}>{localWorkingDir}</Link>.
+                </Text>
               ) : (
-                <Text>The repo has not yet been cloned to this machine.</Text>
+                <Flex alignItems="center">
+                  <Text>The repo has not yet been cloned to this machine.</Text>
+                  <Button
+                    ml={1}
+                    size="xs"
+                    variant="primary"
+                    onClick={() => gitCloneMutation.mutate()}
+                  >
+                    Clone
+                  </Button>
+                </Flex>
               )}
               {!statusQuery.isPending && !statusQuery.error ? (
                 <>
@@ -352,7 +406,9 @@ function LocalServer() {
                 </Heading>
                 {!pipelineUpToDate ? (
                   <Flex alignItems="center">
-                    <Badge color="yellow.500">Out-of-date</Badge>
+                    <Badge mr={1} color="yellow.500">
+                      Out-of-date
+                    </Badge>
                     <Button
                       size="xs"
                       variant="primary"
@@ -365,6 +421,18 @@ function LocalServer() {
                 ) : (
                   <Badge color="green.500">Up-to-date</Badge>
                 )}
+                <Button
+                  ml={1}
+                  variant="primary"
+                  size="xs"
+                  onClick={newStageModal.onOpen}
+                >
+                  + stage
+                </Button>
+                <NewStage
+                  isOpen={newStageModal.isOpen}
+                  onClose={newStageModal.onClose}
+                />
               </Flex>
               {!pipelineQuery.error && pipelineQuery.data?.data ? (
                 <>
@@ -381,8 +449,6 @@ function LocalServer() {
               ) : (
                 ""
               )}
-              <Text>+ Add a new stage</Text>
-              <Text>Maybe the DAG can go here?</Text>
             </Box>
           </Flex>
         )}
