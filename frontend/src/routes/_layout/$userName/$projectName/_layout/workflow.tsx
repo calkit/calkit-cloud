@@ -30,7 +30,7 @@ function ProjectWorkflow() {
         projectName: projectName,
       }),
   })
-  const [isDiagramExpanded, setisDiagramExpanded] = useState(false)
+  const [isDiagramExpanded, setIsDiagramExpanded] = useState(false)
 
   return (
     <>
@@ -50,7 +50,7 @@ function ProjectWorkflow() {
               >
                 <Mermaid
                   isDiagramExpanded={isDiagramExpanded}
-                  setisDiagramExpanded={setisDiagramExpanded}
+                  setIsDiagramExpanded={setIsDiagramExpanded}
                 >
                   {String(pipelineQuery?.data?.mermaid)}
                 </Mermaid>

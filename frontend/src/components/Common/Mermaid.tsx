@@ -8,13 +8,13 @@ import { FaHome, FaExpandAlt } from "react-icons/fa"
 interface MermaidProps {
   children: string
   isDiagramExpanded: boolean
-  setisDiagramExpanded: Function
+  setIsDiagramExpanded: Function
 }
 
 const Mermaid = ({
   children,
   isDiagramExpanded,
-  setisDiagramExpanded,
+  setIsDiagramExpanded: setIsDiagramExpanded,
 }: MermaidProps) => {
   const zoomBehaviorRef = useRef<ZoomBehavior<Element, unknown> | null>(null)
 
@@ -26,7 +26,7 @@ const Mermaid = ({
   }
 
   const toggleisDiagramExpanded = () => {
-    setisDiagramExpanded(!isDiagramExpanded)
+    setIsDiagramExpanded(!isDiagramExpanded)
   }
 
   useEffect(() => {
