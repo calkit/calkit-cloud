@@ -303,28 +303,6 @@ function LocalServer() {
               ) : (
                 ""
               )}
-              {/* Staged files */}
-              <Flex alignItems="center" mb={1} mt={4}>
-                <Heading size="sm" mr={1}>
-                  Staged files
-                </Heading>
-                <Button size="xs" variant="primary">
-                  Commit
-                </Button>
-              </Flex>
-              {stagedFiles ? (
-                <>
-                  {stagedFiles.map((fpath: string) => (
-                    <Flex key={fpath} alignItems="center" mb={1}>
-                      <Text color="green.500" mr={1}>
-                        {fpath}
-                      </Text>
-                    </Flex>
-                  ))}
-                </>
-              ) : (
-                ""
-              )}
               {/* Untracked files */}
               <Heading size="sm" mb={1} mt={4}>
                 Untracked files
@@ -361,38 +339,76 @@ function LocalServer() {
               ) : (
                 ""
               )}
-              {/* Changed files */}
-              <Heading size="sm" mb={1} mt={4}>
-                Changed files [commit all] [discard all]
+              <Heading size="sm" mr={1}>
+                Tracked Files
               </Heading>
-              {changedFiles ? (
-                <>
-                  {changedFiles.map((fpath: string) => (
-                    <Flex key={fpath} alignItems="center" mb={1}>
-                      <Text color="red.500" mr={1}>
-                        {fpath}
-                      </Text>
-                      <Button
-                        variant="primary"
-                        size="xs"
-                        mr={1}
-                        onClick={() => console.log(`Committing ${fpath}`)}
-                      >
-                        Commit
-                      </Button>
-                      <Button
-                        variant="primary"
-                        size="xs"
-                        onClick={() => console.log(`Checking out ${fpath}`)}
-                      >
-                        Discard
-                      </Button>
-                    </Flex>
-                  ))}
-                </>
-              ) : (
-                ""
-              )}
+              <Box borderRadius="lg" borderWidth={1}>
+                {/* Staged files */}
+                <Flex
+                  alignItems="center"
+                  m={0.25}
+                  borderRadius="lg"
+                  borderWidth={1}
+                  boxSizing={"border-box"}
+                >
+                  <Heading size="sm" mr={1}>
+                    Staged files
+                  </Heading>
+                  <Button size="xs" variant="primary">
+                    Commit
+                  </Button>
+                </Flex>
+                {stagedFiles ? (
+                  <>
+                    {stagedFiles.map((fpath: string) => (
+                      <Flex key={fpath} alignItems="center" mb={1}>
+                        <Text color="green.500" mr={1}>
+                          {fpath}
+                        </Text>
+                      </Flex>
+                    ))}
+                  </>
+                ) : (
+                  ""
+                )}
+                {/* Changed files */}
+                <Flex alignItems="center">
+                  <Heading size="sm" mb={1} mt={4}>
+                    Changed files
+                    <Button size="xs" variant="danger">
+                      Discard
+                    </Button>
+                  </Heading>
+                </Flex>
+                {changedFiles ? (
+                  <>
+                    {changedFiles.map((fpath: string) => (
+                      <Flex key={fpath} alignItems="center" mb={1}>
+                        <Text color="red.500" mr={1}>
+                          {fpath}
+                        </Text>
+                        <Button
+                          variant="primary"
+                          size="xs"
+                          mr={1}
+                          onClick={() => console.log(`Committing ${fpath}`)}
+                        >
+                          Commit
+                        </Button>
+                        <Button
+                          variant="primary"
+                          size="xs"
+                          onClick={() => console.log(`Checking out ${fpath}`)}
+                        >
+                          Discard
+                        </Button>
+                      </Flex>
+                    ))}
+                  </>
+                ) : (
+                  ""
+                )}
+              </Box>
               {/* Pipeline section of status */}
               <Flex mb={1} mt={4} alignItems="center">
                 <Heading size="sm" mr={1}>
