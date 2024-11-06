@@ -25,6 +25,7 @@ import { type ProjectPublic } from "../../../../../client"
 import NewStage from "../../../../../components/Local/NewStage"
 import AddPath from "../../../../../components/Local/AddPath"
 import IgnorePath from "../../../../../components/Local/IgnorePath"
+import useCustomToast from "../../../../../hooks/useCustomToast"
 
 export const Route = createFileRoute(
   "/_layout/$userName/$projectName/_layout/local",
@@ -123,10 +124,14 @@ function LocalServer() {
       })
     },
   })
+  const showToast = useCustomToast()
   const runPipelineMutation = useMutation({
     mutationFn: () => {
       const url = `http://localhost:8866/projects/${userName}/${projectName}/pipeline/runs`
       return axios.post(url)
+    },
+    onError: (err: any) => {
+      showToast("Error", String(err.response.data.detail), "error")
     },
     onSettled: () => {
       queryClient.invalidateQueries({
