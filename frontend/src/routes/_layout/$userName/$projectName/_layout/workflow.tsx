@@ -55,7 +55,6 @@ function ProjectWorkflow() {
                   {String(pipelineQuery?.data?.mermaid)}
                 </Mermaid>
               </Box>
-
               <Box width={isDiagramExpanded ? "100%" : "680px"}>
                 <Heading size="md" my={2}>
                   YAML
