@@ -19,7 +19,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 import axios from "axios"
 import { FiExternalLink } from "react-icons/fi"
-import { FaSync } from "react-icons/fa"
+import { FaPlus, FaSync } from "react-icons/fa"
 
 import { type ProjectPublic } from "../../../../../client"
 import NewStage from "../../../../../components/Local/NewStage"
@@ -416,7 +416,7 @@ function LocalServer() {
                   size="xs"
                   onClick={newStageModal.onOpen}
                 >
-                  + stage
+                  <Icon mr={0.5} as={FaPlus} /> New stage
                 </Button>
                 <NewStage
                   isOpen={newStageModal.isOpen}
