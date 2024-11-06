@@ -208,16 +208,6 @@ function LocalServer() {
                 ) : (
                   ""
                 )}
-                {/* The fake terminal */}
-                <Box
-                  borderRadius="lg"
-                  borderWidth={1}
-                  p={2}
-                  mt={4}
-                  minH="400px"
-                >
-                  $ This is a fake terminal.
-                </Box>
               </Box>
             ) : (
               <Box>
