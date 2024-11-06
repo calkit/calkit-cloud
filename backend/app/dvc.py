@@ -60,7 +60,7 @@ def output_from_pipeline(
     if stage is None:
         return
     wdir = stage.get("wdir", "")
-    outs = lock.get("stages", []).get(stage_name, {}).get("outs", [])
+    outs = lock.get("stages", {}).get(stage_name, {}).get("outs", [])
     for out in outs:
         outpath = os.path.join(wdir, out["path"])
         if os.path.abspath(outpath) == os.path.abspath(path):
