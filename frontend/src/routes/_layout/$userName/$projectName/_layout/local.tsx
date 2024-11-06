@@ -22,6 +22,7 @@ import { FaSync } from "react-icons/fa"
 
 import { type ProjectPublic } from "../../../../../client"
 import NewStage from "../../../../../components/Local/NewStage"
+import AddPath from "../../../../../components/Local/AddPath"
 
 export const Route = createFileRoute(
   "/_layout/$userName/$projectName/_layout/local",
@@ -152,6 +153,7 @@ function LocalServer() {
     },
   })
   const newStageModal = useDisclosure()
+  const addPathModal = useDisclosure()
 
   return (
     <>
@@ -317,13 +319,16 @@ function LocalServer() {
                       <Button
                         variant="primary"
                         size="xs"
-                        onClick={() =>
-                          console.log(`Adding and committing ${fpath}`)
-                        }
+                        onClick={addPathModal.onOpen}
                         mr={1}
                       >
                         Add
                       </Button>
+                      <AddPath
+                        onClose={addPathModal.onClose}
+                        isOpen={addPathModal.isOpen}
+                        path={fpath}
+                      />
                       <Button
                         variant="primary"
                         size="xs"
