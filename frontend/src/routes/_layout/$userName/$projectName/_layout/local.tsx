@@ -304,11 +304,11 @@ function LocalServer() {
                 ""
               )}
               {/* Untracked files */}
-              <Heading size="sm" mb={1} mt={4}>
-                Untracked files
-              </Heading>
-              {untrackedFiles ? (
+              {untrackedFiles && untrackedFiles.length > 0 ? (
                 <>
+                  <Heading size="sm" mb={1} mt={4}>
+                    Untracked files
+                  </Heading>
                   {untrackedFiles.map((fpath: string) => (
                     <Flex key={fpath} alignItems="center" mb={1}>
                       <Text color="red.500" mr={1}>
