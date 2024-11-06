@@ -142,7 +142,7 @@ function LocalServer() {
       ),
     retry: false,
   })
-  const gitCloneMutation = useMutation({
+  const cloneMutation = useMutation({
     mutationFn: () => {
       const url = "http://localhost:8866/calkit/clone"
       const data = { git_repo_url: project?.git_repo_url }
@@ -154,6 +154,12 @@ function LocalServer() {
       })
       queryClient.invalidateQueries({
         queryKey: ["local-server-main", userName, projectName, "pipeline"],
+      })
+      queryClient.invalidateQueries({
+        queryKey: ["local-server", userName, projectName],
+      })
+      queryClient.invalidateQueries({
+        queryKey: ["local-server-main", userName, projectName],
       })
     },
   })
@@ -253,7 +259,8 @@ function LocalServer() {
                     ml={1}
                     size="xs"
                     variant="primary"
-                    onClick={() => gitCloneMutation.mutate()}
+                    onClick={() => cloneMutation.mutate()}
+                    isLoading={cloneMutation.isPending}
                   >
                     Clone
                   </Button>
