@@ -12,16 +12,12 @@ import {
   ListItem,
   UnorderedList,
   Badge,
-  useDisclosure,
 } from "@chakra-ui/react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 import axios from "axios"
 import { FiExternalLink } from "react-icons/fi"
 import { FaSync } from "react-icons/fa"
-
-import { type ProjectPublic } from "../../../../../client"
-import NewStage from "../../../../../components/Local/NewStage"
 
 export const Route = createFileRoute(
   "/_layout/$userName/$projectName/_layout/local",
@@ -32,17 +28,6 @@ export const Route = createFileRoute(
 function LocalServer() {
   const queryClient = useQueryClient()
   const { userName, projectName } = Route.useParams()
-  const project = queryClient.getQueryData<ProjectPublic>([
-    "projects",
-    userName,
-    projectName,
-  ])
-  const localServerRunningQuery = useQuery({
-    queryKey: ["local-server-main"],
-    queryFn: () => axios.get("http://localhost:8866/health"),
-    retry: false,
-  })
-  const localServerRunning = localServerRunningQuery.data?.data === "All good!"
   const localServerQuery = useQuery({
     queryKey: ["local-server-main", userName, projectName],
     queryFn: () =>
@@ -60,11 +45,6 @@ function LocalServer() {
   const openVSCode = () => {
     axios.post(
       `http://localhost:8866/projects/${userName}/${projectName}/open/vscode`,
-    )
-  }
-  const openFolder = () => {
-    axios.post(
-      `http://localhost:8866/projects/${userName}/${projectName}/open/folder`,
     )
   }
   const runGitPull = () => {
@@ -139,19 +119,6 @@ function LocalServer() {
       ),
     retry: false,
   })
-  const gitCloneMutation = useMutation({
-    mutationFn: () => {
-      const url = "http://localhost:8866/calkit/clone"
-      const data = { git_repo_url: project?.git_repo_url }
-      return axios.post(url, data)
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["local-server-main", userName, projectName, "status"],
-      })
-    },
-  })
-  const newStageModal = useDisclosure()
 
   return (
     <>
@@ -165,46 +132,38 @@ function LocalServer() {
           </Flex>
         ) : (
           <Flex>
-            {localServerRunning ? (
+            {!localServerQuery.error ? (
               <Box mr={4} width="60%">
                 <Text>The local server is running. [search for command]</Text>
-                {/* Actions that are only possible if repo has been cloned */}
-                {localWorkingDir ? (
-                  <>
-                    <Button m={2} variant="primary" onClick={openVSCode}>
-                      Open in VSCode <Icon ml={1} as={FiExternalLink} />
+                <Button m={2} variant="primary" onClick={openVSCode}>
+                  Open in VSCode <Icon ml={1} as={FiExternalLink} />
+                </Button>
+                <Button m={2} variant="primary" onClick={runGitPull}>
+                  Pull changes from cloud
+                </Button>
+                <Button
+                  m={2}
+                  variant="primary"
+                  onClick={() => jupyterServerMutation.mutate()}
+                  isLoading={
+                    jupyterServerQuery.isPending ||
+                    jupyterServerMutation.isPending ||
+                    jupyterServerQuery.isRefetching
+                  }
+                >
+                  {!jupyterServerQuery.data?.data?.url
+                    ? "Start Jupyter server"
+                    : "Stop Jupyter server"}
+                </Button>
+                {jupyterServerQuery.data?.data?.url ? (
+                  <Link isExternal href={jupyterServerQuery.data?.data.url}>
+                    <Button variant="primary" m={2}>
+                      Open JupyterLab <Icon ml={1} as={FiExternalLink} />
                     </Button>
-                    <Button m={2} variant="primary" onClick={runGitPull}>
-                      Pull changes from cloud
-                    </Button>
-                    <Button
-                      m={2}
-                      variant="primary"
-                      onClick={() => jupyterServerMutation.mutate()}
-                      isLoading={
-                        jupyterServerQuery.isPending ||
-                        jupyterServerMutation.isPending ||
-                        jupyterServerQuery.isRefetching
-                      }
-                    >
-                      {!jupyterServerQuery.data?.data?.url
-                        ? "Start Jupyter server"
-                        : "Stop Jupyter server"}
-                    </Button>
-                    {jupyterServerQuery.data?.data?.url ? (
-                      <Link isExternal href={jupyterServerQuery.data?.data.url}>
-                        <Button variant="primary" m={2}>
-                          Open JupyterLab <Icon ml={1} as={FiExternalLink} />
-                        </Button>
-                      </Link>
-                    ) : (
-                      ""
-                    )}
-                  </>
+                  </Link>
                 ) : (
                   ""
                 )}
-                {/* The fake terminal */}
                 <Box
                   borderRadius="lg"
                   borderWidth={1}
@@ -244,22 +203,9 @@ function LocalServer() {
                 />
               </Flex>
               {localWorkingDir ? (
-                <Text>
-                  The repo is cloned locally in{" "}
-                  <Link onClick={openFolder}>{localWorkingDir}</Link>.
-                </Text>
+                <Text>The repo is cloned locally in {localWorkingDir}.</Text>
               ) : (
-                <Flex alignItems="center">
-                  <Text>The repo has not yet been cloned to this machine.</Text>
-                  <Button
-                    ml={1}
-                    size="xs"
-                    variant="primary"
-                    onClick={() => gitCloneMutation.mutate()}
-                  >
-                    Clone
-                  </Button>
-                </Flex>
+                <Text>The repo has not yet been cloned to this machine.</Text>
               )}
               {!statusQuery.isPending && !statusQuery.error ? (
                 <>
@@ -303,6 +249,28 @@ function LocalServer() {
               ) : (
                 ""
               )}
+              {/* Staged files */}
+              <Flex alignItems="center" mb={1} mt={4}>
+                <Heading size="sm" mr={1}>
+                  Staged files
+                </Heading>
+                <Button size="xs" variant="primary">
+                  Commit
+                </Button>
+              </Flex>
+              {stagedFiles ? (
+                <>
+                  {stagedFiles.map((fpath: string) => (
+                    <Flex key={fpath} alignItems="center" mb={1}>
+                      <Text color="green.500" mr={1}>
+                        {fpath}
+                      </Text>
+                    </Flex>
+                  ))}
+                </>
+              ) : (
+                ""
+              )}
               {/* Untracked files */}
               <Heading size="sm" mb={1} mt={4}>
                 Untracked files
@@ -339,76 +307,44 @@ function LocalServer() {
               ) : (
                 ""
               )}
-              <Heading size="sm" mr={1}>
-                Tracked Files
-              </Heading>
-              <Box borderRadius="lg" borderWidth={1}>
-                {/* Staged files */}
-                <Flex
-                  alignItems="center"
-                  m={0.25}
-                  borderRadius="lg"
-                  borderWidth={1}
-                  boxSizing={"border-box"}
-                >
-                  <Heading size="sm" mr={1}>
-                    Staged files
-                  </Heading>
-                  <Button size="xs" variant="primary">
-                    Commit
-                  </Button>
-                </Flex>
-                {stagedFiles ? (
-                  <>
-                    {stagedFiles.map((fpath: string) => (
-                      <Flex key={fpath} alignItems="center" mb={1}>
-                        <Text color="green.500" mr={1}>
-                          {fpath}
-                        </Text>
-                      </Flex>
-                    ))}
-                  </>
-                ) : (
-                  ""
-                )}
-                {/* Changed files */}
-                <Flex alignItems="center">
-                  <Heading size="sm" mb={1} mt={4}>
-                    Changed files
-                    <Button size="xs" variant="danger">
-                      Discard
-                    </Button>
-                  </Heading>
-                </Flex>
-                {changedFiles ? (
-                  <>
-                    {changedFiles.map((fpath: string) => (
-                      <Flex key={fpath} alignItems="center" mb={1}>
-                        <Text color="red.500" mr={1}>
-                          {fpath}
-                        </Text>
-                        <Button
-                          variant="primary"
-                          size="xs"
-                          mr={1}
-                          onClick={() => console.log(`Committing ${fpath}`)}
-                        >
-                          Commit
-                        </Button>
-                        <Button
-                          variant="primary"
-                          size="xs"
-                          onClick={() => console.log(`Checking out ${fpath}`)}
-                        >
-                          Discard
-                        </Button>
-                      </Flex>
-                    ))}
-                  </>
-                ) : (
-                  ""
-                )}
-              </Box>
+              {/* Changed files */}
+              <Flex alignItems="center" mb={1} mt={4}>
+                <Heading size="sm">Changed files</Heading>
+                <Button size="xs" variant="primary" ml={1}>
+                  Save
+                </Button>
+                <Button size="xs" variant="danger" ml={1}>
+                  Discard
+                </Button>
+              </Flex>
+              {changedFiles ? (
+                <>
+                  {changedFiles.map((fpath: string) => (
+                    <Flex key={fpath} alignItems="center" mb={1}>
+                      <Text color="red.500" mr={1}>
+                        {fpath}
+                      </Text>
+                      <Button
+                        variant="primary"
+                        size="xs"
+                        mr={1}
+                        onClick={() => console.log(`Committing ${fpath}`)}
+                      >
+                        Commit
+                      </Button>
+                      <Button
+                        variant="primary"
+                        size="xs"
+                        onClick={() => console.log(`Checking out ${fpath}`)}
+                      >
+                        Discard
+                      </Button>
+                    </Flex>
+                  ))}
+                </>
+              ) : (
+                ""
+              )}
               {/* Pipeline section of status */}
               <Flex mb={1} mt={4} alignItems="center">
                 <Heading size="sm" mr={1}>
@@ -416,9 +352,7 @@ function LocalServer() {
                 </Heading>
                 {!pipelineUpToDate ? (
                   <Flex alignItems="center">
-                    <Badge mr={1} color="yellow.500">
-                      Out-of-date
-                    </Badge>
+                    <Badge color="yellow.500">Out-of-date</Badge>
                     <Button
                       size="xs"
                       variant="primary"
@@ -431,18 +365,6 @@ function LocalServer() {
                 ) : (
                   <Badge color="green.500">Up-to-date</Badge>
                 )}
-                <Button
-                  ml={1}
-                  variant="primary"
-                  size="xs"
-                  onClick={newStageModal.onOpen}
-                >
-                  + stage
-                </Button>
-                <NewStage
-                  isOpen={newStageModal.isOpen}
-                  onClose={newStageModal.onClose}
-                />
               </Flex>
               {!pipelineQuery.error && pipelineQuery.data?.data ? (
                 <>
@@ -459,6 +381,8 @@ function LocalServer() {
               ) : (
                 ""
               )}
+              <Text>+ Add a new stage</Text>
+              <Text>Maybe the DAG can go here?</Text>
             </Box>
           </Flex>
         )}
