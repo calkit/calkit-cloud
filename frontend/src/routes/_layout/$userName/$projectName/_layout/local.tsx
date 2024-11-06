@@ -23,6 +23,7 @@ import { FaSync } from "react-icons/fa"
 import { type ProjectPublic } from "../../../../../client"
 import NewStage from "../../../../../components/Local/NewStage"
 import AddPath from "../../../../../components/Local/AddPath"
+import IgnorePath from "../../../../../components/Local/IgnorePath"
 
 export const Route = createFileRoute(
   "/_layout/$userName/$projectName/_layout/local",
@@ -154,6 +155,7 @@ function LocalServer() {
   })
   const newStageModal = useDisclosure()
   const addPathModal = useDisclosure()
+  const ignorePathModal = useDisclosure()
 
   return (
     <>
@@ -332,12 +334,15 @@ function LocalServer() {
                       <Button
                         variant="primary"
                         size="xs"
-                        onClick={() =>
-                          console.log(`Opening ignore modal for ${fpath}`)
-                        }
+                        onClick={ignorePathModal.onOpen}
                       >
                         Ignore
                       </Button>
+                      <IgnorePath
+                        onClose={ignorePathModal.onClose}
+                        isOpen={ignorePathModal.isOpen}
+                        path={fpath}
+                      />
                     </Flex>
                   ))}
                 </>
