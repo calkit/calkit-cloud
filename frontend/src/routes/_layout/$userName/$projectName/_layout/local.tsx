@@ -169,8 +169,8 @@ function LocalServer() {
     },
   })
   const newStageModal = useDisclosure()
-  const addPathModal = useDisclosure()
-  const ignorePathModal = useDisclosure()
+  const addPathModal = useDisclosure() // TODO: We need one of these for each
+  const ignorePathModal = useDisclosure() // TODO: We need one of these for each
 
   return (
     <>
