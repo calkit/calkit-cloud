@@ -303,28 +303,6 @@ function LocalServer() {
               ) : (
                 ""
               )}
-              {/* Staged files */}
-              <Flex alignItems="center" mb={1} mt={4}>
-                <Heading size="sm" mr={1}>
-                  Staged files
-                </Heading>
-                <Button size="xs" variant="primary">
-                  Commit
-                </Button>
-              </Flex>
-              {stagedFiles ? (
-                <>
-                  {stagedFiles.map((fpath: string) => (
-                    <Flex key={fpath} alignItems="center" mb={1}>
-                      <Text color="green.500" mr={1}>
-                        {fpath}
-                      </Text>
-                    </Flex>
-                  ))}
-                </>
-              ) : (
-                ""
-              )}
               {/* Untracked files */}
               <Heading size="sm" mb={1} mt={4}>
                 Untracked files
@@ -371,6 +349,19 @@ function LocalServer() {
                   Discard
                 </Button>
               </Flex>
+              {stagedFiles ? (
+                <>
+                  {stagedFiles.map((fpath: string) => (
+                    <Flex key={fpath} alignItems="center" mb={1}>
+                      <Text color="green.500" mr={1}>
+                        {fpath}
+                      </Text>
+                    </Flex>
+                  ))}
+                </>
+              ) : (
+                ""
+              )}
               {changedFiles ? (
                 <>
                   {changedFiles.map((fpath: string) => (
