@@ -13,6 +13,7 @@ import {
   UnorderedList,
   Badge,
   useDisclosure,
+  Checkbox,
 } from "@chakra-ui/react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
@@ -366,24 +367,11 @@ function LocalServer() {
                 <>
                   {changedFiles.map((fpath: string) => (
                     <Flex key={fpath} alignItems="center" mb={1}>
-                      <Text color="red.500" mr={1}>
-                        {fpath}
-                      </Text>
-                      <Button
-                        variant="primary"
-                        size="xs"
-                        mr={1}
-                        onClick={() => console.log(`Committing ${fpath}`)}
-                      >
-                        Commit
-                      </Button>
-                      <Button
-                        variant="primary"
-                        size="xs"
-                        onClick={() => console.log(`Checking out ${fpath}`)}
-                      >
-                        Discard
-                      </Button>
+                      <Checkbox>
+                        <Text color="red.500" mr={1}>
+                          {fpath}
+                        </Text>
+                      </Checkbox>
                     </Flex>
                   ))}
                 </>
