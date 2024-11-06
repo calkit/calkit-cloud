@@ -152,6 +152,9 @@ function LocalServer() {
       queryClient.invalidateQueries({
         queryKey: ["local-server-main", userName, projectName, "status"],
       })
+      queryClient.invalidateQueries({
+        queryKey: ["local-server-main", userName, projectName, "pipeline"],
+      })
     },
   })
   const newStageModal = useDisclosure()
@@ -383,7 +386,7 @@ function LocalServer() {
                 <Heading size="sm" mr={1}>
                   Pipeline
                 </Heading>
-                {!pipelineUpToDate ? (
+                {localWorkingDir && !pipelineUpToDate ? (
                   <Flex alignItems="center">
                     <Badge mr={1} color="yellow.500">
                       Out-of-date
