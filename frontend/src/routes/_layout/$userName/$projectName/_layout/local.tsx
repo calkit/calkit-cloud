@@ -341,7 +341,7 @@ function LocalServer() {
               )}
               {/* Changed files */}
               <Flex alignItems="center" mb={1} mt={4}>
-                <Heading size="sm">Changed files</Heading>
+                <Heading size="sm">Uncommitted changes</Heading>
                 <Button size="xs" variant="primary" ml={1}>
                   Save
                 </Button>
