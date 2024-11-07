@@ -113,6 +113,8 @@ function LocalServer() {
   const stagedFiles = statusQuery.data?.data?.git.staged
   const pipelineUpToDate =
     JSON.stringify(statusQuery.data?.data?.dvc.pipeline) === "{}"
+  const dvcNeedsPull = statusQuery.data?.data?.dvc.data.not_in_cache.length > 0
+  const dvcNeedsPush = statusQuery.data?.data?.dvc.data.not_in_remote.length > 0
   const gitPushMutation = useMutation({
     mutationFn: () => {
       const url = `http://localhost:8866/projects/${userName}/${projectName}/git/push`
@@ -291,7 +293,7 @@ function LocalServer() {
                   )}
                   {commitsBehind ? (
                     <Flex alignItems="center">
-                      <Text mr={1}>
+                      <Text mr={1} color="yellow.500">
                         There are {commitsBehind} commits to pull from Git
                         remote.
                       </Text>
@@ -304,6 +306,20 @@ function LocalServer() {
                   )}
                   {commitsAhead === 0 && commitsBehind === 0 ? (
                     <Text>Repo is synced with Git remote.</Text>
+                  ) : (
+                    ""
+                  )}
+                  {dvcNeedsPull ? (
+                    <Text color="yellow.500">
+                      There are changes to pull from DVC remote.
+                    </Text>
+                  ) : (
+                    ""
+                  )}
+                  {dvcNeedsPush ? (
+                    <Text color="yellow.500">
+                      There are changes to push to DVC remote.
+                    </Text>
                   ) : (
                     ""
                   )}
