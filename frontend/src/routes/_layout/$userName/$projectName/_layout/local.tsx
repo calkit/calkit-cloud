@@ -364,7 +364,7 @@ function LocalServer() {
               {stagedFiles ? (
                 <>
                   {stagedFiles.map((fpath: string) => (
-                    <Flex key={fpath} alignItems="center" mb={1}>
+                    <Flex key={fpath} alignItems="center">
                       <Text color="green.500" mr={1}>
                         {fpath}
                       </Text>
@@ -377,7 +377,7 @@ function LocalServer() {
               {changedFiles ? (
                 <>
                   {changedFiles.map((fpath: string) => (
-                    <Flex key={fpath} alignItems="center" mb={1}>
+                    <Flex key={fpath} alignItems="center">
                       <Checkbox>
                         <Text color="red.500" mr={1}>
                           {fpath}
