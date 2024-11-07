@@ -248,7 +248,10 @@ function LocalServer() {
                   aria-label="refresh"
                   height="25px"
                   icon={<FaSync />}
-                  onClick={() => statusQuery.refetch()}
+                  onClick={() => {
+                    statusQuery.refetch()
+                    pipelineQuery.refetch()
+                  }}
                   isLoading={statusQuery.isRefetching}
                 />
               </Flex>
