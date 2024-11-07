@@ -121,7 +121,7 @@ function PubView({ publication }: PubViewProps) {
           )}
           {publication.stage ? (
             <Text>
-              Workflow stage: <Code>{publication.stage}</Code>
+              Pipeline stage: <Code>{publication.stage}</Code>
             </Text>
           ) : (
             ""
