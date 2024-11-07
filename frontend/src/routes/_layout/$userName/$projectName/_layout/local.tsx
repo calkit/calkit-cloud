@@ -123,6 +123,39 @@ function LocalServer() {
       })
     },
   })
+  const gitPullMutation = useMutation({
+    mutationFn: () => {
+      const url = `http://localhost:8866/projects/${userName}/${projectName}/git/pull`
+      return axios.post(url)
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["local-server-main", userName, projectName, "status"],
+      })
+    },
+  })
+  const dvcPushMutation = useMutation({
+    mutationFn: () => {
+      const url = `http://localhost:8866/projects/${userName}/${projectName}/dvc/push`
+      return axios.post(url)
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["local-server-main", userName, projectName, "status"],
+      })
+    },
+  })
+  const dvcPullMutation = useMutation({
+    mutationFn: () => {
+      const url = `http://localhost:8866/projects/${userName}/${projectName}/dvc/pull`
+      return axios.post(url)
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["local-server-main", userName, projectName, "status"],
+      })
+    },
+  })
   const showToast = useCustomToast()
   const runPipelineMutation = useMutation({
     mutationFn: () => {
@@ -318,7 +351,8 @@ function LocalServer() {
                             variant="primary"
                             size="xs"
                             aria-label="pull"
-                            onClick={() => console.log("TODO: Git pull")}
+                            onClick={() => gitPullMutation.mutate()}
+                            isLoading={gitPullMutation.isPending}
                           >
                             Pull
                           </Button>
@@ -332,16 +366,38 @@ function LocalServer() {
                         ""
                       )}
                       {dvcNeedsPull ? (
-                        <Text color="yellow.500">
-                          There are changes to pull from DVC remote.
-                        </Text>
+                        <Flex alignItems="center">
+                          <Text color="yellow.500" mr={1}>
+                            There are changes to pull from DVC remote.
+                          </Text>
+                          <Button
+                            variant="primary"
+                            size="xs"
+                            aria-label="dvc-pull"
+                            onClick={() => dvcPullMutation.mutate()}
+                            isLoading={dvcPullMutation.isPending}
+                          >
+                            Pull
+                          </Button>
+                        </Flex>
                       ) : (
                         ""
                       )}
                       {dvcNeedsPush ? (
-                        <Text color="yellow.500">
-                          There are changes to push to DVC remote.
-                        </Text>
+                        <Flex alignItems="center">
+                          <Text color="yellow.500" mr={1}>
+                            There are changes to push to DVC remote.
+                          </Text>
+                          <Button
+                            variant="primary"
+                            size="xs"
+                            aria-label="dvc-push"
+                            onClick={() => dvcPushMutation.mutate()}
+                            isLoading={dvcPushMutation.isPending}
+                          >
+                            Push
+                          </Button>
+                        </Flex>
                       ) : (
                         ""
                       )}
