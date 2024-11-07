@@ -328,6 +328,11 @@ function LocalServer() {
                   ) : (
                     ""
                   )}
+                  {!dvcNeedsPull && !dvcNeedsPush ? (
+                    <Text>Repo is synced with DVC remote.</Text>
+                  ) : (
+                    ""
+                  )}
                 </>
               ) : (
                 ""
