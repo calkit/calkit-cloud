@@ -14,6 +14,7 @@ import {
   Code,
   Flex,
   Checkbox,
+  useDisclosure,
 } from "@chakra-ui/react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { type SubmitHandler, useForm } from "react-hook-form"
@@ -25,8 +26,6 @@ import useCustomToast from "../../hooks/useCustomToast"
 import { handleError } from "../../utils"
 
 interface AddPathProps {
-  isOpen: boolean
-  onClose: () => void
   path: string
 }
 
@@ -36,7 +35,7 @@ interface AddPost {
   push: boolean
 }
 
-const AddPath = ({ isOpen, onClose, path }: AddPathProps) => {
+const AddPath = ({ path }: AddPathProps) => {
   const queryClient = useQueryClient()
   const showToast = useCustomToast()
   const routeApi = getRouteApi("/_layout/$userName/$projectName")
@@ -51,6 +50,7 @@ const AddPath = ({ isOpen, onClose, path }: AddPathProps) => {
     criteriaMode: "all",
     defaultValues: { commit_message: `Add ${path}`, push: true },
   })
+  const modalDisclosure = useDisclosure()
   const mutation = useMutation({
     mutationFn: (data: AddPost) => {
       const url = `http://localhost:8866/projects/${userName}/${projectName}/calkit/add`
@@ -66,7 +66,7 @@ const AddPath = ({ isOpen, onClose, path }: AddPathProps) => {
     onSuccess: () => {
       showToast("Success!", "Paths added.", "success")
       reset()
-      onClose()
+      modalDisclosure.onClose()
     },
     onError: (err: ApiError) => {
       handleError(err, showToast)
@@ -86,9 +86,17 @@ const AddPath = ({ isOpen, onClose, path }: AddPathProps) => {
 
   return (
     <>
+      <Button
+        variant="primary"
+        size="xs"
+        onClick={modalDisclosure.onOpen}
+        mr={1}
+      >
+        Add
+      </Button>
       <Modal
-        isOpen={isOpen}
-        onClose={onClose}
+        isOpen={modalDisclosure.isOpen}
+        onClose={modalDisclosure.onClose}
         size={{ base: "sm", md: "md" }}
         isCentered
       >
@@ -128,7 +136,7 @@ const AddPath = ({ isOpen, onClose, path }: AddPathProps) => {
             >
               Save
             </Button>
-            <Button onClick={onClose}>Cancel</Button>
+            <Button onClick={modalDisclosure.onClose}>Cancel</Button>
           </ModalFooter>
         </ModalContent>
       </Modal>

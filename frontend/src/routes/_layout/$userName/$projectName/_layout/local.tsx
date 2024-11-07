@@ -169,7 +169,6 @@ function LocalServer() {
     },
   })
   const newStageModal = useDisclosure()
-  const addPathModal = useDisclosure() // TODO: We need one of these for each
 
   return (
     <>
@@ -323,19 +322,7 @@ function LocalServer() {
                       <Text color="red.500" mr={1}>
                         {fpath}
                       </Text>
-                      <Button
-                        variant="primary"
-                        size="xs"
-                        onClick={addPathModal.onOpen}
-                        mr={1}
-                      >
-                        Add
-                      </Button>
-                      <AddPath
-                        onClose={addPathModal.onClose}
-                        isOpen={addPathModal.isOpen}
-                        path={fpath}
-                      />
+                      <AddPath path={fpath} />
                       <IgnorePath path={fpath} />
                     </Flex>
                   ))}
