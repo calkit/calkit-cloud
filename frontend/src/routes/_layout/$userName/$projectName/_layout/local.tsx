@@ -108,8 +108,8 @@ function LocalServer() {
   const stagedFiles = statusQuery.data?.data?.git.staged
   const pipelineUpToDate =
     JSON.stringify(statusQuery.data?.data?.dvc.pipeline) === "{}"
-  const dvcNeedsPull = statusQuery.data?.data?.dvc.data.not_in_cache.length > 0
-  const dvcNeedsPush = statusQuery.data?.data?.dvc.data.not_in_remote.length > 0
+  const dvcNeedsPull = statusQuery.data?.data?.dvc?.data?.not_in_cache.length > 0
+  const dvcNeedsPush = statusQuery.data?.data?.dvc?.data?.not_in_remote.length > 0
   const gitPushMutation = useMutation({
     mutationFn: () => {
       const url = `http://localhost:8866/projects/${userName}/${projectName}/git/push`
