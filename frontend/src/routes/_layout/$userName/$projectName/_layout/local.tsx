@@ -405,11 +405,12 @@ function LocalServer() {
               </Flex>
               {!pipelineQuery.error && pipelineQuery.data?.data ? (
                 <>
+                  <Heading size="xs">All stages</Heading>
                   <UnorderedList>
                     {Object.entries(pipelineQuery.data.data.stages).map(
                       ([k, _]) => (
                         <ListItem key={k}>
-                          <Code>{k}</Code>
+                          <Code fontSize="small">{k}</Code>
                         </ListItem>
                       ),
                     )}
