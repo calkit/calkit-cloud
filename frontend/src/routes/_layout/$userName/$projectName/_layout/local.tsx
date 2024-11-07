@@ -26,6 +26,7 @@ import NewStage from "../../../../../components/Local/NewStage"
 import AddPath from "../../../../../components/Local/AddPath"
 import IgnorePath from "../../../../../components/Local/IgnorePath"
 import useCustomToast from "../../../../../hooks/useCustomToast"
+import SaveFiles from "../../../../../components/Local/saveFiles"
 
 export const Route = createFileRoute(
   "/_layout/$userName/$projectName/_layout/local",
@@ -201,6 +202,7 @@ function LocalServer() {
     },
   })
   const newStageModal = useDisclosure()
+  const saveFilesModal = useDisclosure()
 
   return (
     <>
@@ -448,9 +450,18 @@ function LocalServer() {
                   {/* Changed files */}
                   <Flex alignItems="center" mb={1} mt={4}>
                     <Heading size="sm">Uncommitted changes</Heading>
-                    <Button size="xs" variant="primary" ml={1}>
+                    <Button
+                      size="xs"
+                      variant="primary"
+                      ml={1}
+                      onClick={saveFilesModal.onOpen}
+                    >
                       Save
                     </Button>
+                    <SaveFiles
+                      isOpen={saveFilesModal.isOpen}
+                      onClose={saveFilesModal.onClose}
+                    />
                     <Button size="xs" variant="danger" ml={1}>
                       Discard
                     </Button>
