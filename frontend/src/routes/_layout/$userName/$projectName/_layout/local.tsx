@@ -292,6 +292,9 @@ function LocalServer() {
                   )}
                   {!statusQuery.isPending && !statusQuery.error ? (
                     <>
+                      <Heading size="sm" mb={1} mt={4}>
+                        Cloud sync
+                      </Heading>
                       {commitsAhead ? (
                         <Flex alignItems="center">
                           <Text mr={1} color="yellow.500">
