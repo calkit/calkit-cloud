@@ -19,7 +19,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 import axios from "axios"
 import { FiExternalLink } from "react-icons/fi"
-import { FaPlus, FaSync } from "react-icons/fa"
+import { FaCheck, FaPlus, FaSync } from "react-icons/fa"
 
 import { type ProjectPublic } from "../../../../../client"
 import NewStage from "../../../../../components/Local/NewStage"
@@ -361,7 +361,15 @@ function LocalServer() {
                         ""
                       )}
                       {commitsAhead === 0 && commitsBehind === 0 ? (
-                        <Text>Repo is synced with Git remote.</Text>
+                        <Text>
+                          Repo is synced with Git remote
+                          <Icon
+                            ml={0.5}
+                            height="13px"
+                            color="green.500"
+                            as={FaCheck}
+                          />
+                        </Text>
                       ) : (
                         ""
                       )}
@@ -402,7 +410,15 @@ function LocalServer() {
                         ""
                       )}
                       {!dvcNeedsPull && !dvcNeedsPush ? (
-                        <Text>Repo is synced with DVC remote.</Text>
+                        <Text>
+                          Repo is synced with DVC remote
+                          <Icon
+                            ml={0.5}
+                            height="13px"
+                            color="green.500"
+                            as={FaCheck}
+                          />
+                        </Text>
                       ) : (
                         ""
                       )}
