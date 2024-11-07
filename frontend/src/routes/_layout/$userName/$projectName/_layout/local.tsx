@@ -297,7 +297,12 @@ function LocalServer() {
                         There are {commitsBehind} commits to pull from Git
                         remote.
                       </Text>
-                      <Button variant="primary" size="xs" aria-label="push">
+                      <Button
+                        variant="primary"
+                        size="xs"
+                        aria-label="pull"
+                        onClick={() => console.log("TODO: Git pull")}
+                      >
                         Pull
                       </Button>
                     </Flex>
