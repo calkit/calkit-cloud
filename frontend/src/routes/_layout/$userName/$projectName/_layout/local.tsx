@@ -71,11 +71,6 @@ function LocalServer() {
       `http://localhost:8866/projects/${userName}/${projectName}/open/folder`,
     )
   }
-  const runGitPull = () => {
-    axios.post(
-      `http://localhost:8866/projects/${userName}/${projectName}/git/pull`,
-    )
-  }
   const jupyterServerMutation = useMutation({
     mutationFn: () => {
       const url = `http://localhost:8866/projects/${userName}/${projectName}/jupyter-server`
@@ -192,9 +187,6 @@ function LocalServer() {
                   <>
                     <Button m={2} variant="primary" onClick={openVSCode}>
                       Open in VSCode <Icon ml={1} as={FiExternalLink} />
-                    </Button>
-                    <Button m={2} variant="primary" onClick={runGitPull}>
-                      Pull changes from cloud
                     </Button>
                     <Button
                       m={2}
