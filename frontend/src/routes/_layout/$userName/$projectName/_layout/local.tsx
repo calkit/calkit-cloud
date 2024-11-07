@@ -374,7 +374,7 @@ function LocalServer() {
                         ""
                       )}
                       {dvcNeedsPull ? (
-                        <Flex alignItems="center">
+                        <Flex alignItems="center" mt={1}>
                           <Text color="yellow.500" mr={1}>
                             There are changes to pull from DVC remote.
                           </Text>
@@ -392,7 +392,7 @@ function LocalServer() {
                         ""
                       )}
                       {dvcNeedsPush ? (
-                        <Flex alignItems="center">
+                        <Flex alignItems="center" mt={1}>
                           <Text color="yellow.500" mr={1}>
                             There are changes to push to DVC remote.
                           </Text>
