@@ -64,7 +64,7 @@ const SaveFiles = ({
   })
   const mutation = useMutation({
     mutationFn: (data: CommitPost) => {
-      const url = `http://localhost:8866/projects/${userName}/${projectName}/calkit/commit`
+      const url = `http://localhost:8866/projects/${userName}/${projectName}/calkit/add-and-commit`
       return axios.post(url, data)
     },
     onSuccess: () => {
