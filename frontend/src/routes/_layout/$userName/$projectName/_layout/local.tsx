@@ -459,23 +459,29 @@ function LocalServer() {
                   {/* Changed files */}
                   <Flex alignItems="center" mb={1} mt={4}>
                     <Heading size="sm">Uncommitted changes</Heading>
-                    <Button
-                      size="xs"
-                      variant="primary"
-                      ml={1}
-                      onClick={saveFilesModal.onOpen}
-                    >
-                      Save
-                    </Button>
-                    <SaveFiles
-                      isOpen={saveFilesModal.isOpen}
-                      onClose={saveFilesModal.onClose}
-                      changedFiles={changedFiles}
-                      stagedFiles={stagedFiles}
-                    />
-                    <Button size="xs" variant="danger" ml={1}>
-                      Discard
-                    </Button>
+                    {stagedFiles.length > 0 || changedFiles.length > 0 ? (
+                      <>
+                        <Button
+                          size="xs"
+                          variant="primary"
+                          ml={1}
+                          onClick={saveFilesModal.onOpen}
+                        >
+                          Save
+                        </Button>
+                        <SaveFiles
+                          isOpen={saveFilesModal.isOpen}
+                          onClose={saveFilesModal.onClose}
+                          changedFiles={changedFiles}
+                          stagedFiles={stagedFiles}
+                        />
+                        <Button size="xs" variant="danger" ml={1}>
+                          Discard
+                        </Button>
+                      </>
+                    ) : (
+                      ""
+                    )}
                   </Flex>
                   {stagedFiles ? (
                     <>
