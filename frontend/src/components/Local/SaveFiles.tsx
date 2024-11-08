@@ -134,9 +134,18 @@ const SaveFiles = ({
                 {fpath} (staged)
               </Checkbox>
             ))}
-            <FormControl isRequired mb={2} mt={4}>
+            <FormControl
+              isRequired
+              mb={2}
+              mt={4}
+              isInvalid={!!errors.commit_message}
+            >
               <FormLabel htmlFor="commit-message">Commit message</FormLabel>
-              <Input id="name" placeholder="Ex: Update test.py" />
+              <Input
+                id="commit-message"
+                {...register("commit_message", {})}
+                placeholder="Ex: Update test.py"
+              />
             </FormControl>
             <FormControl mt={4}>
               <Checkbox {...register("push")} colorScheme="teal">
