@@ -114,7 +114,7 @@ function LocalServer() {
   const dvcStagedFiles = statusQuery.data?.data?.dvc?.data?.staged ?? []
   const stagedFiles = gitStagedFiles.concat(dvcStagedFiles)
   const pipelineUpToDate =
-    JSON.stringify(statusQuery.data?.data?.dvc.pipeline) === "{}"
+    JSON.stringify(statusQuery.data?.data?.dvc?.pipeline) === "{}"
   const dvcNeedsPull =
     statusQuery.data?.data?.dvc?.data?.not_in_cache?.length > 0
   const dvcNeedsPush =
