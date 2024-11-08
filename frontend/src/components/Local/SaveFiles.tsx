@@ -138,6 +138,11 @@ const SaveFiles = ({
               <FormLabel htmlFor="commit-message">Commit message</FormLabel>
               <Input id="name" placeholder="Ex: Update test.py" />
             </FormControl>
+            <FormControl mt={4}>
+              <Checkbox {...register("push")} colorScheme="teal">
+                Push after committing
+              </Checkbox>
+            </FormControl>
           </ModalBody>
           <ModalFooter gap={3}>
             <Button
