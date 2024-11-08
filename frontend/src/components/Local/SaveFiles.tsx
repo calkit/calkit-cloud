@@ -43,17 +43,6 @@ const SaveFiles = ({
   stagedFiles,
 }: SaveFilesProps) => {
   const allPaths = changedFiles.concat(stagedFiles)
-  const isCheckedInitial = Object.fromEntries(
-    allPaths.map((path) => [path, true]),
-  )
-  const [isChecked, setIsChecked] = useState(isCheckedInitial)
-  const checkBoxChange = (e: any, fpath: string) => {
-    console.log("setting to", e.target.checked)
-    const newValues = { ...isChecked }
-    newValues[fpath] = e.target.checked
-    setIsChecked(newValues)
-    console.log(isChecked)
-  }
   const queryClient = useQueryClient()
   const showToast = useCustomToast()
   const routeApi = getRouteApi("/_layout/$userName/$projectName")
@@ -66,7 +55,11 @@ const SaveFiles = ({
   } = useForm<CommitPost>({
     mode: "onBlur",
     criteriaMode: "all",
-    defaultValues: { commit_message: `Update ${allPaths}`, push: true },
+    defaultValues: {
+      paths: allPaths,
+      commit_message: `Update ${allPaths}`,
+      push: true,
+    },
   })
   const mutation = useMutation({
     mutationFn: (data: CommitPost) => {
@@ -117,8 +110,8 @@ const SaveFiles = ({
                 key={fpath}
                 colorScheme="teal"
                 textColor="red.500"
-                isChecked={isChecked[fpath]}
-                onChange={(e) => checkBoxChange(e, fpath)}
+                value={fpath}
+                {...register("paths")}
               >
                 {fpath}
               </Checkbox>
@@ -127,9 +120,9 @@ const SaveFiles = ({
               <Checkbox
                 key={fpath}
                 colorScheme="teal"
-                isChecked={isChecked[fpath]}
                 textColor="green.500"
-                onChange={(e) => checkBoxChange(e, fpath)}
+                value={fpath}
+                {...register("paths")}
               >
                 {fpath} (staged)
               </Checkbox>
