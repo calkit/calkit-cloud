@@ -14,6 +14,7 @@ import {
   Badge,
   useDisclosure,
   Checkbox,
+  useColorModeValue,
 } from "@chakra-ui/react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
@@ -35,6 +36,7 @@ export const Route = createFileRoute(
 })
 
 function LocalServer() {
+  const secBgColor = useColorModeValue("ui.secondary", "ui.darkSlate")
   const queryClient = useQueryClient()
   const { userName, projectName } = Route.useParams()
   const project = queryClient.getQueryData<ProjectPublic>([
@@ -217,37 +219,45 @@ function LocalServer() {
         ) : (
           <Flex>
             {localServerRunning ? (
-              <Box mr={4} width="60%">
+              <Box mr={8} width="60%">
                 <Text>The local server is running.</Text>
                 {/* Actions that are only possible if repo has been cloned */}
                 {localWorkingDir ? (
                   <>
-                    <Button m={2} variant="primary" onClick={openVSCode}>
-                      Open in VSCode <Icon ml={1} as={FiExternalLink} />
-                    </Button>
-                    <Button
-                      m={2}
-                      variant="primary"
-                      onClick={() => jupyterServerMutation.mutate()}
-                      isLoading={
-                        jupyterServerQuery.isPending ||
-                        jupyterServerMutation.isPending ||
-                        jupyterServerQuery.isRefetching
-                      }
-                    >
-                      {!jupyterServerQuery.data?.data?.url
-                        ? "Start Jupyter server"
-                        : "Stop Jupyter server"}
-                    </Button>
-                    {jupyterServerQuery.data?.data?.url ? (
-                      <Link isExternal href={jupyterServerQuery.data?.data.url}>
-                        <Button variant="primary" m={2}>
-                          Open JupyterLab <Icon ml={1} as={FiExternalLink} />
-                        </Button>
-                      </Link>
-                    ) : (
-                      ""
-                    )}
+                    <Box bg={secBgColor} p={4} borderRadius="lg" mt={4}>
+                      <Heading size="md" mb={2}>
+                        Actions
+                      </Heading>
+                      <Button m={2} variant="primary" onClick={openVSCode}>
+                        Open in VSCode <Icon ml={1} as={FiExternalLink} />
+                      </Button>
+                      <Button
+                        m={2}
+                        variant="primary"
+                        onClick={() => jupyterServerMutation.mutate()}
+                        isLoading={
+                          jupyterServerQuery.isPending ||
+                          jupyterServerMutation.isPending ||
+                          jupyterServerQuery.isRefetching
+                        }
+                      >
+                        {!jupyterServerQuery.data?.data?.url
+                          ? "Start Jupyter server"
+                          : "Stop Jupyter server"}
+                      </Button>
+                      {jupyterServerQuery.data?.data?.url ? (
+                        <Link
+                          isExternal
+                          href={jupyterServerQuery.data?.data.url}
+                        >
+                          <Button variant="primary" m={2}>
+                            Open JupyterLab <Icon ml={1} as={FiExternalLink} />
+                          </Button>
+                        </Link>
+                      ) : (
+                        ""
+                      )}
+                    </Box>
                   </>
                 ) : (
                   ""
@@ -264,10 +274,10 @@ function LocalServer() {
             {/* Right hand side status box */}
             <Box
               borderRadius="lg"
-              borderWidth={1}
               width="40%"
               p={4}
-              height="80vh"
+              height="70vh"
+              bg={secBgColor}
             >
               <Flex>
                 <Heading size="md" mb={2} mr={1}>
