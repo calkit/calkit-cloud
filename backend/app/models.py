@@ -365,6 +365,14 @@ class Project(ProjectBase, table=True):
     ):
         self._current_user_access = val
 
+    @property
+    def github_repo(self) -> str | None:
+        if not self.git_repo_url.startswith("https://github.com"):
+            return
+        return self.git_repo_url.removeprefix(
+            "https://github.com/"
+        ).removesuffix(".git")
+
 
 class ProjectPublic(ProjectBase):
     id: uuid.UUID

@@ -1968,10 +1968,10 @@ def get_project_collaborators(
     # TODO: GitHub requires higher permissions to get collaborators
     # Maybe for read-only people we should return contributors?
     token = users.get_github_token(session=session, user=current_user)
-    url = (
-        f"https://api.github.com/repos/{owner_name}/{project_name}/"
-        "collaborators"
-    )
+    github_repo = project.github_repo
+    if github_repo is None:
+        raise HTTPException(501)
+    url = f"https://api.github.com/repos/{github_repo}/collaborators"
     resp = requests.get(url, headers={"Authorization": f"Bearer {token}"})
     if not resp.status_code == 200:
         raise HTTPException(resp.status_code, resp.json()["message"])
@@ -2086,7 +2086,10 @@ def get_project_issues(
         min_access_level="read",
     )
     token = users.get_github_token(session=session, user=current_user)
-    url = f"https://api.github.com/repos/{owner_name}/{project_name}/issues"
+    github_repo = project.github_repo
+    if github_repo is None:
+        raise HTTPException(501)
+    url = f"https://api.github.com/repos/{github_repo}/issues"
     resp = requests.get(
         url,
         headers={"Authorization": f"Bearer {token}"},
@@ -2133,7 +2136,7 @@ def post_project_issue(
         min_access_level="write",
     )
     token = users.get_github_token(session=session, user=current_user)
-    url = f"https://api.github.com/repos/{owner_name}/{project_name}/issues"
+    url = f"https://api.github.com/repos/{project.github_repo}/issues"
     resp = requests.post(
         url,
         headers={"Authorization": f"Bearer {token}"},
@@ -2175,7 +2178,7 @@ def patch_project_issue(
     # TODO: A user who created the issue can edit?
     token = users.get_github_token(session=session, user=current_user)
     url = (
-        f"https://api.github.com/repos/{owner_name}/{project_name}/"
+        f"https://api.github.com/repos/{project.github_repo}/"
         f"issues/{issue_number}"
     )
     resp = requests.patch(
