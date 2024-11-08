@@ -27,6 +27,7 @@ import AddPath from "../../../../../components/Local/AddPath"
 import IgnorePath from "../../../../../components/Local/IgnorePath"
 import useCustomToast from "../../../../../hooks/useCustomToast"
 import SaveFiles from "../../../../../components/Local/SaveFiles"
+import DiscardChanges from "../../../../../components/Local/DiscardChanges"
 
 export const Route = createFileRoute(
   "/_layout/$userName/$projectName/_layout/local",
@@ -208,6 +209,7 @@ function LocalServer() {
   })
   const newStageModal = useDisclosure()
   const saveFilesModal = useDisclosure()
+  const discardAlertDialog = useDisclosure()
 
   return (
     <>
@@ -479,9 +481,18 @@ function LocalServer() {
                           changedFiles={changedFiles}
                           stagedFiles={stagedFiles}
                         />
-                        <Button size="xs" variant="danger" ml={1}>
+                        <Button
+                          size="xs"
+                          variant="danger"
+                          ml={1}
+                          onClick={discardAlertDialog.onOpen}
+                        >
                           Discard
                         </Button>
+                        <DiscardChanges
+                          onClose={discardAlertDialog.onClose}
+                          isOpen={discardAlertDialog.isOpen}
+                        />
                       </>
                     ) : (
                       ""
