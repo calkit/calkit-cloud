@@ -509,6 +509,19 @@ function LocalServer() {
                   ) : (
                     ""
                   )}
+                  {stagedFiles.length === 0 && changedFiles.length === 0 ? (
+                    <Text>
+                      Repo is clean
+                      <Icon
+                        ml={0.5}
+                        height="13px"
+                        color="green.500"
+                        as={FaCheck}
+                      />
+                    </Text>
+                  ) : (
+                    ""
+                  )}
                   {/* Pipeline section of status */}
                   <Flex mb={1} mt={4} alignItems="center">
                     <Heading size="sm" mr={1}>
