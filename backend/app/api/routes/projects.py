@@ -202,13 +202,11 @@ def create_project(
         # Add a calkit.yaml file
         with open(os.path.join(repo.working_dir, "calkit.yaml"), "w") as f:
             ck_info = {
-                "project": {
-                    "owner": owner_name,
-                    "name": project.name,
-                    "title": project.title,
-                    "description": project.description,
-                    "git_repo_url": project.git_repo_url,
-                }
+                "owner": owner_name,
+                "name": project.name,
+                "title": project.title,
+                "description": project.description,
+                "git_repo_url": project.git_repo_url,
             }
             ryaml.dump(ck_info, f)
         repo.git.add("calkit.yaml")
