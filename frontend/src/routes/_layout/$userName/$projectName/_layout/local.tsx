@@ -108,7 +108,6 @@ function LocalServer() {
   const commitsBehind = statusQuery.data?.data?.git.commits_behind
   const untrackedFiles = statusQuery.data?.data?.git.untracked
   const changedFiles = statusQuery.data?.data?.git.changed
-  console.log("staus query", statusQuery.data?.data?.git)
   const stagedFiles = statusQuery.data?.data?.git.staged
   const pipelineUpToDate =
     JSON.stringify(statusQuery.data?.data?.dvc.pipeline) === "{}"
