@@ -219,7 +219,7 @@ function LocalServer() {
         ) : (
           <Flex>
             {localServerRunning ? (
-              <Box mr={8} width="60%">
+              <Box mr={12} width="60%">
                 <Text>The local server is running.</Text>
                 {/* Actions that are only possible if repo has been cloned */}
                 {localWorkingDir ? (
@@ -276,7 +276,7 @@ function LocalServer() {
               borderRadius="lg"
               width="40%"
               p={4}
-              height="70vh"
+              height="75vh"
               bg={secBgColor}
             >
               <Flex>
