@@ -18,6 +18,7 @@ import { useQueryClient, useMutation } from "@tanstack/react-query"
 import { getRouteApi } from "@tanstack/react-router"
 import { type SubmitHandler, useForm } from "react-hook-form"
 import axios from "axios"
+import { useEffect } from "react"
 
 import useCustomToast from "../../hooks/useCustomToast"
 
@@ -49,6 +50,8 @@ const SaveFiles = ({
     register,
     handleSubmit,
     reset,
+    watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<CommitPost>({
     mode: "onBlur",
@@ -84,6 +87,12 @@ const SaveFiles = ({
   const onSubmit: SubmitHandler<CommitPost> = (data) => {
     mutation.mutate(data)
   }
+  // Watch paths variable and automatically update commit message
+  const watchPaths = watch("paths")
+  useEffect(() => {
+    const message = `Update ${watchPaths.join(", ")}`
+    setValue("commit_message", message)
+  }, [watchPaths, setValue])
 
   return (
     <>
