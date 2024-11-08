@@ -32,7 +32,7 @@ const SaveFiles = ({ isOpen, onClose }: saveFilesProps) => {
           <ModalCloseButton />
           <ModalBody pb={4}>
             <FormControl isRequired mb={2}>
-              <FormLabel htmlFor="name">Commit Message</FormLabel>
+              <FormLabel htmlFor="name">Commit message</FormLabel>
               <Input id="name" placeholder="Ex: Update test.py" />
             </FormControl>
           </ModalBody>
