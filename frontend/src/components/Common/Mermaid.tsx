@@ -14,7 +14,7 @@ interface MermaidProps {
 const Mermaid = ({
   children,
   isDiagramExpanded,
-  setIsDiagramExpanded: setIsDiagramExpanded,
+  setIsDiagramExpanded,
 }: MermaidProps) => {
   const zoomBehaviorRef = useRef<ZoomBehavior<Element, unknown> | null>(null)
 
