@@ -204,7 +204,6 @@ function LocalServer() {
     },
   })
   const newStageModal = useDisclosure()
-  const saveFilesModal = useDisclosure()
 
   return (
     <>
@@ -460,22 +459,25 @@ function LocalServer() {
                   {/* Changed files */}
                   <Flex alignItems="center" mb={1} mt={4}>
                     <Heading size="sm">Uncommitted changes</Heading>
-                    <Button
-                      size="xs"
-                      variant="primary"
-                      ml={1}
-                      onClick={saveFilesModal.onOpen}
-                    >
-                      Save
-                    </Button>
-                    <SaveFiles
-                      isOpen={saveFilesModal.isOpen}
-                      onClose={saveFilesModal.onClose}
-                    />
-                    <Button size="xs" variant="danger" ml={1}>
-                      Discard
-                    </Button>
+                    {stagedFiles || changedFiles ? (
+                      <SaveFiles paths={stagedFiles + changedFiles} />
+                    ) : (
+                      ""
+                    )}
                   </Flex>
+                  {!stagedFiles && !changedFiles ? (
+                    <Text>
+                      Repo is clean
+                      <Icon
+                        ml={0.5}
+                        height="13px"
+                        color="green.500"
+                        as={FaCheck}
+                      />
+                    </Text>
+                  ) : (
+                    ""
+                  )}
                   {stagedFiles ? (
                     <>
                       {stagedFiles.map((fpath: string) => (
