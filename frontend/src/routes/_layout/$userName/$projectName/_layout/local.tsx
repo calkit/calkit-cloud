@@ -104,21 +104,21 @@ function LocalServer() {
       ),
     retry: false,
   })
-  const commitsAhead = statusQuery.data?.data?.git.commits_ahead
-  const commitsBehind = statusQuery.data?.data?.git.commits_behind
-  const untrackedFiles = statusQuery.data?.data?.git.untracked
-  const changedFiles = statusQuery.data?.data?.git.changed.concat(
-    statusQuery.data?.data?.dvc.data.changed,
-  )
-  const stagedFiles = statusQuery.data?.data?.git.staged.concat(
-    statusQuery.data?.data?.dvc.data.staged,
-  )
+  const commitsAhead = statusQuery.data?.data?.git?.commits_ahead
+  const commitsBehind = statusQuery.data?.data?.git?.commits_behind
+  const untrackedFiles = statusQuery.data?.data?.git?.untracked ?? []
+  const gitChangedFiles = statusQuery.data?.data?.git?.changed ?? []
+  const dvcChangedFiles = statusQuery.data?.data?.dvc?.data?.changed ?? []
+  const changedFiles = gitChangedFiles.concat(dvcChangedFiles)
+  const gitStagedFiles = statusQuery.data?.data?.git?.staged ?? []
+  const dvcStagedFiles = statusQuery.data?.data?.dvc?.data?.staged ?? []
+  const stagedFiles = gitStagedFiles.concat(dvcStagedFiles)
   const pipelineUpToDate =
     JSON.stringify(statusQuery.data?.data?.dvc.pipeline) === "{}"
   const dvcNeedsPull =
-    statusQuery.data?.data?.dvc?.data?.not_in_cache.length > 0
+    statusQuery.data?.data?.dvc?.data?.not_in_cache?.length > 0
   const dvcNeedsPush =
-    statusQuery.data?.data?.dvc?.data?.not_in_remote.length > 0
+    statusQuery.data?.data?.dvc?.data?.not_in_remote?.length > 0
   const gitPushMutation = useMutation({
     mutationFn: () => {
       const url = `http://localhost:8866/projects/${userName}/${projectName}/git/push`
@@ -277,320 +277,327 @@ function LocalServer() {
               </Box>
             )}
             {/* Right hand side status box */}
-            <Box
-              borderRadius="lg"
-              width="40%"
-              p={4}
-              height="75vh"
-              bg={secBgColor}
-            >
-              <Flex>
-                <Heading size="md" mb={2} mr={1}>
-                  Status
-                </Heading>
-                <IconButton
-                  aria-label="refresh"
-                  height="25px"
-                  icon={<FaSync />}
-                  onClick={() => {
-                    statusQuery.refetch()
-                    pipelineQuery.refetch()
-                  }}
-                  isLoading={statusQuery.isRefetching}
-                />
-              </Flex>
-              {statusQuery.isPending ||
-              statusQuery.isRefetching ||
-              pipelineQuery.isPending ||
-              pipelineQuery.isRefetching ? (
-                <Flex
-                  justify="center"
-                  align="center"
-                  height="full"
-                  width="full"
+            {localServerRunning ? (
+              <>
+                <Box
+                  borderRadius="lg"
+                  width="40%"
+                  p={4}
+                  height="75vh"
+                  bg={secBgColor}
                 >
-                  <Spinner size="xl" color="ui.main" />
-                </Flex>
-              ) : (
-                <>
-                  {localWorkingDir ? (
-                    <Text>
-                      The repo is cloned locally in{" "}
-                      <Link onClick={openFolder}>{localWorkingDir}</Link>.
-                    </Text>
-                  ) : (
-                    <Flex alignItems="center">
-                      <Text>
-                        The repo has not yet been cloned to this machine.
-                      </Text>
-                      <Button
-                        ml={1}
-                        size="xs"
-                        variant="primary"
-                        onClick={() => cloneMutation.mutate()}
-                        isLoading={cloneMutation.isPending}
-                      >
-                        Clone
-                      </Button>
-                    </Flex>
-                  )}
-                  {!statusQuery.isPending && !statusQuery.error ? (
-                    <>
-                      <Heading size="sm" mb={1} mt={4}>
-                        Cloud sync
-                      </Heading>
-                      {commitsAhead ? (
-                        <Flex alignItems="center">
-                          <Text mr={1} color="yellow.500">
-                            There are {commitsAhead} commits to push to Git
-                            remote.
-                          </Text>
-                          <Button
-                            variant="primary"
-                            size="xs"
-                            aria-label="push"
-                            onClick={() => gitPushMutation.mutate()}
-                            isLoading={gitPushMutation.isPending}
-                          >
-                            Push
-                          </Button>
-                        </Flex>
-                      ) : (
-                        ""
-                      )}
-                      {commitsBehind ? (
-                        <Flex alignItems="center">
-                          <Text mr={1} color="yellow.500">
-                            There are {commitsBehind} commits to pull from Git
-                            remote.
-                          </Text>
-                          <Button
-                            variant="primary"
-                            size="xs"
-                            aria-label="pull"
-                            onClick={() => gitPullMutation.mutate()}
-                            isLoading={gitPullMutation.isPending}
-                          >
-                            Pull
-                          </Button>
-                        </Flex>
-                      ) : (
-                        ""
-                      )}
-                      {commitsAhead === 0 && commitsBehind === 0 ? (
-                        <Text>
-                          Repo is synced with Git remote
-                          <Icon
-                            ml={0.5}
-                            height="13px"
-                            color="green.500"
-                            as={FaCheck}
-                          />
-                        </Text>
-                      ) : (
-                        ""
-                      )}
-                      {dvcNeedsPull ? (
-                        <Flex alignItems="center" mt={1}>
-                          <Text color="yellow.500" mr={1}>
-                            There are changes to pull from DVC remote.
-                          </Text>
-                          <Button
-                            variant="primary"
-                            size="xs"
-                            aria-label="dvc-pull"
-                            onClick={() => dvcPullMutation.mutate()}
-                            isLoading={dvcPullMutation.isPending}
-                          >
-                            Pull
-                          </Button>
-                        </Flex>
-                      ) : (
-                        ""
-                      )}
-                      {dvcNeedsPush ? (
-                        <Flex alignItems="center" mt={1}>
-                          <Text color="yellow.500" mr={1}>
-                            There are changes to push to DVC remote.
-                          </Text>
-                          <Button
-                            variant="primary"
-                            size="xs"
-                            aria-label="dvc-push"
-                            onClick={() => dvcPushMutation.mutate()}
-                            isLoading={dvcPushMutation.isPending}
-                          >
-                            Push
-                          </Button>
-                        </Flex>
-                      ) : (
-                        ""
-                      )}
-                      {!dvcNeedsPull && !dvcNeedsPush ? (
-                        <Text>
-                          Repo is synced with DVC remote
-                          <Icon
-                            ml={0.5}
-                            height="13px"
-                            color="green.500"
-                            as={FaCheck}
-                          />
-                        </Text>
-                      ) : (
-                        ""
-                      )}
-                    </>
-                  ) : (
-                    ""
-                  )}
-                  {/* Untracked files */}
-                  {untrackedFiles && untrackedFiles.length > 0 ? (
-                    <>
-                      <Heading size="sm" mb={1} mt={4}>
-                        Untracked files
-                      </Heading>
-                      {untrackedFiles.map((fpath: string) => (
-                        <Flex key={fpath} alignItems="center" mb={1}>
-                          <Text color="red.500" mr={1}>
-                            {fpath}
-                          </Text>
-                          <AddPath path={fpath} />
-                          <IgnorePath path={fpath} />
-                        </Flex>
-                      ))}
-                    </>
-                  ) : (
-                    ""
-                  )}
-                  {/* Changed files */}
-                  <Flex alignItems="center" mb={1} mt={4}>
-                    <Heading size="sm">Uncommitted changes</Heading>
-                    {stagedFiles.length > 0 || changedFiles.length > 0 ? (
-                      <>
-                        <Button
-                          size="xs"
-                          variant="primary"
-                          ml={1}
-                          onClick={saveFilesModal.onOpen}
-                        >
-                          Commit
-                        </Button>
-                        <SaveFiles
-                          isOpen={saveFilesModal.isOpen}
-                          onClose={saveFilesModal.onClose}
-                          changedFiles={changedFiles}
-                          stagedFiles={stagedFiles}
-                        />
-                        <Button
-                          size="xs"
-                          variant="danger"
-                          ml={1}
-                          onClick={discardAlertDialog.onOpen}
-                        >
-                          Discard
-                        </Button>
-                        <DiscardChanges
-                          onClose={discardAlertDialog.onClose}
-                          isOpen={discardAlertDialog.isOpen}
-                        />
-                      </>
-                    ) : (
-                      ""
-                    )}
-                  </Flex>
-                  {stagedFiles ? (
-                    <>
-                      {stagedFiles.map((fpath: string) => (
-                        <Flex key={fpath} alignItems="center">
-                          <Text color="green.500" mr={1}>
-                            {fpath}
-                          </Text>
-                        </Flex>
-                      ))}
-                    </>
-                  ) : (
-                    ""
-                  )}
-                  {changedFiles ? (
-                    <>
-                      {changedFiles.map((fpath: string) => (
-                        <Flex key={fpath} alignItems="center">
-                          <Text color="red.500" mr={1}>
-                            {fpath}
-                          </Text>
-                        </Flex>
-                      ))}
-                    </>
-                  ) : (
-                    ""
-                  )}
-                  {stagedFiles.length === 0 && changedFiles.length === 0 ? (
-                    <Text>
-                      Repo is clean
-                      <Icon
-                        ml={0.5}
-                        height="13px"
-                        color="green.500"
-                        as={FaCheck}
-                      />
-                    </Text>
-                  ) : (
-                    ""
-                  )}
-                  {/* Pipeline section of status */}
-                  <Flex mb={1} mt={4} alignItems="center">
-                    <Heading size="sm" mr={1}>
-                      Pipeline
+                  <Flex>
+                    <Heading size="md" mb={2} mr={1}>
+                      Status
                     </Heading>
-                    {localWorkingDir && !pipelineUpToDate ? (
-                      <Flex alignItems="center">
-                        <Badge mr={1} color="yellow.500">
-                          Out-of-date
-                        </Badge>
-                        <Button
-                          size="xs"
-                          variant="primary"
-                          onClick={() => runPipelineMutation.mutate()}
-                          isLoading={runPipelineMutation.isPending}
-                        >
-                          Run
-                        </Button>
-                      </Flex>
-                    ) : (
-                      <Badge color="green.500">Up-to-date</Badge>
-                    )}
-                    <Button
-                      ml={1}
-                      variant="primary"
-                      size="xs"
-                      onClick={newStageModal.onOpen}
-                    >
-                      <Icon mr={0.5} as={FaPlus} /> New stage
-                    </Button>
-                    <NewStage
-                      isOpen={newStageModal.isOpen}
-                      onClose={newStageModal.onClose}
+                    <IconButton
+                      aria-label="refresh"
+                      height="25px"
+                      icon={<FaSync />}
+                      onClick={() => {
+                        statusQuery.refetch()
+                        pipelineQuery.refetch()
+                      }}
+                      isLoading={statusQuery.isRefetching}
                     />
                   </Flex>
-                  {!pipelineQuery.error && pipelineQuery.data?.data ? (
-                    <>
-                      <Heading size="xs">All stages</Heading>
-                      <UnorderedList>
-                        {Object.entries(pipelineQuery.data.data.stages).map(
-                          ([k, _]) => (
-                            <ListItem key={k}>
-                              <Code fontSize="small">{k}</Code>
-                            </ListItem>
-                          ),
-                        )}
-                      </UnorderedList>
-                    </>
+                  {statusQuery.isPending ||
+                  statusQuery.isRefetching ||
+                  pipelineQuery.isPending ||
+                  pipelineQuery.isRefetching ? (
+                    <Flex
+                      justify="center"
+                      align="center"
+                      height="full"
+                      width="full"
+                    >
+                      <Spinner size="xl" color="ui.main" />
+                    </Flex>
                   ) : (
-                    ""
+                    <>
+                      {localWorkingDir ? (
+                        <Text>
+                          The repo is cloned locally in{" "}
+                          <Link onClick={openFolder}>{localWorkingDir}</Link>.
+                        </Text>
+                      ) : (
+                        <Flex alignItems="center">
+                          <Text>
+                            The repo has not yet been cloned to this machine.
+                          </Text>
+                          <Button
+                            ml={1}
+                            size="xs"
+                            variant="primary"
+                            onClick={() => cloneMutation.mutate()}
+                            isLoading={cloneMutation.isPending}
+                          >
+                            Clone
+                          </Button>
+                        </Flex>
+                      )}
+                      {!statusQuery.isPending && !statusQuery.error ? (
+                        <>
+                          <Heading size="sm" mb={1} mt={4}>
+                            Cloud sync
+                          </Heading>
+                          {commitsAhead ? (
+                            <Flex alignItems="center">
+                              <Text mr={1} color="yellow.500">
+                                There are {commitsAhead} commits to push to Git
+                                remote.
+                              </Text>
+                              <Button
+                                variant="primary"
+                                size="xs"
+                                aria-label="push"
+                                onClick={() => gitPushMutation.mutate()}
+                                isLoading={gitPushMutation.isPending}
+                              >
+                                Push
+                              </Button>
+                            </Flex>
+                          ) : (
+                            ""
+                          )}
+                          {commitsBehind ? (
+                            <Flex alignItems="center">
+                              <Text mr={1} color="yellow.500">
+                                There are {commitsBehind} commits to pull from
+                                Git remote.
+                              </Text>
+                              <Button
+                                variant="primary"
+                                size="xs"
+                                aria-label="pull"
+                                onClick={() => gitPullMutation.mutate()}
+                                isLoading={gitPullMutation.isPending}
+                              >
+                                Pull
+                              </Button>
+                            </Flex>
+                          ) : (
+                            ""
+                          )}
+                          {commitsAhead === 0 && commitsBehind === 0 ? (
+                            <Text>
+                              Repo is synced with Git remote
+                              <Icon
+                                ml={0.5}
+                                height="13px"
+                                color="green.500"
+                                as={FaCheck}
+                              />
+                            </Text>
+                          ) : (
+                            ""
+                          )}
+                          {dvcNeedsPull ? (
+                            <Flex alignItems="center" mt={1}>
+                              <Text color="yellow.500" mr={1}>
+                                There are changes to pull from DVC remote.
+                              </Text>
+                              <Button
+                                variant="primary"
+                                size="xs"
+                                aria-label="dvc-pull"
+                                onClick={() => dvcPullMutation.mutate()}
+                                isLoading={dvcPullMutation.isPending}
+                              >
+                                Pull
+                              </Button>
+                            </Flex>
+                          ) : (
+                            ""
+                          )}
+                          {dvcNeedsPush ? (
+                            <Flex alignItems="center" mt={1}>
+                              <Text color="yellow.500" mr={1}>
+                                There are changes to push to DVC remote.
+                              </Text>
+                              <Button
+                                variant="primary"
+                                size="xs"
+                                aria-label="dvc-push"
+                                onClick={() => dvcPushMutation.mutate()}
+                                isLoading={dvcPushMutation.isPending}
+                              >
+                                Push
+                              </Button>
+                            </Flex>
+                          ) : (
+                            ""
+                          )}
+                          {!dvcNeedsPull && !dvcNeedsPush ? (
+                            <Text>
+                              Repo is synced with DVC remote
+                              <Icon
+                                ml={0.5}
+                                height="13px"
+                                color="green.500"
+                                as={FaCheck}
+                              />
+                            </Text>
+                          ) : (
+                            ""
+                          )}
+                        </>
+                      ) : (
+                        ""
+                      )}
+                      {/* Untracked files */}
+                      {untrackedFiles && untrackedFiles.length > 0 ? (
+                        <>
+                          <Heading size="sm" mb={1} mt={4}>
+                            Untracked files
+                          </Heading>
+                          {untrackedFiles.map((fpath: string) => (
+                            <Flex key={fpath} alignItems="center" mb={1}>
+                              <Text color="red.500" mr={1}>
+                                {fpath}
+                              </Text>
+                              <AddPath path={fpath} />
+                              <IgnorePath path={fpath} />
+                            </Flex>
+                          ))}
+                        </>
+                      ) : (
+                        ""
+                      )}
+                      {/* Changed files */}
+                      <Flex alignItems="center" mb={1} mt={4}>
+                        <Heading size="sm">Uncommitted changes</Heading>
+                        {(stagedFiles && stagedFiles.length > 0) ||
+                        (changedFiles && changedFiles.length > 0) ? (
+                          <>
+                            <Button
+                              size="xs"
+                              variant="primary"
+                              ml={1}
+                              onClick={saveFilesModal.onOpen}
+                            >
+                              Commit
+                            </Button>
+                            <SaveFiles
+                              isOpen={saveFilesModal.isOpen}
+                              onClose={saveFilesModal.onClose}
+                              changedFiles={changedFiles}
+                              stagedFiles={stagedFiles}
+                            />
+                            <Button
+                              size="xs"
+                              variant="danger"
+                              ml={1}
+                              onClick={discardAlertDialog.onOpen}
+                            >
+                              Discard
+                            </Button>
+                            <DiscardChanges
+                              onClose={discardAlertDialog.onClose}
+                              isOpen={discardAlertDialog.isOpen}
+                            />
+                          </>
+                        ) : (
+                          ""
+                        )}
+                      </Flex>
+                      {stagedFiles ? (
+                        <>
+                          {stagedFiles.map((fpath: string) => (
+                            <Flex key={fpath} alignItems="center">
+                              <Text color="green.500" mr={1}>
+                                {fpath}
+                              </Text>
+                            </Flex>
+                          ))}
+                        </>
+                      ) : (
+                        ""
+                      )}
+                      {changedFiles ? (
+                        <>
+                          {changedFiles.map((fpath: string) => (
+                            <Flex key={fpath} alignItems="center">
+                              <Text color="red.500" mr={1}>
+                                {fpath}
+                              </Text>
+                            </Flex>
+                          ))}
+                        </>
+                      ) : (
+                        ""
+                      )}
+                      {stagedFiles.length === 0 && changedFiles.length === 0 ? (
+                        <Text>
+                          Repo is clean
+                          <Icon
+                            ml={0.5}
+                            height="13px"
+                            color="green.500"
+                            as={FaCheck}
+                          />
+                        </Text>
+                      ) : (
+                        ""
+                      )}
+                      {/* Pipeline section of status */}
+                      <Flex mb={1} mt={4} alignItems="center">
+                        <Heading size="sm" mr={1}>
+                          Pipeline
+                        </Heading>
+                        {localWorkingDir && !pipelineUpToDate ? (
+                          <Flex alignItems="center">
+                            <Badge mr={1} color="yellow.500">
+                              Out-of-date
+                            </Badge>
+                            <Button
+                              size="xs"
+                              variant="primary"
+                              onClick={() => runPipelineMutation.mutate()}
+                              isLoading={runPipelineMutation.isPending}
+                            >
+                              Run
+                            </Button>
+                          </Flex>
+                        ) : (
+                          <Badge color="green.500">Up-to-date</Badge>
+                        )}
+                        <Button
+                          ml={1}
+                          variant="primary"
+                          size="xs"
+                          onClick={newStageModal.onOpen}
+                        >
+                          <Icon mr={0.5} as={FaPlus} /> New stage
+                        </Button>
+                        <NewStage
+                          isOpen={newStageModal.isOpen}
+                          onClose={newStageModal.onClose}
+                        />
+                      </Flex>
+                      {!pipelineQuery.error && pipelineQuery.data?.data ? (
+                        <>
+                          <Heading size="xs">All stages</Heading>
+                          <UnorderedList>
+                            {Object.entries(pipelineQuery.data.data.stages).map(
+                              ([k, _]) => (
+                                <ListItem key={k}>
+                                  <Code fontSize="small">{k}</Code>
+                                </ListItem>
+                              ),
+                            )}
+                          </UnorderedList>
+                        </>
+                      ) : (
+                        ""
+                      )}
+                    </>
                   )}
-                </>
-              )}
-            </Box>
+                </Box>
+              </>
+            ) : (
+              ""
+            )}
           </Flex>
         )}
       </Box>
