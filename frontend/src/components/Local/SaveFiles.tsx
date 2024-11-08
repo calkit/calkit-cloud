@@ -13,6 +13,7 @@ import {
   Checkbox,
   Flex,
   Heading,
+  FormHelperText,
 } from "@chakra-ui/react"
 import { useQueryClient, useMutation } from "@tanstack/react-query"
 import { getRouteApi } from "@tanstack/react-router"
@@ -107,33 +108,40 @@ const SaveFiles = ({
           <ModalHeader>Save uncommitted file changes</ModalHeader>
           <ModalCloseButton />
           <ModalBody pb={4}>
-            <Flex alignItems="center">
-              <Heading size="sm" mb={1}>
-                Selected files
-              </Heading>
-            </Flex>
-            {changedFiles.map((fpath: string) => (
-              <Checkbox
-                key={fpath}
-                colorScheme="teal"
-                textColor="red.500"
-                value={fpath}
-                {...register("paths")}
-              >
-                {fpath}
-              </Checkbox>
-            ))}
-            {stagedFiles.map((fpath: string) => (
-              <Checkbox
-                key={fpath}
-                colorScheme="teal"
-                textColor="green.500"
-                value={fpath}
-                {...register("paths")}
-              >
-                {fpath} (staged)
-              </Checkbox>
-            ))}
+            <FormControl isInvalid={!!errors.paths}>
+              <FormLabel>Selected files</FormLabel>
+              {changedFiles.map((fpath: string) => (
+                <Checkbox
+                  key={fpath}
+                  colorScheme="teal"
+                  textColor="red.500"
+                  value={fpath}
+                  type="checkbox"
+                  {...register("paths", { required: true })}
+                >
+                  {fpath}
+                </Checkbox>
+              ))}
+              {stagedFiles.map((fpath: string) => (
+                <Checkbox
+                  key={fpath}
+                  colorScheme="teal"
+                  textColor="green.500"
+                  type="checkbox"
+                  value={fpath}
+                  {...register("paths", { required: true })}
+                >
+                  {fpath}
+                </Checkbox>
+              ))}
+              {errors.paths ? (
+                <FormHelperText color="red.500">
+                  At least one must be selected.
+                </FormHelperText>
+              ) : (
+                ""
+              )}
+            </FormControl>
             <FormControl
               isRequired
               mb={2}
