@@ -12,10 +12,8 @@ import {
   ModalOverlay,
   Checkbox,
   Flex,
-  Text,
   Heading,
 } from "@chakra-ui/react"
-import { useState } from "react"
 import { useQueryClient, useMutation } from "@tanstack/react-query"
 import { getRouteApi } from "@tanstack/react-router"
 import { type SubmitHandler, useForm } from "react-hook-form"
