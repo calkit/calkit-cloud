@@ -27,7 +27,7 @@ import NewStage from "../../../../../components/Local/NewStage"
 import AddPath from "../../../../../components/Local/AddPath"
 import IgnorePath from "../../../../../components/Local/IgnorePath"
 import useCustomToast from "../../../../../hooks/useCustomToast"
-import SaveFiles from "../../../../../components/Local/saveFiles"
+import SaveFiles from "../../../../../components/Local/SaveFiles"
 
 export const Route = createFileRoute(
   "/_layout/$userName/$projectName/_layout/local",
@@ -108,6 +108,7 @@ function LocalServer() {
   const commitsBehind = statusQuery.data?.data?.git.commits_behind
   const untrackedFiles = statusQuery.data?.data?.git.untracked
   const changedFiles = statusQuery.data?.data?.git.changed
+  console.log('staus query', statusQuery.data?.data?.git)
   const stagedFiles = statusQuery.data?.data?.git.staged
   const pipelineUpToDate =
     JSON.stringify(statusQuery.data?.data?.dvc.pipeline) === "{}"
@@ -471,6 +472,7 @@ function LocalServer() {
                     <SaveFiles
                       isOpen={saveFilesModal.isOpen}
                       onClose={saveFilesModal.onClose}
+                      changedFiles={changedFiles}
                     />
                     <Button size="xs" variant="danger" ml={1}>
                       Discard
@@ -493,11 +495,9 @@ function LocalServer() {
                     <>
                       {changedFiles.map((fpath: string) => (
                         <Flex key={fpath} alignItems="center">
-                          <Checkbox>
-                            <Text color="red.500" mr={1}>
-                              {fpath}
-                            </Text>
-                          </Checkbox>
+                          <Text color="red.500" mr={1}>
+                            {fpath}
+                          </Text>
                         </Flex>
                       ))}
                     </>
