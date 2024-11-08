@@ -104,7 +104,7 @@ const SaveFiles = ({
       >
         <ModalOverlay />
         <ModalContent as="form" onSubmit={handleSubmit(onSubmit)}>
-          <ModalHeader>Save uncommitted file changes</ModalHeader>
+          <ModalHeader>Commit changes</ModalHeader>
           <ModalCloseButton />
           <ModalBody pb={4}>
             <FormControl isInvalid={!!errors.paths}>

@@ -13,7 +13,6 @@ import {
   UnorderedList,
   Badge,
   useDisclosure,
-  Checkbox,
   useColorModeValue,
 } from "@chakra-ui/react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
