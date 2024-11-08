@@ -471,7 +471,7 @@ function LocalServer() {
                           ml={1}
                           onClick={saveFilesModal.onOpen}
                         >
-                          Save
+                          Commit
                         </Button>
                         <SaveFiles
                           isOpen={saveFilesModal.isOpen}
