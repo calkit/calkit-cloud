@@ -11,8 +11,7 @@ import {
   ModalHeader,
   ModalOverlay,
   Checkbox,
-  Flex,
-  Heading,
+  Box,
   FormHelperText,
 } from "@chakra-ui/react"
 import { useQueryClient, useMutation } from "@tanstack/react-query"
@@ -111,28 +110,30 @@ const SaveFiles = ({
             <FormControl isInvalid={!!errors.paths}>
               <FormLabel>Selected files</FormLabel>
               {changedFiles.map((fpath: string) => (
-                <Checkbox
-                  key={fpath}
-                  colorScheme="teal"
-                  textColor="red.500"
-                  value={fpath}
-                  type="checkbox"
-                  {...register("paths", { required: true })}
-                >
-                  {fpath}
-                </Checkbox>
+                <Box key={fpath}>
+                  <Checkbox
+                    colorScheme="teal"
+                    textColor="red.500"
+                    value={fpath}
+                    type="checkbox"
+                    {...register("paths", { required: true })}
+                  >
+                    {fpath}
+                  </Checkbox>
+                </Box>
               ))}
               {stagedFiles.map((fpath: string) => (
-                <Checkbox
-                  key={fpath}
-                  colorScheme="teal"
-                  textColor="green.500"
-                  type="checkbox"
-                  value={fpath}
-                  {...register("paths", { required: true })}
-                >
-                  {fpath}
-                </Checkbox>
+                <Box key={fpath}>
+                  <Checkbox
+                    colorScheme="teal"
+                    textColor="green.500"
+                    type="checkbox"
+                    value={fpath}
+                    {...register("paths", { required: true })}
+                  >
+                    {fpath}
+                  </Checkbox>
+                </Box>
               ))}
               {errors.paths ? (
                 <FormHelperText color="red.500">
