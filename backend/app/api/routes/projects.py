@@ -17,6 +17,7 @@ import bibtexparser
 import gcsfs
 import requests
 import s3fs
+import sqlalchemy
 import yaml
 from app import users
 from app.api.deps import CurrentUser, CurrentUserDvcScope, SessionDep
@@ -43,13 +44,13 @@ from app.models import (
     FileLock,
     Message,
     Org,
+    Pipeline,
     Project,
     ProjectCreate,
     ProjectPublic,
     ProjectsPublic,
     Question,
     User,
-    Pipeline,
 )
 from fastapi import (
     APIRouter,
@@ -101,6 +102,7 @@ def get_projects(
                 Project.owner_account_id == current_user.account.id,
             )
         )
+        .order_by(sqlalchemy.desc(Project.created))
         .limit(limit)
         .offset(offset)
     )
@@ -125,6 +127,7 @@ def get_owned_projects(
     statement = (
         select(Project)
         .where(Project.owner_account_id == current_user.account.id)
+        .order_by(sqlalchemy.desc(Project.created))
         .offset(offset)
         .limit(limit)
     )
