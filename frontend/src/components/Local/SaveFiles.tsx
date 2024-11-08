@@ -74,7 +74,7 @@ const SaveFiles = ({
       return axios.post(url, data)
     },
     onSuccess: () => {
-      showToast("Success!", "Stage added.", "success")
+      showToast("Success!", "Committed.", "success")
       reset()
       onClose()
     },
