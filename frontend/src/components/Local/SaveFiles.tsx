@@ -20,9 +20,15 @@ interface saveFilesProps {
   isOpen: boolean
   onClose: () => void
   changedFiles: string[]
+  stagedFiles: string[]
 }
 
-const SaveFiles = ({ isOpen, onClose, changedFiles }: saveFilesProps) => {
+const SaveFiles = ({
+  isOpen,
+  onClose,
+  changedFiles,
+  stagedFiles,
+}: saveFilesProps) => {
   return (
     <>
       <Modal

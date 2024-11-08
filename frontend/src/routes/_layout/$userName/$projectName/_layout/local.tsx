@@ -108,7 +108,7 @@ function LocalServer() {
   const commitsBehind = statusQuery.data?.data?.git.commits_behind
   const untrackedFiles = statusQuery.data?.data?.git.untracked
   const changedFiles = statusQuery.data?.data?.git.changed
-  console.log('staus query', statusQuery.data?.data?.git)
+  console.log("staus query", statusQuery.data?.data?.git)
   const stagedFiles = statusQuery.data?.data?.git.staged
   const pipelineUpToDate =
     JSON.stringify(statusQuery.data?.data?.dvc.pipeline) === "{}"
@@ -473,6 +473,7 @@ function LocalServer() {
                       isOpen={saveFilesModal.isOpen}
                       onClose={saveFilesModal.onClose}
                       changedFiles={changedFiles}
+                      stagedFiles={stagedFiles}
                     />
                     <Button size="xs" variant="danger" ml={1}>
                       Discard
