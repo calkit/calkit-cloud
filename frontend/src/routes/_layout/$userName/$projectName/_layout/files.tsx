@@ -171,7 +171,8 @@ function Item({ item, level, selectedPath, setSelectedPath }: ItemProps) {
         onClick={handleClick}
         ml={indent * 4}
         bg={isSelectedFile ? bgActive : ""}
-        borderRadius={isSelectedFile ? "5px" : ""}
+        borderRadius="md"
+        px="2px"
       >
         <Icon
           as={getIcon(item, isExpanded)}
