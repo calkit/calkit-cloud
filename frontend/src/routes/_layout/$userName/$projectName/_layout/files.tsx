@@ -21,7 +21,7 @@ import { FiFolder, FiFile, FiDatabase } from "react-icons/fi"
 import { FaMarkdown, FaPlus, FaLock } from "react-icons/fa6"
 import { AiOutlinePython } from "react-icons/ai"
 import { SiAnaconda, SiJupyter } from "react-icons/si"
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import {
   FaDocker,
   FaList,
@@ -159,13 +159,10 @@ function Item({ item, level, selectedPath, setSelectedPath }: ItemProps) {
     data.sort(sortByTypeAndName)
   }
 
-  const isSelectedFile = () => {
-    if (item.path === selectedPath && item.type === "file") {
-      return true
-    } else {
-      return false
-    }
-  }
+  const isSelectedFile = useMemo(
+    () => item.path === selectedPath && item.type === "file",
+    [item.path, selectedPath],
+  )
 
   return (
     <>
@@ -173,8 +170,8 @@ function Item({ item, level, selectedPath, setSelectedPath }: ItemProps) {
         cursor="pointer"
         onClick={handleClick}
         ml={indent * 4}
-        bg={isSelectedFile() ? bgActive : ""}
-        borderRadius={isSelectedFile() ? "5px" : ""}
+        bg={isSelectedFile ? bgActive : ""}
+        borderRadius={isSelectedFile ? "5px" : ""}
       >
         <Icon
           as={getIcon(item, isExpanded)}
