@@ -160,7 +160,7 @@ function Item({ item, level, selectedPath, setSelectedPath }: ItemProps) {
   }
 
   const isSelectedFile = useMemo(
-    () => item.path === selectedPath && item.type === "file",
+    () => item.path === selectedPath,
     [item.path, selectedPath],
   )
 
