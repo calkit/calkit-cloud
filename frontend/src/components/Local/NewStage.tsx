@@ -140,7 +140,7 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
     } else if (template === "figure-from-excel") {
       setValue(
         "cmd",
-        "calkit office excel-chart-to-png {CHANGE ME} --sheet=1 --chart-index=0 --output {CHANGE ME}",
+        "calkit office excel-chart-to-png {CHANGE ME} --sheet=1 --chart-index=0 {CHANGE ME}",
       )
       setValue("outputType", "figure")
       setValue("inputFilePath", "")
@@ -171,11 +171,11 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
     if (watchTemplate === "figure-from-excel") {
       const inputPath = formValues.inputFilePath
       const idx = formValues.excelChartIndex
-      const cmd = `calkit office excel-chart-to-png ${inputPath} --sheet=1 --chart-index=${idx} --output ${outputPath}`
+      const cmd = `calkit office excel-chart-to-png "${inputPath}" --sheet=1 --chart-index=${idx} "${outputPath}"`
       setValue("cmd", cmd)
     } else if (watchTemplate === "word-to-pdf") {
       const inputPath = formValues.inputFilePath
-      const cmd = `calkit office word-to-pdf ${inputPath} --output ${outputPath}`
+      const cmd = `calkit office word-to-pdf ${inputPath} --output "${outputPath}"`
       setValue("cmd", cmd)
     }
   }
@@ -186,7 +186,7 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
     if (watchTemplate === "figure-from-excel") {
       const outputPath = formValues.out
       const idx = formValues.excelChartIndex
-      const cmd = `calkit excel-chart-to-png ${inputPath} --chart-index=${idx} --output ${outputPath}`
+      const cmd = `calkit office excel-chart-to-png "${inputPath}" --chart-index=${idx} "${outputPath}"`
       setValue("cmd", cmd)
       setValue("deps", inputPath)
     }
@@ -197,7 +197,7 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
     const formValues = getValues()
     if (watchTemplate === "word-to-pdf") {
       const outputPath = formValues.out
-      const cmd = `calkit word-to-pdf ${inputPath} --output ${outputPath}`
+      const cmd = `calkit office word-to-pdf "${inputPath}" --output "${outputPath}"`
       setValue("cmd", cmd)
       setValue("deps", inputPath)
     }
