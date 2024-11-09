@@ -355,7 +355,11 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
               ""
             )}
             {watchOutputType ? (
-              <FormControl mb={2}>
+              <FormControl
+                mb={2}
+                isRequired
+                isInvalid={!!errors.outputObject?.description}
+              >
                 <FormLabel htmlFor="outputObject.description">
                   Description
                 </FormLabel>
