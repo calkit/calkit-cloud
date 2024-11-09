@@ -175,7 +175,7 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
       setValue("cmd", cmd)
     } else if (watchTemplate === "word-to-pdf") {
       const inputPath = formValues.inputFilePath
-      const cmd = `calkit office word-to-pdf ${inputPath} --output "${outputPath}"`
+      const cmd = `calkit office word-to-pdf "${inputPath}" --output "${outputPath}"`
       setValue("cmd", cmd)
     }
   }
