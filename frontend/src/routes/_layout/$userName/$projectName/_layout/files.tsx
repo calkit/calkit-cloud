@@ -14,6 +14,7 @@ import {
   useDisclosure,
   IconButton,
   HStack,
+  useColorModeValue,
 } from "@chakra-ui/react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { FiFolder, FiFile, FiDatabase } from "react-icons/fi"
@@ -131,6 +132,7 @@ interface ItemProps {
 // If a directory, expand to show files when clicked
 // If a file, get content and display to the right in a viewer
 function Item({ item, level, selectedPath, setSelectedPath }: ItemProps) {
+  const bgActive = useColorModeValue("#E2E8F0", "#4A5568")
   const navigate = useNavigate({ from: Route.fullPath })
   const indent = level ? level : 0
   const [isExpanded, setIsExpanded] = useState(
@@ -157,9 +159,18 @@ function Item({ item, level, selectedPath, setSelectedPath }: ItemProps) {
     data.sort(sortByTypeAndName)
   }
 
+  const itemIsSelected = item.path === selectedPath
+
   return (
     <>
-      <Flex cursor="pointer" onClick={handleClick} ml={indent * 4}>
+      <Flex
+        cursor="pointer"
+        onClick={handleClick}
+        ml={indent * 4}
+        bg={itemIsSelected ? bgActive : ""}
+        borderRadius="md"
+        px="2px"
+      >
         <Icon
           as={getIcon(item, isExpanded)}
           alignSelf="center"
