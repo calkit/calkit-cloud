@@ -121,17 +121,13 @@ function PubView({ publication }: PubViewProps) {
           )}
           {publication.stage ? (
             <Text>
-              Workflow stage: <Code>{publication.stage}</Code>
+              Pipeline stage: <Code>{publication.stage}</Code>
             </Text>
           ) : (
             ""
           )}
         </Box>
-        {/* Comments */}
-        <Box bg={secBgColor} borderRadius="lg" p={2}>
-          <Heading size="sm">Comments</Heading>
-          Coming soon!
-        </Box>
+        {/* TODO: Add ability to comment on a publication */}
       </Box>
     </Flex>
   )

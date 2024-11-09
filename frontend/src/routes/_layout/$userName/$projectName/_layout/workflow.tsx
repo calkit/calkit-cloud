@@ -9,6 +9,7 @@ import {
   AlertIcon,
 } from "@chakra-ui/react"
 import { useQuery } from "@tanstack/react-query"
+import { useState } from "react"
 
 import Mermaid from "../../../../../components/Common/Mermaid"
 import { ProjectsService } from "../../../../../client"
@@ -29,6 +30,7 @@ function ProjectWorkflow() {
         projectName: projectName,
       }),
   })
+  const [isDiagramExpanded, setIsDiagramExpanded] = useState(false)
 
   return (
     <>
@@ -37,13 +39,23 @@ function ProjectWorkflow() {
           <Spinner size="xl" color="ui.main" />
         </Flex>
       ) : (
-        <Flex>
+        <Flex flexDir={isDiagramExpanded ? "column" : "row"}>
           {pipelineQuery.data ? (
             <>
-              <Box p={5} maxW="50%" minW="40%">
-                <Mermaid>{String(pipelineQuery?.data?.mermaid)}</Mermaid>
+              <Box
+                px={isDiagramExpanded ? 0 : 5}
+                py={isDiagramExpanded ? 0 : 10}
+                maxW={isDiagramExpanded ? "100%" : "50%"}
+                minW="40%"
+              >
+                <Mermaid
+                  isDiagramExpanded={isDiagramExpanded}
+                  setIsDiagramExpanded={setIsDiagramExpanded}
+                >
+                  {String(pipelineQuery?.data?.mermaid)}
+                </Mermaid>
               </Box>
-              <Box width="680px">
+              <Box width={isDiagramExpanded ? "100%" : "680px"}>
                 <Heading size="md" my={2}>
                   YAML
                 </Heading>

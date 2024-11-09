@@ -117,9 +117,7 @@ const AddProject = ({ isOpen, onClose }: AddProjectProps) => {
               )}
             </FormControl>
             <FormControl mt={4} isInvalid={!!errors.git_repo_url}>
-              <FormLabel htmlFor="git_repo_url">
-                GitHub repo URL (auto-generated)
-              </FormLabel>
+              <FormLabel htmlFor="git_repo_url">GitHub repo URL</FormLabel>
               <Input
                 id="git_repo_url"
                 {...register("git_repo_url", {
@@ -127,7 +125,6 @@ const AddProject = ({ isOpen, onClose }: AddProjectProps) => {
                 })}
                 placeholder="Ex: https://github.com/your_name/your_repo"
                 type="text"
-                isDisabled
               />
               {errors.git_repo_url && (
                 <FormErrorMessage>
