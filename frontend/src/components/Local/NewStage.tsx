@@ -140,7 +140,7 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
     } else if (template === "figure-from-excel") {
       setValue(
         "cmd",
-        "calkit office excel-chart-to-png {CHANGE ME} --sheet=1 --chart-index=0 --output {CHANGE ME}",
+        "calkit office excel-chart-to-png {CHANGE ME} --sheet=1 --chart-index=0 {CHANGE ME}",
       )
       setValue("outputType", "figure")
       setValue("inputFilePath", "")
@@ -171,11 +171,11 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
     if (watchTemplate === "figure-from-excel") {
       const inputPath = formValues.inputFilePath
       const idx = formValues.excelChartIndex
-      const cmd = `calkit office excel-chart-to-png ${inputPath} --sheet=1 --chart-index=${idx} --output ${outputPath}`
+      const cmd = `calkit office excel-chart-to-png "${inputPath}" --sheet=1 --chart-index=${idx} "${outputPath}"`
       setValue("cmd", cmd)
     } else if (watchTemplate === "word-to-pdf") {
       const inputPath = formValues.inputFilePath
-      const cmd = `calkit office word-to-pdf ${inputPath} --output ${outputPath}`
+      const cmd = `calkit office word-to-pdf "${inputPath}" --output "${outputPath}"`
       setValue("cmd", cmd)
     }
   }
@@ -186,7 +186,7 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
     if (watchTemplate === "figure-from-excel") {
       const outputPath = formValues.out
       const idx = formValues.excelChartIndex
-      const cmd = `calkit excel-chart-to-png ${inputPath} --chart-index=${idx} --output ${outputPath}`
+      const cmd = `calkit office excel-chart-to-png "${inputPath}" --chart-index=${idx} "${outputPath}"`
       setValue("cmd", cmd)
       setValue("deps", inputPath)
     }
@@ -197,7 +197,7 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
     const formValues = getValues()
     if (watchTemplate === "word-to-pdf") {
       const outputPath = formValues.out
-      const cmd = `calkit word-to-pdf ${inputPath} --output ${outputPath}`
+      const cmd = `calkit office word-to-pdf "${inputPath}" --output "${outputPath}"`
       setValue("cmd", cmd)
       setValue("deps", inputPath)
     }
@@ -241,30 +241,6 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
                 <option value="word-to-pdf">Word document to PDF</option>
               </Select>
             </FormControl>
-            <FormControl isRequired isInvalid={!!errors.cmd} mb={2}>
-              <FormLabel htmlFor="cmd">Command</FormLabel>
-              <Input
-                id="cmd"
-                {...register("cmd", {})}
-                placeholder="Ex: calkit runenv python scripts/my-script.py"
-              />
-              {errors.cmd && (
-                <FormErrorMessage>{errors.cmd.message}</FormErrorMessage>
-              )}
-            </FormControl>
-            <FormControl mb={2}>
-              <FormLabel htmlFor="deps">
-                Input dependencies (comma-separated paths)
-              </FormLabel>
-              <Input
-                id="deps"
-                {...register("deps", {})}
-                placeholder="Ex: scripts/my-script.py,data/my-data.csv"
-              />
-              {errors.deps && (
-                <FormErrorMessage>{errors.deps.message}</FormErrorMessage>
-              )}
-            </FormControl>
             {/* Optional fields depending on template selected */}
             {watchTemplate === "py-script" ? (
               <FormControl isRequired isInvalid={!!errors.scriptPath} mb={2}>
@@ -307,7 +283,7 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
             ) : (
               ""
             )}
-            {/* Output path */}
+            {/* Output path optional field */}
             <FormControl isRequired isInvalid={!!errors.out} mb={2}>
               <FormLabel htmlFor="out">Output path</FormLabel>
               <Input
@@ -320,6 +296,31 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
                 <FormErrorMessage>{errors.out.message}</FormErrorMessage>
               )}
             </FormControl>
+            <FormControl isRequired isInvalid={!!errors.cmd} mb={2}>
+              <FormLabel htmlFor="cmd">Command</FormLabel>
+              <Input
+                id="cmd"
+                {...register("cmd", {})}
+                placeholder="Ex: calkit runenv python scripts/my-script.py"
+              />
+              {errors.cmd && (
+                <FormErrorMessage>{errors.cmd.message}</FormErrorMessage>
+              )}
+            </FormControl>
+            <FormControl mb={2}>
+              <FormLabel htmlFor="deps">
+                Input dependencies (comma-separated paths)
+              </FormLabel>
+              <Input
+                id="deps"
+                {...register("deps", {})}
+                placeholder="Ex: scripts/my-script.py,data/my-data.csv"
+              />
+              {errors.deps && (
+                <FormErrorMessage>{errors.deps.message}</FormErrorMessage>
+              )}
+            </FormControl>
+            {/* Output artifact type */}
             <FormControl isRequired isInvalid={!!errors.outputType} mb={2}>
               <FormLabel htmlFor="outputType">Output artifact type</FormLabel>
               <Select
@@ -336,9 +337,13 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
                 <FormErrorMessage>{errors.outputType.message}</FormErrorMessage>
               )}
             </FormControl>
-            {/* Add other properties depending on kind */}
+            {/* Add other properties depending on artifact type */}
             {kindsWithTitle.includes(String(watchOutputType)) ? (
-              <FormControl mb={2}>
+              <FormControl
+                isRequired
+                isInvalid={!!errors.outputObject?.title}
+                mb={2}
+              >
                 <FormLabel htmlFor="outputObject.title">Title</FormLabel>
                 <Input
                   id="outputObject.title"
@@ -350,7 +355,11 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
               ""
             )}
             {watchOutputType ? (
-              <FormControl mb={2}>
+              <FormControl
+                mb={2}
+                isRequired
+                isInvalid={!!errors.outputObject?.description}
+              >
                 <FormLabel htmlFor="outputObject.description">
                   Description
                 </FormLabel>
