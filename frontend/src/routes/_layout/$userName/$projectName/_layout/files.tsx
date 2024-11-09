@@ -159,7 +159,7 @@ function Item({ item, level, selectedPath, setSelectedPath }: ItemProps) {
     data.sort(sortByTypeAndName)
   }
 
-  const isSelectedFile = useMemo(
+  const itemIsSelected = useMemo(
     () => item.path === selectedPath,
     [item.path, selectedPath],
   )
@@ -170,7 +170,7 @@ function Item({ item, level, selectedPath, setSelectedPath }: ItemProps) {
         cursor="pointer"
         onClick={handleClick}
         ml={indent * 4}
-        bg={isSelectedFile ? bgActive : ""}
+        bg={itemIsSelected ? bgActive : ""}
         borderRadius="md"
         px="2px"
       >
