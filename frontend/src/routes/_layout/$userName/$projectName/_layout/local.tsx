@@ -115,6 +115,9 @@ function LocalServer() {
   const stagedFiles = gitStagedFiles.concat(dvcStagedFiles)
   const pipelineUpToDate =
     JSON.stringify(statusQuery.data?.data?.dvc?.pipeline) === "{}"
+  const stagesOutOfDate = Object.keys(
+    Object(statusQuery.data?.data?.dvc?.pipeline),
+  )
   const dvcNeedsPull =
     statusQuery.data?.data?.dvc?.data?.not_in_cache?.length > 0
   const dvcNeedsPush =
@@ -577,12 +580,21 @@ function LocalServer() {
                       </Flex>
                       {!pipelineQuery.error && pipelineQuery.data?.data ? (
                         <>
-                          <Heading size="xs">All stages</Heading>
+                          <Heading size="xs">Stages</Heading>
                           <UnorderedList>
                             {Object.entries(pipelineQuery.data.data.stages).map(
                               ([k, _]) => (
                                 <ListItem key={k}>
-                                  <Code fontSize="small">{k}</Code>
+                                  <Code
+                                    fontSize="small"
+                                    color={
+                                      stagesOutOfDate.includes(k)
+                                        ? "yellow.500"
+                                        : ""
+                                    }
+                                  >
+                                    {k}
+                                  </Code>
                                 </ListItem>
                               ),
                             )}
