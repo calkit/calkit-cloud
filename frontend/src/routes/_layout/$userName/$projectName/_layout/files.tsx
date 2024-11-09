@@ -21,7 +21,7 @@ import { FiFolder, FiFile, FiDatabase } from "react-icons/fi"
 import { FaMarkdown, FaPlus, FaLock } from "react-icons/fa6"
 import { AiOutlinePython } from "react-icons/ai"
 import { SiAnaconda, SiJupyter } from "react-icons/si"
-import { useState, useMemo } from "react"
+import { useState } from "react"
 import {
   FaDocker,
   FaList,
