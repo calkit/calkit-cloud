@@ -159,10 +159,7 @@ function Item({ item, level, selectedPath, setSelectedPath }: ItemProps) {
     data.sort(sortByTypeAndName)
   }
 
-  const itemIsSelected = useMemo(
-    () => item.path === selectedPath,
-    [item.path, selectedPath],
-  )
+  const itemIsSelected = item.path === selectedPath
 
   return (
     <>
