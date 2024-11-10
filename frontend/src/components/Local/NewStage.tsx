@@ -140,7 +140,7 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
     } else if (template === "figure-from-excel") {
       setValue(
         "cmd",
-        "calkit office excel-chart-to-png {CHANGE ME} --sheet=1 --chart-index=0 {CHANGE ME}",
+        "calkit office excel-chart-to-image {CHANGE ME} --sheet=1 --chart-index=0 {CHANGE ME}",
       )
       setValue("outputType", "figure")
       setValue("inputFilePath", "")
@@ -171,7 +171,7 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
     if (watchTemplate === "figure-from-excel") {
       const inputPath = formValues.inputFilePath
       const idx = formValues.excelChartIndex
-      const cmd = `calkit office excel-chart-to-png "${inputPath}" --sheet=1 --chart-index=${idx} "${outputPath}"`
+      const cmd = `calkit office excel-chart-to-image "${inputPath}" --sheet=1 --chart-index=${idx} "${outputPath}"`
       setValue("cmd", cmd)
     } else if (watchTemplate === "word-to-pdf") {
       const inputPath = formValues.inputFilePath
@@ -186,7 +186,7 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
     if (watchTemplate === "figure-from-excel") {
       const outputPath = formValues.out
       const idx = formValues.excelChartIndex
-      const cmd = `calkit office excel-chart-to-png "${inputPath}" --chart-index=${idx} "${outputPath}"`
+      const cmd = `calkit office excel-chart-to-image "${inputPath}" --chart-index=${idx} "${outputPath}"`
       setValue("cmd", cmd)
       setValue("deps", inputPath)
     }
