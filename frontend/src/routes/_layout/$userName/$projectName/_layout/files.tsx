@@ -57,18 +57,6 @@ function sortByTypeAndName(a: ContentsItem, b: ContentsItem) {
   return 0
 }
 
-// Determine if a given path should be expanded based on whether or not it is
-// a parent directory of the selected path
-function pathShouldBeExpanded(path: string, selectedPath: string) {
-  if (path === selectedPath) {
-    return true
-  }
-  // From https://stackoverflow.com/a/42355848/2284865
-  const parentTokens = path.split("/").filter((i) => i.length)
-  const childTokens = selectedPath.split("/").filter((i) => i.length)
-  return parentTokens.every((t, i) => childTokens[i] === t)
-}
-
 interface ItemProps {
   item: ContentsItem
   level?: number
@@ -101,6 +89,18 @@ function Item({ item, level, selectedPath, setSelectedPath }: ItemProps) {
     setIsExpanded(!isExpanded)
     setSelectedPath(item.path)
     navigate({ search: { path: item.path } })
+  }
+
+  // Determine if a given path should be expanded based on whether or not it is
+  // a parent directory of the selected path
+  function pathShouldBeExpanded(path: string, selectedPath: string) {
+    if (path === selectedPath) {
+      return true
+    }
+    // From https://stackoverflow.com/a/42355848/2284865
+    const parentTokens = path.split("/").filter((i) => i.length)
+    const childTokens = selectedPath.split("/").filter((i) => i.length)
+    return parentTokens.every((t, i) => childTokens[i] === t)
   }
 
   if (Array.isArray(data)) {
