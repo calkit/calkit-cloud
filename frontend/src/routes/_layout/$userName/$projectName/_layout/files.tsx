@@ -6,7 +6,6 @@ import {
   Text,
   Icon,
   Heading,
-  Image,
   Code,
   Badge,
   Link,
@@ -39,9 +38,9 @@ import { z } from "zod"
 import { ProjectsService, type ContentsItem } from "../../../../../client"
 import UploadFile from "../../../../../components/Files/UploadFile"
 import EditFileInfo from "../../../../../components/Files/EditFileInfo"
-import Markdown from "../../../../../components/Common/Markdown"
 import useAuth from "../../../../../hooks/useAuth"
 import PageMenu from "../../../../../components/Common/PageMenu"
+import FileContent from "../../../../../components/Files/FileContent"
 
 const fileSearchSchema = z.object({ path: z.string().catch("") })
 
@@ -216,64 +215,6 @@ function Item({ item, level, selectedPath, setSelectedPath }: ItemProps) {
         ""
       )}
     </>
-  )
-}
-
-interface FileContentProps {
-  item: ContentsItem
-}
-
-function FileContent({ item }: FileContentProps) {
-  const name = item.name
-  const content = item.content
-  if (name.endsWith(".png")) {
-    return (
-      <Image
-        src={content ? `data:image/png;base64,${content}` : String(item.url)}
-        width={"100%"}
-      />
-    )
-  }
-  if (name.endsWith(".jpg") || name.endsWith(".jpeg")) {
-    return (
-      <Image
-        src={content ? `data:image/jpeg;base64,${content}` : String(item.url)}
-        width={"100%"}
-      />
-    )
-  }
-  if (name.endsWith(".pdf")) {
-    return (
-      <embed
-        height="100%"
-        width="100%"
-        type="application/pdf"
-        src={
-          content ? `data:application/pdf;base64,${content}` : String(item.url)
-        }
-      />
-    )
-  }
-  if (name.endsWith(".md") && content) {
-    return (
-      <Box py={2} px={4} maxW={"750px"}>
-        <Markdown>{atob(content)}</Markdown>
-      </Box>
-    )
-  }
-  return (
-    <Code
-      p={2}
-      borderRadius="lg"
-      display="block"
-      whiteSpace="pre"
-      height="82vh"
-      overflowY="auto"
-      maxW="685px"
-      overflowX="auto"
-    >
-      {content ? String(atob(content)) : ""}
-    </Code>
   )
 }
 
