@@ -2,6 +2,21 @@
 
 <a href="https://github.com/calkit/calkit-cloud/actions?query=workflow%3ATest" target="_blank"><img src="https://github.com/calkit/calkit-cloud/workflows/Test/badge.svg" alt="Test"></a>
 
+The Calkit cloud system serves as an index for projects and their artifacts
+such as datasets, figures, publications, computational environments, etc.
+It also serves as a [DVC](https://dvc.org) remote so users can easily
+back up their data and artifacts in the same repository as their code,
+documentation, other text files, etc.
+The goal is that this can serve as a platform for working
+efficiently and reproducibly, collaborating, and sharing all in one.
+Our future vision is one where research is advanced more quickly
+because instead of simply producing a paper,
+other more reusable artifacts are created and can be easily carried forward
+in new projects.
+Additionally, all studies should be able to be reproduced by anyone else
+by using this framework,
+resulting in more reliable knowledge.
+
 ## Technology stack and features
 
 This project was derived from
