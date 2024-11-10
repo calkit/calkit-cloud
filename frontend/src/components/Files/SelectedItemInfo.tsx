@@ -12,7 +12,7 @@ import {
   Link,
   Code,
 } from "@chakra-ui/react"
-import { FaTimesCircle, FaUpload } from "react-icons/fa"
+import { FaTimesCircle, FaUpload, FaLock } from "react-icons/fa"
 import { MdEdit } from "react-icons/md"
 import { ExternalLinkIcon } from "@chakra-ui/icons"
 import { type ContentsItem } from "../../client"
@@ -20,7 +20,6 @@ import { useMutation, useQueryClient } from "@tanstack/react-query"
 import EditFileInfo from "./EditFileInfo"
 import useAuth from "../../hooks/useAuth"
 import UploadFile from "./UploadFile"
-import { FaLock } from "react-icons/fa"
 import { ProjectsService } from "../../client"
 
 interface FileLockProps {
