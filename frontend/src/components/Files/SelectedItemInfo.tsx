@@ -21,6 +21,7 @@ import EditFileInfo from "./EditFileInfo"
 import useAuth from "../../hooks/useAuth"
 import UploadFile from "./UploadFile"
 import { FaLock } from "react-icons/fa"
+import { ProjectsService } from "../../client"
 
 interface FileLockProps {
   item: ContentsItem
