@@ -52,48 +52,6 @@ export const Route = createFileRoute(
   validateSearch: (search) => fileSearchSchema.parse(search),
 })
 
-const getIcon = (item: ContentsItem, isExpanded = false) => {
-  if (item.calkit_object) {
-    if (item.calkit_object.kind === "dataset" && item.type !== "dir") {
-      return FiDatabase
-    }
-    if (item.calkit_object.kind === "figure") {
-      return FaRegFileImage
-    }
-    if (item.calkit_object.kind === "references") {
-      return FaList
-    }
-  }
-  if (item.type === "dir" && !isExpanded) {
-    return FiFolder
-  }
-  if (item.type === "dir" && isExpanded) {
-    return FaRegFolderOpen
-  }
-  if (item.name.endsWith(".png")) {
-    return FaRegFileImage
-  }
-  if (item.name.endsWith(".py")) {
-    return AiOutlinePython
-  }
-  if (item.name.endsWith(".ipynb")) {
-    return SiJupyter
-  }
-  if (item.name.endsWith(".md")) {
-    return FaMarkdown
-  }
-  if (item.name.endsWith("yaml") || item.name === "dvc.lock") {
-    return BsFiletypeYml
-  }
-  if (item.name === "environment.yml") {
-    return SiAnaconda
-  }
-  if (item.name === "Dockerfile") {
-    return FaDocker
-  }
-  return FiFile
-}
-
 function sortByTypeAndName(a: ContentsItem, b: ContentsItem) {
   if (a.type === "dir" && b.type === "dir") {
     if (a.name < b.name) {
@@ -160,6 +118,48 @@ function Item({ item, level, selectedPath, setSelectedPath }: ItemProps) {
   }
 
   const itemIsSelected = item.path === selectedPath
+
+  const getIcon = (item: ContentsItem, isExpanded = false) => {
+    if (item.calkit_object) {
+      if (item.calkit_object.kind === "dataset" && item.type !== "dir") {
+        return FiDatabase
+      }
+      if (item.calkit_object.kind === "figure") {
+        return FaRegFileImage
+      }
+      if (item.calkit_object.kind === "references") {
+        return FaList
+      }
+    }
+    if (item.type === "dir" && !isExpanded) {
+      return FiFolder
+    }
+    if (item.type === "dir" && isExpanded) {
+      return FaRegFolderOpen
+    }
+    if (item.name.endsWith(".png")) {
+      return FaRegFileImage
+    }
+    if (item.name.endsWith(".py")) {
+      return AiOutlinePython
+    }
+    if (item.name.endsWith(".ipynb")) {
+      return SiJupyter
+    }
+    if (item.name.endsWith(".md")) {
+      return FaMarkdown
+    }
+    if (item.name.endsWith("yaml") || item.name === "dvc.lock") {
+      return BsFiletypeYml
+    }
+    if (item.name === "environment.yml") {
+      return SiAnaconda
+    }
+    if (item.name === "Dockerfile") {
+      return FaDocker
+    }
+    return FiFile
+  }
 
   return (
     <>
