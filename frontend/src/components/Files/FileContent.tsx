@@ -7,12 +7,11 @@ interface FileContentProps {
 }
 
 function FileContent({ item }: FileContentProps) {
-  const name = item.name
-  const content = item.content
+  const {name, content, url} = item
   if (name.endsWith(".png")) {
     return (
       <Image
-        src={content ? `data:image/png;base64,${content}` : String(item.url)}
+        src={content ? `data:image/png;base64,${content}` : String(url)}
         width={"100%"}
       />
     )
@@ -20,7 +19,7 @@ function FileContent({ item }: FileContentProps) {
   if (name.endsWith(".jpg") || name.endsWith(".jpeg")) {
     return (
       <Image
-        src={content ? `data:image/jpeg;base64,${content}` : String(item.url)}
+        src={content ? `data:image/jpeg;base64,${content}` : String(url)}
         width={"100%"}
       />
     )
@@ -32,7 +31,7 @@ function FileContent({ item }: FileContentProps) {
         width="100%"
         type="application/pdf"
         src={
-          content ? `data:application/pdf;base64,${content}` : String(item.url)
+          content ? `data:application/pdf;base64,${content}` : String(url)
         }
       />
     )
