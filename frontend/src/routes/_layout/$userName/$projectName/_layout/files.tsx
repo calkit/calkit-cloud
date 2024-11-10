@@ -85,11 +85,6 @@ function Item({ item, level, selectedPath, setSelectedPath }: ItemProps) {
       }),
     enabled: isExpanded,
   })
-  const handleClick = () => {
-    setIsExpanded(!isExpanded)
-    setSelectedPath(item.path)
-    navigate({ search: { path: item.path } })
-  }
 
   // Determine if a given path should be expanded based on whether or not it is
   // a parent directory of the selected path
@@ -97,18 +92,12 @@ function Item({ item, level, selectedPath, setSelectedPath }: ItemProps) {
     if (path === selectedPath) {
       return true
     }
-    // From https://stackoverflow.com/a/42355848/2284865
     const parentTokens = path.split("/").filter((i) => i.length)
     const childTokens = selectedPath.split("/").filter((i) => i.length)
     return parentTokens.every((t, i) => childTokens[i] === t)
   }
 
-  if (Array.isArray(data)) {
-    data.sort(sortByTypeAndName)
-  }
-
-  const itemIsSelected = item.path === selectedPath
-
+  // Helper function to get the appropriate icon based on item type
   const getIcon = (item: ContentsItem, isExpanded = false) => {
     if (item.calkit_object) {
       if (item.calkit_object.kind === "dataset" && item.type !== "dir") {
@@ -150,6 +139,18 @@ function Item({ item, level, selectedPath, setSelectedPath }: ItemProps) {
     }
     return FiFile
   }
+
+  const handleClick = () => {
+    setIsExpanded(!isExpanded)
+    setSelectedPath(item.path)
+    navigate({ search: { path: item.path } })
+  }
+
+  if (Array.isArray(data)) {
+    data.sort(sortByTypeAndName)
+  }
+
+  const itemIsSelected = item.path === selectedPath
 
   return (
     <>
