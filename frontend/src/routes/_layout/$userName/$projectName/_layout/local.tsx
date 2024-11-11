@@ -63,6 +63,8 @@ function LocalServer() {
         `http://localhost:8866/projects/${userName}/${projectName}/jupyter-server`,
       ),
     retry: false,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
   })
   const openVSCode = () => {
     axios.post(
@@ -103,6 +105,8 @@ function LocalServer() {
         `http://localhost:8866/projects/${userName}/${projectName}/status`,
       ),
     retry: false,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
   })
   const commitsAhead = statusQuery.data?.data?.git?.commits_ahead
   const commitsBehind = statusQuery.data?.data?.git?.commits_behind
@@ -188,6 +192,8 @@ function LocalServer() {
         `http://localhost:8866/projects/${userName}/${projectName}/pipeline`,
       ),
     retry: false,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
   })
   const cloneMutation = useMutation({
     mutationFn: () => {
