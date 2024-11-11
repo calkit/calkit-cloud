@@ -206,7 +206,7 @@ function HelpContent() {
           This page provides an interface for interacting with the project
           working directory on your local machine. For this to work, the local
           Calkit server must be running. To start one up, run{" "}
-          <Code>calkit server</Code> in a terminal after installing the{" "}
+          <Code>calkit local</Code> in a terminal after installing the{" "}
           <Link href="https://github.com/calkit/calkit" isExternal>
             Calkit Python package
           </Link>

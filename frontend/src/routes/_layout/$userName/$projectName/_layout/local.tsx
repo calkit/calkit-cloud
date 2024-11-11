@@ -275,7 +275,7 @@ function LocalServer() {
               <Box>
                 <Text>
                   Local server not connected. To connect your local machine, run{" "}
-                  <Code>calkit server</Code> in a terminal.
+                  <Code>calkit local</Code> in a terminal.
                 </Text>
               </Box>
             )}
