@@ -1,4 +1,5 @@
 import { Box, Image, Code } from "@chakra-ui/react"
+
 import Markdown from "../Common/Markdown"
 import { type ContentsItem } from "../../client"
 
