@@ -19,6 +19,7 @@ import { type SubmitHandler, useForm } from "react-hook-form"
 import { getRouteApi } from "@tanstack/react-router"
 import { useEffect } from "react"
 import axios from "axios"
+import mixpanel from "mixpanel-browser"
 
 import type { ApiError } from "../../client/core/ApiError"
 import useCustomToast from "../../hooks/useCustomToast"
@@ -73,6 +74,7 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
   })
   const mutation = useMutation({
     mutationFn: (data: Stage) => {
+      mixpanel.track("Clicked save new stage on local machine page")
       const url = `http://localhost:8866/projects/${userName}/${projectName}/pipeline/stages`
       let deps = null
       if (data.deps) {
