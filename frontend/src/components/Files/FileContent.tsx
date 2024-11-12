@@ -8,7 +8,7 @@ interface FileContentProps {
 }
 
 function FileContent({ item }: FileContentProps) {
-  const {name, content, url} = item
+  const { name, content, url } = item
   if (name.endsWith(".png")) {
     return (
       <Image
@@ -31,9 +31,7 @@ function FileContent({ item }: FileContentProps) {
         height="100%"
         width="100%"
         type="application/pdf"
-        src={
-          content ? `data:application/pdf;base64,${content}` : String(url)
-        }
+        src={content ? `data:application/pdf;base64,${content}` : String(url)}
       />
     )
   }

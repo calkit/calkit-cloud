@@ -19,6 +19,7 @@ import { type SubmitHandler, useForm } from "react-hook-form"
 import { getRouteApi } from "@tanstack/react-router"
 import { useEffect } from "react"
 import axios from "axios"
+import mixpanel from "mixpanel-browser"
 
 import type { ApiError } from "../../client/core/ApiError"
 import useCustomToast from "../../hooks/useCustomToast"
@@ -73,6 +74,7 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
   })
   const mutation = useMutation({
     mutationFn: (data: Stage) => {
+      mixpanel.track("Clicked save new stage on local machine page")
       const url = `http://localhost:8866/projects/${userName}/${projectName}/pipeline/stages`
       let deps = null
       if (data.deps) {
@@ -134,6 +136,7 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
     const template = String(watchTemplate)
     if (template === "py-script") {
       setValue("cmd", "calkit runenv python {CHANGE ME}")
+      setValue("outputType", null)
       register("scriptPath")
       unregister("inputFilePath")
       unregister("excelChartIndex")
@@ -153,6 +156,7 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
         "calkit office word-to-pdf {CHANGE ME}.docx --output {CHANGE ME}.pdf",
       )
       setValue("inputFilePath", "")
+      setValue("outputType", null)
       register("inputFilePath")
       unregister("scriptPath")
       unregister("excelChartIndex")
@@ -201,6 +205,13 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
       setValue("cmd", cmd)
       setValue("deps", inputPath)
     }
+  }
+  // Function to return output path placeholder
+  const getOutputPathPlaceholder = () => {
+    if (watchTemplate === "word-to-pdf") {
+      return "Ex: my-document.pdf"
+    }
+    return "Ex: figures/my-figure.png"
   }
 
   return (
@@ -289,7 +300,7 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
               <Input
                 id="out"
                 {...register("out", {})}
-                placeholder="Ex: figures/my-figure.png"
+                placeholder={getOutputPathPlaceholder()}
                 onChange={onOutputPathChange}
               />
               {errors.out && (

@@ -20,6 +20,7 @@ import { createFileRoute } from "@tanstack/react-router"
 import axios from "axios"
 import { FiExternalLink } from "react-icons/fi"
 import { FaCheck, FaPlus, FaSync } from "react-icons/fa"
+import mixpanel from "mixpanel-browser"
 
 import { type ProjectPublic } from "../../../../../client"
 import NewStage from "../../../../../components/Local/NewStage"
@@ -63,6 +64,8 @@ function LocalServer() {
         `http://localhost:8866/projects/${userName}/${projectName}/jupyter-server`,
       ),
     retry: false,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
   })
   const openVSCode = () => {
     axios.post(
@@ -103,6 +106,8 @@ function LocalServer() {
         `http://localhost:8866/projects/${userName}/${projectName}/status`,
       ),
     retry: false,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
   })
   const commitsAhead = statusQuery.data?.data?.git?.commits_ahead
   const commitsBehind = statusQuery.data?.data?.git?.commits_behind
@@ -124,6 +129,7 @@ function LocalServer() {
     statusQuery.data?.data?.dvc?.data?.not_in_remote?.length > 0
   const gitPushMutation = useMutation({
     mutationFn: () => {
+      mixpanel.track("Clicked git push on local machine page")
       const url = `http://localhost:8866/projects/${userName}/${projectName}/git/push`
       return axios.post(url)
     },
@@ -135,6 +141,7 @@ function LocalServer() {
   })
   const gitPullMutation = useMutation({
     mutationFn: () => {
+      mixpanel.track("Clicked git pull on local machine page")
       const url = `http://localhost:8866/projects/${userName}/${projectName}/git/pull`
       return axios.post(url)
     },
@@ -146,6 +153,7 @@ function LocalServer() {
   })
   const dvcPushMutation = useMutation({
     mutationFn: () => {
+      mixpanel.track("Clicked DVC push on local machine page")
       const url = `http://localhost:8866/projects/${userName}/${projectName}/dvc/push`
       return axios.post(url)
     },
@@ -157,6 +165,7 @@ function LocalServer() {
   })
   const dvcPullMutation = useMutation({
     mutationFn: () => {
+      mixpanel.track("Clicked DVC pull on local machine page")
       const url = `http://localhost:8866/projects/${userName}/${projectName}/dvc/pull`
       return axios.post(url)
     },
@@ -169,6 +178,7 @@ function LocalServer() {
   const showToast = useCustomToast()
   const runPipelineMutation = useMutation({
     mutationFn: () => {
+      mixpanel.track("Clicked run pipeline on local machine page")
       const url = `http://localhost:8866/projects/${userName}/${projectName}/pipeline/runs`
       return axios.post(url)
     },
@@ -188,9 +198,12 @@ function LocalServer() {
         `http://localhost:8866/projects/${userName}/${projectName}/pipeline`,
       ),
     retry: false,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
   })
   const cloneMutation = useMutation({
     mutationFn: () => {
+      mixpanel.track("Clicked clone on local machine page")
       const url = "http://localhost:8866/calkit/clone"
       const data = { git_repo_url: project?.git_repo_url }
       return axios.post(url, data)
@@ -275,7 +288,7 @@ function LocalServer() {
               <Box>
                 <Text>
                   Local server not connected. To connect your local machine, run{" "}
-                  <Code>calkit server</Code> in a terminal.
+                  <Code>calkit local-server</Code> in a terminal.
                 </Text>
               </Box>
             )}
