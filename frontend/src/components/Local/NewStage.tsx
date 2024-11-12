@@ -134,6 +134,7 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
     const template = String(watchTemplate)
     if (template === "py-script") {
       setValue("cmd", "calkit runenv python {CHANGE ME}")
+      setValue("outputType", null)
       register("scriptPath")
       unregister("inputFilePath")
       unregister("excelChartIndex")
@@ -153,6 +154,7 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
         "calkit office word-to-pdf {CHANGE ME}.docx --output {CHANGE ME}.pdf",
       )
       setValue("inputFilePath", "")
+      setValue("outputType", null)
       register("inputFilePath")
       unregister("scriptPath")
       unregister("excelChartIndex")
@@ -201,6 +203,13 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
       setValue("cmd", cmd)
       setValue("deps", inputPath)
     }
+  }
+  // Function to return output path placeholder
+  const getOutputPathPlaceholder = () => {
+    if (watchTemplate === "word-to-pdf") {
+      return "Ex: my-document.pdf"
+    }
+    return "Ex: figures/my-figure.png"
   }
 
   return (
@@ -289,7 +298,7 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
               <Input
                 id="out"
                 {...register("out", {})}
-                placeholder="Ex: figures/my-figure.png"
+                placeholder={getOutputPathPlaceholder()}
                 onChange={onOutputPathChange}
               />
               {errors.out && (
