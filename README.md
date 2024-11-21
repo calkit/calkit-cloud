@@ -60,10 +60,6 @@ General development docs: [development.md](./development.md).
 
 This includes using Docker Compose, custom local domains, `.env` configurations, etc.
 
-## Release notes
-
-Check the file [release-notes.md](./release-notes.md).
-
 ## Open source notices
 
 Portions of this software were taken from
