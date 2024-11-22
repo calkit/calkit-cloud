@@ -73,8 +73,8 @@ const Sidebar = ({ basePath }: SidebarProps) => {
       {/* Desktop */}
       <Box
         bg={bgColor}
-        h="90vh"
-        position="sticky"
+        h="inherit"
+        // position="sticky"
         left="0"
         top={16}
         display={{ base: "none", md: "flex" }}
