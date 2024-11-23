@@ -39,10 +39,12 @@ def get_project(
             # Only give access to org owners and admins for now
             # TODO: Allow more fine-grained access
             for org_membership in current_user.org_memberships:
-                if org_membership.org_id == project.owner.account.org_id:
-                    if org_membership.role_name in ["admin", "owner"]:
-                        project.current_user_access = "owner"
-                        break
+                if (
+                    org_membership.org_id == project.owner.account.org_id
+                    and org_membership.role_name in ["admin", "owner"]
+                ):
+                    project.current_user_access = "owner"
+                    break
             if not project.current_user_access == "owner":
                 raise HTTPException(403)
         elif project.is_public:
