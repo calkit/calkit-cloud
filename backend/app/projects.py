@@ -3,7 +3,7 @@
 import logging
 from typing import Literal
 
-from app.models import Project, User
+from app.models import Org, Project, User
 from fastapi import HTTPException
 from sqlmodel import Session, select
 
@@ -33,9 +33,18 @@ def get_project(
         raise ValueError("Current user must be provided to check access level")
     if current_user is not None:
         # Compute access
-        # TODO: Collaborator write access
         if project.owner == current_user:
             project.current_user_access = "owner"
+        elif isinstance(project.owner, Org):
+            # Only give access to org owners and admins for now
+            # TODO: Allow more fine-grained access
+            for org_membership in current_user.org_memberships:
+                if org_membership.org_id == project.owner.account.org_id:
+                    if org_membership.role_name in ["admin", "owner"]:
+                        project.current_user_access = "owner"
+                        break
+            if not project.current_user_access == "owner":
+                raise HTTPException(403)
         elif project.is_public:
             project.current_user_access = "read"
         else:
