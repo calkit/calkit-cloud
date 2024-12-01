@@ -50,6 +50,12 @@ def get_storage_limit(
     return STORAGE_LIMITS_BY_PLAN_NAME[plan_name]
 
 
+def get_private_projects_limit(
+    plan_name: Literal["free", "standard", "professional"]
+) -> int | None:
+    return PRIVATE_PROJECTS_LIMITS_BY_PLAN_NAME[plan_name]
+
+
 def sync_with_stripe():
     """Ensure all Stripe products and prices are up-to-date."""
     skip_plan_names = ["free", "enterprise"]

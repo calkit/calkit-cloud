@@ -52,7 +52,6 @@ from app.models import (
 )
 from app.storage import (
     get_data_prefix,
-    get_data_prefix_for_owner,
     get_object_fs,
     get_object_url,
     get_storage_usage,
@@ -71,7 +70,7 @@ from fastapi import (
 )
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from sqlmodel import Session, func, or_, select
+from sqlmodel import Session, and_, func, not_, or_, select
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -149,10 +148,44 @@ def create_project(
     project_in: ProjectCreate,
 ) -> ProjectPublic:
     """Create new project."""
-    # First, check if this user already owns this repo on GitHub
+    # Detect owner and repo name from Git repo URL
+    # TODO: This should be generalized to not depend on GitHub?
+    owner_name, repo_name = project_in.git_repo_url.split("/")[-2:]
+    # Check if this user has exceeded their private projects limit if this one
+    # is private
+    if not project_in.is_public:
+        logger.info(f"Checking private project count for {owner_name}")
+        if current_user.account.name == owner_name:
+            # Count private projects for user
+            account_id = current_user.account.id
+            subscription = current_user.subscription
+        else:
+            # Count private projects for an org
+            query = select(Org).where(Org.account.has(github_name=owner_name))
+            org = session.exec(query).first()
+            if org is None:
+                logger.info(f"Org '{owner_name}' does not exist in DB")
+                raise HTTPException(404, "This org does not exist in Calkit")
+            account_id = org.account.id
+            subscription = org.subscription
+        count_query = (
+            select(func.count())
+            .select_from(Project)
+            .where(
+                and_(
+                    not_(Project.is_public),
+                    Project.owner_account_id == account_id,
+                )
+            )
+        )
+        count = session.exec(count_query).one()
+        limit = subscription.private_projects_limit
+        logger.info(f"{owner_name} has {count}/{limit} private projects")
+        if limit is not None and count >= limit:
+            raise HTTPException(400, "Private projects limit exceeded")
+    # Check if this user already owns this repo on GitHub
     token = users.get_github_token(session=session, user=current_user)
     headers = {"Authorization": f"Bearer {token}"}
-    owner_name, repo_name = project_in.git_repo_url.split("/")[-2:]
     repo_html_url = f"https://github.com/{owner_name}/{repo_name}"
     repo_api_url = f"https://api.github.com/repos/{owner_name}/{repo_name}"
     resp = requests.get(repo_api_url, headers=headers)
@@ -259,6 +292,14 @@ def create_project(
             if org is None:
                 logger.info(f"Org '{owner_name}' does not exist in DB")
                 raise HTTPException(404, "This org does not exist in Calkit")
+            # Check access to the org
+            role = None
+            for membership in current_user.org_memberships:
+                if membership.org.account.name == owner_name:
+                    role = membership.role_name
+            if role not in ["owner", "admin"]:
+                logger.info("User is not an admin or owner of this org")
+                raise HTTPException(403)
             owner_account_id = org.account.id
         else:
             owner_account_id = current_user.account.id
