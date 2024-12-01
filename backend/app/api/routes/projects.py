@@ -14,9 +14,7 @@ from typing import Annotated, Literal, Optional
 
 import app.projects
 import bibtexparser
-import gcsfs
 import requests
-import s3fs
 import sqlalchemy
 import yaml
 from app import users
@@ -52,6 +50,15 @@ from app.models import (
     Question,
     User,
 )
+from app.storage import (
+    _get_data_prefix,
+    _get_data_prefix_for_owner,
+    _get_object_fs,
+    _get_object_url,
+    _make_data_fpath,
+    _remove_gcs_content_type,
+    get_storage_usage,
+)
 from fastapi import (
     APIRouter,
     Depends,
@@ -63,7 +70,6 @@ from fastapi import (
     UploadFile,
 )
 from fastapi.responses import StreamingResponse
-from google.cloud import storage as gcs
 from pydantic import BaseModel
 from sqlmodel import Session, func, or_, select
 
@@ -369,75 +375,6 @@ def get_project_git_repo(
     return resp.json()
 
 
-def _get_object_fs() -> s3fs.S3FileSystem | gcsfs.GCSFileSystem:
-    if settings.ENVIRONMENT == "local":
-        return s3fs.S3FileSystem(
-            endpoint_url="http://minio:9000",
-            key="root",
-            secret=os.getenv("MINIO_ROOT_PASSWORD"),
-        )
-    return gcsfs.GCSFileSystem()
-
-
-def _get_data_prefix() -> str:
-    if settings.ENVIRONMENT == "local":
-        return "s3://data"
-    else:
-        return f"gcs://calkit-{settings.ENVIRONMENT}/data"
-
-
-def _get_data_prefix_for_owner(owner_name: str) -> str:
-    return f"{_get_data_prefix()}/{owner_name}"
-
-
-def _make_data_fpath(
-    owner_name: str, project_name: str, idx: str, md5: str
-) -> str:
-    prefix = _get_data_prefix_for_owner(owner_name)
-    return f"{prefix}/{project_name}/{idx}/{md5}"
-
-
-def _get_object_url(
-    fpath: str,
-    fname: str = None,
-    expires: int = 3600 * 24,
-    fs: s3fs.S3FileSystem | gcsfs.GCSFileSystem | None = None,
-    method: Literal["get", "put"] = "get",
-    **kwargs,
-) -> str:
-    """Get a presigned URL for an object in object storage."""
-    if fs is None:
-        fs = _get_object_fs()
-    if settings.ENVIRONMENT == "local":
-        kws = {}
-        if fname is not None:
-            kws["ResponseContentDisposition"] = f"filename={fname}"
-            if fname.endswith(".pdf"):
-                kws["ResponseContentType"] = "application/pdf"
-        kws["client_method"] = f"{method}_object"
-    else:
-        kws = {}
-        if fname is not None:
-            kws["response_disposition"] = f"filename={fname}"
-            if fname.endswith(".pdf"):
-                kws["response_type"] = "application/pdf"
-        kws["method"] = method.upper()
-    url: str = fs.sign(fpath, expiration=expires, **(kws | kwargs))
-    if settings.ENVIRONMENT == "local":
-        url = url.replace(
-            "http://minio:9000", f"http://objects.{settings.DOMAIN}"
-        )
-    return url
-
-
-def _remove_gcs_content_type(fpath):
-    client = gcs.Client()
-    bucket = client.bucket(f"calkit-{settings.ENVIRONMENT}")
-    blob = bucket.blob(fpath.removeprefix(f"gcs://{bucket.name}/"))
-    blob.content_type = None
-    blob.patch()
-
-
 @router.post("/projects/{owner_name}/{project_name}/dvc/files/md5/{idx}/{md5}")
 async def post_project_dvc_file(
     *,
@@ -467,8 +404,7 @@ async def post_project_dvc_file(
     # Create bucket if it doesn't exist -- only necessary with MinIO
     if settings.ENVIRONMENT == "local" and not fs.exists(_get_data_prefix()):
         fs.makedir(_get_data_prefix())
-    owner_prefix = _get_data_prefix_for_owner(owner_name)
-    storage_used_gb = fs.du(owner_prefix) / 1e9
+    storage_used_gb = get_storage_usage(owner_name, fs=fs)
     logger.info(
         f"{owner_name} has used {storage_used_gb}/{storage_limit_gb} "
         "GB of storage"

@@ -16,6 +16,7 @@ from app.models import (
     DiscountCode,
     Message,
     NewSubscriptionResponse,
+    StorageUsage,
     SubscriptionUpdate,
     Token,
     UpdatePassword,
@@ -34,6 +35,7 @@ from app.security import (
     get_password_hash,
     verify_password,
 )
+from app.storage import get_storage_usage
 from app.subscriptions import PLAN_IDS, get_monthly_price
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -517,3 +519,13 @@ def post_user_zenodo_auth(
         session=session, user=current_user, zenodo_resp=resp_json
     )
     return Message(message="success")
+
+
+@router.get("/user/storage")
+def get_user_storage(
+    session: SessionDep,
+    current_user: CurrentUser,
+) -> StorageUsage:
+    used = get_storage_usage(owner_name=current_user.account.name)
+    limit = current_user.subscription.storage_limit
+    return StorageUsage(limit_gb=limit, used_gb=used)

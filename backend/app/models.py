@@ -555,3 +555,8 @@ class FileLock(SQLModel, table=True):
     @property
     def user_email(self) -> str:
         return self.user.email
+
+
+class StorageUsage(BaseModel):
+    limit_gb: float
+    used_gb: float
