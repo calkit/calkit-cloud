@@ -386,10 +386,15 @@ def _get_data_prefix() -> str:
         return f"gcs://calkit-{settings.ENVIRONMENT}/data"
 
 
+def _get_data_prefix_for_owner(owner_name: str) -> str:
+    return f"{_get_data_prefix()}/{owner_name}"
+
+
 def _make_data_fpath(
     owner_name: str, project_name: str, idx: str, md5: str
 ) -> str:
-    return f"{_get_data_prefix()}/{owner_name}/{project_name}/{idx}/{md5}"
+    prefix = _get_data_prefix_for_owner(owner_name)
+    return f"{prefix}/{project_name}/{idx}/{md5}"
 
 
 def _get_object_url(
@@ -456,11 +461,21 @@ async def post_project_dvc_file(
         min_access_level="write",
     )
     logger.info(f"{current_user.email} requesting to POST data")
-    # TODO: Check if this user has write access to this project
+    # Check if user has not exceeded their storage limit
     fs = _get_object_fs()
+    storage_limit_gb = project.owner.subscription.storage_limit
     # Create bucket if it doesn't exist -- only necessary with MinIO
     if settings.ENVIRONMENT == "local" and not fs.exists(_get_data_prefix()):
         fs.makedir(_get_data_prefix())
+    owner_prefix = _get_data_prefix_for_owner(owner_name)
+    storage_used_gb = fs.du(owner_prefix) / 1e9
+    logger.info(
+        f"{owner_name} has used {storage_used_gb}/{storage_limit_gb} "
+        "GB of storage"
+    )
+    if storage_used_gb > storage_limit_gb:
+        logger.info("Rejecting request due to storage limit exceeded")
+        raise HTTPException(400, "Storage limit exceeded")
     # TODO: Create presigned PUT to upload the file so it doesn't need to pass
     # through this server
     fpath = _make_data_fpath(

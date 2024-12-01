@@ -6,7 +6,7 @@ from typing import Literal, Union
 
 import sqlalchemy
 from app import utcnow
-from app.subscriptions import PLAN_IDS, PLAN_NAMES
+from app.subscriptions import PLAN_IDS, PLAN_NAMES, get_storage_limit
 from pydantic import BaseModel, EmailStr, computed_field
 from sqlmodel import Field, Relationship, SQLModel
 
@@ -209,6 +209,11 @@ class _SubscriptionBase(SQLModel):
     @property
     def plan_name(self) -> str:
         return PLAN_NAMES[self.plan_id]
+
+    @property
+    def storage_limit(self) -> int:
+        """Return the storage limit in GB."""
+        return get_storage_limit(self.plan_name)
 
 
 class OrgSubscription(_SubscriptionBase, table=True):
