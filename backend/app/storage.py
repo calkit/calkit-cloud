@@ -9,7 +9,7 @@ from app.config import settings
 from google.cloud import storage as gcs
 
 
-def _remove_gcs_content_type(fpath):
+def remove_gcs_content_type(fpath):
     client = gcs.Client()
     bucket = client.bucket(f"calkit-{settings.ENVIRONMENT}")
     blob = bucket.blob(fpath.removeprefix(f"gcs://{bucket.name}/"))
@@ -17,7 +17,7 @@ def _remove_gcs_content_type(fpath):
     blob.patch()
 
 
-def _get_object_fs() -> s3fs.S3FileSystem | gcsfs.GCSFileSystem:
+def get_object_fs() -> s3fs.S3FileSystem | gcsfs.GCSFileSystem:
     if settings.ENVIRONMENT == "local":
         return s3fs.S3FileSystem(
             endpoint_url="http://minio:9000",
@@ -27,25 +27,25 @@ def _get_object_fs() -> s3fs.S3FileSystem | gcsfs.GCSFileSystem:
     return gcsfs.GCSFileSystem()
 
 
-def _get_data_prefix() -> str:
+def get_data_prefix() -> str:
     if settings.ENVIRONMENT == "local":
         return "s3://data"
     else:
         return f"gcs://calkit-{settings.ENVIRONMENT}/data"
 
 
-def _get_data_prefix_for_owner(owner_name: str) -> str:
-    return f"{_get_data_prefix()}/{owner_name}"
+def get_data_prefix_for_owner(owner_name: str) -> str:
+    return f"{get_data_prefix()}/{owner_name}"
 
 
-def _make_data_fpath(
+def make_data_fpath(
     owner_name: str, project_name: str, idx: str, md5: str
 ) -> str:
-    prefix = _get_data_prefix_for_owner(owner_name)
+    prefix = get_data_prefix_for_owner(owner_name)
     return f"{prefix}/{project_name}/{idx}/{md5}"
 
 
-def _get_object_url(
+def get_object_url(
     fpath: str,
     fname: str = None,
     expires: int = 3600 * 24,
@@ -55,7 +55,7 @@ def _get_object_url(
 ) -> str:
     """Get a presigned URL for an object in object storage."""
     if fs is None:
-        fs = _get_object_fs()
+        fs = get_object_fs()
     if settings.ENVIRONMENT == "local":
         kws = {}
         if fname is not None:
@@ -83,5 +83,5 @@ def get_storage_usage(
 ) -> float:
     """Get storage usage in GB for a given owner."""
     if fs is None:
-        fs = _get_object_fs()
-    return fs.du(_get_data_prefix_for_owner(owner_name)) / 1e9
+        fs = get_object_fs()
+    return fs.du(get_data_prefix_for_owner(owner_name)) / 1e9

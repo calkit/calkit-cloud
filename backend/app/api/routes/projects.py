@@ -51,13 +51,13 @@ from app.models import (
     User,
 )
 from app.storage import (
-    _get_data_prefix,
-    _get_data_prefix_for_owner,
-    _get_object_fs,
-    _get_object_url,
-    _make_data_fpath,
-    _remove_gcs_content_type,
+    get_data_prefix,
+    get_data_prefix_for_owner,
+    get_object_fs,
+    get_object_url,
     get_storage_usage,
+    make_data_fpath,
+    remove_gcs_content_type,
 )
 from fastapi import (
     APIRouter,
@@ -399,11 +399,11 @@ async def post_project_dvc_file(
     )
     logger.info(f"{current_user.email} requesting to POST data")
     # Check if user has not exceeded their storage limit
-    fs = _get_object_fs()
+    fs = get_object_fs()
     storage_limit_gb = project.owner.subscription.storage_limit
     # Create bucket if it doesn't exist -- only necessary with MinIO
-    if settings.ENVIRONMENT == "local" and not fs.exists(_get_data_prefix()):
-        fs.makedir(_get_data_prefix())
+    if settings.ENVIRONMENT == "local" and not fs.exists(get_data_prefix()):
+        fs.makedir(get_data_prefix())
     storage_used_gb = get_storage_usage(owner_name, fs=fs)
     logger.info(
         f"{owner_name} has used {storage_used_gb}/{storage_limit_gb} "
@@ -414,7 +414,7 @@ async def post_project_dvc_file(
         raise HTTPException(400, "Storage limit exceeded")
     # TODO: Create presigned PUT to upload the file so it doesn't need to pass
     # through this server
-    fpath = _make_data_fpath(
+    fpath = make_data_fpath(
         owner_name=owner_name, project_name=project_name, idx=idx, md5=md5
     )
     # Use a pending path during upload so we can rename after
@@ -428,7 +428,7 @@ async def post_project_dvc_file(
     # If using Google Cloud Storage, we need to remove the content type
     # metadata in order to set it for signed URLs
     if settings.ENVIRONMENT != "local":
-        _remove_gcs_content_type(pending_fpath)
+        remove_gcs_content_type(pending_fpath)
     digest = sig.hexdigest()
     logger.info(f"Computed MD5 from DVC post: {digest}")
     if md5.endswith(".dir"):
@@ -461,8 +461,8 @@ def get_project_dvc_file(
         min_access_level="read",
     )
     # If file doesn't exist, return 404
-    fs = _get_object_fs()
-    fpath = _make_data_fpath(
+    fs = get_object_fs()
+    fpath = make_data_fpath(
         owner_name=owner_name, project_name=project_name, idx=idx, md5=md5
     )
     logger.info(f"Checking for {fpath}")
@@ -776,14 +776,14 @@ def get_project_contents(
         url = None
         # Create presigned url
         if md5:
-            fs = _get_object_fs()
-            fp = _make_data_fpath(
+            fs = get_object_fs()
+            fp = make_data_fpath(
                 owner_name=owner_name,
                 project_name=project_name,
                 idx=md5[:2],
                 md5=md5[2:],
             )
-            url = _get_object_url(fp, fname=os.path.basename(dvc_fpath), fs=fs)
+            url = get_object_url(fp, fname=os.path.basename(dvc_fpath), fs=fs)
             # Get content is the size is small enough
             if (
                 size is not None
@@ -816,14 +816,14 @@ def get_project_contents(
                 dvc_info = yaml.load(f)
             dvc_out = dvc_info["outs"][0]
             md5 = dvc_out["md5"]
-            fs = _get_object_fs()
-            fp = _make_data_fpath(
+            fs = get_object_fs()
+            fp = make_data_fpath(
                 owner_name=owner_name,
                 project_name=project_name,
                 idx=md5[:2],
                 md5=md5[2:],
             )
-            url = _get_object_url(fp, fname=os.path.basename(path), fs=fs)
+            url = get_object_url(fp, fname=os.path.basename(path), fs=fs)
             size = dvc_out["size"]
             dvc_type = "dir" if md5.endswith(".dir") else "file"
             return ContentsItem.model_validate(
@@ -1227,8 +1227,8 @@ def post_project_figure(
         with open(os.path.join(repo.working_dir, path + ".dvc")) as f:
             dvc_yaml = yaml.safe_load(f)
         md5 = dvc_yaml["outs"][0]["md5"]
-        fs = _get_object_fs()
-        fpath = _make_data_fpath(
+        fs = get_object_fs()
+        fpath = make_data_fpath(
             owner_name=owner_name,
             project_name=project_name,
             idx=md5[:2],
@@ -1237,8 +1237,8 @@ def post_project_figure(
         with fs.open(fpath, "wb") as f:
             f.write(file_data)
         if settings.ENVIRONMENT != "local":
-            _remove_gcs_content_type(fpath)
-        url = _get_object_url(fpath=fpath, fname=os.path.basename(path))
+            remove_gcs_content_type(fpath)
+        url = get_object_url(fpath=fpath, fname=os.path.basename(path))
         # Finally, remove the figure from the cached repo
         os.remove(full_fig_path)
     return Figure(
@@ -1603,8 +1603,8 @@ def post_project_dataset_upload(
     with open(os.path.join(repo.working_dir, path + ".dvc")) as f:
         dvc_yaml = yaml.safe_load(f)
     md5 = dvc_yaml["outs"][0]["md5"]
-    fs = _get_object_fs()
-    fpath = _make_data_fpath(
+    fs = get_object_fs()
+    fpath = make_data_fpath(
         owner_name=owner_name,
         project_name=project_name,
         idx=md5[:2],
@@ -1613,8 +1613,8 @@ def post_project_dataset_upload(
     with fs.open(fpath, "wb") as f:
         f.write(file_data)
     if settings.ENVIRONMENT != "local":
-        _remove_gcs_content_type(fpath)
-    url = _get_object_url(fpath=fpath, fname=os.path.basename(path))
+        remove_gcs_content_type(fpath)
+    url = get_object_url(fpath=fpath, fname=os.path.basename(path))
     # Finally, remove the dataset from the cached repo
     os.remove(full_ds_path)
     # TODO: Put this dataset into the database
@@ -1818,8 +1818,8 @@ def post_project_publication(
         with open(os.path.join(repo.working_dir, path + ".dvc")) as f:
             dvc_yaml = yaml.safe_load(f)
         md5 = dvc_yaml["outs"][0]["md5"]
-        fs = _get_object_fs()
-        fpath = _make_data_fpath(
+        fs = get_object_fs()
+        fpath = make_data_fpath(
             owner_name=owner_name,
             project_name=project_name,
             idx=md5[:2],
@@ -1828,8 +1828,8 @@ def post_project_publication(
         with fs.open(fpath, "wb") as f:
             f.write(file_data)
         if settings.ENVIRONMENT != "local":
-            _remove_gcs_content_type(fpath)
-        url = _get_object_url(fpath=fpath, fname=os.path.basename(path))
+            remove_gcs_content_type(fpath)
+        url = get_object_url(fpath=fpath, fname=os.path.basename(path))
         # Finally, remove the figure from the cached repo
         os.remove(full_fig_path)
     return Publication(
