@@ -21,6 +21,16 @@ PRICES_BY_PLAN_NAME = {
     "standard": 10.0,
     "professional": 50.0,
 }
+PRIVATE_PROJECTS_LIMITS_BY_PLAN_NAME = {
+    "free": 1,
+    "standard": 2,
+    "professional": None,
+}
+STORAGE_LIMITS_BY_PLAN_NAME = {
+    "free": 1,
+    "standard": 50,
+    "professional": 500,
+}
 
 
 def get_monthly_price(
@@ -31,6 +41,19 @@ def get_monthly_price(
     if period == "annual":
         price = price * ANNUAL_DISCOUNT_FACTOR
     return price
+
+
+def get_storage_limit(
+    plan_name: Literal["free", "standard", "professional"]
+) -> int:
+    """Return the storage limit for a given plan in GB."""
+    return STORAGE_LIMITS_BY_PLAN_NAME[plan_name]
+
+
+def get_private_projects_limit(
+    plan_name: Literal["free", "standard", "professional"]
+) -> int | None:
+    return PRIVATE_PROJECTS_LIMITS_BY_PLAN_NAME[plan_name]
 
 
 def sync_with_stripe():

@@ -18,12 +18,14 @@ from app.models import (
     NewSubscriptionResponse,
     Org,
     OrgSubscription,
+    StorageUsage,
     SubscriptionUpdate,
     User,
     UserOrgMembership,
     UserSubscription,
 )
 from app.orgs import get_org_from_db
+from app.storage import get_storage_usage
 from app.subscriptions import PLAN_IDS, get_monthly_price
 from app.users import get_github_token
 from fastapi import APIRouter, HTTPException
@@ -287,3 +289,26 @@ def post_org_subscription(
         subscription=org.subscription,
         stripe_session_client_secret=session_secret,
     )
+
+
+@router.get("/orgs/{org_name}/storage")
+def get_org_storage(
+    org_name: str,
+    session: SessionDep,
+    current_user: CurrentUser,
+) -> StorageUsage:
+    org = get_org_from_db(org_name=org_name, session=session)
+    if org is None:
+        logger.info("Org '{org_name}' does not exist")
+        raise HTTPException(404)
+    # Ensure the current user is an org admin or owner
+    role = None
+    for membership in current_user.org_memberships:
+        if membership.org.account.name == org_name:
+            role = membership.role_name
+    if role not in ["owner", "admin"]:
+        logger.info("User is not an admin or owner of this org")
+        raise HTTPException(403)
+    limit = org.subscription.storage_limit
+    used = get_storage_usage(org.account.name)
+    return StorageUsage(used_gb=used, limit_gb=limit)

@@ -14,9 +14,7 @@ from typing import Annotated, Literal, Optional
 
 import app.projects
 import bibtexparser
-import gcsfs
 import requests
-import s3fs
 import sqlalchemy
 import yaml
 from app import users
@@ -52,6 +50,14 @@ from app.models import (
     Question,
     User,
 )
+from app.storage import (
+    get_data_prefix,
+    get_object_fs,
+    get_object_url,
+    get_storage_usage,
+    make_data_fpath,
+    remove_gcs_content_type,
+)
 from fastapi import (
     APIRouter,
     Depends,
@@ -63,9 +69,8 @@ from fastapi import (
     UploadFile,
 )
 from fastapi.responses import StreamingResponse
-from google.cloud import storage as gcs
 from pydantic import BaseModel
-from sqlmodel import Session, func, or_, select
+from sqlmodel import Session, and_, func, not_, or_, select
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -143,10 +148,44 @@ def create_project(
     project_in: ProjectCreate,
 ) -> ProjectPublic:
     """Create new project."""
-    # First, check if this user already owns this repo on GitHub
+    # Detect owner and repo name from Git repo URL
+    # TODO: This should be generalized to not depend on GitHub?
+    owner_name, repo_name = project_in.git_repo_url.split("/")[-2:]
+    # Check if this user has exceeded their private projects limit if this one
+    # is private
+    if not project_in.is_public:
+        logger.info(f"Checking private project count for {owner_name}")
+        if current_user.account.name == owner_name:
+            # Count private projects for user
+            account_id = current_user.account.id
+            subscription = current_user.subscription
+        else:
+            # Count private projects for an org
+            query = select(Org).where(Org.account.has(github_name=owner_name))
+            org = session.exec(query).first()
+            if org is None:
+                logger.info(f"Org '{owner_name}' does not exist in DB")
+                raise HTTPException(404, "This org does not exist in Calkit")
+            account_id = org.account.id
+            subscription = org.subscription
+        count_query = (
+            select(func.count())
+            .select_from(Project)
+            .where(
+                and_(
+                    not_(Project.is_public),
+                    Project.owner_account_id == account_id,
+                )
+            )
+        )
+        count = session.exec(count_query).one()
+        limit = subscription.private_projects_limit
+        logger.info(f"{owner_name} has {count}/{limit} private projects")
+        if limit is not None and count >= limit:
+            raise HTTPException(400, "Private projects limit exceeded")
+    # Check if this user already owns this repo on GitHub
     token = users.get_github_token(session=session, user=current_user)
     headers = {"Authorization": f"Bearer {token}"}
-    owner_name, repo_name = project_in.git_repo_url.split("/")[-2:]
     repo_html_url = f"https://github.com/{owner_name}/{repo_name}"
     repo_api_url = f"https://api.github.com/repos/{owner_name}/{repo_name}"
     resp = requests.get(repo_api_url, headers=headers)
@@ -253,6 +292,14 @@ def create_project(
             if org is None:
                 logger.info(f"Org '{owner_name}' does not exist in DB")
                 raise HTTPException(404, "This org does not exist in Calkit")
+            # Check access to the org
+            role = None
+            for membership in current_user.org_memberships:
+                if membership.org.account.name == owner_name:
+                    role = membership.role_name
+            if role not in ["owner", "admin"]:
+                logger.info("User is not an admin or owner of this org")
+                raise HTTPException(403)
             owner_account_id = org.account.id
         else:
             owner_account_id = current_user.account.id
@@ -369,70 +416,6 @@ def get_project_git_repo(
     return resp.json()
 
 
-def _get_object_fs() -> s3fs.S3FileSystem | gcsfs.GCSFileSystem:
-    if settings.ENVIRONMENT == "local":
-        return s3fs.S3FileSystem(
-            endpoint_url="http://minio:9000",
-            key="root",
-            secret=os.getenv("MINIO_ROOT_PASSWORD"),
-        )
-    return gcsfs.GCSFileSystem()
-
-
-def _get_data_prefix() -> str:
-    if settings.ENVIRONMENT == "local":
-        return "s3://data"
-    else:
-        return f"gcs://calkit-{settings.ENVIRONMENT}/data"
-
-
-def _make_data_fpath(
-    owner_name: str, project_name: str, idx: str, md5: str
-) -> str:
-    return f"{_get_data_prefix()}/{owner_name}/{project_name}/{idx}/{md5}"
-
-
-def _get_object_url(
-    fpath: str,
-    fname: str = None,
-    expires: int = 3600 * 24,
-    fs: s3fs.S3FileSystem | gcsfs.GCSFileSystem | None = None,
-    method: Literal["get", "put"] = "get",
-    **kwargs,
-) -> str:
-    """Get a presigned URL for an object in object storage."""
-    if fs is None:
-        fs = _get_object_fs()
-    if settings.ENVIRONMENT == "local":
-        kws = {}
-        if fname is not None:
-            kws["ResponseContentDisposition"] = f"filename={fname}"
-            if fname.endswith(".pdf"):
-                kws["ResponseContentType"] = "application/pdf"
-        kws["client_method"] = f"{method}_object"
-    else:
-        kws = {}
-        if fname is not None:
-            kws["response_disposition"] = f"filename={fname}"
-            if fname.endswith(".pdf"):
-                kws["response_type"] = "application/pdf"
-        kws["method"] = method.upper()
-    url: str = fs.sign(fpath, expiration=expires, **(kws | kwargs))
-    if settings.ENVIRONMENT == "local":
-        url = url.replace(
-            "http://minio:9000", f"http://objects.{settings.DOMAIN}"
-        )
-    return url
-
-
-def _remove_gcs_content_type(fpath):
-    client = gcs.Client()
-    bucket = client.bucket(f"calkit-{settings.ENVIRONMENT}")
-    blob = bucket.blob(fpath.removeprefix(f"gcs://{bucket.name}/"))
-    blob.content_type = None
-    blob.patch()
-
-
 @router.post("/projects/{owner_name}/{project_name}/dvc/files/md5/{idx}/{md5}")
 async def post_project_dvc_file(
     *,
@@ -456,14 +439,23 @@ async def post_project_dvc_file(
         min_access_level="write",
     )
     logger.info(f"{current_user.email} requesting to POST data")
-    # TODO: Check if this user has write access to this project
-    fs = _get_object_fs()
+    # Check if user has not exceeded their storage limit
+    fs = get_object_fs()
+    storage_limit_gb = project.owner.subscription.storage_limit
     # Create bucket if it doesn't exist -- only necessary with MinIO
-    if settings.ENVIRONMENT == "local" and not fs.exists(_get_data_prefix()):
-        fs.makedir(_get_data_prefix())
+    if settings.ENVIRONMENT == "local" and not fs.exists(get_data_prefix()):
+        fs.makedir(get_data_prefix())
+    storage_used_gb = get_storage_usage(owner_name, fs=fs)
+    logger.info(
+        f"{owner_name} has used {storage_used_gb}/{storage_limit_gb} "
+        "GB of storage"
+    )
+    if storage_used_gb > storage_limit_gb:
+        logger.info("Rejecting request due to storage limit exceeded")
+        raise HTTPException(400, "Storage limit exceeded")
     # TODO: Create presigned PUT to upload the file so it doesn't need to pass
     # through this server
-    fpath = _make_data_fpath(
+    fpath = make_data_fpath(
         owner_name=owner_name, project_name=project_name, idx=idx, md5=md5
     )
     # Use a pending path during upload so we can rename after
@@ -477,7 +469,7 @@ async def post_project_dvc_file(
     # If using Google Cloud Storage, we need to remove the content type
     # metadata in order to set it for signed URLs
     if settings.ENVIRONMENT != "local":
-        _remove_gcs_content_type(pending_fpath)
+        remove_gcs_content_type(pending_fpath)
     digest = sig.hexdigest()
     logger.info(f"Computed MD5 from DVC post: {digest}")
     if md5.endswith(".dir"):
@@ -510,8 +502,8 @@ def get_project_dvc_file(
         min_access_level="read",
     )
     # If file doesn't exist, return 404
-    fs = _get_object_fs()
-    fpath = _make_data_fpath(
+    fs = get_object_fs()
+    fpath = make_data_fpath(
         owner_name=owner_name, project_name=project_name, idx=idx, md5=md5
     )
     logger.info(f"Checking for {fpath}")
@@ -825,14 +817,14 @@ def get_project_contents(
         url = None
         # Create presigned url
         if md5:
-            fs = _get_object_fs()
-            fp = _make_data_fpath(
+            fs = get_object_fs()
+            fp = make_data_fpath(
                 owner_name=owner_name,
                 project_name=project_name,
                 idx=md5[:2],
                 md5=md5[2:],
             )
-            url = _get_object_url(fp, fname=os.path.basename(dvc_fpath), fs=fs)
+            url = get_object_url(fp, fname=os.path.basename(dvc_fpath), fs=fs)
             # Get content is the size is small enough
             if (
                 size is not None
@@ -865,14 +857,14 @@ def get_project_contents(
                 dvc_info = yaml.load(f)
             dvc_out = dvc_info["outs"][0]
             md5 = dvc_out["md5"]
-            fs = _get_object_fs()
-            fp = _make_data_fpath(
+            fs = get_object_fs()
+            fp = make_data_fpath(
                 owner_name=owner_name,
                 project_name=project_name,
                 idx=md5[:2],
                 md5=md5[2:],
             )
-            url = _get_object_url(fp, fname=os.path.basename(path), fs=fs)
+            url = get_object_url(fp, fname=os.path.basename(path), fs=fs)
             size = dvc_out["size"]
             dvc_type = "dir" if md5.endswith(".dir") else "file"
             return ContentsItem.model_validate(
@@ -1276,8 +1268,8 @@ def post_project_figure(
         with open(os.path.join(repo.working_dir, path + ".dvc")) as f:
             dvc_yaml = yaml.safe_load(f)
         md5 = dvc_yaml["outs"][0]["md5"]
-        fs = _get_object_fs()
-        fpath = _make_data_fpath(
+        fs = get_object_fs()
+        fpath = make_data_fpath(
             owner_name=owner_name,
             project_name=project_name,
             idx=md5[:2],
@@ -1286,8 +1278,8 @@ def post_project_figure(
         with fs.open(fpath, "wb") as f:
             f.write(file_data)
         if settings.ENVIRONMENT != "local":
-            _remove_gcs_content_type(fpath)
-        url = _get_object_url(fpath=fpath, fname=os.path.basename(path))
+            remove_gcs_content_type(fpath)
+        url = get_object_url(fpath=fpath, fname=os.path.basename(path))
         # Finally, remove the figure from the cached repo
         os.remove(full_fig_path)
     return Figure(
@@ -1652,8 +1644,8 @@ def post_project_dataset_upload(
     with open(os.path.join(repo.working_dir, path + ".dvc")) as f:
         dvc_yaml = yaml.safe_load(f)
     md5 = dvc_yaml["outs"][0]["md5"]
-    fs = _get_object_fs()
-    fpath = _make_data_fpath(
+    fs = get_object_fs()
+    fpath = make_data_fpath(
         owner_name=owner_name,
         project_name=project_name,
         idx=md5[:2],
@@ -1662,8 +1654,8 @@ def post_project_dataset_upload(
     with fs.open(fpath, "wb") as f:
         f.write(file_data)
     if settings.ENVIRONMENT != "local":
-        _remove_gcs_content_type(fpath)
-    url = _get_object_url(fpath=fpath, fname=os.path.basename(path))
+        remove_gcs_content_type(fpath)
+    url = get_object_url(fpath=fpath, fname=os.path.basename(path))
     # Finally, remove the dataset from the cached repo
     os.remove(full_ds_path)
     # TODO: Put this dataset into the database
@@ -1867,8 +1859,8 @@ def post_project_publication(
         with open(os.path.join(repo.working_dir, path + ".dvc")) as f:
             dvc_yaml = yaml.safe_load(f)
         md5 = dvc_yaml["outs"][0]["md5"]
-        fs = _get_object_fs()
-        fpath = _make_data_fpath(
+        fs = get_object_fs()
+        fpath = make_data_fpath(
             owner_name=owner_name,
             project_name=project_name,
             idx=md5[:2],
@@ -1877,8 +1869,8 @@ def post_project_publication(
         with fs.open(fpath, "wb") as f:
             f.write(file_data)
         if settings.ENVIRONMENT != "local":
-            _remove_gcs_content_type(fpath)
-        url = _get_object_url(fpath=fpath, fname=os.path.basename(path))
+            remove_gcs_content_type(fpath)
+        url = get_object_url(fpath=fpath, fname=os.path.basename(path))
         # Finally, remove the figure from the cached repo
         os.remove(full_fig_path)
     return Publication(
