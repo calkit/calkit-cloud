@@ -55,6 +55,17 @@ def get_current_user(session: SessionDep, token: TokenDep) -> User:
         raise HTTPException(status_code=404, detail="User not found")
     if not user.is_active:
         raise HTTPException(status_code=400, detail="Inactive user")
+    # Ensure that if this user has a paid subscription, it is valid
+    if user.subscription is not None:
+        # Delete failed paid subscription creation
+        if (
+            user.subscription.price > 0
+            and user.subscription.paid_until is None
+        ):
+            session.delete(user.subscription)
+            session.commit()
+            session.refresh(user)
+        # TODO: What to do about expired subscriptions?
     return user
 
 
