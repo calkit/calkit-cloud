@@ -159,11 +159,11 @@ Frontend: http://localhost
 
 Backend: http://api.localhost
 
-Automatic Interactive Docs (Swagger UI): http://localhost/docs
+Automatic Interactive Docs (Swagger UI): http://api.localhost/docs
 
-Automatic Alternative Docs (ReDoc): http://localhost/redoc
+Automatic Alternative Docs (ReDoc): http://api.localhost/redoc
 
-Adminer: http://localhost:8080
+Adminer: http://adminer.localhost
 
 Traefik UI: http://localhost:8090
 
