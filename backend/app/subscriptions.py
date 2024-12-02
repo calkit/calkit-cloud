@@ -42,16 +42,16 @@ class SubscriptionPlan(BaseModel):
 
 def get_plans() -> list[SubscriptionPlan]:
     plans = []
-    for _plan_name, _plan_id in PLAN_IDS.items():
+    for plan_name, plan_id in PLAN_IDS.items():
         plans.append(
             SubscriptionPlan(
-                name=_plan_name,
-                id=_plan_id,
-                price=PRICES_BY_PLAN_NAME[_plan_name],
+                name=plan_name,
+                id=plan_id,
+                price=PRICES_BY_PLAN_NAME[plan_name],
                 private_projects_limit=PRIVATE_PROJECTS_LIMITS_BY_PLAN_NAME[
-                    _plan_name
+                    plan_name
                 ],
-                storage_limit=STORAGE_LIMITS_BY_PLAN_NAME[_plan_name],
+                storage_limit=STORAGE_LIMITS_BY_PLAN_NAME[plan_name],
             )
         )
     return plans
