@@ -257,8 +257,11 @@ function PickSubscription({ user }: PickSubscriptionProps) {
                       <ListItem>Unlimited collaborators</ListItem>
                       <ListItem>Unlimited public projects</ListItem>
                       <ListItem>
-                        {plan.private_projects_limit} private project
-                        {typeof plan.private_projects_limit === "string" ||
+                        {plan.private_projects_limit
+                          ? plan.private_projects_limit
+                          : "Unlimited"}{" "}
+                        private project
+                        {plan.private_projects_limit === null ||
                         (typeof plan.private_projects_limit === "number" &&
                           plan.private_projects_limit > 1)
                           ? "s"
