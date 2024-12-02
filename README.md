@@ -17,6 +17,15 @@ Additionally, all studies should be able to be reproduced by anyone else
 by using this framework,
 resulting in more reliable knowledge.
 
+## Deploying your own instance
+
+A future goal of this project is to make it easy for teams or institutions to
+deploy their own Calkit cloud instances in a federated network, where users on
+any instance can search for projects, datasets, etc., on any other instance.
+This is currently not easy, but if you'd like to help make it so, please
+join the discussion in
+[this issue](https://github.com/calkit/calkit-cloud/issues/190).
+
 ## Technology stack and features
 
 This project was derived from
