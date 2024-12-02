@@ -11,6 +11,7 @@ import type {
   ConnectedAccounts,
   GitHubInstallations,
   NewSubscriptionResponse,
+  StorageUsage,
   SubscriptionUpdate,
   TokenPatch,
   TokenPost,
@@ -26,6 +27,7 @@ import type {
   DiscountCode,
   DiscountCodePost,
   DiscountCodePublic,
+  SubscriptionPlan,
   Body_projects_post_project_dataset_upload,
   Body_projects_post_project_figure,
   Body_projects_post_project_publication,
@@ -375,6 +377,9 @@ export type OrgsData = {
   PostOrgSubscription: {
     orgName: string
     requestBody: OrgSubscriptionUpdate
+  }
+  GetOrgStorage: {
+    orgName: string
   }
 }
 
@@ -886,6 +891,18 @@ export class UsersService {
       },
     })
   }
+
+  /**
+   * Get User Storage
+   * @returns StorageUsage Successful Response
+   * @throws ApiError
+   */
+  public static getUserStorage(): CancelablePromise<StorageUsage> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/user/storage",
+    })
+  }
 }
 
 export class MiscService {
@@ -952,6 +969,20 @@ export class MiscService {
       errors: {
         422: `Validation Error`,
       },
+    })
+  }
+
+  /**
+   * Get Subscription Plans
+   * @returns SubscriptionPlan Successful Response
+   * @throws ApiError
+   */
+  public static getSubscriptionPlans(): CancelablePromise<
+    Array<SubscriptionPlan>
+  > {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/subscription-plans",
     })
   }
 }
@@ -2084,6 +2115,27 @@ export class OrgsService {
       },
       body: requestBody,
       mediaType: "application/json",
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Get Org Storage
+   * @returns StorageUsage Successful Response
+   * @throws ApiError
+   */
+  public static getOrgStorage(
+    data: OrgsData["GetOrgStorage"],
+  ): CancelablePromise<StorageUsage> {
+    const { orgName } = data
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/orgs/{org_name}/storage",
+      path: {
+        org_name: orgName,
+      },
       errors: {
         422: `Validation Error`,
       },

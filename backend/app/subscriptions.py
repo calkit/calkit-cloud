@@ -4,16 +4,14 @@ import logging
 from typing import Literal
 
 import app.stripe
+from pydantic import BaseModel
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 ANNUAL_DISCOUNT_FACTOR = 0.9
 PLAN_IDS = {
-    level: n
-    for n, level in enumerate(
-        ["free", "standard", "professional", "enterprise"]
-    )
+    level: n for n, level in enumerate(["free", "standard", "professional"])
 }
 PLAN_NAMES = {i: level for level, i in PLAN_IDS.items()}
 PRICES_BY_PLAN_NAME = {
@@ -31,6 +29,32 @@ STORAGE_LIMITS_BY_PLAN_NAME = {
     "standard": 50,
     "professional": 500,
 }
+
+
+class SubscriptionPlan(BaseModel):
+    name: str
+    id: int
+    price: float
+    private_projects_limit: int | None
+    storage_limit: int
+    annual_discount_factor: float = ANNUAL_DISCOUNT_FACTOR
+
+
+def get_plans() -> list[SubscriptionPlan]:
+    plans = []
+    for plan_name, plan_id in PLAN_IDS.items():
+        plans.append(
+            SubscriptionPlan(
+                name=plan_name,
+                id=plan_id,
+                price=PRICES_BY_PLAN_NAME[plan_name],
+                private_projects_limit=PRIVATE_PROJECTS_LIMITS_BY_PLAN_NAME[
+                    plan_name
+                ],
+                storage_limit=STORAGE_LIMITS_BY_PLAN_NAME[plan_name],
+            )
+        )
+    return plans
 
 
 def get_monthly_price(
@@ -58,7 +82,7 @@ def get_private_projects_limit(
 
 def sync_with_stripe():
     """Ensure all Stripe products and prices are up-to-date."""
-    skip_plan_names = ["free", "enterprise"]
+    skip_plan_names = ["free"]
     logger.info("Fetching all Stripe products")
     products = app.stripe.get_products()
     products_by_plan_id = {

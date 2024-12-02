@@ -43,10 +43,11 @@ import {
   type SubscriptionUpdate,
   type OrgSubscriptionUpdate,
   type UserPublic,
+  type SubscriptionPlan,
   UsersService,
   OrgsService,
 } from "../client"
-import { handleError } from "../utils"
+import { handleError, capitalizeFirstLetter } from "../utils"
 import useCustomToast from "../hooks/useCustomToast"
 
 export const Route = createFileRoute("/_layout")({
@@ -71,19 +72,11 @@ function PickSubscription({ user }: PickSubscriptionProps) {
   const [teamSize, setTeamSize] = useState(5)
   const [orgName, setOrgName] = useState("")
   const navigate = useNavigate()
-  // TODO: These plans should probably come from the back end
-  const plans = [
-    { name: "Free", price: null, privateProjects: 1, storageGb: 1 },
-    { name: "Standard", price: 10, privateProjects: 2, storageGb: 50 },
-    {
-      name: "Professional",
-      price: 50,
-      privateProjects: "Unlimited",
-      storageGb: 500,
-    },
-  ]
-  const annualDiscount = 0.9
-  const preferredPlanName = "Standard"
+  const plansQuery = useQuery({
+    queryKey: ["subscription-plans"],
+    queryFn: () => MiscService.getSubscriptionPlans(),
+  })
+  const preferredPlanName = "standard"
   const getPriceUnits = () => {
     if (team) {
       return "/user/mo"
@@ -91,8 +84,12 @@ function PickSubscription({ user }: PickSubscriptionProps) {
     return "/mo"
   }
   const getPlans = () => {
-    if (team) {
-      return plans.filter((plan) => plan.name !== "Free")
+    if (plansQuery.error || !plansQuery.data) {
+      return []
+    }
+    const plans = plansQuery.data
+    if (team && plans) {
+      return plans.filter((plan) => plan.name !== "free")
     }
     return plans
   }
@@ -110,7 +107,10 @@ function PickSubscription({ user }: PickSubscriptionProps) {
     retry: 1,
   })
   const queryClient = useQueryClient()
-  const calcPrice = (price: number | null, planName: string) => {
+  const calcPrice = (plan: SubscriptionPlan) => {
+    const planName = plan.name
+    const price = plan.price
+    const annualDiscount = plan.annual_discount_factor
     const discountedPrice = discountCodeCheckQuery.data?.price
     const discountedPlanName = discountCodeCheckQuery.data?.plan_name
     if (planName.toLowerCase() === discountedPlanName) {
@@ -119,7 +119,7 @@ function PickSubscription({ user }: PickSubscriptionProps) {
     if (!price) {
       return price
     }
-    if (annual) {
+    if (annual && annualDiscount) {
       return price * annualDiscount
     }
     return price
@@ -229,57 +229,68 @@ function PickSubscription({ user }: PickSubscriptionProps) {
         ) : (
           ""
         )}
-        <Box mb={4}>
-          <SimpleGrid spacing={4} columns={team ? 2 : 3}>
-            {/* Cards for each plan */}
-            {getPlans().map((plan) => (
-              <Card
-                align={"center"}
-                key={plan.name}
-                borderWidth={plan.name === preferredPlanName ? 2 : 0}
-                borderColor={"green.500"}
-              >
-                <CardHeader>
-                  <Heading size="md">
-                    {plan.name}
-                    {plan.price
-                      ? `: $${calcPrice(plan.price, plan.name)}${getPriceUnits()}`
-                      : ""}
-                  </Heading>
-                </CardHeader>
-                <CardBody>
-                  <UnorderedList>
-                    <ListItem>Unlimited collaborators</ListItem>
-                    <ListItem>Unlimited public projects</ListItem>
-                    <ListItem>
-                      {plan.privateProjects} private project
-                      {typeof plan.privateProjects === "string" ||
-                      plan.privateProjects > 1
-                        ? "s"
+        {plansQuery.isPending ? (
+          <Flex justify="center" align="center" height="100vh" width="full">
+            <Spinner size="xl" color="ui.main" />
+          </Flex>
+        ) : (
+          <Box mb={4}>
+            <SimpleGrid spacing={4} columns={team ? 2 : 3}>
+              {/* Cards for each plan */}
+              {getPlans().map((plan) => (
+                <Card
+                  align={"center"}
+                  key={plan.name}
+                  borderWidth={plan.name === preferredPlanName ? 2 : 0}
+                  borderColor={"green.500"}
+                >
+                  <CardHeader>
+                    <Heading size="md">
+                      {capitalizeFirstLetter(plan.name)}
+                      {plan.price
+                        ? `: $${calcPrice(plan)}${getPriceUnits()}`
                         : ""}
-                      {team ? "/user" : ""}
-                    </ListItem>
-                    <ListItem>
-                      {plan.storageGb} GB storage{team ? "/user" : ""}
-                    </ListItem>
-                  </UnorderedList>
-                </CardBody>
-                <CardFooter>
-                  <Button
-                    variant={
-                      plan.name === preferredPlanName ? "primary" : undefined
-                    }
-                    isLoading={subscriptionMutation.isPending}
-                    onClick={() => handleSubmit(plan.name.toLowerCase())}
-                    isDisabled={team && !orgName}
-                  >
-                    {plan.name === preferredPlanName ? "🚀 " : ""}Let's go!
-                  </Button>
-                </CardFooter>
-              </Card>
-            ))}
-          </SimpleGrid>
-        </Box>
+                    </Heading>
+                  </CardHeader>
+                  <CardBody>
+                    <UnorderedList>
+                      <ListItem>Unlimited collaborators</ListItem>
+                      <ListItem>Unlimited public projects</ListItem>
+                      <ListItem>
+                        {plan.private_projects_limit
+                          ? plan.private_projects_limit
+                          : "Unlimited"}{" "}
+                        private project
+                        {plan.private_projects_limit === null ||
+                        (typeof plan.private_projects_limit === "number" &&
+                          plan.private_projects_limit > 1)
+                          ? "s"
+                          : ""}
+                        {team ? "/user" : ""}
+                      </ListItem>
+                      <ListItem>
+                        {plan.storage_limit} GB storage{team ? "/user" : ""}
+                      </ListItem>
+                    </UnorderedList>
+                  </CardBody>
+                  <CardFooter>
+                    <Button
+                      variant={
+                        plan.name === preferredPlanName ? "primary" : undefined
+                      }
+                      isLoading={subscriptionMutation.isPending}
+                      onClick={() => handleSubmit(plan.name.toLowerCase())}
+                      isDisabled={team && !orgName}
+                    >
+                      {plan.name === preferredPlanName ? "🚀 " : ""}Let's go!
+                    </Button>
+                  </CardFooter>
+                </Card>
+              ))}
+            </SimpleGrid>
+          </Box>
+        )}
+
         <Flex justifyItems={"center"} justifyContent="center" width={"100%"}>
           <Box>
             <Box textAlign={"center"}>

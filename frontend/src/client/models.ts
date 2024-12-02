@@ -476,6 +476,20 @@ export type Stage = {
   meta?: Record<string, unknown> | null
 }
 
+export type StorageUsage = {
+  limit_gb: number
+  used_gb: number
+}
+
+export type SubscriptionPlan = {
+  name: string
+  id: number
+  price: number
+  private_projects_limit: number | null
+  storage_limit: number
+  annual_discount_factor?: number
+}
+
 export type SubscriptionUpdate = {
   plan_name: "free" | "standard" | "professional"
   period: "monthly" | "annual"
