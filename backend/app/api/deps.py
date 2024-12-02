@@ -66,8 +66,12 @@ def get_current_user(session: SessionDep, token: TokenDep) -> User:
     if user.subscription is not None and user.subscription.price > 0:
         # Delete subscription if payment hasn't been received in 10 minutes
         # since transaction started
-        if user.subscription.paid_until is None and (
-            (utcnow() - user.subscription.created).total_seconds() > 120
+        if (
+            user.subscription.paid_until is None
+            and ((utcnow() - user.subscription.created).total_seconds() > 300)
+        ) or (
+            user.subscription.paid_until is not None
+            and user.subscription.paid_until < utcnow()
         ):
             logger.info(f"Checking subscription for {user.email}")
             stripe_cust = stripe.get_customer(user.email)
@@ -94,7 +98,6 @@ def get_current_user(session: SessionDep, token: TokenDep) -> User:
                 session.delete(user.subscription)
                 session.commit()
                 session.refresh(user)
-        # TODO: What to do about expired subscriptions?
     return user
 
 
