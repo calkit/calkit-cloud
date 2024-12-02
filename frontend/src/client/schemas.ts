@@ -647,7 +647,7 @@ export const $DiscountCode = {
     plan_id: {
       type: "number",
       isRequired: true,
-      maximum: 3,
+      maximum: 2,
       minimum: 0,
     },
     price: {
@@ -1547,7 +1547,7 @@ export const $OrgSubscription = {
     plan_id: {
       type: "number",
       isRequired: true,
-      maximum: 3,
+      maximum: 2,
       minimum: 0,
     },
     is_active: {
@@ -2307,6 +2307,52 @@ export const $Stage = {
   },
 } as const
 
+export const $StorageUsage = {
+  properties: {
+    limit_gb: {
+      type: "number",
+      isRequired: true,
+    },
+    used_gb: {
+      type: "number",
+      isRequired: true,
+    },
+  },
+} as const
+
+export const $SubscriptionPlan = {
+  properties: {
+    name: {
+      type: "string",
+      isRequired: true,
+    },
+    id: {
+      type: "number",
+      isRequired: true,
+    },
+    price: {
+      type: "number",
+      isRequired: true,
+    },
+    private_projects_limit: {
+      type: "any-of",
+      contains: [
+        {
+          type: "number",
+        },
+        {
+          type: "null",
+        },
+      ],
+      isRequired: true,
+    },
+    storage_limit: {
+      type: "number",
+      isRequired: true,
+    },
+  },
+} as const
+
 export const $SubscriptionUpdate = {
   properties: {
     plan_name: {
@@ -2598,7 +2644,7 @@ export const $UserSubscription = {
     plan_id: {
       type: "number",
       isRequired: true,
-      maximum: 3,
+      maximum: 2,
       minimum: 0,
     },
     is_active: {
