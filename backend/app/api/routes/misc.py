@@ -16,6 +16,7 @@ from app.models import (
     User,
 )
 from app.stripe import stripe
+from app.subscriptions import SubscriptionPlan, get_plans
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from pydantic.networks import EmailStr
@@ -211,3 +212,10 @@ def post_presigned_url(
     if not current_user.is_superuser:
         raise HTTPException(403)
     return get_object_url(req.path, method=req.method)
+
+
+@router.get("/subscription-plans")
+def get_subscription_plans(
+    current_user: CurrentUser,
+) -> dict[str, SubscriptionPlan]:
+    return get_plans()
