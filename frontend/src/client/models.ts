@@ -487,6 +487,7 @@ export type SubscriptionPlan = {
   price: number
   private_projects_limit: number | null
   storage_limit: number
+  annual_discount_factor?: number
 }
 
 export type SubscriptionUpdate = {

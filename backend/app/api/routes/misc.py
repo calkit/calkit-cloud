@@ -217,5 +217,5 @@ def post_presigned_url(
 @router.get("/subscription-plans")
 def get_subscription_plans(
     current_user: CurrentUser,
-) -> dict[str, SubscriptionPlan]:
+) -> list[SubscriptionPlan]:
     return get_plans()

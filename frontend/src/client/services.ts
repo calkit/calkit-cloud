@@ -978,7 +978,7 @@ export class MiscService {
    * @throws ApiError
    */
   public static getSubscriptionPlans(): CancelablePromise<
-    Record<string, SubscriptionPlan>
+    Array<SubscriptionPlan>
   > {
     return __request(OpenAPI, {
       method: "GET",

@@ -37,19 +37,22 @@ class SubscriptionPlan(BaseModel):
     price: float
     private_projects_limit: int | None
     storage_limit: int
+    annual_discount_factor: float = ANNUAL_DISCOUNT_FACTOR
 
 
-def get_plans() -> dict[str, SubscriptionPlan]:
-    plans = {}
+def get_plans() -> list[SubscriptionPlan]:
+    plans = []
     for _plan_name, _plan_id in PLAN_IDS.items():
-        plans[_plan_name] = SubscriptionPlan(
-            name=_plan_name,
-            id=_plan_id,
-            price=PRICES_BY_PLAN_NAME[_plan_name],
-            private_projects_limit=PRIVATE_PROJECTS_LIMITS_BY_PLAN_NAME[
-                _plan_name
-            ],
-            storage_limit=STORAGE_LIMITS_BY_PLAN_NAME[_plan_name],
+        plans.append(
+            SubscriptionPlan(
+                name=_plan_name,
+                id=_plan_id,
+                price=PRICES_BY_PLAN_NAME[_plan_name],
+                private_projects_limit=PRIVATE_PROJECTS_LIMITS_BY_PLAN_NAME[
+                    _plan_name
+                ],
+                storage_limit=STORAGE_LIMITS_BY_PLAN_NAME[_plan_name],
+            )
         )
     return plans
 

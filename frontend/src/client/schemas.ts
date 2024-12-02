@@ -2350,6 +2350,10 @@ export const $SubscriptionPlan = {
       type: "number",
       isRequired: true,
     },
+    annual_discount_factor: {
+      type: "number",
+      default: 0.9,
+    },
   },
 } as const
 
