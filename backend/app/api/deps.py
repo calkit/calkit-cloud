@@ -64,7 +64,7 @@ def get_current_user(session: SessionDep, token: TokenDep) -> User:
         raise HTTPException(status_code=400, detail="Inactive user")
     # Ensure that if this user has a paid subscription, it is valid
     if user.subscription is not None and user.subscription.price > 0:
-        # Delete subscription if payment hasn't been received in 10 minutes
+        # Delete subscription if payment hasn't been received in 5 minutes
         # since transaction started
         if (
             user.subscription.paid_until is None
