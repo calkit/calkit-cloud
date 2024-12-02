@@ -1,12 +1,16 @@
 """Dependencies to use in API routes."""
 
+import logging
 from collections.abc import Generator
+from datetime import datetime
 from functools import partial
 from typing import Annotated
 
+import app.stripe as stripe
 import jwt
 from app import security
 from app.config import settings
+from app.core import utcnow
 from app.db import engine
 from app.models import TokenPayload, User, UserToken
 from fastapi import Depends, HTTPException, status
@@ -14,6 +18,9 @@ from fastapi.security import OAuth2PasswordBearer
 from jwt.exceptions import InvalidTokenError
 from pydantic import ValidationError
 from sqlmodel import Session, select
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 reusable_oauth2 = OAuth2PasswordBearer(
     tokenUrl=f"{settings.API_V1_STR}/login/access-token"
@@ -56,15 +63,37 @@ def get_current_user(session: SessionDep, token: TokenDep) -> User:
     if not user.is_active:
         raise HTTPException(status_code=400, detail="Inactive user")
     # Ensure that if this user has a paid subscription, it is valid
-    if user.subscription is not None:
-        # Delete failed paid subscription creation
-        if (
-            user.subscription.price > 0
-            and user.subscription.paid_until is None
+    if user.subscription is not None and user.subscription.price > 0:
+        # Delete subscription if payment hasn't been received in 10 minutes
+        # since transaction started
+        if user.subscription.paid_until is None and (
+            (utcnow() - user.subscription.created).total_seconds() > 120
         ):
-            session.delete(user.subscription)
-            session.commit()
-            session.refresh(user)
+            logger.info(f"Checking subscription for {user.email}")
+            stripe_cust = stripe.get_customer(user.email)
+            if stripe_cust is not None:
+                stripe_subs = stripe.get_customer_subscriptions(
+                    customer_id=stripe_cust.id, status="active"
+                )
+            else:
+                logger.info(f"No Stripe customer exists for {user.email}")
+                stripe_subs = []
+            sub_valid = False
+            for sub in stripe_subs:
+                if sub.current_period_end > utcnow().timestamp():
+                    logger.info("Found valid subscription")
+                    user.subscription.paid_until = datetime.fromtimestamp(
+                        sub.current_period_end
+                    )
+                    user.subscription.processor_subscription_id = sub.id
+                    session.commit()
+                    session.refresh(user)
+                    sub_valid = True
+            if not sub_valid:
+                logger.info("Deleting invalid subscription")
+                session.delete(user.subscription)
+                session.commit()
+                session.refresh(user)
         # TODO: What to do about expired subscriptions?
     return user
 
