@@ -8,10 +8,13 @@ import {
   Image,
   Stack,
   Link,
+  Icon,
+  Text,
 } from "@chakra-ui/react"
 import { Link as RouterLink } from "@tanstack/react-router"
 import { HamburgerIcon, CloseIcon } from "@chakra-ui/icons"
 import UserMenu from "./UserMenu"
+import { FaGithub } from "react-icons/fa"
 
 interface Props {
   children: React.ReactNode
@@ -90,6 +93,19 @@ export default function Topbar() {
             </HStack>
           </HStack>
           <Flex alignItems={"center"}>
+            <Link
+              isExternal
+              href="https://github.com/calkit/calkit-cloud"
+              mr={8}
+              aria-label="View GitHub repo."
+            >
+              <Flex alignItems={"center"} pt={0.5} pb={0.5}>
+                <Icon fontSize="2xl" mr={1}>
+                  <FaGithub />
+                </Icon>
+                <Text fontSize="xs">calkit/calkit-cloud</Text>
+              </Flex>
+            </Link>
             <UserMenu />
           </Flex>
         </Flex>
