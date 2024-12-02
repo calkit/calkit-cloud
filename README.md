@@ -5,7 +5,7 @@
 The Calkit cloud system serves as an index for projects and their artifacts
 such as datasets, figures, publications, computational environments, etc.
 It also serves as a [DVC](https://dvc.org) remote,
-tightly integrated with the
+neatly integrated with the
 [Calkit CLI](https://github.com/calkit/calkit),
 so users can easily
 back up their data and artifacts in the same repository as their code,
