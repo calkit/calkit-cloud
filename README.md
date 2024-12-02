@@ -17,6 +17,15 @@ Additionally, all studies should be able to be reproduced by anyone else
 by using this framework,
 resulting in more reliable knowledge.
 
+## Deploying your own instance
+
+A future goal of this project is to make it easy for teams or institutions to
+deploy their own Calkit cloud instances in a federated network, where users on
+any instance can search for projects, datasets, etc., on any other instance.
+This is currently not easy, but if you'd like to help make it so, please
+join the discussion in
+[this issue](https://github.com/calkit/calkit-cloud/issues/190).
+
 ## Technology stack and features
 
 This project was derived from
@@ -59,29 +68,3 @@ Deployment docs: [deployment.md](./deployment.md).
 General development docs: [development.md](./development.md).
 
 This includes using Docker Compose, custom local domains, `.env` configurations, etc.
-
-## Open source notices
-
-Portions of this software were taken from
-The Full Stack FastAPI Template by Sebastián Ramírez,
-licensed under the terms of the MIT license.
-
-Copyright (c) 2019 Sebastián Ramírez
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
