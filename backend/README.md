@@ -3,7 +3,7 @@
 ## Requirements
 
 * [Docker](https://www.docker.com/).
-* [Poetry](https://python-poetry.org/) for Python package and environment management.
+* [uv](https://docs.astral.sh/uv/) for Python package and environment management.
 
 ## Local Development
 
@@ -45,18 +45,20 @@ If your Docker is not running in `localhost` (the URLs above wouldn't work) you 
 
 ### General workflow
 
-By default, the dependencies are managed with [Poetry](https://python-poetry.org/), go there and install it.
+By default, the dependencies are managed with
+[uv](https://docs.astral.sh/uv/),
+go there and install it.
 
 From `./backend/` you can install all the dependencies with:
 
 ```console
-$ poetry install
+$ uv sync
 ```
 
 Then you can start a shell session with the new environment with:
 
 ```console
-$ poetry shell
+$ source .venv/bin/activate
 ```
 
 Make sure your editor is using the correct Python virtual environment.
