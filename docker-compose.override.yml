@@ -56,9 +56,10 @@ services:
     env_file:
       - .env
     ports:
-      - "8888:8888"
+      - "8000:8000"
     volumes:
       - ./backend/:/app
+      - /app/.venv
     build:
       context: ./backend
       args:
