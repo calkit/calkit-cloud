@@ -244,12 +244,6 @@ function ProjectView() {
               </Heading>
               <Text>Coming soon!</Text>
             </Box>
-            <Box py={4} px={6} borderRadius="lg" bg={secBgColor}>
-              <Heading size="md" mb={2}>
-                Stats
-              </Heading>
-              <Text>Coming soon!</Text>
-            </Box>
           </Box>
         </Flex>
       )}
