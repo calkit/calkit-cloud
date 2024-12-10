@@ -249,10 +249,26 @@ def create_project(
             }
             ryaml.dump(ck_info, f)
         repo.git.add("calkit.yaml")
+        # Create devcontainer spec
+        dc_url = (
+            "https://raw.githubusercontent.com/calkit/devcontainer/"
+            "refs/heads/main/devcontainer.json"
+        )
+        dc_resp = requests.get(dc_url)
+        dc_dir = os.path.join(repo.working_dir, ".devcontainer")
+        os.makedirs(dc_dir, exist_ok=True)
+        dc_fpath = os.path.join(dc_dir, "devcontainer.json")
+        with open(dc_fpath, "w") as f:
+            f.write(dc_resp.text)
         # Add to the README
         logger.info("Creating README.md")
         with open(os.path.join(repo.working_dir, "README.md"), "w") as f:
-            txt = f"# {project_in.title}\n"
+            txt = f"# {project_in.title}\n\n"
+            cs_url = f"https://codespaces.new/{owner_name}/{repo_name}"
+            cs_url += "?quickstart=1"
+            badge_url = "https://github.com/codespaces/badge.svg"
+            cs_md = f"[![Open in GitHub Codespaces]({badge_url})]({cs_url})"
+            txt += cs_md + "\n"
             if project_in.description is not None:
                 txt += f"\n{project_in.description}\n"
             f.write(txt)
