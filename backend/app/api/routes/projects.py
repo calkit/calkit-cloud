@@ -249,10 +249,26 @@ def create_project(
             }
             ryaml.dump(ck_info, f)
         repo.git.add("calkit.yaml")
+        # Create devcontainer spec
+        dc_url = (
+            "https://raw.githubusercontent.com/calkit/devcontainer/"
+            "refs/heads/main/devcontainer.json"
+        )
+        dc_resp = requests.get(dc_url)
+        dc_dir = os.path.join(repo.working_dir, ".devcontainer")
+        os.makedirs(dc_dir, exist_ok=True)
+        dc_fpath = os.path.join(dc_dir, "devcontainer.json")
+        with open(dc_fpath, "w") as f:
+            f.write(dc_resp.text)
         # Add to the README
         logger.info("Creating README.md")
         with open(os.path.join(repo.working_dir, "README.md"), "w") as f:
-            txt = f"# {project_in.title}\n"
+            txt = f"# {project_in.title}\n\n"
+            cs_url = f"https://codespaces.new/{owner_name}/{repo_name}"
+            cs_url += "?quickstart=1"
+            badge_url = "https://github.com/codespaces/badge.svg"
+            cs_md = f"[![Open in GitHub Codespaces]({badge_url})]({cs_url})"
+            txt += cs_md + "\n"
             if project_in.description is not None:
                 txt += f"\n{project_in.description}\n"
             f.write(txt)
@@ -1078,7 +1094,7 @@ def get_project_questions(
         min_access_level="read",
     )
     ck_info = get_ck_info(
-        project=project, user=current_user, session=session, ttl=300
+        project=project, user=current_user, session=session, ttl=120
     )
     project = _sync_questions_with_db(
         ck_info=ck_info, project=project, session=session
@@ -1139,7 +1155,7 @@ def get_project_figures(
         min_access_level="read",
     )
     ck_info = get_ck_info(
-        project=project, user=current_user, session=session, ttl=300
+        project=project, user=current_user, session=session, ttl=120
     )
     figures = ck_info.get("figures", [])
     if not figures:
@@ -1336,7 +1352,7 @@ def post_figure_comment(
     )
     # First we need to make this this figure path exists in this project
     ck_info = get_ck_info(
-        project=project, user=current_user, session=session, ttl=300
+        project=project, user=current_user, session=session, ttl=120
     )
     figures = ck_info.get("figures", [])
     fig_paths = [fig["path"] for fig in figures]
@@ -1414,7 +1430,7 @@ def get_project_datasets(
     )
     # Read the datasets file from the repo
     ck_info = get_ck_info(
-        project=project, user=current_user, session=session, ttl=300
+        project=project, user=current_user, session=session, ttl=120
     )
     project = _sync_datasets_with_db(
         ck_info=ck_info, project=project, session=session
@@ -1440,7 +1456,7 @@ def get_project_dataset(
     )
     # Read the datasets file from the repo
     repo = get_repo(
-        project=project, user=current_user, session=session, ttl=300
+        project=project, user=current_user, session=session, ttl=120
     )
     repo_dir = repo.working_dir
     ck_info = get_ck_info_from_repo(repo)
@@ -1715,10 +1731,10 @@ def get_project_publications(
         min_access_level="read",
     )
     ck_info = get_ck_info(
-        project=project, user=current_user, session=session, ttl=300
+        project=project, user=current_user, session=session, ttl=120
     )
     pipeline = get_dvc_pipeline(
-        project=project, user=current_user, session=session, ttl=300
+        project=project, user=current_user, session=session, ttl=120
     )
     publications = ck_info.get("publications", [])
     resp = []
@@ -1931,7 +1947,7 @@ def get_project_pipeline(
         min_access_level="read",
     )
     repo = get_repo(
-        project=project, user=current_user, session=session, ttl=300
+        project=project, user=current_user, session=session, ttl=120
     )
     fpath = os.path.join(repo.working_dir, "dvc.yaml")
     if not os.path.isfile(fpath):
@@ -2240,7 +2256,7 @@ def get_project_references(
         min_access_level="read",
     )
     repo = get_repo(
-        project=project, user=current_user, session=session, ttl=300
+        project=project, user=current_user, session=session, ttl=120
     )
     ck_info = get_ck_info_from_repo(repo)
     ref_collections = ck_info.get("references", [])
@@ -2321,7 +2337,7 @@ def get_project_software(
         min_access_level="read",
     )
     repo = get_repo(
-        project=project, user=current_user, session=session, ttl=300
+        project=project, user=current_user, session=session, ttl=120
     )
     ck_info = get_ck_info_from_repo(repo)
     envs = ck_info.get("environments", [])
@@ -2433,7 +2449,7 @@ def get_project_notebooks(
         min_access_level="read",
     )
     ck_info = get_ck_info(
-        project=project, user=current_user, session=session, ttl=300
+        project=project, user=current_user, session=session, ttl=120
     )
     notebooks = ck_info.get("notebooks", [])
     if not notebooks:
