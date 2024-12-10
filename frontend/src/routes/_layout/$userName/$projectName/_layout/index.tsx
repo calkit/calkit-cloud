@@ -15,11 +15,13 @@ import {
   useDisclosure,
   IconButton,
   Link,
+  Icon,
 } from "@chakra-ui/react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 import { useState } from "react"
 import { FaPlus } from "react-icons/fa"
+import { ExternalLinkIcon } from "@chakra-ui/icons"
 
 import { ProjectsService } from "../../../../../client"
 import Markdown from "../../../../../components/Common/Markdown"
@@ -246,10 +248,18 @@ function ProjectView() {
                 📜 <Link>Create a new publication</Link>
               </Text>
               <Text>
-                🚀 <Link>Open in GitHub Codespaces</Link>
+                🚀{" "}
+                <Link>
+                  Open in GitHub Codespaces{" "}
+                  <Icon height={"40%"} as={ExternalLinkIcon} pb={0.5} />
+                </Link>
               </Text>
               <Text>
-                🔑 <Link>Configure GitHub Codespaces secrets</Link>
+                🔑{" "}
+                <Link>
+                  Configure GitHub Codespaces secrets{" "}
+                  <Icon height={"40%"} as={ExternalLinkIcon} pb={0.5} />
+                </Link>
               </Text>
             </Box>
           </Box>
