@@ -240,9 +240,17 @@ function ProjectView() {
             </Box>
             <Box py={4} px={6} mb={4} borderRadius="lg" bg={secBgColor}>
               <Heading size="md" mb={2}>
-                Recent activity
+                Quick actions
               </Heading>
-              <Text>Coming soon!</Text>
+              <Text>
+                📜 <Link>Create a new publication</Link>
+              </Text>
+              <Text>
+                🚀 <Link>Open in GitHub Codespaces</Link>
+              </Text>
+              <Text>
+                🔑 <Link>Configure GitHub Codespaces secrets</Link>
+              </Text>
             </Box>
           </Box>
         </Flex>
