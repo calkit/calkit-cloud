@@ -267,7 +267,7 @@ function ProjectView() {
               <Text>
                 📜{" "}
                 <Link onClick={newPubTemplateModal.onOpen}>
-                  Create a new publication
+                  Create a new publication from a template
                 </Link>
               </Text>
               <Text>

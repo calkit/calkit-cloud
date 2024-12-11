@@ -214,7 +214,9 @@ const NewPublication = ({
             {/* Environment name */}
             {variant === "template" ? (
               <FormControl mt={4} isRequired isInvalid={!!errors.environment}>
-                <FormLabel htmlFor="environment">Docker environment name</FormLabel>
+                <FormLabel htmlFor="environment">
+                  Docker environment name
+                </FormLabel>
                 <Input
                   id="environment"
                   {...register("environment")}
