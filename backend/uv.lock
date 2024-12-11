@@ -246,7 +246,7 @@ requires-dist = [
     { name = "alembic", specifier = ">=1.12.1,<2.0.0" },
     { name = "bcrypt", specifier = "==4.0.1" },
     { name = "bibtexparser", specifier = "==1.4.1" },
-    { name = "calkit-python", specifier = ">=0.9.1" },
+    { name = "calkit-python", specifier = ">=0.9.2" },
     { name = "cryptography", specifier = "==43.0.0" },
     { name = "dvc", specifier = "==3.54.1" },
     { name = "email-validator", specifier = ">=2.1.0.post1,<3.0.0.0" },
@@ -446,7 +446,7 @@ wheels = [
 
 [[package]]
 name = "calkit-python"
-version = "0.9.1"
+version = "0.9.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "docx2pdf" },
@@ -464,9 +464,9 @@ dependencies = [
     { name = "typer" },
     { name = "uvicorn" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/a8/27/f091320fac05cd21d3a637005b63be42a9b314fbd47598bf4b5d537d13f4/calkit_python-0.9.1.tar.gz", hash = "sha256:d4704d56f200c9f70e6cdb864732c3561015aa4bead5e4db6caf9291824d3800", size = 435959 }
+sdist = { url = "https://files.pythonhosted.org/packages/3e/22/102c49cd2f170e5645c7dd69f65acf2d57192b40a2ead9f5a30c22590b5a/calkit_python-0.9.2.tar.gz", hash = "sha256:d9fc74e7a9d686528695abf4ab6499220bf569e65f094c6879e41dce1a0f1523", size = 435989 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/fc/d1/323c00077ce104363e2307e99c4d944fa5db88aaa0e10a582e1cc9bf156b/calkit_python-0.9.1-py3-none-any.whl", hash = "sha256:5a3625ca84c840a6f1ff31545d7f0e80ae4aed78d388ffd043ff201d61ab1d85", size = 88278 },
+    { url = "https://files.pythonhosted.org/packages/38/12/6c52c7dae6ca978564827cc50d14f7fe2b18f490d01ca654deb81db7c5bf/calkit_python-0.9.2-py3-none-any.whl", hash = "sha256:70bd5802d5d16d53dc398f791b9939a4c2194f0c524c89193272eb45a42fb0ed", size = 88312 },
 ]
 
 [[package]]
