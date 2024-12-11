@@ -211,9 +211,9 @@ function Publications() {
                       overflow="hidden"
                       textOverflow="ellipsis"
                       display="inline-block"
-                      maxW="100%"
+                      width="100%"
                     >
-                      <Icon pt={1} as={FiFile} /> {pub.title}
+                      <Icon pt={1} mr={-0.5} as={FiFile} /> {pub.title}
                     </Text>
                   </Link>
                 ))
