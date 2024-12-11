@@ -148,6 +148,28 @@ export const $Body_projects_post_project_publication = {
         },
       ],
     },
+    template: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    environment: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
     file: {
       type: "any-of",
       contains: [
@@ -2417,8 +2439,7 @@ export const $TokenPost = {
       type: "any-of",
       contains: [
         {
-          type: "Enum",
-          enum: ["dvc"],
+          type: '"dvc"',
         },
         {
           type: "null",
