@@ -97,6 +97,11 @@ const NewPublication = ({
   const onSubmit: SubmitHandler<PublicationPostWithFile> = (data) => {
     mutation.mutate(data)
   }
+  const titles = {
+    template: "Create new publication from template",
+    upload: "Upload new publication",
+    label: "Label existing file as publication",
+  }
 
   return (
     <>
@@ -108,11 +113,7 @@ const NewPublication = ({
       >
         <ModalOverlay />
         <ModalContent as="form" onSubmit={handleSubmit(onSubmit)}>
-          <ModalHeader>
-            {uploadFile
-              ? "Upload new publication"
-              : "Label existing file as publication"}
-          </ModalHeader>
+          <ModalHeader>{titles[variant]}</ModalHeader>
           <ModalCloseButton />
           <ModalBody pb={6}>
             <FormControl isRequired isInvalid={!!errors.path}>
