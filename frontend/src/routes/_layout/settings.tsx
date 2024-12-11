@@ -48,7 +48,6 @@ function UserSettings() {
     finalTabs.forEach((tabDef, index) => {
       if (tab === tabDef.slug) {
         initialTabIndex = index
-        console.log("Tab index", initialTabIndex, tabDef.slug)
       }
     })
   }
