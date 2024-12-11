@@ -1784,6 +1784,8 @@ def post_project_publication(
     title: Annotated[str, Form()],
     description: Annotated[str, Form()],
     stage: Optional[Annotated[str, Form()]] = Form(None),
+    template: Optional[Annotated[str, Form()]] = Form(None),
+    environment: Optional[Annotated[str, Form()]] = Form(None),
     file: Optional[Annotated[UploadFile, File()]] = Form(None),
 ) -> Publication:
     if file is not None:
@@ -1792,10 +1794,10 @@ def post_project_publication(
             f"{file.content_type}"
         )
     else:
-        logger.info(f"Received request to create publication from {path}")
+        logger.info(f"Received request to create publication at {path}")
     if file is not None and stage is not None:
         raise HTTPException(
-            400, "DVC outputs should be uploaded with `dvc push`"
+            400, "DVC outputs should be uploaded with `calkit push`"
         )
     project = app.projects.get_project(
         session=session,
@@ -1846,6 +1848,30 @@ def post_project_publication(
                 cmd = line.strip().split()
                 logger.info(f"Calling {cmd}")
                 repo.git.add(cmd[2:])
+    elif template is not None:
+        # TODO: Centralize template names
+        if template not in ["latex/article", "latex/jfm"]:
+            raise HTTPException(422, "Invalid template name")
+        cmd = [
+            "calkit",
+            "new",
+            "publication",
+            path,
+            "--no-commit",
+            "--kind",
+            kind,
+            "--title",
+            title,
+            "--description",
+            description,
+            "--template",
+            template,
+        ]
+        if stage is not None:
+            cmd += ["--stage", stage]
+        if environment is not None:
+            cmd += ["--environment", environment]
+        subprocess.check_call(cmd, cwd=repo.working_dir)
     elif not os.path.isfile(os.path.join(repo.working_dir, path)):
         raise HTTPException(
             400, "File must exist in repo if not being uploaded"
