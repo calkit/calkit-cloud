@@ -27,6 +27,7 @@ import { ProjectsService } from "../../../../../client"
 import Markdown from "../../../../../components/Common/Markdown"
 import CreateIssue from "../../../../../components/Projects/CreateIssue"
 import CreateQuestion from "../../../../../components/Projects/CreateQuestion"
+import NewPublication from "../../../../../components/Publications/NewPublication"
 
 export const Route = createFileRoute(
   "/_layout/$userName/$projectName/_layout/",
@@ -118,6 +119,7 @@ function ProjectView() {
   }
   const newIssueModal = useDisclosure()
   const newQuestionModal = useDisclosure()
+  const newPubTemplateModal = useDisclosure()
 
   return (
     <>
@@ -263,7 +265,10 @@ function ProjectView() {
                 Quick actions
               </Heading>
               <Text>
-                📜 <Link>Create a new publication</Link>
+                📜{" "}
+                <Link onClick={newPubTemplateModal.onOpen}>
+                  Create a new publication
+                </Link>
               </Text>
               <Text>
                 🚀{" "}
@@ -283,6 +288,11 @@ function ProjectView() {
                 </Link>
               </Text>
             </Box>
+            <NewPublication
+              isOpen={newPubTemplateModal.isOpen}
+              onClose={newPubTemplateModal.onClose}
+              variant="template"
+            />
           </Box>
         </Flex>
       )}
