@@ -1876,20 +1876,23 @@ def post_project_publication(
         raise HTTPException(
             400, "File must exist in repo if not being uploaded"
         )
-    # Update figures
-    publications.append(
-        dict(
-            path=path,
-            type=kind,
-            title=title,
-            description=description,
-            stage=stage,
+    # Only update publications if template is None, since when a template is
+    # used, this was already done in `calkit new publication`
+    if template is None:
+        # Update figures
+        publications.append(
+            dict(
+                path=path,
+                type=kind,
+                title=title,
+                description=description,
+                stage=stage,
+            )
         )
-    )
-    ck_info["publications"] = publications
-    with open(os.path.join(repo.working_dir, "calkit.yaml"), "w") as f:
-        ryaml.dump(ck_info, f)
-    repo.git.add("calkit.yaml")
+        ck_info["publications"] = publications
+        with open(os.path.join(repo.working_dir, "calkit.yaml"), "w") as f:
+            ryaml.dump(ck_info, f)
+        repo.git.add("calkit.yaml")
     # Make a commit
     repo.git.commit(["-m", f"Add publication {path} ({kind})"])
     # Push to GitHub, and optionally DVC remote if we used it
