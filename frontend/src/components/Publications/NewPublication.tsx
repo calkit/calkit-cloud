@@ -42,6 +42,7 @@ interface PublicationPostWithFile {
     | "book"
   template?: "latex/article" | "latex/jfm"
   stage?: string
+  environment?: string
   file?: FileList
 }
 
@@ -77,13 +78,16 @@ const NewPublication = ({
           path: data.path,
           description: data.description,
           kind: data.kind,
+          template: data.template,
+          stage: data.stage,
+          environment: data.environment,
           file: data.file ? data.file[0] : null,
         },
         ownerName: userName,
         projectName: projectName,
       }),
     onSuccess: () => {
-      showToast("Success!", "Publication uploaded successfully.", "success")
+      showToast("Success!", "Publication created.", "success")
       reset()
       onClose()
     },
@@ -207,6 +211,43 @@ const NewPublication = ({
                 </FormErrorMessage>
               )}
             </FormControl>
+            {/* Environment name */}
+            {variant === "template" ? (
+              <FormControl mt={4} isRequired isInvalid={!!errors.environment}>
+                <FormLabel htmlFor="environment">Docker environment name</FormLabel>
+                <Input
+                  id="environment"
+                  {...register("environment")}
+                  placeholder="Ex: latex"
+                  type="text"
+                />
+                {errors.environment && (
+                  <FormErrorMessage>
+                    {errors.environment.message}
+                  </FormErrorMessage>
+                )}
+              </FormControl>
+            ) : (
+              ""
+            )}
+            {/* Stage name */}
+            {variant === "template" ? (
+              <FormControl mt={4} isRequired isInvalid={!!errors.stage}>
+                <FormLabel htmlFor="title">Pipeline stage name</FormLabel>
+                <Input
+                  id="stage"
+                  {...register("stage")}
+                  placeholder="Ex: build-paper"
+                  type="text"
+                />
+                {errors.stage && (
+                  <FormErrorMessage>{errors.stage.message}</FormErrorMessage>
+                )}
+              </FormControl>
+            ) : (
+              ""
+            )}
+            {/* File upload */}
             {uploadFile ? (
               <FormControl mt={4} isRequired isInvalid={!!errors.file}>
                 <FormLabel htmlFor="file">File</FormLabel>
