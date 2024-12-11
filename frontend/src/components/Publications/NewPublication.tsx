@@ -40,6 +40,8 @@ interface PublicationPostWithFile {
     | "poster"
     | "report"
     | "book"
+  template?: "latex/article" | "latex/jfm"
+  stage?: string
   file?: FileList
 }
 
@@ -134,6 +136,33 @@ const NewPublication = ({
                 <FormErrorMessage>{errors.path.message}</FormErrorMessage>
               )}
             </FormControl>
+            {variant === "template" ? (
+              <FormControl
+                mt={4}
+                isRequired={variant === "template"}
+                isInvalid={!!errors.template}
+              >
+                <FormLabel htmlFor="template">Template</FormLabel>
+
+                <Select
+                  id="template"
+                  placeholder="Select template"
+                  {...register("template", {
+                    required: "Template is required",
+                  })}
+                >
+                  <option value="latex/article">latex/article</option>
+                  <option value="latex/jfm">latex/jfm</option>
+                </Select>
+                {errors.template && (
+                  <FormErrorMessage>
+                    {errors.template?.message}
+                  </FormErrorMessage>
+                )}
+              </FormControl>
+            ) : (
+              ""
+            )}
             <FormControl mt={4} isRequired isInvalid={!!errors.kind}>
               <FormLabel htmlFor="kind">Type</FormLabel>
               <Select
