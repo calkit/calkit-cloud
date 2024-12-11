@@ -123,7 +123,7 @@ const NewPublication = ({
                 {...register("path", {
                   required: "Path is required",
                 })}
-                placeholder="Ex: paper/paper.tex"
+                placeholder="Ex: paper/paper.pdf"
                 type="text"
               />
               {errors.path && (
