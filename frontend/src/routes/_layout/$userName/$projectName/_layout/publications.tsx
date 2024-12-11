@@ -85,7 +85,7 @@ function PubView({ publication }: PubViewProps) {
   return (
     <Flex mb={2}>
       {/* A heading and content view */}
-      <Box width={"66%"} mr={4}>
+      <Box width={"66%"} mr={4} bg={secBgColor} borderRadius="lg" px={3} py={2}>
         <Heading size="md" id={publication.path}>
           {publication.title}
         </Heading>
@@ -96,7 +96,7 @@ function PubView({ publication }: PubViewProps) {
       </Box>
       {/* Information about the publication */}
       <Box width={"33%"}>
-        <Box bg={secBgColor} borderRadius="lg" p={2} mb={2}>
+        <Box bg={secBgColor} borderRadius="lg" p={2} mb={2} px={3}>
           <Heading size="sm">Info</Heading>
           {publication.path ? (
             <Text>
@@ -136,6 +136,7 @@ function PubView({ publication }: PubViewProps) {
 function Publications() {
   const uploadPubModal = useDisclosure()
   const labelPubModal = useDisclosure()
+  const newPubTemplateModal = useDisclosure()
   const { userName, projectName } = Route.useParams()
   const pubsQuery = useQuery({
     queryKey: ["projects", userName, projectName, "publications"],
@@ -171,6 +172,9 @@ function Publications() {
                   <Icon as={FaPlus} fontSize="xs" />
                 </MenuButton>
                 <MenuList>
+                  <MenuItem onClick={newPubTemplateModal.onOpen}>
+                    Create new publication from template
+                  </MenuItem>
                   <MenuItem onClick={uploadPubModal.onOpen}>
                     Upload new publication
                   </MenuItem>
@@ -180,14 +184,19 @@ function Publications() {
                 </MenuList>
               </Menu>
               <NewPublication
+                isOpen={newPubTemplateModal.isOpen}
+                onClose={newPubTemplateModal.onClose}
+                variant="template"
+              />
+              <NewPublication
                 isOpen={uploadPubModal.isOpen}
                 onClose={uploadPubModal.onClose}
-                uploadFile={true}
+                variant="upload"
               />
               <NewPublication
                 isOpen={labelPubModal.isOpen}
                 onClose={labelPubModal.onClose}
-                uploadFile={false}
+                variant="label"
               />
             </Flex>
             {/* Iterate over all publications to create an anchor link for
@@ -202,9 +211,9 @@ function Publications() {
                       overflow="hidden"
                       textOverflow="ellipsis"
                       display="inline-block"
-                      maxW="100%"
+                      width="100%"
                     >
-                      <Icon pt={1} as={FiFile} /> {pub.title}
+                      <Icon pt={1} mr={-0.5} as={FiFile} /> {pub.title}
                     </Text>
                   </Link>
                 ))
@@ -212,7 +221,7 @@ function Publications() {
           </PageMenu>
           {/* A box to the right that iterates over all figures, adding a view
            for the content, info, and comments */}
-          <Box width={"100%"}>
+          <Box width={"100%"} ml={-2}>
             {pubsQuery.data ? (
               <>
                 {pubsQuery.data.map((pub) => (

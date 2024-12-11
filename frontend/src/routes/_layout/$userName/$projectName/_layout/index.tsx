@@ -15,16 +15,19 @@ import {
   useDisclosure,
   IconButton,
   Link,
+  Icon,
 } from "@chakra-ui/react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { createFileRoute } from "@tanstack/react-router"
+import { createFileRoute, Link as RouterLink } from "@tanstack/react-router"
 import { useState } from "react"
 import { FaPlus } from "react-icons/fa"
+import { ExternalLinkIcon } from "@chakra-ui/icons"
 
 import { ProjectsService } from "../../../../../client"
 import Markdown from "../../../../../components/Common/Markdown"
 import CreateIssue from "../../../../../components/Projects/CreateIssue"
 import CreateQuestion from "../../../../../components/Projects/CreateQuestion"
+import NewPublication from "../../../../../components/Publications/NewPublication"
 
 export const Route = createFileRoute(
   "/_layout/$userName/$projectName/_layout/",
@@ -36,6 +39,24 @@ function ProjectView() {
   const queryClient = useQueryClient()
   const secBgColor = useColorModeValue("ui.secondary", "ui.darkSlate")
   const { userName, projectName } = Route.useParams()
+  const projectRequest = useQuery({
+    queryKey: ["projects", userName, projectName],
+    queryFn: () =>
+      ProjectsService.getProjectByName({
+        ownerName: userName,
+        projectName: projectName,
+      }),
+    retry: (failureCount, error) => {
+      if (error.message === "Not Found") {
+        return false
+      }
+      return failureCount < 3
+    },
+  })
+  const gitRepoUrl = projectRequest.data?.git_repo_url
+  const codespacesUrl =
+    String(gitRepoUrl).replace("://github.com/", "://codespaces.new/") +
+    "?quickstart=1"
   const [showClosedTodos, setShowClosedTodos] = useState(false)
   const readmeRequest = useQuery({
     queryKey: ["projects", userName, projectName, "readme"],
@@ -98,6 +119,7 @@ function ProjectView() {
   }
   const newIssueModal = useDisclosure()
   const newQuestionModal = useDisclosure()
+  const newPubTemplateModal = useDisclosure()
 
   return (
     <>
@@ -240,16 +262,47 @@ function ProjectView() {
             </Box>
             <Box py={4} px={6} mb={4} borderRadius="lg" bg={secBgColor}>
               <Heading size="md" mb={2}>
-                Recent activity
+                Quick actions
               </Heading>
-              <Text>Coming soon!</Text>
+              <Text>
+                📜{" "}
+                <Link onClick={newPubTemplateModal.onOpen}>
+                  Create a new publication from a template
+                </Link>
+              </Text>
+              <Text>
+                🔒{" "}
+                <Link
+                  as={RouterLink}
+                  to={"/settings"}
+                  search={{ tab: "tokens" }}
+                >
+                  Manage user tokens
+                </Link>
+              </Text>
+              <Text>
+                🚀{" "}
+                <Link isExternal href={codespacesUrl}>
+                  Open in GitHub Codespaces{" "}
+                  <Icon height={"40%"} as={ExternalLinkIcon} pb={0.5} />
+                </Link>
+              </Text>
+              <Text>
+                🔑{" "}
+                <Link
+                  isExternal
+                  href={`${gitRepoUrl}/settings/secrets/codespaces`}
+                >
+                  Configure GitHub Codespaces secrets{" "}
+                  <Icon height={"40%"} as={ExternalLinkIcon} pb={0.5} />
+                </Link>
+              </Text>
             </Box>
-            <Box py={4} px={6} borderRadius="lg" bg={secBgColor}>
-              <Heading size="md" mb={2}>
-                Stats
-              </Heading>
-              <Text>Coming soon!</Text>
-            </Box>
+            <NewPublication
+              isOpen={newPubTemplateModal.isOpen}
+              onClose={newPubTemplateModal.onClose}
+              variant="template"
+            />
           </Box>
         </Flex>
       )}

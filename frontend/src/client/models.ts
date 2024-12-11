@@ -34,6 +34,8 @@ export type Body_projects_post_project_publication = {
   title: string
   description: string
   stage?: string | null
+  template?: string | null
+  environment?: string | null
   file?: Blob | File | null
 }
 

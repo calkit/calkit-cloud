@@ -30,7 +30,7 @@ function ZenodoAuth() {
       queryClient.invalidateQueries({
         queryKey: ["user", "connected-accounts"],
       })
-      navigate({ to: "/settings" })
+      navigate({ to: "/settings", search: { tab: "profile" } })
     },
   })
   const { code: zenodoAuthCode, state: zenodoAuthStateRecv } = Route.useSearch()

@@ -26,7 +26,7 @@ import { handleError } from "../../utils"
 interface UploadPublicationProps {
   isOpen: boolean
   onClose: () => void
-  uploadFile: boolean
+  variant: "upload" | "label" | "template"
 }
 
 interface PublicationPostWithFile {
@@ -40,14 +40,18 @@ interface PublicationPostWithFile {
     | "poster"
     | "report"
     | "book"
+  template?: "latex/article" | "latex/jfm"
+  stage?: string
+  environment?: string
   file?: FileList
 }
 
 const NewPublication = ({
   isOpen,
   onClose,
-  uploadFile,
+  variant,
 }: UploadPublicationProps) => {
+  const uploadFile = variant === "upload"
   const queryClient = useQueryClient()
   const showToast = useCustomToast()
   const routeApi = getRouteApi("/_layout/$userName/$projectName")
@@ -74,13 +78,16 @@ const NewPublication = ({
           path: data.path,
           description: data.description,
           kind: data.kind,
+          template: data.template,
+          stage: data.stage,
+          environment: data.environment,
           file: data.file ? data.file[0] : null,
         },
         ownerName: userName,
         projectName: projectName,
       }),
     onSuccess: () => {
-      showToast("Success!", "Publication uploaded successfully.", "success")
+      showToast("Success!", "Publication created.", "success")
       reset()
       onClose()
     },
@@ -96,6 +103,11 @@ const NewPublication = ({
   const onSubmit: SubmitHandler<PublicationPostWithFile> = (data) => {
     mutation.mutate(data)
   }
+  const titles = {
+    template: "Create new publication from template",
+    upload: "Upload new publication",
+    label: "Label existing file as publication",
+  }
 
   return (
     <>
@@ -107,11 +119,7 @@ const NewPublication = ({
       >
         <ModalOverlay />
         <ModalContent as="form" onSubmit={handleSubmit(onSubmit)}>
-          <ModalHeader>
-            {uploadFile
-              ? "Upload new publication"
-              : "Label existing file as publication"}
-          </ModalHeader>
+          <ModalHeader>{titles[variant]}</ModalHeader>
           <ModalCloseButton />
           <ModalBody pb={6}>
             <FormControl isRequired isInvalid={!!errors.path}>
@@ -123,13 +131,42 @@ const NewPublication = ({
                 {...register("path", {
                   required: "Path is required",
                 })}
-                placeholder="Ex: paper/paper.tex"
+                placeholder={
+                  variant === "template" ? "Ex: paper" : "Ex: paper/paper.pdf"
+                }
                 type="text"
               />
               {errors.path && (
                 <FormErrorMessage>{errors.path.message}</FormErrorMessage>
               )}
             </FormControl>
+            {variant === "template" ? (
+              <FormControl
+                mt={4}
+                isRequired={variant === "template"}
+                isInvalid={!!errors.template}
+              >
+                <FormLabel htmlFor="template">Template</FormLabel>
+
+                <Select
+                  id="template"
+                  placeholder="Select template"
+                  {...register("template", {
+                    required: "Template is required",
+                  })}
+                >
+                  <option value="latex/article">latex/article</option>
+                  <option value="latex/jfm">latex/jfm</option>
+                </Select>
+                {errors.template && (
+                  <FormErrorMessage>
+                    {errors.template?.message}
+                  </FormErrorMessage>
+                )}
+              </FormControl>
+            ) : (
+              ""
+            )}
             <FormControl mt={4} isRequired isInvalid={!!errors.kind}>
               <FormLabel htmlFor="kind">Type</FormLabel>
               <Select
@@ -174,6 +211,45 @@ const NewPublication = ({
                 </FormErrorMessage>
               )}
             </FormControl>
+            {/* Environment name */}
+            {variant === "template" ? (
+              <FormControl mt={4} isRequired isInvalid={!!errors.environment}>
+                <FormLabel htmlFor="environment">
+                  Docker environment name
+                </FormLabel>
+                <Input
+                  id="environment"
+                  {...register("environment")}
+                  placeholder="Ex: latex"
+                  type="text"
+                />
+                {errors.environment && (
+                  <FormErrorMessage>
+                    {errors.environment.message}
+                  </FormErrorMessage>
+                )}
+              </FormControl>
+            ) : (
+              ""
+            )}
+            {/* Stage name */}
+            {variant === "template" ? (
+              <FormControl mt={4} isRequired isInvalid={!!errors.stage}>
+                <FormLabel htmlFor="title">Pipeline stage name</FormLabel>
+                <Input
+                  id="stage"
+                  {...register("stage")}
+                  placeholder="Ex: build-paper"
+                  type="text"
+                />
+                {errors.stage && (
+                  <FormErrorMessage>{errors.stage.message}</FormErrorMessage>
+                )}
+              </FormControl>
+            ) : (
+              ""
+            )}
+            {/* File upload */}
             {uploadFile ? (
               <FormControl mt={4} isRequired isInvalid={!!errors.file}>
                 <FormLabel htmlFor="file">File</FormLabel>
