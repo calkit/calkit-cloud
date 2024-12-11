@@ -38,6 +38,24 @@ function ProjectView() {
   const queryClient = useQueryClient()
   const secBgColor = useColorModeValue("ui.secondary", "ui.darkSlate")
   const { userName, projectName } = Route.useParams()
+  const projectRequest = useQuery({
+    queryKey: ["projects", userName, projectName],
+    queryFn: () =>
+      ProjectsService.getProjectByName({
+        ownerName: userName,
+        projectName: projectName,
+      }),
+    retry: (failureCount, error) => {
+      if (error.message === "Not Found") {
+        return false
+      }
+      return failureCount < 3
+    },
+  })
+  const gitRepoUrl = projectRequest.data?.git_repo_url
+  const codespacesUrl =
+    String(gitRepoUrl).replace("://github.com/", "://codespaces.new/") +
+    "?quickstart=1"
   const [showClosedTodos, setShowClosedTodos] = useState(false)
   const readmeRequest = useQuery({
     queryKey: ["projects", userName, projectName, "readme"],
@@ -249,14 +267,17 @@ function ProjectView() {
               </Text>
               <Text>
                 🚀{" "}
-                <Link>
+                <Link isExternal href={codespacesUrl}>
                   Open in GitHub Codespaces{" "}
                   <Icon height={"40%"} as={ExternalLinkIcon} pb={0.5} />
                 </Link>
               </Text>
               <Text>
                 🔑{" "}
-                <Link>
+                <Link
+                  isExternal
+                  href={`${gitRepoUrl}/settings/secrets/codespaces`}
+                >
                   Configure GitHub Codespaces secrets{" "}
                   <Icon height={"40%"} as={ExternalLinkIcon} pb={0.5} />
                 </Link>
