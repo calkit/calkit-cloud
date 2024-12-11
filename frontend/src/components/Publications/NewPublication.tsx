@@ -125,7 +125,9 @@ const NewPublication = ({
                 {...register("path", {
                   required: "Path is required",
                 })}
-                placeholder="Ex: paper/paper.pdf"
+                placeholder={
+                  variant === "template" ? "Ex: paper" : "Ex: paper/paper.pdf"
+                }
                 type="text"
               />
               {errors.path && (
