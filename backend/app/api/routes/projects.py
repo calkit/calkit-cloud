@@ -260,6 +260,7 @@ def create_project(
         dc_fpath = os.path.join(dc_dir, "devcontainer.json")
         with open(dc_fpath, "w") as f:
             f.write(dc_resp.text)
+        repo.git.add(".devcontainer")
         # Add to the README
         logger.info("Creating README.md")
         with open(os.path.join(repo.working_dir, "README.md"), "w") as f:
