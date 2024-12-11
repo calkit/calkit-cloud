@@ -203,7 +203,7 @@ def create_project(
         body = {
             "name": repo_name,
             "description": project_in.description,
-            "homepage": f"https://calkit.io/{owner_name}/{repo_name}",
+            "homepage": f"https://calkit.io/{owner_name}/{project_in.name}",
             "private": not project_in.is_public,
             "has_discussions": True,
             "has_issues": True,
