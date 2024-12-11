@@ -26,7 +26,7 @@ import { handleError } from "../../utils"
 interface UploadPublicationProps {
   isOpen: boolean
   onClose: () => void
-  uploadFile: boolean
+  variant: "upload" | "label" | "template"
 }
 
 interface PublicationPostWithFile {
@@ -46,8 +46,9 @@ interface PublicationPostWithFile {
 const NewPublication = ({
   isOpen,
   onClose,
-  uploadFile,
+  variant,
 }: UploadPublicationProps) => {
+  const uploadFile = variant === "upload"
   const queryClient = useQueryClient()
   const showToast = useCustomToast()
   const routeApi = getRouteApi("/_layout/$userName/$projectName")

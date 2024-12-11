@@ -136,6 +136,7 @@ function PubView({ publication }: PubViewProps) {
 function Publications() {
   const uploadPubModal = useDisclosure()
   const labelPubModal = useDisclosure()
+  const newPubTemplateModal = useDisclosure()
   const { userName, projectName } = Route.useParams()
   const pubsQuery = useQuery({
     queryKey: ["projects", userName, projectName, "publications"],
@@ -171,6 +172,9 @@ function Publications() {
                   <Icon as={FaPlus} fontSize="xs" />
                 </MenuButton>
                 <MenuList>
+                  <MenuItem onClick={newPubTemplateModal.onOpen}>
+                    Create new publication from template
+                  </MenuItem>
                   <MenuItem onClick={uploadPubModal.onOpen}>
                     Upload new publication
                   </MenuItem>
@@ -180,14 +184,19 @@ function Publications() {
                 </MenuList>
               </Menu>
               <NewPublication
+                isOpen={newPubTemplateModal.isOpen}
+                onClose={newPubTemplateModal.onClose}
+                variant="template"
+              />
+              <NewPublication
                 isOpen={uploadPubModal.isOpen}
                 onClose={uploadPubModal.onClose}
-                uploadFile={true}
+                variant="upload"
               />
               <NewPublication
                 isOpen={labelPubModal.isOpen}
                 onClose={labelPubModal.onClose}
-                uploadFile={false}
+                variant="label"
               />
             </Flex>
             {/* Iterate over all publications to create an anchor link for
