@@ -18,7 +18,7 @@ import {
   Icon,
 } from "@chakra-ui/react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { createFileRoute } from "@tanstack/react-router"
+import { createFileRoute, Link as RouterLink } from "@tanstack/react-router"
 import { useState } from "react"
 import { FaPlus } from "react-icons/fa"
 import { ExternalLinkIcon } from "@chakra-ui/icons"
@@ -268,6 +268,16 @@ function ProjectView() {
                 📜{" "}
                 <Link onClick={newPubTemplateModal.onOpen}>
                   Create a new publication from a template
+                </Link>
+              </Text>
+              <Text>
+                🔒{" "}
+                <Link
+                  as={RouterLink}
+                  to={"/settings"}
+                  search={{ tab: "tokens" }}
+                >
+                  Manage user tokens
                 </Link>
               </Text>
               <Text>
