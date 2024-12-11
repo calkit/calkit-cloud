@@ -85,7 +85,7 @@ function PubView({ publication }: PubViewProps) {
   return (
     <Flex mb={2}>
       {/* A heading and content view */}
-      <Box width={"66%"} mr={4}>
+      <Box width={"66%"} mr={4} bg={secBgColor} borderRadius="lg" px={3} py={2}>
         <Heading size="md" id={publication.path}>
           {publication.title}
         </Heading>
@@ -96,7 +96,7 @@ function PubView({ publication }: PubViewProps) {
       </Box>
       {/* Information about the publication */}
       <Box width={"33%"}>
-        <Box bg={secBgColor} borderRadius="lg" p={2} mb={2}>
+        <Box bg={secBgColor} borderRadius="lg" p={2} mb={2} px={3}>
           <Heading size="sm">Info</Heading>
           {publication.path ? (
             <Text>
@@ -221,7 +221,7 @@ function Publications() {
           </PageMenu>
           {/* A box to the right that iterates over all figures, adding a view
            for the content, info, and comments */}
-          <Box width={"100%"}>
+          <Box width={"100%"} ml={-2}>
             {pubsQuery.data ? (
               <>
                 {pubsQuery.data.map((pub) => (
