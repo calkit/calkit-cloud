@@ -17,6 +17,7 @@ import {
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { type SubmitHandler, useForm } from "react-hook-form"
 import mixpanel from "mixpanel-browser"
+import { useNavigate } from "@tanstack/react-router"
 
 import {
   type ApiError,
@@ -35,6 +36,7 @@ interface AddProjectProps {
 const AddProject = ({ isOpen, onClose }: AddProjectProps) => {
   const queryClient = useQueryClient()
   const showToast = useCustomToast()
+  const navigate = useNavigate()
   const currentUser = queryClient.getQueryData<UserPublic>(["currentUser"])
   const githubUsername = currentUser?.github_username
     ? currentUser.github_username
@@ -61,11 +63,17 @@ const AddProject = ({ isOpen, onClose }: AddProjectProps) => {
   const mutation = useMutation({
     mutationFn: (data: ProjectCreate) =>
       ProjectsService.createProject({ requestBody: data }),
-    onSuccess: () => {
+    onSuccess: (data: ProjectCreate) => {
       mixpanel.track("Created new project")
       showToast("Success!", "Project created successfully.", "success")
+      const userName = String(data.git_repo_url.split("/").at(-2))
+      const projectName = String(data.git_repo_url.split("/").at(-1))
       reset()
       onClose()
+      navigate({
+        to: "/$userName/$projectName",
+        params: { userName, projectName },
+      })
     },
     onError: (err: ApiError) => {
       handleError(err, showToast)
