@@ -24,9 +24,6 @@ const Links = ["Projects", "Data", "Software", "Figures"]
 
 const getPath = (link: React.ReactNode) => {
   const linkString = link?.toString()
-  if (linkString === "Projects") {
-    return "/"
-  }
   return `/${linkString?.toLowerCase()}`
 }
 

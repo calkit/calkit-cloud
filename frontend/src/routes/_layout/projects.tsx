@@ -1,5 +1,4 @@
 import {
-  Box,
   Button,
   Container,
   Flex,
@@ -21,37 +20,34 @@ import {
   useNavigate,
   Link as RouterLink,
 } from "@tanstack/react-router"
-import { useEffect } from "react"
 import { z } from "zod"
+import { useEffect } from "react"
 
-import { ProjectsService } from "../../client"
-import ActionsMenu from "../../components/Common/ActionsMenu"
-import Navbar from "../../components/Common/Navbar"
-import CreateProject from "../../components/Projects/CreateProject"
 import { pageWidthNoSidebar } from "../../utils"
+import { ProjectsService } from "../../client"
 
 const projectsSearchSchema = z.object({
   page: z.number().catch(1),
 })
 
-export const Route = createFileRoute("/_layout/")({
-  component: Projects,
-})
+const PER_PAGE = 20
 
-const PER_PAGE = 5
-
-function getOwnedProjectsQueryOptions({ page }: { page: number }) {
+function getAllProjectsQueryOptions({ page }: { page: number }) {
   return {
     queryFn: () =>
-      ProjectsService.getOwnedProjects({
+      ProjectsService.getProjects({
         offset: (page - 1) * PER_PAGE,
         limit: PER_PAGE,
       }),
-    queryKey: ["projects", { page }],
+    queryKey: ["projects-all", { page }],
   }
 }
 
-function ProjectsTable() {
+export const Route = createFileRoute("/_layout/projects")({
+  component: PublicProjects,
+})
+
+function PublicProjectsTable() {
   const queryClient = useQueryClient()
   const { page } = projectsSearchSchema.parse(Route.useSearch())
   const navigate = useNavigate({ from: Route.fullPath })
@@ -63,7 +59,7 @@ function ProjectsTable() {
     isPending,
     isPlaceholderData,
   } = useQuery({
-    ...getOwnedProjectsQueryOptions({ page }),
+    ...getAllProjectsQueryOptions({ page }),
     placeholderData: (prevData) => prevData,
   })
 
@@ -72,9 +68,7 @@ function ProjectsTable() {
 
   useEffect(() => {
     if (hasNextPage) {
-      queryClient.prefetchQuery(
-        getOwnedProjectsQueryOptions({ page: page + 1 }),
-      )
+      queryClient.prefetchQuery(getAllProjectsQueryOptions({ page: page + 1 }))
     }
   }, [page, queryClient, hasNextPage])
 
@@ -84,11 +78,10 @@ function ProjectsTable() {
         <Table size={{ base: "sm", md: "md" }}>
           <Thead>
             <Tr>
+              <Th>Owner</Th>
               <Th>Title</Th>
               <Th>GitHub URL</Th>
               <Th>Description</Th>
-              <Th>Visibility</Th>
-              <Th>Actions</Th>
             </Tr>
           </Thead>
           {isPending ? (
@@ -105,6 +98,9 @@ function ProjectsTable() {
             <Tbody>
               {projects?.data.map((project) => (
                 <Tr key={project.id} opacity={isPlaceholderData ? 0.5 : 1}>
+                  <Td isTruncated maxWidth="80px">
+                    {project.owner_account_name}
+                  </Td>
                   <Td isTruncated maxWidth="150px">
                     <Link
                       as={RouterLink}
@@ -124,10 +120,6 @@ function ProjectsTable() {
                     maxWidth="150px"
                   >
                     {project.description || "N/A"}
-                  </Td>
-                  <Td>{project.is_public ? "Public" : "Private"}</Td>
-                  <Td>
-                    <ActionsMenu type={"Project"} value={project} />
                   </Td>
                 </Tr>
               ))}
@@ -154,18 +146,18 @@ function ProjectsTable() {
   )
 }
 
-function Projects() {
+function PublicProjects() {
   return (
     <Container maxW={pageWidthNoSidebar}>
-      <Heading size="lg" textAlign={{ base: "center", md: "left" }} pt={12}>
-        Your projects
+      <Heading
+        size="lg"
+        textAlign={{ base: "center", md: "left" }}
+        pt={12}
+        mb={4}
+      >
+        Browse all projects
       </Heading>
-      <Flex>
-        <Box mr={4}>
-          <Navbar verb={"Create"} type={"project"} addModalAs={CreateProject} />
-        </Box>
-      </Flex>
-      <ProjectsTable />
+      <PublicProjectsTable />
     </Container>
   )
 }

@@ -58,6 +58,7 @@ import type {
   Question,
   QuestionPost,
   References,
+  ReproCheck,
   Software,
   OrgMemberPost,
   OrgPost,
@@ -361,6 +362,10 @@ export type ProjectsData = {
     requestBody: FileLockPost
   }
   GetProjectNotebooks: {
+    ownerName: string
+    projectName: string
+  }
+  GetProjectReproCheck: {
     ownerName: string
     projectName: string
   }
@@ -2031,6 +2036,28 @@ export class ProjectsService {
     return __request(OpenAPI, {
       method: "GET",
       url: "/projects/{owner_name}/{project_name}/notebooks",
+      path: {
+        owner_name: ownerName,
+        project_name: projectName,
+      },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Get Project Repro Check
+   * @returns ReproCheck Successful Response
+   * @throws ApiError
+   */
+  public static getProjectReproCheck(
+    data: ProjectsData["GetProjectReproCheck"],
+  ): CancelablePromise<ReproCheck> {
+    const { ownerName, projectName } = data
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/projects/{owner_name}/{project_name}/repro-check",
       path: {
         owner_name: ownerName,
         project_name: projectName,

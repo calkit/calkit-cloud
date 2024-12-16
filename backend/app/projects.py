@@ -45,7 +45,12 @@ def get_project(
                 ):
                     project.current_user_access = "owner"
                     break
-            if not project.current_user_access == "owner":
+            if project.is_public:
+                project.current_user_access = "read"
+            if (
+                not project.is_public
+                and not project.current_user_access == "owner"
+            ):
                 raise HTTPException(403)
         elif project.is_public:
             project.current_user_access = "read"

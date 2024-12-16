@@ -22,9 +22,9 @@ import { Route as LayoutImport } from './routes/_layout'
 import { Route as LayoutIndexImport } from './routes/_layout/index'
 import { Route as LayoutSoftwareImport } from './routes/_layout/software'
 import { Route as LayoutSettingsImport } from './routes/_layout/settings'
+import { Route as LayoutProjectsImport } from './routes/_layout/projects'
 import { Route as LayoutFiguresImport } from './routes/_layout/figures'
 import { Route as LayoutDataImport } from './routes/_layout/data'
-import { Route as LayoutBrowseImport } from './routes/_layout/browse'
 import { Route as LayoutAdminImport } from './routes/_layout/admin'
 import { Route as LayoutUserNameProjectNameLayoutImport } from './routes/_layout/$userName/$projectName/_layout'
 import { Route as LayoutUserNameProjectNameLayoutIndexImport } from './routes/_layout/$userName/$projectName/_layout/index'
@@ -92,6 +92,11 @@ const LayoutSettingsRoute = LayoutSettingsImport.update({
   getParentRoute: () => LayoutRoute,
 } as any)
 
+const LayoutProjectsRoute = LayoutProjectsImport.update({
+  path: '/projects',
+  getParentRoute: () => LayoutRoute,
+} as any)
+
 const LayoutFiguresRoute = LayoutFiguresImport.update({
   path: '/figures',
   getParentRoute: () => LayoutRoute,
@@ -99,11 +104,6 @@ const LayoutFiguresRoute = LayoutFiguresImport.update({
 
 const LayoutDataRoute = LayoutDataImport.update({
   path: '/data',
-  getParentRoute: () => LayoutRoute,
-} as any)
-
-const LayoutBrowseRoute = LayoutBrowseImport.update({
-  path: '/browse',
   getParentRoute: () => LayoutRoute,
 } as any)
 
@@ -242,13 +242,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutAdminImport
       parentRoute: typeof LayoutImport
     }
-    '/_layout/browse': {
-      id: '/_layout/browse'
-      path: '/browse'
-      fullPath: '/browse'
-      preLoaderRoute: typeof LayoutBrowseImport
-      parentRoute: typeof LayoutImport
-    }
     '/_layout/data': {
       id: '/_layout/data'
       path: '/data'
@@ -261,6 +254,13 @@ declare module '@tanstack/react-router' {
       path: '/figures'
       fullPath: '/figures'
       preLoaderRoute: typeof LayoutFiguresImport
+      parentRoute: typeof LayoutImport
+    }
+    '/_layout/projects': {
+      id: '/_layout/projects'
+      path: '/projects'
+      fullPath: '/projects'
+      preLoaderRoute: typeof LayoutProjectsImport
       parentRoute: typeof LayoutImport
     }
     '/_layout/settings': {
@@ -383,9 +383,9 @@ declare module '@tanstack/react-router' {
 export const routeTree = rootRoute.addChildren({
   LayoutRoute: LayoutRoute.addChildren({
     LayoutAdminRoute,
-    LayoutBrowseRoute,
     LayoutDataRoute,
     LayoutFiguresRoute,
+    LayoutProjectsRoute,
     LayoutSettingsRoute,
     LayoutSoftwareRoute,
     LayoutIndexRoute,
@@ -433,9 +433,9 @@ export const routeTree = rootRoute.addChildren({
       "filePath": "_layout.tsx",
       "children": [
         "/_layout/admin",
-        "/_layout/browse",
         "/_layout/data",
         "/_layout/figures",
+        "/_layout/projects",
         "/_layout/settings",
         "/_layout/software",
         "/_layout/",
@@ -461,16 +461,16 @@ export const routeTree = rootRoute.addChildren({
       "filePath": "_layout/admin.tsx",
       "parent": "/_layout"
     },
-    "/_layout/browse": {
-      "filePath": "_layout/browse.tsx",
-      "parent": "/_layout"
-    },
     "/_layout/data": {
       "filePath": "_layout/data.tsx",
       "parent": "/_layout"
     },
     "/_layout/figures": {
       "filePath": "_layout/figures.tsx",
+      "parent": "/_layout"
+    },
+    "/_layout/projects": {
+      "filePath": "_layout/projects.tsx",
       "parent": "/_layout"
     },
     "/_layout/settings": {
