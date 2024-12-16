@@ -3,7 +3,7 @@ import { Box, Container, Heading } from "@chakra-ui/react"
 
 import { pageWidthNoSidebar } from "../../utils"
 
-export const Route = createFileRoute("/_layout/browse")({
+export const Route = createFileRoute("/_layout/projects")({
   component: PublicProjects,
 })
 
