@@ -28,7 +28,6 @@ import { ProjectsService } from "../../client"
 import ActionsMenu from "../../components/Common/ActionsMenu"
 import Navbar from "../../components/Common/Navbar"
 import CreateProject from "../../components/Projects/CreateProject"
-import CreateProjectFromGitHub from "../../components/Projects/CreateProjectFromGitHub"
 import { pageWidthNoSidebar } from "../../utils"
 
 const projectsSearchSchema = z.object({
@@ -49,17 +48,6 @@ function getOwnedProjectsQueryOptions({ page }: { page: number }) {
         limit: PER_PAGE,
       }),
     queryKey: ["projects", { page }],
-  }
-}
-
-function getAllProjectsQueryOptions({ page }: { page: number }) {
-  return {
-    queryFn: () =>
-      ProjectsService.getProjects({
-        offset: (page - 1) * PER_PAGE,
-        limit: PER_PAGE,
-      }),
-    queryKey: ["projects-all", { page }],
   }
 }
 
@@ -120,7 +108,7 @@ function ProjectsTable() {
                   <Td isTruncated maxWidth="150px">
                     <Link
                       as={RouterLink}
-                      to={`${project.owner_account_name}/${project.name}`}
+                      to={`/${project.owner_account_name}/${project.name}`}
                     >
                       {project.title}
                     </Link>
@@ -175,13 +163,6 @@ function Projects() {
       <Flex>
         <Box mr={4}>
           <Navbar verb={"Create"} type={"project"} addModalAs={CreateProject} />
-        </Box>
-        <Box mr={4}>
-          <Navbar
-            verb={"Import"}
-            type={"from GitHub"}
-            addModalAs={CreateProjectFromGitHub}
-          />
         </Box>
       </Flex>
       <ProjectsTable />
