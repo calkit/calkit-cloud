@@ -58,6 +58,7 @@ from app.storage import (
     make_data_fpath,
     remove_gcs_content_type,
 )
+from calkit.check import ReproCheck, check_reproducibility
 from fastapi import (
     APIRouter,
     Depends,
@@ -2504,3 +2505,24 @@ def get_project_notebooks(
                 elif rcd[0].endswith(".html"):
                     notebook["output_format"] = "html"
     return [Notebook.model_validate(nb) for nb in notebooks]
+
+
+@router.get("/projects/{owner_name}/{project_name}/repro-check")
+def get_project_repro_check(
+    owner_name: str,
+    project_name: str,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> ReproCheck:
+    project = app.projects.get_project(
+        session=session,
+        owner_name=owner_name,
+        project_name=project_name,
+        current_user=current_user,
+        min_access_level="read",
+    )
+    repo = get_repo(
+        project=project, user=current_user, session=session, ttl=120
+    )
+    res = check_reproducibility(wdir=repo.working_dir)
+    return res

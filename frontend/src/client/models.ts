@@ -465,6 +465,36 @@ export type References = {
   raw_text?: string | null
 }
 
+export type ReproCheck = {
+  has_pipeline: boolean
+  has_readme: boolean
+  instructions_in_readme: boolean
+  is_dvc_repo: boolean
+  is_git_repo: boolean
+  has_calkit_info: boolean
+  has_dev_container: boolean
+  n_environments: number
+  n_stages: number
+  stages_with_env: Array<string>
+  stages_without_env: Array<string>
+  n_datasets: number
+  n_datasets_no_import_or_stage: number
+  n_figures: number
+  n_figures_no_import_or_stage: number
+  n_publications: number
+  n_publications_no_import_or_stage: number
+  n_dvc_remotes: number
+  /**
+   * Formulate a recommendation for the project.
+   */
+  readonly recommendation: string | null
+  readonly n_datasets_with_import_or_stage: number
+  readonly n_figures_with_import_or_stage: number
+  readonly n_publications_with_import_or_stage: number
+  readonly n_stages_without_env: number
+  readonly n_stages_with_env: number
+}
+
 export type Software = {
   environments: Array<Environment>
 }

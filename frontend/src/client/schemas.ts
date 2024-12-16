@@ -2244,6 +2244,128 @@ export const $References = {
   },
 } as const
 
+export const $ReproCheck = {
+  properties: {
+    has_pipeline: {
+      type: "boolean",
+      isRequired: true,
+    },
+    has_readme: {
+      type: "boolean",
+      isRequired: true,
+    },
+    instructions_in_readme: {
+      type: "boolean",
+      isRequired: true,
+    },
+    is_dvc_repo: {
+      type: "boolean",
+      isRequired: true,
+    },
+    is_git_repo: {
+      type: "boolean",
+      isRequired: true,
+    },
+    has_calkit_info: {
+      type: "boolean",
+      isRequired: true,
+    },
+    has_dev_container: {
+      type: "boolean",
+      isRequired: true,
+    },
+    n_environments: {
+      type: "number",
+      isRequired: true,
+    },
+    n_stages: {
+      type: "number",
+      isRequired: true,
+    },
+    stages_with_env: {
+      type: "array",
+      contains: {
+        type: "string",
+      },
+      isRequired: true,
+    },
+    stages_without_env: {
+      type: "array",
+      contains: {
+        type: "string",
+      },
+      isRequired: true,
+    },
+    n_datasets: {
+      type: "number",
+      isRequired: true,
+    },
+    n_datasets_no_import_or_stage: {
+      type: "number",
+      isRequired: true,
+    },
+    n_figures: {
+      type: "number",
+      isRequired: true,
+    },
+    n_figures_no_import_or_stage: {
+      type: "number",
+      isRequired: true,
+    },
+    n_publications: {
+      type: "number",
+      isRequired: true,
+    },
+    n_publications_no_import_or_stage: {
+      type: "number",
+      isRequired: true,
+    },
+    n_dvc_remotes: {
+      type: "number",
+      isRequired: true,
+    },
+    recommendation: {
+      type: "any-of",
+      description: `Formulate a recommendation for the project.`,
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      isReadOnly: true,
+      isRequired: true,
+    },
+    n_datasets_with_import_or_stage: {
+      type: "number",
+      isReadOnly: true,
+      isRequired: true,
+    },
+    n_figures_with_import_or_stage: {
+      type: "number",
+      isReadOnly: true,
+      isRequired: true,
+    },
+    n_publications_with_import_or_stage: {
+      type: "number",
+      isReadOnly: true,
+      isRequired: true,
+    },
+    n_stages_without_env: {
+      type: "number",
+      isReadOnly: true,
+      isRequired: true,
+    },
+    n_stages_with_env: {
+      type: "number",
+      isReadOnly: true,
+      isRequired: true,
+    },
+  },
+} as const
+
 export const $Software = {
   properties: {
     environments: {
