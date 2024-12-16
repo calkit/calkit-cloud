@@ -1,0 +1,3 @@
+[submodule "backend/calkit"]
+	path = backend/calkit
+	url = https://github.com/calkit/calkit.git
