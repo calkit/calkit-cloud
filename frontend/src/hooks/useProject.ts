@@ -55,6 +55,15 @@ const useProject = (
       }),
   })
 
+  const reproCheckRequest = useQuery({
+    queryKey: ["projects", userName, projectName, "repro-check"],
+    queryFn: () =>
+      ProjectsService.getProjectReproCheck({
+        ownerName: userName,
+        projectName: projectName,
+      }),
+  })
+
   interface IssueStateChange {
     state: "open" | "closed"
     issueNumber: number
@@ -79,6 +88,7 @@ const useProject = (
     readmeRequest,
     issuesRequest,
     questionsRequest,
+    reproCheckRequest,
     issueStateMutation,
   }
 }
