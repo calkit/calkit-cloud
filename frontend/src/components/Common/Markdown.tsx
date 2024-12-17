@@ -48,7 +48,7 @@ const code = ({ insidePre = false, ...props }: codeProps) => {
   if (insidePre) {
     return <Code my={2} whiteSpace={"pre"} display={"block"} p={2} {...props} />
   } else {
-    return <Code my={2} whiteSpace={"pre"} px={1} {...props} />
+    return <Code my={0} whiteSpace={"pre"} px={1} {...props} />
   }
 }
 
