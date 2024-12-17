@@ -232,6 +232,9 @@ function ProjectView() {
                     README.md has instructions:{" "}
                     {reproCheck?.instructions_in_readme ? "✅" : "❌"}
                   </Text>
+                  <Text>
+                    DVC initialized: {reproCheck?.is_dvc_repo ? "✅" : "❌"}
+                  </Text>
                   {reproCheck?.recommendation ? (
                     <>
                       <Heading size="md" my={2}>
