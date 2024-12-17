@@ -369,6 +369,10 @@ export type ProjectsData = {
     ownerName: string
     projectName: string
   }
+  PutProjectDevContainer: {
+    ownerName: string
+    projectName: string
+  }
 }
 
 export type OrgsData = {
@@ -2058,6 +2062,28 @@ export class ProjectsService {
     return __request(OpenAPI, {
       method: "GET",
       url: "/projects/{owner_name}/{project_name}/repro-check",
+      path: {
+        owner_name: ownerName,
+        project_name: projectName,
+      },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Put Project Dev Container
+   * @returns Message Successful Response
+   * @throws ApiError
+   */
+  public static putProjectDevContainer(
+    data: ProjectsData["PutProjectDevContainer"],
+  ): CancelablePromise<Message> {
+    const { ownerName, projectName } = data
+    return __request(OpenAPI, {
+      method: "PUT",
+      url: "/projects/{owner_name}/{project_name}/devcontainer",
       path: {
         owner_name: ownerName,
         project_name: projectName,

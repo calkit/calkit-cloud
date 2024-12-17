@@ -2526,3 +2526,30 @@ def get_project_repro_check(
     )
     res = check_reproducibility(wdir=repo.working_dir)
     return res
+
+
+@router.put("/projects/{owner_name}/{project_name}/devcontainer")
+def put_project_dev_container(
+    owner_name: str,
+    project_name: str,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> Message:
+    project = app.projects.get_project(
+        session=session,
+        owner_name=owner_name,
+        project_name=project_name,
+        current_user=current_user,
+        min_access_level="write",
+    )
+    repo = get_repo(
+        project=project, user=current_user, session=session, ttl=None
+    )
+    subprocess.check_call(
+        ["calkit", "update", "devcontainer"], cwd=repo.working_dir
+    )
+    repo.git.add(".devcontainer")
+    if repo.git.diff("--staged"):
+        repo.git.commit(["-m", "Add dev container spec"])
+        repo.git.push(["origin", repo.active_branch])
+    return Message(message="Success")
