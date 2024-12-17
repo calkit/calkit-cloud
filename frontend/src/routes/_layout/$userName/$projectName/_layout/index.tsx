@@ -268,6 +268,10 @@ function ProjectView() {
                     Has Calkit metadata (<Code>calkit.yaml</Code>):{" "}
                     {reproCheck?.has_calkit_info ? "✅" : "❌"}
                   </Text>
+                  <Text>
+                    Has dev container spec:{" "}
+                    {reproCheck?.has_dev_container ? "✅" : "❌"}
+                  </Text>
                   <Heading
                     size="sm"
                     mt={4}
