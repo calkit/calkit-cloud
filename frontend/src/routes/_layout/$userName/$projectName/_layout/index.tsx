@@ -283,6 +283,17 @@ function ProjectView() {
                       ""
                     )}
                   </Text>
+                  <Text>
+                    Pipeline stages run in an environment:{" "}
+                    {reproCheck ? (
+                      <>
+                        {reproCheck.n_stages_with_env}/{reproCheck.n_stages}{" "}
+                        {reproCheck.n_stages_without_env ? "❌" : "✅"}
+                      </>
+                    ) : (
+                      ""
+                    )}
+                  </Text>
                   <Heading
                     size="sm"
                     mt={4}
@@ -299,8 +310,8 @@ function ProjectView() {
                     </>
                   ) : (
                     <Markdown>
-                      This project looks good! Check in more depth locally with
-                      `calkit status` and `calkit run`.
+                      This project looks good from here! Check in depth locally
+                      with `calkit status` and `calkit run`.
                     </Markdown>
                   )}
                 </>
