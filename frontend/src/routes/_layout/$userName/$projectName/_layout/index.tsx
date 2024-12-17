@@ -17,6 +17,8 @@ import {
   Link,
   Icon,
   Code,
+  Alert,
+  AlertIcon,
 } from "@chakra-ui/react"
 import { createFileRoute, Link as RouterLink } from "@tanstack/react-router"
 import { useState } from "react"
@@ -258,15 +260,25 @@ function ProjectView() {
                     Has pipeline (<Code>dvc.yaml</Code>):{" "}
                     {reproCheck?.has_pipeline ? "✅" : "❌"}
                   </Text>
+                  <Heading
+                    size="sm"
+                    mt={4}
+                    mb={-2}
+                    color={
+                      reproCheck?.recommendation ? "yellow.500" : "green.500"
+                    }
+                  >
+                    Recommendation
+                  </Heading>
                   {reproCheck?.recommendation ? (
                     <>
-                      <Heading size="sm" my={2}>
-                        Recommendation
-                      </Heading>
-                      <Text>{reproCheck.recommendation}</Text>
+                      <Markdown>{reproCheck.recommendation}</Markdown>
                     </>
                   ) : (
-                    ""
+                    <Markdown>
+                      This project looks good! Check in more depth locally with
+                      `calkit status` and `calkit run`.
+                    </Markdown>
                   )}
                 </>
               )}
