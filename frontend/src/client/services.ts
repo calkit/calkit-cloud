@@ -162,7 +162,7 @@ export type ProjectsData = {
     limit?: number
     offset?: number
   }
-  GetProjectByName: {
+  GetProject: {
     ownerName: string
     projectName: string
   }
@@ -1059,12 +1059,12 @@ export class ProjectsService {
   }
 
   /**
-   * Get Project By Name
+   * Get Project
    * @returns ProjectPublic Successful Response
    * @throws ApiError
    */
-  public static getProjectByName(
-    data: ProjectsData["GetProjectByName"],
+  public static getProject(
+    data: ProjectsData["GetProject"],
   ): CancelablePromise<ProjectPublic> {
     const { ownerName, projectName } = data
     return __request(OpenAPI, {

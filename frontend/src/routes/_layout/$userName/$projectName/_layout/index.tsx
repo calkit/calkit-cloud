@@ -42,7 +42,7 @@ function ProjectView() {
   const projectRequest = useQuery({
     queryKey: ["projects", userName, projectName],
     queryFn: () =>
-      ProjectsService.getProjectByName({
+      ProjectsService.getProject({
         ownerName: userName,
         projectName: projectName,
       }),

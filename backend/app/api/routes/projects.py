@@ -332,7 +332,7 @@ def create_project(
 
 
 @router.get("/projects/{owner_name}/{project_name}")
-def get_project_by_name(
+def get_project(
     owner_name: str,
     project_name: str,
     session: SessionDep,
