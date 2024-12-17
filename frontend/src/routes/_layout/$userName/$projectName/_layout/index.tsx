@@ -16,6 +16,7 @@ import {
   IconButton,
   Link,
   Icon,
+  Code,
 } from "@chakra-ui/react"
 import { createFileRoute, Link as RouterLink } from "@tanstack/react-router"
 import { useState } from "react"
@@ -234,6 +235,10 @@ function ProjectView() {
                   </Text>
                   <Text>
                     DVC initialized: {reproCheck?.is_dvc_repo ? "✅" : "❌"}
+                  </Text>
+                  <Text>
+                    Has pipeline (<Code>dvc.yaml</Code>):{" "}
+                    {reproCheck?.has_pipeline ? "✅" : "❌"}
                   </Text>
                   {reproCheck?.recommendation ? (
                     <>
