@@ -17,8 +17,6 @@ import {
   Link,
   Icon,
   Code,
-  Alert,
-  AlertIcon,
 } from "@chakra-ui/react"
 import { createFileRoute, Link as RouterLink } from "@tanstack/react-router"
 import { useState } from "react"
@@ -289,6 +287,44 @@ function ProjectView() {
                       <>
                         {reproCheck.n_stages_with_env}/{reproCheck.n_stages}{" "}
                         {reproCheck.n_stages_without_env ? "❌" : "✅"}
+                      </>
+                    ) : (
+                      ""
+                    )}
+                  </Text>
+                  <Text>
+                    Datasets imported or created by pipeline:{" "}
+                    {reproCheck ? (
+                      <>
+                        {reproCheck.n_datasets_with_import_or_stage}/
+                        {reproCheck.n_datasets}{" "}
+                        {reproCheck.n_datasets_no_import_or_stage ? "❌" : "✅"}
+                      </>
+                    ) : (
+                      ""
+                    )}
+                  </Text>
+                  <Text>
+                    Figures imported or created by pipeline:{" "}
+                    {reproCheck ? (
+                      <>
+                        {reproCheck.n_figures_with_import_or_stage}/
+                        {reproCheck.n_figures}{" "}
+                        {reproCheck.n_figures_no_import_or_stage ? "❌" : "✅"}
+                      </>
+                    ) : (
+                      ""
+                    )}
+                  </Text>
+                  <Text>
+                    Publications imported or created by pipeline:{" "}
+                    {reproCheck ? (
+                      <>
+                        {reproCheck.n_publications_with_import_or_stage}/
+                        {reproCheck.n_publications}{" "}
+                        {reproCheck.n_publications_no_import_or_stage
+                          ? "❌"
+                          : "✅"}
                       </>
                     ) : (
                       ""
