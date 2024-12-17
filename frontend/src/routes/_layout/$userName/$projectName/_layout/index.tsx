@@ -79,6 +79,24 @@ function ProjectView() {
       ) : (
         <Flex mt={1}>
           <Box width="60%" mr={8}>
+            {/* Description */}
+            <Box
+              py={4}
+              px={6}
+              mb={4}
+              borderRadius="lg"
+              bg={secBgColor}
+              maxH={"60vh"}
+              overflow="auto"
+            >
+              <Heading size="md">Description</Heading>
+              {projectRequest.data?.description ? (
+                <Markdown>{projectRequest?.data?.description}</Markdown>
+              ) : (
+                ""
+              )}
+            </Box>
+            {/* README */}
             <Box
               py={4}
               px={6}
