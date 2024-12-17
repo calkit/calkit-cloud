@@ -266,11 +266,6 @@ def create_project(
         logger.info("Creating README.md")
         with open(os.path.join(repo.working_dir, "README.md"), "w") as f:
             txt = f"# {project_in.title}\n\n"
-            cs_url = f"https://codespaces.new/{owner_name}/{repo_name}"
-            cs_url += "?quickstart=1"
-            badge_url = "https://github.com/codespaces/badge.svg"
-            cs_md = f"[![Open in GitHub Codespaces]({badge_url})]({cs_url})"
-            txt += cs_md + "\n"
             if project_in.description is not None:
                 txt += f"\n{project_in.description}\n"
             f.write(txt)
