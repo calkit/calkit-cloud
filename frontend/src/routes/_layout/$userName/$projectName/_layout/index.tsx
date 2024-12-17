@@ -237,7 +237,7 @@ function ProjectView() {
                   </Text>
                   {reproCheck?.recommendation ? (
                     <>
-                      <Heading size="md" my={2}>
+                      <Heading size="sm" my={2}>
                         Recommendation
                       </Heading>
                       <Text>{reproCheck.recommendation}</Text>
