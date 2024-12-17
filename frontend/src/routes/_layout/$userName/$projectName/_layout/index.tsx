@@ -139,7 +139,7 @@ function ProjectView() {
               maxH={"60vh"}
               overflow="auto"
             >
-              <Heading size="md">About</Heading>
+              <Heading size="md">README</Heading>
               {readmeRequest.data ? (
                 <Markdown>
                   {removeFirstLine(atob(String(readmeRequest?.data?.content)))}
