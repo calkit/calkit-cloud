@@ -23,7 +23,7 @@ const H1 = (props: any) => {
   return <Heading size="lg" mb={4} {...props} />
 }
 const H2 = (props: any) => {
-  return <Heading size="md" my={2} {...props} />
+  return <Heading size="md" mb={2} mt={3} {...props} />
 }
 const H3 = (props: any) => {
   return <Heading size="sm" my={2} {...props} />
@@ -48,7 +48,7 @@ const code = ({ insidePre = false, ...props }: codeProps) => {
   if (insidePre) {
     return <Code my={2} whiteSpace={"pre"} display={"block"} p={2} {...props} />
   } else {
-    return <Code my={2} whiteSpace={"pre"} px={1} {...props} />
+    return <Code my={0} whiteSpace={"pre"} px={1} {...props} />
   }
 }
 

@@ -16,18 +16,19 @@ import {
   IconButton,
   Link,
   Icon,
+  Code,
 } from "@chakra-ui/react"
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute, Link as RouterLink } from "@tanstack/react-router"
 import { useState } from "react"
 import { FaPlus } from "react-icons/fa"
+import { MdEdit } from "react-icons/md"
 import { ExternalLinkIcon } from "@chakra-ui/icons"
 
-import { ProjectsService } from "../../../../../client"
 import Markdown from "../../../../../components/Common/Markdown"
 import CreateIssue from "../../../../../components/Projects/CreateIssue"
 import CreateQuestion from "../../../../../components/Projects/CreateQuestion"
 import NewPublication from "../../../../../components/Publications/NewPublication"
+import useProject from "../../../../../hooks/useProject"
 
 export const Route = createFileRoute(
   "/_layout/$userName/$projectName/_layout/",
@@ -36,81 +37,31 @@ export const Route = createFileRoute(
 })
 
 function ProjectView() {
-  const queryClient = useQueryClient()
   const secBgColor = useColorModeValue("ui.secondary", "ui.darkSlate")
   const { userName, projectName } = Route.useParams()
-  const projectRequest = useQuery({
-    queryKey: ["projects", userName, projectName],
-    queryFn: () =>
-      ProjectsService.getProjectByName({
-        ownerName: userName,
-        projectName: projectName,
-      }),
-    retry: (failureCount, error) => {
-      if (error.message === "Not Found") {
-        return false
-      }
-      return failureCount < 3
-    },
-  })
+  const [showClosedTodos, setShowClosedTodos] = useState(false)
+  const {
+    projectRequest,
+    readmeRequest,
+    issuesRequest,
+    questionsRequest,
+    reproCheckRequest,
+    issueStateMutation,
+    putDevcontainerMutation,
+  } = useProject(userName, projectName, showClosedTodos)
+  const reproCheck = reproCheckRequest.data
   const gitRepoUrl = projectRequest.data?.git_repo_url
   const codespacesUrl =
     String(gitRepoUrl).replace("://github.com/", "://codespaces.new/") +
     "?quickstart=1"
-  const [showClosedTodos, setShowClosedTodos] = useState(false)
-  const readmeRequest = useQuery({
-    queryKey: ["projects", userName, projectName, "readme"],
-    queryFn: () =>
-      ProjectsService.getProjectContents({
-        ownerName: userName,
-        projectName: projectName,
-        path: "README.md",
-      }),
-  })
-  const issuesRequest = useQuery({
-    queryKey: ["projects", userName, projectName, "issues", showClosedTodos],
-    queryFn: () =>
-      ProjectsService.getProjectIssues({
-        ownerName: userName,
-        projectName: projectName,
-        state: showClosedTodos ? "all" : "open",
-      }),
-    refetchOnWindowFocus: false,
-    refetchOnMount: false,
-  })
   const removeFirstLine = (txt: any) => {
     let lines = String(txt).split("\n")
     lines.splice(0, 1)
     return lines.join("\n")
   }
-  const questionsRequest = useQuery({
-    queryKey: ["projects", userName, projectName, "questions"],
-    queryFn: () =>
-      ProjectsService.getProjectQuestions({
-        ownerName: userName,
-        projectName: projectName,
-      }),
-  })
   const onClosedTodosSwitch = (e: any) => {
     setShowClosedTodos(e.target.checked)
   }
-  interface IssueStateChange {
-    state: "open" | "closed"
-    issueNumber: number
-  }
-  const issueStateMutation = useMutation({
-    mutationFn: (data: IssueStateChange) =>
-      ProjectsService.patchProjectIssue({
-        ownerName: userName,
-        projectName: projectName,
-        issueNumber: data.issueNumber,
-        requestBody: { state: data.state },
-      }),
-    onSettled: () =>
-      queryClient.invalidateQueries({
-        queryKey: ["projects", userName, projectName, "issues"],
-      }),
-  })
   const onTodoCheckbox = (e: any) => {
     issueStateMutation.mutate({
       issueNumber: e.target.id as number,
@@ -130,6 +81,7 @@ function ProjectView() {
       ) : (
         <Flex mt={1}>
           <Box width="60%" mr={8}>
+            {/* Description */}
             <Box
               py={4}
               px={6}
@@ -139,7 +91,39 @@ function ProjectView() {
               maxH={"60vh"}
               overflow="auto"
             >
-              <Heading size="md">About</Heading>
+              <Heading size="md">Description</Heading>
+              {projectRequest.data?.description ? (
+                <Markdown>{projectRequest?.data?.description}</Markdown>
+              ) : (
+                ""
+              )}
+            </Box>
+            {/* README */}
+            <Box
+              py={4}
+              px={6}
+              mb={4}
+              borderRadius="lg"
+              bg={secBgColor}
+              maxH={"60vh"}
+              overflow="auto"
+            >
+              <Flex alignItems="center">
+                <Heading size="md">README</Heading>
+                <Link
+                  href={`https://github.dev/${userName}/${projectName}/blob/main/README.md`}
+                  isExternal
+                >
+                  <IconButton
+                    aria-label="Edit README"
+                    height="25px"
+                    width="28px"
+                    ml={1.5}
+                    icon={<MdEdit />}
+                    size={"xs"}
+                  />
+                </Link>
+              </Flex>
               {readmeRequest.data ? (
                 <Markdown>
                   {removeFirstLine(atob(String(readmeRequest?.data?.content)))}
@@ -222,6 +206,7 @@ function ProjectView() {
             </Box>
           </Box>
           <Box width={"40%"}>
+            {/* Questions  */}
             <Box py={4} px={6} mb={4} borderRadius="lg" bg={secBgColor}>
               <Flex>
                 <Heading size="md" mb={2}>
@@ -260,6 +245,142 @@ function ProjectView() {
                 </OrderedList>
               )}
             </Box>
+            {/* Reproducibility check */}
+            <Box py={4} px={6} mb={4} borderRadius="lg" bg={secBgColor}>
+              <Heading size="md" mb={2}>
+                Reproducibility check
+              </Heading>
+              {reproCheckRequest.isPending ||
+              putDevcontainerMutation.isPending ? (
+                <Flex
+                  justify="center"
+                  align="center"
+                  height="100px"
+                  width="full"
+                >
+                  <Spinner size="xl" color="ui.main" />
+                </Flex>
+              ) : (
+                <>
+                  <Text>
+                    Has README.md: {reproCheck?.has_readme ? "✅" : "❌"}
+                  </Text>
+                  <Text>
+                    README.md has instructions:{" "}
+                    {reproCheck?.instructions_in_readme ? "✅" : "❌"}
+                  </Text>
+                  <Text>
+                    DVC initialized: {reproCheck?.is_dvc_repo ? "✅" : "❌"}
+                  </Text>
+                  <Text>
+                    DVC remote defined:{" "}
+                    {reproCheck?.n_dvc_remotes ? "✅" : "❌"}
+                  </Text>
+                  <Text>
+                    Has pipeline (<Code>dvc.yaml</Code>):{" "}
+                    {reproCheck?.has_pipeline ? "✅" : "❌"}
+                  </Text>
+                  <Text>
+                    Has Calkit metadata (<Code>calkit.yaml</Code>):{" "}
+                    {reproCheck?.has_calkit_info ? "✅" : "❌"}
+                  </Text>
+                  <Text>
+                    Has dev container spec:{" "}
+                    {reproCheck?.has_dev_container ? (
+                      "✅"
+                    ) : (
+                      <>
+                        {"❌ "}
+                        <Link onClick={() => putDevcontainerMutation.mutate()}>
+                          🔧
+                        </Link>
+                      </>
+                    )}
+                  </Text>
+                  <Text>
+                    Environments defined:{" "}
+                    {reproCheck ? (
+                      <>
+                        {reproCheck.n_environments}{" "}
+                        {reproCheck.n_environments ? "✅" : "❌"}
+                      </>
+                    ) : (
+                      ""
+                    )}
+                  </Text>
+                  <Text>
+                    Pipeline stages run in an environment:{" "}
+                    {reproCheck ? (
+                      <>
+                        {reproCheck.n_stages_with_env}/{reproCheck.n_stages}{" "}
+                        {reproCheck.n_stages_without_env ? "❌" : "✅"}
+                      </>
+                    ) : (
+                      ""
+                    )}
+                  </Text>
+                  <Text>
+                    Datasets imported or created by pipeline:{" "}
+                    {reproCheck ? (
+                      <>
+                        {reproCheck.n_datasets_with_import_or_stage}/
+                        {reproCheck.n_datasets}{" "}
+                        {reproCheck.n_datasets_no_import_or_stage ? "❌" : "✅"}
+                      </>
+                    ) : (
+                      ""
+                    )}
+                  </Text>
+                  <Text>
+                    Figures imported or created by pipeline:{" "}
+                    {reproCheck ? (
+                      <>
+                        {reproCheck.n_figures_with_import_or_stage}/
+                        {reproCheck.n_figures}{" "}
+                        {reproCheck.n_figures_no_import_or_stage ? "❌" : "✅"}
+                      </>
+                    ) : (
+                      ""
+                    )}
+                  </Text>
+                  <Text>
+                    Publications imported or created by pipeline:{" "}
+                    {reproCheck ? (
+                      <>
+                        {reproCheck.n_publications_with_import_or_stage}/
+                        {reproCheck.n_publications}{" "}
+                        {reproCheck.n_publications_no_import_or_stage
+                          ? "❌"
+                          : "✅"}
+                      </>
+                    ) : (
+                      ""
+                    )}
+                  </Text>
+                  <Heading
+                    size="sm"
+                    mt={4}
+                    mb={-2}
+                    color={
+                      reproCheck?.recommendation ? "yellow.500" : "green.500"
+                    }
+                  >
+                    Recommendation
+                  </Heading>
+                  {reproCheck?.recommendation ? (
+                    <>
+                      <Markdown>{reproCheck.recommendation}</Markdown>
+                    </>
+                  ) : (
+                    <Markdown>
+                      This project looks good from here! Check in depth locally
+                      with `calkit status` and `calkit run`.
+                    </Markdown>
+                  )}
+                </>
+              )}
+            </Box>
+            {/* Quick actions */}
             <Box py={4} px={6} mb={4} borderRadius="lg" bg={secBgColor}>
               <Heading size="md" mb={2}>
                 Quick actions
