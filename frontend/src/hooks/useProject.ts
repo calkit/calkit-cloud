@@ -68,7 +68,6 @@ const useProject = (
     state: "open" | "closed"
     issueNumber: number
   }
-
   const issueStateMutation = useMutation({
     mutationFn: (data: IssueStateChange) =>
       ProjectsService.patchProjectIssue({
@@ -83,6 +82,18 @@ const useProject = (
       }),
   })
 
+  const putDevcontainerMutation = useMutation({
+    mutationFn: () =>
+      ProjectsService.putProjectDevContainer({
+        ownerName: userName,
+        projectName: projectName,
+      }),
+    onSettled: () =>
+      queryClient.invalidateQueries({
+        queryKey: ["projects", userName, projectName, "repro-check"],
+      }),
+  })
+
   return {
     projectRequest,
     readmeRequest,
@@ -90,6 +101,7 @@ const useProject = (
     questionsRequest,
     reproCheckRequest,
     issueStateMutation,
+    putDevcontainerMutation,
   }
 }
 

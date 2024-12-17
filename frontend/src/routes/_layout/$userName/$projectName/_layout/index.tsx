@@ -47,6 +47,7 @@ function ProjectView() {
     questionsRequest,
     reproCheckRequest,
     issueStateMutation,
+    putDevcontainerMutation,
   } = useProject(userName, projectName, showClosedTodos)
   const reproCheck = reproCheckRequest.data
   const gitRepoUrl = projectRequest.data?.git_repo_url
@@ -249,7 +250,8 @@ function ProjectView() {
               <Heading size="md" mb={2}>
                 Reproducibility check
               </Heading>
-              {reproCheckRequest.isPending ? (
+              {reproCheckRequest.isPending ||
+              putDevcontainerMutation.isPending ? (
                 <Flex
                   justify="center"
                   align="center"
@@ -284,7 +286,16 @@ function ProjectView() {
                   </Text>
                   <Text>
                     Has dev container spec:{" "}
-                    {reproCheck?.has_dev_container ? "✅" : "❌"}
+                    {reproCheck?.has_dev_container ? (
+                      "✅"
+                    ) : (
+                      <>
+                        {"❌ "}
+                        <Link onClick={() => putDevcontainerMutation.mutate()}>
+                          🔧
+                        </Link>
+                      </>
+                    )}
                   </Text>
                   <Text>
                     Environments defined:{" "}
