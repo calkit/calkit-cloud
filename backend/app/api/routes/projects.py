@@ -420,7 +420,7 @@ def get_project_git_repo(
     current_user: CurrentUser,
 ):
     token = users.get_github_token(session=session, user=current_user)
-    project = get_project_by_name(
+    project = get_project(
         owner_name=owner_name,
         project_name=project_name,
         session=session,
