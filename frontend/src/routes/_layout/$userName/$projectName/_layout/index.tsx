@@ -17,17 +17,16 @@ import {
   Link,
   Icon,
 } from "@chakra-ui/react"
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute, Link as RouterLink } from "@tanstack/react-router"
 import { useState } from "react"
 import { FaPlus } from "react-icons/fa"
 import { ExternalLinkIcon } from "@chakra-ui/icons"
 
-import { ProjectsService } from "../../../../../client"
 import Markdown from "../../../../../components/Common/Markdown"
 import CreateIssue from "../../../../../components/Projects/CreateIssue"
 import CreateQuestion from "../../../../../components/Projects/CreateQuestion"
 import NewPublication from "../../../../../components/Publications/NewPublication"
+import useProject from "../../../../../hooks/useProject"
 
 export const Route = createFileRoute(
   "/_layout/$userName/$projectName/_layout/",
@@ -36,81 +35,28 @@ export const Route = createFileRoute(
 })
 
 function ProjectView() {
-  const queryClient = useQueryClient()
   const secBgColor = useColorModeValue("ui.secondary", "ui.darkSlate")
   const { userName, projectName } = Route.useParams()
-  const projectRequest = useQuery({
-    queryKey: ["projects", userName, projectName],
-    queryFn: () =>
-      ProjectsService.getProject({
-        ownerName: userName,
-        projectName: projectName,
-      }),
-    retry: (failureCount, error) => {
-      if (error.message === "Not Found") {
-        return false
-      }
-      return failureCount < 3
-    },
-  })
+  const [showClosedTodos, setShowClosedTodos] = useState(false)
+  const {
+    projectRequest,
+    readmeRequest,
+    issuesRequest,
+    questionsRequest,
+    issueStateMutation,
+  } = useProject(userName, projectName, showClosedTodos)
   const gitRepoUrl = projectRequest.data?.git_repo_url
   const codespacesUrl =
     String(gitRepoUrl).replace("://github.com/", "://codespaces.new/") +
     "?quickstart=1"
-  const [showClosedTodos, setShowClosedTodos] = useState(false)
-  const readmeRequest = useQuery({
-    queryKey: ["projects", userName, projectName, "readme"],
-    queryFn: () =>
-      ProjectsService.getProjectContents({
-        ownerName: userName,
-        projectName: projectName,
-        path: "README.md",
-      }),
-  })
-  const issuesRequest = useQuery({
-    queryKey: ["projects", userName, projectName, "issues", showClosedTodos],
-    queryFn: () =>
-      ProjectsService.getProjectIssues({
-        ownerName: userName,
-        projectName: projectName,
-        state: showClosedTodos ? "all" : "open",
-      }),
-    refetchOnWindowFocus: false,
-    refetchOnMount: false,
-  })
   const removeFirstLine = (txt: any) => {
     let lines = String(txt).split("\n")
     lines.splice(0, 1)
     return lines.join("\n")
   }
-  const questionsRequest = useQuery({
-    queryKey: ["projects", userName, projectName, "questions"],
-    queryFn: () =>
-      ProjectsService.getProjectQuestions({
-        ownerName: userName,
-        projectName: projectName,
-      }),
-  })
   const onClosedTodosSwitch = (e: any) => {
     setShowClosedTodos(e.target.checked)
   }
-  interface IssueStateChange {
-    state: "open" | "closed"
-    issueNumber: number
-  }
-  const issueStateMutation = useMutation({
-    mutationFn: (data: IssueStateChange) =>
-      ProjectsService.patchProjectIssue({
-        ownerName: userName,
-        projectName: projectName,
-        issueNumber: data.issueNumber,
-        requestBody: { state: data.state },
-      }),
-    onSettled: () =>
-      queryClient.invalidateQueries({
-        queryKey: ["projects", userName, projectName, "issues"],
-      }),
-  })
   const onTodoCheckbox = (e: any) => {
     issueStateMutation.mutate({
       issueNumber: e.target.id as number,
