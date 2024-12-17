@@ -43,8 +43,10 @@ function ProjectView() {
     readmeRequest,
     issuesRequest,
     questionsRequest,
+    reproCheckRequest,
     issueStateMutation,
   } = useProject(userName, projectName, showClosedTodos)
+  const reproCheck = reproCheckRequest.data
   const gitRepoUrl = projectRequest.data?.git_repo_url
   const codespacesUrl =
     String(gitRepoUrl).replace("://github.com/", "://codespaces.new/") +
@@ -168,6 +170,7 @@ function ProjectView() {
             </Box>
           </Box>
           <Box width={"40%"}>
+            {/* Questions  */}
             <Box py={4} px={6} mb={4} borderRadius="lg" bg={secBgColor}>
               <Flex>
                 <Heading size="md" mb={2}>
@@ -206,6 +209,43 @@ function ProjectView() {
                 </OrderedList>
               )}
             </Box>
+            {/* Reproducibility check */}
+            <Box py={4} px={6} mb={4} borderRadius="lg" bg={secBgColor}>
+              <Heading size="md" mb={2}>
+                Reproducibility check
+              </Heading>
+              {reproCheckRequest.isPending ? (
+                <Flex
+                  justify="center"
+                  align="center"
+                  height="100px"
+                  width="full"
+                >
+                  <Spinner size="xl" color="ui.main" />
+                </Flex>
+              ) : (
+                <>
+                  <Text>
+                    Has README.md: {reproCheck?.has_readme ? "✅" : "❌"}
+                  </Text>
+                  <Text>
+                    README.md has instructions:{" "}
+                    {reproCheck?.instructions_in_readme ? "✅" : "❌"}
+                  </Text>
+                  {reproCheck?.recommendation ? (
+                    <>
+                      <Heading size="md" my={2}>
+                        Recommendation
+                      </Heading>
+                      <Text>{reproCheck.recommendation}</Text>
+                    </>
+                  ) : (
+                    ""
+                  )}
+                </>
+              )}
+            </Box>
+            {/* Quick actions */}
             <Box py={4} px={6} mb={4} borderRadius="lg" bg={secBgColor}>
               <Heading size="md" mb={2}>
                 Quick actions
