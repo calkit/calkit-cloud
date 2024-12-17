@@ -38,14 +38,14 @@ const ActionsMenu = ({ type, value, disabled }: ActionsMenuProps) => {
             onClick={editUserModal.onOpen}
             icon={<FiEdit fontSize="16px" />}
           >
-            Edit {type}
+            Edit {type.toLowerCase()}
           </MenuItem>
           <MenuItem
             onClick={deleteModal.onOpen}
             icon={<FiTrash fontSize="16px" />}
             color="ui.danger"
           >
-            Delete {type}
+            Delete {type.toLowerCase()}
           </MenuItem>
         </MenuList>
         {type === "User" ? (
