@@ -272,6 +272,17 @@ function ProjectView() {
                     Has dev container spec:{" "}
                     {reproCheck?.has_dev_container ? "✅" : "❌"}
                   </Text>
+                  <Text>
+                    Environments defined:{" "}
+                    {reproCheck ? (
+                      <>
+                        {reproCheck.n_environments}{" "}
+                        {reproCheck.n_environments ? "✅" : "❌"}
+                      </>
+                    ) : (
+                      ""
+                    )}
+                  </Text>
                   <Heading
                     size="sm"
                     mt={4}
