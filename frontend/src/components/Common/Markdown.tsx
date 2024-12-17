@@ -23,7 +23,7 @@ const H1 = (props: any) => {
   return <Heading size="lg" mb={4} {...props} />
 }
 const H2 = (props: any) => {
-  return <Heading size="md" my={2} {...props} />
+  return <Heading size="md" mb={2} mt={3} {...props} />
 }
 const H3 = (props: any) => {
   return <Heading size="sm" my={2} {...props} />
