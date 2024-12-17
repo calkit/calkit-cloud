@@ -264,6 +264,10 @@ function ProjectView() {
                     Has pipeline (<Code>dvc.yaml</Code>):{" "}
                     {reproCheck?.has_pipeline ? "✅" : "❌"}
                   </Text>
+                  <Text>
+                    Has Calkit metadata (<Code>calkit.yaml</Code>):{" "}
+                    {reproCheck?.has_calkit_info ? "✅" : "❌"}
+                  </Text>
                   <Heading
                     size="sm"
                     mt={4}
