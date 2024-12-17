@@ -21,6 +21,7 @@ import {
 import { createFileRoute, Link as RouterLink } from "@tanstack/react-router"
 import { useState } from "react"
 import { FaPlus } from "react-icons/fa"
+import { MdEdit } from "react-icons/md"
 import { ExternalLinkIcon } from "@chakra-ui/icons"
 
 import Markdown from "../../../../../components/Common/Markdown"
@@ -106,7 +107,22 @@ function ProjectView() {
               maxH={"60vh"}
               overflow="auto"
             >
-              <Heading size="md">README</Heading>
+              <Flex alignItems="center">
+                <Heading size="md">README</Heading>
+                <Link
+                  href={`https://github.dev/${userName}/${projectName}/blob/main/README.md`}
+                  isExternal
+                >
+                  <IconButton
+                    aria-label="Edit README"
+                    height="25px"
+                    width="28px"
+                    ml={1.5}
+                    icon={<MdEdit />}
+                    size={"xs"}
+                  />
+                </Link>
+              </Flex>
               {readmeRequest.data ? (
                 <Markdown>
                   {removeFirstLine(atob(String(readmeRequest?.data?.content)))}
