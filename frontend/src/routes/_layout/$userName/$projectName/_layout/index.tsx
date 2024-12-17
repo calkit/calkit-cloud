@@ -251,6 +251,7 @@ function ProjectView() {
                 Reproducibility check
               </Heading>
               {reproCheckRequest.isPending ||
+              reproCheckRequest.isRefetching ||
               putDevcontainerMutation.isPending ? (
                 <Flex
                   justify="center"
