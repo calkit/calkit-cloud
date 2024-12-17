@@ -257,6 +257,10 @@ function ProjectView() {
                     DVC initialized: {reproCheck?.is_dvc_repo ? "✅" : "❌"}
                   </Text>
                   <Text>
+                    DVC remote defined:{" "}
+                    {reproCheck?.n_dvc_remotes ? "✅" : "❌"}
+                  </Text>
+                  <Text>
                     Has pipeline (<Code>dvc.yaml</Code>):{" "}
                     {reproCheck?.has_pipeline ? "✅" : "❌"}
                   </Text>
