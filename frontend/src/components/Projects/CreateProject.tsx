@@ -64,8 +64,12 @@ const AddProject = ({ isOpen, onClose }: AddProjectProps) => {
   })
 
   const mutation = useMutation({
-    mutationFn: (data: ProjectCreate) =>
-      ProjectsService.createProject({ requestBody: data }),
+    mutationFn: (data: ProjectCreate) => {
+      if (data.template === "") {
+        data.template = null
+      }
+      return ProjectsService.createProject({ requestBody: data })
+    },
     onSuccess: (data: ProjectPublic) => {
       mixpanel.track("Created new project")
       showToast("Success!", "Project created successfully.", "success")
