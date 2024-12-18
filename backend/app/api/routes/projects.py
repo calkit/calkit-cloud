@@ -154,6 +154,18 @@ def create_project(
         project_in.git_repo_url = (
             f"https://github.com/{current_user.account.name}/{project_in.name}"
         )
+    # First check if template even exists, if specified
+    if project_in.template is not None:
+        template_owner_name, template_project_name = (
+            project_in.template.split("/")
+        )
+        template_project = app.projects.get_project(
+            session=session,
+            owner_name=template_owner_name,
+            project_name=template_project_name,
+            current_user=current_user,
+            min_access_level="read",
+        )
     # Detect owner and repo name from Git repo URL
     # TODO: This should be generalized to not depend on GitHub?
     owner_name, repo_name = project_in.git_repo_url.split("/")[-2:]
@@ -249,16 +261,6 @@ def create_project(
         )
         # If we have a template, set as upstream and pull from it
         if project_in.template is not None:
-            template_owner_name, template_project_name = (
-                project_in.template.split("/")
-            )
-            template_project = app.projects.get_project(
-                session=session,
-                owner_name=template_owner_name,
-                project_name=template_project_name,
-                current_user=current_user,
-                min_access_level="read",
-            )
             template_git_repo_url = template_project.git_repo_url
             repo.git.remote(["add", "upstream", template_git_repo_url])
             repo.git.pull(["upstream", repo.active_branch.name])
