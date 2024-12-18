@@ -149,6 +149,10 @@ def create_project(
     project_in: ProjectCreate,
 ) -> ProjectPublic:
     """Create new project."""
+    if project_in.git_repo_url is None:
+        project_in.git_repo_url = (
+            f"https://github.com/{current_user.account.name}/{project_in.name}"
+        )
     # Detect owner and repo name from Git repo URL
     # TODO: This should be generalized to not depend on GitHub?
     owner_name, repo_name = project_in.git_repo_url.split("/")[-2:]
