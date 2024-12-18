@@ -642,7 +642,7 @@ def get_project_contents(
     session: SessionDep,
     current_user: CurrentUser,
     path: str | None = None,
-    ttl: int | None = 300,
+    ttl: int | None = 120,
 ) -> ContentsItem:
     project = app.projects.get_project(
         owner_name=owner_name,
