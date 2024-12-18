@@ -62,6 +62,8 @@ const useProject = (
         ownerName: userName,
         projectName: projectName,
       }),
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
   })
 
   interface IssueStateChange {
