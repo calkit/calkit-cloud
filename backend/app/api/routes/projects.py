@@ -265,6 +265,8 @@ def create_project(
             template_git_repo_url = template_project.git_repo_url
             repo.git.remote(["add", "upstream", template_git_repo_url])
             repo.git.pull(["upstream", repo.active_branch.name])
+            # Remove upstream remote so we don't have any confusion later
+            repo.git.remote(["remove", "upstream"])
             template_repo = get_repo(
                 project=template_project,
                 session=session,
