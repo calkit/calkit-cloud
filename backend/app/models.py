@@ -411,7 +411,7 @@ class ProjectCreate(ProjectBase):
         default=None, min_length=0, max_length=2048
     )
     is_public: bool = Field(default=False)
-    git_repo_url: str = Field(max_length=2048, default=None)
+    git_repo_url: str | None = Field(max_length=2048, default=None)
 
 
 class PipelineStage(SQLModel):
