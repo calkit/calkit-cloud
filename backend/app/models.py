@@ -412,6 +412,7 @@ class ProjectCreate(ProjectBase):
     )
     is_public: bool = Field(default=False)
     git_repo_url: str | None = Field(max_length=2048, default=None)
+    template: str | None = None
 
 
 class PipelineStage(SQLModel):
