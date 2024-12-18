@@ -340,8 +340,13 @@ class ProjectBase(SQLModel):
 class Project(ProjectBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     owner_account_id: uuid.UUID = Field(foreign_key="account.id")
+    parent_project_id: uuid.UUID | None = Field(
+        foreign_key="project.id", default=None
+    )
     # Relationships
     owner_account: Account = Relationship(back_populates="owned_projects")
+    # TODO: Figure out how to do self-referential relationships with parent
+    # and children projects
     questions: list["Question"] = Relationship(back_populates="project")
     datasets: list["Dataset"] = Relationship(back_populates="project")
     file_locks: list["FileLock"] = Relationship(back_populates="project")
@@ -412,6 +417,7 @@ class ProjectCreate(ProjectBase):
     )
     is_public: bool = Field(default=False)
     git_repo_url: str | None = Field(max_length=2048, default=None)
+    template: str | None = None
 
 
 class PipelineStage(SQLModel):

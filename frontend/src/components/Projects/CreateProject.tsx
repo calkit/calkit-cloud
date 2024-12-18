@@ -13,6 +13,7 @@ import {
   ModalFooter,
   ModalHeader,
   ModalOverlay,
+  Select,
 } from "@chakra-ui/react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { type SubmitHandler, useForm } from "react-hook-form"
@@ -24,6 +25,7 @@ import {
   ProjectsService,
   type ProjectCreate,
   type UserPublic,
+  type ProjectPublic,
 } from "../../client"
 import useCustomToast from "../../hooks/useCustomToast"
 import { handleError } from "../../utils"
@@ -57,13 +59,14 @@ const AddProject = ({ isOpen, onClose }: AddProjectProps) => {
       description: "",
       git_repo_url: `https://github.com/${githubUsername}/`,
       is_public: false,
+      template: "calkit/example-basic",
     },
   })
 
   const mutation = useMutation({
     mutationFn: (data: ProjectCreate) =>
       ProjectsService.createProject({ requestBody: data }),
-    onSuccess: (data: ProjectCreate) => {
+    onSuccess: (data: ProjectPublic) => {
       mixpanel.track("Created new project")
       showToast("Success!", "Project created successfully.", "success")
       const userName = String(data.git_repo_url.split("/").at(-2))
@@ -124,6 +127,29 @@ const AddProject = ({ isOpen, onClose }: AddProjectProps) => {
                 <FormErrorMessage>{errors.title.message}</FormErrorMessage>
               )}
             </FormControl>
+            <FormControl mt={4}>
+              <FormLabel htmlFor="description">Description</FormLabel>
+              <Input
+                id="description"
+                {...register("description")}
+                placeholder="Description"
+                type="text"
+              />
+            </FormControl>
+            <FormControl mt={4}>
+              <FormLabel htmlFor="template">Template</FormLabel>
+              <Select
+                id="template"
+                placeholder="Select a template..."
+                {...register("template", {})}
+                defaultValue="calkit/example-basic"
+              >
+                <option value="calkit/example-basic">
+                  calkit/example-basic
+                </option>
+                <option value="">None</option>
+              </Select>
+            </FormControl>
             <FormControl mt={4} isInvalid={!!errors.git_repo_url}>
               <FormLabel htmlFor="git_repo_url">GitHub repo URL</FormLabel>
               <Input
@@ -139,15 +165,6 @@ const AddProject = ({ isOpen, onClose }: AddProjectProps) => {
                   {errors.git_repo_url.message}
                 </FormErrorMessage>
               )}
-            </FormControl>
-            <FormControl mt={4}>
-              <FormLabel htmlFor="description">Description</FormLabel>
-              <Input
-                id="description"
-                {...register("description")}
-                placeholder="Description"
-                type="text"
-              />
             </FormControl>
             <Flex mt={4}>
               <FormControl>

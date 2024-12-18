@@ -1845,9 +1845,16 @@ export const $ProjectCreate = {
       ],
     },
     git_repo_url: {
-      type: "string",
-      isRequired: true,
-      maxLength: 2048,
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          maxLength: 2048,
+        },
+        {
+          type: "null",
+        },
+      ],
     },
     latest_git_rev: {
       type: "any-of",
@@ -1855,6 +1862,17 @@ export const $ProjectCreate = {
         {
           type: "string",
           maxLength: 40,
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    template: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
         },
         {
           type: "null",

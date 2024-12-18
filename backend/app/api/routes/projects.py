@@ -14,6 +14,7 @@ from typing import Annotated, Literal, Optional
 
 import app.projects
 import bibtexparser
+import calkit
 import requests
 import sqlalchemy
 import yaml
@@ -153,6 +154,18 @@ def create_project(
         project_in.git_repo_url = (
             f"https://github.com/{current_user.account.name}/{project_in.name}"
         )
+    # First check if template even exists, if specified
+    if project_in.template is not None:
+        template_owner_name, template_project_name = project_in.template.split(
+            "/"
+        )
+        template_project = app.projects.get_project(
+            session=session,
+            owner_name=template_owner_name,
+            project_name=template_project_name,
+            current_user=current_user,
+            min_access_level="read",
+        )
     # Detect owner and repo name from Git repo URL
     # TODO: This should be generalized to not depend on GitHub?
     owner_name, repo_name = project_in.git_repo_url.split("/")[-2:]
@@ -199,6 +212,7 @@ def create_project(
     project = session.exec(query).first()
     git_repo_url_is_occupied = project is not None
     if git_repo_url_is_occupied:
+        logger.info("Git repo is already occupied by another project")
         raise HTTPException(409, "Repos can only be associated with 1 project")
     elif resp.status_code == 404:
         if owner_name != current_user.github_username:
@@ -213,8 +227,10 @@ def create_project(
             "has_discussions": True,
             "has_issues": True,
             "has_wiki": True,
-            "gitignore_template": "Python",
         }
+        # If creating from a template repo, we want it to be empty
+        if project_in.template is None:
+            body["gitignore_template"] = "Python"
         resp = requests.post(
             "https://api.github.com/user/repos",
             json=body,
@@ -229,9 +245,10 @@ def create_project(
             raise HTTPException(resp.status_code, message)
         resp_json = resp.json()
         logger.info(f"Created GitHub repo with URL: {resp_json['html_url']}")
-        project = Project.model_validate(
-            project_in, update={"owner_account_id": current_user.account.id}
-        )
+        add_info = {"owner_account_id": current_user.account.id}
+        if project_in.template is not None:
+            add_info["parent_project_id"] = template_project.id
+        project = Project.model_validate(project_in, update=add_info)
         logger.info("Adding project to database")
         session.add(project)
         session.commit()
@@ -243,30 +260,51 @@ def create_project(
             user=current_user,
             fresh=True,
         )
+        # If we have a template, set as upstream and pull from it
+        if project_in.template is not None:
+            template_git_repo_url = template_project.git_repo_url
+            repo.git.remote(["add", "upstream", template_git_repo_url])
+            repo.git.pull(["upstream", repo.active_branch.name])
+            template_repo = get_repo(
+                project=template_project,
+                session=session,
+                user=current_user,
+                fresh=True,
+            )
         # Add a calkit.yaml file
+        # First existing info, which is empty unless we're using a template
+        ck_info = calkit.load_calkit_info(wdir=repo.working_dir)
+        _ = ck_info.pop("questions", None)
+        ck_info |= {
+            "owner": owner_name,
+            "name": project.name,
+            "title": project.title,
+            "description": project.description,
+            "git_repo_url": project.git_repo_url,
+        }
+        if project_in.template is not None:
+            ck_info["derived_from"] = dict(
+                project=project_in.template,
+                git_repo_url=template_git_repo_url,
+                git_rev=template_repo.git.rev_parse("HEAD"),
+            )
         with open(os.path.join(repo.working_dir, "calkit.yaml"), "w") as f:
-            ck_info = {
-                "owner": owner_name,
-                "name": project.name,
-                "title": project.title,
-                "description": project.description,
-                "git_repo_url": project.git_repo_url,
-            }
             ryaml.dump(ck_info, f)
         repo.git.add("calkit.yaml")
-        # Create devcontainer spec
-        dc_url = (
-            "https://raw.githubusercontent.com/calkit/devcontainer/"
-            "refs/heads/main/devcontainer.json"
-        )
-        dc_resp = requests.get(dc_url)
-        dc_dir = os.path.join(repo.working_dir, ".devcontainer")
-        os.makedirs(dc_dir, exist_ok=True)
-        dc_fpath = os.path.join(dc_dir, "devcontainer.json")
-        with open(dc_fpath, "w") as f:
-            f.write(dc_resp.text)
-        repo.git.add(".devcontainer")
-        # Add to the README
+        if project_in.template is None:
+            # Create devcontainer spec
+            dc_url = (
+                "https://raw.githubusercontent.com/calkit/devcontainer/"
+                "refs/heads/main/devcontainer.json"
+            )
+            dc_resp = requests.get(dc_url)
+            dc_dir = os.path.join(repo.working_dir, ".devcontainer")
+            os.makedirs(dc_dir, exist_ok=True)
+            dc_fpath = os.path.join(dc_dir, "devcontainer.json")
+            with open(dc_fpath, "w") as f:
+                f.write(dc_resp.text)
+            repo.git.add(".devcontainer")
+        # Create the README
         logger.info("Creating README.md")
         with open(os.path.join(repo.working_dir, "README.md"), "w") as f:
             txt = f"# {project_in.title}\n\n"
@@ -276,7 +314,7 @@ def create_project(
         repo.git.add("README.md")
         # Setup the DVC remote
         logger.info("Running DVC init")
-        subprocess.call(["dvc", "init", "--force"], cwd=repo.working_dir)
+        subprocess.call(["dvc", "init", "--force", "-q"], cwd=repo.working_dir)
         logger.info("Enabling DVC autostage")
         subprocess.call(
             ["dvc", "config", "core.autostage", "true"], cwd=repo.working_dir
@@ -293,10 +331,18 @@ def create_project(
             cwd=repo.working_dir,
         )
         repo.git.add(".dvc")
-        repo.git.commit(["-m", "Create README and initialize DVC config"])
+        if project_in.template is not None:
+            commit_msg = f"Create new project from {project_in.template}"
+        else:
+            commit_msg = "Create README.md, DVC config, and calkit.yaml"
+        repo.git.commit(["-m", commit_msg])
         repo.git.push(["origin", repo.active_branch.name])
     elif resp.status_code == 200:
         logger.info(f"Repo exists on GitHub as {owner_name}/{repo_name}")
+        if project_in.template is not None:
+            raise HTTPException(
+                400, "Templates can only be used with new repos"
+            )
         repo = resp.json()
         if owner_name != current_user.github_username:
             # This is either an org repo, or someone else's that we shouldn't

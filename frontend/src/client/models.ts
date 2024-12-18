@@ -385,8 +385,9 @@ export type ProjectCreate = {
   is_public?: boolean
   created?: string | null
   updated?: string | null
-  git_repo_url: string
+  git_repo_url?: string | null
   latest_git_rev?: string | null
+  template?: string | null
 }
 
 export type ProjectPatch = {
