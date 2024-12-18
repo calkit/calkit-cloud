@@ -51,6 +51,10 @@ services:
     ports:
       - "8080:8080"
 
+  prestart:
+    env_file:
+      - .env
+
   backend:
     restart: "no"
     env_file:
