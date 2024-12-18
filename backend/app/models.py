@@ -405,7 +405,13 @@ class ProjectsPublic(SQLModel):
 
 
 class ProjectCreate(ProjectBase):
-    pass
+    name: str = Field(min_length=4, max_length=255)
+    title: str = Field(min_length=4, max_length=255)
+    description: str | None = Field(
+        default=None, min_length=0, max_length=2048
+    )
+    is_public: bool = Field(default=False)
+    git_repo_url: str = Field(max_length=2048, default=None)
 
 
 class PipelineStage(SQLModel):
