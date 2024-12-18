@@ -347,9 +347,15 @@ class Project(ProjectBase, table=True):
     owner_account: Account = Relationship(back_populates="owned_projects")
     # TODO: Figure out how to do self-referential relationships with parent
     # and children projects
-    questions: list["Question"] = Relationship(back_populates="project")
-    datasets: list["Dataset"] = Relationship(back_populates="project")
-    file_locks: list["FileLock"] = Relationship(back_populates="project")
+    questions: list["Question"] = Relationship(
+        back_populates="project", cascade_delete=True
+    )
+    datasets: list["Dataset"] = Relationship(
+        back_populates="project", cascade_delete=True
+    )
+    file_locks: list["FileLock"] = Relationship(
+        back_populates="project", cascade_delete=True
+    )
 
     @computed_field
     @property
