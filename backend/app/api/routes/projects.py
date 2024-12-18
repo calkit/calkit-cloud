@@ -313,7 +313,7 @@ def create_project(
         repo.git.add("README.md")
         # Setup the DVC remote
         logger.info("Running DVC init")
-        subprocess.call(["dvc", "init", "--force"], cwd=repo.working_dir)
+        subprocess.call(["dvc", "init", "--force", "-q"], cwd=repo.working_dir)
         logger.info("Enabling DVC autostage")
         subprocess.call(
             ["dvc", "config", "core.autostage", "true"], cwd=repo.working_dir
