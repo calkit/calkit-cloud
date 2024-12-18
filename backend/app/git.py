@@ -75,9 +75,10 @@ def get_repo(
             with lock:
                 if ttl is None or ((time.time() - last_updated) > ttl):
                     logger.info("Updating remote in case token was refreshed")
-                    repo.remote().set_url(git_clone_url)
-                    logger.info("Git fetching")
                     branch_name = repo.active_branch.name
+                    repo.git.remote(["remove", "origin"])
+                    repo.git.remote(["add", "origin", git_clone_url])
+                    logger.info("Git fetching")
                     repo.git.fetch(["origin", branch_name])
                     repo.git.checkout([f"origin/{branch_name}"])
                     repo.git.branch(["-D", branch_name])
