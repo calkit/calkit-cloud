@@ -156,8 +156,8 @@ def create_project(
         )
     # First check if template even exists, if specified
     if project_in.template is not None:
-        template_owner_name, template_project_name = (
-            project_in.template.split("/")
+        template_owner_name, template_project_name = project_in.template.split(
+            "/"
         )
         template_project = app.projects.get_project(
             session=session,
@@ -245,9 +245,10 @@ def create_project(
             raise HTTPException(resp.status_code, message)
         resp_json = resp.json()
         logger.info(f"Created GitHub repo with URL: {resp_json['html_url']}")
-        project = Project.model_validate(
-            project_in, update={"owner_account_id": current_user.account.id}
-        )
+        add_info = {"owner_account_id": current_user.account.id}
+        if project_in.template is not None:
+            add_info["parent_project_id"] = template_project.id
+        project = Project.model_validate(project_in, update=add_info)
         logger.info("Adding project to database")
         session.add(project)
         session.commit()
