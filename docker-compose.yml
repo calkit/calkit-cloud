@@ -47,9 +47,9 @@ services:
       - traefik-public
       - default
     depends_on:
-        db:
-          condition: service_healthy
-          restart: true
+      db:
+        condition: service_healthy
+        restart: true
     command: bash prestart.sh
     environment:
       - PROJECT_NAME=${PROJECT_NAME}
