@@ -20,7 +20,7 @@ import {
 } from "@chakra-ui/react"
 import { createFileRoute, Link as RouterLink } from "@tanstack/react-router"
 import { useState } from "react"
-import { FaPlus } from "react-icons/fa"
+import { FaPlus, FaSync } from "react-icons/fa"
 import { MdEdit } from "react-icons/md"
 import { ExternalLinkIcon } from "@chakra-ui/icons"
 
@@ -271,9 +271,20 @@ function ProjectView() {
             </Box>
             {/* Reproducibility check */}
             <Box py={4} px={6} mb={4} borderRadius="lg" bg={secBgColor}>
-              <Heading size="md" mb={2}>
-                Reproducibility check
-              </Heading>
+              <Flex>
+                <Heading size="md" mb={2}>
+                  Reproducibility check
+                </Heading>
+                <IconButton
+                  aria-label="Refresh repro check"
+                  height="25px"
+                  width="28px"
+                  ml={1.5}
+                  icon={<FaSync />}
+                  size={"xs"}
+                  onClick={() => reproCheckRequest.refetch()}
+                />
+              </Flex>
               {reproCheckRequest.isPending ||
               reproCheckRequest.isRefetching ||
               putDevcontainerMutation.isPending ? (
