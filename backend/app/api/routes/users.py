@@ -152,6 +152,7 @@ def delete_current_user(
 @router.post("/users/signup")
 def register_user(session: SessionDep, user_in: UserRegister) -> UserPublic:
     """Create new user without the need to be logged in."""
+    raise HTTPException(501)
     user = users.get_user_by_email(session=session, email=user_in.email)
     if user:
         raise HTTPException(
