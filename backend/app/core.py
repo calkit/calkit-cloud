@@ -45,6 +45,11 @@ INVALID_ACCOUNT_NAMES = [
     "explore",
     "browse",
     "search",
+    "organizations",
+    "orgs",
+    "projects",
+    "teams",
+    "tasks",
 ]
 
 
