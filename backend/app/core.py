@@ -26,6 +26,26 @@ CATEGORIES_SINGULAR_TO_PLURAL = {
 CATEGORIES_PLURAL_TO_SINGULAR = {
     v: k for k, v in CATEGORIES_SINGULAR_TO_PLURAL.items()
 }
+INVALID_ACCOUNT_NAMES = [
+    "datasets",
+    "data",
+    "figures",
+    "figs",
+    "publications",
+    "pubs",
+    "calculations",
+    "calcs",
+    "environments",
+    "envs",
+    "software",
+    "sw",
+    "admin",
+    "settings",
+    "login",
+    "explore",
+    "browse",
+    "search",
+]
 
 
 def utcnow():
