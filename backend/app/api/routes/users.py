@@ -198,7 +198,7 @@ def update_user(
     if not db_user:
         raise HTTPException(
             status_code=404,
-            detail="The user with this id does not exist in the system",
+            detail="A user with this ID does not exist in the system",
         )
     if user_in.email:
         existing_user = users.get_user_by_email(
