@@ -20,7 +20,7 @@ interface Props {
   children: React.ReactNode
 }
 
-const Links = ["Projects", "Data", "Software", "Figures"]
+const Links = ["Projects", "Datasets", "Software", "Figures"]
 
 const getPath = (link: React.ReactNode) => {
   const linkString = link?.toString()
@@ -73,7 +73,7 @@ export default function Topbar() {
             <Box px={8}>
               <Link as={RouterLink} to="/">
                 <Image
-                  width={20}
+                  width={"80px"}
                   src="/assets/images/calkit.svg"
                   alt="Calkit logo"
                 />

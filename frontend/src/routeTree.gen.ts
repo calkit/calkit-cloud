@@ -24,7 +24,7 @@ import { Route as LayoutSoftwareImport } from './routes/_layout/software'
 import { Route as LayoutSettingsImport } from './routes/_layout/settings'
 import { Route as LayoutProjectsImport } from './routes/_layout/projects'
 import { Route as LayoutFiguresImport } from './routes/_layout/figures'
-import { Route as LayoutDataImport } from './routes/_layout/data'
+import { Route as LayoutDatasetsImport } from './routes/_layout/datasets'
 import { Route as LayoutAdminImport } from './routes/_layout/admin'
 import { Route as LayoutUserNameProjectNameLayoutImport } from './routes/_layout/$userName/$projectName/_layout'
 import { Route as LayoutUserNameProjectNameLayoutIndexImport } from './routes/_layout/$userName/$projectName/_layout/index'
@@ -36,7 +36,7 @@ import { Route as LayoutUserNameProjectNameLayoutNotebooksImport } from './route
 import { Route as LayoutUserNameProjectNameLayoutLocalImport } from './routes/_layout/$userName/$projectName/_layout/local'
 import { Route as LayoutUserNameProjectNameLayoutFilesImport } from './routes/_layout/$userName/$projectName/_layout/files'
 import { Route as LayoutUserNameProjectNameLayoutFiguresImport } from './routes/_layout/$userName/$projectName/_layout/figures'
-import { Route as LayoutUserNameProjectNameLayoutDataImport } from './routes/_layout/$userName/$projectName/_layout/data'
+import { Route as LayoutUserNameProjectNameLayoutDatasetsImport } from './routes/_layout/$userName/$projectName/_layout/datasets'
 import { Route as LayoutUserNameProjectNameLayoutCollaboratorsImport } from './routes/_layout/$userName/$projectName/_layout/collaborators'
 
 // Create Virtual Routes
@@ -102,8 +102,8 @@ const LayoutFiguresRoute = LayoutFiguresImport.update({
   getParentRoute: () => LayoutRoute,
 } as any)
 
-const LayoutDataRoute = LayoutDataImport.update({
-  path: '/data',
+const LayoutDatasetsRoute = LayoutDatasetsImport.update({
+  path: '/datasets',
   getParentRoute: () => LayoutRoute,
 } as any)
 
@@ -177,9 +177,9 @@ const LayoutUserNameProjectNameLayoutFiguresRoute =
     getParentRoute: () => LayoutUserNameProjectNameLayoutRoute,
   } as any)
 
-const LayoutUserNameProjectNameLayoutDataRoute =
-  LayoutUserNameProjectNameLayoutDataImport.update({
-    path: '/data',
+const LayoutUserNameProjectNameLayoutDatasetsRoute =
+  LayoutUserNameProjectNameLayoutDatasetsImport.update({
+    path: '/datasets',
     getParentRoute: () => LayoutUserNameProjectNameLayoutRoute,
   } as any)
 
@@ -242,11 +242,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutAdminImport
       parentRoute: typeof LayoutImport
     }
-    '/_layout/data': {
-      id: '/_layout/data'
-      path: '/data'
-      fullPath: '/data'
-      preLoaderRoute: typeof LayoutDataImport
+    '/_layout/datasets': {
+      id: '/_layout/datasets'
+      path: '/datasets'
+      fullPath: '/datasets'
+      preLoaderRoute: typeof LayoutDatasetsImport
       parentRoute: typeof LayoutImport
     }
     '/_layout/figures': {
@@ -305,11 +305,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutUserNameProjectNameLayoutCollaboratorsImport
       parentRoute: typeof LayoutUserNameProjectNameLayoutImport
     }
-    '/_layout/$userName/$projectName/_layout/data': {
-      id: '/_layout/$userName/$projectName/_layout/data'
-      path: '/data'
-      fullPath: '/$userName/$projectName/data'
-      preLoaderRoute: typeof LayoutUserNameProjectNameLayoutDataImport
+    '/_layout/$userName/$projectName/_layout/datasets': {
+      id: '/_layout/$userName/$projectName/_layout/datasets'
+      path: '/datasets'
+      fullPath: '/$userName/$projectName/datasets'
+      preLoaderRoute: typeof LayoutUserNameProjectNameLayoutDatasetsImport
       parentRoute: typeof LayoutUserNameProjectNameLayoutImport
     }
     '/_layout/$userName/$projectName/_layout/figures': {
@@ -383,7 +383,7 @@ declare module '@tanstack/react-router' {
 export const routeTree = rootRoute.addChildren({
   LayoutRoute: LayoutRoute.addChildren({
     LayoutAdminRoute,
-    LayoutDataRoute,
+    LayoutDatasetsRoute,
     LayoutFiguresRoute,
     LayoutProjectsRoute,
     LayoutSettingsRoute,
@@ -393,7 +393,7 @@ export const routeTree = rootRoute.addChildren({
       LayoutUserNameProjectNameLayoutRoute:
         LayoutUserNameProjectNameLayoutRoute.addChildren({
           LayoutUserNameProjectNameLayoutCollaboratorsRoute,
-          LayoutUserNameProjectNameLayoutDataRoute,
+          LayoutUserNameProjectNameLayoutDatasetsRoute,
           LayoutUserNameProjectNameLayoutFiguresRoute,
           LayoutUserNameProjectNameLayoutFilesRoute,
           LayoutUserNameProjectNameLayoutLocalRoute,
@@ -433,7 +433,7 @@ export const routeTree = rootRoute.addChildren({
       "filePath": "_layout.tsx",
       "children": [
         "/_layout/admin",
-        "/_layout/data",
+        "/_layout/datasets",
         "/_layout/figures",
         "/_layout/projects",
         "/_layout/settings",
@@ -461,8 +461,8 @@ export const routeTree = rootRoute.addChildren({
       "filePath": "_layout/admin.tsx",
       "parent": "/_layout"
     },
-    "/_layout/data": {
-      "filePath": "_layout/data.tsx",
+    "/_layout/datasets": {
+      "filePath": "_layout/datasets.tsx",
       "parent": "/_layout"
     },
     "/_layout/figures": {
@@ -497,7 +497,7 @@ export const routeTree = rootRoute.addChildren({
       "parent": "/_layout/$userName/$projectName",
       "children": [
         "/_layout/$userName/$projectName/_layout/collaborators",
-        "/_layout/$userName/$projectName/_layout/data",
+        "/_layout/$userName/$projectName/_layout/datasets",
         "/_layout/$userName/$projectName/_layout/figures",
         "/_layout/$userName/$projectName/_layout/files",
         "/_layout/$userName/$projectName/_layout/local",
@@ -513,8 +513,8 @@ export const routeTree = rootRoute.addChildren({
       "filePath": "_layout/$userName/$projectName/_layout/collaborators.tsx",
       "parent": "/_layout/$userName/$projectName/_layout"
     },
-    "/_layout/$userName/$projectName/_layout/data": {
-      "filePath": "_layout/$userName/$projectName/_layout/data.tsx",
+    "/_layout/$userName/$projectName/_layout/datasets": {
+      "filePath": "_layout/$userName/$projectName/_layout/datasets.tsx",
       "parent": "/_layout/$userName/$projectName/_layout"
     },
     "/_layout/$userName/$projectName/_layout/figures": {
