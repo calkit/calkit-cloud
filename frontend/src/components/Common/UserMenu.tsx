@@ -36,7 +36,6 @@ const UserMenu = () => {
             as={IconButton}
             aria-label="Options"
             icon={<GiFox color="white" fontSize="18px" />}
-            bg="ui.main"
             isRound
             data-testid="user-menu"
           />
