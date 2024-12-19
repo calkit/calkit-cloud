@@ -73,7 +73,7 @@ export default function Topbar() {
             <Box px={8}>
               <Link as={RouterLink} to="/">
                 <Image
-                  width={"95px"}
+                  width={"92px"}
                   src="/assets/images/calkit-no-bg.svg"
                   alt="Calkit logo"
                 />
