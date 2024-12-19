@@ -229,7 +229,6 @@ def delete_user(
             status_code=403,
             detail="Super users are not allowed to delete themselves",
         )
-    session.exec(statement)  # type: ignore
     session.delete(user)
     session.commit()
     return Message(message="User deleted successfully")
