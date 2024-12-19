@@ -8,6 +8,7 @@ import app.stripe
 import requests
 from app import logger, utcnow
 from app.config import settings
+from app.core import INVALID_ACCOUNT_NAMES
 from app.github import token_resp_text_to_dict
 from app.models import (
     Account,
@@ -31,12 +32,15 @@ logger = logging.getLogger(__name__)
 
 
 def create_user(*, session: Session, user_create: UserCreate) -> User:
+    account_name = user_create.account_name or user_create.github_username
+    if account_name in INVALID_ACCOUNT_NAMES:
+        raise HTTPException(422, "Invalid account name")
     db_obj = User.model_validate(
         user_create,
         update={
             "hashed_password": get_password_hash(user_create.password),
             "account": Account(
-                name=user_create.github_username,
+                name=account_name,
                 github_name=user_create.github_username,
             ),
         },

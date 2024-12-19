@@ -152,6 +152,7 @@ def delete_current_user(
 @router.post("/users/signup")
 def register_user(session: SessionDep, user_in: UserRegister) -> UserPublic:
     """Create new user without the need to be logged in."""
+    raise HTTPException(501)
     user = users.get_user_by_email(session=session, email=user_in.email)
     if user:
         raise HTTPException(
@@ -197,7 +198,7 @@ def update_user(
     if not db_user:
         raise HTTPException(
             status_code=404,
-            detail="The user with this id does not exist in the system",
+            detail="A user with this ID does not exist in the system",
         )
     if user_in.email:
         existing_user = users.get_user_by_email(
@@ -228,7 +229,6 @@ def delete_user(
             status_code=403,
             detail="Super users are not allowed to delete themselves",
         )
-    session.exec(statement)  # type: ignore
     session.delete(user)
     session.commit()
     return Message(message="User deleted successfully")

@@ -57,12 +57,14 @@ class UserBase(SQLModel):
 # Properties to receive via API on creation
 class UserCreate(UserBase):
     password: str = Field(min_length=8, max_length=40)
+    account_name: str | None = Field(default=None, max_length=64)
     github_username: str = Field(default=None, max_length=64)
 
 
 class UserRegister(SQLModel):
     email: EmailStr = Field(max_length=255)
     password: str = Field(min_length=8, max_length=40)
+    account_name: str | None = Field(default=None, max_length=64)
     full_name: str | None = Field(default=None, max_length=255)
 
 
@@ -120,14 +122,15 @@ class User(UserBase, table=True):
     stripe_customer_id: str | None = None
     zenodo_user_id: str | None = None
     # Relationships
-    account: Account = Relationship(back_populates="user")
-    github_token: UserGitHubToken | None = Relationship()
-    zenodo_token: UserZenodoToken | None = Relationship()
+    account: Account = Relationship(back_populates="user", cascade_delete=True)
+    github_token: UserGitHubToken | None = Relationship(cascade_delete=True)
+    zenodo_token: UserZenodoToken | None = Relationship(cascade_delete=True)
     org_memberships: list["UserOrgMembership"] = Relationship(
-        back_populates="user"
+        back_populates="user",
+        cascade_delete=True,
     )
     subscription: Union["UserSubscription", None] = Relationship(
-        back_populates="user"
+        back_populates="user", cascade_delete=True
     )
 
     @computed_field

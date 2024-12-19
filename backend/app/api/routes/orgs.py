@@ -9,7 +9,7 @@ import app.stripe
 import requests
 from app.api.deps import CurrentUser, SessionDep
 from app.config import settings
-from app.core import utcnow
+from app.core import INVALID_ACCOUNT_NAMES, utcnow
 from app.models import (
     ROLE_IDS,
     Account,
@@ -31,7 +31,7 @@ from app.users import get_github_token
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.exc import DataError
-from sqlmodel import Field, Session, select
+from sqlmodel import Field, select
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -41,6 +41,7 @@ router = APIRouter()
 
 class OrgPublic(BaseModel):
     id: uuid.UUID
+    name: str
     display_name: str
     github_name: str
     role: str
@@ -57,6 +58,7 @@ def get_user_orgs(
         resp.append(
             OrgPublic(
                 id=org.id,
+                name=org.account.name,
                 display_name=org.display_name,
                 github_name=org.github_name,
                 role=membership.role_name,
@@ -66,6 +68,8 @@ def get_user_orgs(
 
 
 class OrgPost(BaseModel):
+    name: str | None = None
+    display_name: str | None = None
     github_name: str
 
 
@@ -73,25 +77,28 @@ class OrgPost(BaseModel):
 def post_org(
     req: OrgPost, session: SessionDep, current_user: CurrentUser
 ) -> OrgPublic:
-    org_name = req.github_name
-    if get_org_from_db(org_name=req.github_name, session=session) is not None:
+    org_name = req.name or req.github_name
+    if org_name in INVALID_ACCOUNT_NAMES:
+        raise HTTPException(422, "Invalid account name")
+    if get_org_from_db(org_name=org_name, session=session) is not None:
         raise HTTPException(400, "This org already exists")
     token = get_github_token(session=session, user=current_user)
     headers = {"Authorization": f"Bearer {token}"}
     org_resp = requests.get(
-        f"https://api.github.com/orgs/{org_name}",
+        f"https://api.github.com/orgs/{req.github_name}",
         headers=headers,
     )
     if org_resp.status_code != 200:
         logger.info(
-            f"Could not find org {org_name} on GitHub ({org_resp.status_code})"
+            f"Could not find org {req.github_name} on "
+            f"GitHub ({org_resp.status_code})"
         )
         raise HTTPException(400, "Could not fetch org from GitHub")
     # Org doesn't exist, so we can create it an give this user
     # ownership, but only if they have ownership on GitHub
     membership_resp = requests.get(
         (
-            f"https://api.github.com/orgs/{org_name}/"
+            f"https://api.github.com/orgs/{req.github_name}/"
             f"memberships/{current_user.github_username}"
         ),
         headers=headers,
@@ -100,7 +107,7 @@ def post_org(
         logger.info(
             (
                 f"User {current_user.github_username} is not a "
-                f"member of org {org_name} on GitHub"
+                f"member of org {req.github_name} on GitHub"
             )
         )
         raise HTTPException(
@@ -112,8 +119,8 @@ def post_org(
         raise HTTPException(400, "Must be admin of GitHub org to create")
     # If the role is admin, we can make this user an owner here
     org = Org(
-        display_name=org_resp.json()["name"],
-        account=Account(name=org_name, github_name=org_name),
+        display_name=req.display_name or org_resp.json()["name"],
+        account=Account(name=org_name, github_name=req.github_name),
         user_memberships=[
             UserOrgMembership(user=current_user, role_id=ROLE_IDS["owner"])
         ],
@@ -123,6 +130,7 @@ def post_org(
     session.refresh(org)
     return OrgPublic(
         id=org.id,
+        name=org.account.name,
         display_name=org.display_name,
         github_name=org.github_name,
         role="owner",
