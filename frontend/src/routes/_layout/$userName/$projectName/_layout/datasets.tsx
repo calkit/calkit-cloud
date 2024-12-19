@@ -26,7 +26,7 @@ import DatasetFromExisting from "../../../../../components/Datasets/DatasetFromE
 import UploadDataset from "../../../../../components/Datasets/UploadDataset"
 
 export const Route = createFileRoute(
-  "/_layout/$userName/$projectName/_layout/data",
+  "/_layout/$userName/$projectName/_layout/datasets",
 )({
   component: ProjectData,
 })

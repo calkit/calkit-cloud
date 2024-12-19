@@ -20,7 +20,7 @@ interface Props {
   children: React.ReactNode
 }
 
-const Links = ["Projects", "Data", "Software", "Figures"]
+const Links = ["Projects", "Datasets", "Software", "Figures"]
 
 const getPath = (link: React.ReactNode) => {
   const linkString = link?.toString()

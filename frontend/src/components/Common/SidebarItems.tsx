@@ -19,7 +19,7 @@ import { SiJupyter } from "react-icons/si"
 const items = [
   { icon: FiHome, title: "Project home", path: "" },
   { icon: BsGear, title: "Workflow", path: "/workflow" },
-  { icon: FiDatabase, title: "Data", path: "/data" },
+  { icon: FiDatabase, title: "Datasets", path: "/datasets" },
   { icon: FiImage, title: "Figures", path: "/figures" },
   { icon: FiBookOpen, title: "Publications", path: "/publications" },
   { icon: SiJupyter, title: "Notebooks", path: "/notebooks" },
