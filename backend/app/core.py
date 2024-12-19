@@ -52,6 +52,12 @@ INVALID_ACCOUNT_NAMES = [
     "projects",
     "teams",
     "tasks",
+    "new",
+    "create",
+    "update",
+    "delete",
+    "email",
+    "notifications",
 ]
 
 

@@ -328,11 +328,14 @@ export type OrgMemberPost = {
 }
 
 export type OrgPost = {
+  name?: string | null
+  display_name?: string | null
   github_name: string
 }
 
 export type OrgPublic = {
   id: string
+  name: string
   display_name: string
   github_name: string
   role: string
@@ -566,6 +569,7 @@ export type UserCreate = {
   is_superuser?: boolean
   full_name?: string | null
   password: string
+  account_name?: string | null
   github_username?: string
 }
 
@@ -582,6 +586,7 @@ export type UserPublic = {
 export type UserRegister = {
   email: string
   password: string
+  account_name?: string | null
   full_name?: string | null
 }
 

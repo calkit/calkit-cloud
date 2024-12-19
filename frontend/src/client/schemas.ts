@@ -1507,6 +1507,28 @@ export const $OrgMemberPost = {
 
 export const $OrgPost = {
   properties: {
+    name: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    display_name: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
     github_name: {
       type: "string",
       isRequired: true,
@@ -1520,6 +1542,10 @@ export const $OrgPublic = {
       type: "string",
       isRequired: true,
       format: "uuid",
+    },
+    name: {
+      type: "string",
+      isRequired: true,
     },
     display_name: {
       type: "string",
@@ -2688,6 +2714,18 @@ export const $UserCreate = {
       maxLength: 40,
       minLength: 8,
     },
+    account_name: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          maxLength: 64,
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
     github_username: {
       type: "string",
       maxLength: 64,
@@ -2760,6 +2798,18 @@ export const $UserRegister = {
       isRequired: true,
       maxLength: 40,
       minLength: 8,
+    },
+    account_name: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          maxLength: 64,
+        },
+        {
+          type: "null",
+        },
+      ],
     },
     full_name: {
       type: "any-of",
