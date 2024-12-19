@@ -27,10 +27,12 @@ CATEGORIES_PLURAL_TO_SINGULAR = {
     v: k for k, v in CATEGORIES_SINGULAR_TO_PLURAL.items()
 }
 INVALID_ACCOUNT_NAMES = [
+    "actions",
     "admin",
     "browse",
     "calcs",
     "calculations",
+    "checks",
     "create",
     "data",
     "datasets",
@@ -41,11 +43,15 @@ INVALID_ACCOUNT_NAMES = [
     "explore",
     "figs",
     "figures",
+    "git",
+    "github",
     "login",
     "new",
     "notifications",
     "organizations",
     "orgs",
+    "pipeline",
+    "pipelines",
     "projects",
     "publications",
     "pubs",
@@ -63,7 +69,9 @@ INVALID_ACCOUNT_NAMES = [
     "sw",
     "tasks",
     "teams",
+    "templates",
     "update",
+    "workflows",
 ]
 
 
