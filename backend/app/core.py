@@ -42,6 +42,8 @@ INVALID_ACCOUNT_NAMES = [
     "admin",
     "settings",
     "login",
+    "signup",
+    "register",
     "explore",
     "browse",
     "search",
