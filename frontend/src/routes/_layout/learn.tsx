@@ -1,8 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router"
 import { Box, Container, Heading, Link, Text } from "@chakra-ui/react"
 
-import { pageWidthNoSidebar } from "../../utils"
-
 export const Route = createFileRoute("/_layout/learn")({
   component: Learn,
 })
@@ -43,7 +41,7 @@ function Learn() {
             isExternal
             href="https://calkit.discourse.group/"
           >
-            discussion forum
+            discourse forum
           </Link>{" "}
           or on{" "}
           <Link isExternal color="blue.500" href="https://discord.gg/uhtbgXUu">
