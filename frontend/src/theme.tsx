@@ -48,6 +48,16 @@ const theme = extendTheme({
         },
       },
     },
+    Link: {
+      variants: {
+        blue: ({ colorScheme = "blue" }) => ({
+          color: `${colorScheme}.500`,
+          _hover: {
+            color: `${colorScheme}.400`,
+          },
+        }),
+      },
+    },
     Tabs: {
       variants: {
         enclosed: {

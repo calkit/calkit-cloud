@@ -15,7 +15,7 @@ function Learn() {
         <Text mb={4}>
           To effectively use Calkit, you're going to want to{" "}
           <Link
-            color="blue.500"
+            variant="blue"
             isExternal
             href="https://github.com/calkit/calkit?tab=readme-ov-file#installation"
           >
@@ -27,7 +27,7 @@ function Learn() {
           After that check out the{" "}
           <Link
             isExternal
-            color="blue.500"
+            variant="blue"
             href="https://github.com/calkit/calkit?tab=readme-ov-file#tutorials"
           >
             tutorials
@@ -37,14 +37,14 @@ function Learn() {
         <Text mb={4}>
           Lastly, get in touch with the community on the{" "}
           <Link
-            color="blue.500"
+            variant="blue"
             isExternal
             href="https://calkit.discourse.group/"
           >
             discourse forum
           </Link>{" "}
           or on{" "}
-          <Link isExternal color="blue.500" href="https://discord.gg/uhtbgXUu">
+          <Link isExternal variant="blue" href="https://discord.gg/uhtbgXUu">
             Discord
           </Link>
           .
