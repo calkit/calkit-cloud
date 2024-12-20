@@ -35,13 +35,25 @@ function Learn() {
           .
         </Text>
         <Text mb={4}>
+          If you notice a bug or have a suggestion for a new feature, submit a
+          new issue to the{" "}
+          <Link
+            variant="blue"
+            isExternal
+            href="https://github.com/calkit/calkit/issues"
+          >
+            issue tracker
+          </Link>
+          .
+        </Text>
+        <Text mb={4}>
           Lastly, get in touch with the community on the{" "}
           <Link
             variant="blue"
             isExternal
             href="https://calkit.discourse.group/"
           >
-            discourse forum
+            discussion forum
           </Link>{" "}
           or on{" "}
           <Link isExternal variant="blue" href="https://discord.gg/uhtbgXUu">
