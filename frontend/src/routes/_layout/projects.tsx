@@ -30,7 +30,7 @@ const projectsSearchSchema = z.object({
   page: z.number().catch(1),
 })
 
-const PER_PAGE = 20
+const PER_PAGE = 10
 
 function getAllProjectsQueryOptions({ page }: { page: number }) {
   return {

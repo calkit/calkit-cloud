@@ -134,6 +134,19 @@ export type DatasetDVCImport = {
   dvc_import?: DVCImport | null
 }
 
+export type DatasetResponse = {
+  project: ProjectPublic
+  path: string
+  title: string | null
+  description: string | null
+  imported_from: string | null
+}
+
+export type DatasetsResponse = {
+  data: Array<DatasetResponse>
+  count: number
+}
+
 export type DiscountCode = {
   id?: string
   created?: string

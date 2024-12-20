@@ -64,6 +64,7 @@ import type {
   OrgPost,
   OrgPublic,
   OrgSubscriptionUpdate,
+  DatasetsResponse,
 } from "./models"
 
 export type LoginData = {
@@ -389,6 +390,14 @@ export type OrgsData = {
   }
   GetOrgStorage: {
     orgName: string
+  }
+}
+
+export type DatasetsData = {
+  GetDatasets: {
+    includeImported?: boolean
+    limit?: number
+    offset?: number
   }
 }
 
@@ -2188,6 +2197,31 @@ export class OrgsService {
       url: "/orgs/{org_name}/storage",
       path: {
         org_name: orgName,
+      },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+}
+
+export class DatasetsService {
+  /**
+   * Get Datasets
+   * @returns DatasetsResponse Successful Response
+   * @throws ApiError
+   */
+  public static getDatasets(
+    data: DatasetsData["GetDatasets"] = {},
+  ): CancelablePromise<DatasetsResponse> {
+    const { limit = 100, offset = 0, includeImported = false } = data
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/datasets",
+      query: {
+        limit,
+        offset,
+        include_imported: includeImported,
       },
       errors: {
         422: `Validation Error`,

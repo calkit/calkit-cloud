@@ -615,6 +615,71 @@ export const $DatasetDVCImport = {
   },
 } as const
 
+export const $DatasetResponse = {
+  properties: {
+    project: {
+      type: "ProjectPublic",
+      isRequired: true,
+    },
+    path: {
+      type: "string",
+      isRequired: true,
+    },
+    title: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      isRequired: true,
+    },
+    description: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      isRequired: true,
+    },
+    imported_from: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      isRequired: true,
+    },
+  },
+} as const
+
+export const $DatasetsResponse = {
+  properties: {
+    data: {
+      type: "array",
+      contains: {
+        type: "DatasetResponse",
+      },
+      isRequired: true,
+    },
+    count: {
+      type: "number",
+      isRequired: true,
+    },
+  },
+} as const
+
 export const $DiscountCode = {
   properties: {
     id: {
