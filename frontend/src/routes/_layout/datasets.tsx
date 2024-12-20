@@ -11,6 +11,8 @@ import {
   Td,
   Th,
   Thead,
+  Text,
+  Tooltip,
   Tr,
 } from "@chakra-ui/react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
@@ -79,6 +81,7 @@ function PublicDatasetsTable() {
             <Tr>
               <Th>Owner</Th>
               <Th>Project</Th>
+              <Th>Path</Th>
               <Th>Title</Th>
               <Th>Description</Th>
             </Tr>
@@ -105,7 +108,19 @@ function PublicDatasetsTable() {
                       as={RouterLink}
                       to={`/${dataset.project.owner_account_name}/${dataset.project.name}/datasets`}
                     >
-                      {dataset.project.title}
+                      <Tooltip openDelay={600} label={dataset.project.title}>
+                        <Text isTruncated>{dataset.project.title}</Text>
+                      </Tooltip>
+                    </Link>
+                  </Td>
+                  <Td isTruncated maxWidth="150px">
+                    <Link
+                      as={RouterLink}
+                      to={`/${dataset.project.owner_account_name}/${dataset.project.name}/datasets`}
+                    >
+                      <Tooltip label={dataset.path} openDelay={600}>
+                        <Text isTruncated>{dataset.path}</Text>
+                      </Tooltip>
                     </Link>
                   </Td>
                   <Td isTruncated maxWidth="150px">
@@ -119,9 +134,15 @@ function PublicDatasetsTable() {
                   <Td
                     color={!dataset.description ? "ui.dim" : "inherit"}
                     isTruncated
-                    maxWidth="150px"
+                    maxWidth="250px"
                   >
-                    {dataset.description || "N/A"}
+                    {dataset.description ? (
+                      <Tooltip openDelay={600} label={dataset.description}>
+                        <Text isTruncated>{dataset.description}</Text>
+                      </Tooltip>
+                    ) : (
+                      "N/A"
+                    )}
                   </Td>
                 </Tr>
               ))}
