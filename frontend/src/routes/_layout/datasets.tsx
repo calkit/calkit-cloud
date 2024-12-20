@@ -13,7 +13,6 @@ import {
   Thead,
   Tr,
 } from "@chakra-ui/react"
-import { ExternalLinkIcon } from "@chakra-ui/icons"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   createFileRoute,
@@ -79,8 +78,8 @@ function PublicDatasetsTable() {
           <Thead>
             <Tr>
               <Th>Owner</Th>
+              <Th>Project</Th>
               <Th>Title</Th>
-              <Th>GitHub URL</Th>
               <Th>Description</Th>
             </Tr>
           </Thead>
@@ -113,9 +112,11 @@ function PublicDatasetsTable() {
                     </Link>
                   </Td>
                   <Td isTruncated maxWidth="150px">
-                    <Link href={dataset.project.git_repo_url} isExternal>
-                      <ExternalLinkIcon mx="2px" />{" "}
-                      {dataset.project.git_repo_url}
+                    <Link
+                      as={RouterLink}
+                      to={`/${dataset.project.owner_account_name}/${dataset.project.name}/datasets`}
+                    >
+                      {dataset.title}
                     </Link>
                   </Td>
                   <Td
