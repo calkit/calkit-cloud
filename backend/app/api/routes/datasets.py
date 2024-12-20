@@ -33,6 +33,7 @@ def get_datasets(
     current_user: CurrentUser,
     limit: int = 100,
     offset: int = 0,
+    include_imported: bool = False,
 ) -> DatasetsResponse:
     # TODO: Handle collaborator access for private project datasets
     count_query = (
@@ -46,6 +47,8 @@ def get_datasets(
             )
         )
     )
+    if not include_imported:
+        count_query = count_query.filter(Dataset.imported_from.is_(None))
     count = session.exec(count_query).one()
     select_query = (
         select(Dataset)
@@ -60,5 +63,7 @@ def get_datasets(
         .limit(limit)
         .offset(offset)
     )
+    if not include_imported:
+        select_query = select_query.filter(Dataset.imported_from.is_(None))
     datasets = session.exec(select_query).all()
     return DatasetsResponse(data=datasets, count=count)

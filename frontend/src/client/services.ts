@@ -395,6 +395,7 @@ export type OrgsData = {
 
 export type DatasetsData = {
   GetDatasets: {
+    includeImported?: boolean
     limit?: number
     offset?: number
   }
@@ -2213,13 +2214,14 @@ export class DatasetsService {
   public static getDatasets(
     data: DatasetsData["GetDatasets"] = {},
   ): CancelablePromise<DatasetsResponse> {
-    const { limit = 100, offset = 0 } = data
+    const { limit = 100, offset = 0, includeImported = false } = data
     return __request(OpenAPI, {
       method: "GET",
       url: "/datasets",
       query: {
         limit,
         offset,
+        include_imported: includeImported,
       },
       errors: {
         422: `Validation Error`,
