@@ -1,4 +1,4 @@
-import { Button, Container, Image, Text } from "@chakra-ui/react"
+import { Button, Container, Image, Text, Link } from "@chakra-ui/react"
 import { createFileRoute, redirect } from "@tanstack/react-router"
 
 import Logo from "/assets/images/calkit-no-bg.svg"
@@ -80,6 +80,11 @@ function Login() {
         >
           Sign in with GitHub
         </Button>
+        <Text fontSize={10} mt={1}>
+          <Link isExternal variant="default" href="https://calkit.org">
+            Learn more
+          </Link>
+        </Text>
       </Container>
     </>
   )
