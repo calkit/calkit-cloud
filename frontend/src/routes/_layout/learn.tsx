@@ -61,6 +61,13 @@ function Learn() {
           </Link>
           .
         </Text>
+        <Text mb={4}>
+          If you want to get in touch with us directly, send an{" "}
+          <Link isExternal variant="blue" href="mailto:feedback@calkit.io">
+            email
+          </Link>
+          .
+        </Text>
       </Box>
     </Container>
   )
