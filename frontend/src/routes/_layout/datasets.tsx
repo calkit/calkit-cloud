@@ -29,7 +29,7 @@ const datasetsSearchSchema = z.object({
   page: z.number().catch(1),
 })
 
-const PER_PAGE = 20
+const PER_PAGE = 10
 
 function getAllDatasetsQueryOptions({ page }: { page: number }) {
   return {
@@ -95,18 +95,15 @@ function PublicDatasetsTable() {
             </Tbody>
           ) : (
             <Tbody>
-              {datasets?.data.map((dataset) => (
-                <Tr
-                  key={dataset.project.id}
-                  opacity={isPlaceholderData ? 0.5 : 1}
-                >
+              {datasets?.data.map((dataset, index) => (
+                <Tr key={index} opacity={isPlaceholderData ? 0.5 : 1}>
                   <Td isTruncated maxWidth="80px">
                     {dataset.project.owner_account_name}
                   </Td>
                   <Td isTruncated maxWidth="150px">
                     <Link
                       as={RouterLink}
-                      to={`/${dataset.project.owner_account_name}/${dataset.project.name}`}
+                      to={`/${dataset.project.owner_account_name}/${dataset.project.name}/datasets`}
                     >
                       {dataset.project.title}
                     </Link>
