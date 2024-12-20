@@ -20,7 +20,7 @@ function Learn() {
             href="https://github.com/calkit/calkit?tab=readme-ov-file#installation"
           >
             install the command line interface (CLI)
-          </Link>{" "}
+          </Link>
           .
         </Text>
         <Text mb={4}>
