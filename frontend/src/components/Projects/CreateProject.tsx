@@ -151,6 +151,9 @@ const AddProject = ({ isOpen, onClose }: AddProjectProps) => {
                 <option value="calkit/example-basic">
                   calkit/example-basic
                 </option>
+                <option value="calkit/example-matlab">
+                  calkit/example-matlab
+                </option>
                 <option value="">None</option>
               </Select>
             </FormControl>
