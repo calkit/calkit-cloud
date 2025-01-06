@@ -43,7 +43,6 @@ const AddProject = ({ isOpen, onClose }: AddProjectProps) => {
   const githubUsername = currentUser?.github_username
     ? currentUser.github_username
     : "your-name"
-
   const {
     register,
     handleSubmit,
@@ -62,11 +61,15 @@ const AddProject = ({ isOpen, onClose }: AddProjectProps) => {
       template: "calkit/example-basic",
     },
   })
-
   const mutation = useMutation({
     mutationFn: (data: ProjectCreate) => {
       if (data.template === "") {
         data.template = null
+      }
+      // Ensure project name is consistent with Git repo URL
+      const gitName = String(data.git_repo_url).split("/").at(-1)
+      if (gitName) {
+        data.name = gitName
       }
       return ProjectsService.createProject({ requestBody: data })
     },
@@ -89,15 +92,14 @@ const AddProject = ({ isOpen, onClose }: AddProjectProps) => {
       queryClient.invalidateQueries({ queryKey: ["projects"] })
     },
   })
-
   const onSubmit: SubmitHandler<ProjectCreate> = (data) => {
     mutation.mutate(data)
   }
-
   const onTitleChange = (e: any) => {
     const projectName = String(e.target.value)
       .toLowerCase()
       .replace(/\s+/g, "-")
+      .replace(/[^\w-]+/g, "")
     const repoUrl = `https://github.com/${githubUsername}/${projectName}`
     setValue("git_repo_url", repoUrl)
     setValue("name", projectName)
