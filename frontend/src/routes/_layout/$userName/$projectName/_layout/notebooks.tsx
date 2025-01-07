@@ -123,6 +123,7 @@ function Notebooks() {
                       px={1}
                       py={0.5}
                       w="fit-content"
+                      maxW="100%"
                       borderRadius="lg"
                       key={notebook.path}
                       bg={selectedTitle === notebook.title ? bgActive : "none"}
