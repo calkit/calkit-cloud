@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 yaml = ruamel.yaml.YAML()
 
 
-def make_mermaid_diagram(pipeline: dict) -> str:
+def make_mermaid_diagram(pipeline: dict, params: dict | None = None) -> str:
     """Create a Mermaid diagram from a pipeline file (typically ``dvc.yaml``).
 
     This is a little hacky since we need to create a Git and DVC repo in order
@@ -29,6 +29,9 @@ def make_mermaid_diagram(pipeline: dict) -> str:
             os.chdir(tmpdirname)
             with open("dvc.yaml", "w") as f:
                 yaml.dump(pipeline, f)
+            if params is not None:
+                with open("params.yaml", "w") as f:
+                    yaml.dump(params, f)
             with Repo.init(
                 ".",
                 no_scm=True,

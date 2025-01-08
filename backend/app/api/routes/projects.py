@@ -2033,8 +2033,14 @@ def get_project_pipeline(
     with open(fpath) as f:
         content = f.read()
     dvc_pipeline = ryaml.load(content)
+    params_fpath = os.path.join(repo.working_dir, "params.yaml")
+    if os.path.isfile(params_fpath):
+        with open(params_fpath) as f:
+            params = ryaml.load(f)
+    else:
+        params = None
     # Generate Mermaid diagram
-    mermaid = make_mermaid_diagram(dvc_pipeline)
+    mermaid = make_mermaid_diagram(dvc_pipeline, params=params)
     logger.info(
         f"Created Mermaid diagram for {owner_name}/{project_name}:\n{mermaid}"
     )
