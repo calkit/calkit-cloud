@@ -246,7 +246,7 @@ requires-dist = [
     { name = "alembic", specifier = ">=1.12.1,<2.0.0" },
     { name = "bcrypt", specifier = "==4.0.1" },
     { name = "bibtexparser", specifier = "==1.4.1" },
-    { name = "calkit-python", specifier = ">=0.10.1" },
+    { name = "calkit-python", specifier = ">=0.12.0" },
     { name = "cryptography", specifier = "==43.0.0" },
     { name = "dvc", specifier = "==3.54.1" },
     { name = "email-validator", specifier = ">=2.1.0.post1,<3.0.0.0" },
@@ -309,6 +309,15 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/df/2f/3ee4190ce97b0b39df58184210d3baaa5fe59ae0972e63c2c85f122ca887/appscript-1.3.0-cp312-cp312-macosx_10_13_x86_64.whl", hash = "sha256:d2a287b81030c81017127d4fb1c24729623576c50d2ff41694476b9af3ce0a97", size = 85496 },
     { url = "https://files.pythonhosted.org/packages/92/5a/3b642e3e904fb37d45e40bb07b4362979160bdecb0d37aa74f2506b1a47e/appscript-1.3.0-cp313-cp313-macosx_10_13_universal2.whl", hash = "sha256:13094640e2694b888827d4e133f33dad1e08c9d7102b447c3cc8a73246fdab40", size = 99574 },
     { url = "https://files.pythonhosted.org/packages/5c/bc/d8558bec737e02a9c404fb3b985b8636c313bb65a176375d551cb839e876/appscript-1.3.0-cp313-cp313-macosx_10_13_x86_64.whl", hash = "sha256:e7b4760105810e9b1ecd5b40aba7617e0a047346fb94ee4370e9d37e4383b78d", size = 85503 },
+]
+
+[[package]]
+name = "arithmeval"
+version = "0.3.3"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/13/67/58e293c69c76dcac2ecfbbc74ed88faf282ddf602af2f8ce760238583502/arithmeval-0.3.3.tar.gz", hash = "sha256:1413643ed42e65860e3b6b2a2af04c1f7855344de36e7ebef5212fb8391d4c14", size = 5210 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b5/d7/6116cba8b63d44b02b54e4a8fb7ece9e4c97b53c8eb7e6aee204475c64f8/arithmeval-0.3.3-py3-none-any.whl", hash = "sha256:66b2711dfc63cb4e91138b30cfb55c1e147c14d006d17a00ff9f29ae7a316c66", size = 6388 },
 ]
 
 [[package]]
@@ -446,9 +455,10 @@ wheels = [
 
 [[package]]
 name = "calkit-python"
-version = "0.10.1"
+version = "0.12.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
+    { name = "arithmeval" },
     { name = "docx2pdf" },
     { name = "dvc" },
     { name = "fastapi" },
@@ -464,9 +474,9 @@ dependencies = [
     { name = "typer" },
     { name = "uvicorn" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/42/93/449930acb7df61aed3059e871147f9e6623eb939917b38f0dfa454cf8bc1/calkit_python-0.10.1.tar.gz", hash = "sha256:959a86d60df9461aec5c5a52529e7db6732c4d115e4e22fd613872b2c92b8726", size = 462971 }
+sdist = { url = "https://files.pythonhosted.org/packages/46/8b/0894ae7a3c60e9ad41db73a21683e9e08ec232f3c2d881569f2640f361a8/calkit_python-0.12.0.tar.gz", hash = "sha256:9761a6713cacb5e5458651333f4ced04d03f4d089fa6f0b22765e5deef01d4a5", size = 470159 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/12/fc/a09236bb74ac8c37373e107a053b8c377495d7b1d46c7b15aa72793b7850/calkit_python-0.10.1-py3-none-any.whl", hash = "sha256:5adb514402826ca10932cafb02f96a0a9d76ab6cbcfd24f6b61bce19052f5ee8", size = 92135 },
+    { url = "https://files.pythonhosted.org/packages/74/51/4a3b07a5453066692bab92e2677131f3afa332163da44a18e3555fa068e2/calkit_python-0.12.0-py3-none-any.whl", hash = "sha256:275784cb5f1347f3978f2c88d6d4b738b2f51f7fc8a3a801f7f9ffede347b862", size = 100122 },
 ]
 
 [[package]]
