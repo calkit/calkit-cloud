@@ -59,7 +59,7 @@ def output_from_pipeline(
           size: 9536
 
     """
-    stage = pipeline.get("stages", {}).get(stage_name)
+    stage = pipeline.get("stages", {}).get(stage_name.split("@")[0])
     if stage is None:
         return
     wdir = stage.get("wdir", "")
