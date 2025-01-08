@@ -849,12 +849,8 @@ def get_project_contents(
             in_repo=os.path.isdir(os.path.join(repo.working_dir, dirname)),
         )
     # We're looking for a file
-    # Check if it exists in the repo,
-    # but only if it doesn't exist in the DVC outputs
-    if (
-        os.path.isfile(os.path.join(repo_dir, path))
-        and ck_outs.get(path) is None
-    ):
+    # Check if it exists in the repo
+    if os.path.isfile(os.path.join(repo_dir, path)):
         with open(os.path.join(repo_dir, path), "rb") as f:
             content = f.read()
         return ContentsItem.model_validate(

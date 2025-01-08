@@ -461,7 +461,7 @@ class Question(SQLModel, table=True):
 class Figure(SQLModel):
     path: str
     title: str
-    description: str
+    description: str | None = None
     stage: str | None = None
     dataset: str | None = None
     content: str | None = None  # Base64 encoded
