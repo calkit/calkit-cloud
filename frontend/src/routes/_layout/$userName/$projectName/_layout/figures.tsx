@@ -22,6 +22,7 @@ import { createFileRoute, Link as RouterLink } from "@tanstack/react-router"
 import { useState } from "react"
 import { FaPlus, FaRegFileImage, FaRegFilePdf } from "react-icons/fa"
 import { FiFile } from "react-icons/fi"
+import Plot from "react-plotly.js"
 
 import UploadFigure from "../../../../../components/Figures/UploadFigure"
 import LabelAsFigure from "../../../../../components/Figures/FigureFromExisting"
@@ -179,6 +180,20 @@ function FigureView({ figure }: FigureProps) {
               ? `data:image/png;base64,${figure.content}`
               : String(figure.url)
           }
+        />
+      </Box>
+    )
+  } else if (figure.path.endsWith(".json")) {
+    const figObject = JSON.parse(atob(String(figure.content)))
+    const layout = figObject.layout
+    figView = (
+      <Box width="635px">
+        <Plot
+          data={figObject.data}
+          layout={layout}
+          config={{ displayModeBar: false }}
+          style={{ width: "100%", height: "100%" }}
+          useResizeHandler={true}
         />
       </Box>
     )
