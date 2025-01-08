@@ -439,7 +439,7 @@ class PipelineStage(SQLModel):
 
 
 class ForeachStage(SQLModel):
-    foreach: list[str]
+    foreach: list[str] | str
     do: PipelineStage
 
 
