@@ -69,15 +69,15 @@ const AddProject = ({ isOpen, onClose }: AddProjectProps) => {
       // Ensure project name is consistent with Git repo URL
       const gitName = String(data.git_repo_url).split("/").at(-1)
       if (gitName) {
-        data.name = gitName
+        data.name = gitName.toLowerCase()
       }
       return ProjectsService.createProject({ requestBody: data })
     },
     onSuccess: (data: ProjectPublic) => {
       mixpanel.track("Created new project")
       showToast("Success!", "Project created successfully.", "success")
-      const userName = String(data.git_repo_url.split("/").at(-2))
-      const projectName = String(data.git_repo_url.split("/").at(-1))
+      const userName = data.owner_account_name
+      const projectName = data.name
       reset()
       onClose()
       navigate({
