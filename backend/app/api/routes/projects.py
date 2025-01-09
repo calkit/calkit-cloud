@@ -2602,3 +2602,33 @@ def put_project_dev_container(
         repo.git.commit(["-m", "Add dev container spec"])
         repo.git.push(["origin", repo.active_branch])
     return Message(message="Success")
+
+
+class ProjectApp(BaseModel):
+    path: str | None = None
+    url: str | None = None
+    title: str | None = None
+    description: str | None = None
+
+
+@router.get("/projects/{owner_name}/{project_name}/app")
+def get_project_app(
+    owner_name: str,
+    project_name: str,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> ProjectApp | None:
+    project = app.projects.get_project(
+        owner_name=owner_name,
+        project_name=project_name,
+        session=session,
+        current_user=current_user,
+        min_access_level="read",
+    )
+    ck_info = get_ck_info(
+        project=project, user=current_user, session=session, ttl=120
+    )
+    project_app = ck_info.get("app")
+    if project_app is None:
+        return
+    return ProjectApp.model_validate(project_app)

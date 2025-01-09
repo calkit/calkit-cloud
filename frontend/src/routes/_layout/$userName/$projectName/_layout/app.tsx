@@ -15,7 +15,7 @@ function ProjectApp() {
   const appQuery = useQuery({
     queryKey: [userName, projectName, "app"],
     queryFn: () =>
-      ProjectsService.getProjectPipeline({
+      ProjectsService.getProjectApp({
         ownerName: userName,
         projectName: projectName,
       }),
@@ -29,14 +29,21 @@ function ProjectApp() {
         </Flex>
       ) : (
         <Flex>
-          {appQuery.data ? (
-            <>App goes here</>
+          {appQuery.data?.url ? (
+            <>
+              <iframe
+                title="app"
+                src={appQuery.data.url}
+                width="100%"
+                height="700px"
+              />
+            </>
           ) : (
             <Alert mt={2} status="warning" borderRadius="xl">
               <AlertIcon />
               An app has not yet been defined for this project. To add one,
-              modify the <Code>app</Code> object in the project's{" "}
-              <Code>calkit.yaml</Code> file.
+              modify the <Code mx={1}>app</Code>object in the project's{" "}
+              <Code mx={1}>calkit.yaml</Code> file.
             </Alert>
           )}
         </Flex>

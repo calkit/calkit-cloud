@@ -50,6 +50,7 @@ import type {
   LabelDatasetPost,
   Notebook,
   Pipeline,
+  ProjectApp,
   ProjectCreate,
   ProjectPatch,
   ProjectPublic,
@@ -371,6 +372,10 @@ export type ProjectsData = {
     projectName: string
   }
   PutProjectDevContainer: {
+    ownerName: string
+    projectName: string
+  }
+  GetProjectApp: {
     ownerName: string
     projectName: string
   }
@@ -2093,6 +2098,28 @@ export class ProjectsService {
     return __request(OpenAPI, {
       method: "PUT",
       url: "/projects/{owner_name}/{project_name}/devcontainer",
+      path: {
+        owner_name: ownerName,
+        project_name: projectName,
+      },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Get Project App
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static getProjectApp(
+    data: ProjectsData["GetProjectApp"],
+  ): CancelablePromise<ProjectApp | null> {
+    const { ownerName, projectName } = data
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/projects/{owner_name}/{project_name}/app",
       path: {
         owner_name: ownerName,
         project_name: projectName,
