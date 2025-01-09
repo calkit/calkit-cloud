@@ -31,12 +31,12 @@ function ProjectApp() {
         <Flex>
           {appQuery.data?.url ? (
             <>
-              <Box width="100%">
+              <Box width="100%" minH="700px">
                 <iframe
                   title="app"
                   src={appQuery.data.url}
                   width="100%"
-                  height="700px"
+                  height="100%"
                   style={{ borderRadius: "10px" }}
                 />
               </Box>
