@@ -2534,7 +2534,7 @@ def get_project_notebooks(
     notebooks = ck_info.get("notebooks", [])
     if not notebooks:
         return notebooks
-    # Get the figure content and base64 encode it
+    # Get the notebook content and base64 encode it
     for notebook in notebooks:
         item = get_project_contents(
             owner_name=owner_name,
