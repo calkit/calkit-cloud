@@ -31,7 +31,7 @@ function ProjectApp() {
         <Flex>
           {appQuery.data?.url ? (
             <>
-              <Box width="100%" minH="700px" mt={2}>
+              <Box width="100%" height="80vh" mt={2} pb={8} mb={4}>
                 <iframe
                   title="app"
                   src={appQuery.data.url}
