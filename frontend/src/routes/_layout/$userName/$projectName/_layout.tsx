@@ -77,7 +77,7 @@ function HelpContent() {
             HF Spaces
           </Link>{" "}
           and set the <Code>app.url</Code> in your project's{" "}
-          <Code>calkit.yaml</Code> file to the HF Spaced embed URL.
+          <Code>calkit.yaml</Code> file to the HF Spaces embed URL.
         </Text>
       </>
     )
