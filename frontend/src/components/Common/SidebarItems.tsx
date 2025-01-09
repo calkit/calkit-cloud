@@ -15,9 +15,11 @@ import axios from "axios"
 import { useQuery } from "@tanstack/react-query"
 import { BsGear } from "react-icons/bs"
 import { SiJupyter } from "react-icons/si"
+import { MdOutlineDashboard } from "react-icons/md"
 
 const items = [
   { icon: FiHome, title: "Project home", path: "" },
+  { icon: MdOutlineDashboard, title: "App", path: "/app" },
   { icon: BsGear, title: "Workflow", path: "/workflow" },
   { icon: FiDatabase, title: "Datasets", path: "/datasets" },
   { icon: FiImage, title: "Figures", path: "/figures" },

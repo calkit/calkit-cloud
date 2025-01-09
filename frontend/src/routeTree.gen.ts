@@ -37,6 +37,7 @@ import { Route as LayoutUserNameProjectNameLayoutFilesImport } from './routes/_l
 import { Route as LayoutUserNameProjectNameLayoutFiguresImport } from './routes/_layout/$userName/$projectName/_layout/figures'
 import { Route as LayoutUserNameProjectNameLayoutDatasetsImport } from './routes/_layout/$userName/$projectName/_layout/datasets'
 import { Route as LayoutUserNameProjectNameLayoutCollaboratorsImport } from './routes/_layout/$userName/$projectName/_layout/collaborators'
+import { Route as LayoutUserNameProjectNameLayoutAppImport } from './routes/_layout/$userName/$projectName/_layout/app'
 
 // Create Virtual Routes
 
@@ -183,6 +184,12 @@ const LayoutUserNameProjectNameLayoutCollaboratorsRoute =
     getParentRoute: () => LayoutUserNameProjectNameLayoutRoute,
   } as any)
 
+const LayoutUserNameProjectNameLayoutAppRoute =
+  LayoutUserNameProjectNameLayoutAppImport.update({
+    path: '/app',
+    getParentRoute: () => LayoutUserNameProjectNameLayoutRoute,
+  } as any)
+
 // Populate the FileRoutesByPath interface
 
 declare module '@tanstack/react-router' {
@@ -285,6 +292,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutUserNameProjectNameLayoutImport
       parentRoute: typeof LayoutUserNameProjectNameRoute
     }
+    '/_layout/$userName/$projectName/_layout/app': {
+      id: '/_layout/$userName/$projectName/_layout/app'
+      path: '/app'
+      fullPath: '/$userName/$projectName/app'
+      preLoaderRoute: typeof LayoutUserNameProjectNameLayoutAppImport
+      parentRoute: typeof LayoutUserNameProjectNameLayoutImport
+    }
     '/_layout/$userName/$projectName/_layout/collaborators': {
       id: '/_layout/$userName/$projectName/_layout/collaborators'
       path: '/collaborators'
@@ -378,6 +392,7 @@ export const routeTree = rootRoute.addChildren({
     LayoutUserNameProjectNameRoute: LayoutUserNameProjectNameRoute.addChildren({
       LayoutUserNameProjectNameLayoutRoute:
         LayoutUserNameProjectNameLayoutRoute.addChildren({
+          LayoutUserNameProjectNameLayoutAppRoute,
           LayoutUserNameProjectNameLayoutCollaboratorsRoute,
           LayoutUserNameProjectNameLayoutDatasetsRoute,
           LayoutUserNameProjectNameLayoutFiguresRoute,
@@ -477,6 +492,7 @@ export const routeTree = rootRoute.addChildren({
       "filePath": "_layout/$userName/$projectName/_layout.tsx",
       "parent": "/_layout/$userName/$projectName",
       "children": [
+        "/_layout/$userName/$projectName/_layout/app",
         "/_layout/$userName/$projectName/_layout/collaborators",
         "/_layout/$userName/$projectName/_layout/datasets",
         "/_layout/$userName/$projectName/_layout/figures",
@@ -489,6 +505,10 @@ export const routeTree = rootRoute.addChildren({
         "/_layout/$userName/$projectName/_layout/workflow",
         "/_layout/$userName/$projectName/_layout/"
       ]
+    },
+    "/_layout/$userName/$projectName/_layout/app": {
+      "filePath": "_layout/$userName/$projectName/_layout/app.tsx",
+      "parent": "/_layout/$userName/$projectName/_layout"
     },
     "/_layout/$userName/$projectName/_layout/collaborators": {
       "filePath": "_layout/$userName/$projectName/_layout/collaborators.tsx",

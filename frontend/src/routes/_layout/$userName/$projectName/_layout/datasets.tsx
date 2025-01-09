@@ -87,7 +87,7 @@ function ProjectDataView() {
             {datasets?.map((dataset) => (
               <Card key={dataset.path} p={6} variant="elevated">
                 <Heading size="sm" mb={2}>
-                  <Code p={1}>
+                  <Code p={1} maxW="100%">
                     <Link
                       as={RouterLink}
                       to={"../files"}

@@ -63,6 +63,25 @@ function HelpContent() {
       </>
     )
   }
+  if (page === "app") {
+    return (
+      <>
+        <Text mb={mb}>
+          It's possible to define an interactive web app for your project, e.g.,
+          so others can make useful predictions from or better understand your
+          findings.
+        </Text>
+        <Text>
+          To add an app, create one on{" "}
+          <Link isExternal variant="blue" href="https://huggingface.co/spaces">
+            HF Spaces
+          </Link>{" "}
+          and set the <Code>app.url</Code> in your project's{" "}
+          <Code>calkit.yaml</Code> file to the HF Spaced embed URL.
+        </Text>
+      </>
+    )
+  }
   if (page === "publications") {
     return (
       <>
@@ -138,6 +157,7 @@ function HelpContent() {
           For instructions on how to create your pipeline, see the{" "}
           <Link
             isExternal
+            variant="blue"
             href="https://dvc.org/doc/start/data-pipelines/data-pipelines"
           >
             DVC documentation
@@ -175,7 +195,7 @@ function HelpContent() {
       <>
         <Text mb={mb}>
           This page is dedicated to the project's{" "}
-          <Link isExternal href="https://jupyter.org/">
+          <Link isExternal variant="blue" href="https://jupyter.org/">
             Jupyter notebooks
           </Link>
           . It is possible to define a workflow stage that executes a notebook
@@ -207,7 +227,11 @@ function HelpContent() {
           working directory on your local machine. For this to work, the local
           Calkit server must be running. To start one up, run{" "}
           <Code>calkit local-server</Code> in a terminal after installing the{" "}
-          <Link href="https://github.com/calkit/calkit" isExternal>
+          <Link
+            href="https://github.com/calkit/calkit"
+            variant="blue"
+            isExternal
+          >
             Calkit Python package
           </Link>
           .
@@ -220,7 +244,11 @@ function HelpContent() {
       <Text mb={mb}>
         Welcome to your Calkit project! To get started, try adding some{" "}
         questions you'd like to answer, or start defining the{" "}
-        <Link as={RouterLink} to={`/${userName}/${projectName}/workflow`}>
+        <Link
+          as={RouterLink}
+          to={`/${userName}/${projectName}/workflow`}
+          variant="blue"
+        >
           workflow
         </Link>{" "}
         for how you'd like your outputs or artifacts to be created.

@@ -50,6 +50,7 @@ function NotebookContent({ notebook }: NotebookContentProps) {
             height="950px"
             title="notebook"
             srcDoc={data}
+            style={{ borderRadius: "10px" }}
           />
         </>
       )

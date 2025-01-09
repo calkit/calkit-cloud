@@ -938,8 +938,15 @@ export const $Figure = {
       isRequired: true,
     },
     description: {
-      type: "string",
-      isRequired: true,
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
     },
     stage: {
       type: "any-of",
@@ -1109,10 +1116,18 @@ export const $FileLockPost = {
 export const $ForeachStage = {
   properties: {
     foreach: {
-      type: "array",
-      contains: {
-        type: "string",
-      },
+      type: "any-of",
+      contains: [
+        {
+          type: "array",
+          contains: {
+            type: "string",
+          },
+        },
+        {
+          type: "string",
+        },
+      ],
       isRequired: true,
     },
     do: {
@@ -1867,6 +1882,55 @@ export const $PipelineStage = {
       ],
     },
     wdir: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+  },
+} as const
+
+export const $ProjectApp = {
+  properties: {
+    path: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    url: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    title: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    description: {
       type: "any-of",
       contains: [
         {

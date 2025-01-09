@@ -191,7 +191,7 @@ export type Environment = {
 export type Figure = {
   path: string
   title: string
-  description: string
+  description?: string | null
   stage?: string | null
   dataset?: string | null
   content?: string | null
@@ -231,7 +231,7 @@ export type FileLockPost = {
 }
 
 export type ForeachStage = {
-  foreach: Array<string>
+  foreach: Array<string> | string
   do: PipelineStage
 }
 
@@ -392,6 +392,13 @@ export type PipelineStage = {
   desc?: string | null
   meta?: Record<string, unknown> | null
   wdir?: string | null
+}
+
+export type ProjectApp = {
+  path?: string | null
+  url?: string | null
+  title?: string | null
+  description?: string | null
 }
 
 export type ProjectCreate = {
