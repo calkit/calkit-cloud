@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router"
-import { Code, Flex, Spinner, Alert, AlertIcon } from "@chakra-ui/react"
+import { Box, Code, Flex, Spinner, Alert, AlertIcon } from "@chakra-ui/react"
 import { useQuery } from "@tanstack/react-query"
 
 import { ProjectsService } from "../../../../../client"
@@ -31,12 +31,15 @@ function ProjectApp() {
         <Flex>
           {appQuery.data?.url ? (
             <>
-              <iframe
-                title="app"
-                src={appQuery.data.url}
-                width="100%"
-                height="700px"
-              />
+              <Box width="100%">
+                <iframe
+                  title="app"
+                  src={appQuery.data.url}
+                  width="100%"
+                  height="700px"
+                  style={{ borderRadius: "10px" }}
+                />
+              </Box>
             </>
           ) : (
             <Alert mt={2} status="warning" borderRadius="xl">
