@@ -81,6 +81,19 @@ function ProjectView() {
           <Box py={4} px={6} mb={4} borderRadius="lg" bg={secBgColor}>
             <Flex alignItems="center">
               <Heading size="md">Showcase</Heading>
+              <Link
+                href={`https://github.dev/${userName}/${projectName}/blob/main/calkit.yaml`}
+                isExternal
+              >
+                <IconButton
+                  aria-label="Edit calkit.yaml"
+                  height="25px"
+                  width="28px"
+                  ml={1.5}
+                  icon={<MdEdit />}
+                  size={"xs"}
+                />
+              </Link>
             </Flex>
             <ProjectShowcase ownerName={userName} projectName={projectName} />
           </Box>
