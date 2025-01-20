@@ -156,6 +156,47 @@ function ProjectView() {
                 ""
               )}
             </Box>
+          </Box>
+          <Box width={"40%"}>
+            {/* Questions  */}
+            <Box py={4} px={6} mb={4} borderRadius="lg" bg={secBgColor}>
+              <Flex>
+                <Heading size="md" mb={2}>
+                  Questions
+                </Heading>
+                <IconButton
+                  aria-label="Add question"
+                  height="25px"
+                  width="28px"
+                  ml={1.5}
+                  icon={<FaPlus />}
+                  size={"xs"}
+                  onClick={newQuestionModal.onOpen}
+                />
+                <CreateQuestion
+                  isOpen={newQuestionModal.isOpen}
+                  onClose={newQuestionModal.onClose}
+                />
+              </Flex>
+              {questionsRequest.isPending ? (
+                <Flex
+                  justify="center"
+                  align="center"
+                  height="100px"
+                  width="full"
+                >
+                  <Spinner size="xl" color="ui.main" />
+                </Flex>
+              ) : (
+                <OrderedList>
+                  {questionsRequest.data?.map((question) => (
+                    <ListItem key={question.question}>
+                      {question.question}
+                    </ListItem>
+                  ))}
+                </OrderedList>
+              )}
+            </Box>
             {/* To-dos (issues) */}
             <Box py={4} px={6} mb={4} borderRadius="lg" bg={secBgColor}>
               <Flex width="full" alignItems="center" mb={2}>
@@ -226,47 +267,6 @@ function ProjectView() {
                     </Flex>
                   ))}
                 </>
-              )}
-            </Box>
-          </Box>
-          <Box width={"40%"}>
-            {/* Questions  */}
-            <Box py={4} px={6} mb={4} borderRadius="lg" bg={secBgColor}>
-              <Flex>
-                <Heading size="md" mb={2}>
-                  Questions
-                </Heading>
-                <IconButton
-                  aria-label="Add question"
-                  height="25px"
-                  width="28px"
-                  ml={1.5}
-                  icon={<FaPlus />}
-                  size={"xs"}
-                  onClick={newQuestionModal.onOpen}
-                />
-                <CreateQuestion
-                  isOpen={newQuestionModal.isOpen}
-                  onClose={newQuestionModal.onClose}
-                />
-              </Flex>
-              {questionsRequest.isPending ? (
-                <Flex
-                  justify="center"
-                  align="center"
-                  height="100px"
-                  width="full"
-                >
-                  <Spinner size="xl" color="ui.main" />
-                </Flex>
-              ) : (
-                <OrderedList>
-                  {questionsRequest.data?.map((question) => (
-                    <ListItem key={question.question}>
-                      {question.question}
-                    </ListItem>
-                  ))}
-                </OrderedList>
               )}
             </Box>
             {/* Reproducibility check */}
