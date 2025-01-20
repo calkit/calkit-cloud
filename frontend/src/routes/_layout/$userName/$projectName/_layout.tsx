@@ -341,7 +341,7 @@ function ProjectLayout() {
               </Heading>
             </Flex>
             {project?.description ? (
-              <Text mt={-3} ml={1} mb={2} fontSize={"small"}>
+              <Text mt={-3} ml={1} mb={2} fontSize="small">
                 {project.description}
               </Text>
             ) : (
