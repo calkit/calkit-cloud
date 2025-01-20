@@ -66,6 +66,17 @@ const useProject = (
     refetchOnMount: false,
   })
 
+  const showcaseRequest = useQuery({
+    queryKey: ["projects", userName, projectName, "showcase"],
+    queryFn: () =>
+      ProjectsService.getProjectShowcase({
+        ownerName: userName,
+        projectName: projectName,
+      }),
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+  })
+
   interface IssueStateChange {
     state: "open" | "closed"
     issueNumber: number
@@ -102,6 +113,7 @@ const useProject = (
     issuesRequest,
     questionsRequest,
     reproCheckRequest,
+    showcaseRequest,
     issueStateMutation,
     putDevcontainerMutation,
   }

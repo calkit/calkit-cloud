@@ -16,6 +16,11 @@ import {
   Text,
   Code,
   Badge,
+  Menu,
+  MenuButton,
+  MenuList,
+  MenuItem,
+  Box,
 } from "@chakra-ui/react"
 import {
   createFileRoute,
@@ -26,10 +31,13 @@ import {
 import { useQuery } from "@tanstack/react-query"
 import { ExternalLinkIcon } from "@chakra-ui/icons"
 import { FaGithub, FaQuestion } from "react-icons/fa"
+import { MdEdit } from "react-icons/md"
+import { BsThreeDots } from "react-icons/bs"
 import axios from "axios"
 
 import Sidebar from "../../../../components/Common/Sidebar"
-import { ProjectsService } from "../../../../client"
+import { ProjectPublic, ProjectsService } from "../../../../client"
+import EditProject from "../../../../components/Projects/EditProject"
 
 export const Route = createFileRoute("/_layout/$userName/$projectName/_layout")(
   {
@@ -257,6 +265,40 @@ function HelpContent() {
   )
 }
 
+interface ProjectMenuProps {
+  project: ProjectPublic
+}
+
+function ProjectMenu({ project }: ProjectMenuProps) {
+  const editProjectModal = useDisclosure()
+
+  return (
+    <>
+      <Menu>
+        <MenuButton
+          as={IconButton}
+          icon={<BsThreeDots />}
+          size="xs"
+          mr={1}
+        ></MenuButton>
+        <MenuList>
+          <MenuItem
+            icon={<MdEdit fontSize={18} />}
+            onClick={editProjectModal.onOpen}
+          >
+            Edit title or description
+          </MenuItem>
+        </MenuList>
+      </Menu>
+      <EditProject
+        project={project}
+        isOpen={editProjectModal.isOpen}
+        onClose={editProjectModal.onClose}
+      />
+    </>
+  )
+}
+
 function ProjectLayout() {
   const { userName, projectName } = Route.useParams()
   const {
@@ -298,29 +340,32 @@ function ProjectLayout() {
         <Flex>
           <Sidebar basePath={`/${userName}/${projectName}`} />
           <Container maxW="full" mx={6}>
-            <Flex width={"full"}>
-              <Heading
-                size="lg"
-                textAlign={{ base: "center", md: "left" }}
-                alignContent={"center"}
-                mt={6}
-                mb={3}
+            <Flex
+              width={"full"}
+              textAlign={{ base: "center", md: "left" }}
+              alignContent="center"
+              alignItems="center"
+              mt={5}
+              mb={4}
+            >
+              <Heading size="lg">{project?.title}</Heading>
+              <Badge
+                ml={2}
+                mt={1.5}
+                color={project?.is_public ? "green.500" : "yellow.500"}
               >
-                {project?.title}
-                <Badge
-                  ml="2"
-                  color={project?.is_public ? "green.500" : "yellow.500"}
-                >
-                  {project?.is_public ? "Public" : "Private"}
-                </Badge>
-                {project?.git_repo_url ? (
-                  <Link href={project?.git_repo_url} isExternal>
-                    <Icon height="45%" as={FaGithub} />
-                    <Icon height={"40%"} as={ExternalLinkIcon} ml={-3} />
-                  </Link>
-                ) : (
-                  ""
-                )}
+                {project?.is_public ? "Public" : "Private"}
+              </Badge>
+              {project?.git_repo_url ? (
+                <Link href={project?.git_repo_url} isExternal>
+                  <Icon ml={2} mt={3} as={FaGithub} />
+                  <Icon ml={0.3} mt={-2} as={ExternalLinkIcon} />
+                </Link>
+              ) : (
+                ""
+              )}
+              <Box mt={1} ml={1.5}>
+                {project ? <ProjectMenu project={project} /> : ""}
                 <IconButton
                   isRound
                   aria-label="Open help"
@@ -328,7 +373,22 @@ function ProjectLayout() {
                   onClick={helpDrawer.onOpen}
                   icon={<FaQuestion />}
                 />
-              </Heading>
+              </Box>
+              <Box
+                mt={3}
+                ml={2}
+                mb={2}
+                textAlign={"right"}
+                alignItems={"right"}
+              >
+                {project?.description ? (
+                  <Text ml={1} fontSize="small" align={"right"}>
+                    → {project.description}
+                  </Text>
+                ) : (
+                  ""
+                )}
+              </Box>
             </Flex>
             <Outlet />
           </Container>
