@@ -13,7 +13,7 @@ function ProjectShowcase({ ownerName, projectName }: ProjectShowcaseProps) {
   return (
     <>
       {showcaseRequest.isPending ? (
-        <Flex justify="center" align="center" height="100vh" width="full">
+        <Flex justify="center" align="center" height="100px" width="full">
           <Spinner size="xl" color="ui.main" />
         </Flex>
       ) : showcaseRequest.data ? (
