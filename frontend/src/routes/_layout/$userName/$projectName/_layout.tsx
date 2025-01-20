@@ -346,7 +346,7 @@ function ProjectLayout() {
               alignContent="center"
               alignItems="center"
               mt={5}
-              mb={3}
+              mb={4}
             >
               <Heading size="lg">{project?.title}</Heading>
               <Badge
@@ -374,14 +374,22 @@ function ProjectLayout() {
                   icon={<FaQuestion />}
                 />
               </Box>
+              <Box
+                mt={3}
+                ml={2}
+                mb={2}
+                textAlign={"right"}
+                alignItems={"right"}
+              >
+                {project?.description ? (
+                  <Text ml={1} fontSize="small" align={"right"}>
+                    → {project.description}
+                  </Text>
+                ) : (
+                  ""
+                )}
+              </Box>
             </Flex>
-            {project?.description ? (
-              <Text mt={-3} ml={1} mb={2} fontSize="small">
-                {project.description}
-              </Text>
-            ) : (
-              ""
-            )}
             <Outlet />
           </Container>
           <Drawer
