@@ -16,6 +16,11 @@ import {
   Text,
   Code,
   Badge,
+  Menu,
+  MenuButton,
+  MenuList,
+  MenuItem,
+  Box,
 } from "@chakra-ui/react"
 import {
   createFileRoute,
@@ -27,10 +32,11 @@ import { useQuery } from "@tanstack/react-query"
 import { ExternalLinkIcon } from "@chakra-ui/icons"
 import { FaGithub, FaQuestion } from "react-icons/fa"
 import { MdEdit } from "react-icons/md"
+import { BsThreeDots } from "react-icons/bs"
 import axios from "axios"
 
 import Sidebar from "../../../../components/Common/Sidebar"
-import { ProjectsService } from "../../../../client"
+import { ProjectPublic, ProjectsService } from "../../../../client"
 import EditProject from "../../../../components/Projects/EditProject"
 
 export const Route = createFileRoute("/_layout/$userName/$projectName/_layout")(
@@ -259,6 +265,40 @@ function HelpContent() {
   )
 }
 
+interface ProjectMenuProps {
+  project: ProjectPublic
+}
+
+function ProjectMenu({ project }: ProjectMenuProps) {
+  const editProjectModal = useDisclosure()
+
+  return (
+    <>
+      <Menu>
+        <MenuButton
+          as={IconButton}
+          icon={<BsThreeDots />}
+          size="xs"
+          mr={1}
+        ></MenuButton>
+        <MenuList>
+          <MenuItem
+            icon={<MdEdit fontSize={18} />}
+            onClick={editProjectModal.onOpen}
+          >
+            Edit title or description
+          </MenuItem>
+        </MenuList>
+      </Menu>
+      <EditProject
+        project={project}
+        isOpen={editProjectModal.isOpen}
+        onClose={editProjectModal.onClose}
+      />
+    </>
+  )
+}
+
 function ProjectLayout() {
   const { userName, projectName } = Route.useParams()
   const {
@@ -289,7 +329,6 @@ function ProjectLayout() {
       axios.get(`http://localhost:8866/projects/${userName}/${projectName}`),
     retry: false,
   })
-  const editProjectModal = useDisclosure()
 
   return (
     <>
@@ -301,36 +340,32 @@ function ProjectLayout() {
         <Flex>
           <Sidebar basePath={`/${userName}/${projectName}`} />
           <Container maxW="full" mx={6}>
-            <Flex width={"full"}>
-              <Heading
-                size="lg"
-                textAlign={{ base: "center", md: "left" }}
-                alignContent={"center"}
-                mt={6}
-                mb={3}
+            <Flex
+              width={"full"}
+              textAlign={{ base: "center", md: "left" }}
+              alignContent="center"
+              alignItems="center"
+              mt={5}
+              mb={3}
+            >
+              <Heading size="lg">{project?.title}</Heading>
+              <Badge
+                ml={2}
+                mt={1.5}
+                color={project?.is_public ? "green.500" : "yellow.500"}
               >
-                {project?.title}
-                <Badge
-                  ml="2"
-                  color={project?.is_public ? "green.500" : "yellow.500"}
-                >
-                  {project?.is_public ? "Public" : "Private"}
-                </Badge>
-                {project?.git_repo_url ? (
-                  <Link href={project?.git_repo_url} isExternal>
-                    <Icon height="45%" as={FaGithub} />
-                    <Icon height={"40%"} as={ExternalLinkIcon} ml={-3} />
-                  </Link>
-                ) : (
-                  ""
-                )}
-                <IconButton
-                  aria-label="Edit project"
-                  size={"xs"}
-                  onClick={editProjectModal.onOpen}
-                  mr={1}
-                  icon={<MdEdit />}
-                />
+                {project?.is_public ? "Public" : "Private"}
+              </Badge>
+              {project?.git_repo_url ? (
+                <Link href={project?.git_repo_url} isExternal>
+                  <Icon ml={2} mt={3} as={FaGithub} />
+                  <Icon ml={0.3} mt={-2} as={ExternalLinkIcon} />
+                </Link>
+              ) : (
+                ""
+              )}
+              <Box mt={1} ml={1.5}>
+                {project ? <ProjectMenu project={project} /> : ""}
                 <IconButton
                   isRound
                   aria-label="Open help"
@@ -338,7 +373,7 @@ function ProjectLayout() {
                   onClick={helpDrawer.onOpen}
                   icon={<FaQuestion />}
                 />
-              </Heading>
+              </Box>
             </Flex>
             {project?.description ? (
               <Text mt={-3} ml={1} mb={2} fontSize="small">
@@ -349,15 +384,6 @@ function ProjectLayout() {
             )}
             <Outlet />
           </Container>
-          {project ? (
-            <EditProject
-              project={project}
-              isOpen={editProjectModal.isOpen}
-              onClose={editProjectModal.onClose}
-            />
-          ) : (
-            ""
-          )}
           <Drawer
             isOpen={helpDrawer.isOpen}
             onClose={helpDrawer.onClose}
