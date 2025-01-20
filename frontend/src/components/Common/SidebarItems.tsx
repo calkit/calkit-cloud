@@ -10,7 +10,6 @@ import {
   FiFolder,
 } from "react-icons/fi"
 import { FaLaptop } from "react-icons/fa"
-import { FaEquals } from "react-icons/fa6"
 import { IoLibraryOutline } from "react-icons/io5"
 import axios from "axios"
 import { useQuery } from "@tanstack/react-query"
@@ -27,7 +26,6 @@ const items = [
   { icon: FiBookOpen, title: "Publications", path: "/publications" },
   { icon: SiJupyter, title: "Notebooks", path: "/notebooks" },
   { icon: FiHardDrive, title: "Software", path: "/software" },
-  { icon: FaEquals, title: "Reproducibility", path: "/repro" },
   { icon: FiUsers, title: "Collaborators", path: "/collaborators" },
   { icon: IoLibraryOutline, title: "References", path: "/references" },
   { icon: FiFolder, title: "All files", path: "/files" },
