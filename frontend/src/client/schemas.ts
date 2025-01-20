@@ -2169,6 +2169,44 @@ export const $ProjectPublic = {
   },
 } as const
 
+export const $ProjectShowcase = {
+  properties: {
+    elements: {
+      type: "array",
+      contains: {
+        type: "any-of",
+        contains: [
+          {
+            type: "ProjectShowcaseFigure",
+          },
+          {
+            type: "ProjectShowcaseText",
+          },
+        ],
+      },
+      isRequired: true,
+    },
+  },
+} as const
+
+export const $ProjectShowcaseFigure = {
+  properties: {
+    figure: {
+      type: "Figure",
+      isRequired: true,
+    },
+  },
+} as const
+
+export const $ProjectShowcaseText = {
+  properties: {
+    text: {
+      type: "string",
+      isRequired: true,
+    },
+  },
+} as const
+
 export const $ProjectsPublic = {
   properties: {
     data: {

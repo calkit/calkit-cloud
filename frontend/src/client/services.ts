@@ -54,6 +54,7 @@ import type {
   ProjectCreate,
   ProjectPatch,
   ProjectPublic,
+  ProjectShowcase,
   ProjectsPublic,
   Publication,
   Question,
@@ -376,6 +377,10 @@ export type ProjectsData = {
     projectName: string
   }
   GetProjectApp: {
+    ownerName: string
+    projectName: string
+  }
+  GetProjectShowcase: {
     ownerName: string
     projectName: string
   }
@@ -2120,6 +2125,28 @@ export class ProjectsService {
     return __request(OpenAPI, {
       method: "GET",
       url: "/projects/{owner_name}/{project_name}/app",
+      path: {
+        owner_name: ownerName,
+        project_name: projectName,
+      },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Get Project Showcase
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static getProjectShowcase(
+    data: ProjectsData["GetProjectShowcase"],
+  ): CancelablePromise<ProjectShowcase | null> {
+    const { ownerName, projectName } = data
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/projects/{owner_name}/{project_name}/showcase",
       path: {
         owner_name: ownerName,
         project_name: projectName,

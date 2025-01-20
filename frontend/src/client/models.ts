@@ -434,6 +434,18 @@ export type ProjectPublic = {
   current_user_access?: "read" | "write" | "admin" | "owner" | null
 }
 
+export type ProjectShowcase = {
+  elements: Array<ProjectShowcaseFigure | ProjectShowcaseText>
+}
+
+export type ProjectShowcaseFigure = {
+  figure: Figure
+}
+
+export type ProjectShowcaseText = {
+  text: string
+}
+
 export type ProjectsPublic = {
   data: Array<ProjectPublic>
   count: number
