@@ -26,10 +26,12 @@ import {
 import { useQuery } from "@tanstack/react-query"
 import { ExternalLinkIcon } from "@chakra-ui/icons"
 import { FaGithub, FaQuestion } from "react-icons/fa"
+import { MdEdit } from "react-icons/md"
 import axios from "axios"
 
 import Sidebar from "../../../../components/Common/Sidebar"
 import { ProjectsService } from "../../../../client"
+import EditProject from "../../../../components/Projects/EditProject"
 
 export const Route = createFileRoute("/_layout/$userName/$projectName/_layout")(
   {
@@ -287,6 +289,7 @@ function ProjectLayout() {
       axios.get(`http://localhost:8866/projects/${userName}/${projectName}`),
     retry: false,
   })
+  const editProjectModal = useDisclosure()
 
   return (
     <>
@@ -322,6 +325,13 @@ function ProjectLayout() {
                   ""
                 )}
                 <IconButton
+                  aria-label="Edit project"
+                  size={"xs"}
+                  onClick={editProjectModal.onOpen}
+                  mr={1}
+                  icon={<MdEdit />}
+                />
+                <IconButton
                   isRound
                   aria-label="Open help"
                   size={"xs"}
@@ -339,6 +349,15 @@ function ProjectLayout() {
             )}
             <Outlet />
           </Container>
+          {project ? (
+            <EditProject
+              project={project}
+              isOpen={editProjectModal.isOpen}
+              onClose={editProjectModal.onClose}
+            />
+          ) : (
+            ""
+          )}
           <Drawer
             isOpen={helpDrawer.isOpen}
             onClose={helpDrawer.onClose}
