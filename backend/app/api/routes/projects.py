@@ -1227,7 +1227,31 @@ def get_project_figure(
     current_user: CurrentUser,
     session: SessionDep,
 ) -> Figure:
-    raise HTTPException(501)
+    project = app.projects.get_project(
+        session=session,
+        owner_name=owner_name,
+        project_name=project_name,
+        current_user=current_user,
+        min_access_level="read",
+    )
+    ck_info = get_ck_info(
+        project=project, user=current_user, session=session, ttl=120
+    )
+    figures = ck_info.get("figures", [])
+    # Get the figure content and base64 encode it
+    for fig in figures:
+        if fig.get("path") == figure_path:
+            item = get_project_contents(
+                owner_name=owner_name,
+                project_name=project_name,
+                session=session,
+                current_user=current_user,
+                path=fig["path"],
+            )
+            fig["content"] = item.content
+            fig["url"] = item.url
+            return Figure.model_validate(fig)
+    raise HTTPException(404, "Figure not found")
 
 
 @router.post("/projects/{owner_name}/{project_name}/figures")
