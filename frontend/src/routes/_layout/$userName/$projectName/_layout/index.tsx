@@ -88,9 +88,7 @@ function ProjectView() {
             overflow="auto"
           >
             <Flex alignItems="center">
-              <Heading size="md" mb={2}>
-                Showcase
-              </Heading>
+              <Heading size="md">Showcase</Heading>
             </Flex>
             <ProjectShowcase ownerName={userName} projectName={projectName} />
           </Box>

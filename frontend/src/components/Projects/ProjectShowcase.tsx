@@ -1,6 +1,7 @@
-import { Text, Flex, Spinner } from "@chakra-ui/react"
+import { Text, Flex, Spinner, Box } from "@chakra-ui/react"
 
 import useProject from "../../hooks/useProject"
+import FigureView from "../Figures/FigureView"
 
 interface ProjectShowcaseProps {
   ownerName: string
@@ -16,7 +17,21 @@ function ProjectShowcase({ ownerName, projectName }: ProjectShowcaseProps) {
           <Spinner size="xl" color="ui.main" />
         </Flex>
       ) : showcaseRequest.data ? (
-        <Text>Got some data</Text>
+        <>
+          {showcaseRequest.data.elements.map((item) => (
+            <>
+              {"figure" in item ? (
+                <Box mt={2}>
+                  <FigureView figure={item.figure} />
+                </Box>
+              ) : "text" in item ? (
+                <Text mt={2}>{item.text}</Text>
+              ) : (
+                ""
+              )}
+            </>
+          ))}
+        </>
       ) : (
         ""
       )}
