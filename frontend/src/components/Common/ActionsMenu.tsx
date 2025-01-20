@@ -21,7 +21,7 @@ interface ActionsMenuProps {
 }
 
 const ActionsMenu = ({ type, value, disabled }: ActionsMenuProps) => {
-  const editUserModal = useDisclosure()
+  const editEntityModal = useDisclosure()
   const deleteModal = useDisclosure()
 
   return (
@@ -35,7 +35,7 @@ const ActionsMenu = ({ type, value, disabled }: ActionsMenuProps) => {
         />
         <MenuList>
           <MenuItem
-            onClick={editUserModal.onOpen}
+            onClick={editEntityModal.onOpen}
             icon={<FiEdit fontSize="16px" />}
           >
             Edit {type.toLowerCase()}
@@ -51,14 +51,14 @@ const ActionsMenu = ({ type, value, disabled }: ActionsMenuProps) => {
         {type === "User" ? (
           <EditUser
             user={value as UserPublic}
-            isOpen={editUserModal.isOpen}
-            onClose={editUserModal.onClose}
+            isOpen={editEntityModal.isOpen}
+            onClose={editEntityModal.onClose}
           />
         ) : (
           <EditProject
             project={value as ProjectPublic}
-            isOpen={editUserModal.isOpen}
-            onClose={editUserModal.onClose}
+            isOpen={editEntityModal.isOpen}
+            onClose={editEntityModal.onClose}
           />
         )}
         <Delete
