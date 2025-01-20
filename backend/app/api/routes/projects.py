@@ -2656,3 +2656,76 @@ def get_project_app(
     if project_app is None:
         return
     return ProjectApp.model_validate(project_app)
+
+
+class ProjectShowcaseFigureInput(BaseModel):
+    figure: str
+
+
+class ProjectShowcaseFigure(BaseModel):
+    figure: Figure
+
+
+class ProjectShowcaseText(BaseModel):
+    text: str
+
+
+class ProjectShowcaseInput(BaseModel):
+    elements: list[ProjectShowcaseFigureInput | ProjectShowcaseText]
+
+
+class ProjectShowcase(BaseModel):
+    elements: list[ProjectShowcaseFigure | ProjectShowcaseText]
+
+
+@router.get("/projects/{owner_name}/{project_name}/showcase")
+def get_project_showcase(
+    owner_name: str,
+    project_name: str,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> ProjectShowcase | None:
+    project = app.projects.get_project(
+        owner_name=owner_name,
+        project_name=project_name,
+        session=session,
+        current_user=current_user,
+        min_access_level="read",
+    )
+    incorrectly_defined = ProjectShowcase(
+        elements=[
+            ProjectShowcaseText(text="Showcase is not correctly defined.")
+        ]
+    )
+    ck_info = get_ck_info(
+        project=project, user=current_user, session=session, ttl=120
+    )
+    showcase = ck_info.get("showcase")
+    if showcase is None:
+        return
+    try:
+        inputs = ProjectShowcaseInput.model_validate(dict(elements=showcase))
+    except Exception:
+        return incorrectly_defined
+    # Iterate over showcase elements, fetching the contents to return
+    elements_out = []
+    for element_in in inputs.elements:
+        if isinstance(element_in, ProjectShowcaseFigureInput):
+            try:
+                element_out = ProjectShowcaseFigure(
+                    figure=get_project_figure(
+                        owner_name=owner_name,
+                        project_name=project_name,
+                        session=session,
+                        current_user=current_user,
+                        figure_path=element_in.figure,
+                    )
+                )
+            except Exception:
+                element_out = ProjectShowcaseText(
+                    text=f"Figure at path '{element_in.figure}' not found"
+                )
+        else:
+            element_out = element_in
+        elements_out.append(element_out)
+    return ProjectShowcase.model_validate(dict(elements=elements_out))
