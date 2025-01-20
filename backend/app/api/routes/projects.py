@@ -240,7 +240,7 @@ def create_project(
             logger.warning(f"Failed to create: {resp.json()}")
             try:
                 message = resp.json()["errors"][0]["message"].capitalize()
-            except:
+            except Exception:
                 message = "Failed to create GitHub repo"
             raise HTTPException(resp.status_code, message)
         resp_json = resp.json()
