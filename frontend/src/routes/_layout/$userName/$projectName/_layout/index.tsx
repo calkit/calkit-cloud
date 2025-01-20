@@ -78,30 +78,14 @@ function ProjectView() {
       <Flex mt={1}>
         <Box width="60%" mr={8}>
           {/* Showcase */}
-          <Box
-            py={4}
-            px={6}
-            mb={4}
-            borderRadius="lg"
-            bg={secBgColor}
-            maxH={"60vh"}
-            overflow="auto"
-          >
+          <Box py={4} px={6} mb={4} borderRadius="lg" bg={secBgColor}>
             <Flex alignItems="center">
               <Heading size="md">Showcase</Heading>
             </Flex>
             <ProjectShowcase ownerName={userName} projectName={projectName} />
           </Box>
           {/* README */}
-          <Box
-            py={4}
-            px={6}
-            mb={4}
-            borderRadius="lg"
-            bg={secBgColor}
-            maxH={"60vh"}
-            overflow="auto"
-          >
+          <Box py={4} px={6} mb={4} borderRadius="lg" bg={secBgColor}>
             <Flex alignItems="center">
               <Heading size="md">README</Heading>
               <Link
