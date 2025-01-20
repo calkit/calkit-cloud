@@ -29,6 +29,7 @@ import { Route as LayoutUserNameProjectNameLayoutImport } from './routes/_layout
 import { Route as LayoutUserNameProjectNameLayoutIndexImport } from './routes/_layout/$userName/$projectName/_layout/index'
 import { Route as LayoutUserNameProjectNameLayoutWorkflowImport } from './routes/_layout/$userName/$projectName/_layout/workflow'
 import { Route as LayoutUserNameProjectNameLayoutSoftwareImport } from './routes/_layout/$userName/$projectName/_layout/software'
+import { Route as LayoutUserNameProjectNameLayoutReproImport } from './routes/_layout/$userName/$projectName/_layout/repro'
 import { Route as LayoutUserNameProjectNameLayoutReferencesImport } from './routes/_layout/$userName/$projectName/_layout/references'
 import { Route as LayoutUserNameProjectNameLayoutPublicationsImport } from './routes/_layout/$userName/$projectName/_layout/publications'
 import { Route as LayoutUserNameProjectNameLayoutNotebooksImport } from './routes/_layout/$userName/$projectName/_layout/notebooks'
@@ -133,6 +134,12 @@ const LayoutUserNameProjectNameLayoutWorkflowRoute =
 const LayoutUserNameProjectNameLayoutSoftwareRoute =
   LayoutUserNameProjectNameLayoutSoftwareImport.update({
     path: '/software',
+    getParentRoute: () => LayoutUserNameProjectNameLayoutRoute,
+  } as any)
+
+const LayoutUserNameProjectNameLayoutReproRoute =
+  LayoutUserNameProjectNameLayoutReproImport.update({
+    path: '/repro',
     getParentRoute: () => LayoutUserNameProjectNameLayoutRoute,
   } as any)
 
@@ -355,6 +362,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutUserNameProjectNameLayoutReferencesImport
       parentRoute: typeof LayoutUserNameProjectNameLayoutImport
     }
+    '/_layout/$userName/$projectName/_layout/repro': {
+      id: '/_layout/$userName/$projectName/_layout/repro'
+      path: '/repro'
+      fullPath: '/$userName/$projectName/repro'
+      preLoaderRoute: typeof LayoutUserNameProjectNameLayoutReproImport
+      parentRoute: typeof LayoutUserNameProjectNameLayoutImport
+    }
     '/_layout/$userName/$projectName/_layout/software': {
       id: '/_layout/$userName/$projectName/_layout/software'
       path: '/software'
@@ -401,6 +415,7 @@ export const routeTree = rootRoute.addChildren({
           LayoutUserNameProjectNameLayoutNotebooksRoute,
           LayoutUserNameProjectNameLayoutPublicationsRoute,
           LayoutUserNameProjectNameLayoutReferencesRoute,
+          LayoutUserNameProjectNameLayoutReproRoute,
           LayoutUserNameProjectNameLayoutSoftwareRoute,
           LayoutUserNameProjectNameLayoutWorkflowRoute,
           LayoutUserNameProjectNameLayoutIndexRoute,
@@ -501,6 +516,7 @@ export const routeTree = rootRoute.addChildren({
         "/_layout/$userName/$projectName/_layout/notebooks",
         "/_layout/$userName/$projectName/_layout/publications",
         "/_layout/$userName/$projectName/_layout/references",
+        "/_layout/$userName/$projectName/_layout/repro",
         "/_layout/$userName/$projectName/_layout/software",
         "/_layout/$userName/$projectName/_layout/workflow",
         "/_layout/$userName/$projectName/_layout/"
@@ -540,6 +556,10 @@ export const routeTree = rootRoute.addChildren({
     },
     "/_layout/$userName/$projectName/_layout/references": {
       "filePath": "_layout/$userName/$projectName/_layout/references.tsx",
+      "parent": "/_layout/$userName/$projectName/_layout"
+    },
+    "/_layout/$userName/$projectName/_layout/repro": {
+      "filePath": "_layout/$userName/$projectName/_layout/repro.tsx",
       "parent": "/_layout/$userName/$projectName/_layout"
     },
     "/_layout/$userName/$projectName/_layout/software": {
