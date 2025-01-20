@@ -29,7 +29,7 @@ import CreateIssue from "../../../../../components/Projects/CreateIssue"
 import CreateQuestion from "../../../../../components/Projects/CreateQuestion"
 import NewPublication from "../../../../../components/Publications/NewPublication"
 import useProject from "../../../../../hooks/useProject"
-import EditProject from "../../../../../components/Projects/EditProject"
+import ProjectShowcase from "../../../../../components/Projects/ProjectShowcase"
 
 export const Route = createFileRoute(
   "/_layout/$userName/$projectName/_layout/",
@@ -72,7 +72,6 @@ function ProjectView() {
   const newIssueModal = useDisclosure()
   const newQuestionModal = useDisclosure()
   const newPubTemplateModal = useDisclosure()
-  const editProjectModal = useDisclosure()
 
   return (
     <>
@@ -89,33 +88,11 @@ function ProjectView() {
             overflow="auto"
           >
             <Flex alignItems="center">
-              <Heading size="md">Description</Heading>
-              {projectRequest.data ? (
-                <>
-                  <IconButton
-                    aria-label="Edit project"
-                    height="25px"
-                    width="28px"
-                    ml={1.5}
-                    icon={<MdEdit />}
-                    size={"xs"}
-                    onClick={editProjectModal.onOpen}
-                  />
-                  <EditProject
-                    project={projectRequest.data}
-                    isOpen={editProjectModal.isOpen}
-                    onClose={editProjectModal.onClose}
-                  />
-                </>
-              ) : (
-                ""
-              )}
+              <Heading size="md" mb={2}>
+                Showcase
+              </Heading>
             </Flex>
-            {projectRequest.data?.description ? (
-              <Markdown>{projectRequest?.data?.description}</Markdown>
-            ) : (
-              ""
-            )}
+            <ProjectShowcase ownerName={userName} projectName={projectName} />
           </Box>
           {/* README */}
           <Box
