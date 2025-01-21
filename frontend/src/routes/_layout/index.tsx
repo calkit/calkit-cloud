@@ -224,7 +224,7 @@ function PublicProjectsTable() {
 function Projects() {
   const { user } = useAuth()
   return (
-    <Container maxW={user ? pageWidthNoSidebar : "70%"}>
+    <Container maxW={user ? pageWidthNoSidebar : "65%"}>
       {user ? (
         <>
           <Heading size="lg" textAlign={{ base: "center", md: "left" }} mt={12}>
@@ -252,13 +252,14 @@ function Projects() {
             Welcome!
           </Heading>
           <Text>
-            Welcome to Calkit, where you can create, discover, share, and
-            collaborate on research projects. If you're ready to get started,{" "}
+            Welcome to the Calkit Cloud, where you can create, discover, share,
+            and collaborate on research projects. If you're ready to get
+            started,{" "}
             <Link as={RouterLink} to={"/login"} variant="blue">
               click here to sign in.
             </Link>
           </Text>
-          <Text mt={2} mb={6}>
+          <Text mt={4} mb={8}>
             If you'd like to do some exploring first, here are some projects you
             might find interesting:
           </Text>
