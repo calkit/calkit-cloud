@@ -16,6 +16,7 @@ import { useQuery } from "@tanstack/react-query"
 import { BsGear } from "react-icons/bs"
 import { SiJupyter } from "react-icons/si"
 import { MdOutlineDashboard } from "react-icons/md"
+import useAuth from "../../hooks/useAuth"
 
 const items = [
   { icon: FiHome, title: "Project home", path: "" },
@@ -41,6 +42,8 @@ const SidebarItems = ({ onClose, basePath }: SidebarItemsProps) => {
   const textColor = useColorModeValue("ui.main", "ui.light")
   const bgActive = useColorModeValue("#E2E8F0", "#4A5568")
   const finalItems = items
+  const itemsRequireLogin = ["Collaborators", "Local machine"]
+  const { user } = useAuth()
   const routeApi = getRouteApi("/_layout/$userName/$projectName")
   const { userName, projectName } = routeApi.useParams()
   const {
@@ -59,29 +62,37 @@ const SidebarItems = ({ onClose, basePath }: SidebarItemsProps) => {
       : "ui.success"
 
   const listItems = finalItems.map(({ icon, title, path }) => (
-    <Flex
-      as={Link}
-      to={basePath + path}
-      w="100%"
-      p={2}
-      key={title}
-      activeOptions={{ exact: true, includeSearch: false }}
-      activeProps={{
-        style: {
-          background: bgActive,
-          borderRadius: "12px",
-        },
-      }}
-      color={textColor}
-      onClick={onClose}
-    >
-      <Icon
-        as={icon}
-        color={title === "Local machine" ? localMachineColor : "default"}
-        alignSelf="center"
-      />
-      <Text ml={2}>{title}</Text>
-    </Flex>
+    <>
+      {itemsRequireLogin.includes(title) && !user ? (
+        ""
+      ) : (
+        <>
+          <Flex
+            as={Link}
+            to={basePath + path}
+            w="100%"
+            p={2}
+            key={title}
+            activeOptions={{ exact: true, includeSearch: false }}
+            activeProps={{
+              style: {
+                background: bgActive,
+                borderRadius: "12px",
+              },
+            }}
+            color={textColor}
+            onClick={onClose}
+          >
+            <Icon
+              as={icon}
+              color={title === "Local machine" ? localMachineColor : "default"}
+              alignSelf="center"
+            />
+            <Text ml={2}>{title}</Text>
+          </Flex>
+        </>
+      )}
+    </>
   ))
 
   return (
