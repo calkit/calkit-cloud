@@ -49,6 +49,7 @@ function ProjectView() {
     reproCheckRequest,
     issueStateMutation,
     putDevcontainerMutation,
+    userHasWriteAccess,
   } = useProject(userName, projectName, showClosedTodos)
   const reproCheck = reproCheckRequest.data
   const gitRepoUrl = projectRequest.data?.git_repo_url
@@ -81,19 +82,25 @@ function ProjectView() {
           <Box py={4} px={6} mb={4} borderRadius="lg" bg={secBgColor}>
             <Flex alignItems="center">
               <Heading size="md">Showcase</Heading>
-              <Link
-                href={`https://github.dev/${userName}/${projectName}/blob/main/calkit.yaml`}
-                isExternal
-              >
-                <IconButton
-                  aria-label="Edit calkit.yaml"
-                  height="25px"
-                  width="28px"
-                  ml={1.5}
-                  icon={<MdEdit />}
-                  size={"xs"}
-                />
-              </Link>
+              {userHasWriteAccess ? (
+                <>
+                  <Link
+                    href={`https://github.dev/${userName}/${projectName}/blob/main/calkit.yaml`}
+                    isExternal
+                  >
+                    <IconButton
+                      aria-label="Edit calkit.yaml"
+                      height="25px"
+                      width="28px"
+                      ml={1.5}
+                      icon={<MdEdit />}
+                      size={"xs"}
+                    />
+                  </Link>
+                </>
+              ) : (
+                ""
+              )}
             </Flex>
             <ProjectShowcase ownerName={userName} projectName={projectName} />
           </Box>
@@ -101,19 +108,25 @@ function ProjectView() {
           <Box py={4} px={6} mb={4} borderRadius="lg" bg={secBgColor}>
             <Flex alignItems="center">
               <Heading size="md">README</Heading>
-              <Link
-                href={`https://github.dev/${userName}/${projectName}/blob/main/README.md`}
-                isExternal
-              >
-                <IconButton
-                  aria-label="Edit README"
-                  height="25px"
-                  width="28px"
-                  ml={1.5}
-                  icon={<MdEdit />}
-                  size={"xs"}
-                />
-              </Link>
+              {userHasWriteAccess ? (
+                <>
+                  <Link
+                    href={`https://github.dev/${userName}/${projectName}/blob/main/README.md`}
+                    isExternal
+                  >
+                    <IconButton
+                      aria-label="Edit README"
+                      height="25px"
+                      width="28px"
+                      ml={1.5}
+                      icon={<MdEdit />}
+                      size={"xs"}
+                    />
+                  </Link>
+                </>
+              ) : (
+                ""
+              )}
             </Flex>
             {readmeRequest.isPending ? (
               <Flex justify="center" align="center" height="100vh" width="full">
@@ -135,19 +148,25 @@ function ProjectView() {
               <Heading size="md" mb={2}>
                 Questions
               </Heading>
-              <IconButton
-                aria-label="Add question"
-                height="25px"
-                width="28px"
-                ml={1.5}
-                icon={<FaPlus />}
-                size={"xs"}
-                onClick={newQuestionModal.onOpen}
-              />
-              <CreateQuestion
-                isOpen={newQuestionModal.isOpen}
-                onClose={newQuestionModal.onClose}
-              />
+              {userHasWriteAccess ? (
+                <>
+                  <IconButton
+                    aria-label="Add question"
+                    height="25px"
+                    width="28px"
+                    ml={1.5}
+                    icon={<FaPlus />}
+                    size={"xs"}
+                    onClick={newQuestionModal.onOpen}
+                  />
+                  <CreateQuestion
+                    isOpen={newQuestionModal.isOpen}
+                    onClose={newQuestionModal.onClose}
+                  />
+                </>
+              ) : (
+                ""
+              )}
             </Flex>
             {questionsRequest.isPending ? (
               <Flex justify="center" align="center" height="100px" width="full">
@@ -169,20 +188,26 @@ function ProjectView() {
               <Box>
                 <Flex>
                   <Heading size="md">To-do</Heading>
-                  <IconButton
-                    aria-label="Add to-do"
-                    height="25px"
-                    width="28px"
-                    ml={1.5}
-                    icon={<FaPlus />}
-                    size={"xs"}
-                    onClick={newIssueModal.onOpen}
-                  />
+                  {userHasWriteAccess ? (
+                    <>
+                      <IconButton
+                        aria-label="Add to-do"
+                        height="25px"
+                        width="28px"
+                        ml={1.5}
+                        icon={<FaPlus />}
+                        size={"xs"}
+                        onClick={newIssueModal.onOpen}
+                      />
+                      <CreateIssue
+                        isOpen={newIssueModal.isOpen}
+                        onClose={newIssueModal.onClose}
+                      />
+                    </>
+                  ) : (
+                    ""
+                  )}
                 </Flex>
-                <CreateIssue
-                  isOpen={newIssueModal.isOpen}
-                  onClose={newIssueModal.onClose}
-                />
               </Box>
               <Spacer />
               <Box>
@@ -282,9 +307,13 @@ function ProjectView() {
                   ) : (
                     <>
                       {"❌ "}
-                      <Link onClick={() => putDevcontainerMutation.mutate()}>
-                        🔧
-                      </Link>
+                      {userHasWriteAccess ? (
+                        <Link onClick={() => putDevcontainerMutation.mutate()}>
+                          🔧
+                        </Link>
+                      ) : (
+                        ""
+                      )}
                     </>
                   )}
                 </Text>
@@ -348,69 +377,85 @@ function ProjectView() {
                     ""
                   )}
                 </Text>
-                <Heading
-                  size="sm"
-                  mt={4}
-                  mb={-2}
-                  color={
-                    reproCheck?.recommendation ? "yellow.500" : "green.500"
-                  }
-                >
-                  Recommendation
-                </Heading>
-                {reproCheck?.recommendation ? (
+                {userHasWriteAccess ? (
                   <>
-                    <Markdown>{reproCheck.recommendation}</Markdown>
+                    <Heading
+                      size="sm"
+                      mt={4}
+                      mb={-2}
+                      color={
+                        reproCheck?.recommendation ? "yellow.500" : "green.500"
+                      }
+                    >
+                      Recommendation
+                    </Heading>
+                    {reproCheck?.recommendation ? (
+                      <>
+                        <Markdown>{reproCheck.recommendation}</Markdown>
+                      </>
+                    ) : (
+                      <Markdown>
+                        This project looks good from here! Check in depth
+                        locally with `calkit status` and `calkit run`.
+                      </Markdown>
+                    )}
                   </>
                 ) : (
-                  <Markdown>
-                    This project looks good from here! Check in depth locally
-                    with `calkit status` and `calkit run`.
-                  </Markdown>
+                  ""
                 )}
               </>
             )}
           </Box>
           {/* Quick actions */}
-          <Box py={4} px={6} mb={4} borderRadius="lg" bg={secBgColor}>
-            <Heading size="md" mb={2}>
-              Quick actions
-            </Heading>
-            <Text>
-              📜{" "}
-              <Link onClick={newPubTemplateModal.onOpen}>
-                Create a new publication from a template
-              </Link>
-            </Text>
-            <Text>
-              🔒{" "}
-              <Link as={RouterLink} to={"/settings"} search={{ tab: "tokens" }}>
-                Manage user tokens
-              </Link>
-            </Text>
-            <Text>
-              🚀{" "}
-              <Link isExternal href={codespacesUrl}>
-                Open in GitHub Codespaces{" "}
-                <Icon height={"40%"} as={ExternalLinkIcon} pb={0.5} />
-              </Link>
-            </Text>
-            <Text>
-              🔑{" "}
-              <Link
-                isExternal
-                href={`${gitRepoUrl}/settings/secrets/codespaces`}
-              >
-                Configure GitHub Codespaces secrets{" "}
-                <Icon height={"40%"} as={ExternalLinkIcon} pb={0.5} />
-              </Link>
-            </Text>
-          </Box>
-          <NewPublication
-            isOpen={newPubTemplateModal.isOpen}
-            onClose={newPubTemplateModal.onClose}
-            variant="template"
-          />
+          {userHasWriteAccess ? (
+            <>
+              <Box py={4} px={6} mb={4} borderRadius="lg" bg={secBgColor}>
+                <Heading size="md" mb={2}>
+                  Quick actions
+                </Heading>
+                <Text>
+                  📜{" "}
+                  <Link onClick={newPubTemplateModal.onOpen}>
+                    Create a new publication from a template
+                  </Link>
+                </Text>
+                <Text>
+                  🔒{" "}
+                  <Link
+                    as={RouterLink}
+                    to={"/settings"}
+                    search={{ tab: "tokens" }}
+                  >
+                    Manage user tokens
+                  </Link>
+                </Text>
+                <Text>
+                  🚀{" "}
+                  <Link isExternal href={codespacesUrl}>
+                    Open in GitHub Codespaces{" "}
+                    <Icon height={"40%"} as={ExternalLinkIcon} pb={0.5} />
+                  </Link>
+                </Text>
+                <Text>
+                  🔑{" "}
+                  <Link
+                    isExternal
+                    href={`${gitRepoUrl}/settings/secrets/codespaces`}
+                  >
+                    Configure GitHub Codespaces secrets{" "}
+                    <Icon height={"40%"} as={ExternalLinkIcon} pb={0.5} />
+                  </Link>
+                </Text>
+              </Box>
+              <NewPublication
+                isOpen={newPubTemplateModal.isOpen}
+                onClose={newPubTemplateModal.onClose}
+                variant="template"
+              />
+            </>
+          ) : (
+            ""
+          )}
         </Box>
       </Flex>
     </>

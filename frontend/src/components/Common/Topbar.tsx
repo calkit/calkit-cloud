@@ -10,11 +10,13 @@ import {
   Link,
   Icon,
   Text,
+  Button,
 } from "@chakra-ui/react"
 import { Link as RouterLink } from "@tanstack/react-router"
 import { HamburgerIcon, CloseIcon } from "@chakra-ui/icons"
 import UserMenu from "./UserMenu"
 import { FaGithub } from "react-icons/fa"
+import useAuth from "../../hooks/useAuth"
 
 interface Props {
   children: React.ReactNode
@@ -50,6 +52,7 @@ const NavLink = (props: Props) => {
 export default function Topbar() {
   const { isOpen, onOpen, onClose } = useDisclosure()
   const secBgColor = useColorModeValue("ui.secondary", "ui.darkSlate")
+  const { user } = useAuth()
 
   return (
     <>
@@ -103,7 +106,13 @@ export default function Topbar() {
                 <Text fontSize="xs">calkit/calkit-cloud</Text>
               </Flex>
             </Link>
-            <UserMenu />
+            {user ? (
+              <UserMenu />
+            ) : (
+              <Link as={RouterLink} to={"/login"}>
+                <Button variant="primary">Sign in</Button>
+              </Link>
+            )}
           </Flex>
         </Flex>
         {isOpen ? (

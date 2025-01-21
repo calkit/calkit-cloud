@@ -20,13 +20,13 @@ import {
   AlertIcon,
 } from "@chakra-ui/react"
 import { createFileRoute, Link as RouterLink } from "@tanstack/react-router"
-import { useQuery } from "@tanstack/react-query"
 import { FiFile } from "react-icons/fi"
 import { FaPlus } from "react-icons/fa"
 
-import { ProjectsService, type Publication } from "../../../../../client"
+import { type Publication } from "../../../../../client"
 import NewPublication from "../../../../../components/Publications/NewPublication"
 import PageMenu from "../../../../../components/Common/PageMenu"
+import useProject from "../../../../../hooks/useProject"
 
 export const Route = createFileRoute(
   "/_layout/$userName/$projectName/_layout/publications",
@@ -138,18 +138,15 @@ function Publications() {
   const labelPubModal = useDisclosure()
   const newPubTemplateModal = useDisclosure()
   const { userName, projectName } = Route.useParams()
-  const pubsQuery = useQuery({
-    queryKey: ["projects", userName, projectName, "publications"],
-    queryFn: () =>
-      ProjectsService.getProjectPublications({
-        ownerName: userName,
-        projectName: projectName,
-      }),
-  })
+  const { publicationsRequest, userHasWriteAccess } = useProject(
+    userName,
+    projectName,
+    false,
+  )
 
   return (
     <>
-      {pubsQuery.isPending ? (
+      {publicationsRequest.isPending ? (
         <Flex justify="center" align="center" height={"100vh"} width="full">
           <Spinner size="xl" color="ui.main" />
         </Flex>
@@ -160,49 +157,55 @@ function Publications() {
           <PageMenu>
             <Flex align="center" mb={2}>
               <Heading size="md">Publications</Heading>
-              <Menu>
-                <MenuButton
-                  as={Button}
-                  variant="primary"
-                  height={"25px"}
-                  width={"9px"}
-                  px={1}
-                  ml={2}
-                >
-                  <Icon as={FaPlus} fontSize="xs" />
-                </MenuButton>
-                <MenuList>
-                  <MenuItem onClick={newPubTemplateModal.onOpen}>
-                    Create new publication from template
-                  </MenuItem>
-                  <MenuItem onClick={uploadPubModal.onOpen}>
-                    Upload new publication
-                  </MenuItem>
-                  <MenuItem onClick={labelPubModal.onOpen}>
-                    Label existing file as publication
-                  </MenuItem>
-                </MenuList>
-              </Menu>
-              <NewPublication
-                isOpen={newPubTemplateModal.isOpen}
-                onClose={newPubTemplateModal.onClose}
-                variant="template"
-              />
-              <NewPublication
-                isOpen={uploadPubModal.isOpen}
-                onClose={uploadPubModal.onClose}
-                variant="upload"
-              />
-              <NewPublication
-                isOpen={labelPubModal.isOpen}
-                onClose={labelPubModal.onClose}
-                variant="label"
-              />
+              {userHasWriteAccess ? (
+                <>
+                  <Menu>
+                    <MenuButton
+                      as={Button}
+                      variant="primary"
+                      height={"25px"}
+                      width={"9px"}
+                      px={1}
+                      ml={2}
+                    >
+                      <Icon as={FaPlus} fontSize="xs" />
+                    </MenuButton>
+                    <MenuList>
+                      <MenuItem onClick={newPubTemplateModal.onOpen}>
+                        Create new publication from template
+                      </MenuItem>
+                      <MenuItem onClick={uploadPubModal.onOpen}>
+                        Upload new publication
+                      </MenuItem>
+                      <MenuItem onClick={labelPubModal.onOpen}>
+                        Label existing file as publication
+                      </MenuItem>
+                    </MenuList>
+                  </Menu>
+                  <NewPublication
+                    isOpen={newPubTemplateModal.isOpen}
+                    onClose={newPubTemplateModal.onClose}
+                    variant="template"
+                  />
+                  <NewPublication
+                    isOpen={uploadPubModal.isOpen}
+                    onClose={uploadPubModal.onClose}
+                    variant="upload"
+                  />
+                  <NewPublication
+                    isOpen={labelPubModal.isOpen}
+                    onClose={labelPubModal.onClose}
+                    variant="label"
+                  />
+                </>
+              ) : (
+                ""
+              )}
             </Flex>
             {/* Iterate over all publications to create an anchor link for
              each */}
-            {pubsQuery.data
-              ? pubsQuery.data.map((pub) => (
+            {publicationsRequest.data
+              ? publicationsRequest.data.map((pub) => (
                   <Link key={pub.path} href={`#${pub.path}`}>
                     <Text
                       isTruncated
@@ -222,9 +225,9 @@ function Publications() {
           {/* A box to the right that iterates over all figures, adding a view
            for the content, info, and comments */}
           <Box width={"100%"} ml={-2}>
-            {pubsQuery.data ? (
+            {publicationsRequest.data ? (
               <>
-                {pubsQuery.data.map((pub) => (
+                {publicationsRequest.data.map((pub) => (
                   <PubView key={pub.path} publication={pub} />
                 ))}
               </>

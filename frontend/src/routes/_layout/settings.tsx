@@ -8,7 +8,7 @@ import {
   Tabs,
 } from "@chakra-ui/react"
 import { useQueryClient } from "@tanstack/react-query"
-import { createFileRoute, useNavigate } from "@tanstack/react-router"
+import { createFileRoute, useNavigate, redirect } from "@tanstack/react-router"
 import { z } from "zod"
 import { useState } from "react"
 
@@ -19,6 +19,7 @@ import DeleteAccount from "../../components/UserSettings/DeleteAccount"
 import UserInformation from "../../components/UserSettings/UserInformation"
 import UserTokens from "../../components/UserSettings/UserTokens"
 import { pageWidthNoSidebar } from "../../utils"
+import { isLoggedIn } from "../../hooks/useAuth"
 
 const tabsConfig = [
   { title: "My profile", component: UserInformation, slug: "profile" },
@@ -33,6 +34,13 @@ const tabSearchSchema = z.object({ tab: z.string().catch("") })
 export const Route = createFileRoute("/_layout/settings")({
   component: UserSettings,
   validateSearch: (search) => tabSearchSchema.parse(search),
+  beforeLoad: async () => {
+    if (!isLoggedIn()) {
+      throw redirect({
+        to: "/login",
+      })
+    }
+  },
 })
 
 function UserSettings() {

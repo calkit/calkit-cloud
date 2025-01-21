@@ -15,7 +15,7 @@ import {
   Tr,
 } from "@chakra-ui/react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { createFileRoute, useNavigate } from "@tanstack/react-router"
+import { createFileRoute, useNavigate, redirect } from "@tanstack/react-router"
 import { useEffect } from "react"
 import { z } from "zod"
 
@@ -24,6 +24,7 @@ import AddUser from "../../components/Admin/AddUser"
 import ActionsMenu from "../../components/Common/ActionsMenu"
 import Navbar from "../../components/Common/Navbar"
 import { pageWidthNoSidebar } from "../../utils"
+import { isLoggedIn } from "../../hooks/useAuth"
 
 const usersSearchSchema = z.object({
   page: z.number().catch(1),
@@ -32,6 +33,13 @@ const usersSearchSchema = z.object({
 export const Route = createFileRoute("/_layout/admin")({
   component: Admin,
   validateSearch: (search) => usersSearchSchema.parse(search),
+  beforeLoad: async () => {
+    if (!isLoggedIn()) {
+      throw redirect({
+        to: "/login",
+      })
+    }
+  },
 })
 
 const PER_PAGE = 5

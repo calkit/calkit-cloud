@@ -17,12 +17,16 @@ const useProject = (
         projectName: projectName,
       }),
     retry: (failureCount, error) => {
-      if (error.message === "Not Found") {
+      if (error.message === "Not Found" || error.message === "Forbidden") {
         return false
       }
       return failureCount < 3
     },
   })
+
+  const userHasWriteAccess = ["owner", "admin", "write"].includes(
+    String(projectRequest.data?.current_user_access),
+  )
 
   const readmeRequest = useQuery({
     queryKey: ["projects", userName, projectName, "readme"],
@@ -64,6 +68,42 @@ const useProject = (
       }),
     refetchOnWindowFocus: false,
     refetchOnMount: false,
+  })
+
+  const datasetsRequest = useQuery({
+    queryKey: ["projects", userName, projectName, "datasets"],
+    queryFn: () =>
+      ProjectsService.getProjectDatasets({
+        ownerName: userName,
+        projectName: projectName,
+      }),
+  })
+
+  const figuresRequest = useQuery({
+    queryKey: ["projects", userName, projectName, "figures"],
+    queryFn: () =>
+      ProjectsService.getProjectFigures({
+        ownerName: userName,
+        projectName: projectName,
+      }),
+  })
+
+  const publicationsRequest = useQuery({
+    queryKey: ["projects", userName, projectName, "publications"],
+    queryFn: () =>
+      ProjectsService.getProjectPublications({
+        ownerName: userName,
+        projectName: projectName,
+      }),
+  })
+
+  const filesRequest = useQuery({
+    queryKey: ["projects", userName, projectName, "files"],
+    queryFn: () =>
+      ProjectsService.getProjectContents({
+        ownerName: userName,
+        projectName: projectName,
+      }),
   })
 
   const showcaseRequest = useQuery({
@@ -109,9 +149,14 @@ const useProject = (
 
   return {
     projectRequest,
+    userHasWriteAccess,
     readmeRequest,
+    datasetsRequest,
+    figuresRequest,
+    publicationsRequest,
     issuesRequest,
     questionsRequest,
+    filesRequest,
     reproCheckRequest,
     showcaseRequest,
     issueStateMutation,

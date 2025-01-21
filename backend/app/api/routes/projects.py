@@ -12,14 +12,34 @@ from datetime import datetime
 from pathlib import Path
 from typing import Annotated, Literal, Optional
 
-import app.projects
 import bibtexparser
 import calkit
 import requests
 import sqlalchemy
 import yaml
+from calkit.check import ReproCheck, check_reproducibility
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    Header,
+    HTTPException,
+    Request,
+    UploadFile,
+)
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
+from sqlmodel import Session, and_, func, not_, or_, select
+
+import app.projects
 from app import users
-from app.api.deps import CurrentUser, CurrentUserDvcScope, SessionDep
+from app.api.deps import (
+    CurrentUser,
+    CurrentUserDvcScope,
+    CurrentUserOptional,
+    SessionDep,
+)
 from app.config import settings
 from app.core import (
     CATEGORIES_PLURAL_TO_SINGULAR,
@@ -59,20 +79,6 @@ from app.storage import (
     make_data_fpath,
     remove_gcs_content_type,
 )
-from calkit.check import ReproCheck, check_reproducibility
-from fastapi import (
-    APIRouter,
-    Depends,
-    File,
-    Form,
-    Header,
-    HTTPException,
-    Request,
-    UploadFile,
-)
-from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
-from sqlmodel import Session, and_, func, not_, or_, select
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -85,30 +91,23 @@ RETURN_CONTENT_SIZE_LIMIT = 1_000_000
 @router.get("/projects")
 def get_projects(
     session: SessionDep,
-    current_user: CurrentUser,
+    current_user: CurrentUserOptional,
     limit: int = 100,
     offset: int = 0,
 ) -> ProjectsPublic:
-    # TODO: Handle collaborator access in addition to public
-    count_query = (
-        select(func.count())
-        .select_from(Project)
-        .where(
-            or_(
-                Project.is_public,
-                Project.owner_account_id == current_user.account.id,
-            )
+    # TODO: Handle collaborator access
+    if current_user is None:
+        where_clause = Project.is_public
+    else:
+        where_clause = or_(
+            Project.is_public,
+            Project.owner_account_id == current_user.account.id,
         )
-    )
+    count_query = select(func.count()).select_from(Project).where(where_clause)
     count = session.exec(count_query).one()
     select_query = (
         select(Project)
-        .where(
-            or_(
-                Project.is_public,
-                Project.owner_account_id == current_user.account.id,
-            )
-        )
+        .where(where_clause)
         .order_by(sqlalchemy.desc(Project.created))
         .limit(limit)
         .offset(offset)
@@ -383,7 +382,7 @@ def get_project(
     owner_name: str,
     project_name: str,
     session: SessionDep,
-    current_user: CurrentUser,
+    current_user: CurrentUserOptional,
 ) -> ProjectPublic:
     project = app.projects.get_project(
         session=session,
@@ -688,7 +687,7 @@ def get_project_contents(
     owner_name: str,
     project_name: str,
     session: SessionDep,
-    current_user: CurrentUser,
+    current_user: CurrentUserOptional,
     path: str | None = None,
     ttl: int | None = 120,
 ) -> ContentsItem:
@@ -1128,7 +1127,7 @@ def _sync_questions_with_db(
 def get_project_questions(
     owner_name: str,
     project_name: str,
-    current_user: CurrentUser,
+    current_user: CurrentUserOptional,
     session: SessionDep,
 ) -> list[Question]:
     project = app.projects.get_project(
@@ -1189,7 +1188,7 @@ def post_project_question(
 def get_project_figures(
     owner_name: str,
     project_name: str,
-    current_user: CurrentUser,
+    current_user: CurrentUserOptional,
     session: SessionDep,
 ) -> list[Figure]:
     project = app.projects.get_project(
@@ -1224,7 +1223,7 @@ def get_project_figure(
     owner_name: str,
     project_name: str,
     figure_path: str,
-    current_user: CurrentUser,
+    current_user: CurrentUserOptional,
     session: SessionDep,
 ) -> Figure:
     project = app.projects.get_project(
@@ -1381,7 +1380,7 @@ def post_project_figure(
 def get_figure_comments(
     owner_name: str,
     project_name: str,
-    current_user: CurrentUser,
+    current_user: CurrentUserOptional,
     session: SessionDep,
     figure_path: str | None = None,
 ) -> list[FigureComment]:
@@ -1487,7 +1486,7 @@ def _sync_datasets_with_db(
 def get_project_datasets(
     owner_name: str,
     project_name: str,
-    current_user: CurrentUser,
+    current_user: CurrentUserOptional,
     session: SessionDep,
 ) -> list[Dataset]:
     project = app.projects.get_project(
@@ -1512,7 +1511,7 @@ def get_project_dataset(
     path: str,
     owner_name: str,
     project_name: str,
-    current_user: CurrentUser,
+    current_user: CurrentUserOptional,
     session: SessionDep,
 ) -> DatasetDVCImport:
     logger.info(f"Received request to get dataset with path: {path}")
@@ -1789,7 +1788,7 @@ class Publication(BaseModel):
 def get_project_publications(
     owner_name: str,
     project_name: str,
-    current_user: CurrentUser,
+    current_user: CurrentUserOptional,
     session: SessionDep,
 ) -> list[Publication]:
     project = app.projects.get_project(
@@ -2034,7 +2033,7 @@ def post_project_sync(
 def get_project_pipeline(
     owner_name: str,
     project_name: str,
-    current_user: CurrentUser,
+    current_user: CurrentUserOptional,
     session: SessionDep,
 ) -> Pipeline | None:
     project = app.projects.get_project(
@@ -2198,7 +2197,7 @@ class Issue(BaseModel):
 def get_project_issues(
     owner_name: str,
     project_name: str,
-    current_user: CurrentUser,
+    current_user: CurrentUserOptional,
     session: SessionDep,
     page: int = 1,
     per_page: int = 30,
@@ -2211,14 +2210,17 @@ def get_project_issues(
         current_user=current_user,
         min_access_level="read",
     )
-    token = users.get_github_token(session=session, user=current_user)
     github_repo = project.github_repo
+    headers = None
     if github_repo is None:
         raise HTTPException(501)
+    if current_user is not None:
+        token = users.get_github_token(session=session, user=current_user)
+        headers = {"Authorization": f"Bearer {token}"}
     url = f"https://api.github.com/repos/{github_repo}/issues"
     resp = requests.get(
         url,
-        headers={"Authorization": f"Bearer {token}"},
+        headers=headers,
         params=dict(page=page, per_page=per_page, state=state),
     )
     if not resp.status_code == 200:
@@ -2349,7 +2351,7 @@ class References(BaseModel):
 def get_project_references(
     owner_name: str,
     project_name: str,
-    current_user: CurrentUser,
+    current_user: CurrentUserOptional,
     session: SessionDep,
 ) -> list[References]:
     project = app.projects.get_project(
@@ -2430,7 +2432,7 @@ class Software(BaseModel):
 def get_project_software(
     owner_name: str,
     project_name: str,
-    current_user: CurrentUser,
+    current_user: CurrentUserOptional,
     session: SessionDep,
 ) -> Software:
     project = app.projects.get_project(
@@ -2542,7 +2544,7 @@ class Notebook(BaseModel):
 def get_project_notebooks(
     owner_name: str,
     project_name: str,
-    current_user: CurrentUser,
+    current_user: CurrentUserOptional,
     session: SessionDep,
 ) -> list[Notebook]:
     project = app.projects.get_project(
@@ -2584,7 +2586,7 @@ def get_project_notebooks(
 def get_project_repro_check(
     owner_name: str,
     project_name: str,
-    current_user: CurrentUser,
+    current_user: CurrentUserOptional,
     session: SessionDep,
 ) -> ReproCheck:
     project = app.projects.get_project(
@@ -2639,7 +2641,7 @@ class ProjectApp(BaseModel):
 def get_project_app(
     owner_name: str,
     project_name: str,
-    current_user: CurrentUser,
+    current_user: CurrentUserOptional,
     session: SessionDep,
 ) -> ProjectApp | None:
     project = app.projects.get_project(
@@ -2682,7 +2684,7 @@ class ProjectShowcase(BaseModel):
 def get_project_showcase(
     owner_name: str,
     project_name: str,
-    current_user: CurrentUser,
+    current_user: CurrentUserOptional,
     session: SessionDep,
 ) -> ProjectShowcase | None:
     project = app.projects.get_project(

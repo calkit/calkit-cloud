@@ -24,18 +24,13 @@ import {
   Input,
   IconButton,
 } from "@chakra-ui/react"
-import {
-  Outlet,
-  createFileRoute,
-  redirect,
-  useNavigate,
-} from "@tanstack/react-router"
+import { Outlet, createFileRoute, useNavigate } from "@tanstack/react-router"
 import { MdCancel, MdCheck } from "react-icons/md"
 import { useState } from "react"
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query"
 import mixpanel from "mixpanel-browser"
 
-import useAuth, { isLoggedIn } from "../hooks/useAuth"
+import useAuth from "../hooks/useAuth"
 import Topbar from "../components/Common/Topbar"
 import {
   type ApiError,
@@ -52,13 +47,6 @@ import useCustomToast from "../hooks/useCustomToast"
 
 export const Route = createFileRoute("/_layout")({
   component: Layout,
-  beforeLoad: async () => {
-    if (!isLoggedIn()) {
-      throw redirect({
-        to: "/login",
-      })
-    }
-  },
 })
 
 interface PickSubscriptionProps {
@@ -423,14 +411,14 @@ function Layout() {
       $github_username: user.github_username,
       $plan_name: user.subscription?.plan_name,
     })
-  } else if (!isLoading && !user) {
-    logout()
   }
   const ghAppInstalledQuery = useQuery({
     queryKey: ["user", "github-app-installations"],
     queryFn: () => UsersService.getUserGithubAppInstallations(),
     refetchOnWindowFocus: false,
     refetchOnMount: false,
+    enabled: () => Boolean(user),
+    retry: 1,
   })
   const appNameBase = "calkit"
   const apiUrl = String(import.meta.env.VITE_API_URL)
@@ -452,18 +440,18 @@ function Layout() {
 
   return (
     <Box>
-      {isLoading || ghAppInstalledQuery.isPending ? (
+      {isLoading || (user && ghAppInstalledQuery.isPending) ? (
         <Flex justify="center" align="center" height="100vh" width="full">
           <Spinner size="xl" color="ui.main" />
         </Flex>
       ) : (
         <>
-          {!ghAppInstalledQuery.data?.total_count ? (
+          {user && !ghAppInstalledQuery.data?.total_count ? (
             <InstallGitHubApp />
           ) : (
             <>
               {/* If the user doesn't have a subscription, they need to pick one */}
-              {user?.subscription ? (
+              {!user || user?.subscription ? (
                 <Box>
                   <Topbar />
                   <Container px={0} maxW="full">

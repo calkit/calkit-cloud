@@ -16,6 +16,7 @@ import {
   Link,
   Code,
   Tooltip,
+  useColorModeValue,
 } from "@chakra-ui/react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute, Link as RouterLink } from "@tanstack/react-router"
@@ -33,6 +34,8 @@ import {
   type FigureCommentPost,
 } from "../../../../../client"
 import PageMenu from "../../../../../components/Common/PageMenu"
+import useProject from "../../../../../hooks/useProject"
+import useAuth from "../../../../../hooks/useAuth"
 
 export const Route = createFileRoute(
   "/_layout/$userName/$projectName/_layout/figures",
@@ -40,11 +43,12 @@ export const Route = createFileRoute(
   component: ProjectFigures,
 })
 
-interface FigureProps {
+interface FigureCommentProps {
   figure: Figure
 }
 
-function FigureComments({ figure }: FigureProps) {
+function FigureComments({ figure }: FigureCommentProps) {
+  const { user } = useAuth()
   const queryClient = useQueryClient()
   const { userName, projectName } = Route.useParams()
   const { isPending, data: comments } = useQuery({
@@ -128,29 +132,39 @@ function FigureComments({ figure }: FigureProps) {
             ))}
           </Box>
         )}
-        <Textarea
-          mt={2}
-          value={commentInput}
-          onChange={handleInputChange}
-          placeholder="Add a comment"
-        />
-        <Flex justifyItems={"end"} justifyContent={"end"}>
-          <Button
-            id={figure.path}
-            my={2}
-            isDisabled={commentInput === ""}
-            isLoading={mutation.isPending}
-            onClick={onButtonClick}
-          >
-            Submit
-          </Button>
-        </Flex>
+        {user ? (
+          <>
+            <Textarea
+              mt={2}
+              value={commentInput}
+              onChange={handleInputChange}
+              placeholder="Add a comment"
+            />
+            <Flex justifyItems={"end"} justifyContent={"end"}>
+              <Button
+                id={figure.path}
+                my={2}
+                isDisabled={commentInput === ""}
+                isLoading={mutation.isPending}
+                onClick={onButtonClick}
+              >
+                Submit
+              </Button>
+            </Flex>
+          </>
+        ) : (
+          ""
+        )}
       </Box>
     </>
   )
 }
 
-function FigureView({ figure }: FigureProps) {
+interface FigureViewProps {
+  figure: Figure
+}
+
+function FigureView({ figure }: FigureViewProps) {
   let figView = <>Not set</>
   if (figure.path.endsWith(".pdf")) {
     figView = (
@@ -237,22 +251,33 @@ function FigureView({ figure }: FigureProps) {
   } else {
     figView = <Text>Cannot render this type of figure</Text>
   }
+  const secBgColor = useColorModeValue("ui.secondary", "ui.darkSlate")
 
   return (
     <>
-      <Flex pt={1} height={"100%"}>
-        <Box minW={"640px"}>
+      <Flex pt={1} height={"100%"} width="full" mb={4}>
+        <Box minW={"666px"} borderRadius="lg" bg={secBgColor} px={4} py={3}>
           <Heading size="md" mb={1}>
             {figure.title}
           </Heading>
           <Text>{figure.description}</Text>
           {figure.content || figure.url ? (
-            <Box my={3}>{figView}</Box>
+            <Box mt={3} mb={1}>
+              {figView}
+            </Box>
           ) : (
             "No content found"
           )}
         </Box>
-        <Box mx={4} width={"100%"} maxH={"550px"} pt={1}>
+        <Box
+          mx={4}
+          width={"100%"}
+          maxH={"550px"}
+          py={3}
+          px={4}
+          borderRadius="lg"
+          bg={secBgColor}
+        >
           <Box mb={2}>
             <Heading size="sm" mb={0.5}>
               Info
@@ -296,14 +321,12 @@ const getIcon = (figure: Figure) => {
 
 function ProjectFigures() {
   const { userName, projectName } = Route.useParams()
-  const { isPending: figuresPending, data: figures } = useQuery({
-    queryKey: ["projects", userName, projectName, "figures"],
-    queryFn: () =>
-      ProjectsService.getProjectFigures({
-        ownerName: userName,
-        projectName: projectName,
-      }),
-  })
+  const { figuresRequest, userHasWriteAccess } = useProject(
+    userName,
+    projectName,
+    false,
+  )
+  const { isPending: figuresPending, data: figures } = figuresRequest
   const uploadFigureModal = useDisclosure()
   const labelFigureModal = useDisclosure()
 
@@ -312,36 +335,42 @@ function ProjectFigures() {
       <Flex>
         {/* A bit of a nav bar with all the figures listed */}
         <PageMenu>
-          <Flex align="center" mb={2}>
+          <Flex align="center" mb={2} mt={1}>
             <Heading size="md">Figures</Heading>
-            <Menu>
-              <MenuButton
-                as={Button}
-                variant="primary"
-                height={"25px"}
-                width={"9px"}
-                px={1}
-                ml={2}
-              >
-                <Icon as={FaPlus} fontSize="xs" />
-              </MenuButton>
-              <MenuList>
-                <MenuItem onClick={uploadFigureModal.onOpen}>
-                  Upload new figure
-                </MenuItem>
-                <MenuItem onClick={labelFigureModal.onOpen}>
-                  Label existing file as figure
-                </MenuItem>
-              </MenuList>
-            </Menu>
-            <UploadFigure
-              isOpen={uploadFigureModal.isOpen}
-              onClose={uploadFigureModal.onClose}
-            />
-            <LabelAsFigure
-              isOpen={labelFigureModal.isOpen}
-              onClose={labelFigureModal.onClose}
-            />
+            {userHasWriteAccess ? (
+              <>
+                <Menu>
+                  <MenuButton
+                    as={Button}
+                    variant="primary"
+                    height={"25px"}
+                    width={"9px"}
+                    px={1}
+                    ml={2}
+                  >
+                    <Icon as={FaPlus} fontSize="xs" />
+                  </MenuButton>
+                  <MenuList>
+                    <MenuItem onClick={uploadFigureModal.onOpen}>
+                      Upload new figure
+                    </MenuItem>
+                    <MenuItem onClick={labelFigureModal.onOpen}>
+                      Label existing file as figure
+                    </MenuItem>
+                  </MenuList>
+                </Menu>
+                <UploadFigure
+                  isOpen={uploadFigureModal.isOpen}
+                  onClose={uploadFigureModal.onClose}
+                />
+                <LabelAsFigure
+                  isOpen={labelFigureModal.isOpen}
+                  onClose={labelFigureModal.onClose}
+                />
+              </>
+            ) : (
+              ""
+            )}
           </Flex>
           {figures
             ? figures.map((figure) => (
@@ -380,9 +409,9 @@ function ProjectFigures() {
               <Spinner size="xl" color="ui.main" />
             </Flex>
           ) : (
-            <Box>
+            <Box width="full" mt={-1} ml={-2} mb={2}>
               {figures?.map((figure) => (
-                <Box id={figure.path} key={figure.title}>
+                <Box id={figure.path} key={figure.title} mb={-1}>
                   <FigureView figure={figure} />
                 </Box>
               ))}

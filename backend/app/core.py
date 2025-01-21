@@ -29,6 +29,7 @@ CATEGORIES_PLURAL_TO_SINGULAR = {
 INVALID_ACCOUNT_NAMES = [
     "actions",
     "admin",
+    "anonymous",
     "browse",
     "calcs",
     "calculations",

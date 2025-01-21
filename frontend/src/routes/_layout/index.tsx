@@ -13,6 +13,7 @@ import {
   Th,
   Thead,
   Tr,
+  Text,
 } from "@chakra-ui/react"
 import { ExternalLinkIcon } from "@chakra-ui/icons"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
@@ -29,6 +30,7 @@ import ActionsMenu from "../../components/Common/ActionsMenu"
 import Navbar from "../../components/Common/Navbar"
 import CreateProject from "../../components/Projects/CreateProject"
 import { pageWidthNoSidebar } from "../../utils"
+import useAuth from "../../hooks/useAuth"
 
 const projectsSearchSchema = z.object({
   page: z.number().catch(1),
@@ -154,18 +156,115 @@ function ProjectsTable() {
   )
 }
 
-function Projects() {
+function PublicProjectsTable() {
+  const projectsRequest = useQuery({
+    queryKey: ["projects-logged-out"],
+    queryFn: () =>
+      ProjectsService.getProjects({
+        limit: 10,
+      }),
+  })
+  const isPending = projectsRequest.isPending
+  const projects = projectsRequest.data
+  const isPlaceholderData = projectsRequest.isPlaceholderData
+
   return (
-    <Container maxW={pageWidthNoSidebar}>
-      <Heading size="lg" textAlign={{ base: "center", md: "left" }} pt={12}>
-        Your projects
-      </Heading>
-      <Flex>
-        <Box mr={4}>
-          <Navbar verb={"Create"} type={"project"} addModalAs={CreateProject} />
-        </Box>
-      </Flex>
-      <ProjectsTable />
+    <>
+      <TableContainer>
+        <Table size={{ base: "sm", md: "md" }}>
+          <Thead>
+            <Tr>
+              <Th>Owner</Th>
+              <Th>Title</Th>
+              <Th>Description</Th>
+            </Tr>
+          </Thead>
+          {isPending ? (
+            <Tbody>
+              <Tr>
+                {new Array(4).fill(null).map((_, index) => (
+                  <Td key={index}>
+                    <SkeletonText noOfLines={1} paddingBlock="16px" />
+                  </Td>
+                ))}
+              </Tr>
+            </Tbody>
+          ) : (
+            <Tbody>
+              {projects?.data.map((project) => (
+                <Tr key={project.id} opacity={isPlaceholderData ? 0.5 : 1}>
+                  <Td isTruncated maxWidth="80px">
+                    {project.owner_account_name}
+                  </Td>
+                  <Td isTruncated maxWidth="200px">
+                    <Link
+                      as={RouterLink}
+                      to={`/${project.owner_account_name}/${project.name}`}
+                    >
+                      {project.title}
+                    </Link>
+                  </Td>
+                  <Td
+                    color={!project.description ? "ui.dim" : "inherit"}
+                    isTruncated
+                    maxWidth="250px"
+                  >
+                    {project.description || "N/A"}
+                  </Td>
+                </Tr>
+              ))}
+            </Tbody>
+          )}
+        </Table>
+      </TableContainer>
+    </>
+  )
+}
+
+function Projects() {
+  const { user } = useAuth()
+  return (
+    <Container maxW={user ? pageWidthNoSidebar : "70%"}>
+      {user ? (
+        <>
+          <Heading size="lg" textAlign={{ base: "center", md: "left" }} mt={12}>
+            Your projects
+          </Heading>
+          <Flex>
+            <Box mr={4}>
+              <Navbar
+                verb={"Create"}
+                type={"project"}
+                addModalAs={CreateProject}
+              />
+            </Box>
+          </Flex>
+          <ProjectsTable />
+        </>
+      ) : (
+        <>
+          <Heading
+            size="lg"
+            textAlign={{ base: "center", md: "left" }}
+            mt={12}
+            mb={4}
+          >
+            Welcome!
+          </Heading>
+          <Text>
+            Welcome to Calkit, where you can create, discover, share, and
+            collaborate on research projects. If you're ready to get started,{" "}
+            <Link as={RouterLink} to={"/login"} variant="blue">
+              click here to sign in.
+            </Link>
+          </Text>
+          <Text mt={2} mb={6}>
+            If you'd like to do some exploring first, here are some projects you
+            might find interesting:
+          </Text>
+          <PublicProjectsTable />
+        </>
+      )}
     </Container>
   )
 }

@@ -31,13 +31,17 @@ import {
 import { useQuery } from "@tanstack/react-query"
 import { ExternalLinkIcon } from "@chakra-ui/icons"
 import { FaGithub, FaQuestion } from "react-icons/fa"
+import { LuCopyPlus } from "react-icons/lu"
 import { MdEdit } from "react-icons/md"
 import { BsThreeDots } from "react-icons/bs"
 import axios from "axios"
 
 import Sidebar from "../../../../components/Common/Sidebar"
-import { ProjectPublic, ProjectsService } from "../../../../client"
+import { ProjectPublic } from "../../../../client"
 import EditProject from "../../../../components/Projects/EditProject"
+import useProject from "../../../../hooks/useProject"
+import AddProject from "../../../../components/Projects/CreateProject"
+import useAuth from "../../../../hooks/useAuth"
 
 export const Route = createFileRoute("/_layout/$userName/$projectName/_layout")(
   {
@@ -267,10 +271,13 @@ function HelpContent() {
 
 interface ProjectMenuProps {
   project: ProjectPublic
+  userHasWriteAccess: boolean
 }
 
-function ProjectMenu({ project }: ProjectMenuProps) {
+function ProjectMenu({ project, userHasWriteAccess }: ProjectMenuProps) {
+  const { user } = useAuth()
   const editProjectModal = useDisclosure()
+  const newProjectModal = useDisclosure()
 
   return (
     <>
@@ -285,8 +292,16 @@ function ProjectMenu({ project }: ProjectMenuProps) {
           <MenuItem
             icon={<MdEdit fontSize={18} />}
             onClick={editProjectModal.onOpen}
+            isDisabled={!userHasWriteAccess}
           >
             Edit title or description
+          </MenuItem>
+          <MenuItem
+            icon={<LuCopyPlus fontSize={18} />}
+            onClick={newProjectModal.onOpen}
+            isDisabled={!user}
+          >
+            Use this project as a template
           </MenuItem>
         </MenuList>
       </Menu>
@@ -295,31 +310,26 @@ function ProjectMenu({ project }: ProjectMenuProps) {
         isOpen={editProjectModal.isOpen}
         onClose={editProjectModal.onClose}
       />
+      <AddProject
+        isOpen={newProjectModal.isOpen}
+        onClose={newProjectModal.onClose}
+        defaultTemplate={`${project.owner_account_name}/${project.name}`}
+      />
     </>
   )
 }
 
 function ProjectLayout() {
   const { userName, projectName } = Route.useParams()
-  const {
-    isPending,
-    error,
-    data: project,
-  } = useQuery({
-    queryKey: ["projects", userName, projectName],
-    queryFn: () =>
-      ProjectsService.getProject({
-        ownerName: userName,
-        projectName: projectName,
-      }),
-    retry: (failureCount, error) => {
-      if (error.message === "Not Found") {
-        return false
-      }
-      return failureCount < 3
-    },
-  })
-  if (error?.message === "Not Found") {
+  const { projectRequest, userHasWriteAccess } = useProject(
+    userName,
+    projectName,
+    false,
+  )
+  const isPending = projectRequest.isPending
+  const error = projectRequest.error
+  const project = projectRequest.data
+  if (error?.message === "Not Found" || error?.message === "Forbidden") {
     throw notFound()
   }
   const helpDrawer = useDisclosure()
@@ -365,7 +375,14 @@ function ProjectLayout() {
                 ""
               )}
               <Box mt={1} ml={1.5}>
-                {project ? <ProjectMenu project={project} /> : ""}
+                {project ? (
+                  <ProjectMenu
+                    project={project}
+                    userHasWriteAccess={userHasWriteAccess}
+                  />
+                ) : (
+                  ""
+                )}
                 <IconButton
                   isRound
                   aria-label="Open help"

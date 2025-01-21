@@ -17,13 +17,12 @@ import {
   useDisclosure,
   Link,
 } from "@chakra-ui/react"
-import { useQuery } from "@tanstack/react-query"
 import { createFileRoute, Link as RouterLink } from "@tanstack/react-router"
 import { FaPlus } from "react-icons/fa"
 
-import { ProjectsService } from "../../../../../client"
 import DatasetFromExisting from "../../../../../components/Datasets/DatasetFromExisting"
 import UploadDataset from "../../../../../components/Datasets/UploadDataset"
+import useProject from "../../../../../hooks/useProject"
 
 export const Route = createFileRoute(
   "/_layout/$userName/$projectName/_layout/datasets",
@@ -33,14 +32,12 @@ export const Route = createFileRoute(
 
 function ProjectDataView() {
   const { userName, projectName } = Route.useParams()
-  const { isPending: dataPending, data: datasets } = useQuery({
-    queryKey: ["projects", userName, projectName, "datasets"],
-    queryFn: () =>
-      ProjectsService.getProjectDatasets({
-        ownerName: userName,
-        projectName: projectName,
-      }),
-  })
+  const { datasetsRequest, userHasWriteAccess } = useProject(
+    userName,
+    projectName,
+    false,
+  )
+  const { isPending: dataPending, data: datasets } = datasetsRequest
   const uploadDataModal = useDisclosure()
   const labelDataModal = useDisclosure()
 
@@ -48,34 +45,40 @@ function ProjectDataView() {
     <>
       <Flex align="center" mb={2}>
         <Heading size="md">Datasets</Heading>
-        <Menu>
-          <MenuButton
-            as={Button}
-            variant="primary"
-            height={"25px"}
-            width={"9px"}
-            px={1}
-            ml={2}
-          >
-            <Icon as={FaPlus} fontSize="xs" />
-          </MenuButton>
-          <MenuList>
-            <MenuItem onClick={uploadDataModal.onOpen}>
-              Upload new dataset
-            </MenuItem>
-            <MenuItem onClick={labelDataModal.onOpen}>
-              Label existing file or folder as dataset
-            </MenuItem>
-          </MenuList>
-        </Menu>
-        <DatasetFromExisting
-          onClose={labelDataModal.onClose}
-          isOpen={labelDataModal.isOpen}
-        />
-        <UploadDataset
-          onClose={uploadDataModal.onClose}
-          isOpen={uploadDataModal.isOpen}
-        />
+        {userHasWriteAccess ? (
+          <>
+            <Menu>
+              <MenuButton
+                as={Button}
+                variant="primary"
+                height={"25px"}
+                width={"9px"}
+                px={1}
+                ml={2}
+              >
+                <Icon as={FaPlus} fontSize="xs" />
+              </MenuButton>
+              <MenuList>
+                <MenuItem onClick={uploadDataModal.onOpen}>
+                  Upload new dataset
+                </MenuItem>
+                <MenuItem onClick={labelDataModal.onOpen}>
+                  Label existing file or folder as dataset
+                </MenuItem>
+              </MenuList>
+            </Menu>
+            <DatasetFromExisting
+              onClose={labelDataModal.onClose}
+              isOpen={labelDataModal.isOpen}
+            />
+            <UploadDataset
+              onClose={uploadDataModal.onClose}
+              isOpen={uploadDataModal.isOpen}
+            />
+          </>
+        ) : (
+          ""
+        )}
       </Flex>
       {dataPending ? (
         <Flex justify="center" align="center" height={"100vh"} width="full">

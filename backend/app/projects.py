@@ -16,7 +16,7 @@ def get_project(
     owner_name: str,
     project_name: str,
     if_not_exists: Literal["ignore", "error"] = "error",
-    current_user: User = None,
+    current_user: User | None = None,
     min_access_level: Literal["read", "write", "admin", "owner"] | None = None,
 ) -> Project:
     """Fetch a project by owner and name."""
@@ -29,9 +29,15 @@ def get_project(
     if project is None and if_not_exists == "error":
         logger.info(f"Project {owner_name}/{project_name} does not exist")
         raise HTTPException(404)
-    if min_access_level is not None and current_user is None:
-        raise ValueError("Current user must be provided to check access level")
-    if current_user is not None:
+    if (
+        min_access_level is not None
+        and current_user is None
+        and not project.is_public
+    ):
+        raise HTTPException(403, "User is not authenticated")
+    if current_user is None and project.is_public:
+        project.current_user_access = "read"
+    elif current_user is not None:
         # Compute access
         if project.owner == current_user:
             project.current_user_access = "owner"

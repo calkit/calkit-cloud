@@ -31,6 +31,7 @@ import UploadFile from "../../../../../components/Files/UploadFile"
 import PageMenu from "../../../../../components/Common/PageMenu"
 import FileContent from "../../../../../components/Files/FileContent"
 import SelectedItemInfo from "../../../../../components/Files/SelectedItemInfo"
+import useProject from "../../../../../hooks/useProject"
 
 const fileSearchSchema = z.object({ path: z.string().catch("") })
 
@@ -212,19 +213,17 @@ function Item({ item, level, selectedPath, setSelectedPath }: ItemProps) {
 function Files() {
   const { userName, projectName } = Route.useParams()
   const { path } = Route.useSearch()
+  const { filesRequest, userHasWriteAccess } = useProject(
+    userName,
+    projectName,
+    false,
+  )
   const {
     isPending: filesPending,
     data: files,
     refetch,
     isRefetching,
-  } = useQuery({
-    queryKey: ["projects", userName, projectName, "files"],
-    queryFn: () =>
-      ProjectsService.getProjectContents({
-        ownerName: userName,
-        projectName: projectName,
-      }),
-  })
+  } = filesRequest
   const [selectedPath, setSelectedPath] = useState<string>(path)
   const selectedItemQuery = useQuery({
     queryKey: ["projects", userName, projectName, "files", selectedPath],
@@ -258,14 +257,20 @@ function Files() {
               <Heading size="md" mb={1}>
                 All files
               </Heading>
-              <IconButton
-                variant="primary"
-                height="25px"
-                fontSize="sm"
-                onClick={fileUploadModal.onOpen}
-                icon={<FaPlus />}
-                aria-label="upload"
-              />
+              {userHasWriteAccess ? (
+                <>
+                  <IconButton
+                    variant="primary"
+                    height="25px"
+                    fontSize="sm"
+                    onClick={fileUploadModal.onOpen}
+                    icon={<FaPlus />}
+                    aria-label="upload"
+                  />
+                </>
+              ) : (
+                ""
+              )}
               <IconButton
                 aria-label="refresh"
                 height="25px"
@@ -317,6 +322,7 @@ function Files() {
                     selectedItem={selectedItemQuery.data}
                     ownerName={userName}
                     projectName={projectName}
+                    userHasWriteAccess={userHasWriteAccess}
                   />
                 ) : (
                   ""
