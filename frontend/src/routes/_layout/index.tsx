@@ -13,6 +13,7 @@ import {
   Th,
   Thead,
   Tr,
+  Text,
 } from "@chakra-ui/react"
 import { ExternalLinkIcon } from "@chakra-ui/icons"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
@@ -29,6 +30,7 @@ import ActionsMenu from "../../components/Common/ActionsMenu"
 import Navbar from "../../components/Common/Navbar"
 import CreateProject from "../../components/Projects/CreateProject"
 import { pageWidthNoSidebar } from "../../utils"
+import useAuth from "../../hooks/useAuth"
 
 const projectsSearchSchema = z.object({
   page: z.number().catch(1),
@@ -155,17 +157,47 @@ function ProjectsTable() {
 }
 
 function Projects() {
+  const { user } = useAuth()
   return (
     <Container maxW={pageWidthNoSidebar}>
-      <Heading size="lg" textAlign={{ base: "center", md: "left" }} pt={12}>
-        Your projects
-      </Heading>
-      <Flex>
-        <Box mr={4}>
-          <Navbar verb={"Create"} type={"project"} addModalAs={CreateProject} />
-        </Box>
-      </Flex>
-      <ProjectsTable />
+      {user ? (
+        <>
+          <Heading size="lg" textAlign={{ base: "center", md: "left" }} mt={12}>
+            Your projects
+          </Heading>
+          <Flex>
+            <Box mr={4}>
+              <Navbar
+                verb={"Create"}
+                type={"project"}
+                addModalAs={CreateProject}
+              />
+            </Box>
+          </Flex>
+          <ProjectsTable />
+        </>
+      ) : (
+        <>
+          <Heading
+            size="lg"
+            textAlign={{ base: "center", md: "left" }}
+            mt={12}
+            mb={4}
+          >
+            Welcome!
+          </Heading>
+          <Text>
+            Welcome to Calkit, the best place to discover and work on research
+            and analytics projects. If you're ready to start creating,{" "}
+            <Link as={RouterLink} to={"/login"} variant="blue">
+              click here to sign in.
+            </Link>
+          </Text>
+          <Text mt={2}>
+            Here are some projects you might find interesting:
+          </Text>
+        </>
+      )}
     </Container>
   )
 }
