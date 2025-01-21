@@ -39,7 +39,7 @@ export const Route = createFileRoute(
   "/_layout/$userName/$projectName/_layout/files",
 )({
   component: Files,
-  validateSearch: fileSearchSchema,
+  validateSearch: (search) => fileSearchSchema.parse(search),
 })
 
 function sortByTypeAndName(a: ContentsItem, b: ContentsItem) {
