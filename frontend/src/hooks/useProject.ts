@@ -24,6 +24,10 @@ const useProject = (
     },
   })
 
+  const userHasWriteAccess = ["owner", "admin", "write"].includes(
+    String(projectRequest.data?.current_user_access),
+  )
+
   const readmeRequest = useQuery({
     queryKey: ["projects", userName, projectName, "readme"],
     queryFn: () =>
@@ -109,6 +113,7 @@ const useProject = (
 
   return {
     projectRequest,
+    userHasWriteAccess,
     readmeRequest,
     issuesRequest,
     questionsRequest,
