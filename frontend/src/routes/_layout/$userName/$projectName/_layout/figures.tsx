@@ -287,7 +287,7 @@ function FigureView({ figure }: FigureViewProps) {
               <Link
                 as={RouterLink}
                 to={"../files"}
-                search={{ path: figure.path }}
+                search={{ path: figure.path } as any}
               >
                 {figure.path}
               </Link>

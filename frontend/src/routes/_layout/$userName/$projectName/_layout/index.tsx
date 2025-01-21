@@ -425,7 +425,7 @@ function ProjectView() {
                   <Link
                     as={RouterLink}
                     to={"/settings"}
-                    search={{ tab: "tokens" }}
+                    search={{ tab: "tokens" } as any}
                   >
                     Manage user tokens
                   </Link>

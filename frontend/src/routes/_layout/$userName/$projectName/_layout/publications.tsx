@@ -104,7 +104,7 @@ function PubView({ publication }: PubViewProps) {
               <Link
                 as={RouterLink}
                 to="../files"
-                search={{ path: publication.path }}
+                search={{ path: publication.path } as any}
               >
                 {publication.path}
               </Link>
