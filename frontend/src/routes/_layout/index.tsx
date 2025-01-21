@@ -156,6 +156,72 @@ function ProjectsTable() {
   )
 }
 
+function PublicProjectsTable() {
+  const projectsRequest = useQuery({
+    queryKey: ["projects-logged-out"],
+    queryFn: () =>
+      ProjectsService.getProjects({
+        limit: 10,
+      }),
+  })
+  const isPending = projectsRequest.isPending
+  const projects = projectsRequest.data
+  const isPlaceholderData = projectsRequest.isPlaceholderData
+
+  return (
+    <>
+      <TableContainer>
+        <Table size={{ base: "sm", md: "md" }}>
+          <Thead>
+            <Tr>
+              <Th>Owner</Th>
+              <Th>Title</Th>
+              <Th>Description</Th>
+            </Tr>
+          </Thead>
+          {isPending ? (
+            <Tbody>
+              <Tr>
+                {new Array(4).fill(null).map((_, index) => (
+                  <Td key={index}>
+                    <SkeletonText noOfLines={1} paddingBlock="16px" />
+                  </Td>
+                ))}
+              </Tr>
+            </Tbody>
+          ) : (
+            <Tbody>
+              {projects?.data.map((project) => (
+                <Tr key={project.id} opacity={isPlaceholderData ? 0.5 : 1}>
+                  <Td isTruncated maxWidth="80px">
+                    {project.owner_account_name}
+                  </Td>
+                  <Td isTruncated maxWidth="200px">
+                    <Link
+                      as={RouterLink}
+                      to={`/${project.owner_account_name}/${project.name}`}
+                      variant="blue"
+                    >
+                      {project.title}
+                    </Link>
+                  </Td>
+                  <Td
+                    color={!project.description ? "ui.dim" : "inherit"}
+                    isTruncated
+                    maxWidth="250px"
+                  >
+                    {project.description || "N/A"}
+                  </Td>
+                </Tr>
+              ))}
+            </Tbody>
+          )}
+        </Table>
+      </TableContainer>
+    </>
+  )
+}
+
 function Projects() {
   const { user } = useAuth()
   return (
@@ -193,7 +259,10 @@ function Projects() {
               click here to sign in.
             </Link>
           </Text>
-          <Text mt={2}>Here are some projects you might find interesting:</Text>
+          <Text mt={2} mb={6}>
+            Here are some projects you might find interesting:
+          </Text>
+          <PublicProjectsTable />
         </>
       )}
     </Container>
