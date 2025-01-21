@@ -94,7 +94,7 @@ function ProjectDataView() {
                     <Link
                       as={RouterLink}
                       to={"../files"}
-                      search={{ path: dataset.path }}
+                      search={{ path: dataset.path } as any}
                     >
                       {dataset.path}
                     </Link>
