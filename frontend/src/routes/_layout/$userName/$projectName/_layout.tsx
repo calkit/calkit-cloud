@@ -38,6 +38,7 @@ import axios from "axios"
 import Sidebar from "../../../../components/Common/Sidebar"
 import { ProjectPublic, ProjectsService } from "../../../../client"
 import EditProject from "../../../../components/Projects/EditProject"
+import useProject from "../../../../hooks/useProject"
 
 export const Route = createFileRoute("/_layout/$userName/$projectName/_layout")(
   {
@@ -267,9 +268,10 @@ function HelpContent() {
 
 interface ProjectMenuProps {
   project: ProjectPublic
+  userHasWriteAccess: boolean
 }
 
-function ProjectMenu({ project }: ProjectMenuProps) {
+function ProjectMenu({ project, userHasWriteAccess }: ProjectMenuProps) {
   const editProjectModal = useDisclosure()
 
   return (
@@ -285,6 +287,7 @@ function ProjectMenu({ project }: ProjectMenuProps) {
           <MenuItem
             icon={<MdEdit fontSize={18} />}
             onClick={editProjectModal.onOpen}
+            isDisabled={!userHasWriteAccess}
           >
             Edit title or description
           </MenuItem>
@@ -301,24 +304,14 @@ function ProjectMenu({ project }: ProjectMenuProps) {
 
 function ProjectLayout() {
   const { userName, projectName } = Route.useParams()
-  const {
-    isPending,
-    error,
-    data: project,
-  } = useQuery({
-    queryKey: ["projects", userName, projectName],
-    queryFn: () =>
-      ProjectsService.getProject({
-        ownerName: userName,
-        projectName: projectName,
-      }),
-    retry: (failureCount, error) => {
-      if (error.message === "Not Found" || error.message === "Forbidden") {
-        return false
-      }
-      return failureCount < 3
-    },
-  })
+  const { projectRequest, userHasWriteAccess } = useProject(
+    userName,
+    projectName,
+    false,
+  )
+  const isPending = projectRequest.isPending
+  const error = projectRequest.error
+  const project = projectRequest.data
   if (error?.message === "Not Found" || error?.message === "Forbidden") {
     throw notFound()
   }
@@ -365,7 +358,14 @@ function ProjectLayout() {
                 ""
               )}
               <Box mt={1} ml={1.5}>
-                {project ? <ProjectMenu project={project} /> : ""}
+                {project ? (
+                  <ProjectMenu
+                    project={project}
+                    userHasWriteAccess={userHasWriteAccess}
+                  />
+                ) : (
+                  ""
+                )}
                 <IconButton
                   isRound
                   aria-label="Open help"
