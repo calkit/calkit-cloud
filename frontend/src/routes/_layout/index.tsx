@@ -260,7 +260,8 @@ function Projects() {
             </Link>
           </Text>
           <Text mt={2} mb={6}>
-            Here are some projects you might find interesting:
+            If you'd like to do some exploring first, here are some projects you
+            might find interesting:
           </Text>
           <PublicProjectsTable />
         </>
