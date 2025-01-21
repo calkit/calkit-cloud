@@ -241,6 +241,7 @@ function ProjectView() {
                       isChecked={issue.state === "closed"}
                       onChange={onTodoCheckbox}
                       id={String(issue.number)}
+                      isDisabled={!userHasWriteAccess}
                     />
                     <Text ml={2}>
                       {" "}
