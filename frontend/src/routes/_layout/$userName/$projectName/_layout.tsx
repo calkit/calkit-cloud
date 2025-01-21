@@ -313,13 +313,13 @@ function ProjectLayout() {
         projectName: projectName,
       }),
     retry: (failureCount, error) => {
-      if (error.message === "Not Found") {
+      if (error.message === "Not Found" || error.message === "Forbidden") {
         return false
       }
       return failureCount < 3
     },
   })
-  if (error?.message === "Not Found") {
+  if (error?.message === "Not Found" || error?.message === "Forbidden") {
     throw notFound()
   }
   const helpDrawer = useDisclosure()
