@@ -105,7 +105,6 @@ function PublicProjectsTable() {
                     <Link
                       as={RouterLink}
                       to={`/${project.owner_account_name}/${project.name}`}
-                      variant="blue"
                     >
                       {project.title}
                     </Link>
