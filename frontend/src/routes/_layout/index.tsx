@@ -225,7 +225,7 @@ function PublicProjectsTable() {
 function Projects() {
   const { user } = useAuth()
   return (
-    <Container maxW={pageWidthNoSidebar}>
+    <Container maxW={user ? pageWidthNoSidebar : "70%"}>
       {user ? (
         <>
           <Heading size="lg" textAlign={{ base: "center", md: "left" }} mt={12}>
