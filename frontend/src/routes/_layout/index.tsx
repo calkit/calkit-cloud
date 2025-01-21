@@ -253,13 +253,13 @@ function Projects() {
           </Heading>
           <Text>
             Welcome to the Calkit Cloud, where you can create, discover, share,
-            and collaborate on research projects. If you're ready to get
-            started,{" "}
+            and collaborate on research and analytics projects. If you're ready
+            to get started,{" "}
             <Link as={RouterLink} to={"/login"} variant="blue">
               click here to sign in.
             </Link>
           </Text>
-          <Text mt={4} mb={8}>
+          <Text mt={4} mb={6}>
             If you'd like to do some exploring first, here are some projects you
             might find interesting:
           </Text>
