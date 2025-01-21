@@ -31,6 +31,9 @@ const H3 = (props: any) => {
 const p = (props: any) => {
   return <Text my={2} mt={3} {...props} />
 }
+const BlueLink = (props: any) => {
+  return <Link variant="blue" {...props} />
+}
 
 // Send prop to children of <pre> to differentiate if they are block code or not
 const pre = ({ children, ...props }: any) => {
@@ -65,7 +68,7 @@ const Markdown = ({ children }: MarkdownProps) => {
         p: p,
         pre: pre,
         code: code,
-        a: Link,
+        a: BlueLink,
       }}
       remarkPlugins={[remarkGfm]}
     >
