@@ -57,7 +57,7 @@ function ProjectWorkflow() {
               </Box>
               <Box width={isDiagramExpanded ? "100%" : "680px"}>
                 <Heading size="md" my={2}>
-                  YAML
+                  DVC pipeline (<Code fontSize="lg">dvc.yaml</Code>)
                 </Heading>
                 <Code
                   p={2}
