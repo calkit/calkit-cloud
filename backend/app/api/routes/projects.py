@@ -91,30 +91,23 @@ RETURN_CONTENT_SIZE_LIMIT = 1_000_000
 @router.get("/projects")
 def get_projects(
     session: SessionDep,
-    current_user: CurrentUser,
+    current_user: CurrentUserOptional,
     limit: int = 100,
     offset: int = 0,
 ) -> ProjectsPublic:
-    # TODO: Handle collaborator access in addition to public
-    count_query = (
-        select(func.count())
-        .select_from(Project)
-        .where(
-            or_(
-                Project.is_public,
-                Project.owner_account_id == current_user.account.id,
-            )
+    # TODO: Handle collaborator access
+    if current_user is None:
+        where_clause = Project.is_public
+    else:
+        where_clause = or_(
+            Project.is_public,
+            Project.owner_account_id == current_user.account.id,
         )
-    )
+    count_query = select(func.count()).select_from(Project).where(where_clause)
     count = session.exec(count_query).one()
     select_query = (
         select(Project)
-        .where(
-            or_(
-                Project.is_public,
-                Project.owner_account_id == current_user.account.id,
-            )
-        )
+        .where(where_clause)
         .order_by(sqlalchemy.desc(Project.created))
         .limit(limit)
         .offset(offset)
