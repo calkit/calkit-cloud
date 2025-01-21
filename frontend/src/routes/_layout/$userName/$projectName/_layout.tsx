@@ -349,7 +349,7 @@ function ProjectLayout() {
       ) : (
         <Flex>
           <Sidebar basePath={`/${userName}/${projectName}`} />
-          <Container maxW="full" mx={6} mb={12}>
+          <Container maxW="full" mx={6} mb={10}>
             <Flex
               width={"full"}
               textAlign={{ base: "center", md: "left" }}
