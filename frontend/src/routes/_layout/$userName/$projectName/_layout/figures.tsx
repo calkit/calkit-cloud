@@ -16,6 +16,7 @@ import {
   Link,
   Code,
   Tooltip,
+  useColorModeValue,
 } from "@chakra-ui/react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute, Link as RouterLink } from "@tanstack/react-router"
@@ -250,11 +251,12 @@ function FigureView({ figure }: FigureViewProps) {
   } else {
     figView = <Text>Cannot render this type of figure</Text>
   }
+  const secBgColor = useColorModeValue("ui.secondary", "ui.darkSlate")
 
   return (
     <>
-      <Flex pt={1} height={"100%"}>
-        <Box minW={"640px"}>
+      <Flex pt={1} height={"100%"} width="full" mb={4}>
+        <Box minW={"666px"} borderRadius="lg" bg={secBgColor} px={4} py={3}>
           <Heading size="md" mb={1}>
             {figure.title}
           </Heading>
@@ -265,7 +267,15 @@ function FigureView({ figure }: FigureViewProps) {
             "No content found"
           )}
         </Box>
-        <Box mx={4} width={"100%"} maxH={"550px"} pt={1}>
+        <Box
+          mx={4}
+          width={"100%"}
+          maxH={"550px"}
+          py={3}
+          px={4}
+          borderRadius="lg"
+          bg={secBgColor}
+        >
           <Box mb={2}>
             <Heading size="sm" mb={0.5}>
               Info
@@ -397,9 +407,9 @@ function ProjectFigures() {
               <Spinner size="xl" color="ui.main" />
             </Flex>
           ) : (
-            <Box width="full">
+            <Box width="full" mt={-1} ml={-2} mb={2}>
               {figures?.map((figure) => (
-                <Box id={figure.path} key={figure.title}>
+                <Box id={figure.path} key={figure.title} mb={-1}>
                   <FigureView figure={figure} />
                 </Box>
               ))}
