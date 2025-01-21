@@ -249,7 +249,7 @@ function Projects() {
             mt={12}
             mb={4}
           >
-            Welcome!
+            👋 Hi there!
           </Heading>
           <Text>
             Welcome to the Calkit Cloud, where you can create, discover, share,
