@@ -3,7 +3,7 @@
 import logging
 
 import sqlalchemy
-from app.api.deps import CurrentUser, SessionDep
+from app.api.deps import CurrentUserOptional, SessionDep
 from app.models import Dataset, Project, ProjectPublic
 from fastapi import APIRouter
 from sqlmodel import SQLModel, func, or_, select
@@ -30,22 +30,24 @@ class DatasetsResponse(SQLModel):
 @router.get("/datasets")
 def get_datasets(
     session: SessionDep,
-    current_user: CurrentUser,
+    current_user: CurrentUserOptional,
     limit: int = 100,
     offset: int = 0,
     include_imported: bool = False,
 ) -> DatasetsResponse:
     # TODO: Handle collaborator access for private project datasets
+    if current_user is None:
+        where_clause = Project.is_public
+    else:
+        where_clause = or_(
+            Project.is_public,
+            Project.owner_account_id == current_user.account.id,
+        )
     count_query = (
         select(func.count())
         .select_from(Dataset)
         .join(Project)
-        .where(
-            or_(
-                Project.is_public,
-                Project.owner_account_id == current_user.account.id,
-            )
-        )
+        .where(where_clause)
     )
     if not include_imported:
         count_query = count_query.filter(Dataset.imported_from.is_(None))
@@ -53,12 +55,7 @@ def get_datasets(
     select_query = (
         select(Dataset)
         .join(Project)
-        .where(
-            or_(
-                Project.is_public,
-                Project.owner_account_id == current_user.account.id,
-            )
-        )
+        .where(where_clause)
         .order_by(sqlalchemy.asc(Project.title))
         .limit(limit)
         .offset(offset)
