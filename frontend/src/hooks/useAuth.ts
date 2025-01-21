@@ -108,7 +108,7 @@ const useAuth = () => {
   const logout = () => {
     localStorage.removeItem("access_token")
     mixpanel.reset()
-    navigate({ to: "/login" })
+    navigate({ to: "/" })
   }
 
   if (getUserError) {

@@ -52,13 +52,6 @@ import useCustomToast from "../hooks/useCustomToast"
 
 export const Route = createFileRoute("/_layout")({
   component: Layout,
-  beforeLoad: async () => {
-    if (!isLoggedIn()) {
-      throw redirect({
-        to: "/login",
-      })
-    }
-  },
 })
 
 interface PickSubscriptionProps {
@@ -431,6 +424,8 @@ function Layout() {
     queryFn: () => UsersService.getUserGithubAppInstallations(),
     refetchOnWindowFocus: false,
     refetchOnMount: false,
+    enabled: () => Boolean(user),
+    retry: 1,
   })
   const appNameBase = "calkit"
   const apiUrl = String(import.meta.env.VITE_API_URL)
@@ -452,18 +447,18 @@ function Layout() {
 
   return (
     <Box>
-      {isLoading || ghAppInstalledQuery.isPending ? (
+      {isLoading || (user && ghAppInstalledQuery.isPending) ? (
         <Flex justify="center" align="center" height="100vh" width="full">
           <Spinner size="xl" color="ui.main" />
         </Flex>
       ) : (
         <>
-          {!ghAppInstalledQuery.data?.total_count ? (
+          {user && !ghAppInstalledQuery.data?.total_count ? (
             <InstallGitHubApp />
           ) : (
             <>
               {/* If the user doesn't have a subscription, they need to pick one */}
-              {user?.subscription ? (
+              {!user || user?.subscription ? (
                 <Box>
                   <Topbar />
                   <Container px={0} maxW="full">
