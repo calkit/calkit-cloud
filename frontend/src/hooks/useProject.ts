@@ -97,6 +97,15 @@ const useProject = (
       }),
   })
 
+  const filesRequest = useQuery({
+    queryKey: ["projects", userName, projectName, "files"],
+    queryFn: () =>
+      ProjectsService.getProjectContents({
+        ownerName: userName,
+        projectName: projectName,
+      }),
+  })
+
   const showcaseRequest = useQuery({
     queryKey: ["projects", userName, projectName, "showcase"],
     queryFn: () =>
@@ -147,6 +156,7 @@ const useProject = (
     publicationsRequest,
     issuesRequest,
     questionsRequest,
+    filesRequest,
     reproCheckRequest,
     showcaseRequest,
     issueStateMutation,
