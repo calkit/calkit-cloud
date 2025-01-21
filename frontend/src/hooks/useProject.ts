@@ -70,6 +70,15 @@ const useProject = (
     refetchOnMount: false,
   })
 
+  const datasetsRequest = useQuery({
+    queryKey: ["projects", userName, projectName, "datasets"],
+    queryFn: () =>
+      ProjectsService.getProjectDatasets({
+        ownerName: userName,
+        projectName: projectName,
+      }),
+  })
+
   const showcaseRequest = useQuery({
     queryKey: ["projects", userName, projectName, "showcase"],
     queryFn: () =>
@@ -115,6 +124,7 @@ const useProject = (
     projectRequest,
     userHasWriteAccess,
     readmeRequest,
+    datasetsRequest,
     issuesRequest,
     questionsRequest,
     reproCheckRequest,
