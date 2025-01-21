@@ -12,14 +12,34 @@ from datetime import datetime
 from pathlib import Path
 from typing import Annotated, Literal, Optional
 
-import app.projects
 import bibtexparser
 import calkit
 import requests
 import sqlalchemy
 import yaml
+from calkit.check import ReproCheck, check_reproducibility
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    Header,
+    HTTPException,
+    Request,
+    UploadFile,
+)
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
+from sqlmodel import Session, and_, func, not_, or_, select
+
+import app.projects
 from app import users
-from app.api.deps import CurrentUser, CurrentUserDvcScope, SessionDep
+from app.api.deps import (
+    CurrentUser,
+    CurrentUserDvcScope,
+    CurrentUserOptional,
+    SessionDep,
+)
 from app.config import settings
 from app.core import (
     CATEGORIES_PLURAL_TO_SINGULAR,
@@ -59,20 +79,6 @@ from app.storage import (
     make_data_fpath,
     remove_gcs_content_type,
 )
-from calkit.check import ReproCheck, check_reproducibility
-from fastapi import (
-    APIRouter,
-    Depends,
-    File,
-    Form,
-    Header,
-    HTTPException,
-    Request,
-    UploadFile,
-)
-from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
-from sqlmodel import Session, and_, func, not_, or_, select
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -383,7 +389,7 @@ def get_project(
     owner_name: str,
     project_name: str,
     session: SessionDep,
-    current_user: CurrentUser,
+    current_user: CurrentUserOptional,
 ) -> ProjectPublic:
     project = app.projects.get_project(
         session=session,

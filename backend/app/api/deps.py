@@ -23,7 +23,10 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 reusable_oauth2 = OAuth2PasswordBearer(
-    tokenUrl=f"{settings.API_V1_STR}/login/access-token"
+    tokenUrl=f"{settings.API_V1_STR}/login/access-token", auto_error=True
+)
+reusable_oauth2_optional = OAuth2PasswordBearer(
+    tokenUrl=f"{settings.API_V1_STR}/login/access-token", auto_error=False
 )
 
 
@@ -34,6 +37,7 @@ def get_db() -> Generator[Session, None, None]:
 
 SessionDep = Annotated[Session, Depends(get_db)]
 TokenDep = Annotated[str, Depends(reusable_oauth2)]
+OptionalTokenDep = Annotated[str | None, Depends(reusable_oauth2_optional)]
 
 
 def get_current_user(session: SessionDep, token: TokenDep) -> User:
@@ -132,9 +136,20 @@ def get_current_user_with_token_scope(
     return user
 
 
+def get_current_user_optional(
+    session: SessionDep, token: OptionalTokenDep
+) -> User | None:
+    if token is None:
+        return
+    return get_current_user(session=session, token=token)
+
+
 CurrentUser = Annotated[User, Depends(get_current_user)]
 CurrentUserDvcScope = Annotated[
     User, Depends(partial(get_current_user_with_token_scope, scope="dvc"))
+]
+CurrentUserOptional = Annotated[
+    User | None, Depends(get_current_user_optional)
 ]
 
 
