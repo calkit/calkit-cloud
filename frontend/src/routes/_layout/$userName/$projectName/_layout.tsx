@@ -31,6 +31,7 @@ import {
 import { useQuery } from "@tanstack/react-query"
 import { ExternalLinkIcon } from "@chakra-ui/icons"
 import { FaGithub, FaQuestion } from "react-icons/fa"
+import { LuCopyPlus } from "react-icons/lu"
 import { MdEdit } from "react-icons/md"
 import { BsThreeDots } from "react-icons/bs"
 import axios from "axios"
@@ -39,6 +40,8 @@ import Sidebar from "../../../../components/Common/Sidebar"
 import { ProjectPublic } from "../../../../client"
 import EditProject from "../../../../components/Projects/EditProject"
 import useProject from "../../../../hooks/useProject"
+import AddProject from "../../../../components/Projects/CreateProject"
+import useAuth from "../../../../hooks/useAuth"
 
 export const Route = createFileRoute("/_layout/$userName/$projectName/_layout")(
   {
@@ -272,7 +275,9 @@ interface ProjectMenuProps {
 }
 
 function ProjectMenu({ project, userHasWriteAccess }: ProjectMenuProps) {
+  const { user } = useAuth()
   const editProjectModal = useDisclosure()
+  const newProjectModal = useDisclosure()
 
   return (
     <>
@@ -291,12 +296,24 @@ function ProjectMenu({ project, userHasWriteAccess }: ProjectMenuProps) {
           >
             Edit title or description
           </MenuItem>
+          <MenuItem
+            icon={<LuCopyPlus fontSize={18} />}
+            onClick={newProjectModal.onOpen}
+            isDisabled={!user}
+          >
+            Use this project as a template
+          </MenuItem>
         </MenuList>
       </Menu>
       <EditProject
         project={project}
         isOpen={editProjectModal.isOpen}
         onClose={editProjectModal.onClose}
+      />
+      <AddProject
+        isOpen={newProjectModal.isOpen}
+        onClose={newProjectModal.onClose}
+        defaultTemplate={`${project.owner_account_name}/${project.name}`}
       />
     </>
   )

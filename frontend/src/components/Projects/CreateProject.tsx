@@ -33,9 +33,17 @@ import { handleError } from "../../utils"
 interface AddProjectProps {
   isOpen: boolean
   onClose: () => void
+  defaultTemplate?: string
 }
 
-const AddProject = ({ isOpen, onClose }: AddProjectProps) => {
+const AddProject = ({ isOpen, onClose, defaultTemplate }: AddProjectProps) => {
+  const templates = ["calkit/example-basic", "calkit/example-matlab"]
+  if (!defaultTemplate) {
+    defaultTemplate = "calkit/example-basic"
+  }
+  if (!templates.includes(defaultTemplate)) {
+    templates.push(defaultTemplate)
+  }
   const queryClient = useQueryClient()
   const showToast = useCustomToast()
   const navigate = useNavigate()
@@ -58,7 +66,7 @@ const AddProject = ({ isOpen, onClose }: AddProjectProps) => {
       description: "",
       git_repo_url: `https://github.com/${githubUsername}/`,
       is_public: false,
-      template: "calkit/example-basic",
+      template: defaultTemplate,
     },
   })
   const mutation = useMutation({
@@ -148,14 +156,11 @@ const AddProject = ({ isOpen, onClose }: AddProjectProps) => {
                 id="template"
                 placeholder="Select a template..."
                 {...register("template", {})}
-                defaultValue="calkit/example-basic"
+                defaultValue={defaultTemplate}
               >
-                <option value="calkit/example-basic">
-                  calkit/example-basic
-                </option>
-                <option value="calkit/example-matlab">
-                  calkit/example-matlab
-                </option>
+                {templates.map((template) => (
+                  <option value={template}>{template}</option>
+                ))}
                 <option value="">None</option>
               </Select>
             </FormControl>
