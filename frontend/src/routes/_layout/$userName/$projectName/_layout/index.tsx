@@ -307,9 +307,13 @@ function ProjectView() {
                   ) : (
                     <>
                       {"❌ "}
-                      <Link onClick={() => putDevcontainerMutation.mutate()}>
-                        🔧
-                      </Link>
+                      {userHasWriteAccess ? (
+                        <Link onClick={() => putDevcontainerMutation.mutate()}>
+                          🔧
+                        </Link>
+                      ) : (
+                        ""
+                      )}
                     </>
                   )}
                 </Text>
@@ -373,25 +377,31 @@ function ProjectView() {
                     ""
                   )}
                 </Text>
-                <Heading
-                  size="sm"
-                  mt={4}
-                  mb={-2}
-                  color={
-                    reproCheck?.recommendation ? "yellow.500" : "green.500"
-                  }
-                >
-                  Recommendation
-                </Heading>
-                {reproCheck?.recommendation ? (
+                {userHasWriteAccess ? (
                   <>
-                    <Markdown>{reproCheck.recommendation}</Markdown>
+                    <Heading
+                      size="sm"
+                      mt={4}
+                      mb={-2}
+                      color={
+                        reproCheck?.recommendation ? "yellow.500" : "green.500"
+                      }
+                    >
+                      Recommendation
+                    </Heading>
+                    {reproCheck?.recommendation ? (
+                      <>
+                        <Markdown>{reproCheck.recommendation}</Markdown>
+                      </>
+                    ) : (
+                      <Markdown>
+                        This project looks good from here! Check in depth
+                        locally with `calkit status` and `calkit run`.
+                      </Markdown>
+                    )}
                   </>
                 ) : (
-                  <Markdown>
-                    This project looks good from here! Check in depth locally
-                    with `calkit status` and `calkit run`.
-                  </Markdown>
+                  ""
                 )}
               </>
             )}
