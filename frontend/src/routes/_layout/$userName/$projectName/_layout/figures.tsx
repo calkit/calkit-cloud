@@ -262,7 +262,9 @@ function FigureView({ figure }: FigureViewProps) {
           </Heading>
           <Text>{figure.description}</Text>
           {figure.content || figure.url ? (
-            <Box my={3}>{figView}</Box>
+            <Box mt={3} mb={1}>
+              {figView}
+            </Box>
           ) : (
             "No content found"
           )}
