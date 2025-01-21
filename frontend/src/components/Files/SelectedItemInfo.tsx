@@ -102,12 +102,14 @@ interface SelectedItemProps {
   selectedItem: ContentsItem
   ownerName: string
   projectName: string
+  userHasWriteAccess: boolean
 }
 
 function SelectedItemInfo({
   selectedItem,
   ownerName,
   projectName,
+  userHasWriteAccess,
 }: SelectedItemProps) {
   const fileInfoModal = useDisclosure()
   const uploadNewVersionModal = useDisclosure()
@@ -117,12 +119,18 @@ function SelectedItemInfo({
       <Text>Name: {selectedItem.name}</Text>
       {selectedItem.type ? <Text>Type: {selectedItem.type}</Text> : ""}
       {selectedItem.size ? <Text>Size: {selectedItem.size}</Text> : ""}
-      <FileLock
-        item={selectedItem}
-        ownerName={ownerName}
-        projectName={projectName}
-      />
-      {selectedItem.type === "file" && selectedItem.in_repo ? (
+      {userHasWriteAccess ? (
+        <FileLock
+          item={selectedItem}
+          ownerName={ownerName}
+          projectName={projectName}
+        />
+      ) : (
+        ""
+      )}
+      {selectedItem.type === "file" &&
+      selectedItem.in_repo &&
+      userHasWriteAccess ? (
         <>
           <Button
             mt={2}
@@ -143,21 +151,27 @@ function SelectedItemInfo({
       )}
       <HStack alignContent={"center"} mt={4} mb={1} gap={1}>
         <Heading size={"sm"}>Artifact info</Heading>
-        <IconButton
-          aria-label="Change artifact info"
-          icon={<MdEdit />}
-          height={"19px"}
-          size={"22px"}
-          width={"18px"}
-          borderRadius={3}
-          fontSize="15px"
-          onClick={fileInfoModal.onOpen}
-        />
-        <EditFileInfo
-          isOpen={fileInfoModal.isOpen}
-          onClose={fileInfoModal.onClose}
-          item={selectedItem}
-        />
+        {userHasWriteAccess ? (
+          <>
+            <IconButton
+              aria-label="Change artifact info"
+              icon={<MdEdit />}
+              height={"19px"}
+              size={"22px"}
+              width={"18px"}
+              borderRadius={3}
+              fontSize="15px"
+              onClick={fileInfoModal.onOpen}
+            />
+            <EditFileInfo
+              isOpen={fileInfoModal.isOpen}
+              onClose={fileInfoModal.onClose}
+              item={selectedItem}
+            />
+          </>
+        ) : (
+          ""
+        )}
       </HStack>
       <Text>
         Type:
@@ -174,36 +188,38 @@ function SelectedItemInfo({
         )}
       </Text>
       {selectedItem.calkit_object?.name ? (
-        <Text>Name: {String(selectedItem.calkit_object.name)}</Text>
+        <Text mt={1}>Name: {String(selectedItem.calkit_object.name)}</Text>
       ) : (
         ""
       )}
       {selectedItem.calkit_object?.title ? (
-        <Text>Title: {String(selectedItem.calkit_object.title)}</Text>
+        <Text mt={1}>Title: {String(selectedItem.calkit_object.title)}</Text>
       ) : (
         ""
       )}
       {selectedItem.calkit_object?.description ? (
-        <Text>
+        <Text mt={1}>
           Description: {String(selectedItem.calkit_object.description)}
         </Text>
       ) : (
         ""
       )}
       {selectedItem.calkit_object?.stage ? (
-        <Text>
-          Workflow stage:{" "}
+        <Text mt={1}>
+          Pipeline stage:{" "}
           <Code>{String(selectedItem.calkit_object.stage)}</Code>
         </Text>
       ) : (
         ""
       )}
-      {selectedItem.type === "file" && selectedItem.in_repo ? (
+      {selectedItem.type === "file" &&
+      selectedItem.in_repo &&
+      userHasWriteAccess ? (
         <Link
           href={`https://github.dev/${ownerName}/${projectName}/blob/main/${selectedItem.path}`}
           isExternal
         >
-          <Button mt={4}>
+          <Button mt={3}>
             Edit on GitHub.dev <Icon ml={1} as={ExternalLinkIcon} />
           </Button>
         </Link>

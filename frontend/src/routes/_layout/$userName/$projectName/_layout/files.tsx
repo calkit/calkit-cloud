@@ -322,6 +322,7 @@ function Files() {
                     selectedItem={selectedItemQuery.data}
                     ownerName={userName}
                     projectName={projectName}
+                    userHasWriteAccess={userHasWriteAccess}
                   />
                 ) : (
                   ""
