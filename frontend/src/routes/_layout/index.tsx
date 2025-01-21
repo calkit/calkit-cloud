@@ -187,8 +187,8 @@ function Projects() {
             Welcome!
           </Heading>
           <Text>
-            Welcome to Calkit, the best place to discover and work on research
-            and analytics projects. If you're ready to start creating,{" "}
+            Welcome to Calkit, where you can create, discover, and collaborate
+            on research and analytics projects. If you're ready to get started,{" "}
             <Link as={RouterLink} to={"/login"} variant="blue">
               click here to sign in.
             </Link>
