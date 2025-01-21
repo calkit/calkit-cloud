@@ -397,7 +397,7 @@ function ProjectFigures() {
               <Spinner size="xl" color="ui.main" />
             </Flex>
           ) : (
-            <Box>
+            <Box width="full">
               {figures?.map((figure) => (
                 <Box id={figure.path} key={figure.title}>
                   <FigureView figure={figure} />
