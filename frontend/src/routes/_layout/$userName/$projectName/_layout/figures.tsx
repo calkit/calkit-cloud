@@ -34,6 +34,7 @@ import {
 } from "../../../../../client"
 import PageMenu from "../../../../../components/Common/PageMenu"
 import useProject from "../../../../../hooks/useProject"
+import useAuth from "../../../../../hooks/useAuth"
 
 export const Route = createFileRoute(
   "/_layout/$userName/$projectName/_layout/figures",
@@ -43,10 +44,10 @@ export const Route = createFileRoute(
 
 interface FigureCommentProps {
   figure: Figure
-  userHasWriteAccess: boolean
 }
 
-function FigureComments({ figure, userHasWriteAccess }: FigureCommentProps) {
+function FigureComments({ figure }: FigureCommentProps) {
+  const { user } = useAuth()
   const queryClient = useQueryClient()
   const { userName, projectName } = Route.useParams()
   const { isPending, data: comments } = useQuery({
@@ -130,7 +131,7 @@ function FigureComments({ figure, userHasWriteAccess }: FigureCommentProps) {
             ))}
           </Box>
         )}
-        {userHasWriteAccess ? (
+        {user ? (
           <>
             <Textarea
               mt={2}
@@ -160,10 +161,9 @@ function FigureComments({ figure, userHasWriteAccess }: FigureCommentProps) {
 
 interface FigureViewProps {
   figure: Figure
-  userHasWriteAccess: boolean
 }
 
-function FigureView({ figure, userHasWriteAccess }: FigureViewProps) {
+function FigureView({ figure }: FigureViewProps) {
   let figView = <>Not set</>
   if (figure.path.endsWith(".pdf")) {
     figView = (
@@ -289,10 +289,7 @@ function FigureView({ figure, userHasWriteAccess }: FigureViewProps) {
             )}
           </Box>
           <Box minW={"33%"} maxH={"550px"}>
-            <FigureComments
-              figure={figure}
-              userHasWriteAccess={userHasWriteAccess}
-            />
+            <FigureComments figure={figure} />
           </Box>
         </Box>
       </Flex>
@@ -403,10 +400,7 @@ function ProjectFigures() {
             <Box>
               {figures?.map((figure) => (
                 <Box id={figure.path} key={figure.title}>
-                  <FigureView
-                    figure={figure}
-                    userHasWriteAccess={userHasWriteAccess}
-                  />
+                  <FigureView figure={figure} />
                 </Box>
               ))}
             </Box>
