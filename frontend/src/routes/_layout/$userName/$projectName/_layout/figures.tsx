@@ -333,7 +333,7 @@ function ProjectFigures() {
       <Flex>
         {/* A bit of a nav bar with all the figures listed */}
         <PageMenu>
-          <Flex align="center" mb={2}>
+          <Flex align="center" mb={2} mt={1}>
             <Heading size="md">Figures</Heading>
             {userHasWriteAccess ? (
               <>
