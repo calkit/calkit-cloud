@@ -193,9 +193,7 @@ function Projects() {
               click here to sign in.
             </Link>
           </Text>
-          <Text mt={2}>
-            Here are some projects you might find interesting:
-          </Text>
+          <Text mt={2}>Here are some projects you might find interesting:</Text>
         </>
       )}
     </Container>

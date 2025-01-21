@@ -411,8 +411,6 @@ function Layout() {
       $github_username: user.github_username,
       $plan_name: user.subscription?.plan_name,
     })
-  } else if (!isLoading && !user) {
-    logout()
   }
   const ghAppInstalledQuery = useQuery({
     queryKey: ["user", "github-app-installations"],
