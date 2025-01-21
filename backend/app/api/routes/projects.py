@@ -2681,7 +2681,7 @@ class ProjectShowcase(BaseModel):
 def get_project_showcase(
     owner_name: str,
     project_name: str,
-    current_user: CurrentUser,
+    current_user: CurrentUserOptional,
     session: SessionDep,
 ) -> ProjectShowcase | None:
     project = app.projects.get_project(

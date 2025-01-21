@@ -15,7 +15,7 @@ from sqlmodel import Session
 
 def get_repo(
     project: Project,
-    user: User,
+    user: User | None,
     session: Session,
     ttl=None,
     fresh=False,
@@ -30,7 +30,10 @@ def get_repo(
     project_name = project.name
     # Add the file to the repo(s) -- we may need to clone it
     # If it already exists, just git pull
-    base_dir = f"/tmp/{user.github_username}/{owner_name}/{project_name}"
+    if user is not None:
+        base_dir = f"/tmp/{user.github_username}/{owner_name}/{project_name}"
+    else:
+        base_dir = f"/tmp/anonymous/{owner_name}/{project_name}"
     repo_dir = os.path.join(base_dir, "repo")
     updated_fpath = os.path.join(base_dir, "updated.txt")
     lock_fpath = os.path.join(base_dir, "updating.lock")
@@ -40,11 +43,14 @@ def get_repo(
         logger.info("Deleting repo directory to clone a fresh copy")
         shutil.rmtree(repo_dir, ignore_errors=True)
     # Clone the repo if it doesn't exist -- it will be in a "repo" dir
-    access_token = users.get_github_token(session=session, user=user)
-    git_clone_url = (
-        f"https://x-access-token:{access_token}@"
-        f"{project.git_repo_url.removeprefix('https://')}.git"
-    )
+    if user is not None:
+        access_token = users.get_github_token(session=session, user=user)
+        git_clone_url = (
+            f"https://x-access-token:{access_token}@"
+            f"{project.git_repo_url.removeprefix('https://')}.git"
+        )
+    else:
+        git_clone_url = project.git_repo_url
     newly_cloned = False
     repo = None
     if not os.path.isdir(repo_dir):
@@ -58,9 +64,10 @@ def get_repo(
                 # Touch a file so we can compute a TTL
                 subprocess.call(["touch", updated_fpath])
                 repo = git.Repo(repo_dir)
-                # Run git config so we make commits as this user
-                repo.git.config(["user.name", user.full_name])
-                repo.git.config(["user.email", user.email])
+                if user is not None:
+                    # Run git config so we make commits as this user
+                    repo.git.config(["user.name", user.full_name])
+                    repo.git.config(["user.email", user.email])
         except Timeout:
             logger.warning("Git repo lock timed out")
     if os.path.isfile(updated_fpath):
