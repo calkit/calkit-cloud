@@ -24,18 +24,13 @@ import {
   Input,
   IconButton,
 } from "@chakra-ui/react"
-import {
-  Outlet,
-  createFileRoute,
-  redirect,
-  useNavigate,
-} from "@tanstack/react-router"
+import { Outlet, createFileRoute, useNavigate } from "@tanstack/react-router"
 import { MdCancel, MdCheck } from "react-icons/md"
 import { useState } from "react"
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query"
 import mixpanel from "mixpanel-browser"
 
-import useAuth, { isLoggedIn } from "../hooks/useAuth"
+import useAuth from "../hooks/useAuth"
 import Topbar from "../components/Common/Topbar"
 import {
   type ApiError,
