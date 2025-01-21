@@ -36,7 +36,7 @@ import { BsThreeDots } from "react-icons/bs"
 import axios from "axios"
 
 import Sidebar from "../../../../components/Common/Sidebar"
-import { ProjectPublic, ProjectsService } from "../../../../client"
+import { ProjectPublic } from "../../../../client"
 import EditProject from "../../../../components/Projects/EditProject"
 import useProject from "../../../../hooks/useProject"
 
