@@ -33,6 +33,7 @@ import {
   type FigureCommentPost,
 } from "../../../../../client"
 import PageMenu from "../../../../../components/Common/PageMenu"
+import useProject from "../../../../../hooks/useProject"
 
 export const Route = createFileRoute(
   "/_layout/$userName/$projectName/_layout/figures",
@@ -40,11 +41,12 @@ export const Route = createFileRoute(
   component: ProjectFigures,
 })
 
-interface FigureProps {
+interface FigureCommentProps {
   figure: Figure
+  userHasWriteAccess: boolean
 }
 
-function FigureComments({ figure }: FigureProps) {
+function FigureComments({ figure, userHasWriteAccess }: FigureCommentProps) {
   const queryClient = useQueryClient()
   const { userName, projectName } = Route.useParams()
   const { isPending, data: comments } = useQuery({
@@ -128,29 +130,40 @@ function FigureComments({ figure }: FigureProps) {
             ))}
           </Box>
         )}
-        <Textarea
-          mt={2}
-          value={commentInput}
-          onChange={handleInputChange}
-          placeholder="Add a comment"
-        />
-        <Flex justifyItems={"end"} justifyContent={"end"}>
-          <Button
-            id={figure.path}
-            my={2}
-            isDisabled={commentInput === ""}
-            isLoading={mutation.isPending}
-            onClick={onButtonClick}
-          >
-            Submit
-          </Button>
-        </Flex>
+        {userHasWriteAccess ? (
+          <>
+            <Textarea
+              mt={2}
+              value={commentInput}
+              onChange={handleInputChange}
+              placeholder="Add a comment"
+            />
+            <Flex justifyItems={"end"} justifyContent={"end"}>
+              <Button
+                id={figure.path}
+                my={2}
+                isDisabled={commentInput === ""}
+                isLoading={mutation.isPending}
+                onClick={onButtonClick}
+              >
+                Submit
+              </Button>
+            </Flex>
+          </>
+        ) : (
+          ""
+        )}
       </Box>
     </>
   )
 }
 
-function FigureView({ figure }: FigureProps) {
+interface FigureViewProps {
+  figure: Figure
+  userHasWriteAccess: boolean
+}
+
+function FigureView({ figure, userHasWriteAccess }: FigureViewProps) {
   let figView = <>Not set</>
   if (figure.path.endsWith(".pdf")) {
     figView = (
@@ -276,7 +289,10 @@ function FigureView({ figure }: FigureProps) {
             )}
           </Box>
           <Box minW={"33%"} maxH={"550px"}>
-            <FigureComments figure={figure} />
+            <FigureComments
+              figure={figure}
+              userHasWriteAccess={userHasWriteAccess}
+            />
           </Box>
         </Box>
       </Flex>
@@ -296,14 +312,12 @@ const getIcon = (figure: Figure) => {
 
 function ProjectFigures() {
   const { userName, projectName } = Route.useParams()
-  const { isPending: figuresPending, data: figures } = useQuery({
-    queryKey: ["projects", userName, projectName, "figures"],
-    queryFn: () =>
-      ProjectsService.getProjectFigures({
-        ownerName: userName,
-        projectName: projectName,
-      }),
-  })
+  const { figuresRequest, userHasWriteAccess } = useProject(
+    userName,
+    projectName,
+    false,
+  )
+  const { isPending: figuresPending, data: figures } = figuresRequest
   const uploadFigureModal = useDisclosure()
   const labelFigureModal = useDisclosure()
 
@@ -314,34 +328,40 @@ function ProjectFigures() {
         <PageMenu>
           <Flex align="center" mb={2}>
             <Heading size="md">Figures</Heading>
-            <Menu>
-              <MenuButton
-                as={Button}
-                variant="primary"
-                height={"25px"}
-                width={"9px"}
-                px={1}
-                ml={2}
-              >
-                <Icon as={FaPlus} fontSize="xs" />
-              </MenuButton>
-              <MenuList>
-                <MenuItem onClick={uploadFigureModal.onOpen}>
-                  Upload new figure
-                </MenuItem>
-                <MenuItem onClick={labelFigureModal.onOpen}>
-                  Label existing file as figure
-                </MenuItem>
-              </MenuList>
-            </Menu>
-            <UploadFigure
-              isOpen={uploadFigureModal.isOpen}
-              onClose={uploadFigureModal.onClose}
-            />
-            <LabelAsFigure
-              isOpen={labelFigureModal.isOpen}
-              onClose={labelFigureModal.onClose}
-            />
+            {userHasWriteAccess ? (
+              <>
+                <Menu>
+                  <MenuButton
+                    as={Button}
+                    variant="primary"
+                    height={"25px"}
+                    width={"9px"}
+                    px={1}
+                    ml={2}
+                  >
+                    <Icon as={FaPlus} fontSize="xs" />
+                  </MenuButton>
+                  <MenuList>
+                    <MenuItem onClick={uploadFigureModal.onOpen}>
+                      Upload new figure
+                    </MenuItem>
+                    <MenuItem onClick={labelFigureModal.onOpen}>
+                      Label existing file as figure
+                    </MenuItem>
+                  </MenuList>
+                </Menu>
+                <UploadFigure
+                  isOpen={uploadFigureModal.isOpen}
+                  onClose={uploadFigureModal.onClose}
+                />
+                <LabelAsFigure
+                  isOpen={labelFigureModal.isOpen}
+                  onClose={labelFigureModal.onClose}
+                />
+              </>
+            ) : (
+              ""
+            )}
           </Flex>
           {figures
             ? figures.map((figure) => (
@@ -383,7 +403,10 @@ function ProjectFigures() {
             <Box>
               {figures?.map((figure) => (
                 <Box id={figure.path} key={figure.title}>
-                  <FigureView figure={figure} />
+                  <FigureView
+                    figure={figure}
+                    userHasWriteAccess={userHasWriteAccess}
+                  />
                 </Box>
               ))}
             </Box>

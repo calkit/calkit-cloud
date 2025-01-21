@@ -79,6 +79,15 @@ const useProject = (
       }),
   })
 
+  const figuresRequest = useQuery({
+    queryKey: ["projects", userName, projectName, "figures"],
+    queryFn: () =>
+      ProjectsService.getProjectFigures({
+        ownerName: userName,
+        projectName: projectName,
+      }),
+  })
+
   const showcaseRequest = useQuery({
     queryKey: ["projects", userName, projectName, "showcase"],
     queryFn: () =>
@@ -125,6 +134,7 @@ const useProject = (
     userHasWriteAccess,
     readmeRequest,
     datasetsRequest,
+    figuresRequest,
     issuesRequest,
     questionsRequest,
     reproCheckRequest,
