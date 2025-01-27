@@ -558,7 +558,7 @@ def get_project_dvc_file(
     current_user: CurrentUserDvcScope,
 ) -> StreamingResponse:
     logger.info(f"{current_user.email} requesting to GET data")
-    project = app.projects.get_project(
+    app.projects.get_project(
         session=session,
         owner_name=owner_name,
         project_name=project_name,
@@ -593,7 +593,7 @@ def get_project_dvc_files(
     session: SessionDep,
     current_user: CurrentUser,
 ):
-    project = app.projects.get_project(
+    app.projects.get_project(
         session=session,
         owner_name=owner_name,
         project_name=project_name,
@@ -630,7 +630,7 @@ def get_project_git_contents(
     path: str | None = None,
     astype: Literal["", ".raw", ".html", ".object"] = "",
 ) -> list[GitItem] | GitItemWithContents | str:
-    project = app.projects.get_project(
+    app.projects.get_project(
         session=session,
         owner_name=owner_name,
         project_name=project_name,
@@ -2138,7 +2138,7 @@ def put_project_collaborator(
     current_user: CurrentUser,
     session: SessionDep,
 ) -> Message:
-    project = app.projects.get_project(
+    app.projects.get_project(
         owner_name=owner_name,
         project_name=project_name,
         session=session,
@@ -2169,7 +2169,7 @@ def delete_project_collaborator(
     current_user: CurrentUser,
     session: SessionDep,
 ) -> Message:
-    project = app.projects.get_project(
+    app.projects.get_project(
         owner_name=owner_name,
         project_name=project_name,
         session=session,
