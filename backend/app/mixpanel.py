@@ -51,3 +51,7 @@ def user_dvc_pulled(user: User, owner_name: str, project_name: str):
         "DVC pull",
         add_event_info=dict(owner_name=owner_name, project_name=project_name),
     )
+
+
+def user_out_of_storage(user: User):
+    track(user, "Out of storage")

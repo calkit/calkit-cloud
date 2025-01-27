@@ -519,6 +519,7 @@ async def post_project_dvc_file(
     )
     if storage_used_gb > storage_limit_gb:
         logger.info("Rejecting request due to storage limit exceeded")
+        mixpanel.user_out_of_storage(user=current_user)
         raise HTTPException(400, "Storage limit exceeded")
     # TODO: Create presigned PUT to upload the file so it doesn't need to pass
     # through this server
