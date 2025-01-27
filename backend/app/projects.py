@@ -12,7 +12,8 @@ from sqlmodel import Session, select
 
 from app.core import CATEGORIES_PLURAL_TO_SINGULAR
 from app.dvc import output_from_pipeline
-from app.models import ContentsItem, ItemLock, Org, Project, User
+from app.git import get_ck_info_from_repo
+from app.models import ContentsItem, Figure, ItemLock, Org, Project, User
 from app.storage import (
     get_object_fs,
     get_object_url,
@@ -324,3 +325,24 @@ def get_project_contents_from_repo(
                 )
             )
         raise HTTPException(404)
+
+
+def get_project_figure_from_repo(
+    project: Project,
+    repo: git.Repo,
+    path: str,
+) -> Figure:
+    ck_info = get_ck_info_from_repo(repo)
+    figures = ck_info.get("figures", [])
+    # Get the figure content (will be base64-encoded)
+    for fig in figures:
+        if fig.get("path") == path:
+            item = get_project_contents_from_repo(
+                project=project,
+                repo=repo,
+                path=fig["path"],
+            )
+            fig["content"] = item.content
+            fig["url"] = item.url
+            return Figure.model_validate(fig)
+    raise HTTPException(404, "Figure not found")

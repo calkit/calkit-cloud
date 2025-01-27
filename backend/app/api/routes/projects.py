@@ -986,20 +986,9 @@ def get_project_figure(
     repo = get_repo(
         project=project, user=current_user, session=session, ttl=ttl
     )
-    ck_info = get_ck_info_from_repo(repo)
-    figures = ck_info.get("figures", [])
-    # Get the figure content (will be base64-encoded)
-    for fig in figures:
-        if fig.get("path") == figure_path:
-            item = app.projects.get_project_contents_from_repo(
-                project=project,
-                repo=repo,
-                path=fig["path"],
-            )
-            fig["content"] = item.content
-            fig["url"] = item.url
-            return Figure.model_validate(fig)
-    raise HTTPException(404, "Figure not found")
+    return app.projects.get_project_figure_from_repo(
+        project=project, repo=repo, path=figure_path
+    )
 
 
 @router.post("/projects/{owner_name}/{project_name}/figures")
@@ -2449,9 +2438,10 @@ def get_project_showcase(
             ProjectShowcaseText(text="Showcase is not correctly defined.")
         ]
     )
-    ck_info = get_ck_info(
+    repo = get_repo(
         project=project, user=current_user, session=session, ttl=ttl
     )
+    ck_info = get_ck_info_from_repo(repo)
     showcase = ck_info.get("showcase")
     if showcase is None:
         return
@@ -2470,13 +2460,10 @@ def get_project_showcase(
         if isinstance(element_in, ProjectShowcaseFigureInput):
             try:
                 element_out = ProjectShowcaseFigure(
-                    figure=get_project_figure(
-                        owner_name=owner_name,
-                        project_name=project_name,
-                        session=session,
-                        current_user=current_user,
-                        figure_path=element_in.figure,
-                        ttl=ttl,
+                    figure=app.projects.get_project_figure_from_repo(
+                        project=project,
+                        repo=repo,
+                        path=element_in.figure,
                     )
                 )
             except Exception as e:
