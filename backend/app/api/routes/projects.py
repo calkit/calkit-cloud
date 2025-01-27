@@ -33,7 +33,7 @@ from pydantic import BaseModel
 from sqlmodel import Session, and_, func, not_, or_, select
 
 import app.projects
-from app import users
+from app import mixpanel, users
 from app.api.deps import (
     CurrentUser,
     CurrentUserDvcScope,
@@ -491,6 +491,9 @@ async def post_project_dvc_file(
     current_user: CurrentUserDvcScope,
     req: Request,
 ) -> Message:
+    mixpanel.user_dvc_pushed(
+        user=current_user, owner_name=owner_name, project_name=project_name
+    )
     logger.info(
         f"Received request from {current_user.email} to post "
         f"DVC file MD5 {idx}{md5}"
@@ -557,6 +560,9 @@ def get_project_dvc_file(
     session: SessionDep,
     current_user: CurrentUserDvcScope,
 ) -> StreamingResponse:
+    mixpanel.user_dvc_pulled(
+        user=current_user, owner_name=owner_name, project_name=project_name
+    )
     logger.info(f"{current_user.email} requesting to GET data")
     app.projects.get_project(
         session=session,

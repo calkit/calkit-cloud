@@ -35,3 +35,19 @@ def user_logged_in(user: User):
 
 def user_signed_up(user: User):
     track(user, "Signed up")
+
+
+def user_dvc_pushed(user: User, owner_name: str, project_name: str):
+    track(
+        user,
+        "DVC push",
+        add_event_info=dict(owner_name=owner_name, project_name=project_name),
+    )
+
+
+def user_dvc_pulled(user: User, owner_name: str, project_name: str):
+    track(
+        user,
+        "DVC pull",
+        add_event_info=dict(owner_name=owner_name, project_name=project_name),
+    )
