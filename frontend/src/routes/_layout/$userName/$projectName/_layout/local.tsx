@@ -55,7 +55,7 @@ function LocalServer() {
     queryKey: ["local-server-main", userName, projectName],
     queryFn: () =>
       axios.get(`http://localhost:8866/projects/${userName}/${projectName}`),
-    retry: false,
+    retry: 2,
   })
   const jupyterServerQuery = useQuery({
     queryKey: ["jupyter-server", userName, projectName],
@@ -105,7 +105,7 @@ function LocalServer() {
       axios.get(
         `http://localhost:8866/projects/${userName}/${projectName}/status`,
       ),
-    retry: false,
+    retry: 2,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
   })
