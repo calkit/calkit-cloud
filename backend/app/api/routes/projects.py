@@ -1225,6 +1225,7 @@ def get_project_figure(
     figure_path: str,
     current_user: CurrentUserOptional,
     session: SessionDep,
+    ttl: int | None = 120,
 ) -> Figure:
     project = app.projects.get_project(
         session=session,
@@ -1234,10 +1235,15 @@ def get_project_figure(
         min_access_level="read",
     )
     ck_info = get_ck_info(
-        project=project, user=current_user, session=session, ttl=120
+        project=project, user=current_user, session=session, ttl=ttl
     )
     figures = ck_info.get("figures", [])
     # Get the figure content and base64 encode it
+    # Set TTL very high since we already fetched the repo above
+    if ttl is None:
+        ttl = 3600
+    else:
+        ttl = 30 * ttl
     for fig in figures:
         if fig.get("path") == figure_path:
             item = get_project_contents(
@@ -1246,6 +1252,7 @@ def get_project_figure(
                 session=session,
                 current_user=current_user,
                 path=fig["path"],
+                ttl=ttl,
             )
             fig["content"] = item.content
             fig["url"] = item.url
@@ -2686,6 +2693,7 @@ def get_project_showcase(
     project_name: str,
     current_user: CurrentUserOptional,
     session: SessionDep,
+    ttl: int | None = 120,
 ) -> ProjectShowcase | None:
     project = app.projects.get_project(
         owner_name=owner_name,
@@ -2700,7 +2708,7 @@ def get_project_showcase(
         ]
     )
     ck_info = get_ck_info(
-        project=project, user=current_user, session=session, ttl=120
+        project=project, user=current_user, session=session, ttl=ttl
     )
     showcase = ck_info.get("showcase")
     if showcase is None:
@@ -2710,6 +2718,11 @@ def get_project_showcase(
     except Exception:
         return incorrectly_defined
     # Iterate over showcase elements, fetching the contents to return
+    # Set TTL very high since we already fetched the repo above
+    if ttl is None:
+        ttl = 3600
+    else:
+        ttl = 30 * ttl
     elements_out = []
     for element_in in inputs.elements:
         if isinstance(element_in, ProjectShowcaseFigureInput):
@@ -2721,9 +2734,13 @@ def get_project_showcase(
                         session=session,
                         current_user=current_user,
                         figure_path=element_in.figure,
+                        ttl=ttl,
                     )
                 )
-            except Exception:
+            except Exception as e:
+                logger.warning(
+                    f"Failed to get showcase figure from {element_in}: {e}"
+                )
                 element_out = ProjectShowcaseText(
                     text=f"Figure at path '{element_in.figure}' not found"
                 )
