@@ -113,10 +113,16 @@ def get_contents_from_repo(
     if path is not None and path in ignore_paths:
         raise HTTPException(404)
     # Let's restructure as a dictionary keyed by path
-    categories_no_path = ["questions"]
+    categories_with_path = [
+        "figures",
+        "publications",
+        "datasets",
+        "references",
+        "notebooks",
+    ]
     ck_objects = {}
     for category, itemlist in ck_info.items():
-        if category in categories_no_path:
+        if category not in categories_with_path:
             continue
         if not isinstance(itemlist, list):
             logger.warning(
