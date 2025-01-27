@@ -1,6 +1,5 @@
 """Routes for projects."""
 
-import base64
 import functools
 import hashlib
 import logging
@@ -8,7 +7,6 @@ import os
 import subprocess
 import uuid
 from copy import deepcopy
-from datetime import datetime
 from pathlib import Path
 from typing import Annotated, Literal, Optional
 
@@ -55,6 +53,7 @@ from app.git import (
     get_repo,
 )
 from app.models import (
+    ContentsItem,
     Dataset,
     DatasetDVCImport,
     Figure,
@@ -84,8 +83,6 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-
-RETURN_CONTENT_SIZE_LIMIT = 1_000_000
 
 
 @router.get("/projects")
@@ -665,29 +662,6 @@ def get_project_git_contents(
         return resp.text
 
 
-class ItemLock(BaseModel):
-    created: datetime
-    user_id: uuid.UUID
-    user_email: str
-    user_github_username: str
-
-
-class _ContentsItemBase(BaseModel):
-    name: str
-    path: str
-    type: str | None
-    size: int | None
-    in_repo: bool
-    content: str | None = None
-    url: str | None = None
-    calkit_object: dict | None = None
-    lock: ItemLock | None = None
-
-
-class ContentsItem(_ContentsItemBase):
-    dir_items: list[_ContentsItemBase] | None = None
-
-
 @router.get("/projects/{owner_name}/{project_name}/contents/{path:path}")
 @router.get("/projects/{owner_name}/{project_name}/contents")
 def get_project_contents(
@@ -711,241 +685,9 @@ def get_project_contents(
     repo = get_repo(
         project=project, user=current_user, session=session, ttl=ttl
     )
-    repo_dir = repo.working_dir
-    # Load Calkit entities
-    if os.path.isfile(os.path.join(repo_dir, "calkit.yaml")):
-        logger.info("Loading calkit.yaml")
-        with open(os.path.join(repo_dir, "calkit.yaml")) as f:
-            ck_info = yaml.safe_load(f)
-    else:
-        ck_info = {}
-    # Load DVC pipeline and lock files if they exist
-    dvc_fpath = os.path.join(repo_dir, "dvc.yaml")
-    pipeline = {}
-    if os.path.isfile(dvc_fpath):
-        with open(dvc_fpath) as f:
-            pipeline = yaml.safe_load(f)
-    dvc_lock_fpath = os.path.join(repo_dir, "dvc.lock")
-    dvc_lock = {}
-    if os.path.isfile(dvc_lock_fpath):
-        with open(dvc_lock_fpath) as f:
-            dvc_lock = yaml.safe_load(f)
-    ignore_paths = [".git", ".dvc/cache", ".dvc/tmp", ".dvc/config.local"]
-    if path is not None and path in ignore_paths:
-        raise HTTPException(404)
-    # Let's restructure as a dictionary keyed by path
-    categories_no_path = ["questions"]
-    ck_objects = {}
-    for category, itemlist in ck_info.items():
-        if category in categories_no_path:
-            continue
-        if not isinstance(itemlist, list):
-            logger.warning(
-                f"{owner_name}/{project_name} {category} is not a list"
-            )
-            continue
-        if category not in CATEGORIES_PLURAL_TO_SINGULAR:
-            logger.warning(
-                f"{owner_name}/{project_name} {category} not understood"
-            )
-            continue
-        for item in itemlist:
-            item["kind"] = CATEGORIES_PLURAL_TO_SINGULAR[category]
-            ck_objects[item["path"]] = item
-            # Handle files inside references objects
-            if category == "references":
-                ref_item_files = item.get("files", [])
-                for rif in ref_item_files:
-                    if "path" in rif:
-                        ck_objects[rif["path"]] = dict(
-                            kind="references item file",
-                            references_path=item["path"],
-                            path=rif["path"],
-                            key=rif.get("key"),
-                        )
-    # Find any DVC outs for Calkit objects
-    ck_outs = {}
-    for p, obj in ck_objects.items():
-        stage_name = obj.get("stage")
-        if stage_name is None:
-            dvc_fp = os.path.join(repo_dir, p + ".dvc")
-            if os.path.isfile(dvc_fp):
-                with open(dvc_fp) as f:
-                    dvo = yaml.safe_load(f)["outs"][0]
-                ck_outs[p] = dvo
-            else:
-                ck_outs[p] = None
-        else:
-            out = output_from_pipeline(
-                path=p, stage_name=stage_name, pipeline=pipeline, lock=dvc_lock
-            )
-            ck_outs[p] = out
-    file_locks_by_path = {
-        lock.path: ItemLock.model_validate(lock.model_dump())
-        for lock in project.file_locks
-    }
-    # See if we're listing off a directory
-    if path is None or os.path.isdir(os.path.join(repo_dir, path)):
-        # We're listing off the top of the repo
-        dirname = "" if path is None else path
-        contents = []
-        paths = sorted(
-            os.listdir(
-                repo_dir if path is None else os.path.join(repo_dir, path)
-            )
-        )
-        paths = [os.path.join(dirname, p) for p in paths]
-        for p in paths:
-            if p in ignore_paths:
-                continue
-            obj = dict(
-                name=os.path.basename(p),
-                path=p,
-                size=os.path.getsize(os.path.join(repo_dir, p)),
-                in_repo=True,
-                lock=file_locks_by_path.get(p),
-            )
-            if os.path.isfile(os.path.join(repo_dir, p)):
-                obj["type"] = "file"
-            else:
-                obj["type"] = "dir"
-            if p in ck_objects:
-                dvc_out = ck_outs.get(p)
-                obj["calkit_object"] = ck_objects[p]
-                obj["in_repo"] = False
-                if dvc_out is not None:
-                    obj["size"] = dvc_out.get("size")
-                    obj["type"] = (
-                        "dir"
-                        if dvc_out.get("md5", "").endswith(".dir")
-                        else "file"
-                    )
-            else:
-                obj["calkit_object"] = None
-            contents.append(ContentsItem.model_validate(obj))
-        for ck_path, ck_obj in ck_objects.items():
-            if os.path.dirname(ck_path) == dirname and ck_path not in paths:
-                # Read DVC output for this path
-                dvc_out = ck_outs.get(ck_path)
-                if dvc_out is None:
-                    dvc_out = {}
-                obj = ContentsItem.model_validate(
-                    dict(
-                        name=os.path.basename(ck_path),
-                        path=ck_path,
-                        in_repo=False,
-                        size=dvc_out.get("size"),
-                        type=(
-                            "dir"
-                            if dvc_out.get("md5", "").endswith(".dir")
-                            else "file"
-                        ),
-                        calkit_object=ck_obj,
-                        lock=file_locks_by_path.get(ck_path),
-                    )
-                )
-                contents.append(obj)
-        return ContentsItem(
-            name=os.path.basename(dirname),
-            path=dirname,
-            type="dir",
-            size=sum([c.size if c.size is not None else 0 for c in contents]),
-            dir_items=contents,
-            calkit_object=ck_objects.get(path),
-            in_repo=os.path.isdir(os.path.join(repo.working_dir, dirname)),
-        )
-    # We're looking for a file
-    # Check if it exists in the repo
-    if os.path.isfile(os.path.join(repo_dir, path)):
-        with open(os.path.join(repo_dir, path), "rb") as f:
-            content = f.read()
-        return ContentsItem.model_validate(
-            dict(
-                path=path,
-                name=os.path.basename(path),
-                size=os.path.getsize(os.path.join(repo_dir, path)),
-                type="file",
-                in_repo=True,
-                content=base64.b64encode(content).decode(),
-                calkit_object=ck_objects.get(path),
-                lock=file_locks_by_path.get(path),
-            )
-        )
-    # The file isn't in the repo, but maybe it's in the Calkit objects
-    elif path in ck_objects:
-        dvc_out = ck_outs.get(path)
-        if dvc_out is None:
-            dvc_out = {}
-        size = dvc_out.get("size")
-        md5 = dvc_out.get("md5", "")
-        dvc_fpath = dvc_out.get("path")
-        dvc_type = "dir" if md5.endswith(".dir") else "file"
-        content = None
-        url = None
-        # Create presigned url
-        if md5:
-            fs = get_object_fs()
-            fp = make_data_fpath(
-                owner_name=owner_name,
-                project_name=project_name,
-                idx=md5[:2],
-                md5=md5[2:],
-            )
-            url = get_object_url(fp, fname=os.path.basename(dvc_fpath), fs=fs)
-            # Get content is the size is small enough
-            if (
-                size is not None
-                and size <= RETURN_CONTENT_SIZE_LIMIT
-                and fs.exists(fp)
-                and not path.endswith(".h5")
-                and not path.endswith(".parquet")
-            ):
-                with fs.open(fp, "rb") as f:
-                    content = base64.b64encode(f.read()).decode()
-        return ContentsItem.model_validate(
-            dict(
-                path=path,
-                name=os.path.basename(path),
-                size=size,
-                type=dvc_type,
-                in_repo=False,
-                content=content,
-                url=url,
-                calkit_object=ck_objects[path],
-                lock=file_locks_by_path.get(path),
-            )
-        )
-    else:
-        # Do we have a DVC file for this path?
-        dvc_fpath = os.path.join(repo_dir, path + ".dvc")
-        if os.path.isfile(dvc_fpath):
-            # Open the DVC file so we can get its MD5 hash
-            with open(dvc_fpath) as f:
-                dvc_info = yaml.load(f)
-            dvc_out = dvc_info["outs"][0]
-            md5 = dvc_out["md5"]
-            fs = get_object_fs()
-            fp = make_data_fpath(
-                owner_name=owner_name,
-                project_name=project_name,
-                idx=md5[:2],
-                md5=md5[2:],
-            )
-            url = get_object_url(fp, fname=os.path.basename(path), fs=fs)
-            size = dvc_out["size"]
-            dvc_type = "dir" if md5.endswith(".dir") else "file"
-            return ContentsItem.model_validate(
-                dict(
-                    path=path,
-                    name=os.path.basename(path),
-                    size=size,
-                    type=dvc_type,
-                    in_repo=False,
-                    url=url,
-                    lock=file_locks_by_path.get(path),
-                )
-            )
-        raise HTTPException(404)
+    return app.projects.get_contents_from_repo(
+        project=project, repo=repo, path=path
+    )
 
 
 def _valid_file_size(content_length: int = Header(lt=1_000_000)):
@@ -1241,30 +983,12 @@ def get_project_figure(
         current_user=current_user,
         min_access_level="read",
     )
-    ck_info = get_ck_info(
+    repo = get_repo(
         project=project, user=current_user, session=session, ttl=ttl
     )
-    figures = ck_info.get("figures", [])
-    # Get the figure content and base64 encode it
-    # Set TTL very high since we already fetched the repo above
-    if ttl is None:
-        ttl = 3600
-    else:
-        ttl = 30 * ttl
-    for fig in figures:
-        if fig.get("path") == figure_path:
-            item = get_project_contents(
-                owner_name=owner_name,
-                project_name=project_name,
-                session=session,
-                current_user=current_user,
-                path=fig["path"],
-                ttl=ttl,
-            )
-            fig["content"] = item.content
-            fig["url"] = item.url
-            return Figure.model_validate(fig)
-    raise HTTPException(404, "Figure not found")
+    return app.projects.get_figure_from_repo(
+        project=project, repo=repo, path=figure_path
+    )
 
 
 @router.post("/projects/{owner_name}/{project_name}/figures")
@@ -2714,9 +2438,10 @@ def get_project_showcase(
             ProjectShowcaseText(text="Showcase is not correctly defined.")
         ]
     )
-    ck_info = get_ck_info(
+    repo = get_repo(
         project=project, user=current_user, session=session, ttl=ttl
     )
+    ck_info = get_ck_info_from_repo(repo)
     showcase = ck_info.get("showcase")
     if showcase is None:
         return
@@ -2735,13 +2460,10 @@ def get_project_showcase(
         if isinstance(element_in, ProjectShowcaseFigureInput):
             try:
                 element_out = ProjectShowcaseFigure(
-                    figure=get_project_figure(
-                        owner_name=owner_name,
-                        project_name=project_name,
-                        session=session,
-                        current_user=current_user,
-                        figure_path=element_in.figure,
-                        ttl=ttl,
+                    figure=app.projects.get_figure_from_repo(
+                        project=project,
+                        repo=repo,
+                        path=element_in.figure,
                     )
                 )
             except Exception as e:
