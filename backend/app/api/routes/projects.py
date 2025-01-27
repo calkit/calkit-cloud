@@ -983,25 +983,18 @@ def get_project_figure(
         current_user=current_user,
         min_access_level="read",
     )
-    ck_info = get_ck_info(
+    repo = get_repo(
         project=project, user=current_user, session=session, ttl=ttl
     )
+    ck_info = get_ck_info_from_repo(repo)
     figures = ck_info.get("figures", [])
-    # Get the figure content and base64 encode it
-    # Set TTL very high since we already fetched the repo above
-    if ttl is None:
-        ttl = 3600
-    else:
-        ttl = 30 * ttl
+    # Get the figure content (will be base64-encoded)
     for fig in figures:
         if fig.get("path") == figure_path:
-            item = get_project_contents(
-                owner_name=owner_name,
-                project_name=project_name,
-                session=session,
-                current_user=current_user,
+            item = app.projects.get_project_contents_from_repo(
+                project=project,
+                repo=repo,
                 path=fig["path"],
-                ttl=ttl,
             )
             fig["content"] = item.content
             fig["url"] = item.url
