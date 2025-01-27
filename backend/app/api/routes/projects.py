@@ -33,7 +33,7 @@ from pydantic import BaseModel
 from sqlmodel import Session, and_, func, not_, or_, select
 
 import app.projects
-from app import users
+from app import mixpanel, users
 from app.api.deps import (
     CurrentUser,
     CurrentUserDvcScope,
@@ -491,6 +491,9 @@ async def post_project_dvc_file(
     current_user: CurrentUserDvcScope,
     req: Request,
 ) -> Message:
+    mixpanel.user_dvc_pushed(
+        user=current_user, owner_name=owner_name, project_name=project_name
+    )
     logger.info(
         f"Received request from {current_user.email} to post "
         f"DVC file MD5 {idx}{md5}"
@@ -516,6 +519,7 @@ async def post_project_dvc_file(
     )
     if storage_used_gb > storage_limit_gb:
         logger.info("Rejecting request due to storage limit exceeded")
+        mixpanel.user_out_of_storage(user=current_user)
         raise HTTPException(400, "Storage limit exceeded")
     # TODO: Create presigned PUT to upload the file so it doesn't need to pass
     # through this server
@@ -557,8 +561,11 @@ def get_project_dvc_file(
     session: SessionDep,
     current_user: CurrentUserDvcScope,
 ) -> StreamingResponse:
+    mixpanel.user_dvc_pulled(
+        user=current_user, owner_name=owner_name, project_name=project_name
+    )
     logger.info(f"{current_user.email} requesting to GET data")
-    project = app.projects.get_project(
+    app.projects.get_project(
         session=session,
         owner_name=owner_name,
         project_name=project_name,
@@ -593,7 +600,7 @@ def get_project_dvc_files(
     session: SessionDep,
     current_user: CurrentUser,
 ):
-    project = app.projects.get_project(
+    app.projects.get_project(
         session=session,
         owner_name=owner_name,
         project_name=project_name,
@@ -630,7 +637,7 @@ def get_project_git_contents(
     path: str | None = None,
     astype: Literal["", ".raw", ".html", ".object"] = "",
 ) -> list[GitItem] | GitItemWithContents | str:
-    project = app.projects.get_project(
+    app.projects.get_project(
         session=session,
         owner_name=owner_name,
         project_name=project_name,
@@ -1225,6 +1232,7 @@ def get_project_figure(
     figure_path: str,
     current_user: CurrentUserOptional,
     session: SessionDep,
+    ttl: int | None = 120,
 ) -> Figure:
     project = app.projects.get_project(
         session=session,
@@ -1234,10 +1242,15 @@ def get_project_figure(
         min_access_level="read",
     )
     ck_info = get_ck_info(
-        project=project, user=current_user, session=session, ttl=120
+        project=project, user=current_user, session=session, ttl=ttl
     )
     figures = ck_info.get("figures", [])
     # Get the figure content and base64 encode it
+    # Set TTL very high since we already fetched the repo above
+    if ttl is None:
+        ttl = 3600
+    else:
+        ttl = 30 * ttl
     for fig in figures:
         if fig.get("path") == figure_path:
             item = get_project_contents(
@@ -1246,6 +1259,7 @@ def get_project_figure(
                 session=session,
                 current_user=current_user,
                 path=fig["path"],
+                ttl=ttl,
             )
             fig["content"] = item.content
             fig["url"] = item.url
@@ -2131,7 +2145,7 @@ def put_project_collaborator(
     current_user: CurrentUser,
     session: SessionDep,
 ) -> Message:
-    project = app.projects.get_project(
+    app.projects.get_project(
         owner_name=owner_name,
         project_name=project_name,
         session=session,
@@ -2162,7 +2176,7 @@ def delete_project_collaborator(
     current_user: CurrentUser,
     session: SessionDep,
 ) -> Message:
-    project = app.projects.get_project(
+    app.projects.get_project(
         owner_name=owner_name,
         project_name=project_name,
         session=session,
@@ -2686,6 +2700,7 @@ def get_project_showcase(
     project_name: str,
     current_user: CurrentUserOptional,
     session: SessionDep,
+    ttl: int | None = 120,
 ) -> ProjectShowcase | None:
     project = app.projects.get_project(
         owner_name=owner_name,
@@ -2700,7 +2715,7 @@ def get_project_showcase(
         ]
     )
     ck_info = get_ck_info(
-        project=project, user=current_user, session=session, ttl=120
+        project=project, user=current_user, session=session, ttl=ttl
     )
     showcase = ck_info.get("showcase")
     if showcase is None:
@@ -2710,6 +2725,11 @@ def get_project_showcase(
     except Exception:
         return incorrectly_defined
     # Iterate over showcase elements, fetching the contents to return
+    # Set TTL very high since we already fetched the repo above
+    if ttl is None:
+        ttl = 3600
+    else:
+        ttl = 30 * ttl
     elements_out = []
     for element_in in inputs.elements:
         if isinstance(element_in, ProjectShowcaseFigureInput):
@@ -2721,9 +2741,13 @@ def get_project_showcase(
                         session=session,
                         current_user=current_user,
                         figure_path=element_in.figure,
+                        ttl=ttl,
                     )
                 )
-            except Exception:
+            except Exception as e:
+                logger.warning(
+                    f"Failed to get showcase figure from {element_in}: {e}"
+                )
                 element_out = ProjectShowcaseText(
                     text=f"Figure at path '{element_in.figure}' not found"
                 )

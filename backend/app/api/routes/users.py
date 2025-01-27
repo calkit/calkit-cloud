@@ -2,11 +2,16 @@
 
 import logging
 import uuid
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Literal
 
-import app.stripe
 import requests
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
+from sqlalchemy.exc import DataError
+from sqlmodel import Field, func, select
+
+import app.stripe
 from app import mixpanel, users
 from app.api.deps import CurrentUser, SessionDep, get_current_active_superuser
 from app.config import settings
@@ -37,10 +42,6 @@ from app.security import (
 )
 from app.storage import get_storage_usage
 from app.subscriptions import PLAN_IDS, get_monthly_price
-from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
-from sqlalchemy.exc import DataError
-from sqlmodel import Field, col, delete, func, select
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -449,7 +450,7 @@ def get_user_github_app_installations(
     session: SessionDep, current_user: CurrentUser
 ) -> GitHubInstallations:
     token = users.get_github_token(session=session, user=current_user)
-    url = f"https://api.github.com/user/installations"
+    url = "https://api.github.com/user/installations"
     logger.info(f"Making request to: {url}")
     headers = {"Authorization": f"Bearer {token}"}
     resp = requests.get(url, headers=headers)

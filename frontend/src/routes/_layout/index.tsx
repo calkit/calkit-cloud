@@ -161,7 +161,7 @@ function PublicProjectsTable() {
     queryKey: ["projects-logged-out"],
     queryFn: () =>
       ProjectsService.getProjects({
-        limit: 10,
+        limit: 5,
       }),
   })
   const isPending = projectsRequest.isPending
@@ -254,12 +254,19 @@ function Projects() {
           <Text>
             Welcome to the Calkit Cloud, where you can create, discover, share,
             and collaborate on research and analytics projects. If you're ready
-            to get started,{" "}
-            <Link as={RouterLink} to={"/login"} variant="blue">
-              click here to sign in.
-            </Link>
+            to get started, click the button below:
           </Text>
-          <Text mt={4} mb={6}>
+          <Box
+            alignItems="center"
+            alignContent="center"
+            textAlign="center"
+            mt={2}
+          >
+            <Link as={RouterLink} to={"/login"}>
+              <Button variant="primary">🚀 Let's go!</Button>
+            </Link>
+          </Box>
+          <Text mt={6} mb={6}>
             If you'd like to do some exploring first, here are some projects you
             might find interesting:
           </Text>

@@ -17,7 +17,7 @@ def get_repo(
     project: Project,
     user: User | None,
     session: Session,
-    ttl=None,
+    ttl: int | None = None,
     fresh=False,
 ) -> git.Repo:
     """Ensure that the repo exists and is ready for operating upon for the
@@ -25,6 +25,8 @@ def get_repo(
 
     Note that we need to handle concurrency here in case multiple API calls
     have been made at the same time that request the repo.
+
+    If TTL is None, we will always attempt to pull the latest version.
     """
     owner_name = project.owner_github_name
     project_name = project.name
