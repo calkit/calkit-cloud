@@ -591,3 +591,26 @@ class FileLock(SQLModel, table=True):
 class StorageUsage(BaseModel):
     limit_gb: float
     used_gb: float
+
+
+class ItemLock(BaseModel):
+    created: datetime
+    user_id: uuid.UUID
+    user_email: str
+    user_github_username: str
+
+
+class _ContentsItemBase(BaseModel):
+    name: str
+    path: str
+    type: str | None
+    size: int | None
+    in_repo: bool
+    content: str | None = None
+    url: str | None = None
+    calkit_object: dict | None = None
+    lock: ItemLock | None = None
+
+
+class ContentsItem(_ContentsItemBase):
+    dir_items: list[_ContentsItemBase] | None = None
