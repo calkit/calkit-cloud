@@ -685,7 +685,7 @@ def get_project_contents(
     repo = get_repo(
         project=project, user=current_user, session=session, ttl=ttl
     )
-    return app.projects.get_project_contents_from_repo(
+    return app.projects.get_contents_from_repo(
         project=project, repo=repo, path=path
     )
 
@@ -986,7 +986,7 @@ def get_project_figure(
     repo = get_repo(
         project=project, user=current_user, session=session, ttl=ttl
     )
-    return app.projects.get_project_figure_from_repo(
+    return app.projects.get_figure_from_repo(
         project=project, repo=repo, path=figure_path
     )
 
@@ -2460,7 +2460,7 @@ def get_project_showcase(
         if isinstance(element_in, ProjectShowcaseFigureInput):
             try:
                 element_out = ProjectShowcaseFigure(
-                    figure=app.projects.get_project_figure_from_repo(
+                    figure=app.projects.get_figure_from_repo(
                         project=project,
                         repo=repo,
                         path=element_in.figure,

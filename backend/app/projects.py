@@ -83,7 +83,7 @@ def get_project(
     return project
 
 
-def get_project_contents_from_repo(
+def get_contents_from_repo(
     project: Project,
     repo: git.Repo,
     path: str | None = None,
@@ -327,7 +327,7 @@ def get_project_contents_from_repo(
         raise HTTPException(404)
 
 
-def get_project_figure_from_repo(
+def get_figure_from_repo(
     project: Project,
     repo: git.Repo,
     path: str,
@@ -337,7 +337,7 @@ def get_project_figure_from_repo(
     # Get the figure content (will be base64-encoded)
     for fig in figures:
         if fig.get("path") == path:
-            item = get_project_contents_from_repo(
+            item = get_contents_from_repo(
                 project=project,
                 repo=repo,
                 path=fig["path"],
