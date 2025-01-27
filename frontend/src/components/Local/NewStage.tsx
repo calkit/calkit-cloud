@@ -135,7 +135,7 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
   useEffect(() => {
     const template = String(watchTemplate)
     if (template === "py-script") {
-      setValue("cmd", "calkit runenv python {CHANGE ME}")
+      setValue("cmd", "calkit xenv -n {CHANGE ME} python {CHANGE ME}")
       setValue("outputType", null)
       register("scriptPath")
       unregister("inputFilePath")
@@ -165,7 +165,7 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
   // If script path changes, update command automatically
   const onScriptPathChange = (e: any) => {
     const scriptPath = String(e.target.value)
-    setValue("cmd", `calkit runenv python ${scriptPath}`)
+    setValue("cmd", `calkit xenv -n {CHANGE ME} python ${scriptPath}`)
     setValue("deps", scriptPath)
   }
   // If output path changes, update fields automatically
@@ -312,7 +312,7 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
               <Input
                 id="cmd"
                 {...register("cmd", {})}
-                placeholder="Ex: calkit runenv python scripts/my-script.py"
+                placeholder="Ex: calkit xenv -n main python scripts/my-script.py"
               />
               {errors.cmd && (
                 <FormErrorMessage>{errors.cmd.message}</FormErrorMessage>
