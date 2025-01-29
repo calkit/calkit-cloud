@@ -76,6 +76,8 @@ from app.models.projects import (
     ShowcaseFigure,
     ShowcaseFigureInput,
     ShowcaseInput,
+    ShowcaseMarkdown,
+    ShowcaseMarkdownFileInput,
     ShowcasePublication,
     ShowcasePublicationInput,
     ShowcaseText,
@@ -2414,9 +2416,7 @@ def get_project_showcase(
         min_access_level="read",
     )
     incorrectly_defined = Showcase(
-        elements=[
-            ShowcaseText(text="Showcase is not correctly defined.")
-        ]
+        elements=[ShowcaseText(text="Showcase is not correctly defined.")]
     )
     repo = get_repo(
         project=project, user=current_user, session=session, ttl=ttl
@@ -2470,6 +2470,19 @@ def get_project_showcase(
                 element_out = ShowcaseText(
                     text=(
                         f"Publication at path '{element_in.publication}' "
+                        "not found"
+                    )
+                )
+        elif isinstance(element_in, ShowcaseMarkdownFileInput):
+            fpath = os.path.join(repo.working_dir, element_in.markdown_file)
+            if os.path.isfile(fpath):
+                with open(fpath) as f:
+                    md = f.read()
+                element_out = ShowcaseMarkdown(markdown=md)
+            else:
+                element_out = ShowcaseText(
+                    text=(
+                        f"Markdown file at path '{element_in.markdown_file}' "
                         "not found"
                     )
                 )
