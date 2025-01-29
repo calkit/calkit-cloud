@@ -521,7 +521,11 @@ export type ReproCheck = {
 
 export type Showcase = {
   elements: Array<
-    ShowcaseFigure | ShowcasePublication | ShowcaseText | ShowcaseMarkdown
+    | ShowcaseFigure
+    | ShowcasePublication
+    | ShowcaseText
+    | ShowcaseMarkdown
+    | ShowcaseYaml
   >
 }
 
@@ -539,6 +543,10 @@ export type ShowcasePublication = {
 
 export type ShowcaseText = {
   text: string
+}
+
+export type ShowcaseYaml = {
+  yaml: string
 }
 
 export type Software = {

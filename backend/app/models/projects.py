@@ -33,6 +33,14 @@ class ShowcaseMarkdownFileInput(BaseModel):
     markdown_file: str
 
 
+class ShowcaseYamlFileInput(BaseModel):
+    yaml_file: str
+
+
+class ShowcaseYaml(BaseModel):
+    yaml: str
+
+
 class ShowcaseInput(BaseModel):
     elements: list[
         ShowcaseFigureInput
@@ -40,10 +48,15 @@ class ShowcaseInput(BaseModel):
         | ShowcaseText
         | ShowcaseMarkdownFileInput
         | ShowcaseMarkdown
+        | ShowcaseYamlFileInput
     ]
 
 
 class Showcase(BaseModel):
     elements: list[
-        ShowcaseFigure | ShowcasePublication | ShowcaseText | ShowcaseMarkdown
+        ShowcaseFigure
+        | ShowcasePublication
+        | ShowcaseText
+        | ShowcaseMarkdown
+        | ShowcaseYaml
     ]

@@ -2558,6 +2558,9 @@ export const $Showcase = {
           {
             type: "ShowcaseMarkdown",
           },
+          {
+            type: "ShowcaseYaml",
+          },
         ],
       },
       isRequired: true,
@@ -2595,6 +2598,15 @@ export const $ShowcasePublication = {
 export const $ShowcaseText = {
   properties: {
     text: {
+      type: "string",
+      isRequired: true,
+    },
+  },
+} as const
+
+export const $ShowcaseYaml = {
+  properties: {
+    yaml: {
       type: "string",
       isRequired: true,
     },

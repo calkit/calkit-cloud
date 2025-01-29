@@ -81,6 +81,8 @@ from app.models.projects import (
     ShowcasePublication,
     ShowcasePublicationInput,
     ShowcaseText,
+    ShowcaseYaml,
+    ShowcaseYamlFileInput,
 )
 from app.storage import (
     get_data_prefix,
@@ -2483,6 +2485,19 @@ def get_project_showcase(
                 element_out = ShowcaseText(
                     text=(
                         f"Markdown file at path '{element_in.markdown_file}' "
+                        "not found"
+                    )
+                )
+        elif isinstance(element_in, ShowcaseYamlFileInput):
+            fpath = os.path.join(repo.working_dir, element_in.yaml_file)
+            if os.path.isfile(fpath):
+                with open(fpath) as f:
+                    txt = f.read()
+                element_out = ShowcaseYaml(yaml=txt)
+            else:
+                element_out = ShowcaseText(
+                    text=(
+                        f"YAML file at path '{element_in.yaml_file}' "
                         "not found"
                     )
                 )

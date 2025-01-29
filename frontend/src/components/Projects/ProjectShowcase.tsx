@@ -1,4 +1,4 @@
-import { Text, Flex, Spinner, Box } from "@chakra-ui/react"
+import { Text, Flex, Spinner, Box, Code } from "@chakra-ui/react"
 
 import useProject from "../../hooks/useProject"
 import FigureView from "../Figures/FigureView"
@@ -34,6 +34,10 @@ function ProjectShowcase({ ownerName, projectName }: ProjectShowcaseProps) {
                 <Text mt={2}>{item.text}</Text>
               ) : "markdown" in item ? (
                 <Markdown>{item.markdown}</Markdown>
+              ) : "yaml" in item ? (
+                <Code whiteSpace="pre" width="100%">
+                  {item.yaml}
+                </Code>
               ) : (
                 ""
               )}
