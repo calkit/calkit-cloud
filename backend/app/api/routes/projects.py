@@ -67,6 +67,7 @@ from app.models import (
     ProjectCreate,
     ProjectPublic,
     ProjectsPublic,
+    Publication,
     Question,
     User,
 )
@@ -1515,36 +1516,6 @@ def post_project_dataset_upload(
     )
 
 
-class Stage(BaseModel):
-    cmd: str
-    wdir: str | None = None
-    deps: list[str] | None = None
-    outs: list[str] | None = None
-    desc: str | None = None
-    meta: dict | None = None
-
-
-class Publication(BaseModel):
-    path: str
-    title: str
-    description: str | None = None
-    type: (
-        Literal[
-            "journal-article",
-            "conference-paper",
-            "presentation",
-            "poster",
-            "report",
-            "book",
-        ]
-        | None
-    ) = None
-    stage: str | None = None
-    content: str | None = None
-    stage_info: Stage | None = None
-    url: str | None = None
-
-
 @router.get("/projects/{owner_name}/{project_name}/publications")
 def get_project_publications(
     owner_name: str,
@@ -1576,6 +1547,7 @@ def get_project_publications(
                     project=project, repo=repo, path=pub["path"]
                 )
                 pub["content"] = item.content
+                # Prioritize URL if already defined
                 if "url" not in pub:
                     pub["url"] = item.url
             except HTTPException as e:
@@ -2421,8 +2393,16 @@ class ProjectShowcaseFigureInput(BaseModel):
     figure: str
 
 
+class ProjectShowcasePublicationInput(BaseModel):
+    publication: str
+
+
 class ProjectShowcaseFigure(BaseModel):
     figure: Figure
+
+
+class ProjectShowcasePublication(BaseModel):
+    publication: Publication
 
 
 class ProjectShowcaseText(BaseModel):
@@ -2430,11 +2410,19 @@ class ProjectShowcaseText(BaseModel):
 
 
 class ProjectShowcaseInput(BaseModel):
-    elements: list[ProjectShowcaseFigureInput | ProjectShowcaseText]
+    elements: list[
+        ProjectShowcaseFigureInput
+        | ProjectShowcasePublicationInput
+        | ProjectShowcaseText
+    ]
 
 
 class ProjectShowcase(BaseModel):
-    elements: list[ProjectShowcaseFigure | ProjectShowcaseText]
+    elements: list[
+        ProjectShowcaseFigure
+        | ProjectShowcasePublication
+        | ProjectShowcaseText
+    ]
 
 
 @router.get("/projects/{owner_name}/{project_name}/showcase")
@@ -2491,6 +2479,26 @@ def get_project_showcase(
                 )
                 element_out = ProjectShowcaseText(
                     text=f"Figure at path '{element_in.figure}' not found"
+                )
+        elif isinstance(element_in, ProjectShowcasePublicationInput):
+            try:
+                element_out = ProjectShowcasePublication(
+                    publication=app.projects.get_publication_from_repo(
+                        project=project,
+                        repo=repo,
+                        path=element_in.publication,
+                    )
+                )
+            except Exception as e:
+                logger.warning(
+                    "Failed to get showcase publication from "
+                    f"{element_in}: {e}"
+                )
+                element_out = ProjectShowcaseText(
+                    text=(
+                        f"Publication at path '{element_in.publication}' "
+                        "not found"
+                    )
                 )
         else:
             element_out = element_in

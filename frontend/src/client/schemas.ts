@@ -2180,6 +2180,9 @@ export const $ProjectShowcase = {
             type: "ProjectShowcaseFigure",
           },
           {
+            type: "ProjectShowcasePublication",
+          },
+          {
             type: "ProjectShowcaseText",
           },
         ],
@@ -2193,6 +2196,15 @@ export const $ProjectShowcaseFigure = {
   properties: {
     figure: {
       type: "Figure",
+      isRequired: true,
+    },
+  },
+} as const
+
+export const $ProjectShowcasePublication = {
+  properties: {
+    publication: {
+      type: "Publication",
       isRequired: true,
     },
   },
@@ -2289,7 +2301,7 @@ export const $Publication = {
       type: "any-of",
       contains: [
         {
-          type: "Stage",
+          type: "PipelineStage",
         },
         {
           type: "null",
@@ -2585,79 +2597,6 @@ export const $Software = {
         type: "Environment",
       },
       isRequired: true,
-    },
-  },
-} as const
-
-export const $Stage = {
-  properties: {
-    cmd: {
-      type: "string",
-      isRequired: true,
-    },
-    wdir: {
-      type: "any-of",
-      contains: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
-    },
-    deps: {
-      type: "any-of",
-      contains: [
-        {
-          type: "array",
-          contains: {
-            type: "string",
-          },
-        },
-        {
-          type: "null",
-        },
-      ],
-    },
-    outs: {
-      type: "any-of",
-      contains: [
-        {
-          type: "array",
-          contains: {
-            type: "string",
-          },
-        },
-        {
-          type: "null",
-        },
-      ],
-    },
-    desc: {
-      type: "any-of",
-      contains: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
-    },
-    meta: {
-      type: "any-of",
-      contains: [
-        {
-          type: "dictionary",
-          contains: {
-            properties: {},
-          },
-        },
-        {
-          type: "null",
-        },
-      ],
     },
   },
 } as const

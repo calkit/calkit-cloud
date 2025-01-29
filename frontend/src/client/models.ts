@@ -435,11 +435,17 @@ export type ProjectPublic = {
 }
 
 export type ProjectShowcase = {
-  elements: Array<ProjectShowcaseFigure | ProjectShowcaseText>
+  elements: Array<
+    ProjectShowcaseFigure | ProjectShowcasePublication | ProjectShowcaseText
+  >
 }
 
 export type ProjectShowcaseFigure = {
   figure: Figure
+}
+
+export type ProjectShowcasePublication = {
+  publication: Publication
 }
 
 export type ProjectShowcaseText = {
@@ -465,7 +471,7 @@ export type Publication = {
     | null
   stage?: string | null
   content?: string | null
-  stage_info?: Stage | null
+  stage_info?: PipelineStage | null
   url?: string | null
 }
 
@@ -533,15 +539,6 @@ export type ReproCheck = {
 
 export type Software = {
   environments: Array<Environment>
-}
-
-export type Stage = {
-  cmd: string
-  wdir?: string | null
-  deps?: Array<string> | null
-  outs?: Array<string> | null
-  desc?: string | null
-  meta?: Record<string, unknown> | null
 }
 
 export type StorageUsage = {
