@@ -2,6 +2,7 @@ import { Text, Flex, Spinner, Box } from "@chakra-ui/react"
 
 import useProject from "../../hooks/useProject"
 import FigureView from "../Figures/FigureView"
+import PublicationView from "../Publications/PublicationView"
 
 interface ProjectShowcaseProps {
   ownerName: string
@@ -23,6 +24,10 @@ function ProjectShowcase({ ownerName, projectName }: ProjectShowcaseProps) {
               {"figure" in item ? (
                 <Box mt={2}>
                   <FigureView figure={item.figure} />
+                </Box>
+              ) : "publication" in item ? (
+                <Box mt={2} height="600px">
+                  <PublicationView publication={item.publication} />
                 </Box>
               ) : "text" in item ? (
                 <Text mt={2}>{item.text}</Text>
