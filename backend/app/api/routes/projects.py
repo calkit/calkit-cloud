@@ -7,6 +7,7 @@ import os
 import subprocess
 import uuid
 from copy import deepcopy
+from io import StringIO
 from pathlib import Path
 from typing import Annotated, Literal, Optional
 
@@ -49,7 +50,7 @@ from app.dvc import make_mermaid_diagram, output_from_pipeline
 from app.git import (
     get_ck_info,
     get_ck_info_from_repo,
-    get_dvc_pipeline,
+    get_dvc_pipeline_from_repo,
     get_repo,
 )
 from app.models import (
@@ -67,8 +68,22 @@ from app.models import (
     ProjectCreate,
     ProjectPublic,
     ProjectsPublic,
+    Publication,
     Question,
     User,
+)
+from app.models.projects import (
+    Showcase,
+    ShowcaseFigure,
+    ShowcaseFigureInput,
+    ShowcaseInput,
+    ShowcaseMarkdown,
+    ShowcaseMarkdownFileInput,
+    ShowcasePublication,
+    ShowcasePublicationInput,
+    ShowcaseText,
+    ShowcaseYaml,
+    ShowcaseYamlFileInput,
 )
 from app.storage import (
     get_data_prefix,
@@ -1515,36 +1530,6 @@ def post_project_dataset_upload(
     )
 
 
-class Stage(BaseModel):
-    cmd: str
-    wdir: str | None = None
-    deps: list[str] | None = None
-    outs: list[str] | None = None
-    desc: str | None = None
-    meta: dict | None = None
-
-
-class Publication(BaseModel):
-    path: str
-    title: str
-    description: str | None = None
-    type: (
-        Literal[
-            "journal-article",
-            "conference-paper",
-            "presentation",
-            "poster",
-            "report",
-            "book",
-        ]
-        | None
-    ) = None
-    stage: str | None = None
-    content: str | None = None
-    stage_info: Stage | None = None
-    url: str | None = None
-
-
 @router.get("/projects/{owner_name}/{project_name}/publications")
 def get_project_publications(
     owner_name: str,
@@ -1559,35 +1544,32 @@ def get_project_publications(
         current_user=current_user,
         min_access_level="read",
     )
-    ck_info = get_ck_info(
+    repo = get_repo(
         project=project, user=current_user, session=session, ttl=120
     )
-    pipeline = get_dvc_pipeline(
-        project=project, user=current_user, session=session, ttl=120
-    )
+    ck_info = get_ck_info_from_repo(repo)
+    pipeline = get_dvc_pipeline_from_repo(repo)
     publications = ck_info.get("publications", [])
     resp = []
     for pub in publications:
         if "stage" in pub:
             pub["stage_info"] = pipeline.get("stages", {}).get(pub["stage"])
         # See if we can fetch the content for this publication
-        # TODO: This is probably pretty inefficient, since this function
-        # reloads the YAML files we just loaded
-        try:
-            item = get_project_contents(
-                owner_name=owner_name,
-                project_name=project_name,
-                session=session,
-                current_user=current_user,
-                path=pub["path"],
-            )
-            pub["content"] = item.content
-        except HTTPException as e:
-            logger.error(
-                f"Failed to get publication object at path {pub['path']}: {e}"
-            )
-            # Must be a 404
-            pass
+        if "path" in pub:
+            try:
+                item = app.projects.get_contents_from_repo(
+                    project=project, repo=repo, path=pub["path"]
+                )
+                pub["content"] = item.content
+                # Prioritize URL if already defined
+                if "url" not in pub:
+                    pub["url"] = item.url
+            except HTTPException as e:
+                logger.warning(
+                    f"Failed to get publication at path {pub['path']}: {e}"
+                )
+                # Must be a 404
+                pass
         resp.append(Publication.model_validate(pub))
     return resp
 
@@ -2421,26 +2403,6 @@ def get_project_app(
     return ProjectApp.model_validate(project_app)
 
 
-class ProjectShowcaseFigureInput(BaseModel):
-    figure: str
-
-
-class ProjectShowcaseFigure(BaseModel):
-    figure: Figure
-
-
-class ProjectShowcaseText(BaseModel):
-    text: str
-
-
-class ProjectShowcaseInput(BaseModel):
-    elements: list[ProjectShowcaseFigureInput | ProjectShowcaseText]
-
-
-class ProjectShowcase(BaseModel):
-    elements: list[ProjectShowcaseFigure | ProjectShowcaseText]
-
-
 @router.get("/projects/{owner_name}/{project_name}/showcase")
 def get_project_showcase(
     owner_name: str,
@@ -2448,7 +2410,7 @@ def get_project_showcase(
     current_user: CurrentUserOptional,
     session: SessionDep,
     ttl: int | None = 120,
-) -> ProjectShowcase | None:
+) -> Showcase | None:
     project = app.projects.get_project(
         owner_name=owner_name,
         project_name=project_name,
@@ -2456,10 +2418,8 @@ def get_project_showcase(
         current_user=current_user,
         min_access_level="read",
     )
-    incorrectly_defined = ProjectShowcase(
-        elements=[
-            ProjectShowcaseText(text="Showcase is not correctly defined.")
-        ]
+    incorrectly_defined = Showcase(
+        elements=[ShowcaseText(text="Showcase is not correctly defined.")]
     )
     repo = get_repo(
         project=project, user=current_user, session=session, ttl=ttl
@@ -2469,7 +2429,7 @@ def get_project_showcase(
     if showcase is None:
         return
     try:
-        inputs = ProjectShowcaseInput.model_validate(dict(elements=showcase))
+        inputs = ShowcaseInput.model_validate(dict(elements=showcase))
     except Exception:
         return incorrectly_defined
     # Iterate over showcase elements, fetching the contents to return
@@ -2480,9 +2440,9 @@ def get_project_showcase(
         ttl = 30 * ttl
     elements_out = []
     for element_in in inputs.elements:
-        if isinstance(element_in, ProjectShowcaseFigureInput):
+        if isinstance(element_in, ShowcaseFigureInput):
             try:
-                element_out = ProjectShowcaseFigure(
+                element_out = ShowcaseFigure(
                     figure=app.projects.get_figure_from_repo(
                         project=project,
                         repo=repo,
@@ -2493,10 +2453,69 @@ def get_project_showcase(
                 logger.warning(
                     f"Failed to get showcase figure from {element_in}: {e}"
                 )
-                element_out = ProjectShowcaseText(
+                element_out = ShowcaseText(
                     text=f"Figure at path '{element_in.figure}' not found"
+                )
+        elif isinstance(element_in, ShowcasePublicationInput):
+            try:
+                element_out = ShowcasePublication(
+                    publication=app.projects.get_publication_from_repo(
+                        project=project,
+                        repo=repo,
+                        path=element_in.publication,
+                    )
+                )
+            except Exception as e:
+                logger.warning(
+                    "Failed to get showcase publication from "
+                    f"{element_in}: {e}"
+                )
+                element_out = ShowcaseText(
+                    text=(
+                        f"Publication at path '{element_in.publication}' "
+                        "not found"
+                    )
+                )
+        elif isinstance(element_in, ShowcaseMarkdownFileInput):
+            fpath = os.path.join(repo.working_dir, element_in.markdown_file)
+            if os.path.isfile(fpath):
+                with open(fpath) as f:
+                    md = f.read()
+                element_out = ShowcaseMarkdown(markdown=md)
+            else:
+                element_out = ShowcaseText(
+                    text=(
+                        f"Markdown file at path '{element_in.markdown_file}' "
+                        "not found"
+                    )
+                )
+        elif isinstance(element_in, ShowcaseYamlFileInput):
+            fpath = os.path.join(repo.working_dir, element_in.yaml_file)
+            if os.path.isfile(fpath):
+                if element_in.object_name is None:
+                    with open(fpath) as f:
+                        txt = f.read()
+                else:
+                    with open(fpath) as f:
+                        content = ryaml.load(f)
+                    if content is None:
+                        content = {}
+                    obj = content.get(
+                        element_in.object_name,
+                        f"YAML object {element_in.object_name} not found.",
+                    )
+                    stream = StringIO()
+                    ryaml.dump(obj, stream)
+                    txt = stream.getvalue()
+                element_out = ShowcaseYaml(yaml=txt)
+            else:
+                element_out = ShowcaseText(
+                    text=(
+                        f"YAML file at path '{element_in.yaml_file}' "
+                        "not found"
+                    )
                 )
         else:
             element_out = element_in
         elements_out.append(element_out)
-    return ProjectShowcase.model_validate(dict(elements=elements_out))
+    return Showcase.model_validate(dict(elements=elements_out))

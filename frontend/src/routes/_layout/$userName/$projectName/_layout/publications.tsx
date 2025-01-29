@@ -15,9 +15,6 @@ import {
   Spinner,
   Badge,
   Code,
-  Image,
-  Alert,
-  AlertIcon,
 } from "@chakra-ui/react"
 import { createFileRoute, Link as RouterLink } from "@tanstack/react-router"
 import { FiFile } from "react-icons/fi"
@@ -27,6 +24,7 @@ import { type Publication } from "../../../../../client"
 import NewPublication from "../../../../../components/Publications/NewPublication"
 import PageMenu from "../../../../../components/Common/PageMenu"
 import useProject from "../../../../../hooks/useProject"
+import PublicationView from "../../../../../components/Publications/PublicationView"
 
 export const Route = createFileRoute(
   "/_layout/$userName/$projectName/_layout/publications",
@@ -41,47 +39,6 @@ interface PubViewProps {
 function PubView({ publication }: PubViewProps) {
   const secBgColor = useColorModeValue("ui.secondary", "ui.darkSlate")
 
-  let contentView = <>Not set</>
-  if (
-    publication.path.endsWith(".pdf") &&
-    (publication.content || publication.url)
-  ) {
-    contentView = (
-      <embed
-        height="100%"
-        width="100%"
-        type="application/pdf"
-        src={
-          publication.content
-            ? `data:application/pdf;base64,${publication.content}`
-            : String(publication.url)
-        }
-      />
-    )
-  } else if (
-    publication.path.endsWith(".png") &&
-    (publication.content || publication.url)
-  ) {
-    contentView = (
-      <Image
-        alt={publication.title}
-        src={
-          publication.content
-            ? `data:image/png;base64,${publication.content}`
-            : String(publication.url)
-        }
-      />
-    )
-  } else {
-    contentView = (
-      <Alert mt={2} status="warning" borderRadius="xl">
-        <AlertIcon />
-        Cannot render content, either because it is empty or an unrecognized
-        file type.
-      </Alert>
-    )
-  }
-
   return (
     <Flex mb={2}>
       {/* A heading and content view */}
@@ -91,7 +48,7 @@ function PubView({ publication }: PubViewProps) {
         </Heading>
         <Text>{publication.description}</Text>
         <Box my={2} height={"80vh"} borderRadius="lg">
-          {contentView}
+          <PublicationView publication={publication} />
         </Box>
       </Box>
       {/* Information about the publication */}

@@ -13,7 +13,15 @@ from sqlmodel import Session, select
 from app.core import CATEGORIES_PLURAL_TO_SINGULAR
 from app.dvc import output_from_pipeline
 from app.git import get_ck_info_from_repo
-from app.models import ContentsItem, Figure, ItemLock, Org, Project, User
+from app.models import (
+    ContentsItem,
+    Figure,
+    ItemLock,
+    Org,
+    Project,
+    Publication,
+    User,
+)
 from app.storage import (
     get_object_fs,
     get_object_url,
@@ -242,6 +250,7 @@ def get_contents_from_repo(
     # We're looking for a file
     # Check if it exists in the repo
     if os.path.isfile(os.path.join(repo_dir, path)):
+        # TODO: Only send content if it's small enough, else send URL
         with open(os.path.join(repo_dir, path), "rb") as f:
             content = f.read()
         return ContentsItem.model_validate(
@@ -352,3 +361,24 @@ def get_figure_from_repo(
             fig["url"] = item.url
             return Figure.model_validate(fig)
     raise HTTPException(404, "Figure not found")
+
+
+def get_publication_from_repo(
+    project: Project, repo: git.Repo, path: str
+) -> Publication:
+    ck_info = get_ck_info_from_repo(repo)
+    publications = ck_info.get("publications", [])
+    # Get the figure content (will be base64-encoded)
+    for pub in publications:
+        if pub.get("path") == path:
+            item = get_contents_from_repo(
+                project=project,
+                repo=repo,
+                path=pub["path"],
+            )
+            pub["content"] = item.content
+            # Prioritize URL defined in the publication itself
+            if "url" not in pub:
+                pub["url"] = item.url
+            return Publication.model_validate(pub)
+    raise HTTPException(404, "Publication not found")

@@ -2169,44 +2169,6 @@ export const $ProjectPublic = {
   },
 } as const
 
-export const $ProjectShowcase = {
-  properties: {
-    elements: {
-      type: "array",
-      contains: {
-        type: "any-of",
-        contains: [
-          {
-            type: "ProjectShowcaseFigure",
-          },
-          {
-            type: "ProjectShowcaseText",
-          },
-        ],
-      },
-      isRequired: true,
-    },
-  },
-} as const
-
-export const $ProjectShowcaseFigure = {
-  properties: {
-    figure: {
-      type: "Figure",
-      isRequired: true,
-    },
-  },
-} as const
-
-export const $ProjectShowcaseText = {
-  properties: {
-    text: {
-      type: "string",
-      isRequired: true,
-    },
-  },
-} as const
-
 export const $ProjectsPublic = {
   properties: {
     data: {
@@ -2289,7 +2251,7 @@ export const $Publication = {
       type: "any-of",
       contains: [
         {
-          type: "Stage",
+          type: "PipelineStage",
         },
         {
           type: "null",
@@ -2577,6 +2539,80 @@ export const $ReproCheck = {
   },
 } as const
 
+export const $Showcase = {
+  properties: {
+    elements: {
+      type: "array",
+      contains: {
+        type: "any-of",
+        contains: [
+          {
+            type: "ShowcaseFigure",
+          },
+          {
+            type: "ShowcasePublication",
+          },
+          {
+            type: "ShowcaseText",
+          },
+          {
+            type: "ShowcaseMarkdown",
+          },
+          {
+            type: "ShowcaseYaml",
+          },
+        ],
+      },
+      isRequired: true,
+    },
+  },
+} as const
+
+export const $ShowcaseFigure = {
+  properties: {
+    figure: {
+      type: "Figure",
+      isRequired: true,
+    },
+  },
+} as const
+
+export const $ShowcaseMarkdown = {
+  properties: {
+    markdown: {
+      type: "string",
+      isRequired: true,
+    },
+  },
+} as const
+
+export const $ShowcasePublication = {
+  properties: {
+    publication: {
+      type: "Publication",
+      isRequired: true,
+    },
+  },
+} as const
+
+export const $ShowcaseText = {
+  properties: {
+    text: {
+      type: "string",
+      isRequired: true,
+    },
+  },
+} as const
+
+export const $ShowcaseYaml = {
+  properties: {
+    yaml: {
+      type: "string",
+      isRequired: true,
+    },
+  },
+} as const
+
 export const $Software = {
   properties: {
     environments: {
@@ -2585,79 +2621,6 @@ export const $Software = {
         type: "Environment",
       },
       isRequired: true,
-    },
-  },
-} as const
-
-export const $Stage = {
-  properties: {
-    cmd: {
-      type: "string",
-      isRequired: true,
-    },
-    wdir: {
-      type: "any-of",
-      contains: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
-    },
-    deps: {
-      type: "any-of",
-      contains: [
-        {
-          type: "array",
-          contains: {
-            type: "string",
-          },
-        },
-        {
-          type: "null",
-        },
-      ],
-    },
-    outs: {
-      type: "any-of",
-      contains: [
-        {
-          type: "array",
-          contains: {
-            type: "string",
-          },
-        },
-        {
-          type: "null",
-        },
-      ],
-    },
-    desc: {
-      type: "any-of",
-      contains: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
-    },
-    meta: {
-      type: "any-of",
-      contains: [
-        {
-          type: "dictionary",
-          contains: {
-            properties: {},
-          },
-        },
-        {
-          type: "null",
-        },
-      ],
     },
   },
 } as const

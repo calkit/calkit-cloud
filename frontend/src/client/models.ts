@@ -434,18 +434,6 @@ export type ProjectPublic = {
   current_user_access?: "read" | "write" | "admin" | "owner" | null
 }
 
-export type ProjectShowcase = {
-  elements: Array<ProjectShowcaseFigure | ProjectShowcaseText>
-}
-
-export type ProjectShowcaseFigure = {
-  figure: Figure
-}
-
-export type ProjectShowcaseText = {
-  text: string
-}
-
 export type ProjectsPublic = {
   data: Array<ProjectPublic>
   count: number
@@ -465,7 +453,7 @@ export type Publication = {
     | null
   stage?: string | null
   content?: string | null
-  stage_info?: Stage | null
+  stage_info?: PipelineStage | null
   url?: string | null
 }
 
@@ -531,17 +519,38 @@ export type ReproCheck = {
   readonly n_stages_with_env: number
 }
 
-export type Software = {
-  environments: Array<Environment>
+export type Showcase = {
+  elements: Array<
+    | ShowcaseFigure
+    | ShowcasePublication
+    | ShowcaseText
+    | ShowcaseMarkdown
+    | ShowcaseYaml
+  >
 }
 
-export type Stage = {
-  cmd: string
-  wdir?: string | null
-  deps?: Array<string> | null
-  outs?: Array<string> | null
-  desc?: string | null
-  meta?: Record<string, unknown> | null
+export type ShowcaseFigure = {
+  figure: Figure
+}
+
+export type ShowcaseMarkdown = {
+  markdown: string
+}
+
+export type ShowcasePublication = {
+  publication: Publication
+}
+
+export type ShowcaseText = {
+  text: string
+}
+
+export type ShowcaseYaml = {
+  yaml: string
+}
+
+export type Software = {
+  environments: Array<Environment>
 }
 
 export type StorageUsage = {

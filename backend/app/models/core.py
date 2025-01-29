@@ -1,4 +1,4 @@
-"""Database/request models."""
+"""Core models that should make it into the top-level ``models`` namespace."""
 
 import uuid
 from datetime import datetime
@@ -614,3 +614,24 @@ class _ContentsItemBase(BaseModel):
 
 class ContentsItem(_ContentsItemBase):
     dir_items: list[_ContentsItemBase] | None = None
+
+
+class Publication(BaseModel):
+    path: str
+    title: str
+    description: str | None = None
+    type: (
+        Literal[
+            "journal-article",
+            "conference-paper",
+            "presentation",
+            "poster",
+            "report",
+            "book",
+        ]
+        | None
+    ) = None
+    stage: str | None = None
+    content: str | None = None
+    stage_info: PipelineStage | None = None
+    url: str | None = None

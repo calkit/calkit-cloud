@@ -120,6 +120,10 @@ def get_dvc_pipeline(
     project: Project, user: User, session: Session, ttl=None
 ) -> dict:
     repo = get_repo(project=project, user=user, session=session, ttl=ttl)
+    return get_dvc_pipeline_from_repo(repo)
+
+
+def get_dvc_pipeline_from_repo(repo: git.Repo) -> dict:
     if os.path.isfile(os.path.join(repo.working_dir, "dvc.yaml")):
         with open(os.path.join(repo.working_dir, "dvc.yaml")) as f:
             return ryaml.load(f)
