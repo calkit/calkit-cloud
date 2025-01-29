@@ -91,6 +91,7 @@ def get_projects(
     current_user: CurrentUserOptional,
     limit: int = 100,
     offset: int = 0,
+    search_for: str | None = None,
 ) -> ProjectsPublic:
     # TODO: Handle collaborator access
     if current_user is None:
@@ -99,6 +100,17 @@ def get_projects(
         where_clause = or_(
             Project.is_public,
             Project.owner_account_id == current_user.account.id,
+        )
+    if search_for is not None:
+        search_for = f"%{search_for}%"
+        where_clause = and_(
+            where_clause,
+            or_(
+                Project.name.like(search_for),
+                Project.title.like(search_for),
+                Project.description.like(search_for),
+                Project.git_repo_url.like(search_for),
+            ),
         )
     count_query = select(func.count()).select_from(Project).where(where_clause)
     count = session.exec(count_query).one()
@@ -120,16 +132,27 @@ def get_owned_projects(
     current_user: CurrentUser,
     limit: int = 100,
     offset: int = 0,
+    search_for: str | None = None,
 ) -> ProjectsPublic:
+    where_clause = Project.owner_account_id == current_user.account.id
+    if search_for is not None:
+        search_for = f"%{search_for}%"
+        where_clause = and_(
+            where_clause,
+            or_(
+                Project.name.like(search_for),
+                Project.title.like(search_for),
+                Project.description.like(search_for),
+                Project.git_repo_url.like(search_for),
+            ),
+        )
     count_statement = (
-        select(func.count())
-        .select_from(Project)
-        .where(Project.owner_account_id == current_user.account.id)
+        select(func.count()).select_from(Project).where(where_clause)
     )
     count = session.exec(count_statement).one()
     statement = (
         select(Project)
-        .where(Project.owner_account_id == current_user.account.id)
+        .where(where_clause)
         .order_by(sqlalchemy.desc(Project.created))
         .offset(offset)
         .limit(limit)
