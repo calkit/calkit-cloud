@@ -29,17 +29,21 @@ class ShowcaseMarkdown(BaseModel):
     markdown: str
 
 
+class ShowcaseMarkdownFileInput(BaseModel):
+    markdown_file: str
+
+
 class ShowcaseInput(BaseModel):
     elements: list[
         ShowcaseFigureInput
         | ShowcasePublicationInput
         | ShowcaseText
+        | ShowcaseMarkdownFileInput
+        | ShowcaseMarkdown
     ]
 
 
 class Showcase(BaseModel):
     elements: list[
-        ShowcaseFigure
-        | ShowcasePublication
-        | ShowcaseText
+        ShowcaseFigure | ShowcasePublication | ShowcaseText | ShowcaseMarkdown
     ]

@@ -520,11 +520,17 @@ export type ReproCheck = {
 }
 
 export type Showcase = {
-  elements: Array<ShowcaseFigure | ShowcasePublication | ShowcaseText>
+  elements: Array<
+    ShowcaseFigure | ShowcasePublication | ShowcaseText | ShowcaseMarkdown
+  >
 }
 
 export type ShowcaseFigure = {
   figure: Figure
+}
+
+export type ShowcaseMarkdown = {
+  markdown: string
 }
 
 export type ShowcasePublication = {

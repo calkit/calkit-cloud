@@ -3,6 +3,7 @@ import { Text, Flex, Spinner, Box } from "@chakra-ui/react"
 import useProject from "../../hooks/useProject"
 import FigureView from "../Figures/FigureView"
 import PublicationView from "../Publications/PublicationView"
+import Markdown from "../Common/Markdown"
 
 interface ProjectShowcaseProps {
   ownerName: string
@@ -31,6 +32,8 @@ function ProjectShowcase({ ownerName, projectName }: ProjectShowcaseProps) {
                 </Box>
               ) : "text" in item ? (
                 <Text mt={2}>{item.text}</Text>
+              ) : "markdown" in item ? (
+                <Markdown>{item.markdown}</Markdown>
               ) : (
                 ""
               )}

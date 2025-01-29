@@ -2555,6 +2555,9 @@ export const $Showcase = {
           {
             type: "ShowcaseText",
           },
+          {
+            type: "ShowcaseMarkdown",
+          },
         ],
       },
       isRequired: true,
@@ -2566,6 +2569,15 @@ export const $ShowcaseFigure = {
   properties: {
     figure: {
       type: "Figure",
+      isRequired: true,
+    },
+  },
+} as const
+
+export const $ShowcaseMarkdown = {
+  properties: {
+    markdown: {
+      type: "string",
       isRequired: true,
     },
   },
