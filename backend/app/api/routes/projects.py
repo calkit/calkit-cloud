@@ -1570,19 +1570,20 @@ def get_project_publications(
         if "stage" in pub:
             pub["stage_info"] = pipeline.get("stages", {}).get(pub["stage"])
         # See if we can fetch the content for this publication
-        try:
-            item = app.projects.get_contents_from_repo(
-                project=project, repo=repo, path=pub["path"]
-            )
-            pub["content"] = item.content
-            if "url" not in pub:
-                pub["url"] = item.url
-        except HTTPException as e:
-            logger.error(
-                f"Failed to get publication object at path {pub['path']}: {e}"
-            )
-            # Must be a 404
-            pass
+        if "path" in pub:
+            try:
+                item = app.projects.get_contents_from_repo(
+                    project=project, repo=repo, path=pub["path"]
+                )
+                pub["content"] = item.content
+                if "url" not in pub:
+                    pub["url"] = item.url
+            except HTTPException as e:
+                logger.warning(
+                    f"Failed to get publication at path {pub['path']}: {e}"
+                )
+                # Must be a 404
+                pass
         resp.append(Publication.model_validate(pub))
     return resp
 
