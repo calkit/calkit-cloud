@@ -35,7 +35,7 @@ function ProjectShowcase({ ownerName, projectName }: ProjectShowcaseProps) {
               ) : "markdown" in item ? (
                 <Markdown>{item.markdown}</Markdown>
               ) : "yaml" in item ? (
-                <Code whiteSpace="pre" width="100%">
+                <Code whiteSpace="pre" width="100%" overflow="auto">
                   {item.yaml}
                 </Code>
               ) : (

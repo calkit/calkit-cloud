@@ -35,6 +35,7 @@ class ShowcaseMarkdownFileInput(BaseModel):
 
 class ShowcaseYamlFileInput(BaseModel):
     yaml_file: str
+    object_name: str | None = None
 
 
 class ShowcaseYaml(BaseModel):

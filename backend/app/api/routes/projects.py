@@ -7,6 +7,7 @@ import os
 import subprocess
 import uuid
 from copy import deepcopy
+from io import StringIO
 from pathlib import Path
 from typing import Annotated, Literal, Optional
 
@@ -2491,8 +2492,21 @@ def get_project_showcase(
         elif isinstance(element_in, ShowcaseYamlFileInput):
             fpath = os.path.join(repo.working_dir, element_in.yaml_file)
             if os.path.isfile(fpath):
-                with open(fpath) as f:
-                    txt = f.read()
+                if element_in.object_name is None:
+                    with open(fpath) as f:
+                        txt = f.read()
+                else:
+                    with open(fpath) as f:
+                        content = ryaml.load(f)
+                    if content is None:
+                        content = {}
+                    obj = content.get(
+                        element_in.object_name,
+                        f"YAML object {element_in.object_name} not found.",
+                    )
+                    stream = StringIO()
+                    ryaml.dump(obj, stream)
+                    txt = stream.getvalue()
                 element_out = ShowcaseYaml(yaml=txt)
             else:
                 element_out = ShowcaseText(
