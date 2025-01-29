@@ -49,7 +49,7 @@ from app.dvc import make_mermaid_diagram, output_from_pipeline
 from app.git import (
     get_ck_info,
     get_ck_info_from_repo,
-    get_dvc_pipeline,
+    get_dvc_pipeline_from_repo,
     get_repo,
 )
 from app.models import (
@@ -1559,29 +1559,24 @@ def get_project_publications(
         current_user=current_user,
         min_access_level="read",
     )
-    ck_info = get_ck_info(
+    repo = get_repo(
         project=project, user=current_user, session=session, ttl=120
     )
-    pipeline = get_dvc_pipeline(
-        project=project, user=current_user, session=session, ttl=120
-    )
+    ck_info = get_ck_info_from_repo(repo)
+    pipeline = get_dvc_pipeline_from_repo(repo)
     publications = ck_info.get("publications", [])
     resp = []
     for pub in publications:
         if "stage" in pub:
             pub["stage_info"] = pipeline.get("stages", {}).get(pub["stage"])
         # See if we can fetch the content for this publication
-        # TODO: This is probably pretty inefficient, since this function
-        # reloads the YAML files we just loaded
         try:
-            item = get_project_contents(
-                owner_name=owner_name,
-                project_name=project_name,
-                session=session,
-                current_user=current_user,
-                path=pub["path"],
+            item = app.projects.get_contents_from_repo(
+                project=project, repo=repo, path=pub["path"]
             )
             pub["content"] = item.content
+            if "url" not in pub:
+                pub["url"] = item.url
         except HTTPException as e:
             logger.error(
                 f"Failed to get publication object at path {pub['path']}: {e}"
