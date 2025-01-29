@@ -2169,56 +2169,6 @@ export const $ProjectPublic = {
   },
 } as const
 
-export const $ProjectShowcase = {
-  properties: {
-    elements: {
-      type: "array",
-      contains: {
-        type: "any-of",
-        contains: [
-          {
-            type: "ProjectShowcaseFigure",
-          },
-          {
-            type: "ProjectShowcasePublication",
-          },
-          {
-            type: "ProjectShowcaseText",
-          },
-        ],
-      },
-      isRequired: true,
-    },
-  },
-} as const
-
-export const $ProjectShowcaseFigure = {
-  properties: {
-    figure: {
-      type: "Figure",
-      isRequired: true,
-    },
-  },
-} as const
-
-export const $ProjectShowcasePublication = {
-  properties: {
-    publication: {
-      type: "Publication",
-      isRequired: true,
-    },
-  },
-} as const
-
-export const $ProjectShowcaseText = {
-  properties: {
-    text: {
-      type: "string",
-      isRequired: true,
-    },
-  },
-} as const
-
 export const $ProjectsPublic = {
   properties: {
     data: {
@@ -2584,6 +2534,56 @@ export const $ReproCheck = {
     n_stages_with_env: {
       type: "number",
       isReadOnly: true,
+      isRequired: true,
+    },
+  },
+} as const
+
+export const $Showcase = {
+  properties: {
+    elements: {
+      type: "array",
+      contains: {
+        type: "any-of",
+        contains: [
+          {
+            type: "ShowcaseFigure",
+          },
+          {
+            type: "ShowcasePublication",
+          },
+          {
+            type: "ShowcaseText",
+          },
+        ],
+      },
+      isRequired: true,
+    },
+  },
+} as const
+
+export const $ShowcaseFigure = {
+  properties: {
+    figure: {
+      type: "Figure",
+      isRequired: true,
+    },
+  },
+} as const
+
+export const $ShowcasePublication = {
+  properties: {
+    publication: {
+      type: "Publication",
+      isRequired: true,
+    },
+  },
+} as const
+
+export const $ShowcaseText = {
+  properties: {
+    text: {
+      type: "string",
       isRequired: true,
     },
   },

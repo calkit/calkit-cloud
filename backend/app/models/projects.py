@@ -5,41 +5,41 @@ from pydantic import BaseModel
 from app.models import Figure, Publication
 
 
-class ProjectShowcaseFigureInput(BaseModel):
+class ShowcaseFigureInput(BaseModel):
     figure: str
 
 
-class ProjectShowcasePublicationInput(BaseModel):
+class ShowcasePublicationInput(BaseModel):
     publication: str
 
 
-class ProjectShowcaseFigure(BaseModel):
+class ShowcaseFigure(BaseModel):
     figure: Figure
 
 
-class ProjectShowcasePublication(BaseModel):
+class ShowcasePublication(BaseModel):
     publication: Publication
 
 
-class ProjectShowcaseText(BaseModel):
+class ShowcaseText(BaseModel):
     text: str
 
 
-class ProjectShowcaseMarkdown(BaseModel):
+class ShowcaseMarkdown(BaseModel):
     markdown: str
 
 
-class ProjectShowcaseInput(BaseModel):
+class ShowcaseInput(BaseModel):
     elements: list[
-        ProjectShowcaseFigureInput
-        | ProjectShowcasePublicationInput
-        | ProjectShowcaseText
+        ShowcaseFigureInput
+        | ShowcasePublicationInput
+        | ShowcaseText
     ]
 
 
-class ProjectShowcase(BaseModel):
+class Showcase(BaseModel):
     elements: list[
-        ProjectShowcaseFigure
-        | ProjectShowcasePublication
-        | ProjectShowcaseText
+        ShowcaseFigure
+        | ShowcasePublication
+        | ShowcaseText
     ]

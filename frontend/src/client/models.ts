@@ -434,24 +434,6 @@ export type ProjectPublic = {
   current_user_access?: "read" | "write" | "admin" | "owner" | null
 }
 
-export type ProjectShowcase = {
-  elements: Array<
-    ProjectShowcaseFigure | ProjectShowcasePublication | ProjectShowcaseText
-  >
-}
-
-export type ProjectShowcaseFigure = {
-  figure: Figure
-}
-
-export type ProjectShowcasePublication = {
-  publication: Publication
-}
-
-export type ProjectShowcaseText = {
-  text: string
-}
-
 export type ProjectsPublic = {
   data: Array<ProjectPublic>
   count: number
@@ -535,6 +517,22 @@ export type ReproCheck = {
   readonly n_publications_with_import_or_stage: number
   readonly n_stages_without_env: number
   readonly n_stages_with_env: number
+}
+
+export type Showcase = {
+  elements: Array<ShowcaseFigure | ShowcasePublication | ShowcaseText>
+}
+
+export type ShowcaseFigure = {
+  figure: Figure
+}
+
+export type ShowcasePublication = {
+  publication: Publication
+}
+
+export type ShowcaseText = {
+  text: string
 }
 
 export type Software = {

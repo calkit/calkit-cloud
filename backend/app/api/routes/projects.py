@@ -72,13 +72,13 @@ from app.models import (
     User,
 )
 from app.models.projects import (
-    ProjectShowcase,
-    ProjectShowcaseFigure,
-    ProjectShowcaseFigureInput,
-    ProjectShowcaseInput,
-    ProjectShowcasePublication,
-    ProjectShowcasePublicationInput,
-    ProjectShowcaseText,
+    Showcase,
+    ShowcaseFigure,
+    ShowcaseFigureInput,
+    ShowcaseInput,
+    ShowcasePublication,
+    ShowcasePublicationInput,
+    ShowcaseText,
 )
 from app.storage import (
     get_data_prefix,
@@ -2405,7 +2405,7 @@ def get_project_showcase(
     current_user: CurrentUserOptional,
     session: SessionDep,
     ttl: int | None = 120,
-) -> ProjectShowcase | None:
+) -> Showcase | None:
     project = app.projects.get_project(
         owner_name=owner_name,
         project_name=project_name,
@@ -2413,9 +2413,9 @@ def get_project_showcase(
         current_user=current_user,
         min_access_level="read",
     )
-    incorrectly_defined = ProjectShowcase(
+    incorrectly_defined = Showcase(
         elements=[
-            ProjectShowcaseText(text="Showcase is not correctly defined.")
+            ShowcaseText(text="Showcase is not correctly defined.")
         ]
     )
     repo = get_repo(
@@ -2426,7 +2426,7 @@ def get_project_showcase(
     if showcase is None:
         return
     try:
-        inputs = ProjectShowcaseInput.model_validate(dict(elements=showcase))
+        inputs = ShowcaseInput.model_validate(dict(elements=showcase))
     except Exception:
         return incorrectly_defined
     # Iterate over showcase elements, fetching the contents to return
@@ -2437,9 +2437,9 @@ def get_project_showcase(
         ttl = 30 * ttl
     elements_out = []
     for element_in in inputs.elements:
-        if isinstance(element_in, ProjectShowcaseFigureInput):
+        if isinstance(element_in, ShowcaseFigureInput):
             try:
-                element_out = ProjectShowcaseFigure(
+                element_out = ShowcaseFigure(
                     figure=app.projects.get_figure_from_repo(
                         project=project,
                         repo=repo,
@@ -2450,12 +2450,12 @@ def get_project_showcase(
                 logger.warning(
                     f"Failed to get showcase figure from {element_in}: {e}"
                 )
-                element_out = ProjectShowcaseText(
+                element_out = ShowcaseText(
                     text=f"Figure at path '{element_in.figure}' not found"
                 )
-        elif isinstance(element_in, ProjectShowcasePublicationInput):
+        elif isinstance(element_in, ShowcasePublicationInput):
             try:
-                element_out = ProjectShowcasePublication(
+                element_out = ShowcasePublication(
                     publication=app.projects.get_publication_from_repo(
                         project=project,
                         repo=repo,
@@ -2467,7 +2467,7 @@ def get_project_showcase(
                     "Failed to get showcase publication from "
                     f"{element_in}: {e}"
                 )
-                element_out = ProjectShowcaseText(
+                element_out = ShowcaseText(
                     text=(
                         f"Publication at path '{element_in.publication}' "
                         "not found"
@@ -2476,4 +2476,4 @@ def get_project_showcase(
         else:
             element_out = element_in
         elements_out.append(element_out)
-    return ProjectShowcase.model_validate(dict(elements=elements_out))
+    return Showcase.model_validate(dict(elements=elements_out))

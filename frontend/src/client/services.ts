@@ -54,13 +54,13 @@ import type {
   ProjectCreate,
   ProjectPatch,
   ProjectPublic,
-  ProjectShowcase,
   ProjectsPublic,
   Publication,
   Question,
   QuestionPost,
   References,
   ReproCheck,
+  Showcase,
   Software,
   OrgMemberPost,
   OrgPost,
@@ -2151,7 +2151,7 @@ export class ProjectsService {
    */
   public static getProjectShowcase(
     data: ProjectsData["GetProjectShowcase"],
-  ): CancelablePromise<ProjectShowcase | null> {
+  ): CancelablePromise<Showcase | null> {
     const { ownerName, projectName, ttl } = data
     return __request(OpenAPI, {
       method: "GET",
