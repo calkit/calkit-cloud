@@ -71,6 +71,15 @@ from app.models import (
     Question,
     User,
 )
+from app.models.projects import (
+    ProjectShowcase,
+    ProjectShowcaseFigure,
+    ProjectShowcaseFigureInput,
+    ProjectShowcaseInput,
+    ProjectShowcasePublication,
+    ProjectShowcasePublicationInput,
+    ProjectShowcaseText,
+)
 from app.storage import (
     get_data_prefix,
     get_object_fs,
@@ -2387,42 +2396,6 @@ def get_project_app(
     if project_app is None:
         return
     return ProjectApp.model_validate(project_app)
-
-
-class ProjectShowcaseFigureInput(BaseModel):
-    figure: str
-
-
-class ProjectShowcasePublicationInput(BaseModel):
-    publication: str
-
-
-class ProjectShowcaseFigure(BaseModel):
-    figure: Figure
-
-
-class ProjectShowcasePublication(BaseModel):
-    publication: Publication
-
-
-class ProjectShowcaseText(BaseModel):
-    text: str
-
-
-class ProjectShowcaseInput(BaseModel):
-    elements: list[
-        ProjectShowcaseFigureInput
-        | ProjectShowcasePublicationInput
-        | ProjectShowcaseText
-    ]
-
-
-class ProjectShowcase(BaseModel):
-    elements: list[
-        ProjectShowcaseFigure
-        | ProjectShowcasePublication
-        | ProjectShowcaseText
-    ]
 
 
 @router.get("/projects/{owner_name}/{project_name}/showcase")

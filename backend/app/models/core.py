@@ -1,4 +1,4 @@
-"""Database/request models."""
+"""Core models that should make it into the top-level ``models`` namespace."""
 
 import uuid
 from datetime import datetime
