@@ -157,6 +157,7 @@ export type ProjectsData = {
   GetProjects: {
     limit?: number
     offset?: number
+    searchFor?: string | null
   }
   CreateProject: {
     requestBody: ProjectCreate
@@ -164,6 +165,7 @@ export type ProjectsData = {
   GetOwnedProjects: {
     limit?: number
     offset?: number
+    searchFor?: string | null
   }
   GetProject: {
     ownerName: string
@@ -262,6 +264,7 @@ export type ProjectsData = {
     figurePath: string
     ownerName: string
     projectName: string
+    ttl?: number | null
   }
   GetFigureComments: {
     figurePath?: string | null
@@ -383,6 +386,7 @@ export type ProjectsData = {
   GetProjectShowcase: {
     ownerName: string
     projectName: string
+    ttl?: number | null
   }
 }
 
@@ -1024,13 +1028,14 @@ export class ProjectsService {
   public static getProjects(
     data: ProjectsData["GetProjects"] = {},
   ): CancelablePromise<ProjectsPublic> {
-    const { limit = 100, offset = 0 } = data
+    const { limit = 100, offset = 0, searchFor } = data
     return __request(OpenAPI, {
       method: "GET",
       url: "/projects",
       query: {
         limit,
         offset,
+        search_for: searchFor,
       },
       errors: {
         422: `Validation Error`,
@@ -1067,13 +1072,14 @@ export class ProjectsService {
   public static getOwnedProjects(
     data: ProjectsData["GetOwnedProjects"] = {},
   ): CancelablePromise<ProjectsPublic> {
-    const { limit = 100, offset = 0 } = data
+    const { limit = 100, offset = 0, searchFor } = data
     return __request(OpenAPI, {
       method: "GET",
       url: "/user/projects",
       query: {
         limit,
         offset,
+        search_for: searchFor,
       },
       errors: {
         422: `Validation Error`,
@@ -1525,7 +1531,7 @@ export class ProjectsService {
   public static getProjectFigure(
     data: ProjectsData["GetProjectFigure"],
   ): CancelablePromise<Figure> {
-    const { ownerName, projectName, figurePath } = data
+    const { ownerName, projectName, figurePath, ttl } = data
     return __request(OpenAPI, {
       method: "GET",
       url: "/projects/{owner_name}/{project_name}/figures/{figure_path}",
@@ -1533,6 +1539,9 @@ export class ProjectsService {
         owner_name: ownerName,
         project_name: projectName,
         figure_path: figurePath,
+      },
+      query: {
+        ttl,
       },
       errors: {
         422: `Validation Error`,
@@ -2143,13 +2152,16 @@ export class ProjectsService {
   public static getProjectShowcase(
     data: ProjectsData["GetProjectShowcase"],
   ): CancelablePromise<ProjectShowcase | null> {
-    const { ownerName, projectName } = data
+    const { ownerName, projectName, ttl } = data
     return __request(OpenAPI, {
       method: "GET",
       url: "/projects/{owner_name}/{project_name}/showcase",
       path: {
         owner_name: ownerName,
         project_name: projectName,
+      },
+      query: {
+        ttl,
       },
       errors: {
         422: `Validation Error`,

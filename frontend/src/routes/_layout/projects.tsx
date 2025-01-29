@@ -3,6 +3,7 @@ import {
   Container,
   Flex,
   Heading,
+  Input,
   Link,
   SkeletonText,
   Table,
@@ -21,7 +22,8 @@ import {
   Link as RouterLink,
 } from "@tanstack/react-router"
 import { z } from "zod"
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
+import { useDebounce } from "use-debounce"
 
 import { pageWidthNoSidebar } from "../../utils"
 import { ProjectsService } from "../../client"
@@ -32,14 +34,18 @@ const projectsSearchSchema = z.object({
 
 const PER_PAGE = 10
 
-function getAllProjectsQueryOptions({ page }: { page: number }) {
+function getAllProjectsQueryOptions({
+  page,
+  searchFor,
+}: { page: number; searchFor?: string }) {
   return {
     queryFn: () =>
       ProjectsService.getProjects({
         offset: (page - 1) * PER_PAGE,
         limit: PER_PAGE,
+        searchFor: searchFor,
       }),
-    queryKey: ["projects-all", { page }],
+    queryKey: ["projects-all", { page, searchFor }],
   }
 }
 
@@ -53,13 +59,15 @@ function PublicProjectsTable() {
   const navigate = useNavigate({ from: Route.fullPath })
   const setPage = (page: number) =>
     navigate({ search: (prev) => ({ ...prev, page }) })
+  const [searchForText, setSearchForText] = useState()
+  const [searchFor] = useDebounce(searchForText, 400)
 
   const {
     data: projects,
     isPending,
     isPlaceholderData,
   } = useQuery({
-    ...getAllProjectsQueryOptions({ page }),
+    ...getAllProjectsQueryOptions({ page, searchFor }),
     placeholderData: (prevData) => prevData,
   })
 
@@ -68,12 +76,28 @@ function PublicProjectsTable() {
 
   useEffect(() => {
     if (hasNextPage) {
-      queryClient.prefetchQuery(getAllProjectsQueryOptions({ page: page + 1 }))
+      queryClient.prefetchQuery(
+        getAllProjectsQueryOptions({
+          page: page + 1,
+          searchFor: searchForText,
+        }),
+      )
     }
   }, [page, queryClient, hasNextPage])
 
+  const onSearchChange = (e: any) => {
+    setSearchForText(e.target.value)
+    // TODO: Search URL params
+  }
+
   return (
     <>
+      <Input
+        mb={4}
+        placeholder="Search..."
+        width="33%"
+        onChange={onSearchChange}
+      />
       <TableContainer>
         <Table size={{ base: "sm", md: "md" }}>
           <Thead>
