@@ -72,7 +72,7 @@ function Learn() {
             variant="blue"
             href="https://calendar.app.google/fGDwYrqJm3diKegr8"
           >
-            schedule a call
+            schedule a video chat
           </Link>
           .
         </Text>
