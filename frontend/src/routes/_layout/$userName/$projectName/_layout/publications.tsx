@@ -59,6 +59,22 @@ function PubView({ publication }: PubViewProps) {
       />
     )
   } else if (
+    publication.path.endsWith(".html") &&
+    (publication.content || publication.url)
+  ) {
+    contentView = (
+      <embed
+        height="100%"
+        width="100%"
+        type="text/html"
+        src={
+          publication.url
+            ? String(publication.url)
+            : `data:text/html;base64,${publication.content}`
+        }
+      />
+    )
+  } else if (
     publication.path.endsWith(".png") &&
     (publication.content || publication.url)
   ) {
