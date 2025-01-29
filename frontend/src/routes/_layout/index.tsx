@@ -14,6 +14,7 @@ import {
   Thead,
   Tr,
   Text,
+  Input,
 } from "@chakra-ui/react"
 import { ExternalLinkIcon } from "@chakra-ui/icons"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
@@ -22,8 +23,9 @@ import {
   useNavigate,
   Link as RouterLink,
 } from "@tanstack/react-router"
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { z } from "zod"
+import { useDebounce } from "use-debounce"
 
 import { ProjectsService } from "../../client"
 import ActionsMenu from "../../components/Common/ActionsMenu"
@@ -42,14 +44,18 @@ export const Route = createFileRoute("/_layout/")({
 
 const PER_PAGE = 5
 
-function getOwnedProjectsQueryOptions({ page }: { page: number }) {
+function getOwnedProjectsQueryOptions({
+  page,
+  searchFor,
+}: { page: number; searchFor?: string }) {
   return {
     queryFn: () =>
       ProjectsService.getOwnedProjects({
         offset: (page - 1) * PER_PAGE,
         limit: PER_PAGE,
+        searchFor,
       }),
-    queryKey: ["projects", { page }],
+    queryKey: ["projects", { page, searchFor }],
   }
 }
 
@@ -59,13 +65,15 @@ function ProjectsTable() {
   const navigate = useNavigate({ from: Route.fullPath })
   const setPage = (page: number) =>
     navigate({ search: (prev) => ({ ...prev, page }) })
+  const [searchForText, setSearchForText] = useState()
+  const [searchFor] = useDebounce(searchForText, 400)
 
   const {
     data: projects,
     isPending,
     isPlaceholderData,
   } = useQuery({
-    ...getOwnedProjectsQueryOptions({ page }),
+    ...getOwnedProjectsQueryOptions({ page, searchFor }),
     placeholderData: (prevData) => prevData,
   })
 
@@ -80,8 +88,18 @@ function ProjectsTable() {
     }
   }, [page, queryClient, hasNextPage])
 
+  const onSearchChange = (e: any) => {
+    setSearchForText(e.target.value)
+  }
+
   return (
     <>
+      <Flex alignItems="center">
+        <Box mr={4}>
+          <Navbar verb={"Create"} type={"project"} addModalAs={CreateProject} />
+        </Box>
+        <Input placeholder="Search..." width="33%" onChange={onSearchChange} />
+      </Flex>
       <TableContainer>
         <Table size={{ base: "sm", md: "md" }}>
           <Thead>
@@ -230,15 +248,6 @@ function Projects() {
           <Heading size="lg" textAlign={{ base: "center", md: "left" }} mt={12}>
             Your projects
           </Heading>
-          <Flex>
-            <Box mr={4}>
-              <Navbar
-                verb={"Create"}
-                type={"project"}
-                addModalAs={CreateProject}
-              />
-            </Box>
-          </Flex>
           <ProjectsTable />
         </>
       ) : (
