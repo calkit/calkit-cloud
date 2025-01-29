@@ -250,6 +250,7 @@ def get_contents_from_repo(
     # We're looking for a file
     # Check if it exists in the repo
     if os.path.isfile(os.path.join(repo_dir, path)):
+        # TODO: Only send content if it's small enough, else send URL
         with open(os.path.join(repo_dir, path), "rb") as f:
             content = f.read()
         return ContentsItem.model_validate(
