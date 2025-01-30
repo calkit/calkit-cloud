@@ -121,10 +121,10 @@ def get_projects(
         where_clause = and_(
             where_clause,
             or_(
-                Project.name.like(search_for),
-                Project.title.like(search_for),
-                Project.description.like(search_for),
-                Project.git_repo_url.like(search_for),
+                Project.name.ilike(search_for),
+                Project.title.ilike(search_for),
+                Project.description.ilike(search_for),
+                Project.git_repo_url.ilike(search_for),
             ),
         )
     count_query = select(func.count()).select_from(Project).where(where_clause)
@@ -155,10 +155,10 @@ def get_owned_projects(
         where_clause = and_(
             where_clause,
             or_(
-                Project.name.like(search_for),
-                Project.title.like(search_for),
-                Project.description.like(search_for),
-                Project.git_repo_url.like(search_for),
+                Project.name.ilike(search_for),
+                Project.title.ilike(search_for),
+                Project.description.ilike(search_for),
+                Project.git_repo_url.ilike(search_for),
             ),
         )
     count_statement = (
