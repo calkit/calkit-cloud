@@ -42,7 +42,6 @@ const pre = ({ children, ...props }: any) => {
   return (
     <pre {...props}>
       {React.Children.map(children, (child) => {
-        console.log(`child ${child}`)
         return React.cloneElement(child, { insidePre: true })
       })}
     </pre>
