@@ -8,15 +8,17 @@ import { type Figure } from "../../client"
 
 interface FigureViewProps {
   figure: Figure
+  width?: string
 }
 
-function FigureView({ figure }: FigureViewProps) {
+function FigureView({ figure, width }: FigureViewProps) {
   const routeApi = getRouteApi("/_layout/$userName/$projectName")
   const { userName, projectName } = routeApi.useParams()
+  const boxWidth = width ? width : "100%"
   let figView = <>Not set</>
   if (figure.path.endsWith(".pdf")) {
     figView = (
-      <Box height="530px" width="100%">
+      <Box height="530px" width={boxWidth}>
         <embed
           height="100%"
           width="100%"
@@ -35,7 +37,7 @@ function FigureView({ figure }: FigureViewProps) {
     figure.path.endsWith(".jpeg")
   ) {
     figView = (
-      <Box width="100%">
+      <Box width={boxWidth}>
         <Image
           alt={figure.title}
           src={
@@ -46,11 +48,25 @@ function FigureView({ figure }: FigureViewProps) {
         />
       </Box>
     )
+  } else if (figure.path.endsWith(".svg")) {
+    figView = (
+      <Box width={boxWidth}>
+        <Image
+          alt={figure.title}
+          src={
+            figure.content
+              ? `data:image/svg+xml;base64,${figure.content}`
+              : String(figure.url)
+          }
+          width="100%"
+        />
+      </Box>
+    )
   } else if (figure.path.endsWith(".json")) {
     const figObject = JSON.parse(atob(String(figure.content)))
     const layout = figObject.layout
     figView = (
-      <Box width="100%">
+      <Box width={boxWidth}>
         <Plot
           data={figObject.data}
           layout={layout}
@@ -80,7 +96,7 @@ function FigureView({ figure }: FigureViewProps) {
       figContent = "No content found"
     }
     figView = (
-      <Box width="100%" height="400px">
+      <Box width={boxWidth} height="400px">
         {figContent ? (
           <iframe
             width="100%"

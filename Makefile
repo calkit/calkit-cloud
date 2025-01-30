@@ -15,3 +15,7 @@ dev:
 .PHONY: build-dev
 build-dev:
 	${DOCKER_COMPOSE_DEV} build
+
+.PHONY: frontend-dev
+frontend-dev:
+	cd frontend && npm run dev
