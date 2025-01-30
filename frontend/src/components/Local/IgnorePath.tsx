@@ -60,7 +60,6 @@ const IgnorePath = ({ path }: IgnorePathProps) => {
         commit_message: data.commit_message,
         push: data.push,
       }
-      console.log(payload)
       return axios.put(url, payload)
     },
     onSuccess: () => {

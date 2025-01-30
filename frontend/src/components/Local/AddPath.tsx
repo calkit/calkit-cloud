@@ -60,7 +60,6 @@ const AddPath = ({ path }: AddPathProps) => {
         commit_message: data.commit_message,
         push: data.push,
       }
-      console.log(postData)
       return axios.post(url, postData)
     },
     onSuccess: () => {
