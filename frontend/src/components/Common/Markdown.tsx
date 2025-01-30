@@ -10,6 +10,8 @@ import {
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import React from "react"
+import rehypeRaw from "rehype-raw"
+import rehypeSanitize from "rehype-sanitize"
 
 interface MarkdownProps {
   children: string
@@ -71,6 +73,7 @@ const Markdown = ({ children }: MarkdownProps) => {
         a: BlueLink,
       }}
       remarkPlugins={[remarkGfm]}
+      rehypePlugins={[rehypeRaw, rehypeSanitize]}
     >
       {children}
     </ReactMarkdown>
