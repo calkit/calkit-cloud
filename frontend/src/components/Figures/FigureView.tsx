@@ -46,6 +46,20 @@ function FigureView({ figure }: FigureViewProps) {
         />
       </Box>
     )
+  } else if (figure.path.endsWith(".svg")) {
+    figView = (
+      <Box width="100%">
+        <Image
+          alt={figure.title}
+          src={
+            figure.content
+              ? `data:image/svg+xml;base64,${figure.content}`
+              : String(figure.url)
+          }
+          width="100%"
+        />
+      </Box>
+    )
   } else if (figure.path.endsWith(".json")) {
     const figObject = JSON.parse(atob(String(figure.content)))
     const layout = figObject.layout
