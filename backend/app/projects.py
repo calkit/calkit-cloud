@@ -1,6 +1,7 @@
 """Functionality for working with projects"""
 
 import base64
+import hashlib
 import logging
 import os
 from typing import Literal
@@ -250,9 +251,31 @@ def get_contents_from_repo(
     # We're looking for a file
     # Check if it exists in the repo
     if os.path.isfile(os.path.join(repo_dir, path)):
-        # TODO: Only send content if it's small enough, else send URL
+        # Only send content if it's small enough, else send URL
+        size = os.path.getsize(os.path.join(repo_dir, path))
+        url = None
         with open(os.path.join(repo_dir, path), "rb") as f:
             content = f.read()
+        if size > RETURN_CONTENT_SIZE_LIMIT:
+            logger.info(f"{path} is greater than return size limit")
+            # See if this lives in object storage, and if not, save there by
+            # md5 and create a presigned URL
+            md5 = hashlib.md5(content).hexdigest()
+            fs = get_object_fs()
+            fp = make_data_fpath(
+                owner_name=owner_name,
+                project_name=project_name,
+                idx=md5[:2],
+                md5=md5[2:],
+            )
+            # Does this file already exist in object storage?
+            if not fs.isfile(fp):
+                logger.info(f"Writing {path} to object storage")
+                with fs.open(fp, "wb") as f:
+                    f.write(content)
+            url = get_object_url(fp, fname=os.path.basename(path), fs=fs)
+            # Do not send content
+            content = None
         return ContentsItem.model_validate(
             dict(
                 path=path,
@@ -260,9 +283,14 @@ def get_contents_from_repo(
                 size=os.path.getsize(os.path.join(repo_dir, path)),
                 type="file",
                 in_repo=True,
-                content=base64.b64encode(content).decode(),
+                content=(
+                    base64.b64encode(content).decode()
+                    if content is not None
+                    else None
+                ),
                 calkit_object=ck_objects.get(path),
                 lock=file_locks_by_path.get(path),
+                url=url,
             )
         )
     # The file isn't in the repo, but maybe it's in the Calkit objects
