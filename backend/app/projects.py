@@ -11,6 +11,7 @@ import yaml
 from fastapi import HTTPException
 from sqlmodel import Session, select
 
+from app.config import settings
 from app.core import CATEGORIES_PLURAL_TO_SINGULAR
 from app.dvc import output_from_pipeline
 from app.git import get_ck_info_from_repo
@@ -27,6 +28,7 @@ from app.storage import (
     get_object_fs,
     get_object_url,
     make_data_fpath,
+    remove_gcs_content_type,
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -273,6 +275,10 @@ def get_contents_from_repo(
                 logger.info(f"Writing {path} to object storage")
                 with fs.open(fp, "wb") as f:
                     f.write(content)
+            # If using Google Cloud Storage, we need to remove the content type
+            # metadata in order to set it for signed URLs
+            if settings.ENVIRONMENT != "local":
+                remove_gcs_content_type(fp)
             url = get_object_url(fp, fname=os.path.basename(path), fs=fs)
             # Do not send content
             content = None
