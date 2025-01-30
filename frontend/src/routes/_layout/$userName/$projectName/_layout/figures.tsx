@@ -6,7 +6,6 @@ import {
   Text,
   Textarea,
   Button,
-  Image,
   Icon,
   useDisclosure,
   Menu,
@@ -23,8 +22,6 @@ import { createFileRoute, Link as RouterLink } from "@tanstack/react-router"
 import { useState } from "react"
 import { FaPlus, FaRegFileImage, FaRegFilePdf } from "react-icons/fa"
 import { FiFile } from "react-icons/fi"
-import Plot from "react-plotly.js"
-import axios from "axios"
 
 import UploadFigure from "../../../../../components/Figures/UploadFigure"
 import LabelAsFigure from "../../../../../components/Figures/FigureFromExisting"
@@ -36,6 +33,7 @@ import {
 import PageMenu from "../../../../../components/Common/PageMenu"
 import useProject from "../../../../../hooks/useProject"
 import useAuth from "../../../../../hooks/useAuth"
+import FigureView from "../../../../../components/Figures/FigureView"
 
 export const Route = createFileRoute(
   "/_layout/$userName/$projectName/_layout/figures",
@@ -160,97 +158,11 @@ function FigureComments({ figure }: FigureCommentProps) {
   )
 }
 
-interface FigureViewProps {
+interface FigurePanelProps {
   figure: Figure
 }
 
-function FigureView({ figure }: FigureViewProps) {
-  let figView = <>Not set</>
-  if (figure.path.endsWith(".pdf")) {
-    figView = (
-      <Box height="530px" width="635px">
-        <embed
-          height="100%"
-          width="100%"
-          type="application/pdf"
-          src={
-            figure.content
-              ? `data:application/pdf;base64,${figure.content}`
-              : String(figure.url)
-          }
-        />
-      </Box>
-    )
-  } else if (
-    figure.path.endsWith(".png") ||
-    figure.path.endsWith(".jpg") ||
-    figure.path.endsWith(".jpeg")
-  ) {
-    figView = (
-      <Box width="635px">
-        <Image
-          alt={figure.title}
-          src={
-            figure.content
-              ? `data:image/png;base64,${figure.content}`
-              : String(figure.url)
-          }
-        />
-      </Box>
-    )
-  } else if (figure.path.endsWith(".json")) {
-    const figObject = JSON.parse(atob(String(figure.content)))
-    const layout = figObject.layout
-    figView = (
-      <Box width="635px">
-        <Plot
-          data={figObject.data}
-          layout={layout}
-          config={{ displayModeBar: false }}
-          style={{ width: "100%", height: "100%" }}
-          useResizeHandler={true}
-        />
-      </Box>
-    )
-  } else if (figure.path.endsWith(".html")) {
-    // Embed HTML figure in an iframe
-    const { userName, projectName } = Route.useParams()
-    const { data, isPending } = useQuery({
-      queryFn: () => axios.get(String(figure.url)),
-      queryKey: [
-        "projects",
-        userName,
-        projectName,
-        "figure-content",
-        figure.path,
-      ],
-      enabled: Boolean(!figure.content && figure.url),
-    })
-    let figContent = figure.content
-    if (!figure.content && figure.url) {
-      figContent = data?.data
-    } else {
-      figContent = "No content found"
-    }
-    figView = (
-      <Box width="635px" height="400px">
-        {figContent ? (
-          <iframe
-            width="100%"
-            height="100%"
-            title="figure"
-            srcDoc={figContent}
-          />
-        ) : isPending ? (
-          "Loading..."
-        ) : (
-          ""
-        )}
-      </Box>
-    )
-  } else {
-    figView = <Text>Cannot render this type of figure</Text>
-  }
+function FigurePanel({ figure }: FigurePanelProps) {
   const secBgColor = useColorModeValue("ui.secondary", "ui.darkSlate")
 
   return (
@@ -263,7 +175,7 @@ function FigureView({ figure }: FigureViewProps) {
           <Text>{figure.description}</Text>
           {figure.content || figure.url ? (
             <Box mt={3} mb={1}>
-              {figView}
+              <FigureView figure={figure} width="635px" />
             </Box>
           ) : (
             "No content found"
@@ -412,7 +324,7 @@ function ProjectFigures() {
             <Box width="full" mt={-1} ml={-2} mb={2}>
               {figures?.map((figure) => (
                 <Box id={figure.path} key={figure.title} mb={-1}>
-                  <FigureView figure={figure} />
+                  <FigurePanel figure={figure} />
                 </Box>
               ))}
             </Box>
