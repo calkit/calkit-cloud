@@ -128,7 +128,7 @@ def expand_dvc_lock_outs(
         fs = get_object_fs()
     stages = dvc_lock.get("stages", {})
     dvc_lock_outs = {}
-    for _, stage in stages.items():
+    for stage_name, stage in stages.items():
         for out in stage.get("outs", []):
             outpath = out["path"]
             md5 = out.get("md5", "")
@@ -146,10 +146,17 @@ def expand_dvc_lock_outs(
                         dvc_dir_contents = json.load(f)
                     dvc_lock_outs[outpath] = out
                     dvc_lock_outs[outpath]["children"] = dvc_dir_contents
+                    dvc_lock_outs[outpath]["dirname"] = os.path.dirname(
+                        outpath
+                    )
+                    dvc_lock_outs[outpath]["type"] = "dir"
+                    dvc_lock_outs[outpath]["stage"] = stage_name
                     for dvc_obj in dvc_dir_contents:
                         dvc_lock_outs[
                             os.path.join(outpath, dvc_obj["relpath"])
-                        ] = dvc_obj
+                        ] = dvc_obj | dict(
+                            dirname=outpath, type="file", stage=stage_name
+                        )
             else:
                 dvc_lock_outs[outpath] = out
     return dvc_lock_outs

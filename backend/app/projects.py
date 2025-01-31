@@ -13,7 +13,7 @@ from sqlmodel import Session, select
 
 from app.config import settings
 from app.core import CATEGORIES_PLURAL_TO_SINGULAR
-from app.dvc import output_from_pipeline
+from app.dvc import output_from_pipeline, expand_dvc_lock_outs
 from app.git import get_ck_info_from_repo
 from app.models import (
     ContentsItem,
@@ -120,6 +120,14 @@ def get_contents_from_repo(
     if os.path.isfile(dvc_lock_fpath):
         with open(dvc_lock_fpath) as f:
             dvc_lock = yaml.safe_load(f)
+    # Expand all DVC lock outs
+    fs = get_object_fs()
+    dvc_lock_outs = expand_dvc_lock_outs(
+        dvc_lock, owner_name=owner_name, project_name=project_name, fs=fs
+    )
+    dvc_lock_out_dirs = [
+        p for p, obj in dvc_lock_outs.items() if obj["type"] == "dir"
+    ]
     ignore_paths = [".git", ".dvc/cache", ".dvc/tmp", ".dvc/config.local"]
     if path is not None and path in ignore_paths:
         raise HTTPException(404)
@@ -181,30 +189,51 @@ def get_contents_from_repo(
         for lock in project.file_locks
     }
     # See if we're listing off a directory
-    if path is None or os.path.isdir(os.path.join(repo_dir, path)):
+    if (
+        path is None
+        or os.path.isdir(os.path.join(repo_dir, path))
+        or path in dvc_lock_out_dirs
+    ):
         # We're listing off the top of the repo
         dirname = "" if path is None else path
         contents = []
-        paths = sorted(
-            os.listdir(
-                repo_dir if path is None else os.path.join(repo_dir, path)
+        if path not in dvc_lock_out_dirs:
+            paths = sorted(
+                os.listdir(
+                    repo_dir if path is None else os.path.join(repo_dir, path)
+                )
             )
-        )
-        paths = [os.path.join(dirname, p) for p in paths]
-        for p in paths:
+            paths = [os.path.join(dirname, p) for p in paths]
+        else:
+            paths = []
+        dvc_paths = []
+        for dvc_lock_out_path, dvc_lock_out_obj in dvc_lock_outs.items():
+            if dvc_lock_out_obj["dirname"] == dirname:
+                dvc_paths.append(dvc_lock_out_path)
+        all_paths = sorted(paths + dvc_paths)
+        for p in all_paths:
             if p in ignore_paths:
                 continue
+            if p not in dvc_paths:
+                size = os.path.getsize(os.path.join(repo_dir, p))
+                obj_type = (
+                    "file"
+                    if os.path.isfile(os.path.join(repo_dir, p))
+                    else "dir"
+                )
+                in_repo = True
+            else:
+                size = None
+                obj_type = dvc_lock_outs[p]["type"]
+                in_repo = False
             obj = dict(
                 name=os.path.basename(p),
                 path=p,
-                size=os.path.getsize(os.path.join(repo_dir, p)),
-                in_repo=True,
+                size=size,
+                in_repo=in_repo,
                 lock=file_locks_by_path.get(p),
+                type=obj_type,
             )
-            if os.path.isfile(os.path.join(repo_dir, p)):
-                obj["type"] = "file"
-            else:
-                obj["type"] = "dir"
             if p in ck_objects:
                 dvc_out = ck_outs.get(p)
                 obj["calkit_object"] = ck_objects[p]
@@ -263,7 +292,6 @@ def get_contents_from_repo(
             # See if this lives in object storage, and if not, save there by
             # md5 and create a presigned URL
             md5 = hashlib.md5(content).hexdigest()
-            fs = get_object_fs()
             fp = make_data_fpath(
                 owner_name=owner_name,
                 project_name=project_name,
@@ -312,7 +340,6 @@ def get_contents_from_repo(
         url = None
         # Create presigned url
         if md5:
-            fs = get_object_fs()
             fp = make_data_fpath(
                 owner_name=owner_name,
                 project_name=project_name,
@@ -346,13 +373,15 @@ def get_contents_from_repo(
     else:
         # Do we have a DVC file for this path?
         dvc_fpath = os.path.join(repo_dir, path + ".dvc")
-        if os.path.isfile(dvc_fpath):
-            # Open the DVC file so we can get its MD5 hash
-            with open(dvc_fpath) as f:
-                dvc_info = yaml.load(f)
-            dvc_out = dvc_info["outs"][0]
+        if path in dvc_lock_outs or os.path.isfile(dvc_fpath):
+            if os.path.isfile(dvc_fpath):
+                # Open the DVC file so we can get its MD5 hash
+                with open(dvc_fpath) as f:
+                    dvc_info = yaml.load(f)
+                dvc_out = dvc_info["outs"][0]
+            else:
+                dvc_out = dvc_lock_outs[path]
             md5 = dvc_out["md5"]
-            fs = get_object_fs()
             fp = make_data_fpath(
                 owner_name=owner_name,
                 project_name=project_name,
@@ -360,8 +389,9 @@ def get_contents_from_repo(
                 md5=md5[2:],
             )
             url = get_object_url(fp, fname=os.path.basename(path), fs=fs)
-            size = dvc_out["size"]
+            size = dvc_out.get("size")
             dvc_type = "dir" if md5.endswith(".dir") else "file"
+            # TODO: If this is a directory, list dir_items
             return ContentsItem.model_validate(
                 dict(
                     path=path,

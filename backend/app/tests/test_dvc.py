@@ -87,3 +87,10 @@ def test_output_from_pipeline():
         lock=lock,
     )
     assert out is None
+
+
+def test_expand_dvc_lock_outs():
+    """This requires the `petebachant/snakemake-tutorial` project to be
+    populated in the dev environment.
+    """
+    pass  # TODO
