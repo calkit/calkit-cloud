@@ -231,7 +231,10 @@ def get_contents_from_repo(
                 obj["calkit_object"] = None
             contents.append(ContentsItem.model_validate(obj))
         for ck_path, ck_obj in ck_objects.items():
-            if os.path.dirname(ck_path) == dirname and ck_path not in paths:
+            if (
+                os.path.dirname(ck_path) == dirname
+                and ck_path not in all_paths
+            ):
                 # Read DVC output for this path
                 dvc_out = ck_outs.get(ck_path)
                 if dvc_out is None:
