@@ -145,17 +145,44 @@ def expand_dvc_lock_outs(
                     with fs.open(dvc_dir_path) as f:
                         dvc_dir_contents = json.load(f)
                     dvc_lock_outs[outpath] = out
-                    dvc_lock_outs[outpath]["children"] = dvc_dir_contents
                     dvc_lock_outs[outpath]["dirname"] = os.path.dirname(
                         outpath
                     )
                     dvc_lock_outs[outpath]["type"] = "dir"
                     dvc_lock_outs[outpath]["stage"] = stage_name
+                    if "children" not in dvc_lock_outs[outpath]:
+                        dvc_lock_outs[outpath]["children"] = []
+                    # Handle the fact that DVC relpaths could actually be in
+                    # subdirectories, so we need to also ensure these subdirs
+                    # make it
+                    # TODO: This only works one level deep--should be recursive
                     for dvc_obj in dvc_dir_contents:
-                        dvc_lock_outs[
-                            os.path.join(outpath, dvc_obj["relpath"])
-                        ] = dvc_obj | dict(
-                            dirname=outpath, type="file", stage=stage_name
+                        relpath = dvc_obj["relpath"]
+                        fname = os.path.basename(relpath)
+                        subdir = os.path.dirname(relpath)
+                        if subdir:
+                            subdir_full_relpath = os.path.join(outpath, subdir)
+                            if subdir_full_relpath not in dvc_lock_outs:
+                                dvc_lock_outs[subdir_full_relpath] = dict(
+                                    type="dir", children=[], dirname=outpath
+                                )
+                            dvc_lock_outs[subdir_full_relpath][
+                                "children"
+                            ].append(dict(relpath=fname))
+                            if (
+                                subdir_full_relpath
+                                not in dvc_lock_outs[outpath]["children"]
+                            ):
+                                dvc_lock_outs[outpath]["children"].append(
+                                    dict(relpath=subdir, type="dir")
+                                )
+                        else:
+                            subdir_full_relpath = outpath
+                        full_relpath = os.path.join(outpath, relpath)
+                        dvc_lock_outs[full_relpath] = dvc_obj | dict(
+                            dirname=subdir_full_relpath,
+                            type="file",
+                            stage=stage_name,
                         )
             else:
                 dvc_lock_outs[outpath] = out | dict(
