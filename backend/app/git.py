@@ -103,7 +103,10 @@ def get_repo(
 def get_ck_info_from_repo(repo: git.Repo) -> dict:
     if os.path.isfile(os.path.join(repo.working_dir, "calkit.yaml")):
         with open(os.path.join(repo.working_dir, "calkit.yaml")) as f:
-            return ryaml.load(f)
+            ck_info = ryaml.load(f)
+        if ck_info is None:
+            ck_info = {}
+        return ck_info
     else:
         return {}
 
