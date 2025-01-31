@@ -160,21 +160,38 @@ def expand_dvc_lock_outs(
                         relpath = dvc_obj["relpath"]
                         fname = os.path.basename(relpath)
                         subdir = os.path.dirname(relpath)
+                        md5 = dvc_obj.get("md5")
                         if subdir:
                             subdir_full_relpath = os.path.join(outpath, subdir)
                             if subdir_full_relpath not in dvc_lock_outs:
                                 dvc_lock_outs[subdir_full_relpath] = dict(
-                                    type="dir", children=[], dirname=outpath
+                                    type="dir",
+                                    children=[],
+                                    dirname=outpath,
+                                    stage=stage_name,
                                 )
                             dvc_lock_outs[subdir_full_relpath][
                                 "children"
-                            ].append(dict(relpath=fname))
+                            ].append(
+                                dict(
+                                    relpath=fname,
+                                    md5=md5,
+                                    type="file",
+                                    dirname=subdir_full_relpath,
+                                    stage=stage_name,
+                                )
+                            )
                             if (
                                 subdir_full_relpath
                                 not in dvc_lock_outs[outpath]["children"]
                             ):
                                 dvc_lock_outs[outpath]["children"].append(
-                                    dict(relpath=subdir, type="dir")
+                                    dict(
+                                        relpath=subdir,
+                                        type="dir",
+                                        stage=stage_name,
+                                        dirname=outpath,
+                                    )
                                 )
                         else:
                             subdir_full_relpath = outpath
@@ -183,6 +200,7 @@ def expand_dvc_lock_outs(
                             dirname=subdir_full_relpath,
                             type="file",
                             stage=stage_name,
+                            relpath=fname,
                         )
             else:
                 dvc_lock_outs[outpath] = out | dict(
