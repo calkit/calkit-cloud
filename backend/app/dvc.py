@@ -158,5 +158,9 @@ def expand_dvc_lock_outs(
                             dirname=outpath, type="file", stage=stage_name
                         )
             else:
-                dvc_lock_outs[outpath] = out
+                dvc_lock_outs[outpath] = out | dict(
+                    dirname=os.path.dirname(outpath),
+                    type="file",
+                    stage=stage_name,
+                )
     return dvc_lock_outs

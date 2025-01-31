@@ -13,7 +13,7 @@ from sqlmodel import Session, select
 
 from app.config import settings
 from app.core import CATEGORIES_PLURAL_TO_SINGULAR
-from app.dvc import output_from_pipeline, expand_dvc_lock_outs
+from app.dvc import expand_dvc_lock_outs
 from app.git import get_ck_info_from_repo
 from app.models import (
     ContentsItem,
@@ -110,11 +110,6 @@ def get_contents_from_repo(
     else:
         ck_info = {}
     # Load DVC pipeline and lock files if they exist
-    dvc_fpath = os.path.join(repo_dir, "dvc.yaml")
-    pipeline = {}
-    if os.path.isfile(dvc_fpath):
-        with open(dvc_fpath) as f:
-            pipeline = yaml.safe_load(f)
     dvc_lock_fpath = os.path.join(repo_dir, "dvc.lock")
     dvc_lock = {}
     if os.path.isfile(dvc_lock_fpath):
@@ -170,8 +165,10 @@ def get_contents_from_repo(
     # Find any DVC outs for Calkit objects
     ck_outs = {}
     for p, obj in ck_objects.items():
-        stage_name = obj.get("stage")
-        if stage_name is None:
+        # First check if this object is in the DVC lock outputs
+        if p in dvc_lock_outs:
+            ck_outs = dvc_lock_outs[p]
+        else:
             dvc_fp = os.path.join(repo_dir, p + ".dvc")
             if os.path.isfile(dvc_fp):
                 with open(dvc_fp) as f:
@@ -179,11 +176,6 @@ def get_contents_from_repo(
                 ck_outs[p] = dvo
             else:
                 ck_outs[p] = None
-        else:
-            out = output_from_pipeline(
-                path=p, stage_name=stage_name, pipeline=pipeline, lock=dvc_lock
-            )
-            ck_outs[p] = out
     file_locks_by_path = {
         lock.path: ItemLock.model_validate(lock.model_dump())
         for lock in project.file_locks
@@ -210,22 +202,21 @@ def get_contents_from_repo(
         for dvc_lock_out_path, dvc_lock_out_obj in dvc_lock_outs.items():
             if dvc_lock_out_obj["dirname"] == dirname:
                 dvc_paths.append(dvc_lock_out_path)
-        all_paths = sorted(paths + dvc_paths)
+        all_paths = sorted(set(paths + dvc_paths))
         for p in all_paths:
             if p in ignore_paths:
                 continue
-            if p not in dvc_paths:
+            in_repo = os.path.exists(os.path.join(repo_dir, p))
+            if in_repo:
                 size = os.path.getsize(os.path.join(repo_dir, p))
                 obj_type = (
                     "file"
                     if os.path.isfile(os.path.join(repo_dir, p))
                     else "dir"
                 )
-                in_repo = True
-            else:
+            elif p in dvc_lock_outs:
                 size = None
                 obj_type = dvc_lock_outs[p]["type"]
-                in_repo = False
             obj = dict(
                 name=os.path.basename(p),
                 path=p,
