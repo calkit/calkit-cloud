@@ -226,16 +226,7 @@ def get_contents_from_repo(
                 type=obj_type,
             )
             if p in ck_objects:
-                dvc_out = ck_outs.get(p)
                 obj["calkit_object"] = ck_objects[p]
-                obj["in_repo"] = False
-                if dvc_out is not None:
-                    obj["size"] = dvc_out.get("size")
-                    obj["type"] = (
-                        "dir"
-                        if dvc_out.get("md5", "").endswith(".dir")
-                        else "file"
-                    )
             else:
                 obj["calkit_object"] = None
             contents.append(ContentsItem.model_validate(obj))
