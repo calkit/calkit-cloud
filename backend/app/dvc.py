@@ -87,7 +87,10 @@ def find_dvc_files(start: str, max_depth=5) -> list[str]:
 
 
 def expand_dvc_lock_outs(
-    dvc_lock: dict, owner_name: str, project_name: str
+    dvc_lock: dict,
+    owner_name: str,
+    project_name: str,
+    fs=None,
 ) -> str:
     """Expand all outs in a DVC lock file.
 
@@ -119,25 +122,25 @@ def expand_dvc_lock_outs(
                 "md5": "d3dddc7bf94809e09669b0ae327037f7",
             }
         }
+
     """
-    fs = get_object_fs()
+    if fs is None:
+        fs = get_object_fs()
     stages = dvc_lock.get("stages", {})
     dvc_lock_outs = {}
     for _, stage in stages.items():
         for out in stage.get("outs", []):
             outpath = out["path"]
+            print("Looking at outpath", outpath)
             md5 = out.get("md5", "")
             # If this is a directory, try to fetch its file from cloud storage
             # so we can read off all of the sub-outs
             if md5 and md5.endswith(".dir"):
-                dvc_dir_path = (
-                    make_data_fpath(
-                        owner_name=owner_name,
-                        project_name=project_name,
-                        idx=md5[:2],
-                        md5=md5[2:],
-                    )
-                    + ".dir"
+                dvc_dir_path = make_data_fpath(
+                    owner_name=owner_name,
+                    project_name=project_name,
+                    idx=md5[:2],
+                    md5=md5[2:],
                 )
                 if fs.exists(dvc_dir_path):
                     with fs.open(dvc_dir_path) as f:
@@ -147,7 +150,7 @@ def expand_dvc_lock_outs(
                     for dvc_obj in dvc_dir_contents:
                         dvc_lock_outs[
                             os.path.join(outpath, dvc_obj["relpath"])
-                        ] = dvc_obj | dict(size=None)
+                        ] = dvc_obj
             else:
                 dvc_lock_outs[outpath] = out
     return dvc_lock_outs
