@@ -1,15 +1,16 @@
 """Functionality for working with DVC."""
 
+import glob
+import json
 import logging
 import os
 import tempfile
-import glob
 
 import ruamel.yaml
 from dvc.commands import dag
-from dvc.exceptions import NotDvcRepoError
-from dvc.fs import DVCFileSystem
 from dvc.repo import Repo
+
+from app.storage import get_object_fs, make_data_fpath
 
 logging.basicConfig(level=logging.INFO)
 
@@ -83,3 +84,129 @@ def find_dvc_files(start: str, max_depth=5) -> list[str]:
         res += glob.glob(pattern)
         res += glob.glob(pattern)
     return res
+
+
+def expand_dvc_lock_outs(
+    dvc_lock: dict,
+    owner_name: str,
+    project_name: str,
+    fs=None,
+) -> str:
+    """Expand all outs in a DVC lock file.
+
+    Output dictionary structure will look like:
+
+        {
+            "figures/plot.png": {
+                "path": "figures/plot.png",
+                "hash": "md5",
+                "md5": "d4cd33821c032be468a77d65873937bc",
+                "size": 43613,
+            },
+            "data/raw": {
+                "path": "data/raw",
+                "hash": "md5",
+                "md5": "d0b6bbbdd9a3dcd765978cda2c754fe7.dir",
+                "size": 55354,
+                "nfiles": 2,
+                "children": [
+                    "data/raw/file1.h5...
+                ]
+            },
+            "data/raw/file1.h5": {
+                "path": "data/raw/file1.h5",
+                "md5": "c3dddc7bf94809e09559b0ae327037f7",
+            },
+            "data/raw/file2.h5": {
+                "path": "data/raw/file2.h5",
+                "md5": "d3dddc7bf94809e09669b0ae327037f7",
+            }
+        }
+
+    """
+    if fs is None:
+        fs = get_object_fs()
+    stages = dvc_lock.get("stages", {})
+    dvc_lock_outs = {}
+    for stage_name, stage in stages.items():
+        for out in stage.get("outs", []):
+            outpath = out["path"]
+            md5 = out.get("md5", "")
+            # If this is a directory, try to fetch its file from cloud storage
+            # so we can read off all of the sub-outs
+            if md5 and md5.endswith(".dir"):
+                dvc_dir_path = make_data_fpath(
+                    owner_name=owner_name,
+                    project_name=project_name,
+                    idx=md5[:2],
+                    md5=md5[2:],
+                )
+                if fs.exists(dvc_dir_path):
+                    with fs.open(dvc_dir_path) as f:
+                        dvc_dir_contents = json.load(f)
+                    dvc_lock_outs[outpath] = out
+                    dvc_lock_outs[outpath]["dirname"] = os.path.dirname(
+                        outpath
+                    )
+                    dvc_lock_outs[outpath]["type"] = "dir"
+                    dvc_lock_outs[outpath]["stage"] = stage_name
+                    if "children" not in dvc_lock_outs[outpath]:
+                        dvc_lock_outs[outpath]["children"] = []
+                    # Handle the fact that DVC relpaths could actually be in
+                    # subdirectories, so we need to also ensure these subdirs
+                    # make it
+                    # TODO: This only works one level deep--should be recursive
+                    for dvc_obj in dvc_dir_contents:
+                        relpath = dvc_obj["relpath"]
+                        fname = os.path.basename(relpath)
+                        subdir = os.path.dirname(relpath)
+                        md5 = dvc_obj.get("md5")
+                        if subdir:
+                            subdir_full_relpath = os.path.join(outpath, subdir)
+                            if subdir_full_relpath not in dvc_lock_outs:
+                                dvc_lock_outs[subdir_full_relpath] = dict(
+                                    type="dir",
+                                    children=[],
+                                    dirname=outpath,
+                                    stage=stage_name,
+                                )
+                            dvc_lock_outs[subdir_full_relpath][
+                                "children"
+                            ].append(
+                                dict(
+                                    relpath=fname,
+                                    md5=md5,
+                                    type="file",
+                                    dirname=subdir_full_relpath,
+                                    stage=stage_name,
+                                )
+                            )
+                            if (
+                                subdir_full_relpath
+                                not in dvc_lock_outs[outpath]["children"]
+                            ):
+                                dvc_lock_outs[outpath]["children"].append(
+                                    dict(
+                                        relpath=subdir,
+                                        type="dir",
+                                        stage=stage_name,
+                                        dirname=outpath,
+                                    )
+                                )
+                        else:
+                            subdir_full_relpath = outpath
+                        full_relpath = os.path.join(outpath, relpath)
+                        dvc_lock_outs[full_relpath] = dvc_obj | dict(
+                            dirname=subdir_full_relpath,
+                            type="file",
+                            stage=stage_name,
+                            relpath=fname,
+                            path=full_relpath,
+                        )
+            else:
+                dvc_lock_outs[outpath] = out | dict(
+                    dirname=os.path.dirname(outpath),
+                    type="file",
+                    stage=stage_name,
+                )
+    return dvc_lock_outs

@@ -13,7 +13,7 @@ from sqlmodel import Session, select
 
 from app.config import settings
 from app.core import CATEGORIES_PLURAL_TO_SINGULAR
-from app.dvc import output_from_pipeline
+from app.dvc import expand_dvc_lock_outs
 from app.git import get_ck_info_from_repo
 from app.models import (
     ContentsItem,
@@ -110,16 +110,19 @@ def get_contents_from_repo(
     else:
         ck_info = {}
     # Load DVC pipeline and lock files if they exist
-    dvc_fpath = os.path.join(repo_dir, "dvc.yaml")
-    pipeline = {}
-    if os.path.isfile(dvc_fpath):
-        with open(dvc_fpath) as f:
-            pipeline = yaml.safe_load(f)
     dvc_lock_fpath = os.path.join(repo_dir, "dvc.lock")
     dvc_lock = {}
     if os.path.isfile(dvc_lock_fpath):
         with open(dvc_lock_fpath) as f:
             dvc_lock = yaml.safe_load(f)
+    # Expand all DVC lock outs
+    fs = get_object_fs()
+    dvc_lock_outs = expand_dvc_lock_outs(
+        dvc_lock, owner_name=owner_name, project_name=project_name, fs=fs
+    )
+    dvc_lock_out_dirs = [
+        p for p, obj in dvc_lock_outs.items() if obj["type"] == "dir"
+    ]
     ignore_paths = [".git", ".dvc/cache", ".dvc/tmp", ".dvc/config.local"]
     if path is not None and path in ignore_paths:
         raise HTTPException(404)
@@ -162,8 +165,10 @@ def get_contents_from_repo(
     # Find any DVC outs for Calkit objects
     ck_outs = {}
     for p, obj in ck_objects.items():
-        stage_name = obj.get("stage")
-        if stage_name is None:
+        # First check if this object is in the DVC lock outputs
+        if p in dvc_lock_outs:
+            ck_outs[p] = dvc_lock_outs[p]
+        else:
             dvc_fp = os.path.join(repo_dir, p + ".dvc")
             if os.path.isfile(dvc_fp):
                 with open(dvc_fp) as f:
@@ -171,56 +176,66 @@ def get_contents_from_repo(
                 ck_outs[p] = dvo
             else:
                 ck_outs[p] = None
-        else:
-            out = output_from_pipeline(
-                path=p, stage_name=stage_name, pipeline=pipeline, lock=dvc_lock
-            )
-            ck_outs[p] = out
     file_locks_by_path = {
         lock.path: ItemLock.model_validate(lock.model_dump())
         for lock in project.file_locks
     }
     # See if we're listing off a directory
-    if path is None or os.path.isdir(os.path.join(repo_dir, path)):
-        # We're listing off the top of the repo
+    if (
+        path is None
+        or os.path.isdir(os.path.join(repo_dir, path))
+        or path in dvc_lock_out_dirs
+    ):
+        # We're listing off the contents of a directory
+        logger.info(f"Getting contents of directory: {path}")
         dirname = "" if path is None else path
         contents = []
-        paths = sorted(
-            os.listdir(
-                repo_dir if path is None else os.path.join(repo_dir, path)
+        if path not in dvc_lock_out_dirs:
+            paths = sorted(
+                os.listdir(
+                    repo_dir if path is None else os.path.join(repo_dir, path)
+                )
             )
-        )
-        paths = [os.path.join(dirname, p) for p in paths]
-        for p in paths:
+            paths = [os.path.join(dirname, p) for p in paths]
+        else:
+            paths = []
+        dvc_paths = []
+        for dvc_lock_out_path, dvc_lock_out_obj in dvc_lock_outs.items():
+            if dvc_lock_out_obj["dirname"] == dirname:
+                dvc_paths.append(dvc_lock_out_path)
+        all_paths = sorted(set(paths + dvc_paths))
+        for p in all_paths:
             if p in ignore_paths:
                 continue
+            in_repo = os.path.exists(os.path.join(repo_dir, p))
+            if in_repo:
+                size = os.path.getsize(os.path.join(repo_dir, p))
+                obj_type = (
+                    "file"
+                    if os.path.isfile(os.path.join(repo_dir, p))
+                    else "dir"
+                )
+            elif p in dvc_lock_outs:
+                size = dvc_lock_outs[p].get("size")
+                obj_type = dvc_lock_outs[p]["type"]
             obj = dict(
                 name=os.path.basename(p),
                 path=p,
-                size=os.path.getsize(os.path.join(repo_dir, p)),
-                in_repo=True,
+                size=size,
+                in_repo=in_repo,
                 lock=file_locks_by_path.get(p),
+                type=obj_type,
             )
-            if os.path.isfile(os.path.join(repo_dir, p)):
-                obj["type"] = "file"
-            else:
-                obj["type"] = "dir"
             if p in ck_objects:
-                dvc_out = ck_outs.get(p)
                 obj["calkit_object"] = ck_objects[p]
-                obj["in_repo"] = False
-                if dvc_out is not None:
-                    obj["size"] = dvc_out.get("size")
-                    obj["type"] = (
-                        "dir"
-                        if dvc_out.get("md5", "").endswith(".dir")
-                        else "file"
-                    )
             else:
                 obj["calkit_object"] = None
             contents.append(ContentsItem.model_validate(obj))
         for ck_path, ck_obj in ck_objects.items():
-            if os.path.dirname(ck_path) == dirname and ck_path not in paths:
+            if (
+                os.path.dirname(ck_path) == dirname
+                and ck_path not in all_paths
+            ):
                 # Read DVC output for this path
                 dvc_out = ck_outs.get(ck_path)
                 if dvc_out is None:
@@ -263,7 +278,6 @@ def get_contents_from_repo(
             # See if this lives in object storage, and if not, save there by
             # md5 and create a presigned URL
             md5 = hashlib.md5(content).hexdigest()
-            fs = get_object_fs()
             fp = make_data_fpath(
                 owner_name=owner_name,
                 project_name=project_name,
@@ -301,8 +315,10 @@ def get_contents_from_repo(
         )
     # The file isn't in the repo, but maybe it's in the Calkit objects
     elif path in ck_objects:
+        logger.info(f"Looking in CK objects for {path}")
         dvc_out = ck_outs.get(path)
         if dvc_out is None:
+            logger.info(f"No DVC out for CK out at {path}")
             dvc_out = {}
         size = dvc_out.get("size")
         md5 = dvc_out.get("md5", "")
@@ -312,7 +328,6 @@ def get_contents_from_repo(
         url = None
         # Create presigned url
         if md5:
-            fs = get_object_fs()
             fp = make_data_fpath(
                 owner_name=owner_name,
                 project_name=project_name,
@@ -346,13 +361,15 @@ def get_contents_from_repo(
     else:
         # Do we have a DVC file for this path?
         dvc_fpath = os.path.join(repo_dir, path + ".dvc")
-        if os.path.isfile(dvc_fpath):
-            # Open the DVC file so we can get its MD5 hash
-            with open(dvc_fpath) as f:
-                dvc_info = yaml.load(f)
-            dvc_out = dvc_info["outs"][0]
+        if path in dvc_lock_outs or os.path.isfile(dvc_fpath):
+            if os.path.isfile(dvc_fpath):
+                # Open the DVC file so we can get its MD5 hash
+                with open(dvc_fpath) as f:
+                    dvc_info = yaml.load(f)
+                dvc_out = dvc_info["outs"][0]
+            else:
+                dvc_out = dvc_lock_outs[path]
             md5 = dvc_out["md5"]
-            fs = get_object_fs()
             fp = make_data_fpath(
                 owner_name=owner_name,
                 project_name=project_name,
@@ -360,8 +377,9 @@ def get_contents_from_repo(
                 md5=md5[2:],
             )
             url = get_object_url(fp, fname=os.path.basename(path), fs=fs)
-            size = dvc_out["size"]
+            size = dvc_out.get("size")
             dvc_type = "dir" if md5.endswith(".dir") else "file"
+            # TODO: If this is a directory, list dir_items
             return ContentsItem.model_validate(
                 dict(
                     path=path,
