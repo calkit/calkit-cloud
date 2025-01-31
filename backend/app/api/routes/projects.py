@@ -985,19 +985,18 @@ def get_project_figures(
         current_user=current_user,
         min_access_level="read",
     )
-    ck_info = get_ck_info(
+    repo = get_repo(
         project=project, user=current_user, session=session, ttl=120
     )
+    ck_info = get_ck_info_from_repo(repo)
     figures = ck_info.get("figures", [])
     if not figures:
         return figures
     # Get the figure content and base64 encode it
     for fig in figures:
-        item = get_project_contents(
-            owner_name=owner_name,
-            project_name=project_name,
-            session=session,
-            current_user=current_user,
+        item = app.projects.get_contents_from_repo(
+            project=project,
+            repo=repo,
             path=fig["path"],
         )
         fig["content"] = item.content
@@ -2132,11 +2131,9 @@ def get_project_references(
                 if file_path is not None:
                     logger.info(f"Looking for reference file: {file_path}")
                     try:
-                        contents_item = get_project_contents(
-                            owner_name=owner_name,
-                            project_name=project_name,
-                            session=session,
-                            current_user=current_user,
+                        contents_item = app.projects.get_contents_from_repo(
+                            project=project,
+                            repo=repo,
                             path=file_path,
                         )
                         url = contents_item.url
@@ -2297,19 +2294,18 @@ def get_project_notebooks(
         current_user=current_user,
         min_access_level="read",
     )
-    ck_info = get_ck_info(
+    repo = get_repo(
         project=project, user=current_user, session=session, ttl=120
     )
+    ck_info = get_ck_info_from_repo(repo)
     notebooks = ck_info.get("notebooks", [])
     if not notebooks:
         return notebooks
     # Get the notebook content and base64 encode it
     for notebook in notebooks:
-        item = get_project_contents(
-            owner_name=owner_name,
-            project_name=project_name,
-            session=session,
-            current_user=current_user,
+        item = app.projects.get_contents_from_repo(
+            project=project,
+            repo=repo,
             path=notebook["path"],
         )
         notebook["url"] = item.url
