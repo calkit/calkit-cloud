@@ -167,7 +167,7 @@ def get_contents_from_repo(
     for p, obj in ck_objects.items():
         # First check if this object is in the DVC lock outputs
         if p in dvc_lock_outs:
-            ck_outs = dvc_lock_outs[p]
+            ck_outs[p] = dvc_lock_outs[p]
         else:
             dvc_fp = os.path.join(repo_dir, p + ".dvc")
             if os.path.isfile(dvc_fp):
@@ -186,7 +186,8 @@ def get_contents_from_repo(
         or os.path.isdir(os.path.join(repo_dir, path))
         or path in dvc_lock_out_dirs
     ):
-        # We're listing off the top of the repo
+        # We're listing off the contents of a directory
+        logger.info(f"Getting contents of directory: {path}")
         dirname = "" if path is None else path
         contents = []
         if path not in dvc_lock_out_dirs:
@@ -314,8 +315,10 @@ def get_contents_from_repo(
         )
     # The file isn't in the repo, but maybe it's in the Calkit objects
     elif path in ck_objects:
+        logger.info(f"Looking in CK objects for {path}")
         dvc_out = ck_outs.get(path)
         if dvc_out is None:
+            logger.info(f"No DVC out for CK out at {path}")
             dvc_out = {}
         size = dvc_out.get("size")
         md5 = dvc_out.get("md5", "")

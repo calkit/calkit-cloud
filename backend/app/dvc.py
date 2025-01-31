@@ -201,6 +201,7 @@ def expand_dvc_lock_outs(
                             type="file",
                             stage=stage_name,
                             relpath=fname,
+                            path=full_relpath,
                         )
             else:
                 dvc_lock_outs[outpath] = out | dict(
