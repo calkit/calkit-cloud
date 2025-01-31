@@ -131,7 +131,6 @@ def expand_dvc_lock_outs(
     for _, stage in stages.items():
         for out in stage.get("outs", []):
             outpath = out["path"]
-            print("Looking at outpath", outpath)
             md5 = out.get("md5", "")
             # If this is a directory, try to fetch its file from cloud storage
             # so we can read off all of the sub-outs
