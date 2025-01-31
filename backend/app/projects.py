@@ -215,7 +215,7 @@ def get_contents_from_repo(
                     else "dir"
                 )
             elif p in dvc_lock_outs:
-                size = None
+                size = dvc_lock_outs[p].get("size")
                 obj_type = dvc_lock_outs[p]["type"]
             obj = dict(
                 name=os.path.basename(p),
