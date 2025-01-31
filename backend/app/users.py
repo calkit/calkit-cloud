@@ -4,9 +4,12 @@ import logging
 from datetime import datetime, timedelta
 from typing import Any
 
-import app.stripe
 import requests
-from app import logger, utcnow
+from fastapi import HTTPException
+from sqlmodel import Session, select
+
+import app.stripe
+from app import utcnow
 from app.config import settings
 from app.core import INVALID_ACCOUNT_NAMES
 from app.github import token_resp_text_to_dict
@@ -24,8 +27,6 @@ from app.security import (
     get_password_hash,
     verify_password,
 )
-from fastapi import HTTPException
-from sqlmodel import Session, select
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -89,10 +90,14 @@ def get_github_token(session: Session, user: User) -> str:
     necessary.
     """
     if user.github_token is None:
+        logger.info(f"{user.email} has no GitHub token")
         raise HTTPException(401, "User needs to authenticate with GitHub")
     # Refresh token if necessary
     # Should also handle tokens that don't exist?
-    if user.github_token.expires <= (utcnow() - timedelta(minutes=5)):
+    logger.info(
+        f"{user.email}'s GitHub token expires at {user.github_token.expires}"
+    )
+    if (utcnow() + timedelta(minutes=30)) >= user.github_token.expires:
         logger.info("Refreshing GitHub token")
         resp = requests.post(
             "https://github.com/login/oauth/access_token",
@@ -118,6 +123,7 @@ def get_github_token(session: Session, user: User) -> str:
                 logger.info("Deleting bad GitHub token")
                 session.delete(user.github_token)
                 session.commit()
+                logger.info("Bad refresh token")
             raise HTTPException(401, "GitHub token refresh failed")
         save_github_token(
             session,
