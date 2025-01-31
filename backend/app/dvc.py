@@ -1,15 +1,16 @@
 """Functionality for working with DVC."""
 
+import glob
+import json
 import logging
 import os
 import tempfile
-import glob
 
 import ruamel.yaml
 from dvc.commands import dag
-from dvc.exceptions import NotDvcRepoError
-from dvc.fs import DVCFileSystem
 from dvc.repo import Repo
+
+from app.storage import get_object_fs, make_data_fpath
 
 logging.basicConfig(level=logging.INFO)
 
@@ -83,3 +84,70 @@ def find_dvc_files(start: str, max_depth=5) -> list[str]:
         res += glob.glob(pattern)
         res += glob.glob(pattern)
     return res
+
+
+def expand_dvc_lock_outs(
+    dvc_lock: dict, owner_name: str, project_name: str
+) -> str:
+    """Expand all outs in a DVC lock file.
+
+    Output dictionary structure will look like:
+
+        {
+            "figures/plot.png": {
+                "path": "figures/plot.png",
+                "hash": "md5",
+                "md5": "d4cd33821c032be468a77d65873937bc",
+                "size": 43613,
+            },
+            "data/raw": {
+                "path": "data/raw",
+                "hash": "md5",
+                "md5": "d0b6bbbdd9a3dcd765978cda2c754fe7.dir",
+                "size": 55354,
+                "nfiles": 2,
+                "children": [
+                    "data/raw/file1.h5...
+                ]
+            },
+            "data/raw/file1.h5": {
+                "path": "data/raw/file1.h5",
+                "md5": "c3dddc7bf94809e09559b0ae327037f7",
+            },
+            "data/raw/file2.h5": {
+                "path": "data/raw/file2.h5",
+                "md5": "d3dddc7bf94809e09669b0ae327037f7",
+            }
+        }
+    """
+    fs = get_object_fs()
+    stages = dvc_lock.get("stages", {})
+    dvc_lock_outs = {}
+    for _, stage in stages.items():
+        for out in stage.get("outs", []):
+            outpath = out["path"]
+            md5 = out.get("md5", "")
+            # If this is a directory, try to fetch its file from cloud storage
+            # so we can read off all of the sub-outs
+            if md5 and md5.endswith(".dir"):
+                dvc_dir_path = (
+                    make_data_fpath(
+                        owner_name=owner_name,
+                        project_name=project_name,
+                        idx=md5[:2],
+                        md5=md5[2:],
+                    )
+                    + ".dir"
+                )
+                if fs.exists(dvc_dir_path):
+                    with fs.open(dvc_dir_path) as f:
+                        dvc_dir_contents = json.load(f)
+                    dvc_lock_outs[outpath] = out
+                    dvc_lock_outs[outpath]["children"] = dvc_dir_contents
+                    for dvc_obj in dvc_dir_contents:
+                        dvc_lock_outs[
+                            os.path.join(outpath, dvc_obj["relpath"])
+                        ] = dvc_obj | dict(size=None)
+            else:
+                dvc_lock_outs[outpath] = out
+    return dvc_lock_outs
