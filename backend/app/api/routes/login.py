@@ -157,7 +157,7 @@ def login_with_github(code: str, session: SessionDep) -> Token:
         raise HTTPException(
             400, f"GitHub authentication failed: {out['error']}"
         )
-    logger.info(f"Data from GitHub: {out}")
+    logger.info(f"Data from GitHub has keys: {list(out.keys())}")
     # Get user information from GitHub
     logger.info("Requesting GitHub user")
     gh_user = requests.get(
