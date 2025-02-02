@@ -89,15 +89,20 @@ def get_github_token(session: Session, user: User) -> str:
     """Get a user's decrypted GitHub token, automatically refreshing if
     necessary.
     """
-    if user.github_token is None:
+    query = (
+        select(UserGitHubToken)
+        .where(UserGitHubToken.user_id == User.id)
+        .with_for_update()
+    )
+    token = session.exec(query).first()
+    if token is None:
         logger.info(f"{user.email} has no GitHub token")
         raise HTTPException(401, "User needs to authenticate with GitHub")
     # Refresh token if necessary
     # Should also handle tokens that don't exist?
-    logger.info(
-        f"{user.email}'s GitHub token expires at {user.github_token.expires}"
-    )
-    if (utcnow() + timedelta(minutes=30)) >= user.github_token.expires:
+    if (utcnow() + timedelta(minutes=30)) >= token.expires:
+        # Make sure no other process is trying to refresh the token
+        # Lock the user token row
         logger.info("Refreshing GitHub token")
         resp = requests.post(
             "https://github.com/login/oauth/access_token",
@@ -105,7 +110,7 @@ def get_github_token(session: Session, user: User) -> str:
                 client_id=settings.GH_CLIENT_ID,
                 client_secret=settings.GH_CLIENT_SECRET,
                 grant_type="refresh_token",
-                refresh_token=decrypt_secret(user.github_token.refresh_token),
+                refresh_token=decrypt_secret(token.refresh_token),
             ),
         )
         logger.info("Refreshed GitHub token")
@@ -123,16 +128,16 @@ def get_github_token(session: Session, user: User) -> str:
             logger.error(msg)
             if gh_resp["error"] == "bad_refresh_token":
                 logger.info("Deleting bad GitHub token")
-                session.delete(user.github_token)
+                session.delete(token)
                 session.commit()
                 logger.info("Bad refresh token")
             raise HTTPException(401, "GitHub token refresh failed")
-        save_github_token(
+        token = save_github_token(
             session,
             user=user,
             github_resp=gh_resp,
         )
-    return decrypt_secret(user.github_token.access_token)
+    return decrypt_secret(token.access_token)
 
 
 def save_github_token(
@@ -164,6 +169,7 @@ def save_github_token(
     session.add(user.github_token)
     session.commit()
     session.refresh(user.github_token)
+    return user.github_token
 
 
 def get_zenodo_token(session: Session, user: User) -> str:
@@ -172,6 +178,7 @@ def get_zenodo_token(session: Session, user: User) -> str:
     """
     # Refresh token if necessary
     # Should also handle tokens that don't exist?
+    # TODO: Use with_for_update
     if user.zenodo_token.expires <= utcnow():
         logger.info("Refreshing Zenodo token")
         resp = requests.post(
