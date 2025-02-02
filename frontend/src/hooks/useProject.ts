@@ -60,15 +60,6 @@ const useProject = (
     refetchOnMount: false,
   })
 
-  const datasetsRequest = useQuery({
-    queryKey: ["projects", userName, projectName, "datasets"],
-    queryFn: () =>
-      ProjectsService.getProjectDatasets({
-        ownerName: userName,
-        projectName: projectName,
-      }),
-  })
-
   const showcaseRequest = useQuery({
     queryKey: ["projects", userName, projectName, "showcase"],
     queryFn: () =>
@@ -113,7 +104,6 @@ const useProject = (
   return {
     projectRequest,
     userHasWriteAccess,
-    datasetsRequest,
     issuesRequest,
     questionsRequest,
     reproCheckRequest,
@@ -160,6 +150,19 @@ const useProjectFiles = (userName: string, projectName: string) => {
   return { filesRequest }
 }
 
+const useProjectDatasets = (userName: string, projectName: string) => {
+  const datasetsRequest = useQuery({
+    queryKey: ["projects", userName, projectName, "datasets"],
+    queryFn: () =>
+      ProjectsService.getProjectDatasets({
+        ownerName: userName,
+        projectName: projectName,
+      }),
+  })
+
+  return { datasetsRequest }
+}
+
 const useProjectPublications = (userName: string, projectName: string) => {
   const publicationsRequest = useQuery({
     queryKey: ["projects", userName, projectName, "publications"],
@@ -177,5 +180,6 @@ export {
   useProjectFigures,
   useProjectPublications,
   useProjectReadme,
+  useProjectDatasets,
 }
 export default useProject
