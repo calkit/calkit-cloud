@@ -79,15 +79,6 @@ const useProject = (
       }),
   })
 
-  const publicationsRequest = useQuery({
-    queryKey: ["projects", userName, projectName, "publications"],
-    queryFn: () =>
-      ProjectsService.getProjectPublications({
-        ownerName: userName,
-        projectName: projectName,
-      }),
-  })
-
   const showcaseRequest = useQuery({
     queryKey: ["projects", userName, projectName, "showcase"],
     queryFn: () =>
@@ -134,7 +125,6 @@ const useProject = (
     userHasWriteAccess,
     readmeRequest,
     datasetsRequest,
-    publicationsRequest,
     issuesRequest,
     questionsRequest,
     reproCheckRequest,
@@ -168,5 +158,17 @@ const useProjectFiles = (userName: string, projectName: string) => {
   return { filesRequest }
 }
 
-export { useProjectFiles, useProjectFigures }
+const useProjectPublications = (userName: string, projectName: string) => {
+  const publicationsRequest = useQuery({
+    queryKey: ["projects", userName, projectName, "publications"],
+    queryFn: () =>
+      ProjectsService.getProjectPublications({
+        ownerName: userName,
+        projectName: projectName,
+      }),
+  })
+  return { publicationsRequest }
+}
+
+export { useProjectFiles, useProjectFigures, useProjectPublications }
 export default useProject
