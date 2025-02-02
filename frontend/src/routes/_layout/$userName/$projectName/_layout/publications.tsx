@@ -97,7 +97,7 @@ function Publications() {
   const labelPubModal = useDisclosure()
   const newPubTemplateModal = useDisclosure()
   const { userName, projectName } = Route.useParams()
-  const { userHasWriteAccess } = useProject(userName, projectName, false)
+  const { userHasWriteAccess } = useProject(userName, projectName)
   const { publicationsRequest } = useProjectPublications(userName, projectName)
 
   return (

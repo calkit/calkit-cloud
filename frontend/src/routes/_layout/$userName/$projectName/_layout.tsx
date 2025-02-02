@@ -324,7 +324,6 @@ function ProjectLayout() {
   const { projectRequest, userHasWriteAccess } = useProject(
     userName,
     projectName,
-    false,
   )
   const isPending = projectRequest.isPending
   const error = projectRequest.error

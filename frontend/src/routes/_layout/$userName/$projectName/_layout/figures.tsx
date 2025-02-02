@@ -233,7 +233,7 @@ const getIcon = (figure: Figure) => {
 
 function ProjectFigures() {
   const { userName, projectName } = Route.useParams()
-  const { userHasWriteAccess } = useProject(userName, projectName, false)
+  const { userHasWriteAccess } = useProject(userName, projectName)
   const { figuresRequest } = useProjectFigures(userName, projectName)
   const { isPending: figuresPending, data: figures } = figuresRequest
   const uploadFigureModal = useDisclosure()

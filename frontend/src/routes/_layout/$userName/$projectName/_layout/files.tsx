@@ -213,7 +213,7 @@ function Item({ item, level, selectedPath, setSelectedPath }: ItemProps) {
 function Files() {
   const { userName, projectName } = Route.useParams()
   const { path } = Route.useSearch()
-  const { userHasWriteAccess } = useProject(userName, projectName, false)
+  const { userHasWriteAccess } = useProject(userName, projectName)
   const { filesRequest } = useProjectFiles(userName, projectName)
   const {
     isPending: filesPending,

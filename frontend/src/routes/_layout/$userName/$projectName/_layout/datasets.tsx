@@ -32,7 +32,7 @@ export const Route = createFileRoute(
 
 function ProjectDataView() {
   const { userName, projectName } = Route.useParams()
-  const { userHasWriteAccess } = useProject(userName, projectName, false)
+  const { userHasWriteAccess } = useProject(userName, projectName)
   const { datasetsRequest } = useProjectDatasets(userName, projectName)
   const { isPending: dataPending, data: datasets } = datasetsRequest
   const uploadDataModal = useDisclosure()

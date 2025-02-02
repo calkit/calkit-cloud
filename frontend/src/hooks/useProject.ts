@@ -2,11 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { ProjectsService } from "../client"
 
-const useProject = (
-  userName: string,
-  projectName: string,
-  showClosedTodos: boolean,
-) => {
+const useProject = (userName: string, projectName: string) => {
   const queryClient = useQueryClient()
 
   const projectRequest = useQuery({
@@ -27,18 +23,6 @@ const useProject = (
   const userHasWriteAccess = ["owner", "admin", "write"].includes(
     String(projectRequest.data?.current_user_access),
   )
-
-  const issuesRequest = useQuery({
-    queryKey: ["projects", userName, projectName, "issues", showClosedTodos],
-    queryFn: () =>
-      ProjectsService.getProjectIssues({
-        ownerName: userName,
-        projectName: projectName,
-        state: showClosedTodos ? "all" : "open",
-      }),
-    refetchOnWindowFocus: false,
-    refetchOnMount: false,
-  })
 
   const questionsRequest = useQuery({
     queryKey: ["projects", userName, projectName, "questions"],
@@ -71,24 +55,6 @@ const useProject = (
     refetchOnMount: false,
   })
 
-  interface IssueStateChange {
-    state: "open" | "closed"
-    issueNumber: number
-  }
-  const issueStateMutation = useMutation({
-    mutationFn: (data: IssueStateChange) =>
-      ProjectsService.patchProjectIssue({
-        ownerName: userName,
-        projectName: projectName,
-        issueNumber: data.issueNumber,
-        requestBody: { state: data.state },
-      }),
-    onSettled: () =>
-      queryClient.invalidateQueries({
-        queryKey: ["projects", userName, projectName, "issues"],
-      }),
-  })
-
   const putDevcontainerMutation = useMutation({
     mutationFn: () =>
       ProjectsService.putProjectDevContainer({
@@ -104,11 +70,9 @@ const useProject = (
   return {
     projectRequest,
     userHasWriteAccess,
-    issuesRequest,
     questionsRequest,
     reproCheckRequest,
     showcaseRequest,
-    issueStateMutation,
     putDevcontainerMutation,
   }
 }
@@ -175,11 +139,53 @@ const useProjectPublications = (userName: string, projectName: string) => {
   return { publicationsRequest }
 }
 
+const useProjectIssues = (
+  userName: string,
+  projectName: string,
+  showClosedTodos: boolean,
+) => {
+  const queryClient = useQueryClient()
+
+  const issuesRequest = useQuery({
+    queryKey: ["projects", userName, projectName, "issues", showClosedTodos],
+    queryFn: () =>
+      ProjectsService.getProjectIssues({
+        ownerName: userName,
+        projectName: projectName,
+        state: showClosedTodos ? "all" : "open",
+      }),
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+  })
+
+  interface IssueStateChange {
+    state: "open" | "closed"
+    issueNumber: number
+  }
+
+  const issueStateMutation = useMutation({
+    mutationFn: (data: IssueStateChange) =>
+      ProjectsService.patchProjectIssue({
+        ownerName: userName,
+        projectName: projectName,
+        issueNumber: data.issueNumber,
+        requestBody: { state: data.state },
+      }),
+    onSettled: () =>
+      queryClient.invalidateQueries({
+        queryKey: ["projects", userName, projectName, "issues"],
+      }),
+  })
+
+  return { issueStateMutation, issuesRequest }
+}
+
 export {
   useProjectFiles,
   useProjectFigures,
   useProjectPublications,
   useProjectReadme,
   useProjectDatasets,
+  useProjectIssues,
 }
 export default useProject

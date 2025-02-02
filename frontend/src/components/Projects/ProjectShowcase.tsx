@@ -11,7 +11,7 @@ interface ProjectShowcaseProps {
 }
 
 function ProjectShowcase({ ownerName, projectName }: ProjectShowcaseProps) {
-  const { showcaseRequest } = useProject(ownerName, projectName, false)
+  const { showcaseRequest } = useProject(ownerName, projectName)
   return (
     <>
       {showcaseRequest.isPending ? (
