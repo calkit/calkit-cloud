@@ -28,16 +28,6 @@ const useProject = (
     String(projectRequest.data?.current_user_access),
   )
 
-  const readmeRequest = useQuery({
-    queryKey: ["projects", userName, projectName, "readme"],
-    queryFn: () =>
-      ProjectsService.getProjectContents({
-        ownerName: userName,
-        projectName: projectName,
-        path: "README.md",
-      }),
-  })
-
   const issuesRequest = useQuery({
     queryKey: ["projects", userName, projectName, "issues", showClosedTodos],
     queryFn: () =>
@@ -123,7 +113,6 @@ const useProject = (
   return {
     projectRequest,
     userHasWriteAccess,
-    readmeRequest,
     datasetsRequest,
     issuesRequest,
     questionsRequest,
@@ -132,6 +121,19 @@ const useProject = (
     issueStateMutation,
     putDevcontainerMutation,
   }
+}
+
+const useProjectReadme = (userName: string, projectName: string) => {
+  const readmeRequest = useQuery({
+    queryKey: ["projects", userName, projectName, "readme"],
+    queryFn: () =>
+      ProjectsService.getProjectContents({
+        ownerName: userName,
+        projectName: projectName,
+        path: "README.md",
+      }),
+  })
+  return { readmeRequest }
 }
 
 const useProjectFigures = (userName: string, projectName: string) => {
@@ -170,5 +172,10 @@ const useProjectPublications = (userName: string, projectName: string) => {
   return { publicationsRequest }
 }
 
-export { useProjectFiles, useProjectFigures, useProjectPublications }
+export {
+  useProjectFiles,
+  useProjectFigures,
+  useProjectPublications,
+  useProjectReadme,
+}
 export default useProject
