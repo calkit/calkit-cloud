@@ -18,20 +18,13 @@ const useProject = (userName: string, projectName: string) => {
       }
       return failureCount < 3
     },
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
   })
 
   const userHasWriteAccess = ["owner", "admin", "write"].includes(
     String(projectRequest.data?.current_user_access),
   )
-
-  const questionsRequest = useQuery({
-    queryKey: ["projects", userName, projectName, "questions"],
-    queryFn: () =>
-      ProjectsService.getProjectQuestions({
-        ownerName: userName,
-        projectName: projectName,
-      }),
-  })
 
   const reproCheckRequest = useQuery({
     queryKey: ["projects", userName, projectName, "repro-check"],
@@ -70,7 +63,6 @@ const useProject = (userName: string, projectName: string) => {
   return {
     projectRequest,
     userHasWriteAccess,
-    questionsRequest,
     reproCheckRequest,
     showcaseRequest,
     putDevcontainerMutation,
@@ -88,6 +80,18 @@ const useProjectReadme = (userName: string, projectName: string) => {
       }),
   })
   return { readmeRequest }
+}
+
+const useProjectQuestions = (userName: string, projectName: string) => {
+  const questionsRequest = useQuery({
+    queryKey: ["projects", userName, projectName, "questions"],
+    queryFn: () =>
+      ProjectsService.getProjectQuestions({
+        ownerName: userName,
+        projectName: projectName,
+      }),
+  })
+  return { questionsRequest }
 }
 
 const useProjectFigures = (userName: string, projectName: string) => {
@@ -187,5 +191,6 @@ export {
   useProjectReadme,
   useProjectDatasets,
   useProjectIssues,
+  useProjectQuestions,
 }
 export default useProject

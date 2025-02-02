@@ -30,6 +30,7 @@ import CreateQuestion from "../../../../../components/Projects/CreateQuestion"
 import NewPublication from "../../../../../components/Publications/NewPublication"
 import useProject, {
   useProjectIssues,
+  useProjectQuestions,
   useProjectReadme,
 } from "../../../../../hooks/useProject"
 import ProjectShowcase from "../../../../../components/Projects/ProjectShowcase"
@@ -46,7 +47,6 @@ function ProjectView() {
   const [showClosedTodos, setShowClosedTodos] = useState(false)
   const {
     projectRequest,
-    questionsRequest,
     reproCheckRequest,
     putDevcontainerMutation,
     userHasWriteAccess,
@@ -57,6 +57,7 @@ function ProjectView() {
     showClosedTodos,
   )
   const { readmeRequest } = useProjectReadme(userName, projectName)
+  const { questionsRequest } = useProjectQuestions(userName, projectName)
   const reproCheck = reproCheckRequest.data
   const gitRepoUrl = projectRequest.data?.git_repo_url
   const codespacesUrl =
