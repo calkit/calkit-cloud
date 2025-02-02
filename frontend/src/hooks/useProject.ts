@@ -97,15 +97,6 @@ const useProject = (
       }),
   })
 
-  const filesRequest = useQuery({
-    queryKey: ["projects", userName, projectName, "files"],
-    queryFn: () =>
-      ProjectsService.getProjectContents({
-        ownerName: userName,
-        projectName: projectName,
-      }),
-  })
-
   const showcaseRequest = useQuery({
     queryKey: ["projects", userName, projectName, "showcase"],
     queryFn: () =>
@@ -156,7 +147,6 @@ const useProject = (
     publicationsRequest,
     issuesRequest,
     questionsRequest,
-    filesRequest,
     reproCheckRequest,
     showcaseRequest,
     issueStateMutation,
@@ -164,4 +154,17 @@ const useProject = (
   }
 }
 
+const useProjectFiles = (userName: string, projectName: string) => {
+  const filesRequest = useQuery({
+    queryKey: ["projects", userName, projectName, "files"],
+    queryFn: () =>
+      ProjectsService.getProjectContents({
+        ownerName: userName,
+        projectName: projectName,
+      }),
+  })
+  return { filesRequest }
+}
+
+export { useProjectFiles }
 export default useProject
