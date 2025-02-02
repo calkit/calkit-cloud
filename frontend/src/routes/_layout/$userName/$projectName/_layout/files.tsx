@@ -31,7 +31,7 @@ import UploadFile from "../../../../../components/Files/UploadFile"
 import PageMenu from "../../../../../components/Common/PageMenu"
 import FileContent from "../../../../../components/Files/FileContent"
 import SelectedItemInfo from "../../../../../components/Files/SelectedItemInfo"
-import useProject from "../../../../../hooks/useProject"
+import useProject, { useProjectFiles } from "../../../../../hooks/useProject"
 
 const fileSearchSchema = z.object({ path: z.string().catch("") })
 
@@ -213,11 +213,8 @@ function Item({ item, level, selectedPath, setSelectedPath }: ItemProps) {
 function Files() {
   const { userName, projectName } = Route.useParams()
   const { path } = Route.useSearch()
-  const { filesRequest, userHasWriteAccess } = useProject(
-    userName,
-    projectName,
-    false,
-  )
+  const { userHasWriteAccess } = useProject(userName, projectName)
+  const { filesRequest } = useProjectFiles(userName, projectName)
   const {
     isPending: filesPending,
     data: files,

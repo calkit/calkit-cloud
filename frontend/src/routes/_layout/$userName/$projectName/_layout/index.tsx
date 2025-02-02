@@ -28,7 +28,11 @@ import Markdown from "../../../../../components/Common/Markdown"
 import CreateIssue from "../../../../../components/Projects/CreateIssue"
 import CreateQuestion from "../../../../../components/Projects/CreateQuestion"
 import NewPublication from "../../../../../components/Publications/NewPublication"
-import useProject from "../../../../../hooks/useProject"
+import useProject, {
+  useProjectIssues,
+  useProjectQuestions,
+  useProjectReadme,
+} from "../../../../../hooks/useProject"
 import ProjectShowcase from "../../../../../components/Projects/ProjectShowcase"
 
 export const Route = createFileRoute(
@@ -43,14 +47,17 @@ function ProjectView() {
   const [showClosedTodos, setShowClosedTodos] = useState(false)
   const {
     projectRequest,
-    readmeRequest,
-    issuesRequest,
-    questionsRequest,
     reproCheckRequest,
-    issueStateMutation,
     putDevcontainerMutation,
     userHasWriteAccess,
-  } = useProject(userName, projectName, showClosedTodos)
+  } = useProject(userName, projectName)
+  const { issuesRequest, issueStateMutation } = useProjectIssues(
+    userName,
+    projectName,
+    showClosedTodos,
+  )
+  const { readmeRequest } = useProjectReadme(userName, projectName)
+  const { questionsRequest } = useProjectQuestions(userName, projectName)
   const reproCheck = reproCheckRequest.data
   const gitRepoUrl = projectRequest.data?.git_repo_url
   const codespacesUrl =

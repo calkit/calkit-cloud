@@ -22,7 +22,7 @@ import { FaPlus } from "react-icons/fa"
 
 import DatasetFromExisting from "../../../../../components/Datasets/DatasetFromExisting"
 import UploadDataset from "../../../../../components/Datasets/UploadDataset"
-import useProject from "../../../../../hooks/useProject"
+import useProject, { useProjectDatasets } from "../../../../../hooks/useProject"
 
 export const Route = createFileRoute(
   "/_layout/$userName/$projectName/_layout/datasets",
@@ -32,11 +32,8 @@ export const Route = createFileRoute(
 
 function ProjectDataView() {
   const { userName, projectName } = Route.useParams()
-  const { datasetsRequest, userHasWriteAccess } = useProject(
-    userName,
-    projectName,
-    false,
-  )
+  const { userHasWriteAccess } = useProject(userName, projectName)
+  const { datasetsRequest } = useProjectDatasets(userName, projectName)
   const { isPending: dataPending, data: datasets } = datasetsRequest
   const uploadDataModal = useDisclosure()
   const labelDataModal = useDisclosure()

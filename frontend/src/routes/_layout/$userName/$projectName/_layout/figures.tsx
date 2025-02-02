@@ -31,7 +31,7 @@ import {
   type FigureCommentPost,
 } from "../../../../../client"
 import PageMenu from "../../../../../components/Common/PageMenu"
-import useProject from "../../../../../hooks/useProject"
+import useProject, { useProjectFigures } from "../../../../../hooks/useProject"
 import useAuth from "../../../../../hooks/useAuth"
 import FigureView from "../../../../../components/Figures/FigureView"
 
@@ -233,11 +233,8 @@ const getIcon = (figure: Figure) => {
 
 function ProjectFigures() {
   const { userName, projectName } = Route.useParams()
-  const { figuresRequest, userHasWriteAccess } = useProject(
-    userName,
-    projectName,
-    false,
-  )
+  const { userHasWriteAccess } = useProject(userName, projectName)
+  const { figuresRequest } = useProjectFigures(userName, projectName)
   const { isPending: figuresPending, data: figures } = figuresRequest
   const uploadFigureModal = useDisclosure()
   const labelFigureModal = useDisclosure()

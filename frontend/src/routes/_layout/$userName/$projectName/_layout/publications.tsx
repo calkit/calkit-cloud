@@ -23,7 +23,9 @@ import { FaPlus } from "react-icons/fa"
 import { type Publication } from "../../../../../client"
 import NewPublication from "../../../../../components/Publications/NewPublication"
 import PageMenu from "../../../../../components/Common/PageMenu"
-import useProject from "../../../../../hooks/useProject"
+import useProject, {
+  useProjectPublications,
+} from "../../../../../hooks/useProject"
 import PublicationView from "../../../../../components/Publications/PublicationView"
 
 export const Route = createFileRoute(
@@ -95,11 +97,8 @@ function Publications() {
   const labelPubModal = useDisclosure()
   const newPubTemplateModal = useDisclosure()
   const { userName, projectName } = Route.useParams()
-  const { publicationsRequest, userHasWriteAccess } = useProject(
-    userName,
-    projectName,
-    false,
-  )
+  const { userHasWriteAccess } = useProject(userName, projectName)
+  const { publicationsRequest } = useProjectPublications(userName, projectName)
 
   return (
     <>
