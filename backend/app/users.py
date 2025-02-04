@@ -113,7 +113,6 @@ def get_github_token(session: Session, user: User) -> str:
                 refresh_token=decrypt_secret(token.refresh_token),
             ),
         )
-        logger.info("Refreshed GitHub token")
         logger.info(f"GitHub token refresh status code: {resp.status_code}")
         gh_resp = token_resp_text_to_dict(resp.text)
         logger.info(
@@ -127,17 +126,27 @@ def get_github_token(session: Session, user: User) -> str:
             )
             logger.error(msg)
             if gh_resp["error"] == "bad_refresh_token":
-                logger.info("Deleting bad GitHub token")
+                logger.info(f"Bad refresh token for {user.email}")
+                logger.info(f"Deleting bad GitHub token for {user.email}")
                 session.delete(token)
                 session.commit()
-                logger.info("Bad refresh token")
             raise HTTPException(401, "GitHub token refresh failed")
-        token = save_github_token(
-            session,
-            user=user,
-            github_resp=gh_resp,
+        # Save the newly refreshed token
+        now = utcnow()
+        expires = now + timedelta(seconds=int(gh_resp["expires_in"]))
+        rt_expires = now + timedelta(
+            seconds=int(gh_resp["refresh_token_expires_in"])
         )
-    return decrypt_secret(token.access_token)
+        token.access_token = encrypt_secret(gh_resp["access_token"])
+        token.refresh_token = encrypt_secret(gh_resp["refresh_token"])
+        token.expires = expires
+        token.refresh_token_expires = rt_expires
+        token.updated = now
+        user.github_token = token
+        session.commit()
+    session.commit()
+    session.refresh(user.github_token)
+    return decrypt_secret(user.github_token.access_token)
 
 
 def save_github_token(
