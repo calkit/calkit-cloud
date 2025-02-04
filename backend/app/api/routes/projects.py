@@ -718,7 +718,6 @@ def get_project_contents(
         min_access_level="read",
     )
     # Get the repo
-    # Note this will make the repo our working directory
     # TODO: Stop using a TTL and rely on latest commit hash
     repo = get_repo(
         project=project, user=current_user, session=session, ttl=ttl

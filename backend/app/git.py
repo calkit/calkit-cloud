@@ -6,11 +6,13 @@ import subprocess
 import time
 
 import git
+from fastapi import HTTPException
+from filelock import FileLock, Timeout
+from sqlmodel import Session
+
 from app import users
 from app.core import logger, ryaml
 from app.models import Project, User
-from filelock import FileLock, Timeout
-from sqlmodel import Session
 
 
 def get_repo(
@@ -46,12 +48,14 @@ def get_repo(
         shutil.rmtree(repo_dir, ignore_errors=True)
     # Clone the repo if it doesn't exist -- it will be in a "repo" dir
     if user is not None:
+        logger.info("Getting access token for Git repo URL")
         access_token = users.get_github_token(session=session, user=user)
         git_clone_url = (
             f"https://x-access-token:{access_token}@"
             f"{project.git_repo_url.removeprefix('https://')}.git"
         )
     else:
+        logger.info("Using public Git repo URL")
         git_clone_url = project.git_repo_url
     newly_cloned = False
     repo = None
@@ -60,11 +64,22 @@ def get_repo(
         logger.info(f"Git cloning into {repo_dir}")
         try:
             with lock:
-                subprocess.call(
-                    ["git", "clone", "--depth", "1", git_clone_url, repo_dir]
-                )
+                try:
+                    subprocess.check_call(
+                        [
+                            "git",
+                            "clone",
+                            "--depth",
+                            "1",
+                            git_clone_url,
+                            repo_dir,
+                        ]
+                    )
+                except subprocess.CalledProcessError as e:
+                    logger.error(f"Failed to clone repo: {e}")
+                    raise HTTPException(404, "Git repo not found")
                 # Touch a file so we can compute a TTL
-                subprocess.call(["touch", updated_fpath])
+                subprocess.check_call(["touch", updated_fpath])
                 repo = git.Repo(repo_dir)
                 if user is not None:
                     # Run git config so we make commits as this user
