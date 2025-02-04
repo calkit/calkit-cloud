@@ -46,6 +46,13 @@ def get_project(
     min_access_level: Literal["read", "write", "admin", "owner"] | None = None,
 ) -> Project:
     """Fetch a project by owner and name."""
+    if current_user is None:
+        user_name = "anonymous"
+    else:
+        user_name = current_user.email
+    logger.info(
+        f"Fetching project {owner_name}/{project_name} for {user_name}"
+    )
     query = (
         select(Project)
         .where(Project.owner_account.has(name=owner_name))
