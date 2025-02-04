@@ -103,7 +103,7 @@ def get_github_token(session: Session, user: User) -> str:
     if (utcnow() + timedelta(minutes=30)) >= token.expires:
         # Make sure no other process is trying to refresh the token
         # Lock the user token row
-        logger.info("Refreshing GitHub token")
+        logger.info(f"Refreshing GitHub token for {user.email}")
         resp = requests.post(
             "https://github.com/login/oauth/access_token",
             json=dict(
