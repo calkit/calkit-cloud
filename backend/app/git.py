@@ -8,6 +8,7 @@ import time
 import git
 from fastapi import HTTPException
 from filelock import FileLock, Timeout
+from git.exc import GitCommandError
 from sqlmodel import Session
 
 from app import users
@@ -48,7 +49,7 @@ def get_repo(
         shutil.rmtree(repo_dir, ignore_errors=True)
     # Clone the repo if it doesn't exist -- it will be in a "repo" dir
     if user is not None:
-        logger.info("Getting access token for Git repo URL")
+        logger.info(f"Getting {user.email}'s access token for Git repo URL")
         access_token = users.get_github_token(session=session, user=user)
         git_clone_url = (
             f"https://x-access-token:{access_token}@"
@@ -75,8 +76,8 @@ def get_repo(
                             repo_dir,
                         ]
                     )
-                except subprocess.CalledProcessError as e:
-                    logger.error(f"Failed to clone repo: {e}")
+                except subprocess.CalledProcessError:
+                    logger.error("Failed to clone repo")
                     raise HTTPException(404, "Git repo not found")
                 # Touch a file so we can compute a TTL
                 subprocess.check_call(["touch", updated_fpath])
@@ -110,6 +111,9 @@ def get_repo(
                     subprocess.call(["touch", updated_fpath])
         except Timeout:
             logger.warning("Git repo lock timed out")
+        except GitCommandError:
+            logger.error("Failed to refresh repo")
+            raise HTTPException(404, "Git repo not found")
     if repo is None:
         repo = git.Repo(repo_dir)
     return repo
