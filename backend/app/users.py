@@ -136,20 +136,25 @@ def get_github_token(session: Session, user: User) -> str:
             session,
             user=user,
             github_resp=gh_resp,
+            token=token,
         )
     return decrypt_secret(token.access_token)
 
 
 def save_github_token(
-    session: Session, user: User, github_resp: dict
+    session: Session,
+    user: User,
+    github_resp: dict,
+    token: UserGitHubToken | None = None,
 ) -> UserGitHubToken:
     now = utcnow()
     expires = now + timedelta(seconds=int(github_resp["expires_in"]))
     rt_expires = now + timedelta(
         seconds=int(github_resp["refresh_token_expires_in"])
     )
-    if user.github_token is None:
-        user.github_token = UserGitHubToken(
+    if token is None:
+        logger.info(f"Saving new GitHub token for {user.email}")
+        token = UserGitHubToken(
             user_id=user.id,
             access_token=encrypt_secret(github_resp["access_token"]),
             refresh_token=encrypt_secret(github_resp["refresh_token"]),
@@ -157,16 +162,13 @@ def save_github_token(
             refresh_token_expires=rt_expires,
         )
     else:
-        user.github_token.access_token = encrypt_secret(
-            github_resp["access_token"]
-        )
-        user.github_token.refresh_token = encrypt_secret(
-            github_resp["refresh_token"]
-        )
-        user.github_token.expires = expires
-        user.github_token.refresh_token_expires = rt_expires
-        user.github_token.updated = now
-    session.add(user.github_token)
+        logger.info(f"Updating GitHub token for {user.email}")
+        token.access_token = encrypt_secret(github_resp["access_token"])
+        token.refresh_token = encrypt_secret(github_resp["refresh_token"])
+        token.expires = expires
+        token.refresh_token_expires = rt_expires
+        token.updated = now
+    session.add(token)
     session.commit()
     session.refresh(user.github_token)
     return user.github_token
