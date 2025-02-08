@@ -17,7 +17,7 @@ import { HamburgerIcon, CloseIcon } from "@chakra-ui/icons"
 import UserMenu from "./UserMenu"
 import { FaGithub, FaPlus } from "react-icons/fa"
 import useAuth from "../../hooks/useAuth"
-import AddProject from "../Projects/CreateProject"
+import NewProject from "../Projects/NewProject"
 
 interface Props {
   children: React.ReactNode
@@ -104,7 +104,7 @@ export default function Topbar() {
               <Icon as={FaPlus} mr={1} />
               New project
             </Button>
-            <AddProject
+            <NewProject
               onClose={newProjectModal.onClose}
               isOpen={newProjectModal.isOpen}
             />
