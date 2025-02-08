@@ -15,8 +15,9 @@ import {
 import { Link as RouterLink } from "@tanstack/react-router"
 import { HamburgerIcon, CloseIcon } from "@chakra-ui/icons"
 import UserMenu from "./UserMenu"
-import { FaGithub } from "react-icons/fa"
+import { FaGithub, FaPlus } from "react-icons/fa"
 import useAuth from "../../hooks/useAuth"
+import NewProject from "../Projects/NewProject"
 
 interface Props {
   children: React.ReactNode
@@ -53,6 +54,7 @@ export default function Topbar() {
   const { isOpen, onOpen, onClose } = useDisclosure()
   const secBgColor = useColorModeValue("ui.secondary", "ui.darkSlate")
   const { user } = useAuth()
+  const newProjectModal = useDisclosure()
 
   return (
     <>
@@ -93,6 +95,19 @@ export default function Topbar() {
             </HStack>
           </HStack>
           <Flex alignItems={"center"}>
+            <Button
+              aria-label="new-project"
+              size="sm"
+              mr={6}
+              onClick={newProjectModal.onOpen}
+            >
+              <Icon as={FaPlus} mr={1} />
+              New project
+            </Button>
+            <NewProject
+              onClose={newProjectModal.onClose}
+              isOpen={newProjectModal.isOpen}
+            />
             <Link
               isExternal
               href="https://github.com/calkit/calkit-cloud"

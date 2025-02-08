@@ -40,7 +40,7 @@ import Sidebar from "../../../../components/Common/Sidebar"
 import { ProjectPublic } from "../../../../client"
 import EditProject from "../../../../components/Projects/EditProject"
 import useProject from "../../../../hooks/useProject"
-import AddProject from "../../../../components/Projects/CreateProject"
+import NewProject from "../../../../components/Projects/NewProject"
 import useAuth from "../../../../hooks/useAuth"
 
 export const Route = createFileRoute("/_layout/$userName/$projectName/_layout")(
@@ -310,7 +310,7 @@ function ProjectMenu({ project, userHasWriteAccess }: ProjectMenuProps) {
         isOpen={editProjectModal.isOpen}
         onClose={editProjectModal.onClose}
       />
-      <AddProject
+      <NewProject
         isOpen={newProjectModal.isOpen}
         onClose={newProjectModal.onClose}
         defaultTemplate={`${project.owner_account_name}/${project.name}`}

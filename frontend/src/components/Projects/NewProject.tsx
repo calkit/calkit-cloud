@@ -30,13 +30,13 @@ import {
 import useCustomToast from "../../hooks/useCustomToast"
 import { handleError } from "../../utils"
 
-interface AddProjectProps {
+interface NewProjectProps {
   isOpen: boolean
   onClose: () => void
   defaultTemplate?: string
 }
 
-const AddProject = ({ isOpen, onClose, defaultTemplate }: AddProjectProps) => {
+const NewProject = ({ isOpen, onClose, defaultTemplate }: NewProjectProps) => {
   const templates = ["calkit/example-basic", "calkit/example-matlab"]
   if (!defaultTemplate) {
     defaultTemplate = "calkit/example-basic"
@@ -123,7 +123,7 @@ const AddProject = ({ isOpen, onClose, defaultTemplate }: AddProjectProps) => {
       >
         <ModalOverlay />
         <ModalContent as="form" onSubmit={handleSubmit(onSubmit)}>
-          <ModalHeader>Create project</ModalHeader>
+          <ModalHeader>New project</ModalHeader>
           <ModalCloseButton />
           <ModalBody pb={6}>
             <FormControl isRequired isInvalid={!!errors.title}>
@@ -205,4 +205,4 @@ const AddProject = ({ isOpen, onClose, defaultTemplate }: AddProjectProps) => {
   )
 }
 
-export default AddProject
+export default NewProject
