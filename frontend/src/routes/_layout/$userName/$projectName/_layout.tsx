@@ -68,7 +68,7 @@ function HelpContent() {
           Artifacts labeled with Calkit are highlighted with a green icon.
           Labeling artifacts is a way to clarify "special" files or folders that
           have a specific meaning to the project. For example, a certain folder
-          may contain an important dataset used in the workflow to produce a
+          may contain an important dataset used in the pipeline to produce a
           certain figure, which is also labeled as a <Code>figure</Code>{" "}
           artifact.
         </Text>
@@ -100,7 +100,7 @@ function HelpContent() {
         <Text mb={mb}>
           Publications are artifacts created as part of project such as journal
           articles, presentations or slide decks, technical reports, etc.
-          Ideally these should be produced as part of the workflow, but for
+          Ideally these should be produced as part of the pipeline, but for
           users of non-text-based tools like Microsoft Office and Google
           Workspace these can be uploaded and updated manually. However, it is
           recommended to export them to PDF. The source files, e.g., a{" "}
@@ -115,7 +115,7 @@ function HelpContent() {
       <>
         <Text mb={mb}>
           Figures are visualizations of data or results. These will typically be
-          produced in workflow stages with datasets and code as their
+          produced in pipeline stages with datasets and code as their
           dependencies so they can be easily reproduced or updated if their
           dependencies change. They will also typically be inserted into
           publications.
@@ -135,8 +135,8 @@ function HelpContent() {
         <Text mb={mb}>
           Datasets can be produced as part of a project or imported from a
           different project for further synthesis and analysis. They are
-          typically dependencies and/or outputs in the workflow. An output
-          dataset might be produced as part of a workflow stage that reduced
+          typically dependencies and/or outputs in the pipeline. An output
+          dataset might be produced as part of a pipeline stage that reduced
           some raw data. A dataset that is merely a dependency could be produced
           as part of an experiment's data collection process.
         </Text>
@@ -154,12 +154,12 @@ function HelpContent() {
       </>
     )
   }
-  if (page === "workflow") {
+  if (page === "pipeline") {
     return (
       <>
         <Text mb={mb}>
-          The project workflow includes procedures and the DVC computational
-          pipeline, which describes the steps (or "stages") taken to produce all
+          The project's DVC computational
+          pipeline describes the steps (or "stages") taken to produce all
           of the desired outputs. For example, one stage could involve
           processing the raw data. Another could create a figure from these.
           Another could produce a publication. The pipeline can be run locally
@@ -210,7 +210,7 @@ function HelpContent() {
           <Link isExternal variant="blue" href="https://jupyter.org/">
             Jupyter notebooks
           </Link>
-          . It is possible to define a workflow stage that executes a notebook
+          . It is possible to define a pipeline stage that executes a notebook
           and converts it to a different format, e.g., HTML, which will be shown
           here if configured.
         </Text>
@@ -258,10 +258,10 @@ function HelpContent() {
         questions you'd like to answer, or start defining the{" "}
         <Link
           as={RouterLink}
-          to={`/${userName}/${projectName}/workflow`}
+          to={`/${userName}/${projectName}/pipeline`}
           variant="blue"
         >
-          workflow
+          pipeline
         </Link>{" "}
         for how you'd like your outputs or artifacts to be created.
       </Text>

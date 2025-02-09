@@ -27,10 +27,10 @@ import { Route as LayoutDatasetsImport } from './routes/_layout/datasets'
 import { Route as LayoutAdminImport } from './routes/_layout/admin'
 import { Route as LayoutUserNameProjectNameLayoutImport } from './routes/_layout/$userName/$projectName/_layout'
 import { Route as LayoutUserNameProjectNameLayoutIndexImport } from './routes/_layout/$userName/$projectName/_layout/index'
-import { Route as LayoutUserNameProjectNameLayoutWorkflowImport } from './routes/_layout/$userName/$projectName/_layout/workflow'
 import { Route as LayoutUserNameProjectNameLayoutSoftwareImport } from './routes/_layout/$userName/$projectName/_layout/software'
 import { Route as LayoutUserNameProjectNameLayoutReferencesImport } from './routes/_layout/$userName/$projectName/_layout/references'
 import { Route as LayoutUserNameProjectNameLayoutPublicationsImport } from './routes/_layout/$userName/$projectName/_layout/publications'
+import { Route as LayoutUserNameProjectNameLayoutPipelineImport } from './routes/_layout/$userName/$projectName/_layout/pipeline'
 import { Route as LayoutUserNameProjectNameLayoutNotebooksImport } from './routes/_layout/$userName/$projectName/_layout/notebooks'
 import { Route as LayoutUserNameProjectNameLayoutLocalImport } from './routes/_layout/$userName/$projectName/_layout/local'
 import { Route as LayoutUserNameProjectNameLayoutFilesImport } from './routes/_layout/$userName/$projectName/_layout/files'
@@ -137,13 +137,6 @@ const LayoutUserNameProjectNameLayoutIndexRoute =
     getParentRoute: () => LayoutUserNameProjectNameLayoutRoute,
   } as any)
 
-const LayoutUserNameProjectNameLayoutWorkflowRoute =
-  LayoutUserNameProjectNameLayoutWorkflowImport.update({
-    id: '/workflow',
-    path: '/workflow',
-    getParentRoute: () => LayoutUserNameProjectNameLayoutRoute,
-  } as any)
-
 const LayoutUserNameProjectNameLayoutSoftwareRoute =
   LayoutUserNameProjectNameLayoutSoftwareImport.update({
     id: '/software',
@@ -162,6 +155,13 @@ const LayoutUserNameProjectNameLayoutPublicationsRoute =
   LayoutUserNameProjectNameLayoutPublicationsImport.update({
     id: '/publications',
     path: '/publications',
+    getParentRoute: () => LayoutUserNameProjectNameLayoutRoute,
+  } as any)
+
+const LayoutUserNameProjectNameLayoutPipelineRoute =
+  LayoutUserNameProjectNameLayoutPipelineImport.update({
+    id: '/pipeline',
+    path: '/pipeline',
     getParentRoute: () => LayoutUserNameProjectNameLayoutRoute,
   } as any)
 
@@ -365,6 +365,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutUserNameProjectNameLayoutNotebooksImport
       parentRoute: typeof LayoutUserNameProjectNameLayoutImport
     }
+    '/_layout/$userName/$projectName/_layout/pipeline': {
+      id: '/_layout/$userName/$projectName/_layout/pipeline'
+      path: '/pipeline'
+      fullPath: '/$userName/$projectName/pipeline'
+      preLoaderRoute: typeof LayoutUserNameProjectNameLayoutPipelineImport
+      parentRoute: typeof LayoutUserNameProjectNameLayoutImport
+    }
     '/_layout/$userName/$projectName/_layout/publications': {
       id: '/_layout/$userName/$projectName/_layout/publications'
       path: '/publications'
@@ -384,13 +391,6 @@ declare module '@tanstack/react-router' {
       path: '/software'
       fullPath: '/$userName/$projectName/software'
       preLoaderRoute: typeof LayoutUserNameProjectNameLayoutSoftwareImport
-      parentRoute: typeof LayoutUserNameProjectNameLayoutImport
-    }
-    '/_layout/$userName/$projectName/_layout/workflow': {
-      id: '/_layout/$userName/$projectName/_layout/workflow'
-      path: '/workflow'
-      fullPath: '/$userName/$projectName/workflow'
-      preLoaderRoute: typeof LayoutUserNameProjectNameLayoutWorkflowImport
       parentRoute: typeof LayoutUserNameProjectNameLayoutImport
     }
     '/_layout/$userName/$projectName/_layout/': {
@@ -413,10 +413,10 @@ interface LayoutUserNameProjectNameLayoutRouteChildren {
   LayoutUserNameProjectNameLayoutFilesRoute: typeof LayoutUserNameProjectNameLayoutFilesRoute
   LayoutUserNameProjectNameLayoutLocalRoute: typeof LayoutUserNameProjectNameLayoutLocalRoute
   LayoutUserNameProjectNameLayoutNotebooksRoute: typeof LayoutUserNameProjectNameLayoutNotebooksRoute
+  LayoutUserNameProjectNameLayoutPipelineRoute: typeof LayoutUserNameProjectNameLayoutPipelineRoute
   LayoutUserNameProjectNameLayoutPublicationsRoute: typeof LayoutUserNameProjectNameLayoutPublicationsRoute
   LayoutUserNameProjectNameLayoutReferencesRoute: typeof LayoutUserNameProjectNameLayoutReferencesRoute
   LayoutUserNameProjectNameLayoutSoftwareRoute: typeof LayoutUserNameProjectNameLayoutSoftwareRoute
-  LayoutUserNameProjectNameLayoutWorkflowRoute: typeof LayoutUserNameProjectNameLayoutWorkflowRoute
   LayoutUserNameProjectNameLayoutIndexRoute: typeof LayoutUserNameProjectNameLayoutIndexRoute
 }
 
@@ -436,14 +436,14 @@ const LayoutUserNameProjectNameLayoutRouteChildren: LayoutUserNameProjectNameLay
       LayoutUserNameProjectNameLayoutLocalRoute,
     LayoutUserNameProjectNameLayoutNotebooksRoute:
       LayoutUserNameProjectNameLayoutNotebooksRoute,
+    LayoutUserNameProjectNameLayoutPipelineRoute:
+      LayoutUserNameProjectNameLayoutPipelineRoute,
     LayoutUserNameProjectNameLayoutPublicationsRoute:
       LayoutUserNameProjectNameLayoutPublicationsRoute,
     LayoutUserNameProjectNameLayoutReferencesRoute:
       LayoutUserNameProjectNameLayoutReferencesRoute,
     LayoutUserNameProjectNameLayoutSoftwareRoute:
       LayoutUserNameProjectNameLayoutSoftwareRoute,
-    LayoutUserNameProjectNameLayoutWorkflowRoute:
-      LayoutUserNameProjectNameLayoutWorkflowRoute,
     LayoutUserNameProjectNameLayoutIndexRoute:
       LayoutUserNameProjectNameLayoutIndexRoute,
   }
@@ -512,10 +512,10 @@ export interface FileRoutesByFullPath {
   '/$userName/$projectName/files': typeof LayoutUserNameProjectNameLayoutFilesRoute
   '/$userName/$projectName/local': typeof LayoutUserNameProjectNameLayoutLocalRoute
   '/$userName/$projectName/notebooks': typeof LayoutUserNameProjectNameLayoutNotebooksRoute
+  '/$userName/$projectName/pipeline': typeof LayoutUserNameProjectNameLayoutPipelineRoute
   '/$userName/$projectName/publications': typeof LayoutUserNameProjectNameLayoutPublicationsRoute
   '/$userName/$projectName/references': typeof LayoutUserNameProjectNameLayoutReferencesRoute
   '/$userName/$projectName/software': typeof LayoutUserNameProjectNameLayoutSoftwareRoute
-  '/$userName/$projectName/workflow': typeof LayoutUserNameProjectNameLayoutWorkflowRoute
   '/$userName/$projectName/': typeof LayoutUserNameProjectNameLayoutIndexRoute
 }
 
@@ -539,10 +539,10 @@ export interface FileRoutesByTo {
   '/$userName/$projectName/files': typeof LayoutUserNameProjectNameLayoutFilesRoute
   '/$userName/$projectName/local': typeof LayoutUserNameProjectNameLayoutLocalRoute
   '/$userName/$projectName/notebooks': typeof LayoutUserNameProjectNameLayoutNotebooksRoute
+  '/$userName/$projectName/pipeline': typeof LayoutUserNameProjectNameLayoutPipelineRoute
   '/$userName/$projectName/publications': typeof LayoutUserNameProjectNameLayoutPublicationsRoute
   '/$userName/$projectName/references': typeof LayoutUserNameProjectNameLayoutReferencesRoute
   '/$userName/$projectName/software': typeof LayoutUserNameProjectNameLayoutSoftwareRoute
-  '/$userName/$projectName/workflow': typeof LayoutUserNameProjectNameLayoutWorkflowRoute
 }
 
 export interface FileRoutesById {
@@ -568,10 +568,10 @@ export interface FileRoutesById {
   '/_layout/$userName/$projectName/_layout/files': typeof LayoutUserNameProjectNameLayoutFilesRoute
   '/_layout/$userName/$projectName/_layout/local': typeof LayoutUserNameProjectNameLayoutLocalRoute
   '/_layout/$userName/$projectName/_layout/notebooks': typeof LayoutUserNameProjectNameLayoutNotebooksRoute
+  '/_layout/$userName/$projectName/_layout/pipeline': typeof LayoutUserNameProjectNameLayoutPipelineRoute
   '/_layout/$userName/$projectName/_layout/publications': typeof LayoutUserNameProjectNameLayoutPublicationsRoute
   '/_layout/$userName/$projectName/_layout/references': typeof LayoutUserNameProjectNameLayoutReferencesRoute
   '/_layout/$userName/$projectName/_layout/software': typeof LayoutUserNameProjectNameLayoutSoftwareRoute
-  '/_layout/$userName/$projectName/_layout/workflow': typeof LayoutUserNameProjectNameLayoutWorkflowRoute
   '/_layout/$userName/$projectName/_layout/': typeof LayoutUserNameProjectNameLayoutIndexRoute
 }
 
@@ -598,10 +598,10 @@ export interface FileRouteTypes {
     | '/$userName/$projectName/files'
     | '/$userName/$projectName/local'
     | '/$userName/$projectName/notebooks'
+    | '/$userName/$projectName/pipeline'
     | '/$userName/$projectName/publications'
     | '/$userName/$projectName/references'
     | '/$userName/$projectName/software'
-    | '/$userName/$projectName/workflow'
     | '/$userName/$projectName/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -624,10 +624,10 @@ export interface FileRouteTypes {
     | '/$userName/$projectName/files'
     | '/$userName/$projectName/local'
     | '/$userName/$projectName/notebooks'
+    | '/$userName/$projectName/pipeline'
     | '/$userName/$projectName/publications'
     | '/$userName/$projectName/references'
     | '/$userName/$projectName/software'
-    | '/$userName/$projectName/workflow'
   id:
     | '__root__'
     | '/_layout'
@@ -651,10 +651,10 @@ export interface FileRouteTypes {
     | '/_layout/$userName/$projectName/_layout/files'
     | '/_layout/$userName/$projectName/_layout/local'
     | '/_layout/$userName/$projectName/_layout/notebooks'
+    | '/_layout/$userName/$projectName/_layout/pipeline'
     | '/_layout/$userName/$projectName/_layout/publications'
     | '/_layout/$userName/$projectName/_layout/references'
     | '/_layout/$userName/$projectName/_layout/software'
-    | '/_layout/$userName/$projectName/_layout/workflow'
     | '/_layout/$userName/$projectName/_layout/'
   fileRoutesById: FileRoutesById
 }
@@ -764,10 +764,10 @@ export const routeTree = rootRoute
         "/_layout/$userName/$projectName/_layout/files",
         "/_layout/$userName/$projectName/_layout/local",
         "/_layout/$userName/$projectName/_layout/notebooks",
+        "/_layout/$userName/$projectName/_layout/pipeline",
         "/_layout/$userName/$projectName/_layout/publications",
         "/_layout/$userName/$projectName/_layout/references",
         "/_layout/$userName/$projectName/_layout/software",
-        "/_layout/$userName/$projectName/_layout/workflow",
         "/_layout/$userName/$projectName/_layout/"
       ]
     },
@@ -799,6 +799,10 @@ export const routeTree = rootRoute
       "filePath": "_layout/$userName/$projectName/_layout/notebooks.tsx",
       "parent": "/_layout/$userName/$projectName/_layout"
     },
+    "/_layout/$userName/$projectName/_layout/pipeline": {
+      "filePath": "_layout/$userName/$projectName/_layout/pipeline.tsx",
+      "parent": "/_layout/$userName/$projectName/_layout"
+    },
     "/_layout/$userName/$projectName/_layout/publications": {
       "filePath": "_layout/$userName/$projectName/_layout/publications.tsx",
       "parent": "/_layout/$userName/$projectName/_layout"
@@ -809,10 +813,6 @@ export const routeTree = rootRoute
     },
     "/_layout/$userName/$projectName/_layout/software": {
       "filePath": "_layout/$userName/$projectName/_layout/software.tsx",
-      "parent": "/_layout/$userName/$projectName/_layout"
-    },
-    "/_layout/$userName/$projectName/_layout/workflow": {
-      "filePath": "_layout/$userName/$projectName/_layout/workflow.tsx",
       "parent": "/_layout/$userName/$projectName/_layout"
     },
     "/_layout/$userName/$projectName/_layout/": {
