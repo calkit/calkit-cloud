@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute } from "@tanstack/react-router"
 import {
   Box,
   Code,
@@ -7,15 +7,15 @@ import {
   Heading,
   Alert,
   AlertIcon,
-} from '@chakra-ui/react'
-import { useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
+} from "@chakra-ui/react"
+import { useQuery } from "@tanstack/react-query"
+import { useState } from "react"
 
-import Mermaid from '../../../../../components/Common/Mermaid'
-import { ProjectsService } from '../../../../../client'
+import Mermaid from "../../../../../components/Common/Mermaid"
+import { ProjectsService } from "../../../../../client"
 
 export const Route = createFileRoute(
-  '/_layout/$userName/$projectName/_layout/pipeline',
+  "/_layout/$userName/$projectName/_layout/pipeline",
 )({
   component: ProjectPipeline,
 })
@@ -23,7 +23,7 @@ export const Route = createFileRoute(
 function ProjectPipeline() {
   const { userName, projectName } = Route.useParams()
   const pipelineQuery = useQuery({
-    queryKey: [userName, projectName, 'pipeline'],
+    queryKey: [userName, projectName, "pipeline"],
     queryFn: () =>
       ProjectsService.getProjectPipeline({
         ownerName: userName,
@@ -39,13 +39,13 @@ function ProjectPipeline() {
           <Spinner size="xl" color="ui.main" />
         </Flex>
       ) : (
-        <Flex flexDir={isDiagramExpanded ? 'column' : 'row'}>
+        <Flex flexDir={isDiagramExpanded ? "column" : "row"}>
           {pipelineQuery.data ? (
             <>
               <Box
                 px={isDiagramExpanded ? 0 : 5}
                 py={isDiagramExpanded ? 0 : 10}
-                maxW={isDiagramExpanded ? '100%' : '50%'}
+                maxW={isDiagramExpanded ? "100%" : "50%"}
                 minW="40%"
               >
                 <Mermaid
@@ -55,13 +55,13 @@ function ProjectPipeline() {
                   {String(pipelineQuery?.data?.mermaid)}
                 </Mermaid>
               </Box>
-              <Box width={isDiagramExpanded ? '100%' : '680px'}>
+              <Box width={isDiagramExpanded ? "100%" : "680px"}>
                 <Heading size="md" my={2}>
                   DVC pipeline (<Code fontSize="lg">dvc.yaml</Code>)
                 </Heading>
                 <Code
                   p={2}
-                  borderRadius={'lg'}
+                  borderRadius={"lg"}
                   display="block"
                   whiteSpace="pre"
                   height="80vh"
@@ -74,7 +74,7 @@ function ProjectPipeline() {
           ) : (
             <Alert mt={2} status="warning" borderRadius="xl">
               <AlertIcon />A pipeline has not yet been defined for this project.
-              To create one, add stages to the <Code mx={1}>dvc.yaml</Code>{' '}
+              To create one, add stages to the <Code mx={1}>dvc.yaml</Code>{" "}
               file.
             </Alert>
           )}
