@@ -13,15 +13,15 @@ import { FaLaptop } from "react-icons/fa"
 import { IoLibraryOutline } from "react-icons/io5"
 import axios from "axios"
 import { useQuery } from "@tanstack/react-query"
-import { BsGear } from "react-icons/bs"
 import { SiJupyter } from "react-icons/si"
 import { MdOutlineDashboard } from "react-icons/md"
 import useAuth from "../../hooks/useAuth"
+import { TiFlowMerge } from "react-icons/ti"
 
 const items = [
   { icon: FiHome, title: "Project home", path: "" },
   { icon: MdOutlineDashboard, title: "App", path: "/app" },
-  { icon: BsGear, title: "Workflow", path: "/workflow" },
+  { icon: TiFlowMerge, title: "Pipeline", path: "/pipeline" },
   { icon: FiDatabase, title: "Datasets", path: "/datasets" },
   { icon: FiImage, title: "Figures", path: "/figures" },
   { icon: FiBookOpen, title: "Publications", path: "/publications" },

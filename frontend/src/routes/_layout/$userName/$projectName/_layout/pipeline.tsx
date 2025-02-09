@@ -15,12 +15,12 @@ import Mermaid from "../../../../../components/Common/Mermaid"
 import { ProjectsService } from "../../../../../client"
 
 export const Route = createFileRoute(
-  "/_layout/$userName/$projectName/_layout/workflow",
+  "/_layout/$userName/$projectName/_layout/pipeline",
 )({
-  component: ProjectWorkflow,
+  component: ProjectPipeline,
 })
 
-function ProjectWorkflow() {
+function ProjectPipeline() {
   const { userName, projectName } = Route.useParams()
   const pipelineQuery = useQuery({
     queryKey: [userName, projectName, "pipeline"],
