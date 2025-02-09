@@ -338,6 +338,7 @@ function ProjectLayout() {
       axios.get(`http://localhost:8866/projects/${userName}/${projectName}`),
     retry: false,
   })
+  const titleSize = String(project?.title).length < 50 ? "lg" : "md"
 
   return (
     <>
@@ -357,7 +358,7 @@ function ProjectLayout() {
               mt={5}
               mb={4}
             >
-              <Heading size="lg">{project?.title}</Heading>
+              <Heading size={titleSize}>{project?.title}</Heading>
               <Badge
                 ml={2}
                 mt={1.5}
