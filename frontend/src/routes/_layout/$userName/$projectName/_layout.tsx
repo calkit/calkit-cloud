@@ -20,13 +20,8 @@ import {
   MenuList,
   MenuItem,
   Box,
-  Tooltip,
 } from "@chakra-ui/react"
-import {
-  createFileRoute,
-  Outlet,
-  notFound,
-} from "@tanstack/react-router"
+import { createFileRoute, Outlet, notFound } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
 import { ExternalLinkIcon } from "@chakra-ui/icons"
 import { FaGithub, FaQuestion } from "react-icons/fa"
@@ -118,7 +113,7 @@ function ProjectLayout() {
       axios.get(`http://localhost:8866/projects/${userName}/${projectName}`),
     retry: false,
   })
-  const titleSize = String(project?.title).length < 60 ? "lg" : "md"
+  const titleSize = "lg"
 
   return (
     <>
@@ -130,23 +125,26 @@ function ProjectLayout() {
         <Flex>
           <Sidebar basePath={`/${userName}/${projectName}`} />
           <Container maxW="full" mx={6} mb={10}>
-            <Flex
-              width={"full"}
+            <Container
+              maxW="100%"
               alignContent="center"
               alignItems="center"
               mt={5}
               mb={4}
+              display="flex"
+              flexWrap="wrap"
+              px={1}
             >
-              <Box maxW="80%">
+              <Box maxW="100%" mr={2}>
                 <Heading size={titleSize}>{project?.title}</Heading>
               </Box>
-              <Box mx={2} pb={0.5}>
+              <Box mr={2} pb={0.5}>
                 <Badge color={project?.is_public ? "green.500" : "yellow.500"}>
                   {project?.is_public ? "Public" : "Private"}
                 </Badge>
               </Box>
               {project?.git_repo_url ? (
-                <Box>
+                <Box mr={2}>
                   <Link href={project?.git_repo_url} isExternal>
                     <Flex alignItems="center">
                       <Icon as={FaGithub} pt={0.5} />
@@ -157,7 +155,7 @@ function ProjectLayout() {
               ) : (
                 ""
               )}
-              <Box ml={2}>
+              <Box mr={2}>
                 <Flex>
                   {project ? (
                     <ProjectMenu
@@ -176,18 +174,14 @@ function ProjectLayout() {
                   />
                 </Flex>
               </Box>
-              <Box ml={2} maxW="30%">
+              <Box>
                 {project?.description ? (
-                  <Tooltip openDelay={600} label={project.description}>
-                    <Text fontSize="small" isTruncated>
-                      → {project.description}
-                    </Text>
-                  </Tooltip>
+                  <Text fontSize="small">→ {project.description}</Text>
                 ) : (
                   ""
                 )}
               </Box>
-            </Flex>
+            </Container>
             <Outlet />
           </Container>
           <Drawer
