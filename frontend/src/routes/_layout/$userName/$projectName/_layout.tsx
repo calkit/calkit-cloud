@@ -21,6 +21,7 @@ import {
   MenuList,
   MenuItem,
   Box,
+  Tooltip,
 } from "@chakra-ui/react"
 import {
   createFileRoute,
@@ -158,12 +159,12 @@ function HelpContent() {
     return (
       <>
         <Text mb={mb}>
-          The project's DVC computational
-          pipeline describes the steps (or "stages") taken to produce all
-          of the desired outputs. For example, one stage could involve
-          processing the raw data. Another could create a figure from these.
-          Another could produce a publication. The pipeline can be run locally
-          by executing <Code>calkit run</Code> in the project working directory.
+          The project's DVC computational pipeline describes the steps (or
+          "stages") taken to produce all of the desired outputs. For example,
+          one stage could involve processing the raw data. Another could create
+          a figure from these. Another could produce a publication. The pipeline
+          can be run locally by executing <Code>calkit run</Code> in the project
+          working directory.
         </Text>
         <Text mb={mb}>
           For instructions on how to create your pipeline, see the{" "}
@@ -338,7 +339,7 @@ function ProjectLayout() {
       axios.get(`http://localhost:8866/projects/${userName}/${projectName}`),
     retry: false,
   })
-  const titleSize = String(project?.title).length < 50 ? "lg" : "md"
+  const titleSize = String(project?.title).length < 60 ? "lg" : "md"
 
   return (
     <>
@@ -352,56 +353,57 @@ function ProjectLayout() {
           <Container maxW="full" mx={6} mb={10}>
             <Flex
               width={"full"}
-              textAlign={{ base: "center", md: "left" }}
               alignContent="center"
               alignItems="center"
               mt={5}
               mb={4}
             >
-              <Heading size={titleSize}>{project?.title}</Heading>
-              <Badge
-                ml={2}
-                mt={1.5}
-                color={project?.is_public ? "green.500" : "yellow.500"}
-              >
-                {project?.is_public ? "Public" : "Private"}
-              </Badge>
+              <Box maxW="80%">
+                <Heading size={titleSize}>{project?.title}</Heading>
+              </Box>
+              <Box mx={2} pb={0.5}>
+                <Badge color={project?.is_public ? "green.500" : "yellow.500"}>
+                  {project?.is_public ? "Public" : "Private"}
+                </Badge>
+              </Box>
               {project?.git_repo_url ? (
-                <Link href={project?.git_repo_url} isExternal>
-                  <Icon ml={2} mt={3} as={FaGithub} />
-                  <Icon ml={0.3} mt={-2} as={ExternalLinkIcon} />
-                </Link>
+                <Box>
+                  <Link href={project?.git_repo_url} isExternal>
+                    <Flex alignItems="center">
+                      <Icon as={FaGithub} pt={0.5} />
+                      <Icon as={ExternalLinkIcon} />
+                    </Flex>
+                  </Link>
+                </Box>
               ) : (
                 ""
               )}
-              <Box mt={1} ml={1.5}>
-                {project ? (
-                  <ProjectMenu
-                    project={project}
-                    userHasWriteAccess={userHasWriteAccess}
+              <Box ml={2}>
+                <Flex>
+                  {project ? (
+                    <ProjectMenu
+                      project={project}
+                      userHasWriteAccess={userHasWriteAccess}
+                    />
+                  ) : (
+                    ""
+                  )}
+                  <IconButton
+                    isRound
+                    aria-label="Open help"
+                    size={"xs"}
+                    onClick={helpDrawer.onOpen}
+                    icon={<FaQuestion />}
                   />
-                ) : (
-                  ""
-                )}
-                <IconButton
-                  isRound
-                  aria-label="Open help"
-                  size={"xs"}
-                  onClick={helpDrawer.onOpen}
-                  icon={<FaQuestion />}
-                />
+                </Flex>
               </Box>
-              <Box
-                mt={3}
-                ml={2}
-                mb={2}
-                textAlign={"right"}
-                alignItems={"right"}
-              >
+              <Box ml={2} maxW="30%">
                 {project?.description ? (
-                  <Text ml={1} fontSize="small" align={"right"}>
-                    → {project.description}
-                  </Text>
+                  <Tooltip openDelay={600} label={project.description}>
+                    <Text fontSize="small" isTruncated>
+                      → {project.description}
+                    </Text>
+                  </Tooltip>
                 ) : (
                   ""
                 )}
