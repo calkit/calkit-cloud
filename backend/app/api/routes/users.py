@@ -5,7 +5,6 @@ import uuid
 from datetime import timedelta
 from typing import Literal
 
-import app.users
 import requests
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -531,7 +530,7 @@ class ZenodoTokenResponse(BaseModel):
 def get_user_zenodo_token(
     session: SessionDep, current_user: CurrentUser
 ) -> ZenodoTokenResponse:
-    token = app.users.get_zenodo_token(session=session, user=current_user)
+    token = users.get_zenodo_token(session=session, user=current_user)
     return ZenodoTokenResponse(access_token=token)
 
 
