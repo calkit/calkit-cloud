@@ -5,6 +5,7 @@ import uuid
 from datetime import timedelta
 from typing import Literal
 
+import app.users
 import requests
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -520,6 +521,18 @@ def post_user_zenodo_auth(
         session=session, user=current_user, zenodo_resp=resp_json
     )
     return Message(message="success")
+
+
+class ZenodoTokenResponse(BaseModel):
+    access_token: str
+
+
+@router.get("/user/zenodo-token")
+def get_user_zenodo_token(
+    session: SessionDep, current_user: CurrentUser
+) -> ZenodoTokenResponse:
+    token = app.users.get_zenodo_token(session=session, user=current_user)
+    return ZenodoTokenResponse(access_token=token)
 
 
 @router.get("/user/storage")
