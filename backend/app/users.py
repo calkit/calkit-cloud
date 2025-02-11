@@ -7,6 +7,7 @@ from typing import Any
 import requests
 from fastapi import HTTPException
 from sqlmodel import Session, select
+from requests.exceptions import JSONDecodeError
 
 import app.stripe
 from app import utcnow
@@ -185,11 +186,13 @@ def get_zenodo_token(session: Session, user: User) -> str:
     """Get a user's decrypted Zenodo token, automatically refreshing if
     necessary.
     """
+    if user.zenodo_token is None:
+        raise HTTPException(401, "User needs to authenticate with Zenodo")
     # Refresh token if necessary
     # Should also handle tokens that don't exist?
     # TODO: Use with_for_update
     if user.zenodo_token.expires <= utcnow():
-        logger.info("Refreshing Zenodo token")
+        logger.info(f"Refreshing Zenodo token for {user.email}")
         resp = requests.post(
             "https://zenodo.org/oauth/token",
             data=dict(
@@ -199,10 +202,19 @@ def get_zenodo_token(session: Session, user: User) -> str:
                 refresh_token=decrypt_secret(user.zenodo_token.refresh_token),
             ),
         )
-        logger.info("Refreshed Zenodo token")
-        zenodo_resp = resp.json()
+        logger.info(f"Refreshed Zenodo token; status code: {resp.status_code}")
+        try:
+            zenodo_resp = resp.json()
+        except JSONDecodeError:
+            zenodo_resp = {}
         logger.info(f"Zenodo token response keys: {list(zenodo_resp.keys())}")
-        # TODO: Handle failure, since all are 200 response codes
+        # Handle failure
+        if resp.status_code != 200:
+            msg = zenodo_resp.get("error", "Failed to authenticate")
+            logger.error(
+                f"Failed to refresh Zenodo token for {user.email}: {msg}"
+            )
+            raise HTTPException(resp.status_code, msg)
         save_zenodo_token(
             session,
             user=user,

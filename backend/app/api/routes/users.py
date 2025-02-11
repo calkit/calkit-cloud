@@ -522,6 +522,18 @@ def post_user_zenodo_auth(
     return Message(message="success")
 
 
+class ZenodoTokenResponse(BaseModel):
+    access_token: str
+
+
+@router.get("/user/zenodo-token")
+def get_user_zenodo_token(
+    session: SessionDep, current_user: CurrentUser
+) -> ZenodoTokenResponse:
+    token = users.get_zenodo_token(session=session, user=current_user)
+    return ZenodoTokenResponse(access_token=token)
+
+
 @router.get("/user/storage")
 def get_user_storage(
     session: SessionDep,
