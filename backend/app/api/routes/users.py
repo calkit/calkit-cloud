@@ -522,16 +522,24 @@ def post_user_zenodo_auth(
     return Message(message="success")
 
 
-class ZenodoTokenResponse(BaseModel):
+class ExternalTokenResponse(BaseModel):
     access_token: str
 
 
 @router.get("/user/zenodo-token")
 def get_user_zenodo_token(
     session: SessionDep, current_user: CurrentUser
-) -> ZenodoTokenResponse:
+) -> ExternalTokenResponse:
     token = users.get_zenodo_token(session=session, user=current_user)
-    return ZenodoTokenResponse(access_token=token)
+    return ExternalTokenResponse(access_token=token)
+
+
+@router.get("/user/github-token")
+def get_user_github_token(
+    session: SessionDep, current_user: CurrentUser
+) -> ExternalTokenResponse:
+    token = users.get_github_token(session=session, user=current_user)
+    return ExternalTokenResponse(access_token=token)
 
 
 @router.get("/user/storage")
