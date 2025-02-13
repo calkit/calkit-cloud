@@ -42,6 +42,7 @@ from app.security import (
 )
 from app.storage import get_storage_usage
 from app.subscriptions import PLAN_IDS, get_monthly_price
+from app.zenodo import AUTH_URL as ZENODO_AUTH_URL
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -498,7 +499,7 @@ def post_user_zenodo_auth(
         code=code,
         redirect_uri=redirect_uri,
     )
-    url = "https://zenodo.org/oauth/token"
+    url = ZENODO_AUTH_URL
     resp = requests.post(url, data=body)
     logger.info(f"Zenodo response status code: {resp.status_code}")
     if resp.status_code != 200:
@@ -522,16 +523,24 @@ def post_user_zenodo_auth(
     return Message(message="success")
 
 
-class ZenodoTokenResponse(BaseModel):
+class ExternalTokenResponse(BaseModel):
     access_token: str
 
 
 @router.get("/user/zenodo-token")
 def get_user_zenodo_token(
     session: SessionDep, current_user: CurrentUser
-) -> ZenodoTokenResponse:
+) -> ExternalTokenResponse:
     token = users.get_zenodo_token(session=session, user=current_user)
-    return ZenodoTokenResponse(access_token=token)
+    return ExternalTokenResponse(access_token=token)
+
+
+@router.get("/user/github-token")
+def get_user_github_token(
+    session: SessionDep, current_user: CurrentUser
+) -> ExternalTokenResponse:
+    token = users.get_github_token(session=session, user=current_user)
+    return ExternalTokenResponse(access_token=token)
 
 
 @router.get("/user/storage")

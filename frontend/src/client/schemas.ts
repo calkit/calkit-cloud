@@ -927,6 +927,15 @@ export const $Environment = {
   },
 } as const
 
+export const $ExternalTokenResponse = {
+  properties: {
+    access_token: {
+      type: "string",
+      isRequired: true,
+    },
+  },
+} as const
+
 export const $Figure = {
   properties: {
     path: {
@@ -1152,6 +1161,69 @@ export const $GitHubInstallations = {
         },
       },
       isRequired: true,
+    },
+  },
+} as const
+
+export const $GitHubRelease = {
+  properties: {
+    url: {
+      type: "string",
+      isRequired: true,
+    },
+    name: {
+      type: "string",
+      isRequired: true,
+    },
+    tag_name: {
+      type: "string",
+      isRequired: true,
+    },
+    body: {
+      type: "string",
+      isRequired: true,
+    },
+    created: {
+      type: "string",
+      isRequired: true,
+      format: "date-time",
+    },
+    published: {
+      type: "string",
+      isRequired: true,
+      format: "date-time",
+    },
+  },
+} as const
+
+export const $GitHubReleasePost = {
+  properties: {
+    tag_name: {
+      type: "string",
+      isRequired: true,
+    },
+    target_committish: {
+      type: "string",
+      default: "main",
+    },
+    name: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    body: {
+      type: "string",
+      isRequired: true,
+    },
+    generate_release_notes: {
+      type: "boolean",
+      default: true,
     },
   },
 } as const

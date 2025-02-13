@@ -9,6 +9,7 @@ import type {
   Token,
   UserPublic,
   ConnectedAccounts,
+  ExternalTokenResponse,
   GitHubInstallations,
   NewSubscriptionResponse,
   StorageUsage,
@@ -42,6 +43,8 @@ import type {
   FigureCommentPost,
   FileLock,
   FileLockPost,
+  GitHubRelease,
+  GitHubReleasePost,
   GitItem,
   GitItemWithContents,
   Issue,
@@ -387,6 +390,15 @@ export type ProjectsData = {
     ownerName: string
     projectName: string
     ttl?: number | null
+  }
+  GetProjectGithubReleases: {
+    ownerName: string
+    projectName: string
+  }
+  PostProjectGithubRelease: {
+    ownerName: string
+    projectName: string
+    requestBody: GitHubReleasePost
   }
 }
 
@@ -921,6 +933,30 @@ export class UsersService {
       errors: {
         422: `Validation Error`,
       },
+    })
+  }
+
+  /**
+   * Get User Zenodo Token
+   * @returns ExternalTokenResponse Successful Response
+   * @throws ApiError
+   */
+  public static getUserZenodoToken(): CancelablePromise<ExternalTokenResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/user/zenodo-token",
+    })
+  }
+
+  /**
+   * Get User Github Token
+   * @returns ExternalTokenResponse Successful Response
+   * @throws ApiError
+   */
+  public static getUserGithubToken(): CancelablePromise<ExternalTokenResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/user/github-token",
     })
   }
 
@@ -2163,6 +2199,52 @@ export class ProjectsService {
       query: {
         ttl,
       },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Get Project Github Releases
+   * @returns GitHubRelease Successful Response
+   * @throws ApiError
+   */
+  public static getProjectGithubReleases(
+    data: ProjectsData["GetProjectGithubReleases"],
+  ): CancelablePromise<Array<GitHubRelease>> {
+    const { ownerName, projectName } = data
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/projects/{owner_name}/{project_name}/github-releases",
+      path: {
+        owner_name: ownerName,
+        project_name: projectName,
+      },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Post Project Github Release
+   * @returns GitHubRelease Successful Response
+   * @throws ApiError
+   */
+  public static postProjectGithubRelease(
+    data: ProjectsData["PostProjectGithubRelease"],
+  ): CancelablePromise<GitHubRelease> {
+    const { ownerName, projectName, requestBody } = data
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/projects/{owner_name}/{project_name}/github-releases",
+      path: {
+        owner_name: ownerName,
+        project_name: projectName,
+      },
+      body: requestBody,
+      mediaType: "application/json",
       errors: {
         422: `Validation Error`,
       },
