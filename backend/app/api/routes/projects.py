@@ -7,6 +7,7 @@ import os
 import subprocess
 import uuid
 from copy import deepcopy
+from datetime import datetime
 from io import StringIO
 from pathlib import Path
 from typing import Annotated, Literal, Optional
@@ -2514,3 +2515,51 @@ def get_project_showcase(
             element_out = element_in
         elements_out.append(element_out)
     return Showcase.model_validate(dict(elements=elements_out))
+
+
+class GitHubRelease(BaseModel):
+    url: str
+    name: str
+    tag_name: str
+    body: str
+    created: datetime
+    published: datetime
+
+
+@router.get("/projects/{owner_name}/{project_name}/github-releases")
+def get_project_github_releases(
+    owner_name: str,
+    project_name: str,
+    current_user: CurrentUserOptional,
+    session: SessionDep,
+) -> list[GitHubRelease]:
+    project = app.projects.get_project(
+        owner_name=owner_name,
+        project_name=project_name,
+        session=session,
+        current_user=current_user,
+        min_access_level="read",
+    )
+    if current_user is not None:
+        token = users.get_github_token(session=session, user=current_user)
+        headers = {"Authorization": f"Bearer {token}"}
+    else:
+        headers = None
+    logger.info(f"Fetching GitHub releases for {owner_name}/{project_name}")
+    url = f"https://api.github.com/repos/{project.github_repo}/releases"
+    resp = requests.get(url, headers=headers)
+    if resp.status_code >= 400:
+        raise HTTPException(400, "Failed to fetch GitHub releases")
+    resp2 = []
+    for obj in resp.json():
+        resp2.append(
+            GitHubRelease(
+                url=obj["html_url"],
+                name=obj["name"],
+                tag_name=obj["tag_name"],
+                body=obj["body"],
+                created=obj["created_at"],
+                published=obj["published_at"],
+            )
+        )
+    return resp2
