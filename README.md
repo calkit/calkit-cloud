@@ -1,4 +1,4 @@
-# Calkit cloud
+# Calkit Cloud
 
 <a href="https://github.com/calkit/calkit-cloud/actions?query=workflow%3ATest" target="_blank"><img src="https://github.com/calkit/calkit-cloud/workflows/Test/badge.svg" alt="Test"></a>
 
