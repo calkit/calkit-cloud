@@ -2563,3 +2563,48 @@ def get_project_github_releases(
             )
         )
     return resp2
+
+
+class GitHubReleasePost(BaseModel):
+    tag_name: str
+    target_committish: str = "main"
+    name: str | None = None
+    body: str
+    generate_release_notes: bool = True
+
+
+@router.post("/projects/{owner_name}/{project_name}/github-releases")
+def post_project_github_release(
+    owner_name: str,
+    project_name: str,
+    current_user: CurrentUser,
+    session: SessionDep,
+    req: GitHubReleasePost,
+) -> GitHubRelease:
+    project = app.projects.get_project(
+        owner_name=owner_name,
+        project_name=project_name,
+        session=session,
+        current_user=current_user,
+        min_access_level="write",
+    )
+    token = users.get_github_token(session=session, user=current_user)
+    headers = {"Authorization": f"Bearer {token}"}
+    logger.info(
+        f"Posting GitHub release {req.name} for {owner_name}/{project_name}"
+    )
+    if req.name is None:
+        req.name = req.tag_name
+    url = f"https://api.github.com/repos/{project.github_repo}/releases"
+    resp = requests.post(url, json=req.model_dump(), headers=headers)
+    if resp.status_code >= 400:
+        raise HTTPException(400, "Failed to post GitHub release")
+    obj = resp.json()
+    return GitHubRelease(
+        url=obj["html_url"],
+        name=obj["name"],
+        tag_name=obj["tag_name"],
+        body=obj["body"],
+        created=obj["created_at"],
+        published=obj["published_at"],
+    )
