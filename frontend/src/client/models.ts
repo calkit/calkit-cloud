@@ -188,6 +188,10 @@ export type Environment = {
   file_content?: string | null
 }
 
+export type ExternalTokenResponse = {
+  access_token: string
+}
+
 export type Figure = {
   path: string
   title: string
@@ -238,6 +242,23 @@ export type ForeachStage = {
 export type GitHubInstallations = {
   total_count: number
   installations: Array<Record<string, unknown>>
+}
+
+export type GitHubRelease = {
+  url: string
+  name: string
+  tag_name: string
+  body: string
+  created: string
+  published: string
+}
+
+export type GitHubReleasePost = {
+  tag_name: string
+  target_committish?: string
+  name?: string | null
+  body: string
+  generate_release_notes?: boolean
 }
 
 export type GitItem = {
