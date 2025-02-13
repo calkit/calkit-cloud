@@ -1,8 +1,6 @@
 # Calkit Cloud
 
-<a href="https://github.com/calkit/calkit-cloud/actions?query=workflow%3ATest" target="_blank"><img src="https://github.com/calkit/calkit-cloud/workflows/Test/badge.svg" alt="Test"></a>
-
-The Calkit cloud system serves as an index for projects and their artifacts
+The Calkit Cloud serves as an index for projects and their artifacts
 such as datasets, figures, publications, computational environments, etc.
 It also serves as a [DVC](https://dvc.org) remote,
 neatly integrated with the
@@ -20,6 +18,14 @@ in new projects.
 Additionally, all studies should be able to be reproduced by anyone else
 by using this framework,
 resulting in more reliable knowledge.
+
+## Get involved
+
+We welcome all kinds of contributions.
+
+- Participate in **[GitHub Discussions](https://github.com/calkit/discussions)**.
+- Join our [**Discord**](https://discord.gg/ubb7gAXc) for real-time collaboration.
+- Follow our updates on [**LinkedIn**](https://linkedin.com/company/calkit).
 
 ## Deploying your own instance
 
@@ -71,4 +77,5 @@ Deployment docs: [deployment.md](./deployment.md).
 
 General development docs: [development.md](./development.md).
 
-This includes using Docker Compose, custom local domains, `.env` configurations, etc.
+This includes using Docker Compose, custom local domains, `.env`
+configurations, etc.
