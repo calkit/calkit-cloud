@@ -6,8 +6,8 @@ from typing import Any
 
 import requests
 from fastapi import HTTPException
-from sqlmodel import Session, select
 from requests.exceptions import JSONDecodeError
+from sqlmodel import Session, select
 
 import app.stripe
 from app import utcnow
@@ -28,6 +28,7 @@ from app.security import (
     get_password_hash,
     verify_password,
 )
+from app.zenodo import AUTH_URL as ZENODO_AUTH_URL
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -194,7 +195,7 @@ def get_zenodo_token(session: Session, user: User) -> str:
     if user.zenodo_token.expires <= utcnow():
         logger.info(f"Refreshing Zenodo token for {user.email}")
         resp = requests.post(
-            "https://zenodo.org/oauth/token",
+            ZENODO_AUTH_URL,
             data=dict(
                 client_id=settings.ZENODO_CLIENT_ID,
                 client_secret=settings.ZENODO_CLIENT_SECRET,

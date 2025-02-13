@@ -42,6 +42,7 @@ from app.security import (
 )
 from app.storage import get_storage_usage
 from app.subscriptions import PLAN_IDS, get_monthly_price
+from app.zenodo import AUTH_URL as ZENODO_AUTH_URL
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -498,7 +499,7 @@ def post_user_zenodo_auth(
         code=code,
         redirect_uri=redirect_uri,
     )
-    url = "https://zenodo.org/oauth/token"
+    url = ZENODO_AUTH_URL
     resp = requests.post(url, data=body)
     logger.info(f"Zenodo response status code: {resp.status_code}")
     if resp.status_code != 200:
