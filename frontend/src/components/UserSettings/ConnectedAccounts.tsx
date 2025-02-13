@@ -3,7 +3,11 @@ import mixpanel from "mixpanel-browser"
 import { useQuery } from "@tanstack/react-query"
 import { FaCheck } from "react-icons/fa"
 
-import { zenodoAuthStateParam, getZenodoRedirectUri } from "../../utils"
+import {
+  zenodoAuthStateParam,
+  getZenodoRedirectUri,
+  getZenodoAuthUrl,
+} from "../../utils"
 import { UsersService } from "../../client"
 
 function ConnectedAccounts() {
@@ -12,7 +16,7 @@ function ConnectedAccounts() {
     mixpanel.track("Clicked connect Zenodo")
     // TODO: Set correct redirect URI per environment
     location.href =
-      `https://zenodo.org/oauth/authorize?client_id=${clientId}` +
+      `${getZenodoAuthUrl()}?client_id=${clientId}` +
       `&state=${zenodoAuthStateParam}` +
       "&scope=deposit%3Awrite+deposit%3Aactions&response_type=code" +
       `&redirect_uri=${encodeURIComponent(getZenodoRedirectUri())}`
