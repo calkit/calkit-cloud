@@ -8,23 +8,17 @@ import {
   Badge,
   SimpleGrid,
   Card,
-  Menu,
-  MenuButton,
   Icon,
-  MenuList,
-  MenuItem,
   Button,
   useDisclosure,
   Link,
 } from "@chakra-ui/react"
 import { createFileRoute, Link as RouterLink } from "@tanstack/react-router"
-import { FaCube, FaDocker, FaPlus } from "react-icons/fa"
+import { FaCube, FaDocker } from "react-icons/fa"
 import { AiOutlinePython } from "react-icons/ai"
 import { SiAnaconda } from "react-icons/si"
 
-import useProject, {
-  useProjectEnvironments,
-} from "../../../../../hooks/useProject"
+import { useProjectEnvironments } from "../../../../../hooks/useProject"
 
 export const Route = createFileRoute(
   "/_layout/$userName/$projectName/_layout/environments",
@@ -47,43 +41,16 @@ const getIcon = (envType: string) => {
 
 function ProjectEnvsView() {
   const { userName, projectName } = Route.useParams()
-  const { userHasWriteAccess } = useProject(userName, projectName)
   const { environmentsRequest } = useProjectEnvironments(userName, projectName)
   const { isPending: environmentsPending, data: environments } =
     environmentsRequest
-  const uploadDataModal = useDisclosure()
-  const labelDataModal = useDisclosure()
+  const viewEnvModal = useDisclosure()
+  const reuseEnvModal = useDisclosure()
 
   return (
     <>
       <Flex align="center" mb={2}>
         <Heading size="md">Environments</Heading>
-        {userHasWriteAccess ? (
-          <>
-            <Menu>
-              <MenuButton
-                as={Button}
-                variant="primary"
-                height={"25px"}
-                width={"9px"}
-                px={1}
-                ml={2}
-              >
-                <Icon as={FaPlus} fontSize="xs" />
-              </MenuButton>
-              <MenuList>
-                <MenuItem onClick={uploadDataModal.onOpen}>
-                  Upload new dataset
-                </MenuItem>
-                <MenuItem onClick={labelDataModal.onOpen}>
-                  Label existing file or folder as dataset
-                </MenuItem>
-              </MenuList>
-            </Menu>
-          </>
-        ) : (
-          ""
-        )}
       </Flex>
       {environmentsPending ? (
         <Flex justify="center" align="center" height={"100vh"} width="full">
@@ -139,6 +106,23 @@ function ProjectEnvsView() {
                 ) : (
                   ""
                 )}
+                <Flex mt={1.5}>
+                  <Button
+                    variant="primary"
+                    size="xs"
+                    mr={2}
+                    onClick={viewEnvModal.onOpen}
+                  >
+                    View
+                  </Button>
+                  <Button
+                    variant="primary"
+                    size="xs"
+                    onClick={reuseEnvModal.onOpen}
+                  >
+                    Reuse
+                  </Button>
+                </Flex>
               </Card>
             ))}
           </SimpleGrid>
