@@ -39,8 +39,8 @@ dependencies = [
     "calkit-python>=0.20.0",
 ]
 
-[tool.uv]
-dev-dependencies = [
+[dependency-groups]
+dev = [
     "pytest<8.0.0,>=7.4.3",
     "mypy<2.0.0,>=1.8.0",
     "ruff<1.0.0,>=0.2.2",
@@ -59,6 +59,8 @@ exclude = ["venv", ".venv", "alembic"]
 
 [tool.ruff]
 target-version = "py312"
+line-length = 79
+fix = true
 exclude = ["alembic"]
 
 [tool.ruff.lint.pyupgrade]
