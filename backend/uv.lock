@@ -246,15 +246,15 @@ requires-dist = [
     { name = "alembic", specifier = ">=1.12.1,<2.0.0" },
     { name = "bcrypt", specifier = "==4.0.1" },
     { name = "bibtexparser", specifier = "==1.4.1" },
-    { name = "calkit-python", specifier = ">=0.12.0" },
+    { name = "calkit-python", specifier = ">=0.20.0" },
     { name = "cryptography", specifier = "==43.0.0" },
-    { name = "dvc", specifier = "==3.54.1" },
+    { name = "dvc", specifier = "==3.59.0" },
     { name = "email-validator", specifier = ">=2.1.0.post1,<3.0.0.0" },
     { name = "emails", specifier = ">=0.6,<1.0" },
     { name = "fastapi", extras = ["standard"], specifier = ">=0.114.2,<1.0.0" },
     { name = "filelock", specifier = "==3.16.0" },
     { name = "gcsfs", specifier = "==2024.10.0" },
-    { name = "gitpython", specifier = "==3.1.43" },
+    { name = "gitpython", specifier = ">=3.1.43" },
     { name = "httpx", specifier = ">=0.25.1,<1.0.0" },
     { name = "jinja2", specifier = ">=3.1.4,<4.0.0" },
     { name = "mixpanel", specifier = "==4.10.1" },
@@ -455,10 +455,12 @@ wheels = [
 
 [[package]]
 name = "calkit-python"
-version = "0.12.0"
+version = "0.20.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "arithmeval" },
+    { name = "bibtexparser" },
+    { name = "checksumdir" },
     { name = "docx2pdf" },
     { name = "dvc" },
     { name = "fastapi" },
@@ -469,14 +471,15 @@ dependencies = [
     { name = "pydantic", extra = ["email"] },
     { name = "pydantic-settings" },
     { name = "pyjwt" },
+    { name = "python-dotenv" },
     { name = "pywin32", marker = "platform_system == 'Windows'" },
     { name = "requests" },
     { name = "typer" },
     { name = "uvicorn" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/46/8b/0894ae7a3c60e9ad41db73a21683e9e08ec232f3c2d881569f2640f361a8/calkit_python-0.12.0.tar.gz", hash = "sha256:9761a6713cacb5e5458651333f4ced04d03f4d089fa6f0b22765e5deef01d4a5", size = 470159 }
+sdist = { url = "https://files.pythonhosted.org/packages/d3/47/7a53fafa4fc4847b34245db764db1661d3f0474d67ee9565b2b506c5d5ca/calkit_python-0.20.0.tar.gz", hash = "sha256:3c99c009cc61f681753dd33074127457312499163bb1f771863c3d3de8e1876c", size = 7535191 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/74/51/4a3b07a5453066692bab92e2677131f3afa332163da44a18e3555fa068e2/calkit_python-0.12.0-py3-none-any.whl", hash = "sha256:275784cb5f1347f3978f2c88d6d4b738b2f51f7fc8a3a801f7f9ffede347b862", size = 100122 },
+    { url = "https://files.pythonhosted.org/packages/1e/5c/d9448660bcad39291a477c88a4f9bb24a24021489fa709e4ac122d1076c1/calkit_python-0.20.0-py3-none-any.whl", hash = "sha256:e22a78b050342d669850c12aced7239369b498f9662264dddc874d8d57facd76", size = 119404 },
 ]
 
 [[package]]
@@ -650,6 +653,15 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/cc/67/e5e7e0cbfefc4ca79025238b43cdf8a2037854195b37d6417f3d0895c4c2/charset_normalizer-3.4.0-cp313-cp313-win32.whl", hash = "sha256:f19c1585933c82098c2a520f8ec1227f20e339e33aca8fa6f956f6691b784e67", size = 94973 },
     { url = "https://files.pythonhosted.org/packages/65/97/fc9bbc54ee13d33dc54a7fcf17b26368b18505500fc01e228c27b5222d80/charset_normalizer-3.4.0-cp313-cp313-win_amd64.whl", hash = "sha256:707b82d19e65c9bd28b81dde95249b07bf9f5b90ebe1ef17d9b57473f8a64b7b", size = 102308 },
     { url = "https://files.pythonhosted.org/packages/bf/9b/08c0432272d77b04803958a4598a51e2a4b51c06640af8b8f0f908c18bf2/charset_normalizer-3.4.0-py3-none-any.whl", hash = "sha256:fe9f97feb71aa9896b81973a7bbada8c49501dc73e58a10fcef6663af95e5079", size = 49446 },
+]
+
+[[package]]
+name = "checksumdir"
+version = "1.2.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/b5/bc/7446a3877cae4638c93531239736ca3ee7933bd3f775db325bb1a1d5102c/checksumdir-1.2.0.tar.gz", hash = "sha256:10bfd7518da5a14b0e9ac03e9ad105f0e70f58bba52b6e9aa2f21a3f73c7b5a8", size = 4116 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/1f/75/cc1e76d4957ef6852ef9a49c3f75794a2952d0af3d2482dc7d19f659fa42/checksumdir-1.2.0-py3-none-any.whl", hash = "sha256:77687e16da95970c94061c74ef2e13666c4b6e0e8c90a5eaf0c8f7591332cf01", size = 5342 },
 ]
 
 [[package]]
@@ -961,7 +973,7 @@ wheels = [
 
 [[package]]
 name = "dvc"
-version = "3.54.1"
+version = "3.59.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "attrs" },
@@ -1007,9 +1019,9 @@ dependencies = [
     { name = "voluptuous" },
     { name = "zc-lockfile" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/d5/64/53163398f7a4e73564b88abc4d51ec93e4aac5c3c1c39303c9b45cb63967/dvc-3.54.1.tar.gz", hash = "sha256:00cbfd2dc1268af7bd8739c8e2dfdc493134d243bfc9687579a94a2646d438ef", size = 642024 }
+sdist = { url = "https://files.pythonhosted.org/packages/08/2a/056ba3592887eb9ed26df5ea58badfd37bc039e464a294cc58ef142f3d90/dvc-3.59.0.tar.gz", hash = "sha256:d991221eec54a146050f90b948e5a9c0541c81565356bf034e3faf54a6bfb847", size = 652856 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/b8/50/b8d56dcae393e83e94fac6b29c56dcdd0497300b9b862939fadf39023fc0/dvc-3.54.1-py3-none-any.whl", hash = "sha256:9534ddfdde9cec654f44ae4a565fdbbf45d1f4b656d6d68ffb18bcef7a075db5", size = 453411 },
+    { url = "https://files.pythonhosted.org/packages/79/d2/0ff8d61e1a04a782a7e128dd16cc30992635aa1194b116dac46d9f38cc61/dvc-3.59.0-py3-none-any.whl", hash = "sha256:0ad3f8281143dc53b9fa72675248be979f1f3819bc841258e87523e20344dda3", size = 457674 },
 ]
 
 [[package]]
@@ -2627,6 +2639,8 @@ version = "6.1.0"
 source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/26/10/2a30b13c61e7cf937f4adf90710776b7918ed0a9c434e2c38224732af310/psutil-6.1.0.tar.gz", hash = "sha256:353815f59a7f64cdaca1c0307ee13558a0512f6db064e92fe833784f08539c7a", size = 508565 }
 wheels = [
+    { url = "https://files.pythonhosted.org/packages/da/2b/f4dea5d993d9cd22ad958eea828a41d5d225556123d372f02547c29c4f97/psutil-6.1.0-cp27-none-win32.whl", hash = "sha256:9118f27452b70bb1d9ab3198c1f626c2499384935aaf55388211ad982611407e", size = 246648 },
+    { url = "https://files.pythonhosted.org/packages/9f/14/4aa97a7f2e0ac33a050d990ab31686d651ae4ef8c86661fef067f00437b9/psutil-6.1.0-cp27-none-win_amd64.whl", hash = "sha256:a8506f6119cff7015678e2bce904a4da21025cc70ad283a53b099e7620061d85", size = 249905 },
     { url = "https://files.pythonhosted.org/packages/01/9e/8be43078a171381953cfee33c07c0d628594b5dbfc5157847b85022c2c1b/psutil-6.1.0-cp36-abi3-macosx_10_9_x86_64.whl", hash = "sha256:6e2dcd475ce8b80522e51d923d10c7871e45f20918e027ab682f94f1c6351688", size = 247762 },
     { url = "https://files.pythonhosted.org/packages/1d/cb/313e80644ea407f04f6602a9e23096540d9dc1878755f3952ea8d3d104be/psutil-6.1.0-cp36-abi3-macosx_11_0_arm64.whl", hash = "sha256:0895b8414afafc526712c498bd9de2b063deaac4021a3b3c34566283464aff8e", size = 248777 },
     { url = "https://files.pythonhosted.org/packages/65/8e/bcbe2025c587b5d703369b6a75b65d41d1367553da6e3f788aff91eaf5bd/psutil-6.1.0-cp36-abi3-manylinux_2_12_i686.manylinux2010_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:9dcbfce5d89f1d1f2546a2090f4fcf87c7f669d1d90aacb7d7582addece9fb38", size = 284259 },
