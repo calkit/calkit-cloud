@@ -91,6 +91,14 @@ const EnvCard = ({ environment }: EnvCardProps) => {
         ) : (
           ""
         )}
+        {environment.all_attrs.image ? (
+          <Text mb={1}>
+            <strong>Image:</strong>{" "}
+            <Code>{environment.all_attrs.image as String}</Code>
+          </Text>
+        ) : (
+          ""
+        )}
         {environment.description ? (
           <Text>
             <strong>Description:</strong> {environment.description}
@@ -138,7 +146,7 @@ function ProjectEnvsView() {
         </Flex>
       ) : environments?.length ? (
         <Box>
-          <SimpleGrid columns={[3, null, 4]} gap={6}>
+          <SimpleGrid columns={[2, null, 3]} gap={6}>
             {environments?.map((environment) => (
               <EnvCard environment={environment} />
             ))}
