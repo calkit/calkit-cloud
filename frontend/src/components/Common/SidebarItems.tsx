@@ -17,11 +17,13 @@ import { SiJupyter } from "react-icons/si"
 import { MdOutlineDashboard } from "react-icons/md"
 import useAuth from "../../hooks/useAuth"
 import { TiFlowMerge } from "react-icons/ti"
+import { FaCubes } from "react-icons/fa6"
 
 const items = [
   { icon: FiHome, title: "Project home", path: "" },
   { icon: MdOutlineDashboard, title: "App", path: "/app" },
   { icon: TiFlowMerge, title: "Pipeline", path: "/pipeline" },
+  { icon: FaCubes, title: "Environments", path: "/environments" },
   { icon: FiDatabase, title: "Datasets", path: "/datasets" },
   { icon: FiImage, title: "Figures", path: "/figures" },
   { icon: FiBookOpen, title: "Publications", path: "/publications" },
