@@ -20,6 +20,7 @@ import { SiAnaconda } from "react-icons/si"
 
 import { useProjectEnvironments } from "../../../../../hooks/useProject"
 import ViewEnvironment from "../../../../../components/Environments/ViewEnvironment"
+import { Environment } from "../../../../../client"
 
 export const Route = createFileRoute(
   "/_layout/$userName/$projectName/_layout/environments",
@@ -40,13 +41,89 @@ const getIcon = (envType: string) => {
   return FaCube
 }
 
+interface EnvCardProps {
+  environment: Environment
+}
+
+const EnvCard = ({ environment }: EnvCardProps) => {
+  const viewEnvModal = useDisclosure()
+  const reuseEnvModal = useDisclosure()
+  return (
+    <>
+      <Card key={environment.name} p={6} variant="elevated">
+        <Flex alignItems="center" mb={2}>
+          <Icon as={getIcon(environment.kind)} mr={1} />
+          <Heading size="md">
+            <Code px={1} py={0.5} maxW="100%" fontSize="large">
+              {environment.name}
+              {environment.imported_from ? (
+                <Badge ml={1} bgColor="green.500">
+                  imported
+                </Badge>
+              ) : (
+                ""
+              )}
+            </Code>
+          </Heading>
+        </Flex>
+        {environment.kind ? (
+          <Text mb={1}>
+            <strong>Kind:</strong> <Code>{environment.kind}</Code>
+          </Text>
+        ) : (
+          ""
+        )}
+        {environment.path ? (
+          <Text mb={1}>
+            <strong>Path:</strong>{" "}
+            <Code>
+              <Link
+                as={RouterLink}
+                to={"../files"}
+                search={{ path: environment.path } as any}
+              >
+                {environment.path}
+              </Link>
+            </Code>
+          </Text>
+        ) : (
+          ""
+        )}
+        {environment.description ? (
+          <Text>
+            <strong>Description:</strong> {environment.description}
+          </Text>
+        ) : (
+          ""
+        )}
+        <Flex mt={1.5}>
+          <Button
+            variant="primary"
+            size="xs"
+            mr={2}
+            onClick={viewEnvModal.onOpen}
+          >
+            View
+          </Button>
+          <Button variant="primary" size="xs" onClick={reuseEnvModal.onOpen}>
+            Reuse
+          </Button>
+          <ViewEnvironment
+            environment={environment}
+            isOpen={viewEnvModal.isOpen}
+            onClose={viewEnvModal.onClose}
+          />
+        </Flex>
+      </Card>
+    </>
+  )
+}
+
 function ProjectEnvsView() {
   const { userName, projectName } = Route.useParams()
   const { environmentsRequest } = useProjectEnvironments(userName, projectName)
   const { isPending: environmentsPending, data: environments } =
     environmentsRequest
-  const viewEnvModal = useDisclosure()
-  const reuseEnvModal = useDisclosure()
 
   return (
     <>
@@ -61,75 +138,7 @@ function ProjectEnvsView() {
         <Box>
           <SimpleGrid columns={[3, null, 4]} gap={6}>
             {environments?.map((environment) => (
-              <Card key={environment.name} p={6} variant="elevated">
-                <Flex alignItems="center" mb={2}>
-                  <Icon as={getIcon(environment.kind)} mr={1} />
-                  <Heading size="md">
-                    <Code px={1} py={0.5} maxW="100%" fontSize="large">
-                      {environment.name}
-                      {environment.imported_from ? (
-                        <Badge ml={1} bgColor="green.500">
-                          imported
-                        </Badge>
-                      ) : (
-                        ""
-                      )}
-                    </Code>
-                  </Heading>
-                </Flex>
-                {environment.kind ? (
-                  <Text mb={1}>
-                    <strong>Kind:</strong> <Code>{environment.kind}</Code>
-                  </Text>
-                ) : (
-                  ""
-                )}
-                {environment.path ? (
-                  <Text mb={1}>
-                    <strong>Path:</strong>{" "}
-                    <Code>
-                      <Link
-                        as={RouterLink}
-                        to={"../files"}
-                        search={{ path: environment.path } as any}
-                      >
-                        {environment.path}
-                      </Link>
-                    </Code>
-                  </Text>
-                ) : (
-                  ""
-                )}
-                {environment.description ? (
-                  <Text>
-                    <strong>Description:</strong> {environment.description}
-                  </Text>
-                ) : (
-                  ""
-                )}
-                <Flex mt={1.5}>
-                  <Button
-                    variant="primary"
-                    size="xs"
-                    mr={2}
-                    onClick={viewEnvModal.onOpen}
-                  >
-                    View
-                  </Button>
-                  <Button
-                    variant="primary"
-                    size="xs"
-                    onClick={reuseEnvModal.onOpen}
-                  >
-                    Reuse
-                  </Button>
-                  <ViewEnvironment
-                    environment={environment}
-                    isOpen={viewEnvModal.isOpen}
-                    onClose={viewEnvModal.onClose}
-                  />
-                </Flex>
-              </Card>
+              <EnvCard environment={environment} />
             ))}
           </SimpleGrid>
         </Box>
