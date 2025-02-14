@@ -12,6 +12,8 @@ import {
   Button,
   useDisclosure,
   Link,
+  Alert,
+  AlertIcon,
 } from "@chakra-ui/react"
 import { createFileRoute, Link as RouterLink } from "@tanstack/react-router"
 import { FaCube, FaDocker } from "react-icons/fa"
@@ -134,7 +136,7 @@ function ProjectEnvsView() {
         <Flex justify="center" align="center" height={"100vh"} width="full">
           <Spinner size="xl" color="ui.main" />
         </Flex>
-      ) : (
+      ) : environments?.length ? (
         <Box>
           <SimpleGrid columns={[3, null, 4]} gap={6}>
             {environments?.map((environment) => (
@@ -142,6 +144,11 @@ function ProjectEnvsView() {
             ))}
           </SimpleGrid>
         </Box>
+      ) : (
+        <Alert mt={2} status="warning" borderRadius="xl">
+          <AlertIcon />
+          This project has no environments defined.
+        </Alert>
       )}
     </>
   )
