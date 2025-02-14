@@ -31,5 +31,9 @@ format: ## Format all code.
 	@cd backend && make format
 
 .PHONY: frontend-client
-frontend-client: ## Regenerate the OpenAPI client for the frontend
+frontend-client: ## Regenerate the OpenAPI client for the frontend.
 	@cd frontend && make client
+
+.PHONY: frontend
+frontend: ## Build the frontend.
+	@cd frontend && npm run build
