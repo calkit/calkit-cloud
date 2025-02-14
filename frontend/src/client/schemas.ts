@@ -913,8 +913,15 @@ export const $Environment = {
       isRequired: true,
     },
     path: {
-      type: "string",
-      isRequired: true,
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
     },
     description: {
       type: "any-of",
@@ -937,6 +944,13 @@ export const $Environment = {
           type: "null",
         },
       ],
+    },
+    all_attrs: {
+      type: "dictionary",
+      contains: {
+        properties: {},
+      },
+      isRequired: true,
     },
     file_content: {
       type: "any-of",

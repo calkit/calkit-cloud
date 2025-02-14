@@ -357,6 +357,11 @@ export type ProjectsData = {
     ownerName: string
     projectName: string
   }
+  PostProjectEnvironment: {
+    ownerName: string
+    projectName: string
+    requestBody: Environment
+  }
   GetProjectSoftware: {
     ownerName: string
     projectName: string
@@ -2021,6 +2026,30 @@ export class ProjectsService {
         owner_name: ownerName,
         project_name: projectName,
       },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Post Project Environment
+   * @returns Environment Successful Response
+   * @throws ApiError
+   */
+  public static postProjectEnvironment(
+    data: ProjectsData["PostProjectEnvironment"],
+  ): CancelablePromise<Environment> {
+    const { ownerName, projectName, requestBody } = data
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/projects/{owner_name}/{project_name}/environments",
+      path: {
+        owner_name: ownerName,
+        project_name: projectName,
+      },
+      body: requestBody,
+      mediaType: "application/json",
       errors: {
         422: `Validation Error`,
       },
