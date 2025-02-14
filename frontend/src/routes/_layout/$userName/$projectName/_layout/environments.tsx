@@ -19,6 +19,7 @@ import { AiOutlinePython } from "react-icons/ai"
 import { SiAnaconda } from "react-icons/si"
 
 import { useProjectEnvironments } from "../../../../../hooks/useProject"
+import ViewEnvironment from "../../../../../components/Environments/ViewEnvironment"
 
 export const Route = createFileRoute(
   "/_layout/$userName/$projectName/_layout/environments",
@@ -122,6 +123,11 @@ function ProjectEnvsView() {
                   >
                     Reuse
                   </Button>
+                  <ViewEnvironment
+                    environment={environment}
+                    isOpen={viewEnvModal.isOpen}
+                    onClose={viewEnvModal.onClose}
+                  />
                 </Flex>
               </Card>
             ))}
