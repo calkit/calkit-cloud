@@ -68,14 +68,14 @@ def get_monthly_price(
 
 
 def get_storage_limit(
-    plan_name: Literal["free", "standard", "professional"]
+    plan_name: Literal["free", "standard", "professional"],
 ) -> int:
     """Return the storage limit for a given plan in GB."""
     return STORAGE_LIMITS_BY_PLAN_NAME[plan_name]
 
 
 def get_private_projects_limit(
-    plan_name: Literal["free", "standard", "professional"]
+    plan_name: Literal["free", "standard", "professional"],
 ) -> int | None:
     return PRIVATE_PROJECTS_LIMITS_BY_PLAN_NAME[plan_name]
 
