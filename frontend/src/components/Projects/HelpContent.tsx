@@ -63,6 +63,29 @@ function HelpContent() {
       </>
     )
   }
+  if (page === "environments") {
+    return (
+      <>
+        <Text mb={mb}>
+          Environments describe the dependencies (apps, packages, libraries)
+          necessary to execute a computational process. These can be created or
+          defined with a variety of different environment management tools,
+          e.g., Conda, Docker, uv, venv, Renv, etc.
+        </Text>
+        <Text mb={mb}>
+          Ideally, each stage in the pipeline is executed within one of these
+          environments so dependencies don't need to be installed system-wide,
+          which can result in conflicts. Furthermore, Calkit will automatically
+          ensure an environment matches its spec at run time, saving you the
+          mental bandwidth.
+        </Text>
+        <Text mb={mb}>
+          On this page you can view the environments defined for a project, view
+          their specification, and reuse one in a project of your own.
+        </Text>
+      </>
+    )
+  }
   if (page === "figures") {
     return (
       <>
