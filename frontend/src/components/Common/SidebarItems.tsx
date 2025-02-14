@@ -17,7 +17,7 @@ import { SiJupyter } from "react-icons/si"
 import { MdOutlineDashboard } from "react-icons/md"
 import useAuth from "../../hooks/useAuth"
 import { TiFlowMerge } from "react-icons/ti"
-import { FaCubes } from "react-icons/fa6"
+import { FaCubes } from "react-icons/fa"
 
 const items = [
   { icon: FiHome, title: "Project home", path: "" },
