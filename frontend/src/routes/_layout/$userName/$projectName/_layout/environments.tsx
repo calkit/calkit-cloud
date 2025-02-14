@@ -18,7 +18,9 @@ import {
   Link,
 } from "@chakra-ui/react"
 import { createFileRoute, Link as RouterLink } from "@tanstack/react-router"
-import { FaPlus } from "react-icons/fa"
+import { FaCube, FaDocker, FaPlus } from "react-icons/fa"
+import { AiOutlinePython } from "react-icons/ai"
+import { SiAnaconda } from "react-icons/si"
 
 import useProject, {
   useProjectEnvironments,
@@ -29,6 +31,19 @@ export const Route = createFileRoute(
 )({
   component: ProjectEnvs,
 })
+
+const getIcon = (envType: string) => {
+  if (["uv", "uv-venv", "venv"].includes(envType)) {
+    return AiOutlinePython
+  }
+  if (envType == "conda") {
+    return SiAnaconda
+  }
+  if (envType == "docker") {
+    return FaDocker
+  }
+  return FaCube
+}
 
 function ProjectEnvsView() {
   const { userName, projectName } = Route.useParams()
@@ -79,34 +94,40 @@ function ProjectEnvsView() {
           <SimpleGrid columns={[3, null, 4]} gap={6}>
             {environments?.map((environment) => (
               <Card key={environment.name} p={6} variant="elevated">
-                <Heading size="sm" mb={2}>
-                  <Code p={1} maxW="100%">
-                    <Link
-                      as={RouterLink}
-                      to={"../files"}
-                      search={{ path: environment.path } as any}
-                    >
+                <Flex alignItems="center" mb={2}>
+                  <Icon as={getIcon(environment.kind)} mr={1} />
+                  <Heading size="md">
+                    <Code px={1} py={0.5} maxW="100%" fontSize="large">
                       {environment.name}
-                    </Link>
-                    {environment.imported_from ? (
-                      <Badge ml={1} bgColor="green.500">
-                        imported
-                      </Badge>
-                    ) : (
-                      ""
-                    )}
-                  </Code>
-                </Heading>
+                      {environment.imported_from ? (
+                        <Badge ml={1} bgColor="green.500">
+                          imported
+                        </Badge>
+                      ) : (
+                        ""
+                      )}
+                    </Code>
+                  </Heading>
+                </Flex>
                 {environment.kind ? (
                   <Text mb={1}>
-                    <strong>Kind:</strong> {environment.kind}
+                    <strong>Kind:</strong> <Code>{environment.kind}</Code>
                   </Text>
                 ) : (
                   ""
                 )}
                 {environment.path ? (
                   <Text mb={1}>
-                    <strong>Path:</strong> {environment.path}
+                    <strong>Path:</strong>{" "}
+                    <Code>
+                      <Link
+                        as={RouterLink}
+                        to={"../files"}
+                        search={{ path: environment.path } as any}
+                      >
+                        {environment.path}
+                      </Link>
+                    </Code>
                   </Text>
                 ) : (
                   ""
