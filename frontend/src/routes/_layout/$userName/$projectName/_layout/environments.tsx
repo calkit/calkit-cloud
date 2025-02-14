@@ -107,14 +107,18 @@ const EnvCard = ({ environment }: EnvCardProps) => {
           ""
         )}
         <Flex mt={1.5}>
-          <Button
-            variant="primary"
-            size="xs"
-            mr={2}
-            onClick={viewEnvModal.onOpen}
-          >
-            View
-          </Button>
+          {environment.file_content ? (
+            <Button
+              variant="primary"
+              size="xs"
+              mr={2}
+              onClick={viewEnvModal.onOpen}
+            >
+              View
+            </Button>
+          ) : (
+            ""
+          )}
           <Button variant="primary" size="xs" onClick={reuseEnvModal.onOpen}>
             Reuse
           </Button>
