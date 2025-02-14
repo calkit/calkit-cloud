@@ -49,7 +49,7 @@ interface EnvCardProps {
 
 const EnvCard = ({ environment }: EnvCardProps) => {
   const viewEnvModal = useDisclosure()
-  const reuseEnvModal = useDisclosure()
+
   return (
     <>
       <Card key={environment.name} p={6} variant="elevated">
@@ -119,9 +119,6 @@ const EnvCard = ({ environment }: EnvCardProps) => {
           ) : (
             ""
           )}
-          <Button variant="primary" size="xs" onClick={reuseEnvModal.onOpen}>
-            Reuse
-          </Button>
           <ViewEnvironment
             environment={environment}
             isOpen={viewEnvModal.isOpen}
