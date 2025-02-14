@@ -8,4 +8,5 @@ client:
 
 .PHONY: format
 format:
-	npx biome format --write ./src
+	@echo "🚀 Formatting frontend"
+	@npx biome format --write ./src

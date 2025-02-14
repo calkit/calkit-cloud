@@ -24,3 +24,16 @@ local-api: ## Run the FastAPI backend directly.
 .PHONY: build-dev
 build-dev: ## Build containers for development.
 	${DOCKER_COMPOSE_DEV} build
+
+.PHONY: format
+format: ## Format all code.
+	@cd frontend && make format
+	@cd backend && make format
+
+.PHONY: frontend-client
+frontend-client: ## Regenerate the OpenAPI client for the frontend.
+	@cd frontend && make client
+
+.PHONY: frontend
+frontend: ## Build the frontend.
+	@cd frontend && npm run build

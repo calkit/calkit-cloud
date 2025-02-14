@@ -2158,9 +2158,88 @@ def get_project_references(
 
 
 class Environment(BaseModel):
-    kind: Literal["docker", "conda"]
-    path: str
+    name: str
+    kind: str
+    path: str | None = None
+    description: str | None = None
+    imported_from: str | None = None
+    all_attrs: dict
     file_content: str | None = None
+
+
+@router.get("/projects/{owner_name}/{project_name}/environments")
+def get_project_environments(
+    owner_name: str,
+    project_name: str,
+    current_user: CurrentUserOptional,
+    session: SessionDep,
+) -> list[Environment]:
+    project = app.projects.get_project(
+        owner_name=owner_name,
+        project_name=project_name,
+        session=session,
+        current_user=current_user,
+        min_access_level="read",
+    )
+    repo = get_repo(
+        project=project, user=current_user, session=session, ttl=120
+    )
+    ck_info = get_ck_info_from_repo(repo)
+    envs = ck_info.get("environments", {})
+    resp = []
+    for env_name, env in envs.items():
+        env_resp = env | {"all_attrs": env}
+        env_resp["name"] = env_name
+        env_path = env.get("path")
+        if env_path:
+            fpath = os.path.join(repo.working_dir, env_path)
+            if os.path.isfile(fpath):
+                with open(fpath) as f:
+                    env_resp["file_content"] = f.read()
+        resp.append(Environment.model_validate(env_resp))
+    return resp
+
+
+@router.post("/projects/{owner_name}/{project_name}/environments")
+def post_project_environment(
+    owner_name: str,
+    project_name: str,
+    current_user: CurrentUser,
+    session: SessionDep,
+    req: Environment,
+) -> Environment:
+    project = app.projects.get_project(
+        owner_name=owner_name,
+        project_name=project_name,
+        session=session,
+        current_user=current_user,
+        min_access_level="write",
+    )
+    repo = get_repo(
+        project=project, user=current_user, session=session, ttl=None
+    )
+    ck_info = get_ck_info_from_repo(repo)
+    envs = ck_info.get("environments", {})
+    if req.name in envs:
+        raise HTTPException(400, "Environment with same name already exists")
+    new_env = req.all_attrs
+    if req.imported_from and "imported_from" not in new_env:
+        new_env["imported_from"] = req.imported_from
+    envs[req.name] = new_env
+    ck_info["environments"] = envs
+    fpath = os.path.join(repo.working_dir, "calkit.yaml")
+    with open(fpath, "w") as f:
+        ryaml.dump(ck_info, f)
+    repo.git.add("calkit.yaml")
+    if req.path and req.file_content:
+        fpath = os.path.join(repo.working_dir, req.path)
+        os.makedirs(os.path.dirname(fpath), exist_ok=True)
+        with open(fpath, "w") as f:
+            f.write(req.file_content)
+        repo.git.add(fpath)
+    repo.git.commit(["-m", f"Add environment {req.name}"])
+    repo.git.push(["origin", repo.active_branch])
+    return Environment.model_validate(new_env | {"all_attrs": new_env})
 
 
 class Software(BaseModel):

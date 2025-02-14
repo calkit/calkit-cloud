@@ -131,6 +131,19 @@ const useProjectDatasets = (userName: string, projectName: string) => {
   return { datasetsRequest }
 }
 
+const useProjectEnvironments = (userName: string, projectName: string) => {
+  const environmentsRequest = useQuery({
+    queryKey: ["projects", userName, projectName, "environments"],
+    queryFn: () =>
+      ProjectsService.getProjectEnvironments({
+        ownerName: userName,
+        projectName: projectName,
+      }),
+  })
+
+  return { environmentsRequest }
+}
+
 const useProjectPublications = (userName: string, projectName: string) => {
   const publicationsRequest = useQuery({
     queryKey: ["projects", userName, projectName, "publications"],
@@ -190,6 +203,7 @@ export {
   useProjectPublications,
   useProjectReadme,
   useProjectDatasets,
+  useProjectEnvironments,
   useProjectIssues,
   useProjectQuestions,
 }

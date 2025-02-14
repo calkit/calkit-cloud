@@ -904,13 +904,52 @@ export const $DiscountCodePublic = {
 
 export const $Environment = {
   properties: {
+    name: {
+      type: "string",
+      isRequired: true,
+    },
     kind: {
-      type: "Enum",
-      enum: ["docker", "conda"],
+      type: "string",
       isRequired: true,
     },
     path: {
-      type: "string",
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    description: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    imported_from: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    all_attrs: {
+      type: "dictionary",
+      contains: {
+        properties: {},
+      },
       isRequired: true,
     },
     file_content: {
