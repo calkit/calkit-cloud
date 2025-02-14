@@ -183,8 +183,11 @@ export type DiscountCodePublic = {
 }
 
 export type Environment = {
-  kind: "docker" | "conda"
+  name: string
+  kind: string
   path: string
+  description?: string | null
+  imported_from?: string | null
   file_content?: string | null
 }
 

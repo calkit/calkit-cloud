@@ -2158,9 +2158,44 @@ def get_project_references(
 
 
 class Environment(BaseModel):
-    kind: Literal["docker", "conda"]
+    name: str
+    kind: str
     path: str
+    description: str | None = None
+    imported_from: str | None = None
     file_content: str | None = None
+
+
+@router.get("/projects/{owner_name}/{project_name}/environments")
+def get_project_environments(
+    owner_name: str,
+    project_name: str,
+    current_user: CurrentUserOptional,
+    session: SessionDep,
+) -> list[Environment]:
+    project = app.projects.get_project(
+        owner_name=owner_name,
+        project_name=project_name,
+        session=session,
+        current_user=current_user,
+        min_access_level="read",
+    )
+    repo = get_repo(
+        project=project, user=current_user, session=session, ttl=120
+    )
+    ck_info = get_ck_info_from_repo(repo)
+    envs = ck_info.get("environments", {})
+    resp = []
+    for env_name, env in envs.items():
+        env["name"] = env_name
+        env_path = env.get("path")
+        if env_path:
+            fpath = os.path.join(repo.working_dir, env_path)
+            if os.path.isfile(fpath):
+                with open(fpath) as f:
+                    env["file_content"] = f.read()
+        resp.append(Environment.model_validate(env))
+    return resp
 
 
 class Software(BaseModel):

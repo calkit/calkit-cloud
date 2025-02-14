@@ -29,3 +29,7 @@ build-dev: ## Build containers for development.
 format: ## Format all code.
 	@cd frontend && make format
 	@cd backend && make format
+
+.PHONY: frontend-client
+frontend-client: ## Regenerate the OpenAPI client for the frontend
+	@cd frontend && make client

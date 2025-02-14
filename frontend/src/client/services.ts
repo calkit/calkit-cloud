@@ -38,6 +38,7 @@ import type {
   ContentsItem,
   Dataset,
   DatasetDVCImport,
+  Environment,
   Figure,
   FigureComment,
   FigureCommentPost,
@@ -349,6 +350,10 @@ export type ProjectsData = {
     requestBody: IssuePatch
   }
   GetProjectReferences: {
+    ownerName: string
+    projectName: string
+  }
+  GetProjectEnvironments: {
     ownerName: string
     projectName: string
   }
@@ -1990,6 +1995,28 @@ export class ProjectsService {
     return __request(OpenAPI, {
       method: "GET",
       url: "/projects/{owner_name}/{project_name}/references",
+      path: {
+        owner_name: ownerName,
+        project_name: projectName,
+      },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Get Project Environments
+   * @returns Environment Successful Response
+   * @throws ApiError
+   */
+  public static getProjectEnvironments(
+    data: ProjectsData["GetProjectEnvironments"],
+  ): CancelablePromise<Array<Environment>> {
+    const { ownerName, projectName } = data
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/projects/{owner_name}/{project_name}/environments",
       path: {
         owner_name: ownerName,
         project_name: projectName,
