@@ -133,7 +133,7 @@ function ProjectLayout() {
               mb={4}
               display="flex"
               flexWrap="wrap"
-              px={0.5}
+              px={0}
             >
               <Box maxW="100%" mr={2}>
                 <Heading size={titleSize}>{project?.title}</Heading>
