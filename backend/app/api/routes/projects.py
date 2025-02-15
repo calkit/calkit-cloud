@@ -8,6 +8,7 @@ import subprocess
 import uuid
 from copy import deepcopy
 from datetime import datetime
+from fnmatch import fnmatch
 from io import StringIO
 from pathlib import Path
 from typing import Annotated, Literal, Optional
@@ -25,6 +26,7 @@ from fastapi import (
     Form,
     Header,
     HTTPException,
+    Query,
     Request,
     UploadFile,
 )
@@ -1292,6 +1294,7 @@ def get_project_dataset(
     project_name: str,
     current_user: CurrentUserOptional,
     session: SessionDep,
+    filter_paths: list[str] | None = Query(default=None),
 ) -> DatasetForImport:
     logger.info(f"Received request to get dataset with path: {path}")
     project = app.projects.get_project(
@@ -1325,6 +1328,14 @@ def get_project_dataset(
         git_files = []
     if git_files:
         logger.info(f"Dataset at {path} is kept in Git")
+        if filter_paths:
+            logger.info(f"Filtering paths for patterns: {filter_paths}")
+            filtered_git_files = []
+            for f in git_files:
+                for pattern in filter_paths:
+                    if fnmatch(f, pattern) and f not in filtered_git_files:
+                        filtered_git_files.append(f)
+            git_files = filtered_git_files
         git_import = dict(files=git_files)
         return DatasetForImport.model_validate(
             ds | dict(git_import=git_import)
