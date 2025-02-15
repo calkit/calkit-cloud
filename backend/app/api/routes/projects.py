@@ -1345,6 +1345,7 @@ def get_project_dataset(
                     lock=dvc_lock,
                 )
                 if out is None:
+                    logger.info("Cannot find DVC object")
                     raise HTTPException(400, "Cannot find DVC object")
                 dvc_out |= out
                 ds["dvc_import"] = dict(outs=[dvc_out])
