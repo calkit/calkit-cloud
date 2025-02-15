@@ -94,6 +94,9 @@ def expand_dvc_lock_outs(
 ) -> dict:
     """Expand all outs in a DVC lock file.
 
+    Will only pick up those in cloud storage, i.e., not ones that are
+    committed to Git.
+
     Output dictionary structure will look like:
 
         {
