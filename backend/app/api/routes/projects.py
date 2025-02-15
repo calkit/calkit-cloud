@@ -1308,6 +1308,7 @@ def get_project_dataset(
     repo = get_repo(
         project=project, user=current_user, session=session, ttl=120
     )
+    git_rev = repo.git.rev_parse(["HEAD"])
     repo_dir = repo.working_dir
     ck_info = get_ck_info_from_repo(repo)
     datasets = ck_info.get("datasets", [])
@@ -1338,7 +1339,7 @@ def get_project_dataset(
             git_files = filtered_git_files
         git_import = dict(files=git_files)
         return DatasetForImport.model_validate(
-            ds | dict(git_import=git_import)
+            ds | dict(git_import=git_import, git_rev=git_rev)
         )
     # The dataset is not in Git, so check DVC
     # Load DVC pipeline and lock files if they exist
@@ -1375,12 +1376,14 @@ def get_project_dataset(
                 dvo = yaml.safe_load(f)["outs"][0]
             dvc_out |= dvo
             ds["dvc_import"] = dict(outs=[dvc_out])
+            ds["git_rev"] = git_rev
             return DatasetForImport.model_validate(ds)
         elif path in dvc_lock_outs:
             logger.info(f"Found {path} in DVC lock outputs")
             dvo = dvc_lock_outs[path]
             dvc_out |= dvo
             ds["dvc_import"] = dict(outs=[dvc_out])
+            ds["git_rev"] = git_rev
             return DatasetForImport.model_validate(ds)
         else:
             # No stage and no .dvc file -- error
@@ -1437,8 +1440,8 @@ def get_project_dataset(
         else:
             dvc_out |= out
             ds["dvc_import"] = dict(outs=[dvc_out])
+        ds["git_rev"] = git_rev
         return DatasetForImport.model_validate(ds)
-    raise HTTPException(404)
 
 
 class LabelDatasetPost(BaseModel):
