@@ -564,6 +564,7 @@ class GitImport(BaseModel):
 class DatasetForImport(DatasetBase):
     dvc_import: DVCImport | None = None
     git_import: GitImport | None = None
+    git_rev: str
 
 
 class ImportedDataset(SQLModel):
