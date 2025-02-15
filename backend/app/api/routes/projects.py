@@ -1354,7 +1354,11 @@ def get_project_dataset(
         # Expand all DVC lock outs
         fs = get_object_fs()
         dvc_lock_outs = expand_dvc_lock_outs(
-            dvc_lock, owner_name=owner_name, project_name=project_name, fs=fs
+            dvc_lock,
+            owner_name=owner_name,
+            project_name=project_name,
+            fs=fs,
+            get_sizes=True,
         )
         logger.info(f"Read {len(dvc_lock_outs)} DVC lock outputs")
     else:
@@ -1404,12 +1408,35 @@ def get_project_dataset(
             logger.info("Searching through DVC lock outs")
             if path in dvc_lock_outs:
                 logger.info(f"Found {path} in DVC lock outputs")
-                out = dvc_lock_outs[path]
+                if filter_paths is not None:
+                    filtered_outs = []
+                    filtered_paths = []
+                    # The out should now be a list of outs
+                    for fpath, out_i in dvc_lock_outs.items():
+                        for pattern in filter_paths:
+                            if (
+                                fnmatch(fpath, pattern)
+                                and fpath not in filtered_paths
+                                and out_i.get("type") == "file"
+                            ):
+                                filtered_paths.append(fpath)
+                                filtered_outs.append(out_i)
+                    out = filtered_outs
+                else:
+                    out = dvc_lock_outs[path]
         if out is None:
             logger.info("Cannot find DVC object")
             raise HTTPException(400, "Cannot find DVC object")
-        dvc_out |= out
-        ds["dvc_import"] = dict(outs=[dvc_out])
+        if isinstance(out, list):
+            if not out:
+                logger.info("Filtered data is empty")
+                raise HTTPException(400, "Filtered data is empty")
+            logger.info(f"Creating outs from filtered: {out}")
+            dvc_outs = [dvc_out | out_i for out_i in out]
+            ds["dvc_import"] = dict(outs=dvc_outs)
+        else:
+            dvc_out |= out
+            ds["dvc_import"] = dict(outs=[dvc_out])
         return DatasetForImport.model_validate(ds)
     raise HTTPException(404)
 
