@@ -61,7 +61,7 @@ from app.git import (
 from app.models import (
     ContentsItem,
     Dataset,
-    DatasetDVCImport,
+    DatasetForImport,
     Figure,
     FigureComment,
     FigureCommentPost,
@@ -1292,7 +1292,7 @@ def get_project_dataset(
     project_name: str,
     current_user: CurrentUserOptional,
     session: SessionDep,
-) -> DatasetDVCImport:
+) -> DatasetForImport:
     logger.info(f"Received request to get dataset with path: {path}")
     project = app.projects.get_project(
         session=session,
@@ -1308,11 +1308,33 @@ def get_project_dataset(
     repo_dir = repo.working_dir
     ck_info = get_ck_info_from_repo(repo)
     datasets = ck_info.get("datasets", [])
+    # First check if this path is even a dataset
+    ds = None
+    for dsi in datasets:
+        if dsi.get("path") == path:
+            ds = dsi
+            break
+    if ds is None:
+        raise HTTPException(404, f"Dataset at path {path} does not exist")
+    # Is this dataset tracked with Git?
+    # If so, our response will be different
+    git_files = repo.git.ls_files(path)
+    if git_files:
+        git_files = git_files.split("\n")
+    else:
+        git_files = []
+    if git_files:
+        logger.info(f"Dataset at {path} is kept in Git")
+        git_import = dict(files=git_files)
+        return DatasetForImport.model_validate(
+            ds | dict(git_import=git_import)
+        )
+    # The dataset is not in Git, so check DVC
+    # Load DVC pipeline and lock files if they exist
     dvc_out = dict(
         remote=f"calkit:{owner_name}/{project_name}",
         push=False,
     )
-    # Load DVC pipeline and lock files if they exist
     dvc_lock_fpath = os.path.join(repo_dir, "dvc.lock")
     dvc_lock = {}
     if os.path.isfile(dvc_lock_fpath):
@@ -1326,60 +1348,60 @@ def get_project_dataset(
         logger.info(f"Read {len(dvc_lock_outs)} DVC lock outputs")
     else:
         dvc_lock_outs = {}
-    for ds in datasets:
-        if "path" in ds and ds["path"] == path:
-            # Create the DVC import object
-            # We need to know the MD5 hash
-            stage_name = ds.get("stage")
-            if stage_name is None:
-                logger.info("No stage defined for dataset")
-                dvc_fp = os.path.join(repo_dir, path + ".dvc")
-                if os.path.isfile(dvc_fp):
-                    logger.info(f"Repo has a .dvc file for {path}")
-                    with open(dvc_fp) as f:
-                        dvo = yaml.safe_load(f)["outs"][0]
-                    dvc_out |= dvo
-                    ds["dvc_import"] = dict(outs=[dvc_out])
-                    return DatasetDVCImport.model_validate(ds)
-                elif path in dvc_lock_outs:
-                    logger.info(f"Found {path} in DVC lock outputs")
-                    dvo = dvc_lock_outs[path]
-                    dvc_out |= dvo
-                    ds["dvc_import"] = dict(outs=[dvc_out])
-                    return DatasetDVCImport.model_validate(ds)
-                else:
-                    # No stage and no .dvc file -- error
-                    logger.info("No stage nor .dvc file found")
-                    raise HTTPException(404)
-            else:
-                logger.info(f"Looking up contents based on stage {stage_name}")
-                pipeline_fpath = os.path.join(repo_dir, "dvc.yaml")
-                if not os.path.isfile(pipeline_fpath):
-                    logger.info("No dvc.yaml file")
-                    raise HTTPException(400, "dvc.yaml file missing")
-                with open(pipeline_fpath) as f:
-                    pipeline = yaml.safe_load(f)
-                dvc_lock_fpath = os.path.join(repo_dir, "dvc.lock")
-                if not os.path.isfile(dvc_lock_fpath):
-                    logger.info("No dvc.lock file")
-                    raise HTTPException(400, "dvc.lock file missing")
-                out = output_from_pipeline(
-                    path=path,
-                    stage_name=stage_name,
-                    pipeline=pipeline,
-                    lock=dvc_lock,
-                )
-                if out is None:
-                    logger.info("Searching through DVC lock outs")
-                    if path in dvc_lock_outs:
-                        logger.info(f"Found {path} in DVC lock outputs")
-                        out = dvc_lock_outs[path]
-                if out is None:
-                    logger.info("Cannot find DVC object")
-                    raise HTTPException(400, "Cannot find DVC object")
-                dvc_out |= out
-                ds["dvc_import"] = dict(outs=[dvc_out])
-                return DatasetDVCImport.model_validate(ds)
+    # Create the DVC import object
+    # We need to know the MD5 hash
+    stage_name = ds.get("stage")
+    if stage_name is None:
+        logger.info("No stage defined for dataset")
+        dvc_fp = os.path.join(repo_dir, path + ".dvc")
+        if os.path.isfile(dvc_fp):
+            logger.info(f"Repo has a .dvc file for {path}")
+            with open(dvc_fp) as f:
+                dvo = yaml.safe_load(f)["outs"][0]
+            dvc_out |= dvo
+            ds["dvc_import"] = dict(outs=[dvc_out])
+            return DatasetForImport.model_validate(ds)
+        elif path in dvc_lock_outs:
+            logger.info(f"Found {path} in DVC lock outputs")
+            dvo = dvc_lock_outs[path]
+            dvc_out |= dvo
+            ds["dvc_import"] = dict(outs=[dvc_out])
+            return DatasetForImport.model_validate(ds)
+        # TODO: What if this dataset is kept in Git?
+        else:
+            # No stage and no .dvc file -- error
+            logger.info("No stage nor .dvc file found")
+            raise HTTPException(404)
+    else:
+        logger.info(f"Looking up contents based on stage {stage_name}")
+        pipeline_fpath = os.path.join(repo_dir, "dvc.yaml")
+        if not os.path.isfile(pipeline_fpath):
+            logger.info("No dvc.yaml file")
+            raise HTTPException(400, "dvc.yaml file missing")
+        with open(pipeline_fpath) as f:
+            pipeline = yaml.safe_load(f)
+        dvc_lock_fpath = os.path.join(repo_dir, "dvc.lock")
+        if not os.path.isfile(dvc_lock_fpath):
+            logger.info("No dvc.lock file")
+            raise HTTPException(400, "dvc.lock file missing")
+        # TODO: What if this is kept in Git?
+        out = output_from_pipeline(
+            path=path,
+            stage_name=stage_name,
+            pipeline=pipeline,
+            lock=dvc_lock,
+        )
+        if out is None:
+            logger.info("Searching through DVC lock outs")
+            if path in dvc_lock_outs:
+                logger.info(f"Found {path} in DVC lock outputs")
+                out = dvc_lock_outs[path]
+        if out is None:
+            logger.info("Cannot find DVC object")
+            raise HTTPException(400, "Cannot find DVC object")
+        dvc_out |= out
+        ds["dvc_import"] = dict(outs=[dvc_out])
+        return DatasetForImport.model_validate(ds)
     raise HTTPException(404)
 
 

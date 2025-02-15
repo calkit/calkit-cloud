@@ -557,8 +557,13 @@ class DVCImport(BaseModel):
     outs: list[DVCOut]
 
 
-class DatasetDVCImport(DatasetBase):
+class GitImport(BaseModel):
+    files: list[str]
+
+
+class DatasetForImport(DatasetBase):
     dvc_import: DVCImport | None = None
+    git_import: GitImport | None = None
 
 
 class ImportedDataset(SQLModel):
