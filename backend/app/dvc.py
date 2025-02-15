@@ -90,9 +90,13 @@ def expand_dvc_lock_outs(
     dvc_lock: dict,
     owner_name: str,
     project_name: str,
+    get_sizes: bool = False,
     fs=None,
-) -> str:
+) -> dict:
     """Expand all outs in a DVC lock file.
+
+    Will only pick up those in cloud storage, i.e., not ones that are
+    committed to Git.
 
     Output dictionary structure will look like:
 
@@ -128,6 +132,7 @@ def expand_dvc_lock_outs(
         fs = get_object_fs()
     stages = dvc_lock.get("stages", {})
     dvc_lock_outs = {}
+    dvc_md5_sizes = {}
     for stage_name, stage in stages.items():
         for out in stage.get("outs", []):
             outpath = out["path"]
@@ -161,6 +166,20 @@ def expand_dvc_lock_outs(
                         fname = os.path.basename(relpath)
                         subdir = os.path.dirname(relpath)
                         md5 = dvc_obj.get("md5")
+                        if get_sizes and md5 not in dvc_md5_sizes:
+                            fpath_i = make_data_fpath(
+                                owner_name=owner_name,
+                                project_name=project_name,
+                                idx=md5[:2],
+                                md5=md5[2:],
+                            )
+                            try:
+                                size = fs.size(fpath_i)
+                            except Exception as e:
+                                logger.warning(
+                                    f"Failed to get size for {fpath_i}: {e}"
+                                )
+                            dvc_md5_sizes[md5] = size
                         if subdir:
                             subdir_full_relpath = os.path.join(outpath, subdir)
                             if subdir_full_relpath not in dvc_lock_outs:
@@ -179,6 +198,7 @@ def expand_dvc_lock_outs(
                                     type="file",
                                     dirname=subdir_full_relpath,
                                     stage=stage_name,
+                                    size=dvc_md5_sizes.get(md5),
                                 )
                             )
                             if (
@@ -202,6 +222,7 @@ def expand_dvc_lock_outs(
                             stage=stage_name,
                             relpath=fname,
                             path=full_relpath,
+                            size=dvc_md5_sizes.get(md5),
                         )
             else:
                 dvc_lock_outs[outpath] = out | dict(

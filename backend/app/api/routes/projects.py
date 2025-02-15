@@ -8,6 +8,7 @@ import subprocess
 import uuid
 from copy import deepcopy
 from datetime import datetime
+from fnmatch import fnmatch
 from io import StringIO
 from pathlib import Path
 from typing import Annotated, Literal, Optional
@@ -25,6 +26,7 @@ from fastapi import (
     Form,
     Header,
     HTTPException,
+    Query,
     Request,
     UploadFile,
 )
@@ -47,7 +49,11 @@ from app.core import (
     params_from_url,
     ryaml,
 )
-from app.dvc import make_mermaid_diagram, output_from_pipeline
+from app.dvc import (
+    expand_dvc_lock_outs,
+    make_mermaid_diagram,
+    output_from_pipeline,
+)
 from app.git import (
     get_ck_info,
     get_ck_info_from_repo,
@@ -57,7 +63,7 @@ from app.git import (
 from app.models import (
     ContentsItem,
     Dataset,
-    DatasetDVCImport,
+    DatasetForImport,
     Figure,
     FigureComment,
     FigureCommentPost,
@@ -1288,7 +1294,8 @@ def get_project_dataset(
     project_name: str,
     current_user: CurrentUserOptional,
     session: SessionDep,
-) -> DatasetDVCImport:
+    filter_paths: list[str] | None = Query(default=None),
+) -> DatasetForImport:
     logger.info(f"Received request to get dataset with path: {path}")
     project = app.projects.get_project(
         session=session,
@@ -1304,51 +1311,133 @@ def get_project_dataset(
     repo_dir = repo.working_dir
     ck_info = get_ck_info_from_repo(repo)
     datasets = ck_info.get("datasets", [])
+    # First check if this path is even a dataset
+    ds = None
+    for dsi in datasets:
+        if dsi.get("path") == path:
+            ds = dsi
+            break
+    if ds is None:
+        raise HTTPException(404, f"Dataset at path {path} does not exist")
+    # Is this dataset tracked with Git?
+    # If so, our response will be different
+    git_files = repo.git.ls_files(path)
+    if git_files:
+        git_files = git_files.split("\n")
+    else:
+        git_files = []
+    if git_files:
+        logger.info(f"Dataset at {path} is kept in Git")
+        if filter_paths:
+            logger.info(f"Filtering paths for patterns: {filter_paths}")
+            filtered_git_files = []
+            for f in git_files:
+                for pattern in filter_paths:
+                    if fnmatch(f, pattern) and f not in filtered_git_files:
+                        filtered_git_files.append(f)
+            git_files = filtered_git_files
+        git_import = dict(files=git_files)
+        return DatasetForImport.model_validate(
+            ds | dict(git_import=git_import)
+        )
+    # The dataset is not in Git, so check DVC
+    # Load DVC pipeline and lock files if they exist
     dvc_out = dict(
         remote=f"calkit:{owner_name}/{project_name}",
         push=False,
     )
-    for ds in datasets:
-        if "path" in ds and ds["path"] == path:
-            # Create the DVC import object
-            # We need to know the MD5 hash
-            stage_name = ds.get("stage")
-            if stage_name is None:
-                dvc_fp = os.path.join(repo_dir, path + ".dvc")
-                if os.path.isfile(dvc_fp):
-                    with open(dvc_fp) as f:
-                        dvo = yaml.safe_load(f)["outs"][0]
-                    dvc_out |= dvo
-                    ds["dvc_import"] = dict(outs=[dvc_out])
-                    return DatasetDVCImport.model_validate(ds)
+    dvc_lock_fpath = os.path.join(repo_dir, "dvc.lock")
+    dvc_lock = {}
+    if os.path.isfile(dvc_lock_fpath):
+        with open(dvc_lock_fpath) as f:
+            dvc_lock = yaml.safe_load(f)
+        # Expand all DVC lock outs
+        fs = get_object_fs()
+        dvc_lock_outs = expand_dvc_lock_outs(
+            dvc_lock,
+            owner_name=owner_name,
+            project_name=project_name,
+            fs=fs,
+            get_sizes=True,
+        )
+        logger.info(f"Read {len(dvc_lock_outs)} DVC lock outputs")
+    else:
+        dvc_lock_outs = {}
+    # Create the DVC import object
+    # We need to know the MD5 hash
+    stage_name = ds.get("stage")
+    if stage_name is None:
+        logger.info("No stage defined for dataset")
+        dvc_fp = os.path.join(repo_dir, path + ".dvc")
+        if os.path.isfile(dvc_fp):
+            logger.info(f"Repo has a .dvc file for {path}")
+            with open(dvc_fp) as f:
+                dvo = yaml.safe_load(f)["outs"][0]
+            dvc_out |= dvo
+            ds["dvc_import"] = dict(outs=[dvc_out])
+            return DatasetForImport.model_validate(ds)
+        elif path in dvc_lock_outs:
+            logger.info(f"Found {path} in DVC lock outputs")
+            dvo = dvc_lock_outs[path]
+            dvc_out |= dvo
+            ds["dvc_import"] = dict(outs=[dvc_out])
+            return DatasetForImport.model_validate(ds)
+        else:
+            # No stage and no .dvc file -- error
+            logger.info("No stage nor .dvc file found")
+            raise HTTPException(404)
+    else:
+        logger.info(f"Looking up contents based on stage {stage_name}")
+        pipeline_fpath = os.path.join(repo_dir, "dvc.yaml")
+        if not os.path.isfile(pipeline_fpath):
+            logger.info("No dvc.yaml file")
+            raise HTTPException(400, "dvc.yaml file missing")
+        with open(pipeline_fpath) as f:
+            pipeline = yaml.safe_load(f)
+        dvc_lock_fpath = os.path.join(repo_dir, "dvc.lock")
+        if not os.path.isfile(dvc_lock_fpath):
+            logger.info("No dvc.lock file")
+            raise HTTPException(400, "dvc.lock file missing")
+        out = output_from_pipeline(
+            path=path,
+            stage_name=stage_name,
+            pipeline=pipeline,
+            lock=dvc_lock,
+        )
+        if out is None:
+            logger.info("Searching through DVC lock outs")
+            if path in dvc_lock_outs:
+                logger.info(f"Found {path} in DVC lock outputs")
+                if filter_paths is not None:
+                    filtered_outs = []
+                    filtered_paths = []
+                    # The out should now be a list of outs
+                    for fpath, out_i in dvc_lock_outs.items():
+                        for pattern in filter_paths:
+                            if (
+                                fnmatch(fpath, pattern)
+                                and fpath not in filtered_paths
+                                and out_i.get("type") == "file"
+                            ):
+                                filtered_paths.append(fpath)
+                                filtered_outs.append(out_i)
+                    out = filtered_outs
                 else:
-                    # No stage and no .dvc file -- error
-                    logger.info("No stage nor .dvc file found")
-                    raise HTTPException(404)
-            else:
-                pipeline_fpath = os.path.join(repo_dir, "dvc.yaml")
-                if not os.path.isfile(pipeline_fpath):
-                    logger.info("No dvc.yaml file")
-                    raise HTTPException(400, "dvc.yaml file missing")
-                with open(pipeline_fpath) as f:
-                    pipeline = yaml.safe_load(f)
-                dvc_lock_fpath = os.path.join(repo_dir, "dvc.lock")
-                if not os.path.isfile(dvc_lock_fpath):
-                    logger.info("No dvc.lock file")
-                    raise HTTPException(400, "dvc.lock file missing")
-                with open(dvc_lock_fpath) as f:
-                    dvc_lock = yaml.safe_load(f)
-                out = output_from_pipeline(
-                    path=path,
-                    stage_name=stage_name,
-                    pipeline=pipeline,
-                    lock=dvc_lock,
-                )
-                if out is None:
-                    raise HTTPException(400, "Cannot find DVC object")
-                dvc_out |= out
-                ds["dvc_import"] = dict(outs=[dvc_out])
-                return DatasetDVCImport.model_validate(ds)
+                    out = dvc_lock_outs[path]
+        if out is None:
+            logger.info("Cannot find DVC object")
+            raise HTTPException(400, "Cannot find DVC object")
+        if isinstance(out, list):
+            if not out:
+                logger.info("Filtered data is empty")
+                raise HTTPException(400, "Filtered data is empty")
+            logger.info(f"Creating outs from filtered: {out}")
+            dvc_outs = [dvc_out | out_i for out_i in out]
+            ds["dvc_import"] = dict(outs=dvc_outs)
+        else:
+            dvc_out |= out
+            ds["dvc_import"] = dict(outs=[dvc_out])
+        return DatasetForImport.model_validate(ds)
     raise HTTPException(404)
 
 
