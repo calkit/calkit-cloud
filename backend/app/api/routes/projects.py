@@ -1367,7 +1367,6 @@ def get_project_dataset(
             dvc_out |= dvo
             ds["dvc_import"] = dict(outs=[dvc_out])
             return DatasetForImport.model_validate(ds)
-        # TODO: What if this dataset is kept in Git?
         else:
             # No stage and no .dvc file -- error
             logger.info("No stage nor .dvc file found")
@@ -1384,7 +1383,6 @@ def get_project_dataset(
         if not os.path.isfile(dvc_lock_fpath):
             logger.info("No dvc.lock file")
             raise HTTPException(400, "dvc.lock file missing")
-        # TODO: What if this is kept in Git?
         out = output_from_pipeline(
             path=path,
             stage_name=stage_name,
