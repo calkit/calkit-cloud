@@ -47,7 +47,11 @@ from app.core import (
     params_from_url,
     ryaml,
 )
-from app.dvc import make_mermaid_diagram, output_from_pipeline
+from app.dvc import (
+    expand_dvc_lock_outs,
+    make_mermaid_diagram,
+    output_from_pipeline,
+)
 from app.git import (
     get_ck_info,
     get_ck_info_from_repo,
@@ -1308,16 +1312,38 @@ def get_project_dataset(
         remote=f"calkit:{owner_name}/{project_name}",
         push=False,
     )
+    # Load DVC pipeline and lock files if they exist
+    dvc_lock_fpath = os.path.join(repo_dir, "dvc.lock")
+    dvc_lock = {}
+    if os.path.isfile(dvc_lock_fpath):
+        with open(dvc_lock_fpath) as f:
+            dvc_lock = yaml.safe_load(f)
+        # Expand all DVC lock outs
+        fs = get_object_fs()
+        dvc_lock_outs = expand_dvc_lock_outs(
+            dvc_lock, owner_name=owner_name, project_name=project_name, fs=fs
+        )
+        logger.info(f"Read {len(dvc_lock_outs)} DVC lock outputs")
+    else:
+        dvc_lock_outs = {}
     for ds in datasets:
         if "path" in ds and ds["path"] == path:
             # Create the DVC import object
             # We need to know the MD5 hash
             stage_name = ds.get("stage")
             if stage_name is None:
+                logger.info("No stage defined for dataset")
                 dvc_fp = os.path.join(repo_dir, path + ".dvc")
                 if os.path.isfile(dvc_fp):
+                    logger.info(f"Repo has a .dvc file for {path}")
                     with open(dvc_fp) as f:
                         dvo = yaml.safe_load(f)["outs"][0]
+                    dvc_out |= dvo
+                    ds["dvc_import"] = dict(outs=[dvc_out])
+                    return DatasetDVCImport.model_validate(ds)
+                elif path in dvc_lock_outs:
+                    logger.info(f"Found {path} in DVC lock outputs")
+                    dvo = dvc_lock_outs[path]
                     dvc_out |= dvo
                     ds["dvc_import"] = dict(outs=[dvc_out])
                     return DatasetDVCImport.model_validate(ds)
@@ -1326,6 +1352,7 @@ def get_project_dataset(
                     logger.info("No stage nor .dvc file found")
                     raise HTTPException(404)
             else:
+                logger.info(f"Looking up contents based on stage {stage_name}")
                 pipeline_fpath = os.path.join(repo_dir, "dvc.yaml")
                 if not os.path.isfile(pipeline_fpath):
                     logger.info("No dvc.yaml file")
@@ -1336,14 +1363,17 @@ def get_project_dataset(
                 if not os.path.isfile(dvc_lock_fpath):
                     logger.info("No dvc.lock file")
                     raise HTTPException(400, "dvc.lock file missing")
-                with open(dvc_lock_fpath) as f:
-                    dvc_lock = yaml.safe_load(f)
                 out = output_from_pipeline(
                     path=path,
                     stage_name=stage_name,
                     pipeline=pipeline,
                     lock=dvc_lock,
                 )
+                if out is None:
+                    logger.info("Searching through DVC lock outs")
+                    if path in dvc_lock_outs:
+                        logger.info(f"Found {path} in DVC lock outputs")
+                        out = dvc_lock_outs[path]
                 if out is None:
                     logger.info("Cannot find DVC object")
                     raise HTTPException(400, "Cannot find DVC object")

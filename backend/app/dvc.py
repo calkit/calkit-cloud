@@ -91,7 +91,7 @@ def expand_dvc_lock_outs(
     owner_name: str,
     project_name: str,
     fs=None,
-) -> str:
+) -> dict:
     """Expand all outs in a DVC lock file.
 
     Output dictionary structure will look like:
