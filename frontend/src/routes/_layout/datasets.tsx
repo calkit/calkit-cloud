@@ -14,6 +14,7 @@ import {
   Text,
   Tooltip,
   Tr,
+  Input,
 } from "@chakra-ui/react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import {
@@ -22,7 +23,8 @@ import {
   Link as RouterLink,
 } from "@tanstack/react-router"
 import { z } from "zod"
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
+import { useDebounce } from "use-debounce"
 
 import { pageWidthNoSidebar } from "../../utils"
 import { DatasetsService } from "../../client"
@@ -33,14 +35,18 @@ const datasetsSearchSchema = z.object({
 
 const PER_PAGE = 10
 
-function getAllDatasetsQueryOptions({ page }: { page: number }) {
+function getAllDatasetsQueryOptions({
+  page,
+  searchFor,
+}: { page: number; searchFor?: string }) {
   return {
     queryFn: () =>
       DatasetsService.getDatasets({
         offset: (page - 1) * PER_PAGE,
         limit: PER_PAGE,
+        searchFor: searchFor,
       }),
-    queryKey: ["datasets-all", { page }],
+    queryKey: ["datasets-all", { page, searchFor }],
   }
 }
 
@@ -54,13 +60,15 @@ function PublicDatasetsTable() {
   const navigate = useNavigate({ from: Route.fullPath })
   const setPage = (page: number) =>
     navigate({ search: (prev) => ({ ...prev, page }) })
+  const [searchForText, setSearchForText] = useState()
+  const [searchFor] = useDebounce(searchForText, 400)
 
   const {
     data: datasets,
     isPending,
     isPlaceholderData,
   } = useQuery({
-    ...getAllDatasetsQueryOptions({ page }),
+    ...getAllDatasetsQueryOptions({ page, searchFor }),
     placeholderData: (prevData) => prevData,
   })
 
@@ -69,12 +77,25 @@ function PublicDatasetsTable() {
 
   useEffect(() => {
     if (hasNextPage) {
-      queryClient.prefetchQuery(getAllDatasetsQueryOptions({ page: page + 1 }))
+      queryClient.prefetchQuery(
+        getAllDatasetsQueryOptions({ page: page + 1, searchFor }),
+      )
     }
-  }, [page, queryClient, hasNextPage])
+  }, [page, queryClient, hasNextPage, searchFor])
+
+  const onSearchChange = (e: any) => {
+    setSearchForText(e.target.value)
+    // TODO: Search URL params
+  }
 
   return (
     <>
+      <Input
+        mb={4}
+        placeholder="Search..."
+        width="33%"
+        onChange={onSearchChange}
+      />
       <TableContainer>
         <Table size={{ base: "sm", md: "md" }}>
           <Thead>

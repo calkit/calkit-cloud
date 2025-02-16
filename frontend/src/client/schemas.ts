@@ -529,7 +529,7 @@ export const $Dataset = {
   },
 } as const
 
-export const $DatasetDVCImport = {
+export const $DatasetForImport = {
   properties: {
     path: {
       type: "string",
@@ -611,6 +611,21 @@ export const $DatasetDVCImport = {
           type: "null",
         },
       ],
+    },
+    git_import: {
+      type: "any-of",
+      contains: [
+        {
+          type: "GitImport",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    git_rev: {
+      type: "string",
+      isRequired: true,
     },
   },
 } as const
@@ -1263,6 +1278,18 @@ export const $GitHubReleasePost = {
     generate_release_notes: {
       type: "boolean",
       default: true,
+    },
+  },
+} as const
+
+export const $GitImport = {
+  properties: {
+    files: {
+      type: "array",
+      contains: {
+        type: "string",
+      },
+      isRequired: true,
     },
   },
 } as const
