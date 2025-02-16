@@ -24,7 +24,7 @@ import {
 import { createFileRoute, Outlet, notFound } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
 import { ExternalLinkIcon } from "@chakra-ui/icons"
-import { FaGithub, FaQuestion } from "react-icons/fa"
+import { FaGithub, FaQuestion, FaRegClone } from "react-icons/fa"
 import { LuCopyPlus } from "react-icons/lu"
 import { MdEdit } from "react-icons/md"
 import { BsThreeDots } from "react-icons/bs"
@@ -37,6 +37,7 @@ import useProject from "../../../../hooks/useProject"
 import NewProject from "../../../../components/Projects/NewProject"
 import useAuth from "../../../../hooks/useAuth"
 import HelpContent from "../../../../components/Projects/HelpContent"
+import CloneProject from "../../../../components/Projects/CloneProject"
 
 export const Route = createFileRoute("/_layout/$userName/$projectName/_layout")(
   {
@@ -53,6 +54,7 @@ function ProjectMenu({ project, userHasWriteAccess }: ProjectMenuProps) {
   const { user } = useAuth()
   const editProjectModal = useDisclosure()
   const newProjectModal = useDisclosure()
+  const cloneProjectModal = useDisclosure()
 
   return (
     <>
@@ -78,6 +80,12 @@ function ProjectMenu({ project, userHasWriteAccess }: ProjectMenuProps) {
           >
             Use this project as a template
           </MenuItem>
+          <MenuItem
+            icon={<FaRegClone fontSize={18} />}
+            onClick={cloneProjectModal.onOpen}
+          >
+            Clone to local machine
+          </MenuItem>
         </MenuList>
       </Menu>
       <EditProject
@@ -89,6 +97,11 @@ function ProjectMenu({ project, userHasWriteAccess }: ProjectMenuProps) {
         isOpen={newProjectModal.isOpen}
         onClose={newProjectModal.onClose}
         defaultTemplate={`${project.owner_account_name}/${project.name}`}
+      />
+      <CloneProject
+        project={project}
+        isOpen={cloneProjectModal.isOpen}
+        onClose={cloneProjectModal.onClose}
       />
     </>
   )
