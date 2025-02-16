@@ -19,6 +19,7 @@ import requests
 import sqlalchemy
 import yaml
 from calkit.check import ReproCheck, check_reproducibility
+from calkit.models import ProjectStatus
 from fastapi import (
     APIRouter,
     Depends,
@@ -419,13 +420,20 @@ def create_project(
     return project
 
 
+class ProjectOptionalExtended(ProjectPublic):
+    calkit_yaml_keys: list[str] | None = None
+    readme_content: str | None = None
+    status: ProjectStatus | None = None
+
+
 @router.get("/projects/{owner_name}/{project_name}")
 def get_project(
     owner_name: str,
     project_name: str,
     session: SessionDep,
     current_user: CurrentUserOptional,
-) -> ProjectPublic:
+    get_extended_info: bool = True,
+) -> ProjectOptionalExtended:
     project = app.projects.get_project(
         session=session,
         owner_name=owner_name,
@@ -433,7 +441,21 @@ def get_project(
         current_user=current_user,
         min_access_level="read",
     )
-    return project
+    resp = ProjectOptionalExtended.model_validate(project)
+    # Get some more information about the project, e.g., its status, what
+    # attributes are defined in calkit.yaml, its README content, questions,
+    # etc., so we don't need to make other calls for these?
+    if get_extended_info:
+        repo = get_repo(
+            project=project, user=current_user, session=session, ttl=120
+        )
+        ck_info = get_ck_info_from_repo(repo=repo)
+        resp.calkit_yaml_keys = list(ck_info.keys())
+        # TODO: Read actual status
+        resp.status = ProjectStatus(
+            timestamp="2021-01-01", status="in-progress", message="Sup."
+        )
+    return resp
 
 
 class ProjectPatch(BaseModel):
