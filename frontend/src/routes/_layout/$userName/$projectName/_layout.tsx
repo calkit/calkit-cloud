@@ -29,6 +29,7 @@ import { LuCopyPlus } from "react-icons/lu"
 import { MdEdit } from "react-icons/md"
 import { BsThreeDots } from "react-icons/bs"
 import axios from "axios"
+import mixpanel from "mixpanel-browser"
 
 import Sidebar from "../../../../components/Common/Sidebar"
 import { ProjectPublic } from "../../../../client"
@@ -127,6 +128,10 @@ function ProjectLayout() {
     retry: false,
   })
   const titleSize = "lg"
+  const onClickHelp = () => {
+    mixpanel.track("Clicked project help button")
+    helpDrawer.onOpen()
+  }
 
   return (
     <>
@@ -182,7 +187,7 @@ function ProjectLayout() {
                     isRound
                     aria-label="Open help"
                     size={"xs"}
-                    onClick={helpDrawer.onOpen}
+                    onClick={onClickHelp}
                     icon={<FaQuestion />}
                   />
                 </Flex>
