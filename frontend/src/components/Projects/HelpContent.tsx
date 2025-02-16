@@ -1,7 +1,11 @@
 import { Link, Text, Code } from "@chakra-ui/react"
 import { Link as RouterLink, getRouteApi } from "@tanstack/react-router"
 
-function HelpContent() {
+interface HelpContentProps {
+  userHasWriteAccess: boolean
+}
+
+function HelpContent({ userHasWriteAccess }: HelpContentProps) {
   const routeApi = getRouteApi("/_layout/$userName/$projectName")
   const { userName, projectName } = routeApi.useParams()
   const page = location.pathname.split("/").at(-1)
@@ -229,18 +233,30 @@ function HelpContent() {
   }
   return (
     <>
+      {userHasWriteAccess ? (
+        <Text mb={mb}>
+          Welcome to your Calkit project! To get started, try adding some{" "}
+          questions you'd like to answer, or start defining the{" "}
+          <Link
+            as={RouterLink}
+            to={`/${userName}/${projectName}/pipeline`}
+            variant="blue"
+          >
+            pipeline
+          </Link>{" "}
+          for how you'd like your outputs or artifacts to be created.
+        </Text>
+      ) : (
+        ""
+      )}
       <Text mb={mb}>
-        Welcome to your Calkit project! To get started, try adding some{" "}
-        questions you'd like to answer, or start defining the{" "}
-        <Link
-          as={RouterLink}
-          to={`/${userName}/${projectName}/pipeline`}
-          variant="blue"
-        >
-          pipeline
-        </Link>{" "}
-        for how you'd like your outputs or artifacts to be created.
+        To clone this project to your local machine, navigate into a folder in
+        which you'd like to store Calkit projects, e.g., <Code>~/calkit</Code>{" "}
+        and execute:
       </Text>
+      <Code whiteSpace="pre" overflow="auto" mb={mb} maxW="100%" px={3} py={3}>
+        calkit clone {userName}/{projectName}
+      </Code>
     </>
   )
 }

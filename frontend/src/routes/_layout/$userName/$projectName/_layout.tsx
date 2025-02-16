@@ -195,7 +195,7 @@ function ProjectLayout() {
               <DrawerCloseButton />
               <DrawerHeader>Help</DrawerHeader>
               <DrawerBody>
-                <HelpContent />
+                <HelpContent userHasWriteAccess={userHasWriteAccess} />
               </DrawerBody>
             </DrawerContent>
           </Drawer>
