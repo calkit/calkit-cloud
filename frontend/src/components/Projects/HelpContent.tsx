@@ -254,7 +254,7 @@ function HelpContent({ userHasWriteAccess }: HelpContentProps) {
         which you'd like to store Calkit projects, e.g., <Code>~/calkit</Code>{" "}
         and execute:
       </Text>
-      <Code whiteSpace="pre" overflow="auto" mb={mb} maxW="100%" px={3} py={3}>
+      <Code whiteSpace="pre" overflow="auto" mb={mb} maxW="100%" p={2}>
         calkit clone {userName}/{projectName}
       </Code>
     </>
