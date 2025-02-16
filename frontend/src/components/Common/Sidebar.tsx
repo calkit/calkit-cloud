@@ -69,7 +69,6 @@ const Sidebar = ({ basePath }: SidebarProps) => {
           </DrawerBody>
         </DrawerContent>
       </Drawer>
-
       {/* Desktop */}
       <Box
         bg={bgColor}
