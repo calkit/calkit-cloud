@@ -150,9 +150,9 @@ function HelpContent({ userHasWriteAccess }: HelpContentProps) {
           <Link
             isExternal
             variant="blue"
-            href="https://dvc.org/doc/start/data-pipelines/data-pipelines"
+            href="https://docs.calkit.org/pipeline/"
           >
-            DVC documentation
+            pipeline documentation
           </Link>
           .
         </Text>
