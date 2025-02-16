@@ -28,7 +28,7 @@ function Learn() {
           <Link
             isExternal
             variant="blue"
-            href="https://github.com/calkit/calkit?tab=readme-ov-file#tutorials"
+            href="https://docs.calkit.org/tutorials/"
           >
             tutorials
           </Link>
