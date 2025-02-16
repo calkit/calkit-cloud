@@ -421,7 +421,7 @@ def create_project(
 
 
 class ProjectOptionalExtended(ProjectPublic):
-    calkit_yaml_keys: list[str] | None = None
+    calkit_info_keys: list[str] | None = None
     readme_content: str | None = None
     status: ProjectStatus | None = None
 
@@ -450,7 +450,7 @@ def get_project(
             project=project, user=current_user, session=session, ttl=120
         )
         ck_info = get_ck_info_from_repo(repo=repo)
-        resp.calkit_yaml_keys = list(ck_info.keys())
+        resp.calkit_info_keys = list(ck_info.keys())
         # TODO: Read actual status
         resp.status = ProjectStatus(
             timestamp="2021-01-01", status="in-progress", message="Sup."
