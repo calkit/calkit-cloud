@@ -39,7 +39,7 @@ const CloneProject = ({ project, isOpen, onClose }: CloneProjectProps) => {
               </Link>
               , then execute:
             </Text>
-            <Code whiteSpace="pre" overflow="auto" p={2} maxW="100%">
+            <Code whiteSpace="pre" overflow="auto" p={2} width="100%">
               calkit clone {project.owner_account_name}/{project.name}
             </Code>
           </ModalBody>
