@@ -123,7 +123,7 @@ export type Dataset = {
   project_id: string
 }
 
-export type DatasetDVCImport = {
+export type DatasetForImport = {
   path: string
   imported_from?: string | null
   title?: string | null
@@ -132,6 +132,8 @@ export type DatasetDVCImport = {
   description?: string | null
   url?: string | null
   dvc_import?: DVCImport | null
+  git_import?: GitImport | null
+  git_rev: string
 }
 
 export type DatasetResponse = {
@@ -263,6 +265,10 @@ export type GitHubReleasePost = {
   name?: string | null
   body: string
   generate_release_notes?: boolean
+}
+
+export type GitImport = {
+  files: Array<string>
 }
 
 export type GitItem = {

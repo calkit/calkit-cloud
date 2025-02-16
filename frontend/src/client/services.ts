@@ -37,7 +37,7 @@ import type {
   ContentPatch,
   ContentsItem,
   Dataset,
-  DatasetDVCImport,
+  DatasetForImport,
   Environment,
   Figure,
   FigureComment,
@@ -285,6 +285,7 @@ export type ProjectsData = {
     projectName: string
   }
   GetProjectDataset: {
+    filterPaths?: Array<string> | null
     ownerName: string
     path: string
     projectName: string
@@ -434,6 +435,7 @@ export type DatasetsData = {
     includeImported?: boolean
     limit?: number
     offset?: number
+    searchFor?: string | null
   }
 }
 
@@ -1668,13 +1670,13 @@ export class ProjectsService {
 
   /**
    * Get Project Dataset
-   * @returns DatasetDVCImport Successful Response
+   * @returns DatasetForImport Successful Response
    * @throws ApiError
    */
   public static getProjectDataset(
     data: ProjectsData["GetProjectDataset"],
-  ): CancelablePromise<DatasetDVCImport> {
-    const { path, ownerName, projectName } = data
+  ): CancelablePromise<DatasetForImport> {
+    const { path, ownerName, projectName, filterPaths } = data
     return __request(OpenAPI, {
       method: "GET",
       url: "/projects/{owner_name}/{project_name}/datasets/{path}",
@@ -1682,6 +1684,9 @@ export class ProjectsService {
         path,
         owner_name: ownerName,
         project_name: projectName,
+      },
+      query: {
+        filter_paths: filterPaths,
       },
       errors: {
         422: `Validation Error`,
@@ -2418,7 +2423,7 @@ export class DatasetsService {
   public static getDatasets(
     data: DatasetsData["GetDatasets"] = {},
   ): CancelablePromise<DatasetsResponse> {
-    const { limit = 100, offset = 0, includeImported = false } = data
+    const { limit = 100, offset = 0, includeImported = false, searchFor } = data
     return __request(OpenAPI, {
       method: "GET",
       url: "/datasets",
@@ -2426,6 +2431,7 @@ export class DatasetsService {
         limit,
         offset,
         include_imported: includeImported,
+        search_for: searchFor,
       },
       errors: {
         422: `Validation Error`,

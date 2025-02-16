@@ -6,7 +6,7 @@ import sqlalchemy
 from app.api.deps import CurrentUserOptional, SessionDep
 from app.models import Dataset, Project, ProjectPublic
 from fastapi import APIRouter
-from sqlmodel import SQLModel, func, or_, select
+from sqlmodel import SQLModel, func, or_, select, and_
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -34,6 +34,7 @@ def get_datasets(
     limit: int = 100,
     offset: int = 0,
     include_imported: bool = False,
+    search_for: str | None = None,
 ) -> DatasetsResponse:
     # TODO: Handle collaborator access for private project datasets
     if current_user is None:
@@ -42,6 +43,19 @@ def get_datasets(
         where_clause = or_(
             Project.is_public,
             Project.owner_account_id == current_user.account.id,
+        )
+    if search_for is not None:
+        search_for = f"%{search_for}%"
+        where_clause = and_(
+            where_clause,
+            or_(
+                Dataset.path.ilike(search_for),
+                Dataset.title.ilike(search_for),
+                Dataset.description.ilike(search_for),
+                Project.name.ilike(search_for),
+                Project.title.ilike(search_for),
+                Project.description.ilike(search_for),
+            ),
         )
     count_query = (
         select(func.count())
