@@ -1559,8 +1559,7 @@ def post_project_dataset_upload(
     file: Annotated[UploadFile, File()],
 ) -> Dataset:
     logger.info(
-        f"Received dataset file {path} with content type: "
-        f"{file.content_type}"
+        f"Received dataset file {path} with content type: {file.content_type}"
     )
     project = app.projects.get_project(
         session=session,
@@ -2708,8 +2707,7 @@ def get_project_showcase(
             else:
                 element_out = ShowcaseText(
                     text=(
-                        f"YAML file at path '{element_in.yaml_file}' "
-                        "not found"
+                        f"YAML file at path '{element_in.yaml_file}' not found"
                     )
                 )
         else:

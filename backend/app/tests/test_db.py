@@ -27,6 +27,6 @@ def test_init_successful_connection() -> None:
             "and not raise an exception."
         )
 
-        assert session_mock.exec.called_once_with(
-            select(1)
-        ), "The session should execute a select statement once."
+        assert session_mock.exec.called_once_with(select(1)), (
+            "The session should execute a select statement once."
+        )
