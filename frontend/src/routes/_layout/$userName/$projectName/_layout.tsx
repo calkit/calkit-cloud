@@ -156,11 +156,27 @@ function ProjectLayout() {
               <Box maxW="100%" mr={2}>
                 <Heading size={titleSize}>{project?.title}</Heading>
               </Box>
+              {/* Public/private badge */}
               <Box mr={2} pb={0.5}>
                 <Badge color={project?.is_public ? "green.500" : "yellow.500"}>
                   {project?.is_public ? "Public" : "Private"}
                 </Badge>
               </Box>
+              {/* Status badge */}
+              <Box mr={2} pb={0.5}>
+                <Badge
+                  color={
+                    project?.status?.status === "in-progress"
+                      ? "green.500"
+                      : "gray.500"
+                  }
+                >
+                  {project?.status?.status
+                    ? project.status.status
+                    : "no status"}
+                </Badge>
+              </Box>
+              {/* GitHub link */}
               {project?.git_repo_url ? (
                 <Box mr={2}>
                   <Link href={project?.git_repo_url} isExternal>

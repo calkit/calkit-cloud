@@ -11,6 +11,7 @@ const useProject = (userName: string, projectName: string) => {
       ProjectsService.getProject({
         ownerName: userName,
         projectName: projectName,
+        getExtendedInfo: true,
       }),
     retry: (failureCount, error) => {
       if (error.message === "Not Found" || error.message === "Forbidden") {
