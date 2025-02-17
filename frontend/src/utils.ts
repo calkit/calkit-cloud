@@ -78,3 +78,20 @@ export const getZenodoRedirectUri = () => {
 export const capitalizeFirstLetter = (val: string) => {
   return val.charAt(0).toUpperCase() + val.slice(1)
 }
+
+export const formatTimestamp = (isoString: string) => {
+  const date = new Date(isoString)
+  return (
+    date
+      .toLocaleString("en-CA", {
+        year: "numeric",
+        month: "numeric",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false,
+      })
+      .replace(/,/g, "") + " (UTC)"
+  )
+}

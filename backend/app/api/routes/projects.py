@@ -19,6 +19,7 @@ import requests
 import sqlalchemy
 import yaml
 from calkit.check import ReproCheck, check_reproducibility
+from calkit.models import ProjectStatus
 from fastapi import (
     APIRouter,
     Depends,
@@ -419,13 +420,19 @@ def create_project(
     return project
 
 
+class ProjectOptionalExtended(ProjectPublic):
+    calkit_info_keys: list[str] | None = None
+    readme_content: str | None = None
+
+
 @router.get("/projects/{owner_name}/{project_name}")
 def get_project(
     owner_name: str,
     project_name: str,
     session: SessionDep,
     current_user: CurrentUserOptional,
-) -> ProjectPublic:
+    get_extended_info: bool = False,
+) -> ProjectOptionalExtended:
     project = app.projects.get_project(
         session=session,
         owner_name=owner_name,
@@ -433,7 +440,34 @@ def get_project(
         current_user=current_user,
         min_access_level="read",
     )
-    return project
+    resp = ProjectOptionalExtended.model_validate(project)
+    # Get some more information about the project, e.g., its status, what
+    # attributes are defined in calkit.yaml, its README content, questions,
+    # etc., so we don't need to make other calls for these?
+    if get_extended_info:
+        logger.info(f"Getting extended info for {owner_name}/{project_name}")
+        repo = get_repo(
+            project=project, user=current_user, session=session, ttl=120
+        )
+        ck_info = get_ck_info_from_repo(repo=repo)
+        resp.calkit_info_keys = list(ck_info.keys())
+        # Read status if present
+        status_fpath = os.path.join(repo.working_dir, ".calkit", "status.csv")
+        if os.path.isfile(status_fpath):
+            logger.info("Reading latest status")
+            last_line = app.read_last_line_from_csv(status_fpath)
+            if len(last_line) >= 3:
+                # Insert status into database so it can be searched on
+                logger.info("Updating status in database")
+                updated = last_line[0]
+                status = last_line[1]
+                message = last_line[2]
+                project.status = status
+                project.status_updated = updated
+                project.status_message = message
+                session.commit()
+                # TODO: Detect the Git email used to create the status?
+    return resp
 
 
 class ProjectPatch(BaseModel):
@@ -1529,8 +1563,7 @@ def post_project_dataset_upload(
     file: Annotated[UploadFile, File()],
 ) -> Dataset:
     logger.info(
-        f"Received dataset file {path} with content type: "
-        f"{file.content_type}"
+        f"Received dataset file {path} with content type: {file.content_type}"
     )
     project = app.projects.get_project(
         session=session,
@@ -2678,8 +2711,7 @@ def get_project_showcase(
             else:
                 element_out = ShowcaseText(
                     text=(
-                        f"YAML file at path '{element_in.yaml_file}' "
-                        "not found"
+                        f"YAML file at path '{element_in.yaml_file}' not found"
                     )
                 )
         else:
@@ -2778,4 +2810,50 @@ def post_project_github_release(
         body=obj["body"],
         created=obj["created_at"],
         published=obj["published_at"],
+    )
+
+
+class ProjectStatusPost(BaseModel):
+    status: Literal["in-progress", "on-hold", "completed"]
+    message: str | None = None
+
+
+@router.post("/projects/{owner_name}/{project_name}/status")
+def post_project_status(
+    owner_name: str,
+    project_name: str,
+    current_user: CurrentUser,
+    session: SessionDep,
+    req: ProjectStatusPost,
+) -> ProjectStatus:
+    project = app.projects.get_project(
+        owner_name=owner_name,
+        project_name=project_name,
+        session=session,
+        current_user=current_user,
+        min_access_level="write",
+    )
+    repo = get_repo(
+        project=project, user=current_user, session=session, ttl=None
+    )
+    logger.info(f"{current_user.email} setting project status to {req.status}")
+    cmd = ["calkit", "new", "status", req.status]
+    if req.message is not None:
+        cmd += ["-m", req.message]
+    try:
+        subprocess.check_call(cmd, cwd=repo.working_dir)
+        logger.info("Git pushing")
+        repo.git.push(["origin", repo.active_branch])
+    except Exception as e:
+        logger.error(f"Failed to set project status: {e}")
+        raise HTTPException(400, f"Failed to set project status: {e}")
+    project.status = req.status
+    project.status_message = req.message
+    project.status_updated = app.utcnow()
+    session.commit()
+    session.refresh(project)
+    return ProjectStatus(
+        status=project.status,
+        message=project.status_message,
+        timestamp=project.status_updated,
     )

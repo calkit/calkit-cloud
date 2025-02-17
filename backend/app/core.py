@@ -1,6 +1,8 @@
 """Core functionality that should to into the top-level namespace."""
 
+import csv
 import logging
+import os
 from datetime import UTC, datetime
 from urllib.parse import parse_qs, urlparse
 
@@ -84,3 +86,18 @@ def utcnow():
 def params_from_url(url: str) -> dict:
     parsed_url = urlparse(url)
     return parse_qs(parsed_url.query)
+
+
+def read_last_line_from_file(fpath: str) -> str:
+    with open(fpath, "rb") as file:
+        file.seek(-2, os.SEEK_END)
+        while file.read(1) != b"\n":
+            file.seek(-2, os.SEEK_CUR)
+        last_line = file.readline().decode()
+    return last_line
+
+
+def read_last_line_from_csv(fpath: str) -> list:
+    last_line = read_last_line_from_file(fpath)
+    row = csv.reader([last_line])
+    return list(row)[0]

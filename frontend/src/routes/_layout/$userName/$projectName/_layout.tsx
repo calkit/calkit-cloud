@@ -39,6 +39,7 @@ import NewProject from "../../../../components/Projects/NewProject"
 import useAuth from "../../../../hooks/useAuth"
 import HelpContent from "../../../../components/Projects/HelpContent"
 import CloneProject from "../../../../components/Projects/CloneProject"
+import ProjectStatus from "../../../../components/Projects/ProjectStatus"
 
 export const Route = createFileRoute("/_layout/$userName/$projectName/_layout")(
   {
@@ -132,6 +133,7 @@ function ProjectLayout() {
     mixpanel.track("Clicked project help button")
     helpDrawer.onOpen()
   }
+  const projectStatusModal = useDisclosure()
 
   return (
     <>
@@ -156,11 +158,41 @@ function ProjectLayout() {
               <Box maxW="100%" mr={2}>
                 <Heading size={titleSize}>{project?.title}</Heading>
               </Box>
+              {/* Public/private badge */}
               <Box mr={2} pb={0.5}>
                 <Badge color={project?.is_public ? "green.500" : "yellow.500"}>
                   {project?.is_public ? "Public" : "Private"}
                 </Badge>
               </Box>
+              {/* Status badge */}
+              <Box mr={2} pb={0.5}>
+                <Link>
+                  <Badge
+                    color={
+                      project?.status === "in-progress"
+                        ? "green.500"
+                        : project?.status === "completed"
+                          ? "blue.500"
+                          : "gray.500"
+                    }
+                    onClick={projectStatusModal.onOpen}
+                  >
+                    {project?.status
+                      ? project.status.replaceAll("-", " ")
+                      : "no status"}
+                  </Badge>
+                </Link>
+                {project ? (
+                  <ProjectStatus
+                    project={project}
+                    isOpen={projectStatusModal.isOpen}
+                    onClose={projectStatusModal.onClose}
+                  />
+                ) : (
+                  ""
+                )}
+              </Box>
+              {/* GitHub link */}
               {project?.git_repo_url ? (
                 <Box mr={2}>
                   <Link href={project?.git_repo_url} isExternal>

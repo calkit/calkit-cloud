@@ -56,9 +56,12 @@ import type {
   Pipeline,
   ProjectApp,
   ProjectCreate,
+  ProjectOptionalExtended,
   ProjectPatch,
   ProjectPublic,
   ProjectsPublic,
+  ProjectStatus,
+  ProjectStatusPost,
   Publication,
   Question,
   QuestionPost,
@@ -172,6 +175,7 @@ export type ProjectsData = {
     searchFor?: string | null
   }
   GetProject: {
+    getExtendedInfo?: boolean
     ownerName: string
     projectName: string
   }
@@ -410,6 +414,11 @@ export type ProjectsData = {
     ownerName: string
     projectName: string
     requestBody: GitHubReleasePost
+  }
+  PostProjectStatus: {
+    ownerName: string
+    projectName: string
+    requestBody: ProjectStatusPost
   }
 }
 
@@ -1137,19 +1146,22 @@ export class ProjectsService {
 
   /**
    * Get Project
-   * @returns ProjectPublic Successful Response
+   * @returns ProjectOptionalExtended Successful Response
    * @throws ApiError
    */
   public static getProject(
     data: ProjectsData["GetProject"],
-  ): CancelablePromise<ProjectPublic> {
-    const { ownerName, projectName } = data
+  ): CancelablePromise<ProjectOptionalExtended> {
+    const { ownerName, projectName, getExtendedInfo = false } = data
     return __request(OpenAPI, {
       method: "GET",
       url: "/projects/{owner_name}/{project_name}",
       path: {
         owner_name: ownerName,
         project_name: projectName,
+      },
+      query: {
+        get_extended_info: getExtendedInfo,
       },
       errors: {
         422: `Validation Error`,
@@ -2300,6 +2312,30 @@ export class ProjectsService {
     return __request(OpenAPI, {
       method: "POST",
       url: "/projects/{owner_name}/{project_name}/github-releases",
+      path: {
+        owner_name: ownerName,
+        project_name: projectName,
+      },
+      body: requestBody,
+      mediaType: "application/json",
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Post Project Status
+   * @returns ProjectStatus Successful Response
+   * @throws ApiError
+   */
+  public static postProjectStatus(
+    data: ProjectsData["PostProjectStatus"],
+  ): CancelablePromise<ProjectStatus> {
+    const { ownerName, projectName, requestBody } = data
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/projects/{owner_name}/{project_name}/status",
       path: {
         owner_name: ownerName,
         project_name: projectName,

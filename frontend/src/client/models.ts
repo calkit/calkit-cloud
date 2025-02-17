@@ -441,7 +441,31 @@ export type ProjectCreate = {
   updated?: string | null
   git_repo_url?: string | null
   latest_git_rev?: string | null
+  status?: string | null
+  status_updated?: string | null
+  status_message?: string | null
   template?: string | null
+}
+
+export type ProjectOptionalExtended = {
+  name: string
+  title: string
+  description?: string | null
+  is_public?: boolean
+  created?: string | null
+  updated?: string | null
+  git_repo_url: string
+  latest_git_rev?: string | null
+  status?: string | null
+  status_updated?: string | null
+  status_message?: string | null
+  id: string
+  owner_account_id: string
+  owner_account_name: string
+  owner_account_type: string
+  current_user_access?: "read" | "write" | "admin" | "owner" | null
+  calkit_info_keys?: Array<string> | null
+  readme_content?: string | null
 }
 
 export type ProjectPatch = {
@@ -458,11 +482,25 @@ export type ProjectPublic = {
   updated?: string | null
   git_repo_url: string
   latest_git_rev?: string | null
+  status?: string | null
+  status_updated?: string | null
+  status_message?: string | null
   id: string
   owner_account_id: string
   owner_account_name: string
   owner_account_type: string
   current_user_access?: "read" | "write" | "admin" | "owner" | null
+}
+
+export type ProjectStatus = {
+  timestamp: string
+  status: "in-progress" | "on-hold" | "completed"
+  message?: string | null
+}
+
+export type ProjectStatusPost = {
+  status: "in-progress" | "on-hold" | "completed"
+  message?: string | null
 }
 
 export type ProjectsPublic = {
