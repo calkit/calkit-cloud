@@ -432,7 +432,7 @@ def get_project(
     project_name: str,
     session: SessionDep,
     current_user: CurrentUserOptional,
-    get_extended_info: bool = True,
+    get_extended_info: bool = False,
 ) -> ProjectOptionalExtended:
     project = app.projects.get_project(
         session=session,
@@ -446,15 +446,23 @@ def get_project(
     # attributes are defined in calkit.yaml, its README content, questions,
     # etc., so we don't need to make other calls for these?
     if get_extended_info:
+        logger.info(f"Getting extended info for {owner_name}/{project_name}")
         repo = get_repo(
             project=project, user=current_user, session=session, ttl=120
         )
         ck_info = get_ck_info_from_repo(repo=repo)
         resp.calkit_info_keys = list(ck_info.keys())
-        # TODO: Read actual status
-        resp.status = ProjectStatus(
-            timestamp="2021-01-01", status="in-progress", message="Sup."
-        )
+        # Read status if present
+        status_fpath = os.path.join(repo.working_dir, ".calkit", "status.csv")
+        if os.path.isfile(status_fpath):
+            logger.info("Reading latest status")
+            last_line = app.read_last_line_from_csv(status_fpath)
+            if len(last_line) >= 3:
+                resp.status = ProjectStatus(
+                    timestamp=last_line[0],
+                    status=last_line[1],
+                    message=last_line[2],
+                )
     return resp
 
 
