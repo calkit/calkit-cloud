@@ -177,7 +177,9 @@ function ProjectLayout() {
                     }
                     onClick={projectStatusModal.onOpen}
                   >
-                    {project?.status ? project.status : "no status"}
+                    {project?.status
+                      ? project.status.replaceAll("-", " ")
+                      : "no status"}
                   </Badge>
                 </Link>
                 {project ? (
