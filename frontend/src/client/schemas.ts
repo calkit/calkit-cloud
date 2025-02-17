@@ -2175,6 +2175,147 @@ export const $ProjectCreate = {
   },
 } as const
 
+export const $ProjectOptionalExtended = {
+  properties: {
+    name: {
+      type: "string",
+      isRequired: true,
+      maxLength: 255,
+      minLength: 4,
+    },
+    title: {
+      type: "string",
+      isRequired: true,
+      maxLength: 255,
+      minLength: 4,
+    },
+    description: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          maxLength: 2048,
+          minLength: 0,
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    is_public: {
+      type: "boolean",
+      default: false,
+    },
+    created: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    updated: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    git_repo_url: {
+      type: "string",
+      isRequired: true,
+      maxLength: 2048,
+    },
+    latest_git_rev: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          maxLength: 40,
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    id: {
+      type: "string",
+      isRequired: true,
+      format: "uuid",
+    },
+    owner_account_id: {
+      type: "string",
+      isRequired: true,
+      format: "uuid",
+    },
+    owner_account_name: {
+      type: "string",
+      isRequired: true,
+    },
+    owner_account_type: {
+      type: "string",
+      isRequired: true,
+    },
+    current_user_access: {
+      type: "any-of",
+      contains: [
+        {
+          type: "Enum",
+          enum: ["read", "write", "admin", "owner"],
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    calkit_info_keys: {
+      type: "any-of",
+      contains: [
+        {
+          type: "array",
+          contains: {
+            type: "string",
+          },
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    readme_content: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    status: {
+      type: "any-of",
+      contains: [
+        {
+          type: "ProjectStatus",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+  },
+} as const
+
 export const $ProjectPatch = {
   properties: {
     title: {
@@ -2298,6 +2439,32 @@ export const $ProjectPublic = {
         {
           type: "Enum",
           enum: ["read", "write", "admin", "owner"],
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+  },
+} as const
+
+export const $ProjectStatus = {
+  properties: {
+    timestamp: {
+      type: "string",
+      isRequired: true,
+      format: "date-time",
+    },
+    status: {
+      type: "Enum",
+      enum: ["in-progress", "on-hold", "completed"],
+      isRequired: true,
+    },
+    message: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
         },
         {
           type: "null",

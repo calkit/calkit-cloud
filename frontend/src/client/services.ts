@@ -56,6 +56,7 @@ import type {
   Pipeline,
   ProjectApp,
   ProjectCreate,
+  ProjectOptionalExtended,
   ProjectPatch,
   ProjectPublic,
   ProjectsPublic,
@@ -172,6 +173,7 @@ export type ProjectsData = {
     searchFor?: string | null
   }
   GetProject: {
+    getExtendedInfo?: boolean
     ownerName: string
     projectName: string
   }
@@ -1137,19 +1139,22 @@ export class ProjectsService {
 
   /**
    * Get Project
-   * @returns ProjectPublic Successful Response
+   * @returns ProjectOptionalExtended Successful Response
    * @throws ApiError
    */
   public static getProject(
     data: ProjectsData["GetProject"],
-  ): CancelablePromise<ProjectPublic> {
-    const { ownerName, projectName } = data
+  ): CancelablePromise<ProjectOptionalExtended> {
+    const { ownerName, projectName, getExtendedInfo = false } = data
     return __request(OpenAPI, {
       method: "GET",
       url: "/projects/{owner_name}/{project_name}",
       path: {
         owner_name: ownerName,
         project_name: projectName,
+      },
+      query: {
+        get_extended_info: getExtendedInfo,
       },
       errors: {
         422: `Validation Error`,

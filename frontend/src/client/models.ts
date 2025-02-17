@@ -444,6 +444,25 @@ export type ProjectCreate = {
   template?: string | null
 }
 
+export type ProjectOptionalExtended = {
+  name: string
+  title: string
+  description?: string | null
+  is_public?: boolean
+  created?: string | null
+  updated?: string | null
+  git_repo_url: string
+  latest_git_rev?: string | null
+  id: string
+  owner_account_id: string
+  owner_account_name: string
+  owner_account_type: string
+  current_user_access?: "read" | "write" | "admin" | "owner" | null
+  calkit_info_keys?: Array<string> | null
+  readme_content?: string | null
+  status?: ProjectStatus | null
+}
+
 export type ProjectPatch = {
   title?: string | null
   description?: string | null
@@ -463,6 +482,12 @@ export type ProjectPublic = {
   owner_account_name: string
   owner_account_type: string
   current_user_access?: "read" | "write" | "admin" | "owner" | null
+}
+
+export type ProjectStatus = {
+  timestamp: string
+  status: "in-progress" | "on-hold" | "completed"
+  message?: string | null
 }
 
 export type ProjectsPublic = {
