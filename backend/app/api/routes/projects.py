@@ -19,6 +19,7 @@ import requests
 import sqlalchemy
 import yaml
 from calkit.check import ReproCheck, check_reproducibility
+from calkit.models import ProjectStatus
 from fastapi import (
     APIRouter,
     Depends,
@@ -2809,4 +2810,50 @@ def post_project_github_release(
         body=obj["body"],
         created=obj["created_at"],
         published=obj["published_at"],
+    )
+
+
+class ProjectStatusPost(BaseModel):
+    status: Literal["in-progress", "on-hold", "completed"]
+    message: str | None = None
+
+
+@router.post("/projects/{owner_name}/{project_name}/status")
+def post_project_status(
+    owner_name: str,
+    project_name: str,
+    current_user: CurrentUser,
+    session: SessionDep,
+    req: ProjectStatusPost,
+) -> ProjectStatus:
+    project = app.projects.get_project(
+        owner_name=owner_name,
+        project_name=project_name,
+        session=session,
+        current_user=current_user,
+        min_access_level="write",
+    )
+    repo = get_repo(
+        project=project, user=current_user, session=session, ttl=None
+    )
+    logger.info(f"{current_user.email} setting project status to {req.status}")
+    cmd = ["calkit", "new", "status", req.status]
+    if req.message is not None:
+        cmd += ["-m", req.message]
+    try:
+        subprocess.check_call(cmd, cwd=repo.working_dir)
+        logger.info("Git pushing")
+        repo.git.push(["origin", repo.active_branch])
+    except Exception as e:
+        logger.error(f"Failed to set project status: {e}")
+        raise HTTPException(400, f"Failed to set project status: {e}")
+    project.status = req.status
+    project.status_message = req.message
+    project.status_updated = app.utcnow()
+    session.commit()
+    session.refresh(project)
+    return ProjectStatus(
+        status=project.status,
+        message=project.status_message,
+        timestamp=project.status_updated,
     )
