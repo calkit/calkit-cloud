@@ -492,6 +492,17 @@ export type ProjectPublic = {
   current_user_access?: "read" | "write" | "admin" | "owner" | null
 }
 
+export type ProjectStatus = {
+  timestamp: string
+  status: "in-progress" | "on-hold" | "completed"
+  message?: string | null
+}
+
+export type ProjectStatusPost = {
+  status: "in-progress" | "on-hold" | "completed"
+  message?: string | null
+}
+
 export type ProjectsPublic = {
   data: Array<ProjectPublic>
   count: number

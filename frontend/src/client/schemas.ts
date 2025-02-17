@@ -2548,6 +2548,53 @@ export const $ProjectPublic = {
   },
 } as const
 
+export const $ProjectStatus = {
+  properties: {
+    timestamp: {
+      type: "string",
+      isRequired: true,
+      format: "date-time",
+    },
+    status: {
+      type: "Enum",
+      enum: ["in-progress", "on-hold", "completed"],
+      isRequired: true,
+    },
+    message: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+  },
+} as const
+
+export const $ProjectStatusPost = {
+  properties: {
+    status: {
+      type: "Enum",
+      enum: ["in-progress", "on-hold", "completed"],
+      isRequired: true,
+    },
+    message: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+  },
+} as const
+
 export const $ProjectsPublic = {
   properties: {
     data: {

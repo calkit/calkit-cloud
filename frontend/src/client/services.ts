@@ -60,6 +60,8 @@ import type {
   ProjectPatch,
   ProjectPublic,
   ProjectsPublic,
+  ProjectStatus,
+  ProjectStatusPost,
   Publication,
   Question,
   QuestionPost,
@@ -412,6 +414,11 @@ export type ProjectsData = {
     ownerName: string
     projectName: string
     requestBody: GitHubReleasePost
+  }
+  PostProjectStatus: {
+    ownerName: string
+    projectName: string
+    requestBody: ProjectStatusPost
   }
 }
 
@@ -2305,6 +2312,30 @@ export class ProjectsService {
     return __request(OpenAPI, {
       method: "POST",
       url: "/projects/{owner_name}/{project_name}/github-releases",
+      path: {
+        owner_name: ownerName,
+        project_name: projectName,
+      },
+      body: requestBody,
+      mediaType: "application/json",
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Post Project Status
+   * @returns ProjectStatus Successful Response
+   * @throws ApiError
+   */
+  public static postProjectStatus(
+    data: ProjectsData["PostProjectStatus"],
+  ): CancelablePromise<ProjectStatus> {
+    const { ownerName, projectName, requestBody } = data
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/projects/{owner_name}/{project_name}/status",
       path: {
         owner_name: ownerName,
         project_name: projectName,
