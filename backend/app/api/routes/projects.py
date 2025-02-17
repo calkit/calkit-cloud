@@ -458,10 +458,22 @@ def get_project(
             logger.info("Reading latest status")
             last_line = app.read_last_line_from_csv(status_fpath)
             if len(last_line) >= 3:
+                # Insert status into database so it can be searched on
+                logger.info("Updating status in database")
+                updated = last_line[0]
+                status = last_line[1]
+                message = last_line[2]
+                project.status = status
+                project.status_updated = updated
+                project.status_message = message
+                session.commit()
+                # TODO: Detect the Git email used to create the status?
+                # TODO: Status will be return flattened, so maybe we don't need
+                # this
                 resp.status = ProjectStatus(
-                    timestamp=last_line[0],
-                    status=last_line[1],
-                    message=last_line[2],
+                    timestamp=updated,
+                    status=status,
+                    message=message,
                 )
     return resp
 

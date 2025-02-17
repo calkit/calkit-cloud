@@ -338,6 +338,9 @@ class ProjectBase(SQLModel):
     latest_git_rev: str | None = Field(
         max_length=40, nullable=True, default=None
     )
+    status: str | None = Field(default=None, min_length=4, max_length=32)
+    status_updated: datetime | None = Field(default_factory=utcnow)
+    status_message: str | None = Field(default=None, max_length=2048)
 
 
 class Project(ProjectBase, table=True):
