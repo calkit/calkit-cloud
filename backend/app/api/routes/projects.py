@@ -19,7 +19,6 @@ import requests
 import sqlalchemy
 import yaml
 from calkit.check import ReproCheck, check_reproducibility
-from calkit.models import ProjectStatus
 from fastapi import (
     APIRouter,
     Depends,
@@ -423,7 +422,6 @@ def create_project(
 class ProjectOptionalExtended(ProjectPublic):
     calkit_info_keys: list[str] | None = None
     readme_content: str | None = None
-    status: ProjectStatus | None = None
 
 
 @router.get("/projects/{owner_name}/{project_name}")
@@ -468,13 +466,6 @@ def get_project(
                 project.status_message = message
                 session.commit()
                 # TODO: Detect the Git email used to create the status?
-                # TODO: Status will be return flattened, so maybe we don't need
-                # this
-                resp.status = ProjectStatus(
-                    timestamp=updated,
-                    status=status,
-                    message=message,
-                )
     return resp
 
 

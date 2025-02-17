@@ -2161,6 +2161,43 @@ export const $ProjectCreate = {
         },
       ],
     },
+    status: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          maxLength: 32,
+          minLength: 4,
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    status_updated: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    status_message: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          maxLength: 2048,
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
     template: {
       type: "any-of",
       contains: [
@@ -2247,6 +2284,43 @@ export const $ProjectOptionalExtended = {
         },
       ],
     },
+    status: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          maxLength: 32,
+          minLength: 4,
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    status_updated: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    status_message: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          maxLength: 2048,
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
     id: {
       type: "string",
       isRequired: true,
@@ -2296,17 +2370,6 @@ export const $ProjectOptionalExtended = {
       contains: [
         {
           type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
-    },
-    status: {
-      type: "any-of",
-      contains: [
-        {
-          type: "ProjectStatus",
         },
         {
           type: "null",
@@ -2415,6 +2478,43 @@ export const $ProjectPublic = {
         },
       ],
     },
+    status: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          maxLength: 32,
+          minLength: 4,
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    status_updated: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    status_message: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          maxLength: 2048,
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
     id: {
       type: "string",
       isRequired: true,
@@ -2439,32 +2539,6 @@ export const $ProjectPublic = {
         {
           type: "Enum",
           enum: ["read", "write", "admin", "owner"],
-        },
-        {
-          type: "null",
-        },
-      ],
-    },
-  },
-} as const
-
-export const $ProjectStatus = {
-  properties: {
-    timestamp: {
-      type: "string",
-      isRequired: true,
-      format: "date-time",
-    },
-    status: {
-      type: "Enum",
-      enum: ["in-progress", "on-hold", "completed"],
-      isRequired: true,
-    },
-    message: {
-      type: "any-of",
-      contains: [
-        {
-          type: "string",
         },
         {
           type: "null",

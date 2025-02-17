@@ -166,14 +166,14 @@ function ProjectLayout() {
               <Box mr={2} pb={0.5}>
                 <Badge
                   color={
-                    project?.status?.status === "in-progress"
+                    project?.status === "in-progress"
                       ? "green.500"
-                      : "gray.500"
+                      : project?.status === "completed"
+                        ? "blue.500"
+                        : "gray.500"
                   }
                 >
-                  {project?.status?.status
-                    ? project.status.status
-                    : "no status"}
+                  {project?.status ? project.status : "no status"}
                 </Badge>
               </Box>
               {/* GitHub link */}
