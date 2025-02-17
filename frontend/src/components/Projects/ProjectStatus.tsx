@@ -24,7 +24,11 @@ import {
 } from "../../client"
 import type { ApiError } from "../../client/core/ApiError"
 import useCustomToast from "../../hooks/useCustomToast"
-import { formatTimestamp, handleError } from "../../utils"
+import {
+  formatTimestamp,
+  handleError,
+  capitalizeFirstLetter,
+} from "../../utils"
 
 interface ProjectStatusProps {
   project: ProjectPublic
@@ -93,7 +97,9 @@ const ProjectStatus = ({ project, isOpen, onClose }: ProjectStatusProps) => {
           <ModalBody pb={6}>
             <Text>
               Current status:{" "}
-              {project.status ? project.status.replaceAll("-", " ") : ""}
+              {project.status
+                ? capitalizeFirstLetter(project.status.replaceAll("-", " "))
+                : ""}
             </Text>
             <Text>
               Updated:{" "}
