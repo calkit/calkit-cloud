@@ -13,7 +13,7 @@ from fastapi.testclient import TestClient
 from sqlmodel import Session, delete
 
 
-@pytest.fixture(scope="session", autouse=True)
+@pytest.fixture(scope="session", autouse=False)
 def db() -> Generator[Session, None, None]:
     with Session(engine) as session:
         init_db(session)
