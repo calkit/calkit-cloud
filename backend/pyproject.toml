@@ -34,7 +34,7 @@ dependencies = [
   "stripe==10.11.0",
   "mixpanel==4.10.1",
   "gcsfs==2024.10.0",
-  "calkit-python>=0.20.0",
+  "calkit-python>=0.20.3",
 ]
 
 [dependency-groups]

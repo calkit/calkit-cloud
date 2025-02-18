@@ -32,7 +32,7 @@ from fastapi import (
     UploadFile,
 )
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 from sqlmodel import Session, and_, func, not_, or_, select
 
 import app.projects
@@ -2309,7 +2309,7 @@ def get_project_environments(
     repo = get_repo(
         project=project, user=current_user, session=session, ttl=120
     )
-    ck_info = get_ck_info_from_repo(repo)
+    ck_info = get_ck_info_from_repo(repo, process_includes=True)
     envs = ck_info.get("environments", {})
     resp = []
     for env_name, env in envs.items():
@@ -2321,7 +2321,10 @@ def get_project_environments(
             if os.path.isfile(fpath):
                 with open(fpath) as f:
                     env_resp["file_content"] = f.read()
-        resp.append(Environment.model_validate(env_resp))
+        try:
+            resp.append(Environment.model_validate(env_resp))
+        except ValidationError as e:
+            logger.warning(f"Invalid environment: {e}")
     return resp
 
 

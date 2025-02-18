@@ -5,6 +5,7 @@ import shutil
 import subprocess
 import time
 
+import calkit
 import git
 from fastapi import HTTPException
 from filelock import FileLock, Timeout
@@ -119,23 +120,22 @@ def get_repo(
     return repo
 
 
-def get_ck_info_from_repo(repo: git.Repo) -> dict:
-    if os.path.isfile(os.path.join(repo.working_dir, "calkit.yaml")):
-        with open(os.path.join(repo.working_dir, "calkit.yaml")) as f:
-            ck_info = ryaml.load(f)
-        if ck_info is None:
-            ck_info = {}
-        return ck_info
-    else:
-        return {}
+def get_ck_info_from_repo(repo: git.Repo, process_includes=False) -> dict:
+    return calkit.load_calkit_info(
+        wdir=repo.working_dir, process_includes=process_includes
+    )
 
 
 def get_ck_info(
-    project: Project, user: User, session: Session, ttl=None
+    project: Project,
+    user: User,
+    session: Session,
+    ttl=None,
+    process_includes=False,
 ) -> dict:
     """Load the calkit.yaml file contents into a dictionary."""
     repo = get_repo(project=project, user=user, session=session, ttl=ttl)
-    return get_ck_info_from_repo(repo=repo)
+    return get_ck_info_from_repo(repo=repo, process_includes=process_includes)
 
 
 def get_dvc_pipeline(
