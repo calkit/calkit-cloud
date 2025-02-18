@@ -5,6 +5,7 @@ import shutil
 import subprocess
 import time
 
+import calkit
 import git
 from fastapi import HTTPException
 from filelock import FileLock, Timeout
@@ -42,7 +43,7 @@ def get_repo(
     repo_dir = os.path.join(base_dir, "repo")
     updated_fpath = os.path.join(base_dir, "updated.txt")
     lock_fpath = os.path.join(base_dir, "updating.lock")
-    lock = FileLock(lock_fpath, timeout=1)
+    lock = FileLock(lock_fpath, timeout=5)
     os.makedirs(base_dir, exist_ok=True)
     if os.path.isdir(repo_dir) and fresh:
         logger.info("Deleting repo directory to clone a fresh copy")
@@ -78,7 +79,10 @@ def get_repo(
                     )
                 except subprocess.CalledProcessError:
                     logger.error("Failed to clone repo")
-                    raise HTTPException(404, "Git repo not found")
+                    # It's possible another process cloned this repo just as
+                    # we were about to, so check again
+                    if not os.path.isdir(repo_dir):
+                        raise HTTPException(404, "Git repo not found")
                 # Touch a file so we can compute a TTL
                 subprocess.check_call(["touch", updated_fpath])
                 repo = git.Repo(repo_dir)
@@ -111,31 +115,29 @@ def get_repo(
                     subprocess.call(["touch", updated_fpath])
         except Timeout:
             logger.warning("Git repo lock timed out")
-        except GitCommandError:
-            logger.error("Failed to refresh repo")
-            raise HTTPException(404, "Git repo not found")
+        except GitCommandError as e:
+            logger.error(f"Failed to refresh repo: {e}")
     if repo is None:
         repo = git.Repo(repo_dir)
     return repo
 
 
-def get_ck_info_from_repo(repo: git.Repo) -> dict:
-    if os.path.isfile(os.path.join(repo.working_dir, "calkit.yaml")):
-        with open(os.path.join(repo.working_dir, "calkit.yaml")) as f:
-            ck_info = ryaml.load(f)
-        if ck_info is None:
-            ck_info = {}
-        return ck_info
-    else:
-        return {}
+def get_ck_info_from_repo(repo: git.Repo, process_includes=False) -> dict:
+    return calkit.load_calkit_info(
+        wdir=repo.working_dir, process_includes=process_includes
+    )
 
 
 def get_ck_info(
-    project: Project, user: User, session: Session, ttl=None
+    project: Project,
+    user: User,
+    session: Session,
+    ttl=None,
+    process_includes=False,
 ) -> dict:
     """Load the calkit.yaml file contents into a dictionary."""
     repo = get_repo(project=project, user=user, session=session, ttl=ttl)
-    return get_ck_info_from_repo(repo=repo)
+    return get_ck_info_from_repo(repo=repo, process_includes=process_includes)
 
 
 def get_dvc_pipeline(
