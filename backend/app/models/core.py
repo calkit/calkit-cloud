@@ -351,6 +351,9 @@ class Project(ProjectBase, table=True):
     )
     # Relationships
     owner_account: Account = Relationship(back_populates="owned_projects")
+    user_access_records: list["UserProjectAccess"] = Relationship(
+        back_populates="project"
+    )
     # TODO: Figure out how to do self-referential relationships with parent
     # and children projects
     questions: list["Question"] = Relationship(
@@ -430,6 +433,23 @@ class ProjectCreate(ProjectBase):
     is_public: bool = Field(default=False)
     git_repo_url: str | None = Field(max_length=2048, default=None)
     template: str | None = None
+
+
+class UserProjectAccess(SQLModel, table=True):
+    user_id: uuid.UUID = Field(foreign_key="user.id", primary_key=True)
+    project_id: uuid.UUID = Field(foreign_key="project.id", primary_key=True)
+    access: str | None = Field(max_length=32)
+    created: datetime = Field(default_factory=utcnow)
+    updated: datetime = Field(
+        default_factory=utcnow,
+        sa_column_kwargs=dict(
+            server_onupdate=sqlalchemy.func.now(),
+            server_default=sqlalchemy.func.now(),
+        ),
+    )
+    # Relationships
+    user: User = Relationship()
+    project: Project = Relationship(back_populates="user_access_records")
 
 
 class PipelineStage(SQLModel):

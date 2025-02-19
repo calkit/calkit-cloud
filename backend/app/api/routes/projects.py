@@ -62,6 +62,7 @@ from app.git import (
     get_repo,
 )
 from app.models import (
+    Account,
     ContentsItem,
     Dataset,
     DatasetForImport,
@@ -79,6 +80,7 @@ from app.models import (
     Publication,
     Question,
     User,
+    UserProjectAccess,
 )
 from app.models.projects import (
     Showcase,
@@ -116,13 +118,17 @@ def get_projects(
     offset: int = 0,
     search_for: str | None = None,
 ) -> ProjectsPublic:
-    # TODO: Handle collaborator access
+    # TODO: Handle org member access
     if current_user is None:
         where_clause = Project.is_public
     else:
         where_clause = or_(
             Project.is_public,
             Project.owner_account_id == current_user.account.id,
+            and_(
+                UserProjectAccess.user_id == current_user.id,
+                UserProjectAccess.access.is_not(None),
+            ),
         )
     if search_for is not None:
         search_for = f"%{search_for}%"
@@ -135,10 +141,18 @@ def get_projects(
                 Project.git_repo_url.ilike(search_for),
             ),
         )
-    count_query = select(func.count()).select_from(Project).where(where_clause)
+    count_query = (
+        select(func.count())
+        .select_from(Project)
+        .distinct()
+        .join(Project.user_access_records)
+        .where(where_clause)
+    )
     count = session.exec(count_query).one()
     select_query = (
         select(Project)
+        .distinct()
+        .join(Project.user_access_records)
         .where(where_clause)
         .order_by(sqlalchemy.desc(Project.created))
         .limit(limit)
@@ -1998,13 +2012,24 @@ def put_project_collaborator(
     current_user: CurrentUser,
     session: SessionDep,
 ) -> Message:
-    app.projects.get_project(
+    project = app.projects.get_project(
         owner_name=owner_name,
         project_name=project_name,
         session=session,
         current_user=current_user,
         min_access_level="admin",
     )
+    user = session.exec(
+        select(User)
+        .join(User.account)
+        .where(Account.github_name == github_username)
+    ).first()
+    logger.info(
+        f"Fetched user account {user.email} with GitHub username "
+        f"{github_username}"
+    )
+    if user is None:
+        raise HTTPException(404, "User not found")
     token = users.get_github_token(session=session, user=current_user)
     url = (
         f"https://api.github.com/repos/{owner_name}/{project_name}/"
@@ -2016,6 +2041,20 @@ def put_project_collaborator(
             f"Failed to put collaborator ({resp.status_code}): {resp.text}"
         )
         raise HTTPException(resp.status_code)
+    access = session.exec(
+        select(UserProjectAccess)
+        .where(UserProjectAccess.user_id == user.id)
+        .where(UserProjectAccess.project_id == project.id)
+    ).first()
+    if access is not None:
+        access.access = "write"
+    else:
+        session.add(
+            UserProjectAccess(
+                user_id=user.id, project_id=project.id, access="write"
+            )
+        )
+    session.commit()
     return Message(message="Success")
 
 
