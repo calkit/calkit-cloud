@@ -2068,13 +2068,24 @@ def delete_project_collaborator(
     current_user: CurrentUser,
     session: SessionDep,
 ) -> Message:
-    app.projects.get_project(
+    project = app.projects.get_project(
         owner_name=owner_name,
         project_name=project_name,
         session=session,
         current_user=current_user,
         min_access_level="admin",
     )
+    user = session.exec(
+        select(User)
+        .join(User.account)
+        .where(Account.github_name == github_username)
+    ).first()
+    logger.info(
+        f"Fetched user account {user.email} with GitHub username "
+        f"{github_username}"
+    )
+    if user is None:
+        raise HTTPException(404, "User not found")
     token = users.get_github_token(session=session, user=current_user)
     url = (
         f"https://api.github.com/repos/{owner_name}/{project_name}/"
@@ -2086,6 +2097,14 @@ def delete_project_collaborator(
             f"Failed to delete collaborator ({resp.status_code}): {resp.text}"
         )
         raise HTTPException(resp.status_code)
+    access = session.exec(
+        select(UserProjectAccess)
+        .where(UserProjectAccess.user_id == user.id)
+        .where(UserProjectAccess.project_id == project.id)
+    ).first()
+    if access is not None:
+        session.delete(access)
+        session.commit()
     return Message(message="Success")
 
 
