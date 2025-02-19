@@ -119,6 +119,7 @@ def get_projects(
     search_for: str | None = None,
 ) -> ProjectsPublic:
     # TODO: Handle org member access
+    # TODO: Use a correct join instead of distinct?
     if current_user is None:
         where_clause = Project.is_public
     else:
