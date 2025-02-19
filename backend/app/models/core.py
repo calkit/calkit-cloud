@@ -351,6 +351,9 @@ class Project(ProjectBase, table=True):
     )
     # Relationships
     owner_account: Account = Relationship(back_populates="owned_projects")
+    user_access_records: list["UserProjectAccess"] = Relationship(
+        back_populates="project"
+    )
     # TODO: Figure out how to do self-referential relationships with parent
     # and children projects
     questions: list["Question"] = Relationship(
@@ -446,7 +449,7 @@ class UserProjectAccess(SQLModel, table=True):
     )
     # Relationships
     user: User = Relationship()
-    project: Project = Relationship()
+    project: Project = Relationship(back_populates="user_access_records")
 
 
 class PipelineStage(SQLModel):

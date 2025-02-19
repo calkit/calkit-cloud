@@ -119,7 +119,6 @@ def get_projects(
     search_for: str | None = None,
 ) -> ProjectsPublic:
     # TODO: Handle org member access
-    # TODO: Use a correct join instead of distinct?
     if current_user is None:
         where_clause = Project.is_public
     else:
@@ -127,9 +126,8 @@ def get_projects(
             Project.is_public,
             Project.owner_account_id == current_user.account.id,
             and_(
-                UserProjectAccess.project_id == Project.id,
                 UserProjectAccess.user_id == current_user.id,
-                UserProjectAccess.access is not None,
+                UserProjectAccess.access.is_not(None),
             ),
         )
     if search_for is not None:
@@ -147,12 +145,14 @@ def get_projects(
         select(func.count())
         .select_from(Project)
         .distinct()
+        .join(Project.user_access_records)
         .where(where_clause)
     )
     count = session.exec(count_query).one()
     select_query = (
         select(Project)
         .distinct()
+        .join(Project.user_access_records)
         .where(where_clause)
         .order_by(sqlalchemy.desc(Project.created))
         .limit(limit)
