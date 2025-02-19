@@ -435,7 +435,7 @@ class ProjectCreate(ProjectBase):
 class UserProjectAccess(SQLModel, table=True):
     user_id: uuid.UUID = Field(foreign_key="user.id", primary_key=True)
     project_id: uuid.UUID = Field(foreign_key="project.id", primary_key=True)
-    access: str = Field(max_length=32)
+    access: str | None = Field(max_length=32)
     created: datetime = Field(default_factory=utcnow)
     updated: datetime = Field(
         default_factory=utcnow,

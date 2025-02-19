@@ -126,21 +126,23 @@ def get_project(
                     if resp.status_code == 200:
                         logger.info("Fetched permissions from GitHub")
                         permissions = resp.json()["permission"]
-                        if permissions != "none":
-                            project.current_user_access = permissions
-                            session.add(
-                                UserProjectAccess(
-                                    project_id=project.id,
-                                    user_id=current_user.id,
-                                    access=permissions,
-                                )
-                            )
-                            session.commit()
+                        if permissions == "none":
+                            permissions = None
                     else:
+                        permissions = None
                         logger.info(
                             "Failed to fetch permissions from GitHub "
                             f"({resp.status_code})"
                         )
+                    project.current_user_access = permissions
+                    session.add(
+                        UserProjectAccess(
+                            project_id=project.id,
+                            user_id=current_user.id,
+                            access=permissions,
+                        )
+                    )
+                    session.commit()
         if project.is_public and project.current_user_access is None:
             project.current_user_access = "read"
         if project.current_user_access is None:
