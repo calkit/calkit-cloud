@@ -2103,8 +2103,14 @@ def delete_project_collaborator(
         .where(UserProjectAccess.project_id == project.id)
     ).first()
     if access is not None:
-        session.delete(access)
-        session.commit()
+        access.access = None
+    else:
+        session.add(
+            UserProjectAccess(
+                user_id=user.id, project_id=project.id, access=None
+            )
+        )
+    session.commit()
     return Message(message="Success")
 
 
