@@ -92,6 +92,10 @@ def get_project(
         else:
             # Query for permissions in our database, and if they aren't set,
             # query GitHub and save
+            # TODO: We seem to have a race condition here with multiple
+            # requests causing this to run concurrently, though it doesn't
+            # seem to actually cause a problem despite the failure to write
+            # to the database in all but one
             access_query = (
                 select(UserProjectAccess)
                 .where(UserProjectAccess.project_id == project.id)
