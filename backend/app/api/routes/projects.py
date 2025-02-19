@@ -2032,7 +2032,7 @@ def put_project_collaborator(
         raise HTTPException(404, "User not found")
     token = users.get_github_token(session=session, user=current_user)
     url = (
-        f"https://api.github.com/repos/{owner_name}/{project_name}/"
+        f"https://api.github.com/repos/{project.github_repo}/"
         f"collaborators/{github_username}"
     )
     resp = requests.put(url, headers={"Authorization": f"Bearer {token}"})
@@ -2088,7 +2088,7 @@ def delete_project_collaborator(
         raise HTTPException(404, "User not found")
     token = users.get_github_token(session=session, user=current_user)
     url = (
-        f"https://api.github.com/repos/{owner_name}/{project_name}/"
+        f"https://api.github.com/repos/{project.github_repo}/"
         f"collaborators/{github_username}"
     )
     resp = requests.delete(url, headers={"Authorization": f"Bearer {token}"})
