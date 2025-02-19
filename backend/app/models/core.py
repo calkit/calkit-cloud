@@ -432,6 +432,23 @@ class ProjectCreate(ProjectBase):
     template: str | None = None
 
 
+class UserProjectAccess(SQLModel, table=True):
+    user_id: uuid.UUID = Field(foreign_key="user.id", primary_key=True)
+    project_id: uuid.UUID = Field(foreign_key="project.id", primary_key=True)
+    access: str = Field(max_length=32)
+    created: datetime = Field(default_factory=utcnow)
+    updated: datetime = Field(
+        default_factory=utcnow,
+        sa_column_kwargs=dict(
+            server_onupdate=sqlalchemy.func.now(),
+            server_default=sqlalchemy.func.now(),
+        ),
+    )
+    # Relationships
+    user: User = Relationship()
+    project: Project = Relationship()
+
+
 class PipelineStage(SQLModel):
     cmd: str
     deps: list[str] | None = None
