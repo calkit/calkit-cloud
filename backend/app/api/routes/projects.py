@@ -79,6 +79,7 @@ from app.models import (
     Publication,
     Question,
     User,
+    UserProjectAccess,
 )
 from app.models.projects import (
     Showcase,
@@ -116,13 +117,18 @@ def get_projects(
     offset: int = 0,
     search_for: str | None = None,
 ) -> ProjectsPublic:
-    # TODO: Handle collaborator access
+    # TODO: Handle org member access
     if current_user is None:
         where_clause = Project.is_public
     else:
         where_clause = or_(
             Project.is_public,
             Project.owner_account_id == current_user.account.id,
+            and_(
+                UserProjectAccess.project_id == Project.id,
+                UserProjectAccess.user_id == current_user.id,
+                UserProjectAccess.access is not None,
+            ),
         )
     if search_for is not None:
         search_for = f"%{search_for}%"
@@ -135,10 +141,16 @@ def get_projects(
                 Project.git_repo_url.ilike(search_for),
             ),
         )
-    count_query = select(func.count()).select_from(Project).where(where_clause)
+    count_query = (
+        select(func.count())
+        .select_from(Project)
+        .distinct()
+        .where(where_clause)
+    )
     count = session.exec(count_query).one()
     select_query = (
         select(Project)
+        .distinct()
         .where(where_clause)
         .order_by(sqlalchemy.desc(Project.created))
         .limit(limit)
