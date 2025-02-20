@@ -183,7 +183,7 @@ def login_with_github(code: str, session: SessionDep) -> Token:
         logger.warning(
             f"GitHub user {github_username} attempting to log in on staging"
         )
-        raise HTTPException(403)
+        raise HTTPException(403, "Please log in at calkit.io")
     user = users.get_user_by_email(session=session, email=github_email)
     if user is None:
         logger.info("Creating new user")
