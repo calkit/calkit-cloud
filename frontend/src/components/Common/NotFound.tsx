@@ -1,7 +1,9 @@
 import { Button, Container, Text } from "@chakra-ui/react"
 import { Link } from "@tanstack/react-router"
+import mixpanel from "mixpanel-browser"
 
 const NotFound = () => {
+  mixpanel.track("404 (front end)")
   return (
     <>
       <Container
