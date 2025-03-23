@@ -1,4 +1,4 @@
-import { Image, Alert, AlertIcon } from "@chakra-ui/react"
+import { Image, Alert, AlertIcon, Box } from "@chakra-ui/react"
 import { useState, useEffect, useCallback, useRef } from "react"
 import {
   AreaHighlight,
@@ -119,7 +119,7 @@ function PdfView({ publication }: PubViewProps) {
   }
 
   return (
-    <>
+    <Box position={"relative"} height={"100%"}>
       <PdfLoader url={url} beforeLoad={<div>Loading...</div>}>
         {(pdfDocument) => (
           <PdfHighlighter
@@ -192,7 +192,7 @@ function PdfView({ publication }: PubViewProps) {
           />
         )}
       </PdfLoader>
-    </>
+    </Box>
   )
 }
 
