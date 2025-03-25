@@ -7,10 +7,12 @@ import os
 from typing import Literal
 
 import git
+import requests
 import yaml
 from fastapi import HTTPException
 from sqlmodel import Session, select
 
+import app.users
 from app.config import settings
 from app.core import CATEGORIES_PLURAL_TO_SINGULAR
 from app.dvc import expand_dvc_lock_outs
@@ -23,6 +25,7 @@ from app.models import (
     Project,
     Publication,
     User,
+    UserProjectAccess,
 )
 from app.storage import (
     get_object_fs,
@@ -86,7 +89,65 @@ def get_project(
                     break
             if project.current_user_access is None and project.is_public:
                 project.current_user_access = "read"
-        elif project.is_public and project.current_user_access is None:
+        else:
+            # Query for permissions in our database, and if they aren't set,
+            # query GitHub and save
+            # TODO: We seem to have a race condition here with multiple
+            # requests causing this to run concurrently, though it doesn't
+            # seem to actually cause a problem despite the failure to write
+            # to the database in all but one
+            access_query = (
+                select(UserProjectAccess)
+                .where(UserProjectAccess.project_id == project.id)
+                .where(UserProjectAccess.user_id == current_user.id)
+                .with_for_update()
+            )
+            access = session.exec(access_query).first()
+            if access is not None:
+                project.current_user_access = access.access
+            else:
+                # Query GitHub for permissions
+                try:
+                    github_token = app.users.get_github_token(
+                        session, current_user
+                    )
+                except HTTPException:
+                    github_token = None
+                    logger.info(
+                        f"User {current_user.email} has no GitHub token"
+                    )
+                if github_token is not None:
+                    logger.info("Fetching permissions from GitHub")
+                    url = (
+                        f"https://api.github.com/repos/{project.github_repo}"
+                        f"/collaborators/{current_user.github_username}/"
+                        "permission"
+                    )
+                    resp = requests.get(
+                        url,
+                        headers={"Authorization": f"Bearer {github_token}"},
+                    )
+                    if resp.status_code == 200:
+                        logger.info("Fetched permissions from GitHub")
+                        permissions = resp.json()["permission"]
+                        if permissions == "none":
+                            permissions = None
+                    else:
+                        permissions = None
+                        logger.info(
+                            "Failed to fetch permissions from GitHub "
+                            f"({resp.status_code})"
+                        )
+                    project.current_user_access = permissions
+                    session.add(
+                        UserProjectAccess(
+                            project_id=project.id,
+                            user_id=current_user.id,
+                            access=permissions,
+                        )
+                    )
+                    session.commit()
+        if project.is_public and project.current_user_access is None:
             project.current_user_access = "read"
         if project.current_user_access is None:
             raise HTTPException(403)
