@@ -15,6 +15,7 @@ import {
   Spinner,
   Badge,
   Code,
+  Textarea,
 } from "@chakra-ui/react"
 import { createFileRoute, Link as RouterLink } from "@tanstack/react-router"
 import { FiFile } from "react-icons/fi"
@@ -26,13 +27,68 @@ import PageMenu from "../../../../../components/Common/PageMenu"
 import useProject, {
   useProjectPublications,
 } from "../../../../../hooks/useProject"
+import useAuth from "../../../../../hooks/useAuth"
 import PublicationView from "../../../../../components/Publications/PublicationView"
+import { useState } from "react"
 
 export const Route = createFileRoute(
   "/_layout/$userName/$projectName/_layout/publications",
 )({
   component: Publications,
 })
+
+function PublicationComments() {
+  const { user } = useAuth()
+  const [commentInput, setCommentInput] = useState("")
+  const handleInputChange = (val: any) => {
+    setCommentInput(val.target.value)
+  }
+
+  const onButtonClick = () => {
+    console.log("submitting comment here")
+    setCommentInput("")
+  }
+  return (
+    <>
+      <Heading size="s" mb={1}>
+        Comments
+      </Heading>
+      <Box
+        p={2}
+        my={2}
+        maxH={"340px"}
+        overflowY={"auto"}
+        flexDirection={"column"}
+        display={"flex"}
+        borderWidth={"1px"}
+        borderRadius={"md"}
+      >
+        {/* [Insert comments here] */}
+        {user ? (
+          <>
+            <Textarea
+              mt={2}
+              value={commentInput}
+              onChange={handleInputChange}
+              placeholder="Add a comment"
+            />
+            <Flex justifyItems={"end"} justifyContent={"end"}>
+              <Button
+                my={2}
+                isDisabled={commentInput === ""}
+                onClick={onButtonClick}
+              >
+                Submit
+              </Button>
+            </Flex>
+          </>
+        ) : (
+          ""
+        )}
+      </Box>
+    </>
+  )
+}
 
 interface PubViewProps {
   publication: Publication
@@ -85,6 +141,7 @@ function PubView({ publication }: PubViewProps) {
           ) : (
             ""
           )}
+          <PublicationComments />
         </Box>
         {/* TODO: Add ability to comment on a publication */}
       </Box>
@@ -162,20 +219,20 @@ function Publications() {
              each */}
             {publicationsRequest.data
               ? publicationsRequest.data.map((pub) => (
-                  <Link key={pub.path} href={`#${pub.path}`}>
-                    <Text
-                      isTruncated
-                      noOfLines={1}
-                      whiteSpace="nowrap"
-                      overflow="hidden"
-                      textOverflow="ellipsis"
-                      display="inline-block"
-                      width="100%"
-                    >
-                      <Icon pt={1} mr={-0.5} as={FiFile} /> {pub.title}
-                    </Text>
-                  </Link>
-                ))
+                <Link key={pub.path} href={`#${pub.path}`}>
+                  <Text
+                    isTruncated
+                    noOfLines={1}
+                    whiteSpace="nowrap"
+                    overflow="hidden"
+                    textOverflow="ellipsis"
+                    display="inline-block"
+                    width="100%"
+                  >
+                    <Icon pt={1} mr={-0.5} as={FiFile} /> {pub.title}
+                  </Text>
+                </Link>
+              ))
               : ""}
           </PageMenu>
           {/* A box to the right that iterates over all figures, adding a view
