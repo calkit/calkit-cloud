@@ -77,7 +77,7 @@ class OrgPost(BaseModel):
 def post_org(
     req: OrgPost, session: SessionDep, current_user: CurrentUser
 ) -> OrgPublic:
-    org_name = req.name or req.github_name
+    org_name = (req.name or req.github_name).lower()
     if org_name in INVALID_ACCOUNT_NAMES:
         raise HTTPException(422, "Invalid account name")
     if get_org_from_db(org_name=org_name, session=session) is not None:
