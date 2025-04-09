@@ -112,7 +112,9 @@ def post_org(
         )
         raise HTTPException(
             membership_resp.status_code,
-            "Could not verify org membership on GitHub",
+            "Could not verify org membership on GitHub; "
+            "Ensure the app is installed by visiting "
+            "https://github.com/apps/calkit/installations/select_target",
         )
     role = membership_resp.json()["role"]
     if role != "admin":
