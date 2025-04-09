@@ -126,6 +126,14 @@ def post_org(
         user_memberships=[
             UserOrgMembership(user=current_user, role_id=ROLE_IDS["owner"])
         ],
+        # Create new orgs with a free subscription
+        subscription=OrgSubscription(
+            plan_id=PLAN_IDS["free"],
+            n_users=1,
+            price=0.0,
+            period_months=1,
+            subscriber_user_id=current_user.id,
+        ),
     )
     session.add(org)
     session.commit()
