@@ -467,11 +467,17 @@ def create_project(
             # Check access to the org
             role = None
             for membership in current_user.org_memberships:
-                if membership.org.account.name == owner_name:
+                if membership.org.account.name.lower() == owner_name.lower():
                     role = membership.role_name
             if role not in ["owner", "admin"]:
                 logger.info("User is not an admin or owner of this org")
-                raise HTTPException(403)
+                raise HTTPException(
+                    403,
+                    (
+                        "Must be an owner or admin of an org to create "
+                        "projects for it"
+                    ),
+                )
             owner_account_id = org.account.id
         else:
             owner_account_id = current_user.account.id
