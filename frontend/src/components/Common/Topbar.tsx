@@ -13,7 +13,7 @@ import {
   useColorModeValue,
   useDisclosure,
 } from "@chakra-ui/react"
-import { Link as RouterLink } from "@tanstack/react-router"
+import { Link as RouterLink, useNavigate } from "@tanstack/react-router"
 import { FaGithub, FaPlus } from "react-icons/fa"
 
 import useAuth from "../../hooks/useAuth"
@@ -58,6 +58,7 @@ export default function Topbar() {
   const { user } = useAuth()
   const newProjectModal = useDisclosure()
   const newOrgModal = useDisclosure()
+  const navigate = useNavigate()
 
   return (
     <>
@@ -102,7 +103,9 @@ export default function Topbar() {
               aria-label="new-org"
               size="sm"
               mr={2}
-              onClick={newOrgModal.onOpen}
+              onClick={
+                user ? newOrgModal.onOpen : () => navigate({ to: "/login" })
+              }
             >
               <Icon as={FaPlus} mr={1} />
               New org
@@ -112,7 +115,9 @@ export default function Topbar() {
               aria-label="new-project"
               size="sm"
               mr={6}
-              onClick={newProjectModal.onOpen}
+              onClick={
+                user ? newProjectModal.onOpen : () => navigate({ to: "/login" })
+              }
             >
               <Icon as={FaPlus} mr={1} />
               New project
