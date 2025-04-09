@@ -43,6 +43,7 @@ from app.api.deps import (
     CurrentUserOptional,
     SessionDep,
 )
+from app.api.routes.orgs import OrgPost, post_org
 from app.config import settings
 from app.core import (
     CATEGORIES_PLURAL_TO_SINGULAR,
@@ -72,6 +73,7 @@ from app.models import (
     FileLock,
     Message,
     Org,
+    OrgSubscription,
     Pipeline,
     Project,
     ProjectCreate,
@@ -235,13 +237,35 @@ def create_project(
             subscription = current_user.subscription
         else:
             # Count private projects for an org
+            # First check if this org exists in Calkit
             query = select(Org).where(Org.account.has(github_name=owner_name))
             org = session.exec(query).first()
             if org is None:
                 logger.info(f"Org '{owner_name}' does not exist in DB")
-                raise HTTPException(404, "This org does not exist in Calkit")
+                # Try to create the org
+                org = post_org(
+                    req=OrgPost(github_name=owner_name),
+                    session=session,
+                    current_user=current_user,
+                )
             account_id = org.account.id
             subscription = org.subscription
+            if subscription is None:
+                logger.info(f"Org '{owner_name}' does not have a subscription")
+                # Give the org a free subscription
+                org.subscription = (
+                    OrgSubscription(
+                        plan_id=0,
+                        n_users=1,
+                        price=0.0,
+                        period_months=1,
+                        subscriber_user_id=current_user.id,
+                    ),
+                )
+                session.add(org.subscription)
+                session.commit()
+                session.refresh(org.subscription)
+                subscription = org.subscription
         count_query = (
             select(func.count())
             .select_from(Project)
