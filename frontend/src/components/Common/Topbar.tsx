@@ -1,23 +1,25 @@
+import { CloseIcon, HamburgerIcon } from "@chakra-ui/icons"
 import {
   Box,
+  Button,
   Flex,
   HStack,
-  IconButton,
-  useDisclosure,
-  useColorModeValue,
-  Image,
-  Stack,
-  Link,
   Icon,
+  IconButton,
+  Image,
+  Link,
+  Stack,
   Text,
-  Button,
+  useColorModeValue,
+  useDisclosure,
 } from "@chakra-ui/react"
-import { Link as RouterLink } from "@tanstack/react-router"
-import { HamburgerIcon, CloseIcon } from "@chakra-ui/icons"
-import UserMenu from "./UserMenu"
+import { Link as RouterLink, useNavigate } from "@tanstack/react-router"
 import { FaGithub, FaPlus } from "react-icons/fa"
+
 import useAuth from "../../hooks/useAuth"
+import NewOrg from "../Orgs/NewOrg"
 import NewProject from "../Projects/NewProject"
+import UserMenu from "./UserMenu"
 
 interface Props {
   children: React.ReactNode
@@ -55,6 +57,8 @@ export default function Topbar() {
   const secBgColor = useColorModeValue("ui.secondary", "ui.darkSlate")
   const { user } = useAuth()
   const newProjectModal = useDisclosure()
+  const newOrgModal = useDisclosure()
+  const navigate = useNavigate()
 
   return (
     <>
@@ -96,10 +100,24 @@ export default function Topbar() {
           </HStack>
           <Flex alignItems={"center"}>
             <Button
+              aria-label="new-org"
+              size="sm"
+              mr={2}
+              onClick={
+                user ? newOrgModal.onOpen : () => navigate({ to: "/login" })
+              }
+            >
+              <Icon as={FaPlus} mr={1} />
+              New org
+            </Button>
+            <NewOrg onClose={newOrgModal.onClose} isOpen={newOrgModal.isOpen} />
+            <Button
               aria-label="new-project"
               size="sm"
               mr={6}
-              onClick={newProjectModal.onOpen}
+              onClick={
+                user ? newProjectModal.onOpen : () => navigate({ to: "/login" })
+              }
             >
               <Icon as={FaPlus} mr={1} />
               New project
