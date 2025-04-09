@@ -243,11 +243,12 @@ def create_project(
             if org is None:
                 logger.info(f"Org '{owner_name}' does not exist in DB")
                 # Try to create the org
-                org = post_org(
+                post_org(
                     req=OrgPost(github_name=owner_name),
                     session=session,
                     current_user=current_user,
                 )
+                org = session.exec(query).first()
             account_id = org.account.id
             subscription = org.subscription
             if subscription is None:
@@ -432,11 +433,37 @@ def create_project(
             if repo["owner"]["type"] != "Organization":
                 raise HTTPException(400, "Non-user repos must be from an org")
             # This org must exist in Calkit and the user must have access to it
+            # First check if this org exists in Calkit and try to create it
+            # if it doesn't
             query = select(Org).where(Org.account.has(github_name=owner_name))
             org = session.exec(query).first()
             if org is None:
                 logger.info(f"Org '{owner_name}' does not exist in DB")
-                raise HTTPException(404, "This org does not exist in Calkit")
+                # Try to create the org
+                post_org(
+                    req=OrgPost(github_name=owner_name),
+                    session=session,
+                    current_user=current_user,
+                )
+                org = session.exec(query).first()
+            account_id = org.account.id
+            subscription = org.subscription
+            if subscription is None:
+                logger.info(f"Org '{owner_name}' does not have a subscription")
+                # Give the org a free subscription
+                org.subscription = (
+                    OrgSubscription(
+                        plan_id=0,
+                        n_users=1,
+                        price=0.0,
+                        period_months=1,
+                        subscriber_user_id=current_user.id,
+                    ),
+                )
+                session.add(org.subscription)
+                session.commit()
+                session.refresh(org.subscription)
+                subscription = org.subscription
             # Check access to the org
             role = None
             for membership in current_user.org_memberships:
