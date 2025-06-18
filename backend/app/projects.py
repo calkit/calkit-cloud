@@ -9,18 +9,20 @@ from typing import Literal
 import git
 import requests
 import yaml
+from calkit.notebooks import get_executed_notebook_path
 from fastapi import HTTPException
 from sqlmodel import Session, select
 
 import app.users
 from app.config import settings
-from app.core import CATEGORIES_PLURAL_TO_SINGULAR
+from app.core import CATEGORIES_PLURAL_TO_SINGULAR, params_from_url
 from app.dvc import expand_dvc_lock_outs
 from app.git import get_ck_info_from_repo
 from app.models import (
     ContentsItem,
     Figure,
     ItemLock,
+    Notebook,
     Org,
     Project,
     Publication,
@@ -502,3 +504,45 @@ def get_publication_from_repo(
                 pub["url"] = item.url
             return Publication.model_validate(pub)
     raise HTTPException(404, "Publication not found")
+
+
+def get_notebook_from_repo(
+    project: Project, repo: git.Repo, path: str
+) -> Notebook:
+    """Get a notebook from a project's repo, fetching its HTML export if it
+    exists.
+    """
+    ck_info = get_ck_info_from_repo(repo)
+    notebooks = ck_info.get("notebooks", [])
+    for notebook in notebooks:
+        if notebook.get("path") == path:
+            item = get_contents_from_repo(
+                project=project,
+                repo=repo,
+                path=path,
+            )
+            try:
+                # If the notebook has HTML output, return that
+                html_path = get_executed_notebook_path(
+                    notebook_path=path, to="html"
+                )
+                html_item = get_contents_from_repo(
+                    project=project, repo=repo, path=html_path
+                )
+                item = html_item
+            except HTTPException as e:
+                logger.info(
+                    f"Notebook HTML does not exist at {html_path}: {e}"
+                )
+            notebook["url"] = item.url
+            # Figure out the output format from the URL content disposition
+            if item.url is not None:
+                params = params_from_url(item.url)
+                rcd = params.get("response-content-disposition")
+                if rcd is not None:
+                    if rcd[0].endswith(".ipynb"):
+                        notebook["output_format"] = "notebook"
+                    elif rcd[0].endswith(".html"):
+                        notebook["output_format"] = "html"
+            return Notebook.model_validate(notebook)
+    raise HTTPException(404, "Notebook not found")

@@ -73,6 +73,7 @@ from app.models import (
     FigureCommentPost,
     FileLock,
     Message,
+    Notebook,
     Org,
     OrgSubscription,
     Pipeline,
@@ -97,6 +98,8 @@ from app.models.projects import (
     ShowcaseText,
     ShowcaseYaml,
     ShowcaseYamlFileInput,
+    ShowcaseNotebook,
+    ShowcaseNotebookInput,
 )
 from app.storage import (
     get_data_prefix,
@@ -2600,15 +2603,6 @@ def delete_project_file_lock(
     raise HTTPException(404, "Lock not found")
 
 
-class Notebook(BaseModel):
-    path: str
-    title: str
-    description: str | None = None
-    stage: str | None = None
-    output_format: Literal["html", "notebook"] | None = None
-    url: str | None = None
-
-
 @router.get("/projects/{owner_name}/{project_name}/notebooks")
 def get_project_notebooks(
     owner_name: str,
@@ -2848,6 +2842,24 @@ def get_project_showcase(
                 element_out = ShowcaseText(
                     text=(
                         f"YAML file at path '{element_in.yaml_file}' not found"
+                    )
+                )
+        elif isinstance(element_in, ShowcaseNotebookInput):
+            try:
+                element_out = ShowcaseNotebook(
+                    notebook=app.projects.get_notebook_from_repo(
+                        project=project,
+                        repo=repo,
+                        path=element_in.notebook,
+                    )
+                )
+            except Exception as e:
+                logger.warning(
+                    f"Failed to get showcase notebook from {element_in}: {e}"
+                )
+                element_out = ShowcaseText(
+                    text=(
+                        f"Notebook for path '{element_in.notebook}' not found"
                     )
                 )
         else:
