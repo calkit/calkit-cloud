@@ -62,6 +62,8 @@ def get_object_url(
             kws["ResponseContentDisposition"] = f"filename={fname}"
             if fname.endswith(".pdf"):
                 kws["ResponseContentType"] = "application/pdf"
+            elif fname.endswith(".html"):
+                kws["ResponseContentType"] = "text/html"
         kws["client_method"] = f"{method}_object"
     else:
         kws = {}
@@ -69,6 +71,8 @@ def get_object_url(
             kws["response_disposition"] = f"filename={fname}"
             if fname.endswith(".pdf"):
                 kws["response_type"] = "application/pdf"
+            elif fname.endswith(".html"):
+                kws["response_type"] = "text/html"
         kws["method"] = method.upper()
     url: str = fs.sign(fpath, expiration=expires, **(kws | kwargs))
     if settings.ENVIRONMENT == "local":
