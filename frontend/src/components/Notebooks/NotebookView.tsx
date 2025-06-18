@@ -19,7 +19,6 @@ function NotebookView({ notebook }: NotebookViewProps) {
             ? String(notebook.url)
             : `data:text/html;base64,${notebook.content}`
         }
-        style={{ borderRadius: "5px" }}
       />
     )
   } else {

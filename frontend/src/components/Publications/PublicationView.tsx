@@ -8,7 +8,6 @@ interface PubViewProps {
 
 function PublicationView({ publication }: PubViewProps) {
   let contentView = <>Not set</>
-  const borderRadius = "5px"
   if (
     publication.path.endsWith(".pdf") &&
     (publication.content || publication.url)
@@ -23,7 +22,6 @@ function PublicationView({ publication }: PubViewProps) {
             ? `data:application/pdf;base64,${publication.content}`
             : String(publication.url)
         }
-        style={{ borderRadius }}
       />
     )
   } else if (
@@ -40,7 +38,6 @@ function PublicationView({ publication }: PubViewProps) {
             ? String(publication.url)
             : `data:text/html;base64,${publication.content}`
         }
-        style={{ borderRadius }}
       />
     )
   } else if (
@@ -55,7 +52,6 @@ function PublicationView({ publication }: PubViewProps) {
             ? `data:image/png;base64,${publication.content}`
             : String(publication.url)
         }
-        borderRadius={borderRadius}
       />
     )
   } else {
