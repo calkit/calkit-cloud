@@ -30,6 +30,7 @@ interface NotebookContentProps {
 }
 
 function NotebookContent({ notebook }: NotebookContentProps) {
+  const borderRadius = "6px"
   const { userName, projectName } = Route.useParams()
   const { data, isPending } = useQuery({
     queryFn: () => axios.get(String(notebook.url)),
@@ -52,7 +53,7 @@ function NotebookContent({ notebook }: NotebookContentProps) {
               height="100%"
               title="notebook"
               srcDoc={data}
-              style={{ borderRadius: "10px" }}
+              style={{ borderRadius }}
             />
           </Box>
         </>
@@ -73,7 +74,7 @@ function NotebookContent({ notebook }: NotebookContentProps) {
             width="100%"
             title="notebook"
             type="text/html"
-            style={{ borderRadius: "10px" }}
+            style={{ borderRadius }}
             src={`data:text/html;base64,${notebook.content}`}
           />
         </Box>
