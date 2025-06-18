@@ -20,6 +20,7 @@ import sqlalchemy
 import yaml
 from calkit.check import ReproCheck, check_reproducibility
 from calkit.models import ProjectStatus
+from calkit.notebooks import get_executed_notebook_path
 from fastapi import (
     APIRouter,
     Depends,
@@ -2636,6 +2637,17 @@ def get_project_notebooks(
             repo=repo,
             path=notebook["path"],
         )
+        try:
+            # If the notebook has HTML output, return that
+            html_path = get_executed_notebook_path(
+                notebook_path=notebook["path"], to="html"
+            )
+            html_item = app.projects.get_contents_from_repo(
+                project=project, repo=repo, path=html_path
+            )
+            item = html_item
+        except HTTPException as e:
+            logger.info(f"Notebook HTML does not exist at {html_path}: {e}")
         notebook["url"] = item.url
         # Figure out the output format from the URL content disposition
         if item.url is not None:
