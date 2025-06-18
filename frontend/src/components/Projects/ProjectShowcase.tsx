@@ -4,6 +4,7 @@ import useProject from "../../hooks/useProject"
 import FigureView from "../Figures/FigureView"
 import PublicationView from "../Publications/PublicationView"
 import Markdown from "../Common/Markdown"
+import NotebookView from "../Notebooks/NotebookView"
 
 interface ProjectShowcaseProps {
   ownerName: string
@@ -38,6 +39,10 @@ function ProjectShowcase({ ownerName, projectName }: ProjectShowcaseProps) {
                 <Code whiteSpace="pre" width="100%" overflow="auto" p={2}>
                   {item.yaml}
                 </Code>
+              ) : "notebook" in item ? (
+                <Box mt={2} height="600px">
+                  <NotebookView notebook={item.notebook} />
+                </Box>
               ) : (
                 ""
               )}
