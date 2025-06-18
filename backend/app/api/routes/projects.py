@@ -249,19 +249,19 @@ def create_project(
                     current_user=current_user,
                 )
                 org = session.exec(query).first()
+            assert isinstance(org, Org)
             account_id = org.account.id
             subscription = org.subscription
             if subscription is None:
                 logger.info(f"Org '{owner_name}' does not have a subscription")
                 # Give the org a free subscription
-                org.subscription = (
-                    OrgSubscription(
-                        plan_id=0,
-                        n_users=1,
-                        price=0.0,
-                        period_months=1,
-                        subscriber_user_id=current_user.id,
-                    ),
+                org.subscription = OrgSubscription(
+                    plan_id=0,
+                    n_users=1,
+                    price=0.0,
+                    period_months=1,
+                    subscriber_user_id=current_user.id,
+                    org_id=org.id,
                 )
                 session.add(org.subscription)
                 session.commit()
@@ -446,19 +446,19 @@ def create_project(
                     current_user=current_user,
                 )
                 org = session.exec(query).first()
+            assert isinstance(org, Org)
             account_id = org.account.id
             subscription = org.subscription
             if subscription is None:
                 logger.info(f"Org '{owner_name}' does not have a subscription")
                 # Give the org a free subscription
-                org.subscription = (
-                    OrgSubscription(
-                        plan_id=0,
-                        n_users=1,
-                        price=0.0,
-                        period_months=1,
-                        subscriber_user_id=current_user.id,
-                    ),
+                org.subscription = OrgSubscription(
+                    plan_id=0,
+                    n_users=1,
+                    price=0.0,
+                    period_months=1,
+                    subscriber_user_id=current_user.id,
+                    org_id=org.id,
                 )
                 session.add(org.subscription)
                 session.commit()
