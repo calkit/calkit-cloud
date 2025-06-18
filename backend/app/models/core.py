@@ -664,3 +664,13 @@ class Publication(BaseModel):
     content: str | None = None
     stage_info: PipelineStage | None = None
     url: str | None = None
+
+
+class Notebook(BaseModel):
+    path: str
+    title: str
+    description: str | None = None
+    stage: str | None = None
+    output_format: Literal["html", "notebook"] | None = None
+    url: str | None = None
+    content: str | None = None

@@ -5,7 +5,7 @@ export const $Body_login_login_access_token = {
       contains: [
         {
           type: "string",
-          pattern: "password",
+          pattern: "^password$",
         },
         {
           type: "null",
@@ -19,6 +19,7 @@ export const $Body_login_login_access_token = {
     password: {
       type: "string",
       isRequired: true,
+      format: "password",
     },
     scope: {
       type: "string",
@@ -1706,6 +1707,17 @@ export const $Notebook = {
         },
       ],
     },
+    content: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
   },
 } as const
 
@@ -2987,6 +2999,9 @@ export const $Showcase = {
           {
             type: "ShowcaseYaml",
           },
+          {
+            type: "ShowcaseNotebook",
+          },
         ],
       },
       isRequired: true,
@@ -3007,6 +3022,15 @@ export const $ShowcaseMarkdown = {
   properties: {
     markdown: {
       type: "string",
+      isRequired: true,
+    },
+  },
+} as const
+
+export const $ShowcaseNotebook = {
+  properties: {
+    notebook: {
+      type: "Notebook",
       isRequired: true,
     },
   },

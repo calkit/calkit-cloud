@@ -364,6 +364,7 @@ export type Notebook = {
   stage?: string | null
   output_format?: "html" | "notebook" | null
   url?: string | null
+  content?: string | null
 }
 
 export type OrgMemberPost = {
@@ -595,6 +596,7 @@ export type Showcase = {
     | ShowcaseText
     | ShowcaseMarkdown
     | ShowcaseYaml
+    | ShowcaseNotebook
   >
 }
 
@@ -604,6 +606,10 @@ export type ShowcaseFigure = {
 
 export type ShowcaseMarkdown = {
   markdown: string
+}
+
+export type ShowcaseNotebook = {
+  notebook: Notebook
 }
 
 export type ShowcasePublication = {

@@ -2,7 +2,7 @@
 
 from pydantic import BaseModel
 
-from app.models import Figure, Publication
+from app.models import Figure, Notebook, Publication
 
 
 class ShowcaseFigureInput(BaseModel):
@@ -42,6 +42,14 @@ class ShowcaseYaml(BaseModel):
     yaml: str
 
 
+class ShowcaseNotebookInput(BaseModel):
+    notebook: str
+
+
+class ShowcaseNotebook(BaseModel):
+    notebook: Notebook
+
+
 class ShowcaseInput(BaseModel):
     elements: list[
         ShowcaseFigureInput
@@ -50,6 +58,7 @@ class ShowcaseInput(BaseModel):
         | ShowcaseMarkdownFileInput
         | ShowcaseMarkdown
         | ShowcaseYamlFileInput
+        | ShowcaseNotebookInput
     ]
 
 
@@ -60,4 +69,5 @@ class Showcase(BaseModel):
         | ShowcaseText
         | ShowcaseMarkdown
         | ShowcaseYaml
+        | ShowcaseNotebook
     ]

@@ -20,6 +20,7 @@ import sqlalchemy
 import yaml
 from calkit.check import ReproCheck, check_reproducibility
 from calkit.models import ProjectStatus
+from calkit.notebooks import get_executed_notebook_path
 from fastapi import (
     APIRouter,
     Depends,
@@ -72,6 +73,7 @@ from app.models import (
     FigureCommentPost,
     FileLock,
     Message,
+    Notebook,
     Org,
     OrgSubscription,
     Pipeline,
@@ -96,6 +98,8 @@ from app.models.projects import (
     ShowcaseText,
     ShowcaseYaml,
     ShowcaseYamlFileInput,
+    ShowcaseNotebook,
+    ShowcaseNotebookInput,
 )
 from app.storage import (
     get_data_prefix,
@@ -249,19 +253,19 @@ def create_project(
                     current_user=current_user,
                 )
                 org = session.exec(query).first()
+            assert isinstance(org, Org)
             account_id = org.account.id
             subscription = org.subscription
             if subscription is None:
                 logger.info(f"Org '{owner_name}' does not have a subscription")
                 # Give the org a free subscription
-                org.subscription = (
-                    OrgSubscription(
-                        plan_id=0,
-                        n_users=1,
-                        price=0.0,
-                        period_months=1,
-                        subscriber_user_id=current_user.id,
-                    ),
+                org.subscription = OrgSubscription(
+                    plan_id=0,
+                    n_users=1,
+                    price=0.0,
+                    period_months=1,
+                    subscriber_user_id=current_user.id,
+                    org_id=org.id,
                 )
                 session.add(org.subscription)
                 session.commit()
@@ -446,19 +450,19 @@ def create_project(
                     current_user=current_user,
                 )
                 org = session.exec(query).first()
+            assert isinstance(org, Org)
             account_id = org.account.id
             subscription = org.subscription
             if subscription is None:
                 logger.info(f"Org '{owner_name}' does not have a subscription")
                 # Give the org a free subscription
-                org.subscription = (
-                    OrgSubscription(
-                        plan_id=0,
-                        n_users=1,
-                        price=0.0,
-                        period_months=1,
-                        subscriber_user_id=current_user.id,
-                    ),
+                org.subscription = OrgSubscription(
+                    plan_id=0,
+                    n_users=1,
+                    price=0.0,
+                    period_months=1,
+                    subscriber_user_id=current_user.id,
+                    org_id=org.id,
                 )
                 session.add(org.subscription)
                 session.commit()
@@ -2599,15 +2603,6 @@ def delete_project_file_lock(
     raise HTTPException(404, "Lock not found")
 
 
-class Notebook(BaseModel):
-    path: str
-    title: str
-    description: str | None = None
-    stage: str | None = None
-    output_format: Literal["html", "notebook"] | None = None
-    url: str | None = None
-
-
 @router.get("/projects/{owner_name}/{project_name}/notebooks")
 def get_project_notebooks(
     owner_name: str,
@@ -2636,6 +2631,17 @@ def get_project_notebooks(
             repo=repo,
             path=notebook["path"],
         )
+        try:
+            # If the notebook has HTML output, return that
+            html_path = get_executed_notebook_path(
+                notebook_path=notebook["path"], to="html"
+            )
+            html_item = app.projects.get_contents_from_repo(
+                project=project, repo=repo, path=html_path
+            )
+            item = html_item
+        except HTTPException as e:
+            logger.info(f"Notebook HTML does not exist at {html_path}: {e}")
         notebook["url"] = item.url
         # Figure out the output format from the URL content disposition
         if item.url is not None:
@@ -2836,6 +2842,24 @@ def get_project_showcase(
                 element_out = ShowcaseText(
                     text=(
                         f"YAML file at path '{element_in.yaml_file}' not found"
+                    )
+                )
+        elif isinstance(element_in, ShowcaseNotebookInput):
+            try:
+                element_out = ShowcaseNotebook(
+                    notebook=app.projects.get_notebook_from_repo(
+                        project=project,
+                        repo=repo,
+                        path=element_in.notebook,
+                    )
+                )
+            except Exception as e:
+                logger.warning(
+                    f"Failed to get showcase notebook from {element_in}: {e}"
+                )
+                element_out = ShowcaseText(
+                    text=(
+                        f"Notebook for path '{element_in.notebook}' not found"
                     )
                 )
         else:
