@@ -30,7 +30,9 @@ interface NotebookContentProps {
 }
 
 function NotebookContent({ notebook }: NotebookContentProps) {
-  const borderRadius = "6px"
+  const borderRadius = "5px"
+  const height = "81vh"
+  const width = "1000px"
   const { userName, projectName } = Route.useParams()
   const { data, isPending } = useQuery({
     queryFn: () => axios.get(String(notebook.url)),
@@ -47,7 +49,7 @@ function NotebookContent({ notebook }: NotebookContentProps) {
     if (notebook.output_format === "html" && notebook.url) {
       return (
         <>
-          <Box height="80vh" width="1000px">
+          <Box height={height} width={width}>
             <iframe
               width="100%"
               height="100%"
@@ -68,7 +70,7 @@ function NotebookContent({ notebook }: NotebookContentProps) {
     <>
       {/* If we have content, just show that instead of downloading */}
       {notebook.content && notebook.output_format === "html" ? (
-        <Box height="80vh" width="1000px">
+        <Box height={height} width={width}>
           <embed
             height="100%"
             width="100%"
