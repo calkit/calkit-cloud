@@ -2640,9 +2640,11 @@ def get_project_notebooks(
                 project=project, repo=repo, path=html_path
             )
             item = html_item
+            notebook["output_format"] = "html"
         except HTTPException as e:
             logger.info(f"Notebook HTML does not exist at {html_path}: {e}")
         notebook["url"] = item.url
+        notebook["content"] = item.content
         # Figure out the output format from the URL content disposition
         if item.url is not None:
             params = params_from_url(item.url)

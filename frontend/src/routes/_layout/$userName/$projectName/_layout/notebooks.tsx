@@ -30,6 +30,9 @@ interface NotebookContentProps {
 }
 
 function NotebookContent({ notebook }: NotebookContentProps) {
+  const borderRadius = "5px"
+  const height = "81vh"
+  const width = "1000px"
   const { userName, projectName } = Route.useParams()
   const { data, isPending } = useQuery({
     queryFn: () => axios.get(String(notebook.url)),
@@ -40,18 +43,21 @@ function NotebookContent({ notebook }: NotebookContentProps) {
       "notebook-content",
       notebook.path,
     ],
+    enabled: Boolean(notebook.url),
   })
   const getOutput = (data: any) => {
-    if (notebook.output_format === "html") {
+    if (notebook.output_format === "html" && notebook.url) {
       return (
         <>
-          <iframe
-            width="1000px"
-            height="950px"
-            title="notebook"
-            srcDoc={data}
-            style={{ borderRadius: "10px" }}
-          />
+          <Box height={height} width={width}>
+            <iframe
+              width="100%"
+              height="100%"
+              title="notebook"
+              srcDoc={data}
+              style={{ borderRadius }}
+            />
+          </Box>
         </>
       )
     }
@@ -62,11 +68,27 @@ function NotebookContent({ notebook }: NotebookContentProps) {
   }
   return (
     <>
-      {isPending ? (
+      {/* If we have content, just show that instead of downloading */}
+      {notebook.content && notebook.output_format === "html" ? (
+        <Box height={height} width={width}>
+          <embed
+            height="100%"
+            width="100%"
+            title="notebook"
+            type="text/html"
+            style={{ borderRadius }}
+            src={`data:text/html;base64,${notebook.content}`}
+          />
+        </Box>
+      ) : (
+        ""
+      )}
+      {/* If we have a URL, fetch and cache it */}
+      {notebook.url && isPending ? (
         <Flex justify="center" align="center" height="full" width="full">
           <Spinner size="xl" color="ui.main" />
         </Flex>
-      ) : (
+      ) : notebook.url ? (
         <>
           {data?.data ? (
             <Box>{getOutput(data.data)}</Box>
@@ -74,6 +96,8 @@ function NotebookContent({ notebook }: NotebookContentProps) {
             "Notebook content could not be loaded."
           )}
         </>
+      ) : (
+        ""
       )}
     </>
   )
@@ -113,7 +137,7 @@ function Notebooks() {
             </Box>
           ) : (
             <>
-              <Flex width="full">
+              <Flex width="full" my={0} py={0}>
                 {/* Notebooks table of contents */}
                 <PageMenu>
                   <Heading size="md" mb={1}>
@@ -161,7 +185,8 @@ function Notebooks() {
                 <Box>
                   {allNotebooks?.map((notebook) => (
                     <>
-                      {notebook.title === selectedTitle && notebook.url ? (
+                      {notebook.title === selectedTitle &&
+                      (notebook.url || notebook.content) ? (
                         <NotebookContent
                           key={notebook.path}
                           notebook={notebook}
