@@ -40,6 +40,7 @@ import useAuth from "../../../../hooks/useAuth"
 import HelpContent from "../../../../components/Projects/HelpContent"
 import CloneProject from "../../../../components/Projects/CloneProject"
 import ProjectStatus from "../../../../components/Projects/ProjectStatus"
+import MakeProjectPublic from "../../../../components/Projects/MakeProjectPublic"
 
 export const Route = createFileRoute("/_layout/$userName/$projectName/_layout")(
   {
@@ -134,6 +135,7 @@ function ProjectLayout() {
     helpDrawer.onOpen()
   }
   const projectStatusModal = useDisclosure()
+  const projectPublicModal = useDisclosure()
 
   return (
     <>
@@ -160,9 +162,24 @@ function ProjectLayout() {
               </Box>
               {/* Public/private badge */}
               <Box mr={2} pb={0.5}>
-                <Badge color={project?.is_public ? "green.500" : "yellow.500"}>
+                <Badge
+                  color={project?.is_public ? "green.500" : "yellow.500"}
+                  onClick={() => {
+                    !project?.is_public ? projectPublicModal.onOpen() : null
+                  }}
+                  cursor={!project?.is_public ? "pointer" : "default"}
+                >
                   {project?.is_public ? "Public" : "Private"}
                 </Badge>
+                {project && !project?.is_public ? (
+                  <MakeProjectPublic
+                    project={project}
+                    isOpen={projectPublicModal.isOpen}
+                    onClose={projectPublicModal.onClose}
+                  />
+                ) : (
+                  ""
+                )}
               </Box>
               {/* Status badge */}
               <Box mr={2} pb={0.5}>
