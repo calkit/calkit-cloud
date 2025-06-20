@@ -10,415 +10,557 @@
 
 import { createFileRoute } from '@tanstack/react-router'
 
-// Import Routes
+import { Route as rootRouteImport } from './routes/__root'
+import { Route as ZenodoAuthRouteImport } from './routes/zenodo-auth'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as RecoverPasswordRouteImport } from './routes/recover-password'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as CheckoutRouteImport } from './routes/checkout'
+import { Route as LayoutRouteImport } from './routes/_layout'
+import { Route as LayoutIndexRouteImport } from './routes/_layout/index'
+import { Route as LayoutSettingsRouteImport } from './routes/_layout/settings'
+import { Route as LayoutProjectsRouteImport } from './routes/_layout/projects'
+import { Route as LayoutLearnRouteImport } from './routes/_layout/learn'
+import { Route as LayoutDatasetsRouteImport } from './routes/_layout/datasets'
+import { Route as LayoutAdminRouteImport } from './routes/_layout/admin'
+import { Route as LayoutUserNameProjectNameLayoutRouteImport } from './routes/_layout/$userName/$projectName/_layout'
+import { Route as LayoutUserNameProjectNameLayoutIndexRouteImport } from './routes/_layout/$userName/$projectName/_layout/index'
+import { Route as LayoutUserNameProjectNameLayoutSoftwareRouteImport } from './routes/_layout/$userName/$projectName/_layout/software'
+import { Route as LayoutUserNameProjectNameLayoutReferencesRouteImport } from './routes/_layout/$userName/$projectName/_layout/references'
+import { Route as LayoutUserNameProjectNameLayoutPublicationsRouteImport } from './routes/_layout/$userName/$projectName/_layout/publications'
+import { Route as LayoutUserNameProjectNameLayoutPipelineRouteImport } from './routes/_layout/$userName/$projectName/_layout/pipeline'
+import { Route as LayoutUserNameProjectNameLayoutNotebooksRouteImport } from './routes/_layout/$userName/$projectName/_layout/notebooks'
+import { Route as LayoutUserNameProjectNameLayoutLocalRouteImport } from './routes/_layout/$userName/$projectName/_layout/local'
+import { Route as LayoutUserNameProjectNameLayoutFilesRouteImport } from './routes/_layout/$userName/$projectName/_layout/files'
+import { Route as LayoutUserNameProjectNameLayoutFiguresRouteImport } from './routes/_layout/$userName/$projectName/_layout/figures'
+import { Route as LayoutUserNameProjectNameLayoutEnvironmentsRouteImport } from './routes/_layout/$userName/$projectName/_layout/environments'
+import { Route as LayoutUserNameProjectNameLayoutDatasetsRouteImport } from './routes/_layout/$userName/$projectName/_layout/datasets'
+import { Route as LayoutUserNameProjectNameLayoutCollaboratorsRouteImport } from './routes/_layout/$userName/$projectName/_layout/collaborators'
+import { Route as LayoutUserNameProjectNameLayoutAppRouteImport } from './routes/_layout/$userName/$projectName/_layout/app'
 
-import { Route as rootRoute } from './routes/__root'
-import { Route as ZenodoAuthImport } from './routes/zenodo-auth'
-import { Route as ResetPasswordImport } from './routes/reset-password'
-import { Route as RecoverPasswordImport } from './routes/recover-password'
-import { Route as LoginImport } from './routes/login'
-import { Route as CheckoutImport } from './routes/checkout'
-import { Route as LayoutImport } from './routes/_layout'
-import { Route as LayoutIndexImport } from './routes/_layout/index'
-import { Route as LayoutSettingsImport } from './routes/_layout/settings'
-import { Route as LayoutProjectsImport } from './routes/_layout/projects'
-import { Route as LayoutLearnImport } from './routes/_layout/learn'
-import { Route as LayoutDatasetsImport } from './routes/_layout/datasets'
-import { Route as LayoutAdminImport } from './routes/_layout/admin'
-import { Route as LayoutUserNameProjectNameLayoutImport } from './routes/_layout/$userName/$projectName/_layout'
-import { Route as LayoutUserNameProjectNameLayoutIndexImport } from './routes/_layout/$userName/$projectName/_layout/index'
-import { Route as LayoutUserNameProjectNameLayoutSoftwareImport } from './routes/_layout/$userName/$projectName/_layout/software'
-import { Route as LayoutUserNameProjectNameLayoutReferencesImport } from './routes/_layout/$userName/$projectName/_layout/references'
-import { Route as LayoutUserNameProjectNameLayoutPublicationsImport } from './routes/_layout/$userName/$projectName/_layout/publications'
-import { Route as LayoutUserNameProjectNameLayoutPipelineImport } from './routes/_layout/$userName/$projectName/_layout/pipeline'
-import { Route as LayoutUserNameProjectNameLayoutNotebooksImport } from './routes/_layout/$userName/$projectName/_layout/notebooks'
-import { Route as LayoutUserNameProjectNameLayoutLocalImport } from './routes/_layout/$userName/$projectName/_layout/local'
-import { Route as LayoutUserNameProjectNameLayoutFilesImport } from './routes/_layout/$userName/$projectName/_layout/files'
-import { Route as LayoutUserNameProjectNameLayoutFiguresImport } from './routes/_layout/$userName/$projectName/_layout/figures'
-import { Route as LayoutUserNameProjectNameLayoutEnvironmentsImport } from './routes/_layout/$userName/$projectName/_layout/environments'
-import { Route as LayoutUserNameProjectNameLayoutDatasetsImport } from './routes/_layout/$userName/$projectName/_layout/datasets'
-import { Route as LayoutUserNameProjectNameLayoutCollaboratorsImport } from './routes/_layout/$userName/$projectName/_layout/collaborators'
-import { Route as LayoutUserNameProjectNameLayoutAppImport } from './routes/_layout/$userName/$projectName/_layout/app'
-
-// Create Virtual Routes
-
-const LayoutUserNameProjectNameImport = createFileRoute(
+const LayoutUserNameProjectNameRouteImport = createFileRoute(
   '/_layout/$userName/$projectName',
 )()
 
-// Create/Update Routes
-
-const ZenodoAuthRoute = ZenodoAuthImport.update({
+const ZenodoAuthRoute = ZenodoAuthRouteImport.update({
   id: '/zenodo-auth',
   path: '/zenodo-auth',
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => rootRouteImport,
 } as any)
-
-const ResetPasswordRoute = ResetPasswordImport.update({
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
   path: '/reset-password',
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => rootRouteImport,
 } as any)
-
-const RecoverPasswordRoute = RecoverPasswordImport.update({
+const RecoverPasswordRoute = RecoverPasswordRouteImport.update({
   id: '/recover-password',
   path: '/recover-password',
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => rootRouteImport,
 } as any)
-
-const LoginRoute = LoginImport.update({
+const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => rootRouteImport,
 } as any)
-
-const CheckoutRoute = CheckoutImport.update({
+const CheckoutRoute = CheckoutRouteImport.update({
   id: '/checkout',
   path: '/checkout',
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => rootRouteImport,
 } as any)
-
-const LayoutRoute = LayoutImport.update({
+const LayoutRoute = LayoutRouteImport.update({
   id: '/_layout',
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => rootRouteImport,
 } as any)
-
-const LayoutIndexRoute = LayoutIndexImport.update({
+const LayoutIndexRoute = LayoutIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => LayoutRoute,
 } as any)
-
-const LayoutSettingsRoute = LayoutSettingsImport.update({
+const LayoutSettingsRoute = LayoutSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
   getParentRoute: () => LayoutRoute,
 } as any)
-
-const LayoutProjectsRoute = LayoutProjectsImport.update({
+const LayoutProjectsRoute = LayoutProjectsRouteImport.update({
   id: '/projects',
   path: '/projects',
   getParentRoute: () => LayoutRoute,
 } as any)
-
-const LayoutLearnRoute = LayoutLearnImport.update({
+const LayoutLearnRoute = LayoutLearnRouteImport.update({
   id: '/learn',
   path: '/learn',
   getParentRoute: () => LayoutRoute,
 } as any)
-
-const LayoutDatasetsRoute = LayoutDatasetsImport.update({
+const LayoutDatasetsRoute = LayoutDatasetsRouteImport.update({
   id: '/datasets',
   path: '/datasets',
   getParentRoute: () => LayoutRoute,
 } as any)
-
-const LayoutAdminRoute = LayoutAdminImport.update({
+const LayoutAdminRoute = LayoutAdminRouteImport.update({
   id: '/admin',
   path: '/admin',
   getParentRoute: () => LayoutRoute,
 } as any)
-
-const LayoutUserNameProjectNameRoute = LayoutUserNameProjectNameImport.update({
-  id: '/$userName/$projectName',
-  path: '/$userName/$projectName',
-  getParentRoute: () => LayoutRoute,
-} as any)
-
+const LayoutUserNameProjectNameRoute =
+  LayoutUserNameProjectNameRouteImport.update({
+    id: '/$userName/$projectName',
+    path: '/$userName/$projectName',
+    getParentRoute: () => LayoutRoute,
+  } as any)
 const LayoutUserNameProjectNameLayoutRoute =
-  LayoutUserNameProjectNameLayoutImport.update({
+  LayoutUserNameProjectNameLayoutRouteImport.update({
     id: '/_layout',
     getParentRoute: () => LayoutUserNameProjectNameRoute,
   } as any)
-
 const LayoutUserNameProjectNameLayoutIndexRoute =
-  LayoutUserNameProjectNameLayoutIndexImport.update({
+  LayoutUserNameProjectNameLayoutIndexRouteImport.update({
     id: '/',
     path: '/',
     getParentRoute: () => LayoutUserNameProjectNameLayoutRoute,
   } as any)
-
 const LayoutUserNameProjectNameLayoutSoftwareRoute =
-  LayoutUserNameProjectNameLayoutSoftwareImport.update({
+  LayoutUserNameProjectNameLayoutSoftwareRouteImport.update({
     id: '/software',
     path: '/software',
     getParentRoute: () => LayoutUserNameProjectNameLayoutRoute,
   } as any)
-
 const LayoutUserNameProjectNameLayoutReferencesRoute =
-  LayoutUserNameProjectNameLayoutReferencesImport.update({
+  LayoutUserNameProjectNameLayoutReferencesRouteImport.update({
     id: '/references',
     path: '/references',
     getParentRoute: () => LayoutUserNameProjectNameLayoutRoute,
   } as any)
-
 const LayoutUserNameProjectNameLayoutPublicationsRoute =
-  LayoutUserNameProjectNameLayoutPublicationsImport.update({
+  LayoutUserNameProjectNameLayoutPublicationsRouteImport.update({
     id: '/publications',
     path: '/publications',
     getParentRoute: () => LayoutUserNameProjectNameLayoutRoute,
   } as any)
-
 const LayoutUserNameProjectNameLayoutPipelineRoute =
-  LayoutUserNameProjectNameLayoutPipelineImport.update({
+  LayoutUserNameProjectNameLayoutPipelineRouteImport.update({
     id: '/pipeline',
     path: '/pipeline',
     getParentRoute: () => LayoutUserNameProjectNameLayoutRoute,
   } as any)
-
 const LayoutUserNameProjectNameLayoutNotebooksRoute =
-  LayoutUserNameProjectNameLayoutNotebooksImport.update({
+  LayoutUserNameProjectNameLayoutNotebooksRouteImport.update({
     id: '/notebooks',
     path: '/notebooks',
     getParentRoute: () => LayoutUserNameProjectNameLayoutRoute,
   } as any)
-
 const LayoutUserNameProjectNameLayoutLocalRoute =
-  LayoutUserNameProjectNameLayoutLocalImport.update({
+  LayoutUserNameProjectNameLayoutLocalRouteImport.update({
     id: '/local',
     path: '/local',
     getParentRoute: () => LayoutUserNameProjectNameLayoutRoute,
   } as any)
-
 const LayoutUserNameProjectNameLayoutFilesRoute =
-  LayoutUserNameProjectNameLayoutFilesImport.update({
+  LayoutUserNameProjectNameLayoutFilesRouteImport.update({
     id: '/files',
     path: '/files',
     getParentRoute: () => LayoutUserNameProjectNameLayoutRoute,
   } as any)
-
 const LayoutUserNameProjectNameLayoutFiguresRoute =
-  LayoutUserNameProjectNameLayoutFiguresImport.update({
+  LayoutUserNameProjectNameLayoutFiguresRouteImport.update({
     id: '/figures',
     path: '/figures',
     getParentRoute: () => LayoutUserNameProjectNameLayoutRoute,
   } as any)
-
 const LayoutUserNameProjectNameLayoutEnvironmentsRoute =
-  LayoutUserNameProjectNameLayoutEnvironmentsImport.update({
+  LayoutUserNameProjectNameLayoutEnvironmentsRouteImport.update({
     id: '/environments',
     path: '/environments',
     getParentRoute: () => LayoutUserNameProjectNameLayoutRoute,
   } as any)
-
 const LayoutUserNameProjectNameLayoutDatasetsRoute =
-  LayoutUserNameProjectNameLayoutDatasetsImport.update({
+  LayoutUserNameProjectNameLayoutDatasetsRouteImport.update({
     id: '/datasets',
     path: '/datasets',
     getParentRoute: () => LayoutUserNameProjectNameLayoutRoute,
   } as any)
-
 const LayoutUserNameProjectNameLayoutCollaboratorsRoute =
-  LayoutUserNameProjectNameLayoutCollaboratorsImport.update({
+  LayoutUserNameProjectNameLayoutCollaboratorsRouteImport.update({
     id: '/collaborators',
     path: '/collaborators',
     getParentRoute: () => LayoutUserNameProjectNameLayoutRoute,
   } as any)
-
 const LayoutUserNameProjectNameLayoutAppRoute =
-  LayoutUserNameProjectNameLayoutAppImport.update({
+  LayoutUserNameProjectNameLayoutAppRouteImport.update({
     id: '/app',
     path: '/app',
     getParentRoute: () => LayoutUserNameProjectNameLayoutRoute,
   } as any)
 
-// Populate the FileRoutesByPath interface
+export interface FileRoutesByFullPath {
+  '/checkout': typeof CheckoutRoute
+  '/login': typeof LoginRoute
+  '/recover-password': typeof RecoverPasswordRoute
+  '/reset-password': typeof ResetPasswordRoute
+  '/zenodo-auth': typeof ZenodoAuthRoute
+  '/admin': typeof LayoutAdminRoute
+  '/datasets': typeof LayoutDatasetsRoute
+  '/learn': typeof LayoutLearnRoute
+  '/projects': typeof LayoutProjectsRoute
+  '/settings': typeof LayoutSettingsRoute
+  '/': typeof LayoutIndexRoute
+  '/$userName/$projectName': typeof LayoutUserNameProjectNameLayoutRouteWithChildren
+  '/$userName/$projectName/app': typeof LayoutUserNameProjectNameLayoutAppRoute
+  '/$userName/$projectName/collaborators': typeof LayoutUserNameProjectNameLayoutCollaboratorsRoute
+  '/$userName/$projectName/datasets': typeof LayoutUserNameProjectNameLayoutDatasetsRoute
+  '/$userName/$projectName/environments': typeof LayoutUserNameProjectNameLayoutEnvironmentsRoute
+  '/$userName/$projectName/figures': typeof LayoutUserNameProjectNameLayoutFiguresRoute
+  '/$userName/$projectName/files': typeof LayoutUserNameProjectNameLayoutFilesRoute
+  '/$userName/$projectName/local': typeof LayoutUserNameProjectNameLayoutLocalRoute
+  '/$userName/$projectName/notebooks': typeof LayoutUserNameProjectNameLayoutNotebooksRoute
+  '/$userName/$projectName/pipeline': typeof LayoutUserNameProjectNameLayoutPipelineRoute
+  '/$userName/$projectName/publications': typeof LayoutUserNameProjectNameLayoutPublicationsRoute
+  '/$userName/$projectName/references': typeof LayoutUserNameProjectNameLayoutReferencesRoute
+  '/$userName/$projectName/software': typeof LayoutUserNameProjectNameLayoutSoftwareRoute
+  '/$userName/$projectName/': typeof LayoutUserNameProjectNameLayoutIndexRoute
+}
+export interface FileRoutesByTo {
+  '/checkout': typeof CheckoutRoute
+  '/login': typeof LoginRoute
+  '/recover-password': typeof RecoverPasswordRoute
+  '/reset-password': typeof ResetPasswordRoute
+  '/zenodo-auth': typeof ZenodoAuthRoute
+  '/admin': typeof LayoutAdminRoute
+  '/datasets': typeof LayoutDatasetsRoute
+  '/learn': typeof LayoutLearnRoute
+  '/projects': typeof LayoutProjectsRoute
+  '/settings': typeof LayoutSettingsRoute
+  '/': typeof LayoutIndexRoute
+  '/$userName/$projectName': typeof LayoutUserNameProjectNameLayoutIndexRoute
+  '/$userName/$projectName/app': typeof LayoutUserNameProjectNameLayoutAppRoute
+  '/$userName/$projectName/collaborators': typeof LayoutUserNameProjectNameLayoutCollaboratorsRoute
+  '/$userName/$projectName/datasets': typeof LayoutUserNameProjectNameLayoutDatasetsRoute
+  '/$userName/$projectName/environments': typeof LayoutUserNameProjectNameLayoutEnvironmentsRoute
+  '/$userName/$projectName/figures': typeof LayoutUserNameProjectNameLayoutFiguresRoute
+  '/$userName/$projectName/files': typeof LayoutUserNameProjectNameLayoutFilesRoute
+  '/$userName/$projectName/local': typeof LayoutUserNameProjectNameLayoutLocalRoute
+  '/$userName/$projectName/notebooks': typeof LayoutUserNameProjectNameLayoutNotebooksRoute
+  '/$userName/$projectName/pipeline': typeof LayoutUserNameProjectNameLayoutPipelineRoute
+  '/$userName/$projectName/publications': typeof LayoutUserNameProjectNameLayoutPublicationsRoute
+  '/$userName/$projectName/references': typeof LayoutUserNameProjectNameLayoutReferencesRoute
+  '/$userName/$projectName/software': typeof LayoutUserNameProjectNameLayoutSoftwareRoute
+}
+export interface FileRoutesById {
+  __root__: typeof rootRouteImport
+  '/_layout': typeof LayoutRouteWithChildren
+  '/checkout': typeof CheckoutRoute
+  '/login': typeof LoginRoute
+  '/recover-password': typeof RecoverPasswordRoute
+  '/reset-password': typeof ResetPasswordRoute
+  '/zenodo-auth': typeof ZenodoAuthRoute
+  '/_layout/admin': typeof LayoutAdminRoute
+  '/_layout/datasets': typeof LayoutDatasetsRoute
+  '/_layout/learn': typeof LayoutLearnRoute
+  '/_layout/projects': typeof LayoutProjectsRoute
+  '/_layout/settings': typeof LayoutSettingsRoute
+  '/_layout/': typeof LayoutIndexRoute
+  '/_layout/$userName/$projectName': typeof LayoutUserNameProjectNameRouteWithChildren
+  '/_layout/$userName/$projectName/_layout': typeof LayoutUserNameProjectNameLayoutRouteWithChildren
+  '/_layout/$userName/$projectName/_layout/app': typeof LayoutUserNameProjectNameLayoutAppRoute
+  '/_layout/$userName/$projectName/_layout/collaborators': typeof LayoutUserNameProjectNameLayoutCollaboratorsRoute
+  '/_layout/$userName/$projectName/_layout/datasets': typeof LayoutUserNameProjectNameLayoutDatasetsRoute
+  '/_layout/$userName/$projectName/_layout/environments': typeof LayoutUserNameProjectNameLayoutEnvironmentsRoute
+  '/_layout/$userName/$projectName/_layout/figures': typeof LayoutUserNameProjectNameLayoutFiguresRoute
+  '/_layout/$userName/$projectName/_layout/files': typeof LayoutUserNameProjectNameLayoutFilesRoute
+  '/_layout/$userName/$projectName/_layout/local': typeof LayoutUserNameProjectNameLayoutLocalRoute
+  '/_layout/$userName/$projectName/_layout/notebooks': typeof LayoutUserNameProjectNameLayoutNotebooksRoute
+  '/_layout/$userName/$projectName/_layout/pipeline': typeof LayoutUserNameProjectNameLayoutPipelineRoute
+  '/_layout/$userName/$projectName/_layout/publications': typeof LayoutUserNameProjectNameLayoutPublicationsRoute
+  '/_layout/$userName/$projectName/_layout/references': typeof LayoutUserNameProjectNameLayoutReferencesRoute
+  '/_layout/$userName/$projectName/_layout/software': typeof LayoutUserNameProjectNameLayoutSoftwareRoute
+  '/_layout/$userName/$projectName/_layout/': typeof LayoutUserNameProjectNameLayoutIndexRoute
+}
+export interface FileRouteTypes {
+  fileRoutesByFullPath: FileRoutesByFullPath
+  fullPaths:
+    | '/checkout'
+    | '/login'
+    | '/recover-password'
+    | '/reset-password'
+    | '/zenodo-auth'
+    | '/admin'
+    | '/datasets'
+    | '/learn'
+    | '/projects'
+    | '/settings'
+    | '/'
+    | '/$userName/$projectName'
+    | '/$userName/$projectName/app'
+    | '/$userName/$projectName/collaborators'
+    | '/$userName/$projectName/datasets'
+    | '/$userName/$projectName/environments'
+    | '/$userName/$projectName/figures'
+    | '/$userName/$projectName/files'
+    | '/$userName/$projectName/local'
+    | '/$userName/$projectName/notebooks'
+    | '/$userName/$projectName/pipeline'
+    | '/$userName/$projectName/publications'
+    | '/$userName/$projectName/references'
+    | '/$userName/$projectName/software'
+    | '/$userName/$projectName/'
+  fileRoutesByTo: FileRoutesByTo
+  to:
+    | '/checkout'
+    | '/login'
+    | '/recover-password'
+    | '/reset-password'
+    | '/zenodo-auth'
+    | '/admin'
+    | '/datasets'
+    | '/learn'
+    | '/projects'
+    | '/settings'
+    | '/'
+    | '/$userName/$projectName'
+    | '/$userName/$projectName/app'
+    | '/$userName/$projectName/collaborators'
+    | '/$userName/$projectName/datasets'
+    | '/$userName/$projectName/environments'
+    | '/$userName/$projectName/figures'
+    | '/$userName/$projectName/files'
+    | '/$userName/$projectName/local'
+    | '/$userName/$projectName/notebooks'
+    | '/$userName/$projectName/pipeline'
+    | '/$userName/$projectName/publications'
+    | '/$userName/$projectName/references'
+    | '/$userName/$projectName/software'
+  id:
+    | '__root__'
+    | '/_layout'
+    | '/checkout'
+    | '/login'
+    | '/recover-password'
+    | '/reset-password'
+    | '/zenodo-auth'
+    | '/_layout/admin'
+    | '/_layout/datasets'
+    | '/_layout/learn'
+    | '/_layout/projects'
+    | '/_layout/settings'
+    | '/_layout/'
+    | '/_layout/$userName/$projectName'
+    | '/_layout/$userName/$projectName/_layout'
+    | '/_layout/$userName/$projectName/_layout/app'
+    | '/_layout/$userName/$projectName/_layout/collaborators'
+    | '/_layout/$userName/$projectName/_layout/datasets'
+    | '/_layout/$userName/$projectName/_layout/environments'
+    | '/_layout/$userName/$projectName/_layout/figures'
+    | '/_layout/$userName/$projectName/_layout/files'
+    | '/_layout/$userName/$projectName/_layout/local'
+    | '/_layout/$userName/$projectName/_layout/notebooks'
+    | '/_layout/$userName/$projectName/_layout/pipeline'
+    | '/_layout/$userName/$projectName/_layout/publications'
+    | '/_layout/$userName/$projectName/_layout/references'
+    | '/_layout/$userName/$projectName/_layout/software'
+    | '/_layout/$userName/$projectName/_layout/'
+  fileRoutesById: FileRoutesById
+}
+export interface RootRouteChildren {
+  LayoutRoute: typeof LayoutRouteWithChildren
+  CheckoutRoute: typeof CheckoutRoute
+  LoginRoute: typeof LoginRoute
+  RecoverPasswordRoute: typeof RecoverPasswordRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
+  ZenodoAuthRoute: typeof ZenodoAuthRoute
+}
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/_layout': {
-      id: '/_layout'
-      path: ''
-      fullPath: ''
-      preLoaderRoute: typeof LayoutImport
-      parentRoute: typeof rootRoute
-    }
-    '/checkout': {
-      id: '/checkout'
-      path: '/checkout'
-      fullPath: '/checkout'
-      preLoaderRoute: typeof CheckoutImport
-      parentRoute: typeof rootRoute
-    }
-    '/login': {
-      id: '/login'
-      path: '/login'
-      fullPath: '/login'
-      preLoaderRoute: typeof LoginImport
-      parentRoute: typeof rootRoute
-    }
-    '/recover-password': {
-      id: '/recover-password'
-      path: '/recover-password'
-      fullPath: '/recover-password'
-      preLoaderRoute: typeof RecoverPasswordImport
-      parentRoute: typeof rootRoute
+    '/zenodo-auth': {
+      id: '/zenodo-auth'
+      path: '/zenodo-auth'
+      fullPath: '/zenodo-auth'
+      preLoaderRoute: typeof ZenodoAuthRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/reset-password': {
       id: '/reset-password'
       path: '/reset-password'
       fullPath: '/reset-password'
-      preLoaderRoute: typeof ResetPasswordImport
-      parentRoute: typeof rootRoute
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/zenodo-auth': {
-      id: '/zenodo-auth'
-      path: '/zenodo-auth'
-      fullPath: '/zenodo-auth'
-      preLoaderRoute: typeof ZenodoAuthImport
-      parentRoute: typeof rootRoute
+    '/recover-password': {
+      id: '/recover-password'
+      path: '/recover-password'
+      fullPath: '/recover-password'
+      preLoaderRoute: typeof RecoverPasswordRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_layout/admin': {
-      id: '/_layout/admin'
-      path: '/admin'
-      fullPath: '/admin'
-      preLoaderRoute: typeof LayoutAdminImport
-      parentRoute: typeof LayoutImport
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_layout/datasets': {
-      id: '/_layout/datasets'
-      path: '/datasets'
-      fullPath: '/datasets'
-      preLoaderRoute: typeof LayoutDatasetsImport
-      parentRoute: typeof LayoutImport
+    '/checkout': {
+      id: '/checkout'
+      path: '/checkout'
+      fullPath: '/checkout'
+      preLoaderRoute: typeof CheckoutRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_layout/learn': {
-      id: '/_layout/learn'
-      path: '/learn'
-      fullPath: '/learn'
-      preLoaderRoute: typeof LayoutLearnImport
-      parentRoute: typeof LayoutImport
-    }
-    '/_layout/projects': {
-      id: '/_layout/projects'
-      path: '/projects'
-      fullPath: '/projects'
-      preLoaderRoute: typeof LayoutProjectsImport
-      parentRoute: typeof LayoutImport
-    }
-    '/_layout/settings': {
-      id: '/_layout/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof LayoutSettingsImport
-      parentRoute: typeof LayoutImport
+    '/_layout': {
+      id: '/_layout'
+      path: ''
+      fullPath: ''
+      preLoaderRoute: typeof LayoutRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_layout/': {
       id: '/_layout/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof LayoutIndexImport
-      parentRoute: typeof LayoutImport
+      preLoaderRoute: typeof LayoutIndexRouteImport
+      parentRoute: typeof LayoutRoute
+    }
+    '/_layout/settings': {
+      id: '/_layout/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof LayoutSettingsRouteImport
+      parentRoute: typeof LayoutRoute
+    }
+    '/_layout/projects': {
+      id: '/_layout/projects'
+      path: '/projects'
+      fullPath: '/projects'
+      preLoaderRoute: typeof LayoutProjectsRouteImport
+      parentRoute: typeof LayoutRoute
+    }
+    '/_layout/learn': {
+      id: '/_layout/learn'
+      path: '/learn'
+      fullPath: '/learn'
+      preLoaderRoute: typeof LayoutLearnRouteImport
+      parentRoute: typeof LayoutRoute
+    }
+    '/_layout/datasets': {
+      id: '/_layout/datasets'
+      path: '/datasets'
+      fullPath: '/datasets'
+      preLoaderRoute: typeof LayoutDatasetsRouteImport
+      parentRoute: typeof LayoutRoute
+    }
+    '/_layout/admin': {
+      id: '/_layout/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof LayoutAdminRouteImport
+      parentRoute: typeof LayoutRoute
     }
     '/_layout/$userName/$projectName': {
       id: '/_layout/$userName/$projectName'
       path: '/$userName/$projectName'
       fullPath: '/$userName/$projectName'
-      preLoaderRoute: typeof LayoutUserNameProjectNameImport
-      parentRoute: typeof LayoutImport
+      preLoaderRoute: typeof LayoutUserNameProjectNameRouteImport
+      parentRoute: typeof LayoutRoute
     }
     '/_layout/$userName/$projectName/_layout': {
       id: '/_layout/$userName/$projectName/_layout'
       path: '/$userName/$projectName'
       fullPath: '/$userName/$projectName'
-      preLoaderRoute: typeof LayoutUserNameProjectNameLayoutImport
+      preLoaderRoute: typeof LayoutUserNameProjectNameLayoutRouteImport
       parentRoute: typeof LayoutUserNameProjectNameRoute
-    }
-    '/_layout/$userName/$projectName/_layout/app': {
-      id: '/_layout/$userName/$projectName/_layout/app'
-      path: '/app'
-      fullPath: '/$userName/$projectName/app'
-      preLoaderRoute: typeof LayoutUserNameProjectNameLayoutAppImport
-      parentRoute: typeof LayoutUserNameProjectNameLayoutImport
-    }
-    '/_layout/$userName/$projectName/_layout/collaborators': {
-      id: '/_layout/$userName/$projectName/_layout/collaborators'
-      path: '/collaborators'
-      fullPath: '/$userName/$projectName/collaborators'
-      preLoaderRoute: typeof LayoutUserNameProjectNameLayoutCollaboratorsImport
-      parentRoute: typeof LayoutUserNameProjectNameLayoutImport
-    }
-    '/_layout/$userName/$projectName/_layout/datasets': {
-      id: '/_layout/$userName/$projectName/_layout/datasets'
-      path: '/datasets'
-      fullPath: '/$userName/$projectName/datasets'
-      preLoaderRoute: typeof LayoutUserNameProjectNameLayoutDatasetsImport
-      parentRoute: typeof LayoutUserNameProjectNameLayoutImport
-    }
-    '/_layout/$userName/$projectName/_layout/environments': {
-      id: '/_layout/$userName/$projectName/_layout/environments'
-      path: '/environments'
-      fullPath: '/$userName/$projectName/environments'
-      preLoaderRoute: typeof LayoutUserNameProjectNameLayoutEnvironmentsImport
-      parentRoute: typeof LayoutUserNameProjectNameLayoutImport
-    }
-    '/_layout/$userName/$projectName/_layout/figures': {
-      id: '/_layout/$userName/$projectName/_layout/figures'
-      path: '/figures'
-      fullPath: '/$userName/$projectName/figures'
-      preLoaderRoute: typeof LayoutUserNameProjectNameLayoutFiguresImport
-      parentRoute: typeof LayoutUserNameProjectNameLayoutImport
-    }
-    '/_layout/$userName/$projectName/_layout/files': {
-      id: '/_layout/$userName/$projectName/_layout/files'
-      path: '/files'
-      fullPath: '/$userName/$projectName/files'
-      preLoaderRoute: typeof LayoutUserNameProjectNameLayoutFilesImport
-      parentRoute: typeof LayoutUserNameProjectNameLayoutImport
-    }
-    '/_layout/$userName/$projectName/_layout/local': {
-      id: '/_layout/$userName/$projectName/_layout/local'
-      path: '/local'
-      fullPath: '/$userName/$projectName/local'
-      preLoaderRoute: typeof LayoutUserNameProjectNameLayoutLocalImport
-      parentRoute: typeof LayoutUserNameProjectNameLayoutImport
-    }
-    '/_layout/$userName/$projectName/_layout/notebooks': {
-      id: '/_layout/$userName/$projectName/_layout/notebooks'
-      path: '/notebooks'
-      fullPath: '/$userName/$projectName/notebooks'
-      preLoaderRoute: typeof LayoutUserNameProjectNameLayoutNotebooksImport
-      parentRoute: typeof LayoutUserNameProjectNameLayoutImport
-    }
-    '/_layout/$userName/$projectName/_layout/pipeline': {
-      id: '/_layout/$userName/$projectName/_layout/pipeline'
-      path: '/pipeline'
-      fullPath: '/$userName/$projectName/pipeline'
-      preLoaderRoute: typeof LayoutUserNameProjectNameLayoutPipelineImport
-      parentRoute: typeof LayoutUserNameProjectNameLayoutImport
-    }
-    '/_layout/$userName/$projectName/_layout/publications': {
-      id: '/_layout/$userName/$projectName/_layout/publications'
-      path: '/publications'
-      fullPath: '/$userName/$projectName/publications'
-      preLoaderRoute: typeof LayoutUserNameProjectNameLayoutPublicationsImport
-      parentRoute: typeof LayoutUserNameProjectNameLayoutImport
-    }
-    '/_layout/$userName/$projectName/_layout/references': {
-      id: '/_layout/$userName/$projectName/_layout/references'
-      path: '/references'
-      fullPath: '/$userName/$projectName/references'
-      preLoaderRoute: typeof LayoutUserNameProjectNameLayoutReferencesImport
-      parentRoute: typeof LayoutUserNameProjectNameLayoutImport
-    }
-    '/_layout/$userName/$projectName/_layout/software': {
-      id: '/_layout/$userName/$projectName/_layout/software'
-      path: '/software'
-      fullPath: '/$userName/$projectName/software'
-      preLoaderRoute: typeof LayoutUserNameProjectNameLayoutSoftwareImport
-      parentRoute: typeof LayoutUserNameProjectNameLayoutImport
     }
     '/_layout/$userName/$projectName/_layout/': {
       id: '/_layout/$userName/$projectName/_layout/'
       path: '/'
       fullPath: '/$userName/$projectName/'
-      preLoaderRoute: typeof LayoutUserNameProjectNameLayoutIndexImport
-      parentRoute: typeof LayoutUserNameProjectNameLayoutImport
+      preLoaderRoute: typeof LayoutUserNameProjectNameLayoutIndexRouteImport
+      parentRoute: typeof LayoutUserNameProjectNameLayoutRoute
+    }
+    '/_layout/$userName/$projectName/_layout/software': {
+      id: '/_layout/$userName/$projectName/_layout/software'
+      path: '/software'
+      fullPath: '/$userName/$projectName/software'
+      preLoaderRoute: typeof LayoutUserNameProjectNameLayoutSoftwareRouteImport
+      parentRoute: typeof LayoutUserNameProjectNameLayoutRoute
+    }
+    '/_layout/$userName/$projectName/_layout/references': {
+      id: '/_layout/$userName/$projectName/_layout/references'
+      path: '/references'
+      fullPath: '/$userName/$projectName/references'
+      preLoaderRoute: typeof LayoutUserNameProjectNameLayoutReferencesRouteImport
+      parentRoute: typeof LayoutUserNameProjectNameLayoutRoute
+    }
+    '/_layout/$userName/$projectName/_layout/publications': {
+      id: '/_layout/$userName/$projectName/_layout/publications'
+      path: '/publications'
+      fullPath: '/$userName/$projectName/publications'
+      preLoaderRoute: typeof LayoutUserNameProjectNameLayoutPublicationsRouteImport
+      parentRoute: typeof LayoutUserNameProjectNameLayoutRoute
+    }
+    '/_layout/$userName/$projectName/_layout/pipeline': {
+      id: '/_layout/$userName/$projectName/_layout/pipeline'
+      path: '/pipeline'
+      fullPath: '/$userName/$projectName/pipeline'
+      preLoaderRoute: typeof LayoutUserNameProjectNameLayoutPipelineRouteImport
+      parentRoute: typeof LayoutUserNameProjectNameLayoutRoute
+    }
+    '/_layout/$userName/$projectName/_layout/notebooks': {
+      id: '/_layout/$userName/$projectName/_layout/notebooks'
+      path: '/notebooks'
+      fullPath: '/$userName/$projectName/notebooks'
+      preLoaderRoute: typeof LayoutUserNameProjectNameLayoutNotebooksRouteImport
+      parentRoute: typeof LayoutUserNameProjectNameLayoutRoute
+    }
+    '/_layout/$userName/$projectName/_layout/local': {
+      id: '/_layout/$userName/$projectName/_layout/local'
+      path: '/local'
+      fullPath: '/$userName/$projectName/local'
+      preLoaderRoute: typeof LayoutUserNameProjectNameLayoutLocalRouteImport
+      parentRoute: typeof LayoutUserNameProjectNameLayoutRoute
+    }
+    '/_layout/$userName/$projectName/_layout/files': {
+      id: '/_layout/$userName/$projectName/_layout/files'
+      path: '/files'
+      fullPath: '/$userName/$projectName/files'
+      preLoaderRoute: typeof LayoutUserNameProjectNameLayoutFilesRouteImport
+      parentRoute: typeof LayoutUserNameProjectNameLayoutRoute
+    }
+    '/_layout/$userName/$projectName/_layout/figures': {
+      id: '/_layout/$userName/$projectName/_layout/figures'
+      path: '/figures'
+      fullPath: '/$userName/$projectName/figures'
+      preLoaderRoute: typeof LayoutUserNameProjectNameLayoutFiguresRouteImport
+      parentRoute: typeof LayoutUserNameProjectNameLayoutRoute
+    }
+    '/_layout/$userName/$projectName/_layout/environments': {
+      id: '/_layout/$userName/$projectName/_layout/environments'
+      path: '/environments'
+      fullPath: '/$userName/$projectName/environments'
+      preLoaderRoute: typeof LayoutUserNameProjectNameLayoutEnvironmentsRouteImport
+      parentRoute: typeof LayoutUserNameProjectNameLayoutRoute
+    }
+    '/_layout/$userName/$projectName/_layout/datasets': {
+      id: '/_layout/$userName/$projectName/_layout/datasets'
+      path: '/datasets'
+      fullPath: '/$userName/$projectName/datasets'
+      preLoaderRoute: typeof LayoutUserNameProjectNameLayoutDatasetsRouteImport
+      parentRoute: typeof LayoutUserNameProjectNameLayoutRoute
+    }
+    '/_layout/$userName/$projectName/_layout/collaborators': {
+      id: '/_layout/$userName/$projectName/_layout/collaborators'
+      path: '/collaborators'
+      fullPath: '/$userName/$projectName/collaborators'
+      preLoaderRoute: typeof LayoutUserNameProjectNameLayoutCollaboratorsRouteImport
+      parentRoute: typeof LayoutUserNameProjectNameLayoutRoute
+    }
+    '/_layout/$userName/$projectName/_layout/app': {
+      id: '/_layout/$userName/$projectName/_layout/app'
+      path: '/app'
+      fullPath: '/$userName/$projectName/app'
+      preLoaderRoute: typeof LayoutUserNameProjectNameLayoutAppRouteImport
+      parentRoute: typeof LayoutUserNameProjectNameLayoutRoute
     }
   }
 }
-
-// Create and export the route tree
 
 interface LayoutUserNameProjectNameLayoutRouteChildren {
   LayoutUserNameProjectNameLayoutAppRoute: typeof LayoutUserNameProjectNameLayoutAppRoute
@@ -509,189 +651,6 @@ const LayoutRouteChildren: LayoutRouteChildren = {
 const LayoutRouteWithChildren =
   LayoutRoute._addFileChildren(LayoutRouteChildren)
 
-export interface FileRoutesByFullPath {
-  '': typeof LayoutRouteWithChildren
-  '/checkout': typeof CheckoutRoute
-  '/login': typeof LoginRoute
-  '/recover-password': typeof RecoverPasswordRoute
-  '/reset-password': typeof ResetPasswordRoute
-  '/zenodo-auth': typeof ZenodoAuthRoute
-  '/admin': typeof LayoutAdminRoute
-  '/datasets': typeof LayoutDatasetsRoute
-  '/learn': typeof LayoutLearnRoute
-  '/projects': typeof LayoutProjectsRoute
-  '/settings': typeof LayoutSettingsRoute
-  '/': typeof LayoutIndexRoute
-  '/$userName/$projectName': typeof LayoutUserNameProjectNameLayoutRouteWithChildren
-  '/$userName/$projectName/app': typeof LayoutUserNameProjectNameLayoutAppRoute
-  '/$userName/$projectName/collaborators': typeof LayoutUserNameProjectNameLayoutCollaboratorsRoute
-  '/$userName/$projectName/datasets': typeof LayoutUserNameProjectNameLayoutDatasetsRoute
-  '/$userName/$projectName/environments': typeof LayoutUserNameProjectNameLayoutEnvironmentsRoute
-  '/$userName/$projectName/figures': typeof LayoutUserNameProjectNameLayoutFiguresRoute
-  '/$userName/$projectName/files': typeof LayoutUserNameProjectNameLayoutFilesRoute
-  '/$userName/$projectName/local': typeof LayoutUserNameProjectNameLayoutLocalRoute
-  '/$userName/$projectName/notebooks': typeof LayoutUserNameProjectNameLayoutNotebooksRoute
-  '/$userName/$projectName/pipeline': typeof LayoutUserNameProjectNameLayoutPipelineRoute
-  '/$userName/$projectName/publications': typeof LayoutUserNameProjectNameLayoutPublicationsRoute
-  '/$userName/$projectName/references': typeof LayoutUserNameProjectNameLayoutReferencesRoute
-  '/$userName/$projectName/software': typeof LayoutUserNameProjectNameLayoutSoftwareRoute
-  '/$userName/$projectName/': typeof LayoutUserNameProjectNameLayoutIndexRoute
-}
-
-export interface FileRoutesByTo {
-  '/checkout': typeof CheckoutRoute
-  '/login': typeof LoginRoute
-  '/recover-password': typeof RecoverPasswordRoute
-  '/reset-password': typeof ResetPasswordRoute
-  '/zenodo-auth': typeof ZenodoAuthRoute
-  '/admin': typeof LayoutAdminRoute
-  '/datasets': typeof LayoutDatasetsRoute
-  '/learn': typeof LayoutLearnRoute
-  '/projects': typeof LayoutProjectsRoute
-  '/settings': typeof LayoutSettingsRoute
-  '/': typeof LayoutIndexRoute
-  '/$userName/$projectName': typeof LayoutUserNameProjectNameLayoutIndexRoute
-  '/$userName/$projectName/app': typeof LayoutUserNameProjectNameLayoutAppRoute
-  '/$userName/$projectName/collaborators': typeof LayoutUserNameProjectNameLayoutCollaboratorsRoute
-  '/$userName/$projectName/datasets': typeof LayoutUserNameProjectNameLayoutDatasetsRoute
-  '/$userName/$projectName/environments': typeof LayoutUserNameProjectNameLayoutEnvironmentsRoute
-  '/$userName/$projectName/figures': typeof LayoutUserNameProjectNameLayoutFiguresRoute
-  '/$userName/$projectName/files': typeof LayoutUserNameProjectNameLayoutFilesRoute
-  '/$userName/$projectName/local': typeof LayoutUserNameProjectNameLayoutLocalRoute
-  '/$userName/$projectName/notebooks': typeof LayoutUserNameProjectNameLayoutNotebooksRoute
-  '/$userName/$projectName/pipeline': typeof LayoutUserNameProjectNameLayoutPipelineRoute
-  '/$userName/$projectName/publications': typeof LayoutUserNameProjectNameLayoutPublicationsRoute
-  '/$userName/$projectName/references': typeof LayoutUserNameProjectNameLayoutReferencesRoute
-  '/$userName/$projectName/software': typeof LayoutUserNameProjectNameLayoutSoftwareRoute
-}
-
-export interface FileRoutesById {
-  __root__: typeof rootRoute
-  '/_layout': typeof LayoutRouteWithChildren
-  '/checkout': typeof CheckoutRoute
-  '/login': typeof LoginRoute
-  '/recover-password': typeof RecoverPasswordRoute
-  '/reset-password': typeof ResetPasswordRoute
-  '/zenodo-auth': typeof ZenodoAuthRoute
-  '/_layout/admin': typeof LayoutAdminRoute
-  '/_layout/datasets': typeof LayoutDatasetsRoute
-  '/_layout/learn': typeof LayoutLearnRoute
-  '/_layout/projects': typeof LayoutProjectsRoute
-  '/_layout/settings': typeof LayoutSettingsRoute
-  '/_layout/': typeof LayoutIndexRoute
-  '/_layout/$userName/$projectName': typeof LayoutUserNameProjectNameRouteWithChildren
-  '/_layout/$userName/$projectName/_layout': typeof LayoutUserNameProjectNameLayoutRouteWithChildren
-  '/_layout/$userName/$projectName/_layout/app': typeof LayoutUserNameProjectNameLayoutAppRoute
-  '/_layout/$userName/$projectName/_layout/collaborators': typeof LayoutUserNameProjectNameLayoutCollaboratorsRoute
-  '/_layout/$userName/$projectName/_layout/datasets': typeof LayoutUserNameProjectNameLayoutDatasetsRoute
-  '/_layout/$userName/$projectName/_layout/environments': typeof LayoutUserNameProjectNameLayoutEnvironmentsRoute
-  '/_layout/$userName/$projectName/_layout/figures': typeof LayoutUserNameProjectNameLayoutFiguresRoute
-  '/_layout/$userName/$projectName/_layout/files': typeof LayoutUserNameProjectNameLayoutFilesRoute
-  '/_layout/$userName/$projectName/_layout/local': typeof LayoutUserNameProjectNameLayoutLocalRoute
-  '/_layout/$userName/$projectName/_layout/notebooks': typeof LayoutUserNameProjectNameLayoutNotebooksRoute
-  '/_layout/$userName/$projectName/_layout/pipeline': typeof LayoutUserNameProjectNameLayoutPipelineRoute
-  '/_layout/$userName/$projectName/_layout/publications': typeof LayoutUserNameProjectNameLayoutPublicationsRoute
-  '/_layout/$userName/$projectName/_layout/references': typeof LayoutUserNameProjectNameLayoutReferencesRoute
-  '/_layout/$userName/$projectName/_layout/software': typeof LayoutUserNameProjectNameLayoutSoftwareRoute
-  '/_layout/$userName/$projectName/_layout/': typeof LayoutUserNameProjectNameLayoutIndexRoute
-}
-
-export interface FileRouteTypes {
-  fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths:
-    | ''
-    | '/checkout'
-    | '/login'
-    | '/recover-password'
-    | '/reset-password'
-    | '/zenodo-auth'
-    | '/admin'
-    | '/datasets'
-    | '/learn'
-    | '/projects'
-    | '/settings'
-    | '/'
-    | '/$userName/$projectName'
-    | '/$userName/$projectName/app'
-    | '/$userName/$projectName/collaborators'
-    | '/$userName/$projectName/datasets'
-    | '/$userName/$projectName/environments'
-    | '/$userName/$projectName/figures'
-    | '/$userName/$projectName/files'
-    | '/$userName/$projectName/local'
-    | '/$userName/$projectName/notebooks'
-    | '/$userName/$projectName/pipeline'
-    | '/$userName/$projectName/publications'
-    | '/$userName/$projectName/references'
-    | '/$userName/$projectName/software'
-    | '/$userName/$projectName/'
-  fileRoutesByTo: FileRoutesByTo
-  to:
-    | '/checkout'
-    | '/login'
-    | '/recover-password'
-    | '/reset-password'
-    | '/zenodo-auth'
-    | '/admin'
-    | '/datasets'
-    | '/learn'
-    | '/projects'
-    | '/settings'
-    | '/'
-    | '/$userName/$projectName'
-    | '/$userName/$projectName/app'
-    | '/$userName/$projectName/collaborators'
-    | '/$userName/$projectName/datasets'
-    | '/$userName/$projectName/environments'
-    | '/$userName/$projectName/figures'
-    | '/$userName/$projectName/files'
-    | '/$userName/$projectName/local'
-    | '/$userName/$projectName/notebooks'
-    | '/$userName/$projectName/pipeline'
-    | '/$userName/$projectName/publications'
-    | '/$userName/$projectName/references'
-    | '/$userName/$projectName/software'
-  id:
-    | '__root__'
-    | '/_layout'
-    | '/checkout'
-    | '/login'
-    | '/recover-password'
-    | '/reset-password'
-    | '/zenodo-auth'
-    | '/_layout/admin'
-    | '/_layout/datasets'
-    | '/_layout/learn'
-    | '/_layout/projects'
-    | '/_layout/settings'
-    | '/_layout/'
-    | '/_layout/$userName/$projectName'
-    | '/_layout/$userName/$projectName/_layout'
-    | '/_layout/$userName/$projectName/_layout/app'
-    | '/_layout/$userName/$projectName/_layout/collaborators'
-    | '/_layout/$userName/$projectName/_layout/datasets'
-    | '/_layout/$userName/$projectName/_layout/environments'
-    | '/_layout/$userName/$projectName/_layout/figures'
-    | '/_layout/$userName/$projectName/_layout/files'
-    | '/_layout/$userName/$projectName/_layout/local'
-    | '/_layout/$userName/$projectName/_layout/notebooks'
-    | '/_layout/$userName/$projectName/_layout/pipeline'
-    | '/_layout/$userName/$projectName/_layout/publications'
-    | '/_layout/$userName/$projectName/_layout/references'
-    | '/_layout/$userName/$projectName/_layout/software'
-    | '/_layout/$userName/$projectName/_layout/'
-  fileRoutesById: FileRoutesById
-}
-
-export interface RootRouteChildren {
-  LayoutRoute: typeof LayoutRouteWithChildren
-  CheckoutRoute: typeof CheckoutRoute
-  LoginRoute: typeof LoginRoute
-  RecoverPasswordRoute: typeof RecoverPasswordRoute
-  ResetPasswordRoute: typeof ResetPasswordRoute
-  ZenodoAuthRoute: typeof ZenodoAuthRoute
-}
-
 const rootRouteChildren: RootRouteChildren = {
   LayoutRoute: LayoutRouteWithChildren,
   CheckoutRoute: CheckoutRoute,
@@ -700,154 +659,6 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   ZenodoAuthRoute: ZenodoAuthRoute,
 }
-
-export const routeTree = rootRoute
+export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-/* ROUTE_MANIFEST_START
-{
-  "routes": {
-    "__root__": {
-      "filePath": "__root.tsx",
-      "children": [
-        "/_layout",
-        "/checkout",
-        "/login",
-        "/recover-password",
-        "/reset-password",
-        "/zenodo-auth"
-      ]
-    },
-    "/_layout": {
-      "filePath": "_layout.tsx",
-      "children": [
-        "/_layout/admin",
-        "/_layout/datasets",
-        "/_layout/learn",
-        "/_layout/projects",
-        "/_layout/settings",
-        "/_layout/",
-        "/_layout/$userName/$projectName"
-      ]
-    },
-    "/checkout": {
-      "filePath": "checkout.tsx"
-    },
-    "/login": {
-      "filePath": "login.tsx"
-    },
-    "/recover-password": {
-      "filePath": "recover-password.tsx"
-    },
-    "/reset-password": {
-      "filePath": "reset-password.tsx"
-    },
-    "/zenodo-auth": {
-      "filePath": "zenodo-auth.tsx"
-    },
-    "/_layout/admin": {
-      "filePath": "_layout/admin.tsx",
-      "parent": "/_layout"
-    },
-    "/_layout/datasets": {
-      "filePath": "_layout/datasets.tsx",
-      "parent": "/_layout"
-    },
-    "/_layout/learn": {
-      "filePath": "_layout/learn.tsx",
-      "parent": "/_layout"
-    },
-    "/_layout/projects": {
-      "filePath": "_layout/projects.tsx",
-      "parent": "/_layout"
-    },
-    "/_layout/settings": {
-      "filePath": "_layout/settings.tsx",
-      "parent": "/_layout"
-    },
-    "/_layout/": {
-      "filePath": "_layout/index.tsx",
-      "parent": "/_layout"
-    },
-    "/_layout/$userName/$projectName": {
-      "filePath": "_layout/$userName/$projectName",
-      "parent": "/_layout",
-      "children": [
-        "/_layout/$userName/$projectName/_layout"
-      ]
-    },
-    "/_layout/$userName/$projectName/_layout": {
-      "filePath": "_layout/$userName/$projectName/_layout.tsx",
-      "parent": "/_layout/$userName/$projectName",
-      "children": [
-        "/_layout/$userName/$projectName/_layout/app",
-        "/_layout/$userName/$projectName/_layout/collaborators",
-        "/_layout/$userName/$projectName/_layout/datasets",
-        "/_layout/$userName/$projectName/_layout/environments",
-        "/_layout/$userName/$projectName/_layout/figures",
-        "/_layout/$userName/$projectName/_layout/files",
-        "/_layout/$userName/$projectName/_layout/local",
-        "/_layout/$userName/$projectName/_layout/notebooks",
-        "/_layout/$userName/$projectName/_layout/pipeline",
-        "/_layout/$userName/$projectName/_layout/publications",
-        "/_layout/$userName/$projectName/_layout/references",
-        "/_layout/$userName/$projectName/_layout/software",
-        "/_layout/$userName/$projectName/_layout/"
-      ]
-    },
-    "/_layout/$userName/$projectName/_layout/app": {
-      "filePath": "_layout/$userName/$projectName/_layout/app.tsx",
-      "parent": "/_layout/$userName/$projectName/_layout"
-    },
-    "/_layout/$userName/$projectName/_layout/collaborators": {
-      "filePath": "_layout/$userName/$projectName/_layout/collaborators.tsx",
-      "parent": "/_layout/$userName/$projectName/_layout"
-    },
-    "/_layout/$userName/$projectName/_layout/datasets": {
-      "filePath": "_layout/$userName/$projectName/_layout/datasets.tsx",
-      "parent": "/_layout/$userName/$projectName/_layout"
-    },
-    "/_layout/$userName/$projectName/_layout/environments": {
-      "filePath": "_layout/$userName/$projectName/_layout/environments.tsx",
-      "parent": "/_layout/$userName/$projectName/_layout"
-    },
-    "/_layout/$userName/$projectName/_layout/figures": {
-      "filePath": "_layout/$userName/$projectName/_layout/figures.tsx",
-      "parent": "/_layout/$userName/$projectName/_layout"
-    },
-    "/_layout/$userName/$projectName/_layout/files": {
-      "filePath": "_layout/$userName/$projectName/_layout/files.tsx",
-      "parent": "/_layout/$userName/$projectName/_layout"
-    },
-    "/_layout/$userName/$projectName/_layout/local": {
-      "filePath": "_layout/$userName/$projectName/_layout/local.tsx",
-      "parent": "/_layout/$userName/$projectName/_layout"
-    },
-    "/_layout/$userName/$projectName/_layout/notebooks": {
-      "filePath": "_layout/$userName/$projectName/_layout/notebooks.tsx",
-      "parent": "/_layout/$userName/$projectName/_layout"
-    },
-    "/_layout/$userName/$projectName/_layout/pipeline": {
-      "filePath": "_layout/$userName/$projectName/_layout/pipeline.tsx",
-      "parent": "/_layout/$userName/$projectName/_layout"
-    },
-    "/_layout/$userName/$projectName/_layout/publications": {
-      "filePath": "_layout/$userName/$projectName/_layout/publications.tsx",
-      "parent": "/_layout/$userName/$projectName/_layout"
-    },
-    "/_layout/$userName/$projectName/_layout/references": {
-      "filePath": "_layout/$userName/$projectName/_layout/references.tsx",
-      "parent": "/_layout/$userName/$projectName/_layout"
-    },
-    "/_layout/$userName/$projectName/_layout/software": {
-      "filePath": "_layout/$userName/$projectName/_layout/software.tsx",
-      "parent": "/_layout/$userName/$projectName/_layout"
-    },
-    "/_layout/$userName/$projectName/_layout/": {
-      "filePath": "_layout/$userName/$projectName/_layout/index.tsx",
-      "parent": "/_layout/$userName/$projectName/_layout"
-    }
-  }
-}
-ROUTE_MANIFEST_END */
