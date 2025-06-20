@@ -472,6 +472,7 @@ export type ProjectOptionalExtended = {
 export type ProjectPatch = {
   title?: string | null
   description?: string | null
+  is_public?: boolean | null
 }
 
 export type ProjectPublic = {

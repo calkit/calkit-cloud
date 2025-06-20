@@ -548,6 +548,7 @@ def get_project(
 class ProjectPatch(BaseModel):
     title: str | None = None
     description: str | None = None
+    is_public: bool | None = None
 
 
 @router.patch("/projects/{owner_name}/{project_name}")
@@ -568,6 +569,27 @@ def patch_project(
     if req.title is not None:
         project.title = req.title
     project.description = req.description
+    if req.is_public is not None:
+        project.is_public = req.is_public
+        visibility = "public" if req.is_public else "private"
+        # Make call to GitHub API to change repo visibility
+        gh_owner, gh_repo = project.git_repo_url.split("/")[-2:]
+        url = f"https://api.github.com/repos/{gh_owner}/{gh_repo}"
+        token = users.get_github_token(session=session, user=current_user)
+        headers = {"Authorization": f"Bearer {token}"}
+        resp = requests.patch(
+            url,
+            json={"visibility": visibility},
+            headers=headers,
+        )
+        if resp.status_code != 200:
+            logger.warning(
+                "Failed to change repo visibility for "
+                f"{owner_name}/{project_name}: {resp.text}"
+            )
+            raise HTTPException(
+                resp.status_code, "Failed to change GitHub repo visibility"
+            )
     session.commit()
     session.refresh(project)
     return ProjectPublic.model_validate(project)

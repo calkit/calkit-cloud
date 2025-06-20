@@ -2415,6 +2415,17 @@ export const $ProjectPatch = {
         },
       ],
     },
+    is_public: {
+      type: "any-of",
+      contains: [
+        {
+          type: "boolean",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
   },
 } as const
 
