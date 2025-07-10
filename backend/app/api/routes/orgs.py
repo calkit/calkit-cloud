@@ -120,8 +120,18 @@ def post_org(
     if role != "admin":
         raise HTTPException(400, "Must be admin of GitHub org to create")
     # If the role is admin, we can make this user an owner here
+    # Figure out the display name
+    display_name = req.display_name
+    if display_name is None:
+        display_name = org_resp.json()["name"]
+    if display_name is None:
+        display_name = req.github_name
+    if display_name is None:
+        raise HTTPException(
+            400, "Cannot detect display name; one must be provided"
+        )
     org = Org(
-        display_name=req.display_name or org_resp.json()["name"],
+        display_name=display_name,
         account=Account(name=org_name, github_name=req.github_name),
         user_memberships=[
             UserOrgMembership(user=current_user, role_id=ROLE_IDS["owner"])
