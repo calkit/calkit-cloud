@@ -31,6 +31,10 @@ reusable_oauth2_optional = OAuth2PasswordBearer(
     tokenUrl=f"{settings.API_V1_STR}/login/access-token", auto_error=False
 )
 
+PAT_SELECTOR_LENGTH_BYTES = 8
+PAT_VERIFIER_LENGTH_BYTES = 24
+PAT_SELECTOR_END_CHAR_IDX = 4 + PAT_SELECTOR_LENGTH_BYTES * 2
+
 
 def get_db() -> Generator[Session, None, None]:
     with Session(engine) as session:
@@ -46,8 +50,8 @@ def get_current_user(session: SessionDep, token: TokenDep) -> User:
     # Handle personal access tokens, which start with 'ckp_'
     if token.startswith("ckp_"):
         # Try to find the token in the database by its selector
-        selector = token[4:36]
-        verifier = token[36:]
+        selector = token[4:PAT_SELECTOR_END_CHAR_IDX]
+        verifier = token[PAT_SELECTOR_END_CHAR_IDX:]
         token_in_db = session.exec(
             select(UserToken).where(UserToken.selector == selector)
         ).first()
@@ -140,8 +144,8 @@ def get_current_user_with_token_scope(
     # Handle personal access tokens, which start with 'ckp_'
     if token.startswith("ckp_"):
         # Try to find the token in the database by its selector
-        selector = token[4:36]
-        verifier = token[36:]
+        selector = token[4:PAT_SELECTOR_END_CHAR_IDX]
+        verifier = token[PAT_SELECTOR_END_CHAR_IDX:]
         token_in_db = session.exec(
             select(UserToken).where(UserToken.selector == selector)
         ).first()

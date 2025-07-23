@@ -14,7 +14,13 @@ from sqlmodel import Field, func, select
 
 import app.stripe
 from app import mixpanel, users
-from app.api.deps import CurrentUser, SessionDep, get_current_active_superuser
+from app.api.deps import (
+    PAT_SELECTOR_LENGTH_BYTES,
+    PAT_VERIFIER_LENGTH_BYTES,
+    CurrentUser,
+    SessionDep,
+    get_current_active_superuser,
+)
 from app.config import settings
 from app.core import utcnow
 from app.messaging import generate_new_account_email, send_email
@@ -397,8 +403,8 @@ def post_user_token(
 ) -> TokenResp:
     # Generate a random token and hash it
     # Prepend 'ckp_' to indicate it's a Calkit user personal access token
-    selector = secrets.token_hex(16)  # Unique selector for the token
-    verifier = secrets.token_hex(32)  # Random verifier for the token
+    selector = secrets.token_hex(PAT_SELECTOR_LENGTH_BYTES)
+    verifier = secrets.token_hex(PAT_VERIFIER_LENGTH_BYTES)
     token_str = f"ckp_{selector}{verifier}"
     hashed_verifier = get_password_hash(verifier)
     token = UserToken(
