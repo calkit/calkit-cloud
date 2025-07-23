@@ -22,7 +22,7 @@ import type {
   UserRegister,
   UsersPublic,
   UserSubscription,
-  UserToken,
+  UserTokenPublic,
   UserUpdate,
   UserUpdateMe,
   DiscountCode,
@@ -139,6 +139,9 @@ export type UsersData = {
   }
   PatchUserToken: {
     requestBody: TokenPatch
+    tokenId: string
+  }
+  DeleteUserToken: {
     tokenId: string
   }
   PostUserZenodoAuth: {
@@ -849,12 +852,12 @@ export class UsersService {
 
   /**
    * Get User Tokens
-   * @returns UserToken Successful Response
+   * @returns UserTokenPublic Successful Response
    * @throws ApiError
    */
   public static getUserTokens(
     data: UsersData["GetUserTokens"] = {},
-  ): CancelablePromise<Array<UserToken>> {
+  ): CancelablePromise<Array<UserTokenPublic>> {
     const { isActive } = data
     return __request(OpenAPI, {
       method: "GET",
@@ -890,12 +893,12 @@ export class UsersService {
 
   /**
    * Patch User Token
-   * @returns UserToken Successful Response
+   * @returns UserTokenPublic Successful Response
    * @throws ApiError
    */
   public static patchUserToken(
     data: UsersData["PatchUserToken"],
-  ): CancelablePromise<UserToken> {
+  ): CancelablePromise<UserTokenPublic> {
     const { tokenId, requestBody } = data
     return __request(OpenAPI, {
       method: "PATCH",
@@ -905,6 +908,27 @@ export class UsersService {
       },
       body: requestBody,
       mediaType: "application/json",
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Delete User Token
+   * @returns Message Successful Response
+   * @throws ApiError
+   */
+  public static deleteUserToken(
+    data: UsersData["DeleteUserToken"],
+  ): CancelablePromise<Message> {
+    const { tokenId } = data
+    return __request(OpenAPI, {
+      method: "DELETE",
+      url: "/user/tokens/{token_id}",
+      path: {
+        token_id: tokenId,
+      },
       errors: {
         422: `Validation Error`,
       },

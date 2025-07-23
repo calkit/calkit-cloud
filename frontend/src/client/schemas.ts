@@ -3204,6 +3204,17 @@ export const $TokenPost = {
       ],
       isRequired: true,
     },
+    description: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
   },
 } as const
 
@@ -3223,6 +3234,7 @@ export const $TokenResp = {
     },
     user_id: {
       type: "string",
+      isRequired: true,
       format: "uuid",
     },
     scope: {
@@ -3246,10 +3258,36 @@ export const $TokenResp = {
     },
     expires: {
       type: "string",
+      isRequired: true,
       format: "date-time",
     },
     is_active: {
       type: "boolean",
+      isRequired: true,
+    },
+    description: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          maxLength: 256,
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    last_used: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
     },
   },
 } as const
@@ -3514,7 +3552,7 @@ export const $UserSubscription = {
   },
 } as const
 
-export const $UserToken = {
+export const $UserTokenPublic = {
   properties: {
     id: {
       type: "string",
@@ -3552,6 +3590,30 @@ export const $UserToken = {
     is_active: {
       type: "boolean",
       isRequired: true,
+    },
+    description: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          maxLength: 256,
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    last_used: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
     },
   },
 } as const
