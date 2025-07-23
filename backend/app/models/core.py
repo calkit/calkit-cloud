@@ -432,9 +432,9 @@ class ProjectPublic(ProjectBase):
     owner_account_id: uuid.UUID
     owner_account_name: str
     owner_account_type: str
-    current_user_access: Literal[
-        "read", "write", "admin", "owner"
-    ] | None = None
+    current_user_access: Literal["read", "write", "admin", "owner"] | None = (
+        None
+    )
 
 
 class ProjectsPublic(SQLModel):
