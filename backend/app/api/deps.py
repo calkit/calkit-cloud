@@ -45,7 +45,7 @@ OptionalTokenDep = Annotated[str | None, Depends(reusable_oauth2_optional)]
 def get_current_user(session: SessionDep, token: TokenDep) -> User:
     # Handle personal access tokens, which start with 'ckp_'
     if token.startswith("ckp_"):
-        # Try to find the token in the database by its hash
+        # Try to find the token in the database by its selector
         selector = token[4:36]
         verifier = token[36:]
         token_in_db = session.exec(
