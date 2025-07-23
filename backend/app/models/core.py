@@ -323,7 +323,10 @@ class UserTokenPublic(SQLModel):
 
 
 class UserToken(UserTokenPublic, table=True):
-    hashed_token: str | None = Field(default=None, index=True, unique=True)
+    selector: str | None = Field(
+        default=None, index=True, unique=True, max_length=32
+    )
+    hashed_verifier: str | None = Field(default=None, max_length=64)
     # Relationships
     user: User = Relationship()
 
@@ -429,9 +432,9 @@ class ProjectPublic(ProjectBase):
     owner_account_id: uuid.UUID
     owner_account_name: str
     owner_account_type: str
-    current_user_access: Literal["read", "write", "admin", "owner"] | None = (
-        None
-    )
+    current_user_access: Literal[
+        "read", "write", "admin", "owner"
+    ] | None = None
 
 
 class ProjectsPublic(SQLModel):

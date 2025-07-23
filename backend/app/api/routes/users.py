@@ -145,8 +145,6 @@ def delete_current_user(
             status_code=403,
             detail="Super users are not allowed to delete themselves",
         )
-    # Delete all this user's items
-    session.exec(statement)  # type: ignore
     session.delete(current_user)
     session.commit()
     return Message(message="User deleted successfully")
@@ -398,15 +396,18 @@ def post_user_token(
     session: SessionDep, current_user: CurrentUser, req: TokenPost
 ) -> TokenResp:
     # Generate a random token and hash it
-    # Prepend 'cku_' to indicate it's a Calkit user token
-    token_str = "cku_" + secrets.token_hex(20)
-    hashed_token = get_password_hash(token_str)
+    # Prepend 'ckp_' to indicate it's a Calkit user personal access token
+    selector = secrets.token_hex(16)  # Unique selector for the token
+    verifier = secrets.token_hex(32)  # Random verifier for the token
+    token_str = f"ckp_{selector}{verifier}"
+    hashed_verifier = get_password_hash(verifier)
     token = UserToken(
         user_id=current_user.id,
         expires=utcnow() + timedelta(days=req.expires_days),
         scope=req.scope,
         is_active=True,
-        hashed_token=hashed_token,
+        selector=selector,
+        hashed_verifier=hashed_verifier,
         description=req.description,
     )
     session.add(token)
@@ -415,7 +416,7 @@ def post_user_token(
     mixpanel.user_created_new_token(
         current_user, scope=req.scope, expires_days=req.expires_days
     )
-    return TokenResp.model_validate(token, update=dict(access_token=hash))
+    return TokenResp.model_validate(token, update=dict(access_token=token_str))
 
 
 class TokenPatch(BaseModel):

@@ -19,7 +19,7 @@ from app.config import settings
 from app.core import utcnow
 from app.db import engine
 from app.models import TokenPayload, User, UserToken
-from app.security import get_password_hash
+from app.security import verify_password
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -43,21 +43,28 @@ OptionalTokenDep = Annotated[str | None, Depends(reusable_oauth2_optional)]
 
 
 def get_current_user(session: SessionDep, token: TokenDep) -> User:
-    # Handle personal access tokens, which start with 'cku_'
-    if token.startswith("cku_"):
+    # Handle personal access tokens, which start with 'ckp_'
+    if token.startswith("ckp_"):
         # Try to find the token in the database by its hash
-        hashed_token = get_password_hash(token)
+        selector = token[4:36]
+        verifier = token[36:]
         token_in_db = session.exec(
-            select(UserToken).where(UserToken.hashed_token == hashed_token)
+            select(UserToken).where(UserToken.selector == selector)
         ).first()
         if token_in_db is None:
-            HTTPException(403, "Invalid token")
+            logger.info(f"PAT not found in database (selector: {selector})")
+            raise HTTPException(403, "Invalid token")
         else:
             if not token_in_db.is_active:
                 raise HTTPException(403, "Token has been deactivated")
             # Check expiration
             if token_in_db.expired:
                 raise HTTPException(403, "Token has expired")
+            # Check verifier
+            if token_in_db.hashed_verifier is None:
+                raise HTTPException(403, "Invalid token")
+            if not verify_password(verifier, token_in_db.hashed_verifier):
+                raise HTTPException(403, "Invalid token")
             user = token_in_db.user
     else:
         # This is a regular JWT
@@ -130,24 +137,28 @@ def get_current_user(session: SessionDep, token: TokenDep) -> User:
 def get_current_user_with_token_scope(
     session: SessionDep, token: TokenDep, scope: str | None = None
 ) -> User:
-    # Handle personal access tokens, which start with 'cku_'
-    if token.startswith("cku_"):
+    # Handle personal access tokens, which start with 'ckp_'
+    if token.startswith("ckp_"):
         # Try to find the token in the database by its hash
-        hashed_token = get_password_hash(token)
+        selector = token[4:36]
+        verifier = token[36:]
         token_in_db = session.exec(
-            select(UserToken).where(UserToken.hashed_token == hashed_token)
+            select(UserToken).where(UserToken.selector == selector)
         ).first()
         if token_in_db is None:
-            HTTPException(403, "Invalid token")
+            logger.info(f"PAT not found in database (selector: {selector})")
+            raise HTTPException(403, "Invalid token")
         else:
             if not token_in_db.is_active:
                 raise HTTPException(403, "Token has been deactivated")
             # Check expiration
             if token_in_db.expired:
                 raise HTTPException(403, "Token has expired")
-            # Check scope
-            if scope is not None and token_in_db.scope != scope:
-                raise HTTPException(403, "Invalid token scope")
+            # Check verifier
+            if token_in_db.hashed_verifier is None:
+                raise HTTPException(403, "Invalid token")
+            if not verify_password(verifier, token_in_db.hashed_verifier):
+                raise HTTPException(403, "Invalid token")
             user = token_in_db.user
     else:
         # This is a regular JWT
