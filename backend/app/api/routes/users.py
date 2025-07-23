@@ -378,7 +378,7 @@ def get_user_tokens(
     query = select(UserToken).where(UserToken.user_id == current_user.id)
     if is_active is not None:
         query = query.where(UserToken.is_active == is_active)
-    query = query.order_by(UserToken.created.desc()) # type: ignore
+    query = query.order_by(UserToken.created.desc())  # type: ignore
     tokens = session.exec(query).fetchall()
     return tokens
 
@@ -438,6 +438,20 @@ def patch_user_token(
     session.commit()
     session.refresh(token)
     return token
+
+
+@router.delete("/user/tokens/{token_id}")
+def delete_user_token(
+    session: SessionDep, current_user: CurrentUser, token_id: uuid.UUID
+) -> Message:
+    token = session.get(UserToken, token_id)
+    if token is None:
+        raise HTTPException(404)
+    if token.user_id != current_user.id:
+        raise HTTPException(403, "Not your token")
+    session.delete(token)
+    session.commit()
+    return Message(message="Token deleted successfully")
 
 
 class GitHubInstallations(BaseModel):
