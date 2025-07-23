@@ -30,6 +30,7 @@ interface NewTokenProps {
 interface TokenFormInput {
   purpose: "api" | "dvc"
   expires_days: number
+  description?: string
 }
 
 const NewToken = ({ isOpen, onClose }: NewTokenProps) => {
@@ -67,6 +68,7 @@ const NewToken = ({ isOpen, onClose }: NewTokenProps) => {
     mutation.mutate({
       scope: data.purpose === "api" ? null : data.purpose,
       expires_days: data.expires_days,
+      description: data.description,
     })
   }
   const handleClose = () => {
@@ -126,6 +128,14 @@ const NewToken = ({ isOpen, onClose }: NewTokenProps) => {
                       min: 1,
                       max: 365 * 3,
                     })}
+                  />
+                </FormControl>
+                <FormControl mt={4} isInvalid={!!errors.description}>
+                  <FormLabel htmlFor="description">Description</FormLabel>
+                  <Input
+                    id="description"
+                    placeholder="Ex: For my MacBook Pro"
+                    {...register("description")}
                   />
                 </FormControl>
               </ModalBody>

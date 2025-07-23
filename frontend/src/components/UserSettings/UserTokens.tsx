@@ -48,6 +48,7 @@ function UserTokens() {
           <Thead>
             <Tr>
               <Th>ID</Th>
+              <Th>Description</Th>
               <Th>Created</Th>
               <Th>Expires</Th>
               <Th>Scope</Th>
@@ -71,8 +72,11 @@ function UserTokens() {
                   key={token.id}
                   opacity={tokensQuery.isPlaceholderData ? 0.5 : 1}
                 >
-                  <Td isTruncated maxWidth="150px">
+                  <Td isTruncated maxWidth="100px">
                     {token.id}
+                  </Td>
+                  <Td isTruncated maxWidth="200px">
+                    {token.description}
                   </Td>
                   <Td isTruncated maxWidth="150px">
                     {token.created}
