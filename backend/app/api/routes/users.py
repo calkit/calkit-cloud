@@ -1,9 +1,10 @@
 """Routes for users."""
 
 import logging
+import secrets
 import uuid
 from datetime import timedelta
-from typing import Literal
+from typing import Literal, Sequence
 
 import requests
 from fastapi import APIRouter, Depends, HTTPException
@@ -13,7 +14,13 @@ from sqlmodel import Field, func, select
 
 import app.stripe
 from app import mixpanel, users
-from app.api.deps import CurrentUser, SessionDep, get_current_active_superuser
+from app.api.deps import (
+    PAT_SELECTOR_LENGTH_BYTES,
+    PAT_VERIFIER_LENGTH_BYTES,
+    CurrentUser,
+    SessionDep,
+    get_current_active_superuser,
+)
 from app.config import settings
 from app.core import utcnow
 from app.messaging import generate_new_account_email, send_email
@@ -32,11 +39,11 @@ from app.models import (
     UsersPublic,
     UserSubscription,
     UserToken,
+    UserTokenPublic,
     UserUpdate,
     UserUpdateMe,
 )
 from app.security import (
-    create_access_token,
     get_password_hash,
     verify_password,
 )
@@ -144,8 +151,6 @@ def delete_current_user(
             status_code=403,
             detail="Super users are not allowed to delete themselves",
         )
-    # Delete all this user's items
-    session.exec(statement)  # type: ignore
     session.delete(current_user)
     session.commit()
     return Message(message="User deleted successfully")
@@ -373,11 +378,11 @@ def get_user_tokens(
     session: SessionDep,
     current_user: CurrentUser,
     is_active: bool | None = None,
-) -> list[UserToken]:
+) -> Sequence[UserTokenPublic]:
     query = select(UserToken).where(UserToken.user_id == current_user.id)
     if is_active is not None:
         query = query.where(UserToken.is_active == is_active)
-    query = query.order_by(UserToken.created.desc())
+    query = query.order_by(UserToken.created.desc())  # type: ignore
     tokens = session.exec(query).fetchall()
     return tokens
 
@@ -385,9 +390,10 @@ def get_user_tokens(
 class TokenPost(BaseModel):
     expires_days: int = Field(ge=1, le=(365 * 3))
     scope: Literal["dvc"] | None
+    description: str | None = None
 
 
-class TokenResp(UserToken, Token):
+class TokenResp(UserTokenPublic, Token):
     pass
 
 
@@ -395,28 +401,28 @@ class TokenResp(UserToken, Token):
 def post_user_token(
     session: SessionDep, current_user: CurrentUser, req: TokenPost
 ) -> TokenResp:
+    # Generate a random token and hash it
+    # Prepend 'ckp_' to indicate it's a Calkit user personal access token
+    selector = secrets.token_hex(PAT_SELECTOR_LENGTH_BYTES)
+    verifier = secrets.token_hex(PAT_VERIFIER_LENGTH_BYTES)
+    token_str = f"ckp_{selector}{verifier}"
+    hashed_verifier = get_password_hash(verifier)
     token = UserToken(
         user_id=current_user.id,
         expires=utcnow() + timedelta(days=req.expires_days),
         scope=req.scope,
         is_active=True,
+        selector=selector,
+        hashed_verifier=hashed_verifier,
+        description=req.description,
     )
     session.add(token)
     session.commit()
     session.refresh(token)
-    # Create the token and put its ID in the payload so we can disable it
-    access_token = create_access_token(
-        subject=current_user.id,
-        expires_delta=timedelta(days=req.expires_days),
-        scope=req.scope,
-        token_id=token.id,
-    )
     mixpanel.user_created_new_token(
         current_user, scope=req.scope, expires_days=req.expires_days
     )
-    return TokenResp.model_validate(
-        token, update=dict(access_token=access_token)
-    )
+    return TokenResp.model_validate(token, update=dict(access_token=token_str))
 
 
 class TokenPatch(BaseModel):
@@ -429,7 +435,7 @@ def patch_user_token(
     current_user: CurrentUser,
     token_id: uuid.UUID,
     req: TokenPatch,
-) -> UserToken:
+) -> UserTokenPublic:
     token = session.get(UserToken, token_id)
     if token is None:
         raise HTTPException(404)
@@ -439,6 +445,20 @@ def patch_user_token(
     session.commit()
     session.refresh(token)
     return token
+
+
+@router.delete("/user/tokens/{token_id}")
+def delete_user_token(
+    session: SessionDep, current_user: CurrentUser, token_id: uuid.UUID
+) -> Message:
+    token = session.get(UserToken, token_id)
+    if token is None:
+        raise HTTPException(404)
+    if token.user_id != current_user.id:
+        raise HTTPException(403, "Not your token")
+    session.delete(token)
+    session.commit()
+    return Message(message="Token deleted successfully")
 
 
 class GitHubInstallations(BaseModel):

@@ -21,7 +21,7 @@ def track(
     )
 
 
-def user_created_new_token(user: User, scope: str, expires_days: int):
+def user_created_new_token(user: User, scope: str | None, expires_days: int):
     track(
         user,
         "Created new token",
