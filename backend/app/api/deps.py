@@ -157,6 +157,9 @@ def get_current_user_with_token_scope(
             # Check verifier
             if token_in_db.hashed_verifier is None:
                 raise HTTPException(403, "Invalid token")
+            # Check scope
+            if token_in_db.scope is not None and token_in_db.scope != scope:
+                raise HTTPException(403, "Invalid token scope")
             if not verify_password(verifier, token_in_db.hashed_verifier):
                 raise HTTPException(403, "Invalid token")
             user = token_in_db.user
