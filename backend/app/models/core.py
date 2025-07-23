@@ -310,7 +310,7 @@ class TokenPayload(SQLModel):
     sub: str | None = None
 
 
-class UserToken(SQLModel, table=True):
+class UserTokenPublic(SQLModel):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(foreign_key="user.id")
     scope: str | None = None
@@ -318,6 +318,21 @@ class UserToken(SQLModel, table=True):
     updated: datetime = Field(default_factory=utcnow)
     expires: datetime
     is_active: bool
+    description: str | None = Field(default=None, max_length=256)
+    last_used: datetime | None = Field(default=None)
+
+
+class UserToken(UserTokenPublic, table=True):
+    hashed_token: str | None = Field(default=None, index=True, unique=True)
+    # Relationships
+    user: User = Relationship()
+
+    @property
+    def expired(self) -> bool:
+        """Check if the token has expired."""
+        if self.expires is None:
+            return False
+        return self.expires < utcnow()
 
 
 class NewPassword(SQLModel):

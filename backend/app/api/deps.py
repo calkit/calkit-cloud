@@ -6,18 +6,20 @@ from datetime import datetime
 from functools import partial
 from typing import Annotated
 
-import app.stripe as stripe
 import jwt
-from app import security
-from app.config import settings
-from app.core import utcnow
-from app.db import engine
-from app.models import TokenPayload, User, UserToken
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jwt.exceptions import InvalidTokenError
 from pydantic import ValidationError
 from sqlmodel import Session, select
+
+import app.stripe as stripe
+from app import security
+from app.config import settings
+from app.core import utcnow
+from app.db import engine
+from app.models import TokenPayload, User, UserToken
+from app.security import get_password_hash
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -41,27 +43,47 @@ OptionalTokenDep = Annotated[str | None, Depends(reusable_oauth2_optional)]
 
 
 def get_current_user(session: SessionDep, token: TokenDep) -> User:
-    try:
-        payload = jwt.decode(
-            token, settings.SECRET_KEY, algorithms=[security.ALGORITHM]
-        )
-        token_data = TokenPayload(**payload)
-        token_scope = payload.get("scope")
-        if token_scope is not None:
-            raise HTTPException(403, "Invalid token scope")
-        if "token_id" in payload:
-            token_id = payload["token_id"]
-            token_active = session.exec(
-                select(UserToken.is_active).where(UserToken.id == token_id)
-            ).first()
-            if not token_active:
+    # Handle personal access tokens, which start with 'cku_'
+    if token.startswith("cku_"):
+        # Try to find the token in the database by its hash
+        hashed_token = get_password_hash(token)
+        token_in_db = session.exec(
+            select(UserToken).where(UserToken.hashed_token == hashed_token)
+        ).first()
+        if token_in_db is None:
+            HTTPException(403, "Invalid token")
+        else:
+            if not token_in_db.is_active:
                 raise HTTPException(403, "Token has been deactivated")
-    except (InvalidTokenError, ValidationError):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Could not validate credentials",
-        )
-    user = session.get(User, token_data.sub)
+            # Check expiration
+            if token_in_db.expired:
+                raise HTTPException(403, "Token has expired")
+            user = token_in_db.user
+    else:
+        # This is a regular JWT
+        try:
+            payload = jwt.decode(
+                token, settings.SECRET_KEY, algorithms=[security.ALGORITHM]
+            )
+            token_data = TokenPayload(**payload)
+            token_scope = payload.get("scope")
+            if token_scope is not None:
+                raise HTTPException(403, "Invalid token scope")
+            if "token_id" in payload:
+                token_id = payload["token_id"]
+                token_in_db = session.get(UserToken, token_id)
+                if token_in_db is None:
+                    raise HTTPException(403, "Token invalid")
+                if not token_in_db.is_active:
+                    raise HTTPException(403, "Token has been deactivated")
+                user = token_in_db.user
+            else:
+                user = session.get(User, token_data.sub)
+        except (InvalidTokenError, ValidationError):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Could not validate credentials",
+            )
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     if not user.is_active:
@@ -108,27 +130,52 @@ def get_current_user(session: SessionDep, token: TokenDep) -> User:
 def get_current_user_with_token_scope(
     session: SessionDep, token: TokenDep, scope: str | None = None
 ) -> User:
-    try:
-        payload = jwt.decode(
-            token, settings.SECRET_KEY, algorithms=[security.ALGORITHM]
-        )
-        token_data = TokenPayload(**payload)
-        token_scope = payload.get("scope")
-        if token_scope is not None and token_scope != scope:
-            raise HTTPException(403, "Invalid token scope")
-        if "token_id" in payload:
-            token_id = payload["token_id"]
-            token_active = session.exec(
-                select(UserToken.is_active).where(UserToken.id == token_id)
-            ).first()
-            if not token_active:
+    # Handle personal access tokens, which start with 'cku_'
+    if token.startswith("cku_"):
+        # Try to find the token in the database by its hash
+        hashed_token = get_password_hash(token)
+        token_in_db = session.exec(
+            select(UserToken).where(UserToken.hashed_token == hashed_token)
+        ).first()
+        if token_in_db is None:
+            HTTPException(403, "Invalid token")
+        else:
+            if not token_in_db.is_active:
                 raise HTTPException(403, "Token has been deactivated")
-    except (InvalidTokenError, ValidationError):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Could not validate credentials",
-        )
-    user = session.get(User, token_data.sub)
+            # Check expiration
+            if token_in_db.expired:
+                raise HTTPException(403, "Token has expired")
+            # Check scope
+            if scope is not None and token_in_db.scope != scope:
+                raise HTTPException(403, "Invalid token scope")
+            user = token_in_db.user
+    else:
+        # This is a regular JWT
+        try:
+            payload = jwt.decode(
+                token, settings.SECRET_KEY, algorithms=[security.ALGORITHM]
+            )
+            token_data = TokenPayload(**payload)
+            token_scope = payload.get("scope")
+            if token_scope is not None and token_scope != scope:
+                raise HTTPException(403, "Invalid token scope")
+            if "token_id" in payload:
+                token_id = payload["token_id"]
+                token_in_db = session.get(UserToken, token_id)
+                if token_in_db is None:
+                    raise HTTPException(403, "Token invalid")
+                if not token_in_db.is_active:
+                    raise HTTPException(403, "Token has been deactivated")
+                if token_in_db.expired:
+                    raise HTTPException(403, "Token has expired")
+                user = token_in_db.user
+            else:
+                user = session.get(User, token_data.sub)
+        except (InvalidTokenError, ValidationError):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Could not validate credentials",
+            )
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     if not user.is_active:
