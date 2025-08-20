@@ -100,7 +100,7 @@ const Subscription = () => {
 
   const formatPrice = (price: number, period: number) => {
     if (price === 0) return "Free"
-    const monthlyPrice = price / period
+    const monthlyPrice = price
     return period === 1
       ? `$${monthlyPrice}/month`
       : `$${monthlyPrice}/month (billed annually)`
@@ -215,7 +215,7 @@ const Subscription = () => {
                 <Text fontWeight="semibold">Storage limit:</Text>
                 <Text>
                   {currentPlan
-                    ? `${(currentPlan.storage_limit / (1024 * 1024 * 1024)).toFixed(1)} GB`
+                    ? `${currentPlan.storage_limit.toFixed(0)} GB`
                     : "N/A"}
                 </Text>
               </Flex>
