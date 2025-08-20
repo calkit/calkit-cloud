@@ -26,6 +26,14 @@ import {
   AlertIcon,
   AlertTitle,
   AlertDescription,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalFooter,
+  ModalBody,
+  ModalCloseButton,
+  useDisclosure,
 } from "@chakra-ui/react"
 import { MdCancel, MdCheck } from "react-icons/md"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
@@ -93,6 +101,22 @@ const PickSubscription = ({
 
   const [discountCode, setDiscountCode] = useState<string>("")
   const [discountQueryEnabled, setDiscountQueryEnabled] = useBoolean(false)
+  const { isOpen, onOpen, onClose } = useDisclosure()
+  const [pendingPlan, setPendingPlan] = useState<string | null>(null)
+
+  // Define plan hierarchy for downgrade detection
+  const planHierarchy = { free: 0, standard: 1, professional: 2 }
+
+  const isDowngrade = (newPlanName: string) => {
+    if (!user?.subscription?.plan_name) return false
+    const currentPlanValue =
+      planHierarchy[
+        user.subscription.plan_name as keyof typeof planHierarchy
+      ] ?? 0
+    const newPlanValue =
+      planHierarchy[newPlanName as keyof typeof planHierarchy] ?? 0
+    return newPlanValue < currentPlanValue
+  }
 
   const discountCodeCheckQuery = useQuery({
     queryKey: ["discount-codes", discountCode, team, teamSize],
@@ -161,6 +185,23 @@ const PickSubscription = ({
   })
 
   type PlanName = "free" | "standard" | "professional"
+
+  const handlePlanClick = (planName: string) => {
+    if (isDowngrade(planName)) {
+      setPendingPlan(planName)
+      onOpen()
+    } else {
+      handleSubmit(planName)
+    }
+  }
+
+  const handleConfirmedSubmit = () => {
+    if (pendingPlan) {
+      handleSubmit(pendingPlan)
+      setPendingPlan(null)
+      onClose()
+    }
+  }
 
   const handleSubmit = (planName: string) => {
     if (!team) {
@@ -273,7 +314,9 @@ const PickSubscription = ({
                 <CardHeader>
                   <Heading size="md">
                     {capitalizeFirstLetter(plan.name)}
-                    {plan.price ? `: $${calcPrice(plan)}${getPriceUnits()}` : ""}
+                    {plan.price
+                      ? `: $${calcPrice(plan)}${getPriceUnits()}`
+                      : ""}
                   </Heading>
                 </CardHeader>
                 <CardBody>
@@ -303,10 +346,15 @@ const PickSubscription = ({
                       plan.name === preferredPlanName ? "primary" : undefined
                     }
                     isLoading={subscriptionMutation.isPending}
-                    onClick={() => handleSubmit(plan.name.toLowerCase())}
-                    isDisabled={team && !orgName}
+                    onClick={() => handlePlanClick(plan.name.toLowerCase())}
+                    isDisabled={
+                      (team && !orgName) ||
+                      user?.subscription?.plan_name === plan.name.toLowerCase()
+                    }
                   >
-                    {plan.name === preferredPlanName ? "🚀 " : ""}Let's go!
+                    {user?.subscription?.plan_name === plan.name.toLowerCase()
+                      ? "Current plan"
+                      : `${plan.name === preferredPlanName ? "🚀 " : ""}Let's go!`}
                   </Button>
                 </CardFooter>
               </Card>
@@ -407,6 +455,38 @@ const PickSubscription = ({
           </Box>
         </Flex>
       </Box>
+
+      {/* Downgrade confirmation modal */}
+      <Modal isOpen={isOpen} onClose={onClose} isCentered>
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>Confirm downgrade</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <Text>
+              You're about to downgrade your subscription. This may result in:
+            </Text>
+            <UnorderedList mt={2} mb={4}>
+              <ListItem>Loss of access to some features</ListItem>
+              <ListItem>Reduced storage limits</ListItem>
+              <ListItem>Fewer private projects allowed</ListItem>
+            </UnorderedList>
+            <Text>Are you sure you want to continue?</Text>
+          </ModalBody>
+          <ModalFooter>
+            <Button variant="ghost" mr={3} onClick={onClose}>
+              Cancel
+            </Button>
+            <Button
+              colorScheme="red"
+              onClick={handleConfirmedSubmit}
+              isLoading={subscriptionMutation.isPending}
+            >
+              Confirm downgrade
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </Box>
   )
 }
