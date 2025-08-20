@@ -5,7 +5,6 @@ import {
   Flex,
   Heading,
   Text,
-  Badge,
   Stack,
   Alert,
   AlertIcon,
@@ -105,20 +104,6 @@ const Subscription = () => {
       : `$${monthlyPrice}/month (billed annually)`
   }
 
-  const getStatusColor = (
-    subscription: UserSubscription | null | undefined,
-  ) => {
-    if (!subscription || subscription.plan_name === "free") return "gray"
-    if (!subscription.is_active) return "red"
-    return "green"
-  }
-
-  const getStatusText = (subscription: UserSubscription | null | undefined) => {
-    if (!subscription || subscription.plan_name === "free") return "Free Plan"
-    if (!subscription.is_active) return "Inactive"
-    return "Active"
-  }
-
   if (plansQuery.isLoading) {
     return (
       <Container maxW="full">
@@ -156,24 +141,21 @@ const Subscription = () => {
           Subscription
         </Heading>
         {/* Current subscription status */}
-        <Box mb={6} p={4} border="1px" borderColor="gray.200" borderRadius="md">
-          <Flex justify="space-between" align="center" mb={4}>
-            <Heading size="sm">Current plan</Heading>
-            <Badge colorScheme={getStatusColor(currentSubscription)}>
-              {getStatusText(currentSubscription)}
-            </Badge>
-          </Flex>
-
+        <Box mb={6}>
           <Stack spacing={2}>
             <Text>
-              <Text as="span" fontWeight="semibold">Plan: </Text>
+              <Text as="span" fontWeight="semibold">
+                Plan:{" "}
+              </Text>
               {currentPlan?.name
                 ? capitalizePlanName(currentPlan.name)
                 : "Free"}
             </Text>
 
             <Text>
-              <Text as="span" fontWeight="semibold">Price: </Text>
+              <Text as="span" fontWeight="semibold">
+                Price:{" "}
+              </Text>
               {currentSubscription
                 ? formatPrice(
                     currentSubscription.price,
@@ -185,14 +167,18 @@ const Subscription = () => {
             {currentSubscription && (
               <>
                 <Text>
-                  <Text as="span" fontWeight="semibold">Paid until: </Text>
+                  <Text as="span" fontWeight="semibold">
+                    Paid until:{" "}
+                  </Text>
                   {currentSubscription.paid_until
                     ? formatTimestamp(currentSubscription.paid_until)
                     : "N/A"}
                 </Text>
 
                 <Text>
-                  <Text as="span" fontWeight="semibold">Billing cycle: </Text>
+                  <Text as="span" fontWeight="semibold">
+                    Billing cycle:{" "}
+                  </Text>
                   {currentSubscription.period_months === 1
                     ? "Monthly"
                     : "Annual"}
@@ -201,14 +187,18 @@ const Subscription = () => {
             )}
 
             <Text>
-              <Text as="span" fontWeight="semibold">Private projects: </Text>
+              <Text as="span" fontWeight="semibold">
+                Private projects:{" "}
+              </Text>
               {currentPlan?.private_projects_limit === null
                 ? "Unlimited"
                 : currentPlan?.private_projects_limit || "0"}
             </Text>
 
             <Text>
-              <Text as="span" fontWeight="semibold">Storage limit: </Text>
+              <Text as="span" fontWeight="semibold">
+                Storage limit:{" "}
+              </Text>
               {currentPlan
                 ? `${currentPlan.storage_limit.toFixed(0)} GB`
                 : "N/A"}
