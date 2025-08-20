@@ -3,7 +3,7 @@
 import logging
 import secrets
 import uuid
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Literal, Sequence
 
 import requests
@@ -273,7 +273,10 @@ def post_user_subscription(
     if req.discount_code is not None:
         try:
             discount_code = session.get(DiscountCode, req.discount_code)
-            if discount_code.redeemed is not None:
+            if (
+                discount_code is not None
+                and discount_code.redeemed is not None
+            ):
                 raise HTTPException(
                     400, "Discount code has already been redeemed"
                 )
@@ -281,14 +284,19 @@ def post_user_subscription(
             logger.info("User provided invalid discount code")
     if discount_code is not None:
         price = discount_code.price
-        months = discount_code.months
-        paid_until = utcnow().date() + timedelta(months=months)
+        months = discount_code.months % 12
+        years = months // 12
+        today = utcnow().date()
+        paid_until = datetime(
+            today.year + years, today.month + months, today.day
+        )
         discount_code.redeemed = utcnow()
         discount_code.redeemed_by_user_id = current_user.id
     else:
         price = get_monthly_price(req.plan_name, period=req.period)
         paid_until = None
     current_user.subscription = UserSubscription(
+        user_id=current_user.id,
         period_months=period_months,
         plan_id=plan_id,
         price=price,
@@ -339,7 +347,10 @@ def put_user_subscription(
     if req.discount_code is not None:
         try:
             discount_code = session.get(DiscountCode, req.discount_code)
-            if discount_code.redeemed is not None:
+            if (
+                discount_code is not None
+                and discount_code.redeemed is not None
+            ):
                 raise HTTPException(
                     400, "Discount code has already been redeemed"
                 )
@@ -347,8 +358,12 @@ def put_user_subscription(
             logger.info("User provided invalid discount code")
     if discount_code is not None:
         price = discount_code.price
-        months = discount_code.months
-        paid_until = utcnow().date() + timedelta(months=months)
+        months = discount_code.months % 12
+        years = months // 12
+        today = utcnow().date()
+        paid_until = datetime(
+            today.year + years, today.month + months, today.day
+        )
         discount_code.redeemed = utcnow()
         discount_code.redeemed_by_user_id = current_user.id
     else:
@@ -358,6 +373,7 @@ def put_user_subscription(
         logger.info(f"Creating new subscription for {current_user.email}")
         # TODO: If this is paid, ensure we have payment information setup
         current_user.subscription = UserSubscription(
+            user_id=current_user.id,
             period_months=period_months,
             plan_id=plan_id,
             price=price,
@@ -370,7 +386,7 @@ def put_user_subscription(
         current_subscription.price = price
     session.commit()
     session.refresh(current_user.subscription)
-    return current_user.subscription
+    return current_user.subscription  # type: ignore
 
 
 @router.get("/user/tokens")
