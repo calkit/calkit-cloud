@@ -115,6 +115,32 @@ const PickSubscription = ({
     return isSamePlan && currentPeriod === selectedPeriod
   }
 
+  const getButtonText = (planName: string) => {
+    if (isCurrentPlanAndPeriod(planName)) {
+      return "Current plan"
+    }
+
+    if (user?.subscription?.plan_name) {
+      const currentPlanValue = planHierarchy[user.subscription.plan_name as keyof typeof planHierarchy] ?? 0
+      const newPlanValue = planHierarchy[planName as keyof typeof planHierarchy] ?? 0
+
+      if (newPlanValue > currentPlanValue) {
+        return "Upgrade"
+      } else if (newPlanValue < currentPlanValue) {
+        return "Downgrade"
+      } else {
+        // Same plan level, different period
+        const currentPeriod = user.subscription.period_months === 12 ? "annual" : "monthly"
+        const selectedPeriod = annual ? "annual" : "monthly"
+        if (currentPeriod !== selectedPeriod) {
+          return `Switch to ${selectedPeriod}`
+        }
+      }
+    }
+
+    return `${planName === preferredPlanName ? "🚀 " : ""}Let's go!`
+  }
+
   const isDowngrade = (newPlanName: string) => {
     if (!user?.subscription?.plan_name) return false
     const currentPlanValue =
@@ -360,9 +386,7 @@ const PickSubscription = ({
                       isCurrentPlanAndPeriod(plan.name)
                     }
                   >
-                    {isCurrentPlanAndPeriod(plan.name)
-                      ? "Current plan"
-                      : `${plan.name === preferredPlanName ? "🚀 " : ""}Let's go!`}
+                    {getButtonText(plan.name)}
                   </Button>
                 </CardFooter>
               </Card>
