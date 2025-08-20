@@ -1,11 +1,4 @@
-import {
-  Flex,
-  Spinner,
-  Box,
-  Container,
-  Link,
-  Button,
-} from "@chakra-ui/react"
+import { Flex, Spinner, Box, Container, Link, Button } from "@chakra-ui/react"
 import { Outlet, createFileRoute } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
 import mixpanel from "mixpanel-browser"
@@ -13,9 +6,7 @@ import mixpanel from "mixpanel-browser"
 import useAuth from "../hooks/useAuth"
 import Topbar from "../components/Common/Topbar"
 import PickSubscription from "../components/UserSettings/PickSubscription"
-import {
-  UsersService,
-} from "../client"
+import { UsersService } from "../client"
 
 export const Route = createFileRoute("/_layout")({
   component: Layout,
@@ -112,7 +103,7 @@ function Layout() {
                     alignContent: "center",
                     justifyContent: "center",
                     height: "100vh",
-                    width: "full"
+                    width: "full",
                   }}
                 />
               )}
