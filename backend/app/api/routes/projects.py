@@ -365,7 +365,7 @@ def create_project(
                     repo.git.rm(f, "-f")
         # Add a calkit.yaml file
         # First existing info, which is empty unless we're using a template
-        ck_info = calkit.load_calkit_info(wdir=repo.working_dir)
+        ck_info = calkit.load_calkit_info(wdir=repo.working_dir)  # type: ignore
         _ = ck_info.pop("questions", None)
         ck_info |= {
             "owner": owner_name,
