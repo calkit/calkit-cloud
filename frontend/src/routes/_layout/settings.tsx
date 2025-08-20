@@ -18,11 +18,13 @@ import ChangePassword from "../../components/UserSettings/ChangePassword"
 import DeleteAccount from "../../components/UserSettings/DeleteAccount"
 import UserInformation from "../../components/UserSettings/UserInformation"
 import UserTokens from "../../components/UserSettings/UserTokens"
+import Subscription from "../../components/UserSettings/Subscription"
 import { pageWidthNoSidebar } from "../../utils"
 import { isLoggedIn } from "../../hooks/useAuth"
 
 const tabsConfig = [
   { title: "My profile", component: UserInformation, slug: "profile" },
+  { title: "Subscription", component: Subscription, slug: "subscription" },
   { title: "Password", component: ChangePassword, slug: "password" },
   { title: "Appearance", component: Appearance, slug: "appearance" },
   { title: "Tokens", component: UserTokens, slug: "tokens" },
@@ -47,7 +49,7 @@ function UserSettings() {
   const queryClient = useQueryClient()
   const currentUser = queryClient.getQueryData<UserPublic>(["currentUser"])
   const finalTabs = currentUser?.is_superuser
-    ? tabsConfig.slice(0, 4)
+    ? tabsConfig.slice(0, 5)
     : tabsConfig
   const { tab } = Route.useSearch()
   const navigate = useNavigate({ from: Route.fullPath })
