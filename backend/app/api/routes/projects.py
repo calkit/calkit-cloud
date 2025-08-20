@@ -358,6 +358,11 @@ def create_project(
                 user=current_user,
                 fresh=True,
             )
+            # Delete files that don't belong in a template
+            delete_files = ["dvc.lock"]
+            for f in delete_files:
+                if os.path.isfile(os.path.join(repo.working_dir, f)):
+                    repo.git.rm(f, "-f")
         # Add a calkit.yaml file
         # First existing info, which is empty unless we're using a template
         ck_info = calkit.load_calkit_info(wdir=repo.working_dir)
