@@ -9,9 +9,7 @@ import {
   Card,
   CardBody,
   CardHeader,
-  SimpleGrid,
   Stack,
-  Divider,
   Alert,
   AlertIcon,
   AlertTitle,
@@ -98,6 +96,10 @@ const Subscription = () => {
     })
   }
 
+  const capitalizePlanName = (planName: string) => {
+    return planName.charAt(0).toUpperCase() + planName.slice(1)
+  }
+
   const formatPrice = (price: number, period: number) => {
     if (price === 0) return "Free"
     const monthlyPrice = price
@@ -170,7 +172,11 @@ const Subscription = () => {
             <Stack spacing={3}>
               <Flex justify="space-between">
                 <Text fontWeight="semibold">Plan:</Text>
-                <Text>{currentPlan?.name || "Free"}</Text>
+                <Text>
+                  {currentPlan?.name
+                    ? capitalizePlanName(currentPlan.name)
+                    : "Free"}
+                </Text>
               </Flex>
               <Flex justify="space-between">
                 <Text fontWeight="semibold">Price:</Text>
@@ -246,7 +252,7 @@ const Subscription = () => {
                     .filter((plan: SubscriptionPlan) => plan.name !== "free")
                     .map((plan: SubscriptionPlan) => (
                       <option key={plan.id} value={plan.name}>
-                        {plan.name}: ${plan.price}/month
+                        {capitalizePlanName(plan.name)}: ${plan.price}/month
                       </option>
                     ))}
                 </Select>
