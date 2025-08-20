@@ -6,9 +6,6 @@ import {
   Heading,
   Text,
   Badge,
-  Card,
-  CardBody,
-  CardHeader,
   Stack,
   Alert,
   AlertIcon,
@@ -159,79 +156,70 @@ const Subscription = () => {
           Subscription
         </Heading>
         {/* Current subscription status */}
-        <Card mb={6}>
-          <CardHeader>
-            <Flex justify="space-between" align="center">
-              <Heading size="sm">Current plan</Heading>
-              <Badge colorScheme={getStatusColor(currentSubscription)}>
-                {getStatusText(currentSubscription)}
-              </Badge>
-            </Flex>
-          </CardHeader>
-          <CardBody>
-            <Stack spacing={3}>
-              <Flex justify="space-between">
-                <Text fontWeight="semibold">Plan:</Text>
+        <Box mb={6} p={4} border="1px" borderColor="gray.200" borderRadius="md">
+          <Flex justify="space-between" align="center" mb={4}>
+            <Heading size="sm">Current plan</Heading>
+            <Badge colorScheme={getStatusColor(currentSubscription)}>
+              {getStatusText(currentSubscription)}
+            </Badge>
+          </Flex>
+
+          <Stack spacing={2}>
+            <Text>
+              <Text as="span" fontWeight="semibold">Plan: </Text>
+              {currentPlan?.name
+                ? capitalizePlanName(currentPlan.name)
+                : "Free"}
+            </Text>
+
+            <Text>
+              <Text as="span" fontWeight="semibold">Price: </Text>
+              {currentSubscription
+                ? formatPrice(
+                    currentSubscription.price,
+                    currentSubscription.period_months,
+                  )
+                : "Free"}
+            </Text>
+
+            {currentSubscription && (
+              <>
                 <Text>
-                  {currentPlan?.name
-                    ? capitalizePlanName(currentPlan.name)
-                    : "Free"}
-                </Text>
-              </Flex>
-              <Flex justify="space-between">
-                <Text fontWeight="semibold">Price:</Text>
-                <Text>
-                  {currentSubscription
-                    ? formatPrice(
-                        currentSubscription.price,
-                        currentSubscription.period_months,
-                      )
-                    : "Free"}
-                </Text>
-              </Flex>
-              {currentSubscription && (
-                <>
-                  <Flex justify="space-between">
-                    <Text fontWeight="semibold">Paid until:</Text>
-                    <Text>
-                      {currentSubscription.paid_until
-                        ? formatTimestamp(currentSubscription.paid_until)
-                        : "N/A"}
-                    </Text>
-                  </Flex>
-                  <Flex justify="space-between">
-                    <Text fontWeight="semibold">Billing cycle:</Text>
-                    <Text>
-                      {currentSubscription.period_months === 1
-                        ? "Monthly"
-                        : "Annual"}
-                    </Text>
-                  </Flex>
-                </>
-              )}
-              <Flex justify="space-between">
-                <Text fontWeight="semibold">Private projects:</Text>
-                <Text>
-                  {currentPlan?.private_projects_limit === null
-                    ? "Unlimited"
-                    : currentPlan?.private_projects_limit || "0"}
-                </Text>
-              </Flex>
-              <Flex justify="space-between">
-                <Text fontWeight="semibold">Storage limit:</Text>
-                <Text>
-                  {currentPlan
-                    ? `${currentPlan.storage_limit.toFixed(0)} GB`
+                  <Text as="span" fontWeight="semibold">Paid until: </Text>
+                  {currentSubscription.paid_until
+                    ? formatTimestamp(currentSubscription.paid_until)
                     : "N/A"}
                 </Text>
-              </Flex>
-            </Stack>
-            {/* Change plan button */}
-            <Button variant={"primary"} mt={4} onClick={onOpen} size="sm">
-              Change plan
-            </Button>
-          </CardBody>
-        </Card>
+
+                <Text>
+                  <Text as="span" fontWeight="semibold">Billing cycle: </Text>
+                  {currentSubscription.period_months === 1
+                    ? "Monthly"
+                    : "Annual"}
+                </Text>
+              </>
+            )}
+
+            <Text>
+              <Text as="span" fontWeight="semibold">Private projects: </Text>
+              {currentPlan?.private_projects_limit === null
+                ? "Unlimited"
+                : currentPlan?.private_projects_limit || "0"}
+            </Text>
+
+            <Text>
+              <Text as="span" fontWeight="semibold">Storage limit: </Text>
+              {currentPlan
+                ? `${currentPlan.storage_limit.toFixed(0)} GB`
+                : "N/A"}
+            </Text>
+          </Stack>
+
+          {/* Change plan button */}
+          <Button variant={"primary"} mt={4} onClick={onOpen} size="sm">
+            Change plan
+          </Button>
+        </Box>
       </Container>
 
       {/* Upgrade modal */}
