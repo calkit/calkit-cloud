@@ -160,7 +160,7 @@ const Subscription = () => {
       </Container>
 
       {/* Subscription picker modal */}
-      <Modal isOpen={isOpen} onClose={onClose} isCentered size="lg">
+      <Modal isOpen={isOpen} onClose={onClose} isCentered size="6xl">
         <ModalOverlay />
         <ModalContent>
           <ModalHeader>Change subscription</ModalHeader>
