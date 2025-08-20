@@ -107,6 +107,14 @@ const PickSubscription = ({
   // Define plan hierarchy for downgrade detection
   const planHierarchy = { free: 0, standard: 1, professional: 2 }
 
+  const isCurrentPlanAndPeriod = (planName: string) => {
+    if (!user?.subscription?.plan_name) return false
+    const isSamePlan = user.subscription.plan_name === planName.toLowerCase()
+    const currentPeriod = user.subscription.period_months === 12 ? "annual" : "monthly"
+    const selectedPeriod = annual ? "annual" : "monthly"
+    return isSamePlan && currentPeriod === selectedPeriod
+  }
+
   const isDowngrade = (newPlanName: string) => {
     if (!user?.subscription?.plan_name) return false
     const currentPlanValue =
@@ -349,10 +357,10 @@ const PickSubscription = ({
                     onClick={() => handlePlanClick(plan.name.toLowerCase())}
                     isDisabled={
                       (team && !orgName) ||
-                      user?.subscription?.plan_name === plan.name.toLowerCase()
+                      isCurrentPlanAndPeriod(plan.name)
                     }
                   >
-                    {user?.subscription?.plan_name === plan.name.toLowerCase()
+                    {isCurrentPlanAndPeriod(plan.name)
                       ? "Current plan"
                       : `${plan.name === preferredPlanName ? "🚀 " : ""}Let's go!`}
                   </Button>
