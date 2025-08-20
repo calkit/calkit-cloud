@@ -124,7 +124,7 @@ const Subscription = () => {
 
                 <Text>
                   <Text as="span" fontWeight="semibold">
-                    Billing cycle:{" "}
+                    Billing period:{" "}
                   </Text>
                   {currentSubscription.period_months === 1
                     ? "Monthly"
