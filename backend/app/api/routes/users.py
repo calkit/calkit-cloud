@@ -314,16 +314,17 @@ def post_user_subscription(
             )
         # Get the Stripe price object for this plan
         stripe_price = app.stripe.get_price(plan_id=plan_id, period=req.period)
+        assert stripe_price is not None, "Stripe price not found"
         stripe_session = app.stripe.stripe.checkout.Session.create(
-            client_reference_id=current_user.id,
+            client_reference_id=str(current_user.id),
             customer=customer.id,
             mode="subscription",
-            line_items=[dict(price=stripe_price.id, quantity=1)],
+            line_items=[dict(price=stripe_price.id, quantity=1)],  # type: ignore
             ui_mode="embedded",
             return_url=(settings.server_host),
             subscription_data={
                 "metadata": {"user_id": current_user.id, "plan_id": plan_id}
-            },
+            },  # type: ignore
         )
         session_secret = stripe_session.client_secret
         current_user.subscription.processor_price_id = stripe_price.id
