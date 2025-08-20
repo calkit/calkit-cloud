@@ -201,210 +201,212 @@ const PickSubscription = ({
 
   return (
     <Box {...containerProps}>
-      {showHeading && (
-        <Flex justify={"center"}>
-          <Heading size="lg" mb={4}>
-            Choose your plan
-            {user?.github_username ? `, ${user.github_username}` : ""}:
-          </Heading>
-        </Flex>
-      )}
+      <Box>
+        {showHeading && (
+          <Flex justify={"center"}>
+            <Heading size="lg" mb={4}>
+              Choose your plan
+              {user?.github_username ? `, ${user.github_username}` : ""}:
+            </Heading>
+          </Flex>
+        )}
 
-      <Flex mb={4} align={"center"} justify={"center"} alignItems={"center"}>
-        <Text mr={1}>Monthly</Text>
-        <Switch
-          isChecked={annual}
-          onChange={setAnnual.toggle}
-          mr={1}
-          colorScheme="green"
-        />
-        <Text mr={6}>Annual</Text>
-        <Text mr={1}>Individual</Text>
-        <Switch
-          mr={1}
-          isChecked={team}
-          onChange={setTeam.toggle}
-          colorScheme="blue"
-        />
-        <Text>Team</Text>
-      </Flex>
-
-      {team ? (
-        <Flex mb={4} justify={"center"} align={"center"}>
-          <Text mr={2}>GitHub org name:</Text>
-          <Input
-            width="150px"
-            placeholder="Ex: my-lab"
-            mr={2}
-            value={orgName}
-            onChange={(e) => setOrgName(e.target.value)}
+        <Flex mb={4} align={"center"} justify={"center"} alignItems={"center"}>
+          <Text mr={1}>Monthly</Text>
+          <Switch
+            isChecked={annual}
+            onChange={setAnnual.toggle}
+            mr={1}
+            colorScheme="green"
           />
-          <Text mr={2}>Team size:</Text>
-          <NumberInput
-            defaultValue={5}
-            min={2}
-            max={50}
-            width={"75px"}
-            value={teamSize}
-            onChange={(valueString) => setTeamSize(Number(valueString))}
-          >
-            <NumberInputField />
-            <NumberInputStepper>
-              <NumberIncrementStepper />
-              <NumberDecrementStepper />
-            </NumberInputStepper>
-          </NumberInput>
+          <Text mr={6}>Annual</Text>
+          <Text mr={1}>Individual</Text>
+          <Switch
+            mr={1}
+            isChecked={team}
+            onChange={setTeam.toggle}
+            colorScheme="blue"
+          />
+          <Text>Team</Text>
         </Flex>
-      ) : (
-        ""
-      )}
 
-      <Box mb={4}>
-        <SimpleGrid spacing={4} columns={team ? 2 : 3}>
-          {/* Cards for each plan */}
-          {getPlans().map((plan) => (
-            <Card
-              align={"center"}
-              key={plan.name}
-              borderWidth={plan.name === preferredPlanName ? 2 : 0}
-              borderColor={"green.500"}
+        {team ? (
+          <Flex mb={4} justify={"center"} align={"center"}>
+            <Text mr={2}>GitHub org name:</Text>
+            <Input
+              width="150px"
+              placeholder="Ex: my-lab"
+              mr={2}
+              value={orgName}
+              onChange={(e) => setOrgName(e.target.value)}
+            />
+            <Text mr={2}>Team size:</Text>
+            <NumberInput
+              defaultValue={5}
+              min={2}
+              max={50}
+              width={"75px"}
+              value={teamSize}
+              onChange={(valueString) => setTeamSize(Number(valueString))}
             >
-              <CardHeader>
-                <Heading size="md">
-                  {capitalizeFirstLetter(plan.name)}
-                  {plan.price ? `: $${calcPrice(plan)}${getPriceUnits()}` : ""}
-                </Heading>
-              </CardHeader>
-              <CardBody>
-                <UnorderedList>
-                  <ListItem>Unlimited collaborators</ListItem>
-                  <ListItem>Unlimited public projects</ListItem>
-                  <ListItem>
-                    {plan.private_projects_limit
-                      ? plan.private_projects_limit
-                      : "Unlimited"}{" "}
-                    private project
-                    {plan.private_projects_limit === null ||
-                    (typeof plan.private_projects_limit === "number" &&
-                      plan.private_projects_limit > 1)
-                      ? "s"
-                      : ""}
-                    {team ? "/user" : ""}
-                  </ListItem>
-                  <ListItem>
-                    {plan.storage_limit} GB storage{team ? "/user" : ""}
-                  </ListItem>
-                </UnorderedList>
-              </CardBody>
-              <CardFooter>
-                <Button
-                  variant={
-                    plan.name === preferredPlanName ? "primary" : undefined
-                  }
-                  isLoading={subscriptionMutation.isPending}
-                  onClick={() => handleSubmit(plan.name.toLowerCase())}
-                  isDisabled={team && !orgName}
-                >
-                  {plan.name === preferredPlanName ? "🚀 " : ""}Let's go!
-                </Button>
-              </CardFooter>
-            </Card>
-          ))}
-        </SimpleGrid>
-      </Box>
+              <NumberInputField />
+              <NumberInputStepper>
+                <NumberIncrementStepper />
+                <NumberDecrementStepper />
+              </NumberInputStepper>
+            </NumberInput>
+          </Flex>
+        ) : (
+          ""
+        )}
 
-      <Flex justifyItems={"center"} justifyContent="center" width={"100%"}>
-        <Box>
-          <Box textAlign={"center"}>
-            {discountCodeVisible ? (
-              <>
-                <Flex align={"center"}>
-                  <Input
-                    value={discountCode}
-                    onChange={({ target }) => setDiscountCode(target.value)}
-                    placeholder="Enter discount code here"
-                    isDisabled={
-                      discountCodeCheckQuery.isLoading ||
-                      discountCodeCheckQuery.data?.is_valid
+        <Box mb={4}>
+          <SimpleGrid spacing={4} columns={team ? 2 : 3}>
+            {/* Cards for each plan */}
+            {getPlans().map((plan) => (
+              <Card
+                align={"center"}
+                key={plan.name}
+                borderWidth={plan.name === preferredPlanName ? 2 : 0}
+                borderColor={"green.500"}
+              >
+                <CardHeader>
+                  <Heading size="md">
+                    {capitalizeFirstLetter(plan.name)}
+                    {plan.price ? `: $${calcPrice(plan)}${getPriceUnits()}` : ""}
+                  </Heading>
+                </CardHeader>
+                <CardBody>
+                  <UnorderedList>
+                    <ListItem>Unlimited collaborators</ListItem>
+                    <ListItem>Unlimited public projects</ListItem>
+                    <ListItem>
+                      {plan.private_projects_limit
+                        ? plan.private_projects_limit
+                        : "Unlimited"}{" "}
+                      private project
+                      {plan.private_projects_limit === null ||
+                      (typeof plan.private_projects_limit === "number" &&
+                        plan.private_projects_limit > 1)
+                        ? "s"
+                        : ""}
+                      {team ? "/user" : ""}
+                    </ListItem>
+                    <ListItem>
+                      {plan.storage_limit} GB storage{team ? "/user" : ""}
+                    </ListItem>
+                  </UnorderedList>
+                </CardBody>
+                <CardFooter>
+                  <Button
+                    variant={
+                      plan.name === preferredPlanName ? "primary" : undefined
                     }
-                  />
-                  <IconButton
-                    aria-label="apply"
-                    icon={<MdCheck />}
-                    bg="none"
-                    size={"s"}
-                    p={1}
-                    mx={1}
-                    isDisabled={
-                      !discountCode || discountCodeCheckQuery.data?.is_valid
-                    }
-                    isLoading={discountCodeCheckQuery.isLoading}
-                    onClick={() => setDiscountQueryEnabled.on()}
-                  />
-                  <IconButton
-                    aria-label="cancel"
-                    icon={<MdCancel />}
-                    bg="none"
-                    size={"s"}
-                    onClick={() => {
-                      setDiscountCodeVisible.toggle()
-                      setDiscountQueryEnabled.off()
-                      queryClient.resetQueries({
-                        queryKey: ["discount-codes"],
-                      })
-                      setDiscountCode("")
-                    }}
-                  />
-                </Flex>
-                {discountCodeCheckQuery.error ? (
-                  <Text mt={1} color={"red"} fontSize="sm">
-                    Discount code invalid.
-                  </Text>
-                ) : (
-                  ""
-                )}
-                {discountCodeCheckQuery.data?.is_valid ? (
-                  <Text mt={1} color={"green.500"} fontSize="sm">
-                    Discount code applied! (
-                    {discountCodeCheckQuery.data.n_users} user
-                    {discountCodeCheckQuery.data.n_users &&
-                    discountCodeCheckQuery.data.n_users > 1
-                      ? "s"
-                      : ""}{" "}
-                    for {discountCodeCheckQuery.data.months} months @ $
-                    {discountCodeCheckQuery.data.price}/mo)
-                  </Text>
-                ) : (
-                  <>
-                    {discountCodeCheckQuery.data?.reason ? (
-                      <Text mt={1} color={"red"} fontSize="sm">
-                        Discount code invalid.{" "}
-                        {discountCodeCheckQuery.data?.reason}
-                      </Text>
-                    ) : (
-                      ""
-                    )}
-                  </>
-                )}
-              </>
-            ) : (
-              <Link onClick={setDiscountCodeVisible.toggle}>
-                <Text>Have a discount code? Click here.</Text>
-              </Link>
-            )}
-          </Box>
-          <Box mt={2} textAlign={"center"}>
-            <Link
-              href="mailto:sales@calkit.io?subject=Calkit enterprise license"
-              isExternal
-            >
-              <Text fontSize="sm">
-                Looking for enterprise, on prem? Email us.
-              </Text>
-            </Link>
-          </Box>
+                    isLoading={subscriptionMutation.isPending}
+                    onClick={() => handleSubmit(plan.name.toLowerCase())}
+                    isDisabled={team && !orgName}
+                  >
+                    {plan.name === preferredPlanName ? "🚀 " : ""}Let's go!
+                  </Button>
+                </CardFooter>
+              </Card>
+            ))}
+          </SimpleGrid>
         </Box>
-      </Flex>
+
+        <Flex justifyItems={"center"} justifyContent="center" width={"100%"}>
+          <Box>
+            <Box textAlign={"center"}>
+              {discountCodeVisible ? (
+                <>
+                  <Flex align={"center"}>
+                    <Input
+                      value={discountCode}
+                      onChange={({ target }) => setDiscountCode(target.value)}
+                      placeholder="Enter discount code here"
+                      isDisabled={
+                        discountCodeCheckQuery.isLoading ||
+                        discountCodeCheckQuery.data?.is_valid
+                      }
+                    />
+                    <IconButton
+                      aria-label="apply"
+                      icon={<MdCheck />}
+                      bg="none"
+                      size={"s"}
+                      p={1}
+                      mx={1}
+                      isDisabled={
+                        !discountCode || discountCodeCheckQuery.data?.is_valid
+                      }
+                      isLoading={discountCodeCheckQuery.isLoading}
+                      onClick={() => setDiscountQueryEnabled.on()}
+                    />
+                    <IconButton
+                      aria-label="cancel"
+                      icon={<MdCancel />}
+                      bg="none"
+                      size={"s"}
+                      onClick={() => {
+                        setDiscountCodeVisible.toggle()
+                        setDiscountQueryEnabled.off()
+                        queryClient.resetQueries({
+                          queryKey: ["discount-codes"],
+                        })
+                        setDiscountCode("")
+                      }}
+                    />
+                  </Flex>
+                  {discountCodeCheckQuery.error ? (
+                    <Text mt={1} color={"red"} fontSize="sm">
+                      Discount code invalid.
+                    </Text>
+                  ) : (
+                    ""
+                  )}
+                  {discountCodeCheckQuery.data?.is_valid ? (
+                    <Text mt={1} color={"green.500"} fontSize="sm">
+                      Discount code applied! (
+                      {discountCodeCheckQuery.data.n_users} user
+                      {discountCodeCheckQuery.data.n_users &&
+                      discountCodeCheckQuery.data.n_users > 1
+                        ? "s"
+                        : ""}{" "}
+                      for {discountCodeCheckQuery.data.months} months @ $
+                      {discountCodeCheckQuery.data.price}/mo)
+                    </Text>
+                  ) : (
+                    <>
+                      {discountCodeCheckQuery.data?.reason ? (
+                        <Text mt={1} color={"red"} fontSize="sm">
+                          Discount code invalid.{" "}
+                          {discountCodeCheckQuery.data?.reason}
+                        </Text>
+                      ) : (
+                        ""
+                      )}
+                    </>
+                  )}
+                </>
+              ) : (
+                <Link onClick={setDiscountCodeVisible.toggle}>
+                  <Text>Have a discount code? Click here.</Text>
+                </Link>
+              )}
+            </Box>
+            <Box mt={2} textAlign={"center"}>
+              <Link
+                href="mailto:sales@calkit.io?subject=Calkit enterprise license"
+                isExternal
+              >
+                <Text fontSize="sm">
+                  Looking for enterprise, on prem? Email us.
+                </Text>
+              </Link>
+            </Box>
+          </Box>
+        </Flex>
+      </Box>
     </Box>
   )
 }
