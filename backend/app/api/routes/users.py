@@ -268,8 +268,6 @@ def put_user_subscription(
     req: SubscriptionUpdate, current_user: CurrentUser, session: SessionDep
 ) -> UpdateSubscriptionResponse:
     current_subscription = current_user.subscription
-    if current_subscription is not None:
-        raise HTTPException(400, "User already has a subscription")
     plan_id = PLAN_IDS[req.plan_name]
     discount_code = None
     period_months = 1 if req.period == "monthly" else 12
@@ -298,15 +296,36 @@ def put_user_subscription(
     else:
         price = get_monthly_price(req.plan_name, period=req.period)
         paid_until = None
-    current_user.subscription = UserSubscription(
+    new_subscription = UserSubscription(
         user_id=current_user.id,
         period_months=period_months,
         plan_id=plan_id,
         price=price,
         paid_until=paid_until,
     )
+    # If we're not making any change to the subscription, we can return
+    if current_subscription is not None and (
+        new_subscription.period_months == current_subscription.period_months
+        and new_subscription.plan_id == current_subscription.plan_id
+        and new_subscription.price == current_subscription.price
+        and new_subscription.paid_until == current_subscription.paid_until
+    ):
+        return UpdateSubscriptionResponse(
+            subscription=current_subscription,
+            stripe_session_client_secret=None,
+        )
     session_secret = None
-    if price > 0:
+    stripe_changing = (
+        current_subscription is not None
+        and (
+            new_subscription.period_months
+            != current_subscription.period_months
+            or new_subscription.plan_id != current_subscription.plan_id
+            or new_subscription.price != current_subscription.price
+            or new_subscription.paid_until != current_subscription.paid_until
+        )
+    ) or (current_subscription is None and price > 0)
+    if stripe_changing:
         # We need to setup payment stuff in Stripe
         customer = app.stripe.get_customer(email=current_user.email)
         if customer is None:
@@ -315,24 +334,56 @@ def put_user_subscription(
                 full_name=current_user.full_name,
                 user_id=current_user.id,
             )
-        # TODO: If the user already has a subscription, update it
+        # If the user already has any subscriptions, update them
+        stripe_subs = app.stripe.get_customer_subscriptions(
+            customer.id, status="active"
+        )
+        # Filter down for subscriptions without orgs in them
+        stripe_subs = [s for s in stripe_subs if not s.metadata.get("org_id")]
+        if len(stripe_subs) > 1:
+            raise HTTPException(400, "User has multiple active subscriptions")
         # Get the Stripe price object for this plan
         stripe_price = app.stripe.get_price(plan_id=plan_id, period=req.period)
-        assert stripe_price is not None, "Stripe price not found"
-        stripe_session = app.stripe.stripe.checkout.Session.create(
-            client_reference_id=str(current_user.id),
-            customer=customer.id,
-            mode="subscription",
-            line_items=[dict(price=stripe_price.id, quantity=1)],  # type: ignore
-            ui_mode="embedded",
-            return_url=(settings.server_host),
-            subscription_data={
-                "metadata": {"user_id": current_user.id, "plan_id": plan_id}
-            },  # type: ignore
-        )
-        session_secret = stripe_session.client_secret
-        current_user.subscription.processor_price_id = stripe_price.id
-        current_user.subscription.processor = "stripe"
+        if stripe_price is None and price > 0:
+            raise HTTPException(400, "Stripe price not found")
+        # If we have an active stripe subscription, update it
+        if stripe_subs:
+            stripe_sub = stripe_subs[0]
+            # Update the subscription if price isn't zero
+            if price > 0:
+                app.stripe.update_subscription(
+                    subscription_id=stripe_sub.id,
+                    items=[
+                        {"price": stripe_price.id},  # type: ignore
+                    ],
+                    metadata=dict(user_id=current_user.id, plan_id=plan_id),
+                )
+                new_subscription.processor_price_id = stripe_price.id
+                new_subscription.processor = "stripe"
+            else:
+                app.stripe.cancel_subscription(stripe_sub.id)
+                new_subscription.processor = None
+                new_subscription.processor_price_id = None
+            session_secret = None
+        elif price > 0:
+            stripe_session = app.stripe.stripe.checkout.Session.create(
+                client_reference_id=str(current_user.id),
+                customer=customer.id,
+                mode="subscription",
+                line_items=[dict(price=stripe_price.id, quantity=1)],  # type: ignore
+                ui_mode="embedded",
+                return_url=(settings.server_host),
+                subscription_data={
+                    "metadata": {
+                        "user_id": current_user.id,
+                        "plan_id": plan_id,
+                    }
+                },  # type: ignore
+            )
+            session_secret = stripe_session.client_secret
+            new_subscription.processor_price_id = stripe_price.id
+            new_subscription.processor = "stripe"
+    current_user.subscription = new_subscription
     session.commit()
     session.refresh(current_user.subscription)
     return UpdateSubscriptionResponse(
