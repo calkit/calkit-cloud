@@ -299,6 +299,16 @@ function ProjectView() {
                     <Icon height={"40%"} as={ExternalLinkIcon} pb={0.5} />
                   </Link>
                 </Text>
+                <Text>
+                  🗝️{" "}
+                  <Link
+                    isExternal
+                    href={`${gitRepoUrl}/settings/secrets/actions`}
+                  >
+                    Configure GitHub Actions secrets{" "}
+                    <Icon height={"40%"} as={ExternalLinkIcon} pb={0.5} />
+                  </Link>
+                </Text>
               </Box>
               <NewPublication
                 isOpen={newPubTemplateModal.isOpen}
