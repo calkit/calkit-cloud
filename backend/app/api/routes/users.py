@@ -372,7 +372,7 @@ def put_user_subscription(
                 mode="subscription",
                 line_items=[dict(price=stripe_price.id, quantity=1)],  # type: ignore
                 ui_mode="embedded",
-                return_url=(settings.server_host),
+                return_url=settings.frontend_host,
                 subscription_data={
                     "metadata": {
                         "user_id": current_user.id,
