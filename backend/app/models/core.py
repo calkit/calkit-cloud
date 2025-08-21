@@ -30,7 +30,8 @@ class Account(SQLModel, table=True):
     github_name: str
     # Relationships
     owned_projects: list["Project"] = Relationship(
-        back_populates="owner_account"
+        back_populates="owner_account",
+        cascade_delete=True,
     )
     user: Union["User", None] = Relationship(back_populates="account")
     org: Union["Org", None] = Relationship(back_populates="account")
@@ -132,6 +133,10 @@ class User(UserBase, table=True):
     subscription: Union["UserSubscription", None] = Relationship(
         back_populates="user", cascade_delete=True
     )
+    project_access: list["UserProjectAccess"] = Relationship(
+        back_populates="user",
+        cascade_delete=True,
+    )
 
     @computed_field
     @property
@@ -221,12 +226,12 @@ class _SubscriptionBase(SQLModel):
     @property
     def storage_limit(self) -> int:
         """Return the storage limit in GB."""
-        return get_storage_limit(self.plan_name)
+        return get_storage_limit(self.plan_name)  # type: ignore
 
     @property
     def private_projects_limit(self) -> int | None:
         """Return the max number of private projects for a subscription."""
-        return get_private_projects_limit(self.plan_name)
+        return get_private_projects_limit(self.plan_name)  # type: ignore
 
 
 class OrgSubscription(_SubscriptionBase, table=True):
@@ -370,7 +375,7 @@ class Project(ProjectBase, table=True):
     # Relationships
     owner_account: Account = Relationship(back_populates="owned_projects")
     user_access_records: list["UserProjectAccess"] = Relationship(
-        back_populates="project"
+        back_populates="project", cascade_delete=True
     )
     # TODO: Figure out how to do self-referential relationships with parent
     # and children projects
@@ -400,7 +405,7 @@ class Project(ProjectBase, table=True):
         return self.owner_account.github_name
 
     @property
-    def owner(self) -> User | Org:
+    def owner(self) -> User | Org | None:
         if self.owner_account_type == "user":
             return self.owner_account.user
         elif self.owner_account_type == "org":
