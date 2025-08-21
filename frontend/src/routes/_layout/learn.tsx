@@ -62,17 +62,9 @@ function Learn() {
           .
         </Text>
         <Text mb={4}>
-          If you want to get in touch directly, send an{" "}
+          If you want to get in touch directly, send us an{" "}
           <Link isExternal variant="blue" href="mailto:feedback@calkit.io">
             email
-          </Link>{" "}
-          or{" "}
-          <Link
-            isExternal
-            variant="blue"
-            href="https://calendar.app.google/fGDwYrqJm3diKegr8"
-          >
-            schedule a video chat
           </Link>
           .
         </Text>

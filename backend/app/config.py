@@ -36,6 +36,7 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8
     DOMAIN: str = "localhost"
     ENVIRONMENT: Literal["local", "staging", "production"] = "local"
+    FRONTEND_HOST: str | None = None
 
     @computed_field  # type: ignore[prop-decorator]
     @property
@@ -44,6 +45,15 @@ class Settings(BaseSettings):
         if self.ENVIRONMENT == "local":
             return f"http://{self.DOMAIN}"
         return f"https://{self.DOMAIN}"
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def frontend_host(self) -> str:
+        # If explicitly set, use that (useful for local dev)
+        if self.FRONTEND_HOST:
+            return self.FRONTEND_HOST
+        # Otherwise, use the same as server_host
+        return self.server_host
 
     BACKEND_CORS_ORIGINS: Annotated[
         list[AnyUrl] | str, BeforeValidator(parse_cors)

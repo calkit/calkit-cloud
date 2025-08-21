@@ -31,6 +31,12 @@ const useAuth = () => {
     queryKey: ["currentUser"],
     queryFn: UsersService.getCurrentUser,
     enabled: isLoggedIn(),
+    retry: (failureCount, error: any) => {
+      // Do not retry on any 4xx error
+      const status = error?.response?.status
+      if (status >= 400 && status < 500) return false
+      return failureCount < 3
+    },
   })
 
   const signUpMutation = useMutation({

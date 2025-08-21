@@ -84,7 +84,7 @@ def get_price(
         return
     if len(res) > 1:
         raise ValueError("There are two prices with this information")
-    return res[0]
+    return res[0]  # type: ignore
 
 
 def create_subscription(
@@ -102,13 +102,17 @@ def create_subscription(
         ],
         payment_behavior="default_incomplete",
         expand=["latest_invoice.payment_intent"],
-        metadata=dict(org_id=org_id),
-        description=description,
+        metadata=dict(org_id=org_id),  # type: ignore
+        description=description,  # type: ignore
     )
 
 
 def cancel_subscription(subscription_id):
     return stripe.Subscription.delete(subscription_id)
+
+
+def update_subscription(subscription_id, **kwargs):
+    return stripe.Subscription.modify(subscription_id, **kwargs)
 
 
 def get_customer_subscriptions(
@@ -120,4 +124,4 @@ def get_customer_subscriptions(
             status=status,
             expand=["data.default_payment_method"],
         )["data"]
-    )
+    )  # type: ignore
