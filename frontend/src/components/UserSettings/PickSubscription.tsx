@@ -205,18 +205,21 @@ const PickSubscription = ({
       return UsersService.putUserSubscription({ requestBody: data })
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["currentUser"] })
-      queryClient.invalidateQueries({ queryKey: ["users", "me"] })
-
       if (onSuccess) {
         onSuccess()
       }
 
       if (data.stripe_session_client_secret) {
+        // Don't refetch queries when redirecting to checkout
+        // The user data will be updated after payment processing
         navigate({
           to: "/checkout",
           search: { client_secret: data.stripe_session_client_secret },
         })
+      } else {
+        // Only refetch user data when NOT going to checkout
+        queryClient.refetchQueries({ queryKey: ["currentUser"] })
+        queryClient.refetchQueries({ queryKey: ["users", "me"] })
       }
     },
     onError: (err: ApiError) => {
