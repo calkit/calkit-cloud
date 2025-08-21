@@ -354,7 +354,10 @@ def put_user_subscription(
                 app.stripe.update_subscription(
                     subscription_id=stripe_sub.id,
                     items=[
-                        {"price": stripe_price.id},  # type: ignore
+                        {
+                            "id": stripe_sub["items"]["data"][0]["id"],
+                            "price": stripe_price.id,  # type: ignore
+                        },
                     ],
                     metadata=dict(user_id=current_user.id, plan_id=plan_id),
                 )
