@@ -262,8 +262,8 @@ function Projects() {
           </Heading>
           <Text>
             Welcome to the Calkit Cloud, where you can create, discover, share,
-            and collaborate on research and analytics projects. If you're ready
-            to get started, click the button below:
+            and collaborate on research projects. If you're ready to get
+            started, click the button below:
           </Text>
           <Box
             alignItems="center"
