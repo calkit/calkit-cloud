@@ -110,7 +110,8 @@ const PickSubscription = ({
   const isCurrentPlanAndPeriod = (planName: string) => {
     if (!user?.subscription?.plan_name) return false
     const isSamePlan = user.subscription.plan_name === planName.toLowerCase()
-    const currentPeriod = user.subscription.period_months === 12 ? "annual" : "monthly"
+    const currentPeriod =
+      user.subscription.period_months === 12 ? "annual" : "monthly"
     const selectedPeriod = annual ? "annual" : "monthly"
     return isSamePlan && currentPeriod === selectedPeriod
   }
@@ -121,8 +122,12 @@ const PickSubscription = ({
     }
 
     if (user?.subscription?.plan_name) {
-      const currentPlanValue = planHierarchy[user.subscription.plan_name as keyof typeof planHierarchy] ?? 0
-      const newPlanValue = planHierarchy[planName as keyof typeof planHierarchy] ?? 0
+      const currentPlanValue =
+        planHierarchy[
+          user.subscription.plan_name as keyof typeof planHierarchy
+        ] ?? 0
+      const newPlanValue =
+        planHierarchy[planName as keyof typeof planHierarchy] ?? 0
 
       if (newPlanValue > currentPlanValue) {
         return "Upgrade"
@@ -130,7 +135,8 @@ const PickSubscription = ({
         return "Downgrade"
       } else {
         // Same plan level, different period
-        const currentPeriod = user.subscription.period_months === 12 ? "annual" : "monthly"
+        const currentPeriod =
+          user.subscription.period_months === 12 ? "annual" : "monthly"
         const selectedPeriod = annual ? "annual" : "monthly"
         if (currentPeriod !== selectedPeriod) {
           return `Switch to ${selectedPeriod}`
@@ -194,9 +200,9 @@ const PickSubscription = ({
         period: data.period,
       })
       if (team && "n_users" in data) {
-        return OrgsService.postOrgSubscription({ requestBody: data, orgName })
+        return OrgsService.putOrgSubscription({ requestBody: data, orgName })
       }
-      return UsersService.postUserSubscription({ requestBody: data })
+      return UsersService.putUserSubscription({ requestBody: data })
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["currentUser"] })
@@ -382,8 +388,7 @@ const PickSubscription = ({
                     isLoading={subscriptionMutation.isPending}
                     onClick={() => handlePlanClick(plan.name.toLowerCase())}
                     isDisabled={
-                      (team && !orgName) ||
-                      isCurrentPlanAndPeriod(plan.name)
+                      (team && !orgName) || isCurrentPlanAndPeriod(plan.name)
                     }
                   >
                     {getButtonText(plan.name)}

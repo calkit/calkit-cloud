@@ -254,7 +254,7 @@ class SubscriptionUpdate(BaseModel):
     discount_code: str | None = None
 
 
-class NewSubscriptionResponse(BaseModel):
+class UpdateSubscriptionResponse(BaseModel):
     subscription: UserSubscription | OrgSubscription
     stripe_session_client_secret: str | None
 

@@ -27,7 +27,7 @@ from app.messaging import generate_new_account_email, send_email
 from app.models import (
     DiscountCode,
     Message,
-    NewSubscriptionResponse,
+    UpdateSubscriptionResponse,
     StorageUsage,
     SubscriptionUpdate,
     Token,
@@ -260,10 +260,10 @@ def get_user_github_repos(
     return resp.json()
 
 
-@router.post("/user/subscription")
-def post_user_subscription(
+@router.put("/user/subscription")
+def put_user_subscription(
     req: SubscriptionUpdate, current_user: CurrentUser, session: SessionDep
-) -> NewSubscriptionResponse:
+) -> UpdateSubscriptionResponse:
     current_subscription = current_user.subscription
     if current_subscription is not None:
         raise HTTPException(400, "User already has a subscription")
@@ -312,6 +312,7 @@ def post_user_subscription(
                 full_name=current_user.full_name,
                 user_id=current_user.id,
             )
+        # TODO: If the user already has a subscription, update it
         # Get the Stripe price object for this plan
         stripe_price = app.stripe.get_price(plan_id=plan_id, period=req.period)
         assert stripe_price is not None, "Stripe price not found"
@@ -331,63 +332,10 @@ def post_user_subscription(
         current_user.subscription.processor = "stripe"
     session.commit()
     session.refresh(current_user.subscription)
-    return NewSubscriptionResponse(
+    return UpdateSubscriptionResponse(
         subscription=current_user.subscription,
         stripe_session_client_secret=session_secret,
     )
-
-
-@router.put("/user/subscription")
-def put_user_subscription(
-    req: SubscriptionUpdate, current_user: CurrentUser, session: SessionDep
-) -> UserSubscription:
-    current_subscription = current_user.subscription
-    discount_code = None
-    plan_id = PLAN_IDS[req.plan_name]
-    period_months = 1 if req.period == "monthly" else 12
-    if req.discount_code is not None:
-        try:
-            discount_code = session.get(DiscountCode, req.discount_code)
-            if (
-                discount_code is not None
-                and discount_code.redeemed is not None
-            ):
-                raise HTTPException(
-                    400, "Discount code has already been redeemed"
-                )
-        except DataError:
-            logger.info("User provided invalid discount code")
-    if discount_code is not None:
-        price = discount_code.price
-        months = discount_code.months % 12
-        years = months // 12
-        today = utcnow().date()
-        paid_until = datetime(
-            today.year + years, today.month + months, today.day
-        )
-        discount_code.redeemed = utcnow()
-        discount_code.redeemed_by_user_id = current_user.id
-    else:
-        price = get_monthly_price(req.plan_name, period=req.period)
-        paid_until = None
-    if current_subscription is None:
-        logger.info(f"Creating new subscription for {current_user.email}")
-        # TODO: If this is paid, ensure we have payment information setup
-        current_user.subscription = UserSubscription(
-            user_id=current_user.id,
-            period_months=period_months,
-            plan_id=plan_id,
-            price=price,
-            paid_until=paid_until,
-        )
-    else:
-        logger.info(f"Updating subscription for {current_user.email}")
-        # TODO: Handle what we need to handle if subscription has changed
-        current_subscription.period_months = period_months
-        current_subscription.price = price
-    session.commit()
-    session.refresh(current_user.subscription)
-    return current_user.subscription  # type: ignore
 
 
 @router.get("/user/tokens")

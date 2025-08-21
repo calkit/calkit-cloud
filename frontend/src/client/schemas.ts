@@ -1623,35 +1623,6 @@ export const $NewPassword = {
   },
 } as const
 
-export const $NewSubscriptionResponse = {
-  properties: {
-    subscription: {
-      type: "any-of",
-      contains: [
-        {
-          type: "UserSubscription",
-        },
-        {
-          type: "OrgSubscription",
-        },
-      ],
-      isRequired: true,
-    },
-    stripe_session_client_secret: {
-      type: "any-of",
-      contains: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
-      isRequired: true,
-    },
-  },
-} as const
-
 export const $Notebook = {
   properties: {
     path: {
@@ -3305,6 +3276,35 @@ export const $UpdatePassword = {
       isRequired: true,
       maxLength: 40,
       minLength: 8,
+    },
+  },
+} as const
+
+export const $UpdateSubscriptionResponse = {
+  properties: {
+    subscription: {
+      type: "any-of",
+      contains: [
+        {
+          type: "UserSubscription",
+        },
+        {
+          type: "OrgSubscription",
+        },
+      ],
+      isRequired: true,
+    },
+    stripe_session_client_secret: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      isRequired: true,
     },
   },
 } as const

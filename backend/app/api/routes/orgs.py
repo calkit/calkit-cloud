@@ -2,7 +2,7 @@
 
 import logging
 import uuid
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Literal
 
 import app.stripe
@@ -15,7 +15,7 @@ from app.models import (
     Account,
     DiscountCode,
     Message,
-    NewSubscriptionResponse,
+    UpdateSubscriptionResponse,
     Org,
     OrgSubscription,
     StorageUsage,
@@ -213,13 +213,13 @@ class OrgSubscriptionUpdate(SubscriptionUpdate):
     n_users: int = Field(ge=2)
 
 
-@router.post("/orgs/{org_name}/subscription")
-def post_org_subscription(
+@router.put("/orgs/{org_name}/subscription")
+def put_org_subscription(
     org_name: str,
     req: OrgSubscriptionUpdate,
     session: SessionDep,
     current_user: CurrentUser,
-) -> NewSubscriptionResponse:
+) -> UpdateSubscriptionResponse:
     # First check if this org exists, and if not, create it
     org = get_org_from_db(org_name=org_name, session=session)
     if org is None:
@@ -235,14 +235,16 @@ def post_org_subscription(
             raise HTTPException(400, "Org already has a subscription")
         # Ensure this user is an owner
         membership = None
-        for m in org.user_memberships:
+        for m in org.user_memberships:  # type: ignore
             if m.user == current_user:
                 membership = m
                 break
         if membership is None:
             raise HTTPException(400, "Must be an org owner")
+    if org is None:
+        raise HTTPException(404, "Org not found")
     # Make sure there are enough seats for this org's current members
-    if len(org.user_memberships) > req.n_users:
+    if len(org.user_memberships) > req.n_users:  # type: ignore
         raise HTTPException(400, "Not enough seats for current org size")
     plan_id = PLAN_IDS[req.plan_name]
     discount_code = None
@@ -250,7 +252,7 @@ def post_org_subscription(
     if req.discount_code is not None:
         try:
             discount_code = session.get(DiscountCode, req.discount_code)
-            if discount_code.redeemed is not None:
+            if discount_code.redeemed is not None:  # type: ignore
                 raise HTTPException(
                     400, "Discount code has already been redeemed"
                 )
@@ -262,14 +264,19 @@ def post_org_subscription(
                 400, "Discount code number of users does not match"
             )
         price = discount_code.price
-        months = discount_code.months
-        paid_until = utcnow().date() + timedelta(months=months)
+        years = discount_code.months // 12
+        months = discount_code.months % 12
+        today = utcnow().date()
+        paid_until = datetime(
+            today.year + years, today.month + months, today.day
+        )
         discount_code.redeemed = utcnow()
         discount_code.redeemed_by_user_id = current_user.id
     else:
         price = get_monthly_price(req.plan_name, period=req.period)
         paid_until = None
     org.subscription = OrgSubscription(
+        org_id=org.id,
         price=price,
         paid_until=paid_until,
         period_months=period_months,
@@ -287,33 +294,35 @@ def post_org_subscription(
                 full_name=current_user.full_name,
                 user_id=current_user.id,
             )
+        # TODO: If this is an update, we need to handle that
         # Get the Stripe price object for this plan
         stripe_price = app.stripe.get_price(plan_id=plan_id, period=req.period)
         stripe_session = app.stripe.stripe.checkout.Session.create(
-            client_reference_id=current_user.id,
+            client_reference_id=current_user.id,  # type: ignore
             customer=customer.id,
             mode="subscription",
-            line_items=[dict(price=stripe_price.id, quantity=req.n_users)],
+            line_items=[dict(price=stripe_price.id, quantity=req.n_users)],  # type: ignore
             ui_mode="embedded",
             return_url=(settings.server_host),
             subscription_data={
                 "description": f"{req.n_users} users for {org_name}.",
                 "metadata": {"org_id": org.id, "plan_id": plan_id},
-            },
+            },  # type: ignore
         )
         session_secret = stripe_session.client_secret
-        org.subscription.processor_price_id = stripe_price.id
+        org.subscription.processor_price_id = stripe_price.id  # type: ignore
         org.subscription.processor = "stripe"
     # If the current user doesn't have a subscription, give them a free one
     if current_user.subscription is None:
         current_user.subscription = UserSubscription(
+            user_id=current_user.id,
             plan_id=0,
             price=0.0,
             period_months=1,
         )
     session.commit()
     session.refresh(org.subscription)
-    return NewSubscriptionResponse(
+    return UpdateSubscriptionResponse(
         subscription=org.subscription,
         stripe_session_client_secret=session_secret,
     )

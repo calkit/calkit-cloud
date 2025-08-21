@@ -11,17 +11,16 @@ import type {
   ConnectedAccounts,
   ExternalTokenResponse,
   GitHubInstallations,
-  NewSubscriptionResponse,
   StorageUsage,
   SubscriptionUpdate,
   TokenPatch,
   TokenPost,
   TokenResp,
   UpdatePassword,
+  UpdateSubscriptionResponse,
   UserCreate,
   UserRegister,
   UsersPublic,
-  UserSubscription,
   UserTokenPublic,
   UserUpdate,
   UserUpdateMe,
@@ -126,9 +125,6 @@ export type UsersData = {
     perPage?: number
   }
   PutUserSubscription: {
-    requestBody: SubscriptionUpdate
-  }
-  PostUserSubscription: {
     requestBody: SubscriptionUpdate
   }
   GetUserTokens: {
@@ -433,7 +429,7 @@ export type OrgsData = {
     orgName: string
     requestBody: OrgMemberPost
   }
-  PostOrgSubscription: {
+  PutOrgSubscription: {
     orgName: string
     requestBody: OrgSubscriptionUpdate
   }
@@ -812,35 +808,15 @@ export class UsersService {
 
   /**
    * Put User Subscription
-   * @returns UserSubscription Successful Response
+   * @returns UpdateSubscriptionResponse Successful Response
    * @throws ApiError
    */
   public static putUserSubscription(
     data: UsersData["PutUserSubscription"],
-  ): CancelablePromise<UserSubscription> {
+  ): CancelablePromise<UpdateSubscriptionResponse> {
     const { requestBody } = data
     return __request(OpenAPI, {
       method: "PUT",
-      url: "/user/subscription",
-      body: requestBody,
-      mediaType: "application/json",
-      errors: {
-        422: `Validation Error`,
-      },
-    })
-  }
-
-  /**
-   * Post User Subscription
-   * @returns NewSubscriptionResponse Successful Response
-   * @throws ApiError
-   */
-  public static postUserSubscription(
-    data: UsersData["PostUserSubscription"],
-  ): CancelablePromise<NewSubscriptionResponse> {
-    const { requestBody } = data
-    return __request(OpenAPI, {
-      method: "POST",
       url: "/user/subscription",
       body: requestBody,
       mediaType: "application/json",
@@ -2430,16 +2406,16 @@ export class OrgsService {
   }
 
   /**
-   * Post Org Subscription
-   * @returns NewSubscriptionResponse Successful Response
+   * Put Org Subscription
+   * @returns UpdateSubscriptionResponse Successful Response
    * @throws ApiError
    */
-  public static postOrgSubscription(
-    data: OrgsData["PostOrgSubscription"],
-  ): CancelablePromise<NewSubscriptionResponse> {
+  public static putOrgSubscription(
+    data: OrgsData["PutOrgSubscription"],
+  ): CancelablePromise<UpdateSubscriptionResponse> {
     const { orgName, requestBody } = data
     return __request(OpenAPI, {
-      method: "POST",
+      method: "PUT",
       url: "/orgs/{org_name}/subscription",
       path: {
         org_name: orgName,

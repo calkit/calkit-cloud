@@ -352,11 +352,6 @@ export type NewPassword = {
   new_password: string
 }
 
-export type NewSubscriptionResponse = {
-  subscription: UserSubscription | OrgSubscription
-  stripe_session_client_secret: string | null
-}
-
 export type Notebook = {
   path: string
   title: string
@@ -681,6 +676,11 @@ export type TokenResp = {
 export type UpdatePassword = {
   current_password: string
   new_password: string
+}
+
+export type UpdateSubscriptionResponse = {
+  subscription: UserSubscription | OrgSubscription
+  stripe_session_client_secret: string | null
 }
 
 export type UserCreate = {
