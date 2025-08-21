@@ -138,7 +138,7 @@ def update_current_user_password(
 @router.get("/user")
 def get_current_user(current_user: CurrentUser) -> UserPublic:
     """Get current user."""
-    return current_user
+    return UserPublic.model_validate(current_user)
 
 
 @router.delete("/user")
@@ -151,6 +151,9 @@ def delete_current_user(
             status_code=403,
             detail="Super users are not allowed to delete themselves",
         )
+    # TODO: If the user has a paid subscription, cancel it
+    # TODO: If they user is the owner of any orgs, delete them and cancel
+    # their subscriptions, if applicable
     session.delete(current_user)
     session.commit()
     return Message(message="User deleted successfully")
@@ -186,7 +189,7 @@ def read_user_by_id(
             status_code=403,
             detail="The user doesn't have enough privileges",
         )
-    return user
+    return UserPublic.model_validate(user)
 
 
 @router.patch(
