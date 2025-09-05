@@ -19,6 +19,7 @@ from app.models import (
     User,
     UserCreate,
     UserGitHubToken,
+    UserSubscription,
     UserUpdate,
     UserZenodoToken,
 )
@@ -38,20 +39,26 @@ def create_user(*, session: Session, user_create: UserCreate) -> User:
     account_name = user_create.account_name or user_create.github_username
     if account_name in INVALID_ACCOUNT_NAMES:
         raise HTTPException(422, "Invalid account name")
-    db_obj = User.model_validate(
+    user = User.model_validate(
         user_create,
         update={
             "hashed_password": get_password_hash(user_create.password),
             "account": Account(
                 name=account_name,
                 github_name=user_create.github_username,
-            ),
+            ),  # type: ignore
         },
     )
-    session.add(db_obj)
+    # Give the user a free subscription by default
+    user.subscription = UserSubscription(
+        period_months=1,
+        plan_id=0,
+        price=0.0,
+    )  # type: ignore
+    session.add(user)
     session.commit()
-    session.refresh(db_obj)
-    return db_obj
+    session.refresh(user)
+    return user
 
 
 def update_user(

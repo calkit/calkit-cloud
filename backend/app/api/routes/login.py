@@ -6,20 +6,27 @@ from datetime import timedelta
 from typing import Annotated, Any
 
 import requests
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import HTMLResponse
+from fastapi.security import OAuth2PasswordRequestForm
+
 from app import mixpanel, security, users
 from app.api.deps import CurrentUser, SessionDep, get_current_active_superuser
 from app.config import settings
 from app.github import token_resp_text_to_dict
 from app.messaging import generate_reset_password_email, send_email
-from app.models import Message, NewPassword, Token, UserCreate, UserPublic
+from app.models import (
+    Message,
+    NewPassword,
+    Token,
+    UserCreate,
+    UserPublic,
+)
 from app.security import (
     generate_password_reset_token,
     get_password_hash,
     verify_password_reset_token,
 )
-from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import HTMLResponse
-from fastapi.security import OAuth2PasswordRequestForm
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
