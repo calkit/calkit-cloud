@@ -591,5 +591,7 @@ def get_user_storage(
     current_user: CurrentUser,
 ) -> StorageUsage:
     used = get_storage_usage(owner_name=current_user.account.name)
+    if current_user.subscription is None:
+        raise HTTPException(404, "User does not have a subscription")
     limit = current_user.subscription.storage_limit
     return StorageUsage(limit_gb=limit, used_gb=used)
