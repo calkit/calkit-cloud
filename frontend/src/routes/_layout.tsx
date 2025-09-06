@@ -70,7 +70,14 @@ function Layout() {
   if (ghAppInstalledQuery.error) {
     logout()
   }
-  if (ghAppInstalledQuery.data && ghAppInstalledQuery.data?.total_count < 1) {
+  // Check that the user's GitHub name is in the list of installation
+  const ghAppNotInstalled =
+    user &&
+    ghAppInstalledQuery.data &&
+    !ghAppInstalledQuery.data.installations
+      .map((i) => (i.account as { login: string }).login)
+      .includes(user.github_username)
+  if (ghAppNotInstalled) {
     location.href = `https://github.com/apps/${getAppName()}/installations/new`
   }
 
@@ -82,7 +89,7 @@ function Layout() {
         </Flex>
       ) : (
         <>
-          {user && !ghAppInstalledQuery.data?.total_count ? (
+          {ghAppNotInstalled ? (
             <InstallGitHubApp />
           ) : (
             <>

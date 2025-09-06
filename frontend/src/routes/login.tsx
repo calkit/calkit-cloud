@@ -71,7 +71,7 @@ function Login() {
           mb={-12}
         />
         <Text mb={3} fontSize="md">
-          Reproducibility simplified
+          Reproducibility = productivity
         </Text>
         <Button
           variant="primary"
