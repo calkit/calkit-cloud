@@ -159,9 +159,13 @@ const NewProject = ({ isOpen, onClose, defaultTemplate }: NewProjectProps) => {
                 defaultValue={defaultTemplate}
               >
                 {templates.map((template) => (
-                  <option value={template}>{template}</option>
+                  <option key={template} value={template}>
+                    {template}
+                  </option>
                 ))}
-                <option value="">None</option>
+                <option key="none" value="">
+                  None
+                </option>
               </Select>
             </FormControl>
             <FormControl mt={4} isInvalid={!!errors.git_repo_url}>
