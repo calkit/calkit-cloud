@@ -478,6 +478,8 @@ def create_project(
             for membership in current_user.org_memberships:
                 if membership.org.account.name.lower() == owner_name.lower():
                     role = membership.role_name
+            # If we have no role defined, check on GitHub
+            # TODO
             if role not in ["owner", "admin"]:
                 logger.info("User is not an admin or owner of this org")
                 raise HTTPException(
