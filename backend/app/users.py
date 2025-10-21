@@ -100,7 +100,7 @@ def get_github_token(session: Session, user: User) -> str:
     """
     query = (
         select(UserGitHubToken)
-        .where(UserGitHubToken.user_id == User.id)
+        .where(UserGitHubToken.user_id == user.id)
         .with_for_update()
     )
     token = session.exec(query).first()
