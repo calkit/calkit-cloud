@@ -3,6 +3,7 @@ import { OpenAPI } from "./core/OpenAPI"
 import { request as __request } from "./core/request"
 
 import type {
+  AccountPublic,
   Body_login_login_access_token,
   Message,
   NewPassword,
@@ -75,6 +76,12 @@ import type {
   OrgSubscriptionUpdate,
   DatasetsResponse,
 } from "./models"
+
+export type AccountsData = {
+  GetAccount: {
+    accountName: string
+  }
+}
 
 export type LoginData = {
   LoginAccessToken: {
@@ -164,6 +171,7 @@ export type ProjectsData = {
   GetProjects: {
     limit?: number
     offset?: number
+    ownerName?: string | null
     searchFor?: string | null
   }
   CreateProject: {
@@ -450,6 +458,29 @@ export type DatasetsData = {
     limit?: number
     offset?: number
     searchFor?: string | null
+  }
+}
+
+export class AccountsService {
+  /**
+   * Get Account
+   * @returns AccountPublic Successful Response
+   * @throws ApiError
+   */
+  public static getAccount(
+    data: AccountsData["GetAccount"],
+  ): CancelablePromise<AccountPublic> {
+    const { accountName } = data
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/accounts/{account_name}",
+      path: {
+        account_name: accountName,
+      },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
   }
 }
 
@@ -1091,7 +1122,7 @@ export class ProjectsService {
   public static getProjects(
     data: ProjectsData["GetProjects"] = {},
   ): CancelablePromise<ProjectsPublic> {
-    const { limit = 100, offset = 0, searchFor } = data
+    const { limit = 100, offset = 0, searchFor, ownerName } = data
     return __request(OpenAPI, {
       method: "GET",
       url: "/projects",
@@ -1099,6 +1130,7 @@ export class ProjectsService {
         limit,
         offset,
         search_for: searchFor,
+        owner_name: ownerName,
       },
       errors: {
         422: `Validation Error`,

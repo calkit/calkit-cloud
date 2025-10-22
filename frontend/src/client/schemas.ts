@@ -1,3 +1,37 @@
+export const $AccountPublic = {
+  properties: {
+    name: {
+      type: "string",
+      isRequired: true,
+    },
+    github_name: {
+      type: "string",
+      isRequired: true,
+    },
+    display_name: {
+      type: "string",
+      isRequired: true,
+    },
+    kind: {
+      type: "Enum",
+      enum: ["user", "org"],
+      isRequired: true,
+    },
+    role: {
+      type: "any-of",
+      contains: [
+        {
+          type: "Enum",
+          enum: ["self", "read", "write", "admin", "owner"],
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+  },
+} as const
+
 export const $Body_login_login_access_token = {
   properties: {
     grant_type: {

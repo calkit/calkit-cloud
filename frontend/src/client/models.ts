@@ -1,3 +1,11 @@
+export type AccountPublic = {
+  name: string
+  github_name: string
+  display_name: string
+  kind: "user" | "org"
+  role?: "self" | "read" | "write" | "admin" | "owner" | null
+}
+
 export type Body_login_login_access_token = {
   grant_type?: string | null
   username: string
