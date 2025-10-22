@@ -80,26 +80,17 @@ def get_orgs(
     current_user: CurrentUserOptional,
     limit: int = 100,
     offset: int = 0,
-    include_imported: bool = False,
     search_for: str | None = None,
 ) -> OrgsResponse:
     """Get a list of orgs."""
     query = select(Org).offset(offset).limit(limit).order_by(Org.display_name)
     if search_for is not None:
         search_for = f"%{search_for}%"
-        query = query.where(
-            Org.display_name.ilike(search_for)
-            | Org.github_name.ilike(search_for)
-            | Org.account.has(Account.name.ilike(search_for))
-        )
+        query = query.where(Org.display_name.ilike(search_for))
     orgs = session.exec(query).all()
     count_query = select(func.count()).select_from(Org)
     if search_for is not None:
-        count_query = count_query.where(
-            Org.display_name.ilike(search_for)
-            | Org.github_name.ilike(search_for)
-            | Org.account.has(Account.name.ilike(search_for))
-        )
+        count_query = count_query.where(Org.display_name.ilike(search_for))
     count = session.exec(count_query).one()
     resp = []
     for org in orgs:
