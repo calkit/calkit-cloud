@@ -1901,6 +1901,22 @@ export const $OrgSubscriptionUpdate = {
   },
 } as const
 
+export const $OrgsResponse = {
+  properties: {
+    data: {
+      type: "array",
+      contains: {
+        type: "OrgPublic",
+      },
+      isRequired: true,
+    },
+    count: {
+      type: "number",
+      isRequired: true,
+    },
+  },
+} as const
+
 export const $Pipeline = {
   properties: {
     mermaid: {

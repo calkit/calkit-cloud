@@ -71,6 +71,7 @@ import type {
   OrgMemberPost,
   OrgPost,
   OrgPublic,
+  OrgsResponse,
   OrgSubscriptionUpdate,
   DatasetsResponse,
 } from "./models"
@@ -422,6 +423,11 @@ export type ProjectsData = {
 }
 
 export type OrgsData = {
+  GetOrgs: {
+    limit?: number
+    offset?: number
+    searchFor?: string | null
+  }
   PostOrg: {
     requestBody: OrgPost
   }
@@ -2359,6 +2365,30 @@ export class OrgsService {
     return __request(OpenAPI, {
       method: "GET",
       url: "/user/orgs",
+    })
+  }
+
+  /**
+   * Get Orgs
+   * Get a list of orgs.
+   * @returns OrgsResponse Successful Response
+   * @throws ApiError
+   */
+  public static getOrgs(
+    data: OrgsData["GetOrgs"] = {},
+  ): CancelablePromise<OrgsResponse> {
+    const { limit = 100, offset = 0, searchFor } = data
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/orgs",
+      query: {
+        limit,
+        offset,
+        search_for: searchFor,
+      },
+      errors: {
+        422: `Validation Error`,
+      },
     })
   }
 

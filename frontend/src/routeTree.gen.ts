@@ -20,6 +20,7 @@ import { Route as LayoutRouteImport } from './routes/_layout'
 import { Route as LayoutIndexRouteImport } from './routes/_layout/index'
 import { Route as LayoutSettingsRouteImport } from './routes/_layout/settings'
 import { Route as LayoutProjectsRouteImport } from './routes/_layout/projects'
+import { Route as LayoutOrgsRouteImport } from './routes/_layout/orgs'
 import { Route as LayoutLearnRouteImport } from './routes/_layout/learn'
 import { Route as LayoutDatasetsRouteImport } from './routes/_layout/datasets'
 import { Route as LayoutAdminRouteImport } from './routes/_layout/admin'
@@ -84,6 +85,11 @@ const LayoutSettingsRoute = LayoutSettingsRouteImport.update({
 const LayoutProjectsRoute = LayoutProjectsRouteImport.update({
   id: '/projects',
   path: '/projects',
+  getParentRoute: () => LayoutRoute,
+} as any)
+const LayoutOrgsRoute = LayoutOrgsRouteImport.update({
+  id: '/orgs',
+  path: '/orgs',
   getParentRoute: () => LayoutRoute,
 } as any)
 const LayoutLearnRoute = LayoutLearnRouteImport.update({
@@ -200,6 +206,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof LayoutAdminRoute
   '/datasets': typeof LayoutDatasetsRoute
   '/learn': typeof LayoutLearnRoute
+  '/orgs': typeof LayoutOrgsRoute
   '/projects': typeof LayoutProjectsRoute
   '/settings': typeof LayoutSettingsRoute
   '/': typeof LayoutIndexRoute
@@ -227,6 +234,7 @@ export interface FileRoutesByTo {
   '/admin': typeof LayoutAdminRoute
   '/datasets': typeof LayoutDatasetsRoute
   '/learn': typeof LayoutLearnRoute
+  '/orgs': typeof LayoutOrgsRoute
   '/projects': typeof LayoutProjectsRoute
   '/settings': typeof LayoutSettingsRoute
   '/': typeof LayoutIndexRoute
@@ -255,6 +263,7 @@ export interface FileRoutesById {
   '/_layout/admin': typeof LayoutAdminRoute
   '/_layout/datasets': typeof LayoutDatasetsRoute
   '/_layout/learn': typeof LayoutLearnRoute
+  '/_layout/orgs': typeof LayoutOrgsRoute
   '/_layout/projects': typeof LayoutProjectsRoute
   '/_layout/settings': typeof LayoutSettingsRoute
   '/_layout/': typeof LayoutIndexRoute
@@ -285,6 +294,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/datasets'
     | '/learn'
+    | '/orgs'
     | '/projects'
     | '/settings'
     | '/'
@@ -312,6 +322,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/datasets'
     | '/learn'
+    | '/orgs'
     | '/projects'
     | '/settings'
     | '/'
@@ -339,6 +350,7 @@ export interface FileRouteTypes {
     | '/_layout/admin'
     | '/_layout/datasets'
     | '/_layout/learn'
+    | '/_layout/orgs'
     | '/_layout/projects'
     | '/_layout/settings'
     | '/_layout/'
@@ -431,6 +443,13 @@ declare module '@tanstack/react-router' {
       path: '/projects'
       fullPath: '/projects'
       preLoaderRoute: typeof LayoutProjectsRouteImport
+      parentRoute: typeof LayoutRoute
+    }
+    '/_layout/orgs': {
+      id: '/_layout/orgs'
+      path: '/orgs'
+      fullPath: '/orgs'
+      preLoaderRoute: typeof LayoutOrgsRouteImport
       parentRoute: typeof LayoutRoute
     }
     '/_layout/learn': {
@@ -632,6 +651,7 @@ interface LayoutRouteChildren {
   LayoutAdminRoute: typeof LayoutAdminRoute
   LayoutDatasetsRoute: typeof LayoutDatasetsRoute
   LayoutLearnRoute: typeof LayoutLearnRoute
+  LayoutOrgsRoute: typeof LayoutOrgsRoute
   LayoutProjectsRoute: typeof LayoutProjectsRoute
   LayoutSettingsRoute: typeof LayoutSettingsRoute
   LayoutIndexRoute: typeof LayoutIndexRoute
@@ -642,6 +662,7 @@ const LayoutRouteChildren: LayoutRouteChildren = {
   LayoutAdminRoute: LayoutAdminRoute,
   LayoutDatasetsRoute: LayoutDatasetsRoute,
   LayoutLearnRoute: LayoutLearnRoute,
+  LayoutOrgsRoute: LayoutOrgsRoute,
   LayoutProjectsRoute: LayoutProjectsRoute,
   LayoutSettingsRoute: LayoutSettingsRoute,
   LayoutIndexRoute: LayoutIndexRoute,

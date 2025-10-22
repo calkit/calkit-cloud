@@ -406,6 +406,11 @@ export type OrgSubscriptionUpdate = {
   n_users: number
 }
 
+export type OrgsResponse = {
+  data: Array<OrgPublic>
+  count: number
+}
+
 export type Pipeline = {
   mermaid: string
   stages: Record<string, PipelineStage | ForeachStage>
