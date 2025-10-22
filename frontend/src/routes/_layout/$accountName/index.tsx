@@ -185,7 +185,7 @@ function AccountPage() {
           {account.kind === "org" && account.role ? (
             <Box mb={8}>
               <Heading size="md" mb={4}>
-                Users
+                Members
               </Heading>
               <UsersTable />
             </Box>
