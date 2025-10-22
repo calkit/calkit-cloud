@@ -38,8 +38,8 @@ interface AddPost {
 const AddPath = ({ path }: AddPathProps) => {
   const queryClient = useQueryClient()
   const showToast = useCustomToast()
-  const routeApi = getRouteApi("/_layout/$userName/$projectName")
-  const { userName, projectName } = routeApi.useParams()
+  const routeApi = getRouteApi("/_layout/$accountName/$projectName")
+  const { accountName, projectName } = routeApi.useParams()
   const {
     register,
     handleSubmit,
@@ -53,7 +53,7 @@ const AddPath = ({ path }: AddPathProps) => {
   const modalDisclosure = useDisclosure()
   const mutation = useMutation({
     mutationFn: (data: AddPost) => {
-      const url = `http://localhost:8866/projects/${userName}/${projectName}/calkit/add`
+      const url = `http://localhost:8866/projects/${accountName}/${projectName}/calkit/add`
       const postData = {
         paths: [path],
         commit: true,
@@ -72,10 +72,10 @@ const AddPath = ({ path }: AddPathProps) => {
     },
     onSettled: () => {
       queryClient.invalidateQueries({
-        queryKey: ["local-server-main", userName, projectName, "status"],
+        queryKey: ["local-server-main", accountName, projectName, "status"],
       })
       queryClient.invalidateQueries({
-        queryKey: ["local-server-main", userName, projectName, "pipeline"],
+        queryKey: ["local-server-main", accountName, projectName, "pipeline"],
       })
     },
   })

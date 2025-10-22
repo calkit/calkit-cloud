@@ -2,12 +2,19 @@
 
 import logging
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Literal
 
-import app.stripe
+from app.models.core import UserPublic
 import requests
-from app.api.deps import CurrentUser, SessionDep
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
+from sqlalchemy import func
+from sqlalchemy.exc import DataError
+from sqlmodel import Field, SQLModel, select
+
+import app.stripe
+from app.api.deps import CurrentUser, CurrentUserOptional, SessionDep
 from app.config import settings
 from app.core import INVALID_ACCOUNT_NAMES, utcnow
 from app.models import (
@@ -15,11 +22,11 @@ from app.models import (
     Account,
     DiscountCode,
     Message,
-    UpdateSubscriptionResponse,
     Org,
     OrgSubscription,
     StorageUsage,
     SubscriptionUpdate,
+    UpdateSubscriptionResponse,
     User,
     UserOrgMembership,
     UserSubscription,
@@ -28,10 +35,6 @@ from app.orgs import get_org_from_db
 from app.storage import get_storage_usage
 from app.subscriptions import PLAN_IDS, get_monthly_price
 from app.users import get_github_token
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
-from sqlalchemy.exc import DataError
-from sqlmodel import Field, select
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -65,6 +68,48 @@ def get_user_orgs(
             )
         )
     return resp
+
+
+class OrgsResponse(SQLModel):
+    data: list[OrgPublic]
+    count: int
+
+
+@router.get("/orgs")
+def get_orgs(
+    session: SessionDep,
+    current_user: CurrentUserOptional,
+    limit: int = 100,
+    offset: int = 0,
+    search_for: str | None = None,
+) -> OrgsResponse:
+    """Get a list of orgs."""
+    query = select(Org).offset(offset).limit(limit).order_by(Org.display_name)
+    if search_for is not None:
+        search_for = f"%{search_for}%"
+        query = query.where(Org.display_name.ilike(search_for))
+    orgs = session.exec(query).all()
+    count_query = select(func.count()).select_from(Org)
+    if search_for is not None:
+        count_query = count_query.where(Org.display_name.ilike(search_for))
+    count = session.exec(count_query).one()
+    resp = []
+    for org in orgs:
+        role = "none"
+        if current_user is not None:
+            for membership in current_user.org_memberships:
+                if membership.org == org:
+                    role = membership.role_name
+        resp.append(
+            OrgPublic(
+                id=org.id,
+                name=org.account.name,
+                display_name=org.display_name,
+                github_name=org.github_name,
+                role=role,
+            )
+        )
+    return OrgsResponse(data=resp, count=count)
 
 
 class OrgPost(BaseModel):
@@ -191,7 +236,7 @@ def add_org_member(
         raise HTTPException(400, "User already exists in org")
     # Make sure this org has enough seats left
     subscription = org.subscription
-    if subscription is None or subscription.paid_until < utcnow():
+    if not org.subscription_valid:
         logger.info(f"Org {org_name} has no valid subscription")
         raise HTTPException(400, "No valid subscription")
     n_users = subscription.n_users
@@ -336,7 +381,7 @@ def get_org_storage(
 ) -> StorageUsage:
     org = get_org_from_db(org_name=org_name, session=session)
     if org is None:
-        logger.info("Org '{org_name}' does not exist")
+        logger.info(f"Org '{org_name}' does not exist")
         raise HTTPException(404)
     # Ensure the current user is an org admin or owner
     role = None
@@ -349,3 +394,40 @@ def get_org_storage(
     limit = org.subscription.storage_limit
     used = get_storage_usage(org.account.name)
     return StorageUsage(used_gb=used, limit_gb=limit)
+
+
+class OrgUserPublic(BaseModel):
+    name: str
+    github_name: str
+    role: str
+
+
+@router.get("/orgs/{org_name}/users")
+def get_org_users(
+    org_name: str,
+    session: SessionDep,
+    current_user: CurrentUser,
+) -> list[OrgUserPublic]:
+    org = get_org_from_db(org_name=org_name, session=session)
+    if org is None:
+        logger.info(f"Org '{org_name}' does not exist")
+        raise HTTPException(404)
+    # Ensure the current user is an org admin or owner
+    role = None
+    for membership in current_user.org_memberships:
+        if membership.org.account.name == org_name:
+            role = membership.role_name
+    if role is None:
+        logger.info("User is not a member of this org")
+        raise HTTPException(403)
+    resp = []
+    for membership in org.user_memberships:
+        user = membership.user
+        resp.append(
+            OrgUserPublic(
+                name=user.account.name,
+                github_name=user.github_username,
+                role=membership.role_name,
+            )
+        )
+    return resp

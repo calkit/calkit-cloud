@@ -179,6 +179,15 @@ class Org(SQLModel, table=True):
     def owned_projects(self) -> list["Project"]:
         return self.account.owned_projects
 
+    @property
+    def subscription_valid(self) -> bool:
+        """Check if the org has a valid subscription."""
+        if self.subscription is None:
+            return False
+        if self.subscription.paid_until is None:
+            return True
+        return self.subscription.paid_until >= utcnow()
+
 
 # These could be put in the database, but that seems unnecessary
 ROLE_IDS = {

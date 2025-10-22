@@ -31,7 +31,7 @@ import SaveFiles from "../../../../../components/Local/SaveFiles"
 import DiscardChanges from "../../../../../components/Local/DiscardChanges"
 
 export const Route = createFileRoute(
-  "/_layout/$userName/$projectName/_layout/local",
+  "/_layout/$accountName/$projectName/_layout/local",
 )({
   component: LocalServer,
 })
@@ -39,10 +39,10 @@ export const Route = createFileRoute(
 function LocalServer() {
   const secBgColor = useColorModeValue("ui.secondary", "ui.darkSlate")
   const queryClient = useQueryClient()
-  const { userName, projectName } = Route.useParams()
+  const { accountName, projectName } = Route.useParams()
   const project = queryClient.getQueryData<ProjectPublic>([
     "projects",
-    userName,
+    accountName,
     projectName,
   ])
   const localServerRunningQuery = useQuery({
@@ -52,16 +52,16 @@ function LocalServer() {
   })
   const localServerRunning = localServerRunningQuery.data?.data === "All good!"
   const localServerQuery = useQuery({
-    queryKey: ["local-server-main", userName, projectName],
+    queryKey: ["local-server-main", accountName, projectName],
     queryFn: () =>
-      axios.get(`http://localhost:8866/projects/${userName}/${projectName}`),
+      axios.get(`http://localhost:8866/projects/${accountName}/${projectName}`),
     retry: 2,
   })
   const jupyterServerQuery = useQuery({
-    queryKey: ["jupyter-server", userName, projectName],
+    queryKey: ["jupyter-server", accountName, projectName],
     queryFn: () =>
       axios.get(
-        `http://localhost:8866/projects/${userName}/${projectName}/jupyter-server`,
+        `http://localhost:8866/projects/${accountName}/${projectName}/jupyter-server`,
       ),
     retry: false,
     refetchOnMount: false,
@@ -69,17 +69,17 @@ function LocalServer() {
   })
   const openVSCode = () => {
     axios.post(
-      `http://localhost:8866/projects/${userName}/${projectName}/open/vscode`,
+      `http://localhost:8866/projects/${accountName}/${projectName}/open/vscode`,
     )
   }
   const openFolder = () => {
     axios.post(
-      `http://localhost:8866/projects/${userName}/${projectName}/open/folder`,
+      `http://localhost:8866/projects/${accountName}/${projectName}/open/folder`,
     )
   }
   const jupyterServerMutation = useMutation({
     mutationFn: () => {
-      const url = `http://localhost:8866/projects/${userName}/${projectName}/jupyter-server`
+      const url = `http://localhost:8866/projects/${accountName}/${projectName}/jupyter-server`
       if (!jupyterServerQuery.data?.data?.url) {
         return axios.get(url, { params: { autostart: true, no_browser: true } })
       }
@@ -87,23 +87,23 @@ function LocalServer() {
     },
     onSettled: () => {
       queryClient.invalidateQueries({
-        queryKey: ["local-server", userName, projectName],
+        queryKey: ["local-server", accountName, projectName],
       })
       queryClient.invalidateQueries({
-        queryKey: ["jupyter-server", userName, projectName],
+        queryKey: ["jupyter-server", accountName, projectName],
       })
       jupyterServerQuery.refetch()
       queryClient.refetchQueries({
-        queryKey: ["local-server", userName, projectName],
+        queryKey: ["local-server", accountName, projectName],
       })
     },
   })
   const localWorkingDir = localServerQuery.data?.data?.wdir
   const statusQuery = useQuery({
-    queryKey: ["local-server-main", userName, projectName, "status"],
+    queryKey: ["local-server-main", accountName, projectName, "status"],
     queryFn: () =>
       axios.get(
-        `http://localhost:8866/projects/${userName}/${projectName}/status`,
+        `http://localhost:8866/projects/${accountName}/${projectName}/status`,
       ),
     retry: 2,
     refetchOnMount: false,
@@ -130,48 +130,48 @@ function LocalServer() {
   const gitPushMutation = useMutation({
     mutationFn: () => {
       mixpanel.track("Clicked git push on local machine page")
-      const url = `http://localhost:8866/projects/${userName}/${projectName}/git/push`
+      const url = `http://localhost:8866/projects/${accountName}/${projectName}/git/push`
       return axios.post(url)
     },
     onSettled: () => {
       queryClient.invalidateQueries({
-        queryKey: ["local-server-main", userName, projectName, "status"],
+        queryKey: ["local-server-main", accountName, projectName, "status"],
       })
     },
   })
   const gitPullMutation = useMutation({
     mutationFn: () => {
       mixpanel.track("Clicked git pull on local machine page")
-      const url = `http://localhost:8866/projects/${userName}/${projectName}/git/pull`
+      const url = `http://localhost:8866/projects/${accountName}/${projectName}/git/pull`
       return axios.post(url)
     },
     onSettled: () => {
       queryClient.invalidateQueries({
-        queryKey: ["local-server-main", userName, projectName, "status"],
+        queryKey: ["local-server-main", accountName, projectName, "status"],
       })
     },
   })
   const dvcPushMutation = useMutation({
     mutationFn: () => {
       mixpanel.track("Clicked DVC push on local machine page")
-      const url = `http://localhost:8866/projects/${userName}/${projectName}/dvc/push`
+      const url = `http://localhost:8866/projects/${accountName}/${projectName}/dvc/push`
       return axios.post(url)
     },
     onSettled: () => {
       queryClient.invalidateQueries({
-        queryKey: ["local-server-main", userName, projectName, "status"],
+        queryKey: ["local-server-main", accountName, projectName, "status"],
       })
     },
   })
   const dvcPullMutation = useMutation({
     mutationFn: () => {
       mixpanel.track("Clicked DVC pull on local machine page")
-      const url = `http://localhost:8866/projects/${userName}/${projectName}/dvc/pull`
+      const url = `http://localhost:8866/projects/${accountName}/${projectName}/dvc/pull`
       return axios.post(url)
     },
     onSettled: () => {
       queryClient.invalidateQueries({
-        queryKey: ["local-server-main", userName, projectName, "status"],
+        queryKey: ["local-server-main", accountName, projectName, "status"],
       })
     },
   })
@@ -179,7 +179,7 @@ function LocalServer() {
   const runPipelineMutation = useMutation({
     mutationFn: () => {
       mixpanel.track("Clicked run pipeline on local machine page")
-      const url = `http://localhost:8866/projects/${userName}/${projectName}/pipeline/runs`
+      const url = `http://localhost:8866/projects/${accountName}/${projectName}/pipeline/runs`
       return axios.post(url)
     },
     onError: (err: any) => {
@@ -187,15 +187,15 @@ function LocalServer() {
     },
     onSettled: () => {
       queryClient.invalidateQueries({
-        queryKey: ["local-server-main", userName, projectName, "status"],
+        queryKey: ["local-server-main", accountName, projectName, "status"],
       })
     },
   })
   const pipelineQuery = useQuery({
-    queryKey: ["local-server-main", userName, projectName, "pipeline"],
+    queryKey: ["local-server-main", accountName, projectName, "pipeline"],
     queryFn: () =>
       axios.get(
-        `http://localhost:8866/projects/${userName}/${projectName}/pipeline`,
+        `http://localhost:8866/projects/${accountName}/${projectName}/pipeline`,
       ),
     retry: false,
     refetchOnMount: false,
@@ -210,16 +210,16 @@ function LocalServer() {
     },
     onSettled: () => {
       queryClient.invalidateQueries({
-        queryKey: ["local-server-main", userName, projectName, "status"],
+        queryKey: ["local-server-main", accountName, projectName, "status"],
       })
       queryClient.invalidateQueries({
-        queryKey: ["local-server-main", userName, projectName, "pipeline"],
+        queryKey: ["local-server-main", accountName, projectName, "pipeline"],
       })
       queryClient.invalidateQueries({
-        queryKey: ["local-server", userName, projectName],
+        queryKey: ["local-server", accountName, projectName],
       })
       queryClient.invalidateQueries({
-        queryKey: ["local-server-main", userName, projectName],
+        queryKey: ["local-server-main", accountName, projectName],
       })
     },
   })

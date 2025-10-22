@@ -29,7 +29,7 @@ import useAuth from "../../../../../hooks/useAuth"
 import Delete from "../../../../../components/Common/DeleteAlert"
 
 export const Route = createFileRoute(
-  "/_layout/$userName/$projectName/_layout/collaborators",
+  "/_layout/$accountName/$projectName/_layout/collaborators",
 )({
   component: Collaborators,
 })
@@ -81,13 +81,13 @@ const ActionsMenu = ({
 }
 
 function Collaborators() {
-  const { userName, projectName } = Route.useParams()
+  const { accountName, projectName } = Route.useParams()
   const { user: currentUser } = useAuth()
   const { isPending, data: collaborators } = useQuery({
-    queryKey: ["projects", userName, projectName, "collaborators"],
+    queryKey: ["projects", accountName, projectName, "collaborators"],
     queryFn: () =>
       ProjectsService.getProjectCollaborators({
-        ownerName: userName,
+        ownerName: accountName,
         projectName: projectName,
       }),
   })
@@ -142,7 +142,7 @@ function Collaborators() {
                   <Td>{collaborator.access_level}</Td>
                   <Td>
                     <ActionsMenu
-                      ownerName={userName}
+                      ownerName={accountName}
                       projectName={projectName}
                       githubUsername={collaborator.github_username}
                       disabled={currentUser?.id === collaborator.user_id}

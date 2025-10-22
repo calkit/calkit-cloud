@@ -37,8 +37,8 @@ interface DatasetPostWithFile {
 const UploadDataset = ({ isOpen, onClose }: UploadDatasetProps) => {
   const queryClient = useQueryClient()
   const showToast = useCustomToast()
-  const routeApi = getRouteApi("/_layout/$userName/$projectName")
-  const { userName, projectName } = routeApi.useParams()
+  const routeApi = getRouteApi("/_layout/$accountName/$projectName")
+  const { accountName, projectName } = routeApi.useParams()
   const {
     register,
     handleSubmit,
@@ -62,7 +62,7 @@ const UploadDataset = ({ isOpen, onClose }: UploadDatasetProps) => {
           description: data.description,
           file: data.file[0],
         },
-        ownerName: userName,
+        ownerName: accountName,
         projectName: projectName,
         contentLength: data.file[0].size,
       }),
@@ -76,7 +76,7 @@ const UploadDataset = ({ isOpen, onClose }: UploadDatasetProps) => {
     },
     onSettled: () => {
       queryClient.invalidateQueries({
-        queryKey: ["projects", userName, projectName, "datasets"],
+        queryKey: ["projects", accountName, projectName, "datasets"],
       })
     },
   })

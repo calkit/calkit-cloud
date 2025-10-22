@@ -44,8 +44,8 @@ const SaveFiles = ({
   const allPaths = changedFiles.concat(stagedFiles)
   const queryClient = useQueryClient()
   const showToast = useCustomToast()
-  const routeApi = getRouteApi("/_layout/$userName/$projectName")
-  const { userName, projectName } = routeApi.useParams()
+  const routeApi = getRouteApi("/_layout/$accountName/$projectName")
+  const { accountName, projectName } = routeApi.useParams()
   const {
     register,
     handleSubmit,
@@ -64,7 +64,7 @@ const SaveFiles = ({
   })
   const mutation = useMutation({
     mutationFn: (data: CommitPost) => {
-      const url = `http://localhost:8866/projects/${userName}/${projectName}/calkit/add-and-commit`
+      const url = `http://localhost:8866/projects/${accountName}/${projectName}/calkit/add-and-commit`
       return axios.post(url, data)
     },
     onSuccess: () => {
@@ -77,10 +77,10 @@ const SaveFiles = ({
     },
     onSettled: () => {
       queryClient.invalidateQueries({
-        queryKey: ["local-server-main", userName, projectName, "status"],
+        queryKey: ["local-server-main", accountName, projectName, "status"],
       })
       queryClient.invalidateQueries({
-        queryKey: ["local-server-main", userName, projectName, "pipeline"],
+        queryKey: ["local-server-main", accountName, projectName, "pipeline"],
       })
     },
   })

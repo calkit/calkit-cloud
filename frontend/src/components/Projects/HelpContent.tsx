@@ -6,8 +6,8 @@ interface HelpContentProps {
 }
 
 function HelpContent({ userHasWriteAccess }: HelpContentProps) {
-  const routeApi = getRouteApi("/_layout/$userName/$projectName")
-  const { userName, projectName } = routeApi.useParams()
+  const routeApi = getRouteApi("/_layout/$accountName/$projectName")
+  const { accountName, projectName } = routeApi.useParams()
   const page = location.pathname.split("/").at(-1)
   const mb = 4
   if (page === "files") {
@@ -239,7 +239,7 @@ function HelpContent({ userHasWriteAccess }: HelpContentProps) {
           questions you'd like to answer, or start defining the{" "}
           <Link
             as={RouterLink}
-            to={`/${userName}/${projectName}/pipeline`}
+            to={`/${accountName}/${projectName}/pipeline`}
             variant="blue"
           >
             pipeline
@@ -255,7 +255,7 @@ function HelpContent({ userHasWriteAccess }: HelpContentProps) {
         and execute:
       </Text>
       <Code whiteSpace="pre" overflow="auto" mb={mb} width="100%" p={2}>
-        calkit clone {userName}/{projectName}
+        calkit clone {accountName}/{projectName}
       </Code>
     </>
   )

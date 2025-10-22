@@ -39,8 +39,8 @@ interface ProjectStatusProps {
 const ProjectStatus = ({ project, isOpen, onClose }: ProjectStatusProps) => {
   const queryClient = useQueryClient()
   const showToast = useCustomToast()
-  const routeApi = getRouteApi("/_layout/$userName/$projectName")
-  const { userName, projectName } = routeApi.useParams()
+  const routeApi = getRouteApi("/_layout/$accountName/$projectName")
+  const { accountName, projectName } = routeApi.useParams()
   const {
     register,
     handleSubmit,
@@ -59,7 +59,7 @@ const ProjectStatus = ({ project, isOpen, onClose }: ProjectStatusProps) => {
   const mutation = useMutation({
     mutationFn: (data: ProjectStatusPost) =>
       ProjectsService.postProjectStatus({
-        ownerName: userName,
+        ownerName: accountName,
         projectName: projectName,
         requestBody: data,
       }),
@@ -73,7 +73,7 @@ const ProjectStatus = ({ project, isOpen, onClose }: ProjectStatusProps) => {
     },
     onSettled: () => {
       queryClient.invalidateQueries({
-        queryKey: ["projects", userName, projectName],
+        queryKey: ["projects", accountName, projectName],
       })
     },
   })

@@ -31,8 +31,8 @@ interface AddCollabForm {
 }
 
 const AddCollaborator = ({ isOpen, onClose }: AddCollabProps) => {
-  const routeApi = getRouteApi("/_layout/$userName/$projectName")
-  const { userName, projectName } = routeApi.useParams()
+  const routeApi = getRouteApi("/_layout/$accountName/$projectName")
+  const { accountName, projectName } = routeApi.useParams()
   const queryClient = useQueryClient()
   const showToast = useCustomToast()
   const {
@@ -52,7 +52,7 @@ const AddCollaborator = ({ isOpen, onClose }: AddCollabProps) => {
     mutationFn: (data: AddCollabForm) =>
       ProjectsService.putProjectCollaborator({
         githubUsername: data.github_username,
-        ownerName: userName,
+        ownerName: accountName,
         projectName: projectName,
       }),
     onSuccess: () => {
@@ -65,7 +65,7 @@ const AddCollaborator = ({ isOpen, onClose }: AddCollabProps) => {
     },
     onSettled: () => {
       queryClient.invalidateQueries({
-        queryKey: ["projects", userName, projectName, "collaborators"],
+        queryKey: ["projects", accountName, projectName, "collaborators"],
       })
     },
   })

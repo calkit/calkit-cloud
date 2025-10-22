@@ -74,6 +74,8 @@ INVALID_ACCOUNT_NAMES = [
     "teams",
     "templates",
     "update",
+    "user",
+    "users",
     "workflows",
 ]
 

@@ -3,6 +3,7 @@ import { OpenAPI } from "./core/OpenAPI"
 import { request as __request } from "./core/request"
 
 import type {
+  AccountPublic,
   Body_login_login_access_token,
   Message,
   NewPassword,
@@ -71,9 +72,17 @@ import type {
   OrgMemberPost,
   OrgPost,
   OrgPublic,
+  OrgsResponse,
   OrgSubscriptionUpdate,
+  OrgUserPublic,
   DatasetsResponse,
 } from "./models"
+
+export type AccountsData = {
+  GetAccount: {
+    accountName: string
+  }
+}
 
 export type LoginData = {
   LoginAccessToken: {
@@ -163,6 +172,7 @@ export type ProjectsData = {
   GetProjects: {
     limit?: number
     offset?: number
+    ownerName?: string | null
     searchFor?: string | null
   }
   CreateProject: {
@@ -422,6 +432,11 @@ export type ProjectsData = {
 }
 
 export type OrgsData = {
+  GetOrgs: {
+    limit?: number
+    offset?: number
+    searchFor?: string | null
+  }
   PostOrg: {
     requestBody: OrgPost
   }
@@ -436,6 +451,9 @@ export type OrgsData = {
   GetOrgStorage: {
     orgName: string
   }
+  GetOrgUsers: {
+    orgName: string
+  }
 }
 
 export type DatasetsData = {
@@ -444,6 +462,29 @@ export type DatasetsData = {
     limit?: number
     offset?: number
     searchFor?: string | null
+  }
+}
+
+export class AccountsService {
+  /**
+   * Get Account
+   * @returns AccountPublic Successful Response
+   * @throws ApiError
+   */
+  public static getAccount(
+    data: AccountsData["GetAccount"],
+  ): CancelablePromise<AccountPublic> {
+    const { accountName } = data
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/accounts/{account_name}",
+      path: {
+        account_name: accountName,
+      },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
   }
 }
 
@@ -1085,7 +1126,7 @@ export class ProjectsService {
   public static getProjects(
     data: ProjectsData["GetProjects"] = {},
   ): CancelablePromise<ProjectsPublic> {
-    const { limit = 100, offset = 0, searchFor } = data
+    const { limit = 100, offset = 0, searchFor, ownerName } = data
     return __request(OpenAPI, {
       method: "GET",
       url: "/projects",
@@ -1093,6 +1134,7 @@ export class ProjectsService {
         limit,
         offset,
         search_for: searchFor,
+        owner_name: ownerName,
       },
       errors: {
         422: `Validation Error`,
@@ -2363,6 +2405,30 @@ export class OrgsService {
   }
 
   /**
+   * Get Orgs
+   * Get a list of orgs.
+   * @returns OrgsResponse Successful Response
+   * @throws ApiError
+   */
+  public static getOrgs(
+    data: OrgsData["GetOrgs"] = {},
+  ): CancelablePromise<OrgsResponse> {
+    const { limit = 100, offset = 0, searchFor } = data
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/orgs",
+      query: {
+        limit,
+        offset,
+        search_for: searchFor,
+      },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
    * Post Org
    * @returns OrgPublic Successful Response
    * @throws ApiError
@@ -2440,6 +2506,27 @@ export class OrgsService {
     return __request(OpenAPI, {
       method: "GET",
       url: "/orgs/{org_name}/storage",
+      path: {
+        org_name: orgName,
+      },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Get Org Users
+   * @returns OrgUserPublic Successful Response
+   * @throws ApiError
+   */
+  public static getOrgUsers(
+    data: OrgsData["GetOrgUsers"],
+  ): CancelablePromise<Array<OrgUserPublic>> {
+    const { orgName } = data
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/orgs/{org_name}/users",
       path: {
         org_name: orgName,
       },

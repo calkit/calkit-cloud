@@ -12,8 +12,8 @@ interface FigureViewProps {
 }
 
 function FigureView({ figure, width }: FigureViewProps) {
-  const routeApi = getRouteApi("/_layout/$userName/$projectName")
-  const { userName, projectName } = routeApi.useParams()
+  const routeApi = getRouteApi("/_layout/$accountName/$projectName")
+  const { accountName, projectName } = routeApi.useParams()
   const boxWidth = width ? width : "100%"
   let figView = <>Not set</>
   if (figure.path.endsWith(".pdf")) {
@@ -82,7 +82,7 @@ function FigureView({ figure, width }: FigureViewProps) {
       queryFn: () => axios.get(String(figure.url)),
       queryKey: [
         "projects",
-        userName,
+        accountName,
         projectName,
         "figure-content",
         figure.path,

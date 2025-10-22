@@ -27,7 +27,7 @@ import { BsFilePdf } from "react-icons/bs"
 import PageMenu from "../../../../../components/Common/PageMenu"
 
 export const Route = createFileRoute(
-  "/_layout/$userName/$projectName/_layout/references",
+  "/_layout/$accountName/$projectName/_layout/references",
 )({
   component: References,
 })
@@ -62,16 +62,16 @@ function ReferenceEntryTable({ referenceEntry }: ReferenceEntryTableProps) {
 }
 
 function References() {
-  const { userName, projectName } = Route.useParams()
+  const { accountName, projectName } = Route.useParams()
   const {
     isPending,
     error,
     data: allReferences,
   } = useQuery({
-    queryKey: ["projects", userName, projectName, "references"],
+    queryKey: ["projects", accountName, projectName, "references"],
     queryFn: () =>
       ProjectsService.getProjectReferences({
-        ownerName: userName,
+        ownerName: accountName,
         projectName: projectName,
       }),
   })

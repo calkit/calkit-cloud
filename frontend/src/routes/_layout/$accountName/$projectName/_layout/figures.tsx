@@ -36,7 +36,7 @@ import useAuth from "../../../../../hooks/useAuth"
 import FigureView from "../../../../../components/Figures/FigureView"
 
 export const Route = createFileRoute(
-  "/_layout/$userName/$projectName/_layout/figures",
+  "/_layout/$accountName/$projectName/_layout/figures",
 )({
   component: ProjectFigures,
 })
@@ -48,12 +48,12 @@ interface FigureCommentProps {
 function FigureComments({ figure }: FigureCommentProps) {
   const { user } = useAuth()
   const queryClient = useQueryClient()
-  const { userName, projectName } = Route.useParams()
+  const { accountName, projectName } = Route.useParams()
   const { isPending, data: comments } = useQuery({
-    queryKey: [userName, projectName, "figure-comments", figure.path],
+    queryKey: [accountName, projectName, "figure-comments", figure.path],
     queryFn: () =>
       ProjectsService.getFigureComments({
-        ownerName: userName,
+        ownerName: accountName,
         projectName: projectName,
         figurePath: figure.path,
       }),
@@ -65,13 +65,13 @@ function FigureComments({ figure }: FigureCommentProps) {
   const mutation = useMutation({
     mutationFn: (data: FigureCommentPost) =>
       ProjectsService.postFigureComment({
-        ownerName: userName,
+        ownerName: accountName,
         projectName: projectName,
         requestBody: data,
       }),
     onSettled: () => {
       queryClient.invalidateQueries({
-        queryKey: [userName, projectName, "figure-comments", figure.path],
+        queryKey: [accountName, projectName, "figure-comments", figure.path],
       })
     },
   })
@@ -232,9 +232,9 @@ const getIcon = (figure: Figure) => {
 }
 
 function ProjectFigures() {
-  const { userName, projectName } = Route.useParams()
-  const { userHasWriteAccess } = useProject(userName, projectName)
-  const { figuresRequest } = useProjectFigures(userName, projectName)
+  const { accountName, projectName } = Route.useParams()
+  const { userHasWriteAccess } = useProject(accountName, projectName)
+  const { figuresRequest } = useProjectFigures(accountName, projectName)
   const { isPending: figuresPending, data: figures } = figuresRequest
   const uploadFigureModal = useDisclosure()
   const labelFigureModal = useDisclosure()

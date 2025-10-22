@@ -1,3 +1,37 @@
+export const $AccountPublic = {
+  properties: {
+    name: {
+      type: "string",
+      isRequired: true,
+    },
+    github_name: {
+      type: "string",
+      isRequired: true,
+    },
+    display_name: {
+      type: "string",
+      isRequired: true,
+    },
+    kind: {
+      type: "Enum",
+      enum: ["user", "org"],
+      isRequired: true,
+    },
+    role: {
+      type: "any-of",
+      contains: [
+        {
+          type: "Enum",
+          enum: ["self", "read", "write", "admin", "owner"],
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+  },
+} as const
+
 export const $Body_login_login_access_token = {
   properties: {
     grant_type: {
@@ -1897,6 +1931,39 @@ export const $OrgSubscriptionUpdate = {
       type: "number",
       isRequired: true,
       minimum: 2,
+    },
+  },
+} as const
+
+export const $OrgUserPublic = {
+  properties: {
+    name: {
+      type: "string",
+      isRequired: true,
+    },
+    github_name: {
+      type: "string",
+      isRequired: true,
+    },
+    role: {
+      type: "string",
+      isRequired: true,
+    },
+  },
+} as const
+
+export const $OrgsResponse = {
+  properties: {
+    data: {
+      type: "array",
+      contains: {
+        type: "OrgPublic",
+      },
+      isRequired: true,
+    },
+    count: {
+      type: "number",
+      isRequired: true,
     },
   },
 } as const

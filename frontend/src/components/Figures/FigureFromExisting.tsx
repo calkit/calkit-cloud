@@ -36,8 +36,8 @@ interface FigurePost {
 const LabelAsFigure = ({ isOpen, onClose }: LabelFigureProps) => {
   const queryClient = useQueryClient()
   const showToast = useCustomToast()
-  const routeApi = getRouteApi("/_layout/$userName/$projectName")
-  const { userName, projectName } = routeApi.useParams()
+  const routeApi = getRouteApi("/_layout/$accountName/$projectName")
+  const { accountName, projectName } = routeApi.useParams()
   const {
     register,
     handleSubmit,
@@ -61,7 +61,7 @@ const LabelAsFigure = ({ isOpen, onClose }: LabelFigureProps) => {
           path: data.path,
           description: data.description,
         },
-        ownerName: userName,
+        ownerName: accountName,
         projectName: projectName,
       }),
     onSuccess: () => {
@@ -74,7 +74,7 @@ const LabelAsFigure = ({ isOpen, onClose }: LabelFigureProps) => {
     },
     onSettled: () => {
       queryClient.invalidateQueries({
-        queryKey: ["projects", userName, projectName, "figures"],
+        queryKey: ["projects", accountName, projectName, "figures"],
       })
     },
   })

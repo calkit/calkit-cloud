@@ -84,6 +84,7 @@ from app.models import (
     Publication,
     Question,
     User,
+    UserOrgMembership,
     UserProjectAccess,
 )
 from app.models.projects import (
@@ -93,13 +94,13 @@ from app.models.projects import (
     ShowcaseInput,
     ShowcaseMarkdown,
     ShowcaseMarkdownFileInput,
+    ShowcaseNotebook,
+    ShowcaseNotebookInput,
     ShowcasePublication,
     ShowcasePublicationInput,
     ShowcaseText,
     ShowcaseYaml,
     ShowcaseYamlFileInput,
-    ShowcaseNotebook,
-    ShowcaseNotebookInput,
 )
 from app.storage import (
     get_data_prefix,
@@ -123,8 +124,8 @@ def get_projects(
     limit: int = 100,
     offset: int = 0,
     search_for: str | None = None,
+    owner_name: str | None = None,
 ) -> ProjectsPublic:
-    # TODO: Handle org member access
     if current_user is None:
         where_clause = Project.is_public
     else:
@@ -135,6 +136,22 @@ def get_projects(
                 UserProjectAccess.user_id == current_user.id,
                 UserProjectAccess.access.is_not(None),
             ),
+            Project.owner_account.has(
+                and_(
+                    Account.org_id.is_not(None),
+                    select(UserOrgMembership)
+                    .where(
+                        UserOrgMembership.user_id == current_user.id,
+                        UserOrgMembership.org_id == Account.org_id,
+                    )
+                    .exists(),
+                )
+            ),
+        )
+    if owner_name is not None:
+        where_clause = and_(
+            where_clause,
+            Project.owner_account.has(Account.name == owner_name),
         )
     if search_for is not None:
         search_for = f"%{search_for}%"
@@ -177,7 +194,20 @@ def get_owned_projects(
     offset: int = 0,
     search_for: str | None = None,
 ) -> ProjectsPublic:
-    where_clause = Project.owner_account_id == current_user.account.id
+    where_clause = or_(
+        Project.owner_account_id == current_user.account.id,
+        Project.owner_account.has(
+            and_(
+                Account.org_id.is_not(None),
+                select(UserOrgMembership)
+                .where(
+                    UserOrgMembership.user_id == current_user.id,
+                    UserOrgMembership.org_id == Account.org_id,
+                )
+                .exists(),
+            )
+        ),
+    )
     if search_for is not None:
         search_for = f"%{search_for}%"
         where_clause = and_(
@@ -478,6 +508,8 @@ def create_project(
             for membership in current_user.org_memberships:
                 if membership.org.account.name.lower() == owner_name.lower():
                     role = membership.role_name
+            # If we have no role defined, check on GitHub
+            # TODO
             if role not in ["owner", "admin"]:
                 logger.info("User is not an admin or owner of this org")
                 raise HTTPException(

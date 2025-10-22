@@ -25,7 +25,7 @@ import ViewEnvironment from "../../../../../components/Environments/ViewEnvironm
 import { Environment } from "../../../../../client"
 
 export const Route = createFileRoute(
-  "/_layout/$userName/$projectName/_layout/environments",
+  "/_layout/$accountName/$projectName/_layout/environments",
 )({
   component: ProjectEnvs,
 })
@@ -131,8 +131,11 @@ const EnvCard = ({ environment }: EnvCardProps) => {
 }
 
 function ProjectEnvsView() {
-  const { userName, projectName } = Route.useParams()
-  const { environmentsRequest } = useProjectEnvironments(userName, projectName)
+  const { accountName, projectName } = Route.useParams()
+  const { environmentsRequest } = useProjectEnvironments(
+    accountName,
+    projectName,
+  )
   const { isPending: environmentsPending, data: environments } =
     environmentsRequest
 

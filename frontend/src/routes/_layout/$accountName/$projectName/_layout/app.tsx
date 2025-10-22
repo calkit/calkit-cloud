@@ -5,18 +5,18 @@ import { useQuery } from "@tanstack/react-query"
 import { ProjectsService } from "../../../../../client"
 
 export const Route = createFileRoute(
-  "/_layout/$userName/$projectName/_layout/app",
+  "/_layout/$accountName/$projectName/_layout/app",
 )({
   component: ProjectApp,
 })
 
 function ProjectApp() {
-  const { userName, projectName } = Route.useParams()
+  const { accountName, projectName } = Route.useParams()
   const appQuery = useQuery({
-    queryKey: [userName, projectName, "app"],
+    queryKey: [accountName, projectName, "app"],
     queryFn: () =>
       ProjectsService.getProjectApp({
-        ownerName: userName,
+        ownerName: accountName,
         projectName: projectName,
       }),
   })

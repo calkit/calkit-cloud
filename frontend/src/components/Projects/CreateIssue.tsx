@@ -35,8 +35,8 @@ interface IssuePost {
 const CreateIssue = ({ isOpen, onClose }: CreateIssueProps) => {
   const queryClient = useQueryClient()
   const showToast = useCustomToast()
-  const routeApi = getRouteApi("/_layout/$userName/$projectName")
-  const { userName, projectName } = routeApi.useParams()
+  const routeApi = getRouteApi("/_layout/$accountName/$projectName")
+  const { accountName, projectName } = routeApi.useParams()
   const {
     register,
     handleSubmit,
@@ -53,7 +53,7 @@ const CreateIssue = ({ isOpen, onClose }: CreateIssueProps) => {
   const mutation = useMutation({
     mutationFn: (data: IssuePost) =>
       ProjectsService.postProjectIssue({
-        ownerName: userName,
+        ownerName: accountName,
         projectName: projectName,
         requestBody: data,
       }),
@@ -67,7 +67,7 @@ const CreateIssue = ({ isOpen, onClose }: CreateIssueProps) => {
     },
     onSettled: () => {
       queryClient.invalidateQueries({
-        queryKey: ["projects", userName, projectName, "issues"],
+        queryKey: ["projects", accountName, projectName, "issues"],
       })
     },
   })

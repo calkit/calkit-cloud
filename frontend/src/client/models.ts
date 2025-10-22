@@ -1,3 +1,11 @@
+export type AccountPublic = {
+  name: string
+  github_name: string
+  display_name: string
+  kind: "user" | "org"
+  role?: "self" | "read" | "write" | "admin" | "owner" | null
+}
+
 export type Body_login_login_access_token = {
   grant_type?: string | null
   username: string
@@ -404,6 +412,17 @@ export type OrgSubscriptionUpdate = {
   period: "monthly" | "annual"
   discount_code?: string | null
   n_users: number
+}
+
+export type OrgUserPublic = {
+  name: string
+  github_name: string
+  role: string
+}
+
+export type OrgsResponse = {
+  data: Array<OrgPublic>
+  count: number
 }
 
 export type Pipeline = {

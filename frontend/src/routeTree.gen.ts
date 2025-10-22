@@ -20,26 +20,28 @@ import { Route as LayoutRouteImport } from './routes/_layout'
 import { Route as LayoutIndexRouteImport } from './routes/_layout/index'
 import { Route as LayoutSettingsRouteImport } from './routes/_layout/settings'
 import { Route as LayoutProjectsRouteImport } from './routes/_layout/projects'
+import { Route as LayoutOrgsRouteImport } from './routes/_layout/orgs'
 import { Route as LayoutLearnRouteImport } from './routes/_layout/learn'
 import { Route as LayoutDatasetsRouteImport } from './routes/_layout/datasets'
 import { Route as LayoutAdminRouteImport } from './routes/_layout/admin'
-import { Route as LayoutUserNameProjectNameLayoutRouteImport } from './routes/_layout/$userName/$projectName/_layout'
-import { Route as LayoutUserNameProjectNameLayoutIndexRouteImport } from './routes/_layout/$userName/$projectName/_layout/index'
-import { Route as LayoutUserNameProjectNameLayoutSoftwareRouteImport } from './routes/_layout/$userName/$projectName/_layout/software'
-import { Route as LayoutUserNameProjectNameLayoutReferencesRouteImport } from './routes/_layout/$userName/$projectName/_layout/references'
-import { Route as LayoutUserNameProjectNameLayoutPublicationsRouteImport } from './routes/_layout/$userName/$projectName/_layout/publications'
-import { Route as LayoutUserNameProjectNameLayoutPipelineRouteImport } from './routes/_layout/$userName/$projectName/_layout/pipeline'
-import { Route as LayoutUserNameProjectNameLayoutNotebooksRouteImport } from './routes/_layout/$userName/$projectName/_layout/notebooks'
-import { Route as LayoutUserNameProjectNameLayoutLocalRouteImport } from './routes/_layout/$userName/$projectName/_layout/local'
-import { Route as LayoutUserNameProjectNameLayoutFilesRouteImport } from './routes/_layout/$userName/$projectName/_layout/files'
-import { Route as LayoutUserNameProjectNameLayoutFiguresRouteImport } from './routes/_layout/$userName/$projectName/_layout/figures'
-import { Route as LayoutUserNameProjectNameLayoutEnvironmentsRouteImport } from './routes/_layout/$userName/$projectName/_layout/environments'
-import { Route as LayoutUserNameProjectNameLayoutDatasetsRouteImport } from './routes/_layout/$userName/$projectName/_layout/datasets'
-import { Route as LayoutUserNameProjectNameLayoutCollaboratorsRouteImport } from './routes/_layout/$userName/$projectName/_layout/collaborators'
-import { Route as LayoutUserNameProjectNameLayoutAppRouteImport } from './routes/_layout/$userName/$projectName/_layout/app'
+import { Route as LayoutAccountNameIndexRouteImport } from './routes/_layout/$accountName/index'
+import { Route as LayoutAccountNameProjectNameLayoutRouteImport } from './routes/_layout/$accountName/$projectName/_layout'
+import { Route as LayoutAccountNameProjectNameLayoutIndexRouteImport } from './routes/_layout/$accountName/$projectName/_layout/index'
+import { Route as LayoutAccountNameProjectNameLayoutSoftwareRouteImport } from './routes/_layout/$accountName/$projectName/_layout/software'
+import { Route as LayoutAccountNameProjectNameLayoutReferencesRouteImport } from './routes/_layout/$accountName/$projectName/_layout/references'
+import { Route as LayoutAccountNameProjectNameLayoutPublicationsRouteImport } from './routes/_layout/$accountName/$projectName/_layout/publications'
+import { Route as LayoutAccountNameProjectNameLayoutPipelineRouteImport } from './routes/_layout/$accountName/$projectName/_layout/pipeline'
+import { Route as LayoutAccountNameProjectNameLayoutNotebooksRouteImport } from './routes/_layout/$accountName/$projectName/_layout/notebooks'
+import { Route as LayoutAccountNameProjectNameLayoutLocalRouteImport } from './routes/_layout/$accountName/$projectName/_layout/local'
+import { Route as LayoutAccountNameProjectNameLayoutFilesRouteImport } from './routes/_layout/$accountName/$projectName/_layout/files'
+import { Route as LayoutAccountNameProjectNameLayoutFiguresRouteImport } from './routes/_layout/$accountName/$projectName/_layout/figures'
+import { Route as LayoutAccountNameProjectNameLayoutEnvironmentsRouteImport } from './routes/_layout/$accountName/$projectName/_layout/environments'
+import { Route as LayoutAccountNameProjectNameLayoutDatasetsRouteImport } from './routes/_layout/$accountName/$projectName/_layout/datasets'
+import { Route as LayoutAccountNameProjectNameLayoutCollaboratorsRouteImport } from './routes/_layout/$accountName/$projectName/_layout/collaborators'
+import { Route as LayoutAccountNameProjectNameLayoutAppRouteImport } from './routes/_layout/$accountName/$projectName/_layout/app'
 
-const LayoutUserNameProjectNameRouteImport = createFileRoute(
-  '/_layout/$userName/$projectName',
+const LayoutAccountNameProjectNameRouteImport = createFileRoute(
+  '/_layout/$accountName/$projectName',
 )()
 
 const ZenodoAuthRoute = ZenodoAuthRouteImport.update({
@@ -86,6 +88,11 @@ const LayoutProjectsRoute = LayoutProjectsRouteImport.update({
   path: '/projects',
   getParentRoute: () => LayoutRoute,
 } as any)
+const LayoutOrgsRoute = LayoutOrgsRouteImport.update({
+  id: '/orgs',
+  path: '/orgs',
+  getParentRoute: () => LayoutRoute,
+} as any)
 const LayoutLearnRoute = LayoutLearnRouteImport.update({
   id: '/learn',
   path: '/learn',
@@ -101,94 +108,99 @@ const LayoutAdminRoute = LayoutAdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => LayoutRoute,
 } as any)
-const LayoutUserNameProjectNameRoute =
-  LayoutUserNameProjectNameRouteImport.update({
-    id: '/$userName/$projectName',
-    path: '/$userName/$projectName',
+const LayoutAccountNameProjectNameRoute =
+  LayoutAccountNameProjectNameRouteImport.update({
+    id: '/$accountName/$projectName',
+    path: '/$accountName/$projectName',
     getParentRoute: () => LayoutRoute,
   } as any)
-const LayoutUserNameProjectNameLayoutRoute =
-  LayoutUserNameProjectNameLayoutRouteImport.update({
+const LayoutAccountNameIndexRoute = LayoutAccountNameIndexRouteImport.update({
+  id: '/$accountName/',
+  path: '/$accountName/',
+  getParentRoute: () => LayoutRoute,
+} as any)
+const LayoutAccountNameProjectNameLayoutRoute =
+  LayoutAccountNameProjectNameLayoutRouteImport.update({
     id: '/_layout',
-    getParentRoute: () => LayoutUserNameProjectNameRoute,
+    getParentRoute: () => LayoutAccountNameProjectNameRoute,
   } as any)
-const LayoutUserNameProjectNameLayoutIndexRoute =
-  LayoutUserNameProjectNameLayoutIndexRouteImport.update({
+const LayoutAccountNameProjectNameLayoutIndexRoute =
+  LayoutAccountNameProjectNameLayoutIndexRouteImport.update({
     id: '/',
     path: '/',
-    getParentRoute: () => LayoutUserNameProjectNameLayoutRoute,
+    getParentRoute: () => LayoutAccountNameProjectNameLayoutRoute,
   } as any)
-const LayoutUserNameProjectNameLayoutSoftwareRoute =
-  LayoutUserNameProjectNameLayoutSoftwareRouteImport.update({
+const LayoutAccountNameProjectNameLayoutSoftwareRoute =
+  LayoutAccountNameProjectNameLayoutSoftwareRouteImport.update({
     id: '/software',
     path: '/software',
-    getParentRoute: () => LayoutUserNameProjectNameLayoutRoute,
+    getParentRoute: () => LayoutAccountNameProjectNameLayoutRoute,
   } as any)
-const LayoutUserNameProjectNameLayoutReferencesRoute =
-  LayoutUserNameProjectNameLayoutReferencesRouteImport.update({
+const LayoutAccountNameProjectNameLayoutReferencesRoute =
+  LayoutAccountNameProjectNameLayoutReferencesRouteImport.update({
     id: '/references',
     path: '/references',
-    getParentRoute: () => LayoutUserNameProjectNameLayoutRoute,
+    getParentRoute: () => LayoutAccountNameProjectNameLayoutRoute,
   } as any)
-const LayoutUserNameProjectNameLayoutPublicationsRoute =
-  LayoutUserNameProjectNameLayoutPublicationsRouteImport.update({
+const LayoutAccountNameProjectNameLayoutPublicationsRoute =
+  LayoutAccountNameProjectNameLayoutPublicationsRouteImport.update({
     id: '/publications',
     path: '/publications',
-    getParentRoute: () => LayoutUserNameProjectNameLayoutRoute,
+    getParentRoute: () => LayoutAccountNameProjectNameLayoutRoute,
   } as any)
-const LayoutUserNameProjectNameLayoutPipelineRoute =
-  LayoutUserNameProjectNameLayoutPipelineRouteImport.update({
+const LayoutAccountNameProjectNameLayoutPipelineRoute =
+  LayoutAccountNameProjectNameLayoutPipelineRouteImport.update({
     id: '/pipeline',
     path: '/pipeline',
-    getParentRoute: () => LayoutUserNameProjectNameLayoutRoute,
+    getParentRoute: () => LayoutAccountNameProjectNameLayoutRoute,
   } as any)
-const LayoutUserNameProjectNameLayoutNotebooksRoute =
-  LayoutUserNameProjectNameLayoutNotebooksRouteImport.update({
+const LayoutAccountNameProjectNameLayoutNotebooksRoute =
+  LayoutAccountNameProjectNameLayoutNotebooksRouteImport.update({
     id: '/notebooks',
     path: '/notebooks',
-    getParentRoute: () => LayoutUserNameProjectNameLayoutRoute,
+    getParentRoute: () => LayoutAccountNameProjectNameLayoutRoute,
   } as any)
-const LayoutUserNameProjectNameLayoutLocalRoute =
-  LayoutUserNameProjectNameLayoutLocalRouteImport.update({
+const LayoutAccountNameProjectNameLayoutLocalRoute =
+  LayoutAccountNameProjectNameLayoutLocalRouteImport.update({
     id: '/local',
     path: '/local',
-    getParentRoute: () => LayoutUserNameProjectNameLayoutRoute,
+    getParentRoute: () => LayoutAccountNameProjectNameLayoutRoute,
   } as any)
-const LayoutUserNameProjectNameLayoutFilesRoute =
-  LayoutUserNameProjectNameLayoutFilesRouteImport.update({
+const LayoutAccountNameProjectNameLayoutFilesRoute =
+  LayoutAccountNameProjectNameLayoutFilesRouteImport.update({
     id: '/files',
     path: '/files',
-    getParentRoute: () => LayoutUserNameProjectNameLayoutRoute,
+    getParentRoute: () => LayoutAccountNameProjectNameLayoutRoute,
   } as any)
-const LayoutUserNameProjectNameLayoutFiguresRoute =
-  LayoutUserNameProjectNameLayoutFiguresRouteImport.update({
+const LayoutAccountNameProjectNameLayoutFiguresRoute =
+  LayoutAccountNameProjectNameLayoutFiguresRouteImport.update({
     id: '/figures',
     path: '/figures',
-    getParentRoute: () => LayoutUserNameProjectNameLayoutRoute,
+    getParentRoute: () => LayoutAccountNameProjectNameLayoutRoute,
   } as any)
-const LayoutUserNameProjectNameLayoutEnvironmentsRoute =
-  LayoutUserNameProjectNameLayoutEnvironmentsRouteImport.update({
+const LayoutAccountNameProjectNameLayoutEnvironmentsRoute =
+  LayoutAccountNameProjectNameLayoutEnvironmentsRouteImport.update({
     id: '/environments',
     path: '/environments',
-    getParentRoute: () => LayoutUserNameProjectNameLayoutRoute,
+    getParentRoute: () => LayoutAccountNameProjectNameLayoutRoute,
   } as any)
-const LayoutUserNameProjectNameLayoutDatasetsRoute =
-  LayoutUserNameProjectNameLayoutDatasetsRouteImport.update({
+const LayoutAccountNameProjectNameLayoutDatasetsRoute =
+  LayoutAccountNameProjectNameLayoutDatasetsRouteImport.update({
     id: '/datasets',
     path: '/datasets',
-    getParentRoute: () => LayoutUserNameProjectNameLayoutRoute,
+    getParentRoute: () => LayoutAccountNameProjectNameLayoutRoute,
   } as any)
-const LayoutUserNameProjectNameLayoutCollaboratorsRoute =
-  LayoutUserNameProjectNameLayoutCollaboratorsRouteImport.update({
+const LayoutAccountNameProjectNameLayoutCollaboratorsRoute =
+  LayoutAccountNameProjectNameLayoutCollaboratorsRouteImport.update({
     id: '/collaborators',
     path: '/collaborators',
-    getParentRoute: () => LayoutUserNameProjectNameLayoutRoute,
+    getParentRoute: () => LayoutAccountNameProjectNameLayoutRoute,
   } as any)
-const LayoutUserNameProjectNameLayoutAppRoute =
-  LayoutUserNameProjectNameLayoutAppRouteImport.update({
+const LayoutAccountNameProjectNameLayoutAppRoute =
+  LayoutAccountNameProjectNameLayoutAppRouteImport.update({
     id: '/app',
     path: '/app',
-    getParentRoute: () => LayoutUserNameProjectNameLayoutRoute,
+    getParentRoute: () => LayoutAccountNameProjectNameLayoutRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -200,23 +212,25 @@ export interface FileRoutesByFullPath {
   '/admin': typeof LayoutAdminRoute
   '/datasets': typeof LayoutDatasetsRoute
   '/learn': typeof LayoutLearnRoute
+  '/orgs': typeof LayoutOrgsRoute
   '/projects': typeof LayoutProjectsRoute
   '/settings': typeof LayoutSettingsRoute
   '/': typeof LayoutIndexRoute
-  '/$userName/$projectName': typeof LayoutUserNameProjectNameLayoutRouteWithChildren
-  '/$userName/$projectName/app': typeof LayoutUserNameProjectNameLayoutAppRoute
-  '/$userName/$projectName/collaborators': typeof LayoutUserNameProjectNameLayoutCollaboratorsRoute
-  '/$userName/$projectName/datasets': typeof LayoutUserNameProjectNameLayoutDatasetsRoute
-  '/$userName/$projectName/environments': typeof LayoutUserNameProjectNameLayoutEnvironmentsRoute
-  '/$userName/$projectName/figures': typeof LayoutUserNameProjectNameLayoutFiguresRoute
-  '/$userName/$projectName/files': typeof LayoutUserNameProjectNameLayoutFilesRoute
-  '/$userName/$projectName/local': typeof LayoutUserNameProjectNameLayoutLocalRoute
-  '/$userName/$projectName/notebooks': typeof LayoutUserNameProjectNameLayoutNotebooksRoute
-  '/$userName/$projectName/pipeline': typeof LayoutUserNameProjectNameLayoutPipelineRoute
-  '/$userName/$projectName/publications': typeof LayoutUserNameProjectNameLayoutPublicationsRoute
-  '/$userName/$projectName/references': typeof LayoutUserNameProjectNameLayoutReferencesRoute
-  '/$userName/$projectName/software': typeof LayoutUserNameProjectNameLayoutSoftwareRoute
-  '/$userName/$projectName/': typeof LayoutUserNameProjectNameLayoutIndexRoute
+  '/$accountName': typeof LayoutAccountNameIndexRoute
+  '/$accountName/$projectName': typeof LayoutAccountNameProjectNameLayoutRouteWithChildren
+  '/$accountName/$projectName/app': typeof LayoutAccountNameProjectNameLayoutAppRoute
+  '/$accountName/$projectName/collaborators': typeof LayoutAccountNameProjectNameLayoutCollaboratorsRoute
+  '/$accountName/$projectName/datasets': typeof LayoutAccountNameProjectNameLayoutDatasetsRoute
+  '/$accountName/$projectName/environments': typeof LayoutAccountNameProjectNameLayoutEnvironmentsRoute
+  '/$accountName/$projectName/figures': typeof LayoutAccountNameProjectNameLayoutFiguresRoute
+  '/$accountName/$projectName/files': typeof LayoutAccountNameProjectNameLayoutFilesRoute
+  '/$accountName/$projectName/local': typeof LayoutAccountNameProjectNameLayoutLocalRoute
+  '/$accountName/$projectName/notebooks': typeof LayoutAccountNameProjectNameLayoutNotebooksRoute
+  '/$accountName/$projectName/pipeline': typeof LayoutAccountNameProjectNameLayoutPipelineRoute
+  '/$accountName/$projectName/publications': typeof LayoutAccountNameProjectNameLayoutPublicationsRoute
+  '/$accountName/$projectName/references': typeof LayoutAccountNameProjectNameLayoutReferencesRoute
+  '/$accountName/$projectName/software': typeof LayoutAccountNameProjectNameLayoutSoftwareRoute
+  '/$accountName/$projectName/': typeof LayoutAccountNameProjectNameLayoutIndexRoute
 }
 export interface FileRoutesByTo {
   '/checkout': typeof CheckoutRoute
@@ -227,22 +241,24 @@ export interface FileRoutesByTo {
   '/admin': typeof LayoutAdminRoute
   '/datasets': typeof LayoutDatasetsRoute
   '/learn': typeof LayoutLearnRoute
+  '/orgs': typeof LayoutOrgsRoute
   '/projects': typeof LayoutProjectsRoute
   '/settings': typeof LayoutSettingsRoute
   '/': typeof LayoutIndexRoute
-  '/$userName/$projectName': typeof LayoutUserNameProjectNameLayoutIndexRoute
-  '/$userName/$projectName/app': typeof LayoutUserNameProjectNameLayoutAppRoute
-  '/$userName/$projectName/collaborators': typeof LayoutUserNameProjectNameLayoutCollaboratorsRoute
-  '/$userName/$projectName/datasets': typeof LayoutUserNameProjectNameLayoutDatasetsRoute
-  '/$userName/$projectName/environments': typeof LayoutUserNameProjectNameLayoutEnvironmentsRoute
-  '/$userName/$projectName/figures': typeof LayoutUserNameProjectNameLayoutFiguresRoute
-  '/$userName/$projectName/files': typeof LayoutUserNameProjectNameLayoutFilesRoute
-  '/$userName/$projectName/local': typeof LayoutUserNameProjectNameLayoutLocalRoute
-  '/$userName/$projectName/notebooks': typeof LayoutUserNameProjectNameLayoutNotebooksRoute
-  '/$userName/$projectName/pipeline': typeof LayoutUserNameProjectNameLayoutPipelineRoute
-  '/$userName/$projectName/publications': typeof LayoutUserNameProjectNameLayoutPublicationsRoute
-  '/$userName/$projectName/references': typeof LayoutUserNameProjectNameLayoutReferencesRoute
-  '/$userName/$projectName/software': typeof LayoutUserNameProjectNameLayoutSoftwareRoute
+  '/$accountName': typeof LayoutAccountNameIndexRoute
+  '/$accountName/$projectName': typeof LayoutAccountNameProjectNameLayoutIndexRoute
+  '/$accountName/$projectName/app': typeof LayoutAccountNameProjectNameLayoutAppRoute
+  '/$accountName/$projectName/collaborators': typeof LayoutAccountNameProjectNameLayoutCollaboratorsRoute
+  '/$accountName/$projectName/datasets': typeof LayoutAccountNameProjectNameLayoutDatasetsRoute
+  '/$accountName/$projectName/environments': typeof LayoutAccountNameProjectNameLayoutEnvironmentsRoute
+  '/$accountName/$projectName/figures': typeof LayoutAccountNameProjectNameLayoutFiguresRoute
+  '/$accountName/$projectName/files': typeof LayoutAccountNameProjectNameLayoutFilesRoute
+  '/$accountName/$projectName/local': typeof LayoutAccountNameProjectNameLayoutLocalRoute
+  '/$accountName/$projectName/notebooks': typeof LayoutAccountNameProjectNameLayoutNotebooksRoute
+  '/$accountName/$projectName/pipeline': typeof LayoutAccountNameProjectNameLayoutPipelineRoute
+  '/$accountName/$projectName/publications': typeof LayoutAccountNameProjectNameLayoutPublicationsRoute
+  '/$accountName/$projectName/references': typeof LayoutAccountNameProjectNameLayoutReferencesRoute
+  '/$accountName/$projectName/software': typeof LayoutAccountNameProjectNameLayoutSoftwareRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -255,24 +271,26 @@ export interface FileRoutesById {
   '/_layout/admin': typeof LayoutAdminRoute
   '/_layout/datasets': typeof LayoutDatasetsRoute
   '/_layout/learn': typeof LayoutLearnRoute
+  '/_layout/orgs': typeof LayoutOrgsRoute
   '/_layout/projects': typeof LayoutProjectsRoute
   '/_layout/settings': typeof LayoutSettingsRoute
   '/_layout/': typeof LayoutIndexRoute
-  '/_layout/$userName/$projectName': typeof LayoutUserNameProjectNameRouteWithChildren
-  '/_layout/$userName/$projectName/_layout': typeof LayoutUserNameProjectNameLayoutRouteWithChildren
-  '/_layout/$userName/$projectName/_layout/app': typeof LayoutUserNameProjectNameLayoutAppRoute
-  '/_layout/$userName/$projectName/_layout/collaborators': typeof LayoutUserNameProjectNameLayoutCollaboratorsRoute
-  '/_layout/$userName/$projectName/_layout/datasets': typeof LayoutUserNameProjectNameLayoutDatasetsRoute
-  '/_layout/$userName/$projectName/_layout/environments': typeof LayoutUserNameProjectNameLayoutEnvironmentsRoute
-  '/_layout/$userName/$projectName/_layout/figures': typeof LayoutUserNameProjectNameLayoutFiguresRoute
-  '/_layout/$userName/$projectName/_layout/files': typeof LayoutUserNameProjectNameLayoutFilesRoute
-  '/_layout/$userName/$projectName/_layout/local': typeof LayoutUserNameProjectNameLayoutLocalRoute
-  '/_layout/$userName/$projectName/_layout/notebooks': typeof LayoutUserNameProjectNameLayoutNotebooksRoute
-  '/_layout/$userName/$projectName/_layout/pipeline': typeof LayoutUserNameProjectNameLayoutPipelineRoute
-  '/_layout/$userName/$projectName/_layout/publications': typeof LayoutUserNameProjectNameLayoutPublicationsRoute
-  '/_layout/$userName/$projectName/_layout/references': typeof LayoutUserNameProjectNameLayoutReferencesRoute
-  '/_layout/$userName/$projectName/_layout/software': typeof LayoutUserNameProjectNameLayoutSoftwareRoute
-  '/_layout/$userName/$projectName/_layout/': typeof LayoutUserNameProjectNameLayoutIndexRoute
+  '/_layout/$accountName/': typeof LayoutAccountNameIndexRoute
+  '/_layout/$accountName/$projectName': typeof LayoutAccountNameProjectNameRouteWithChildren
+  '/_layout/$accountName/$projectName/_layout': typeof LayoutAccountNameProjectNameLayoutRouteWithChildren
+  '/_layout/$accountName/$projectName/_layout/app': typeof LayoutAccountNameProjectNameLayoutAppRoute
+  '/_layout/$accountName/$projectName/_layout/collaborators': typeof LayoutAccountNameProjectNameLayoutCollaboratorsRoute
+  '/_layout/$accountName/$projectName/_layout/datasets': typeof LayoutAccountNameProjectNameLayoutDatasetsRoute
+  '/_layout/$accountName/$projectName/_layout/environments': typeof LayoutAccountNameProjectNameLayoutEnvironmentsRoute
+  '/_layout/$accountName/$projectName/_layout/figures': typeof LayoutAccountNameProjectNameLayoutFiguresRoute
+  '/_layout/$accountName/$projectName/_layout/files': typeof LayoutAccountNameProjectNameLayoutFilesRoute
+  '/_layout/$accountName/$projectName/_layout/local': typeof LayoutAccountNameProjectNameLayoutLocalRoute
+  '/_layout/$accountName/$projectName/_layout/notebooks': typeof LayoutAccountNameProjectNameLayoutNotebooksRoute
+  '/_layout/$accountName/$projectName/_layout/pipeline': typeof LayoutAccountNameProjectNameLayoutPipelineRoute
+  '/_layout/$accountName/$projectName/_layout/publications': typeof LayoutAccountNameProjectNameLayoutPublicationsRoute
+  '/_layout/$accountName/$projectName/_layout/references': typeof LayoutAccountNameProjectNameLayoutReferencesRoute
+  '/_layout/$accountName/$projectName/_layout/software': typeof LayoutAccountNameProjectNameLayoutSoftwareRoute
+  '/_layout/$accountName/$projectName/_layout/': typeof LayoutAccountNameProjectNameLayoutIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -285,23 +303,25 @@ export interface FileRouteTypes {
     | '/admin'
     | '/datasets'
     | '/learn'
+    | '/orgs'
     | '/projects'
     | '/settings'
     | '/'
-    | '/$userName/$projectName'
-    | '/$userName/$projectName/app'
-    | '/$userName/$projectName/collaborators'
-    | '/$userName/$projectName/datasets'
-    | '/$userName/$projectName/environments'
-    | '/$userName/$projectName/figures'
-    | '/$userName/$projectName/files'
-    | '/$userName/$projectName/local'
-    | '/$userName/$projectName/notebooks'
-    | '/$userName/$projectName/pipeline'
-    | '/$userName/$projectName/publications'
-    | '/$userName/$projectName/references'
-    | '/$userName/$projectName/software'
-    | '/$userName/$projectName/'
+    | '/$accountName'
+    | '/$accountName/$projectName'
+    | '/$accountName/$projectName/app'
+    | '/$accountName/$projectName/collaborators'
+    | '/$accountName/$projectName/datasets'
+    | '/$accountName/$projectName/environments'
+    | '/$accountName/$projectName/figures'
+    | '/$accountName/$projectName/files'
+    | '/$accountName/$projectName/local'
+    | '/$accountName/$projectName/notebooks'
+    | '/$accountName/$projectName/pipeline'
+    | '/$accountName/$projectName/publications'
+    | '/$accountName/$projectName/references'
+    | '/$accountName/$projectName/software'
+    | '/$accountName/$projectName/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/checkout'
@@ -312,22 +332,24 @@ export interface FileRouteTypes {
     | '/admin'
     | '/datasets'
     | '/learn'
+    | '/orgs'
     | '/projects'
     | '/settings'
     | '/'
-    | '/$userName/$projectName'
-    | '/$userName/$projectName/app'
-    | '/$userName/$projectName/collaborators'
-    | '/$userName/$projectName/datasets'
-    | '/$userName/$projectName/environments'
-    | '/$userName/$projectName/figures'
-    | '/$userName/$projectName/files'
-    | '/$userName/$projectName/local'
-    | '/$userName/$projectName/notebooks'
-    | '/$userName/$projectName/pipeline'
-    | '/$userName/$projectName/publications'
-    | '/$userName/$projectName/references'
-    | '/$userName/$projectName/software'
+    | '/$accountName'
+    | '/$accountName/$projectName'
+    | '/$accountName/$projectName/app'
+    | '/$accountName/$projectName/collaborators'
+    | '/$accountName/$projectName/datasets'
+    | '/$accountName/$projectName/environments'
+    | '/$accountName/$projectName/figures'
+    | '/$accountName/$projectName/files'
+    | '/$accountName/$projectName/local'
+    | '/$accountName/$projectName/notebooks'
+    | '/$accountName/$projectName/pipeline'
+    | '/$accountName/$projectName/publications'
+    | '/$accountName/$projectName/references'
+    | '/$accountName/$projectName/software'
   id:
     | '__root__'
     | '/_layout'
@@ -339,24 +361,26 @@ export interface FileRouteTypes {
     | '/_layout/admin'
     | '/_layout/datasets'
     | '/_layout/learn'
+    | '/_layout/orgs'
     | '/_layout/projects'
     | '/_layout/settings'
     | '/_layout/'
-    | '/_layout/$userName/$projectName'
-    | '/_layout/$userName/$projectName/_layout'
-    | '/_layout/$userName/$projectName/_layout/app'
-    | '/_layout/$userName/$projectName/_layout/collaborators'
-    | '/_layout/$userName/$projectName/_layout/datasets'
-    | '/_layout/$userName/$projectName/_layout/environments'
-    | '/_layout/$userName/$projectName/_layout/figures'
-    | '/_layout/$userName/$projectName/_layout/files'
-    | '/_layout/$userName/$projectName/_layout/local'
-    | '/_layout/$userName/$projectName/_layout/notebooks'
-    | '/_layout/$userName/$projectName/_layout/pipeline'
-    | '/_layout/$userName/$projectName/_layout/publications'
-    | '/_layout/$userName/$projectName/_layout/references'
-    | '/_layout/$userName/$projectName/_layout/software'
-    | '/_layout/$userName/$projectName/_layout/'
+    | '/_layout/$accountName/'
+    | '/_layout/$accountName/$projectName'
+    | '/_layout/$accountName/$projectName/_layout'
+    | '/_layout/$accountName/$projectName/_layout/app'
+    | '/_layout/$accountName/$projectName/_layout/collaborators'
+    | '/_layout/$accountName/$projectName/_layout/datasets'
+    | '/_layout/$accountName/$projectName/_layout/environments'
+    | '/_layout/$accountName/$projectName/_layout/figures'
+    | '/_layout/$accountName/$projectName/_layout/files'
+    | '/_layout/$accountName/$projectName/_layout/local'
+    | '/_layout/$accountName/$projectName/_layout/notebooks'
+    | '/_layout/$accountName/$projectName/_layout/pipeline'
+    | '/_layout/$accountName/$projectName/_layout/publications'
+    | '/_layout/$accountName/$projectName/_layout/references'
+    | '/_layout/$accountName/$projectName/_layout/software'
+    | '/_layout/$accountName/$projectName/_layout/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -433,6 +457,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutProjectsRouteImport
       parentRoute: typeof LayoutRoute
     }
+    '/_layout/orgs': {
+      id: '/_layout/orgs'
+      path: '/orgs'
+      fullPath: '/orgs'
+      preLoaderRoute: typeof LayoutOrgsRouteImport
+      parentRoute: typeof LayoutRoute
+    }
     '/_layout/learn': {
       id: '/_layout/learn'
       path: '/learn'
@@ -454,198 +485,210 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutAdminRouteImport
       parentRoute: typeof LayoutRoute
     }
-    '/_layout/$userName/$projectName': {
-      id: '/_layout/$userName/$projectName'
-      path: '/$userName/$projectName'
-      fullPath: '/$userName/$projectName'
-      preLoaderRoute: typeof LayoutUserNameProjectNameRouteImport
+    '/_layout/$accountName/$projectName': {
+      id: '/_layout/$accountName/$projectName'
+      path: '/$accountName/$projectName'
+      fullPath: '/$accountName/$projectName'
+      preLoaderRoute: typeof LayoutAccountNameProjectNameRouteImport
       parentRoute: typeof LayoutRoute
     }
-    '/_layout/$userName/$projectName/_layout': {
-      id: '/_layout/$userName/$projectName/_layout'
-      path: '/$userName/$projectName'
-      fullPath: '/$userName/$projectName'
-      preLoaderRoute: typeof LayoutUserNameProjectNameLayoutRouteImport
-      parentRoute: typeof LayoutUserNameProjectNameRoute
+    '/_layout/$accountName/': {
+      id: '/_layout/$accountName/'
+      path: '/$accountName'
+      fullPath: '/$accountName'
+      preLoaderRoute: typeof LayoutAccountNameIndexRouteImport
+      parentRoute: typeof LayoutRoute
     }
-    '/_layout/$userName/$projectName/_layout/': {
-      id: '/_layout/$userName/$projectName/_layout/'
+    '/_layout/$accountName/$projectName/_layout': {
+      id: '/_layout/$accountName/$projectName/_layout'
+      path: '/$accountName/$projectName'
+      fullPath: '/$accountName/$projectName'
+      preLoaderRoute: typeof LayoutAccountNameProjectNameLayoutRouteImport
+      parentRoute: typeof LayoutAccountNameProjectNameRoute
+    }
+    '/_layout/$accountName/$projectName/_layout/': {
+      id: '/_layout/$accountName/$projectName/_layout/'
       path: '/'
-      fullPath: '/$userName/$projectName/'
-      preLoaderRoute: typeof LayoutUserNameProjectNameLayoutIndexRouteImport
-      parentRoute: typeof LayoutUserNameProjectNameLayoutRoute
+      fullPath: '/$accountName/$projectName/'
+      preLoaderRoute: typeof LayoutAccountNameProjectNameLayoutIndexRouteImport
+      parentRoute: typeof LayoutAccountNameProjectNameLayoutRoute
     }
-    '/_layout/$userName/$projectName/_layout/software': {
-      id: '/_layout/$userName/$projectName/_layout/software'
+    '/_layout/$accountName/$projectName/_layout/software': {
+      id: '/_layout/$accountName/$projectName/_layout/software'
       path: '/software'
-      fullPath: '/$userName/$projectName/software'
-      preLoaderRoute: typeof LayoutUserNameProjectNameLayoutSoftwareRouteImport
-      parentRoute: typeof LayoutUserNameProjectNameLayoutRoute
+      fullPath: '/$accountName/$projectName/software'
+      preLoaderRoute: typeof LayoutAccountNameProjectNameLayoutSoftwareRouteImport
+      parentRoute: typeof LayoutAccountNameProjectNameLayoutRoute
     }
-    '/_layout/$userName/$projectName/_layout/references': {
-      id: '/_layout/$userName/$projectName/_layout/references'
+    '/_layout/$accountName/$projectName/_layout/references': {
+      id: '/_layout/$accountName/$projectName/_layout/references'
       path: '/references'
-      fullPath: '/$userName/$projectName/references'
-      preLoaderRoute: typeof LayoutUserNameProjectNameLayoutReferencesRouteImport
-      parentRoute: typeof LayoutUserNameProjectNameLayoutRoute
+      fullPath: '/$accountName/$projectName/references'
+      preLoaderRoute: typeof LayoutAccountNameProjectNameLayoutReferencesRouteImport
+      parentRoute: typeof LayoutAccountNameProjectNameLayoutRoute
     }
-    '/_layout/$userName/$projectName/_layout/publications': {
-      id: '/_layout/$userName/$projectName/_layout/publications'
+    '/_layout/$accountName/$projectName/_layout/publications': {
+      id: '/_layout/$accountName/$projectName/_layout/publications'
       path: '/publications'
-      fullPath: '/$userName/$projectName/publications'
-      preLoaderRoute: typeof LayoutUserNameProjectNameLayoutPublicationsRouteImport
-      parentRoute: typeof LayoutUserNameProjectNameLayoutRoute
+      fullPath: '/$accountName/$projectName/publications'
+      preLoaderRoute: typeof LayoutAccountNameProjectNameLayoutPublicationsRouteImport
+      parentRoute: typeof LayoutAccountNameProjectNameLayoutRoute
     }
-    '/_layout/$userName/$projectName/_layout/pipeline': {
-      id: '/_layout/$userName/$projectName/_layout/pipeline'
+    '/_layout/$accountName/$projectName/_layout/pipeline': {
+      id: '/_layout/$accountName/$projectName/_layout/pipeline'
       path: '/pipeline'
-      fullPath: '/$userName/$projectName/pipeline'
-      preLoaderRoute: typeof LayoutUserNameProjectNameLayoutPipelineRouteImport
-      parentRoute: typeof LayoutUserNameProjectNameLayoutRoute
+      fullPath: '/$accountName/$projectName/pipeline'
+      preLoaderRoute: typeof LayoutAccountNameProjectNameLayoutPipelineRouteImport
+      parentRoute: typeof LayoutAccountNameProjectNameLayoutRoute
     }
-    '/_layout/$userName/$projectName/_layout/notebooks': {
-      id: '/_layout/$userName/$projectName/_layout/notebooks'
+    '/_layout/$accountName/$projectName/_layout/notebooks': {
+      id: '/_layout/$accountName/$projectName/_layout/notebooks'
       path: '/notebooks'
-      fullPath: '/$userName/$projectName/notebooks'
-      preLoaderRoute: typeof LayoutUserNameProjectNameLayoutNotebooksRouteImport
-      parentRoute: typeof LayoutUserNameProjectNameLayoutRoute
+      fullPath: '/$accountName/$projectName/notebooks'
+      preLoaderRoute: typeof LayoutAccountNameProjectNameLayoutNotebooksRouteImport
+      parentRoute: typeof LayoutAccountNameProjectNameLayoutRoute
     }
-    '/_layout/$userName/$projectName/_layout/local': {
-      id: '/_layout/$userName/$projectName/_layout/local'
+    '/_layout/$accountName/$projectName/_layout/local': {
+      id: '/_layout/$accountName/$projectName/_layout/local'
       path: '/local'
-      fullPath: '/$userName/$projectName/local'
-      preLoaderRoute: typeof LayoutUserNameProjectNameLayoutLocalRouteImport
-      parentRoute: typeof LayoutUserNameProjectNameLayoutRoute
+      fullPath: '/$accountName/$projectName/local'
+      preLoaderRoute: typeof LayoutAccountNameProjectNameLayoutLocalRouteImport
+      parentRoute: typeof LayoutAccountNameProjectNameLayoutRoute
     }
-    '/_layout/$userName/$projectName/_layout/files': {
-      id: '/_layout/$userName/$projectName/_layout/files'
+    '/_layout/$accountName/$projectName/_layout/files': {
+      id: '/_layout/$accountName/$projectName/_layout/files'
       path: '/files'
-      fullPath: '/$userName/$projectName/files'
-      preLoaderRoute: typeof LayoutUserNameProjectNameLayoutFilesRouteImport
-      parentRoute: typeof LayoutUserNameProjectNameLayoutRoute
+      fullPath: '/$accountName/$projectName/files'
+      preLoaderRoute: typeof LayoutAccountNameProjectNameLayoutFilesRouteImport
+      parentRoute: typeof LayoutAccountNameProjectNameLayoutRoute
     }
-    '/_layout/$userName/$projectName/_layout/figures': {
-      id: '/_layout/$userName/$projectName/_layout/figures'
+    '/_layout/$accountName/$projectName/_layout/figures': {
+      id: '/_layout/$accountName/$projectName/_layout/figures'
       path: '/figures'
-      fullPath: '/$userName/$projectName/figures'
-      preLoaderRoute: typeof LayoutUserNameProjectNameLayoutFiguresRouteImport
-      parentRoute: typeof LayoutUserNameProjectNameLayoutRoute
+      fullPath: '/$accountName/$projectName/figures'
+      preLoaderRoute: typeof LayoutAccountNameProjectNameLayoutFiguresRouteImport
+      parentRoute: typeof LayoutAccountNameProjectNameLayoutRoute
     }
-    '/_layout/$userName/$projectName/_layout/environments': {
-      id: '/_layout/$userName/$projectName/_layout/environments'
+    '/_layout/$accountName/$projectName/_layout/environments': {
+      id: '/_layout/$accountName/$projectName/_layout/environments'
       path: '/environments'
-      fullPath: '/$userName/$projectName/environments'
-      preLoaderRoute: typeof LayoutUserNameProjectNameLayoutEnvironmentsRouteImport
-      parentRoute: typeof LayoutUserNameProjectNameLayoutRoute
+      fullPath: '/$accountName/$projectName/environments'
+      preLoaderRoute: typeof LayoutAccountNameProjectNameLayoutEnvironmentsRouteImport
+      parentRoute: typeof LayoutAccountNameProjectNameLayoutRoute
     }
-    '/_layout/$userName/$projectName/_layout/datasets': {
-      id: '/_layout/$userName/$projectName/_layout/datasets'
+    '/_layout/$accountName/$projectName/_layout/datasets': {
+      id: '/_layout/$accountName/$projectName/_layout/datasets'
       path: '/datasets'
-      fullPath: '/$userName/$projectName/datasets'
-      preLoaderRoute: typeof LayoutUserNameProjectNameLayoutDatasetsRouteImport
-      parentRoute: typeof LayoutUserNameProjectNameLayoutRoute
+      fullPath: '/$accountName/$projectName/datasets'
+      preLoaderRoute: typeof LayoutAccountNameProjectNameLayoutDatasetsRouteImport
+      parentRoute: typeof LayoutAccountNameProjectNameLayoutRoute
     }
-    '/_layout/$userName/$projectName/_layout/collaborators': {
-      id: '/_layout/$userName/$projectName/_layout/collaborators'
+    '/_layout/$accountName/$projectName/_layout/collaborators': {
+      id: '/_layout/$accountName/$projectName/_layout/collaborators'
       path: '/collaborators'
-      fullPath: '/$userName/$projectName/collaborators'
-      preLoaderRoute: typeof LayoutUserNameProjectNameLayoutCollaboratorsRouteImport
-      parentRoute: typeof LayoutUserNameProjectNameLayoutRoute
+      fullPath: '/$accountName/$projectName/collaborators'
+      preLoaderRoute: typeof LayoutAccountNameProjectNameLayoutCollaboratorsRouteImport
+      parentRoute: typeof LayoutAccountNameProjectNameLayoutRoute
     }
-    '/_layout/$userName/$projectName/_layout/app': {
-      id: '/_layout/$userName/$projectName/_layout/app'
+    '/_layout/$accountName/$projectName/_layout/app': {
+      id: '/_layout/$accountName/$projectName/_layout/app'
       path: '/app'
-      fullPath: '/$userName/$projectName/app'
-      preLoaderRoute: typeof LayoutUserNameProjectNameLayoutAppRouteImport
-      parentRoute: typeof LayoutUserNameProjectNameLayoutRoute
+      fullPath: '/$accountName/$projectName/app'
+      preLoaderRoute: typeof LayoutAccountNameProjectNameLayoutAppRouteImport
+      parentRoute: typeof LayoutAccountNameProjectNameLayoutRoute
     }
   }
 }
 
-interface LayoutUserNameProjectNameLayoutRouteChildren {
-  LayoutUserNameProjectNameLayoutAppRoute: typeof LayoutUserNameProjectNameLayoutAppRoute
-  LayoutUserNameProjectNameLayoutCollaboratorsRoute: typeof LayoutUserNameProjectNameLayoutCollaboratorsRoute
-  LayoutUserNameProjectNameLayoutDatasetsRoute: typeof LayoutUserNameProjectNameLayoutDatasetsRoute
-  LayoutUserNameProjectNameLayoutEnvironmentsRoute: typeof LayoutUserNameProjectNameLayoutEnvironmentsRoute
-  LayoutUserNameProjectNameLayoutFiguresRoute: typeof LayoutUserNameProjectNameLayoutFiguresRoute
-  LayoutUserNameProjectNameLayoutFilesRoute: typeof LayoutUserNameProjectNameLayoutFilesRoute
-  LayoutUserNameProjectNameLayoutLocalRoute: typeof LayoutUserNameProjectNameLayoutLocalRoute
-  LayoutUserNameProjectNameLayoutNotebooksRoute: typeof LayoutUserNameProjectNameLayoutNotebooksRoute
-  LayoutUserNameProjectNameLayoutPipelineRoute: typeof LayoutUserNameProjectNameLayoutPipelineRoute
-  LayoutUserNameProjectNameLayoutPublicationsRoute: typeof LayoutUserNameProjectNameLayoutPublicationsRoute
-  LayoutUserNameProjectNameLayoutReferencesRoute: typeof LayoutUserNameProjectNameLayoutReferencesRoute
-  LayoutUserNameProjectNameLayoutSoftwareRoute: typeof LayoutUserNameProjectNameLayoutSoftwareRoute
-  LayoutUserNameProjectNameLayoutIndexRoute: typeof LayoutUserNameProjectNameLayoutIndexRoute
+interface LayoutAccountNameProjectNameLayoutRouteChildren {
+  LayoutAccountNameProjectNameLayoutAppRoute: typeof LayoutAccountNameProjectNameLayoutAppRoute
+  LayoutAccountNameProjectNameLayoutCollaboratorsRoute: typeof LayoutAccountNameProjectNameLayoutCollaboratorsRoute
+  LayoutAccountNameProjectNameLayoutDatasetsRoute: typeof LayoutAccountNameProjectNameLayoutDatasetsRoute
+  LayoutAccountNameProjectNameLayoutEnvironmentsRoute: typeof LayoutAccountNameProjectNameLayoutEnvironmentsRoute
+  LayoutAccountNameProjectNameLayoutFiguresRoute: typeof LayoutAccountNameProjectNameLayoutFiguresRoute
+  LayoutAccountNameProjectNameLayoutFilesRoute: typeof LayoutAccountNameProjectNameLayoutFilesRoute
+  LayoutAccountNameProjectNameLayoutLocalRoute: typeof LayoutAccountNameProjectNameLayoutLocalRoute
+  LayoutAccountNameProjectNameLayoutNotebooksRoute: typeof LayoutAccountNameProjectNameLayoutNotebooksRoute
+  LayoutAccountNameProjectNameLayoutPipelineRoute: typeof LayoutAccountNameProjectNameLayoutPipelineRoute
+  LayoutAccountNameProjectNameLayoutPublicationsRoute: typeof LayoutAccountNameProjectNameLayoutPublicationsRoute
+  LayoutAccountNameProjectNameLayoutReferencesRoute: typeof LayoutAccountNameProjectNameLayoutReferencesRoute
+  LayoutAccountNameProjectNameLayoutSoftwareRoute: typeof LayoutAccountNameProjectNameLayoutSoftwareRoute
+  LayoutAccountNameProjectNameLayoutIndexRoute: typeof LayoutAccountNameProjectNameLayoutIndexRoute
 }
 
-const LayoutUserNameProjectNameLayoutRouteChildren: LayoutUserNameProjectNameLayoutRouteChildren =
+const LayoutAccountNameProjectNameLayoutRouteChildren: LayoutAccountNameProjectNameLayoutRouteChildren =
   {
-    LayoutUserNameProjectNameLayoutAppRoute:
-      LayoutUserNameProjectNameLayoutAppRoute,
-    LayoutUserNameProjectNameLayoutCollaboratorsRoute:
-      LayoutUserNameProjectNameLayoutCollaboratorsRoute,
-    LayoutUserNameProjectNameLayoutDatasetsRoute:
-      LayoutUserNameProjectNameLayoutDatasetsRoute,
-    LayoutUserNameProjectNameLayoutEnvironmentsRoute:
-      LayoutUserNameProjectNameLayoutEnvironmentsRoute,
-    LayoutUserNameProjectNameLayoutFiguresRoute:
-      LayoutUserNameProjectNameLayoutFiguresRoute,
-    LayoutUserNameProjectNameLayoutFilesRoute:
-      LayoutUserNameProjectNameLayoutFilesRoute,
-    LayoutUserNameProjectNameLayoutLocalRoute:
-      LayoutUserNameProjectNameLayoutLocalRoute,
-    LayoutUserNameProjectNameLayoutNotebooksRoute:
-      LayoutUserNameProjectNameLayoutNotebooksRoute,
-    LayoutUserNameProjectNameLayoutPipelineRoute:
-      LayoutUserNameProjectNameLayoutPipelineRoute,
-    LayoutUserNameProjectNameLayoutPublicationsRoute:
-      LayoutUserNameProjectNameLayoutPublicationsRoute,
-    LayoutUserNameProjectNameLayoutReferencesRoute:
-      LayoutUserNameProjectNameLayoutReferencesRoute,
-    LayoutUserNameProjectNameLayoutSoftwareRoute:
-      LayoutUserNameProjectNameLayoutSoftwareRoute,
-    LayoutUserNameProjectNameLayoutIndexRoute:
-      LayoutUserNameProjectNameLayoutIndexRoute,
+    LayoutAccountNameProjectNameLayoutAppRoute:
+      LayoutAccountNameProjectNameLayoutAppRoute,
+    LayoutAccountNameProjectNameLayoutCollaboratorsRoute:
+      LayoutAccountNameProjectNameLayoutCollaboratorsRoute,
+    LayoutAccountNameProjectNameLayoutDatasetsRoute:
+      LayoutAccountNameProjectNameLayoutDatasetsRoute,
+    LayoutAccountNameProjectNameLayoutEnvironmentsRoute:
+      LayoutAccountNameProjectNameLayoutEnvironmentsRoute,
+    LayoutAccountNameProjectNameLayoutFiguresRoute:
+      LayoutAccountNameProjectNameLayoutFiguresRoute,
+    LayoutAccountNameProjectNameLayoutFilesRoute:
+      LayoutAccountNameProjectNameLayoutFilesRoute,
+    LayoutAccountNameProjectNameLayoutLocalRoute:
+      LayoutAccountNameProjectNameLayoutLocalRoute,
+    LayoutAccountNameProjectNameLayoutNotebooksRoute:
+      LayoutAccountNameProjectNameLayoutNotebooksRoute,
+    LayoutAccountNameProjectNameLayoutPipelineRoute:
+      LayoutAccountNameProjectNameLayoutPipelineRoute,
+    LayoutAccountNameProjectNameLayoutPublicationsRoute:
+      LayoutAccountNameProjectNameLayoutPublicationsRoute,
+    LayoutAccountNameProjectNameLayoutReferencesRoute:
+      LayoutAccountNameProjectNameLayoutReferencesRoute,
+    LayoutAccountNameProjectNameLayoutSoftwareRoute:
+      LayoutAccountNameProjectNameLayoutSoftwareRoute,
+    LayoutAccountNameProjectNameLayoutIndexRoute:
+      LayoutAccountNameProjectNameLayoutIndexRoute,
   }
 
-const LayoutUserNameProjectNameLayoutRouteWithChildren =
-  LayoutUserNameProjectNameLayoutRoute._addFileChildren(
-    LayoutUserNameProjectNameLayoutRouteChildren,
+const LayoutAccountNameProjectNameLayoutRouteWithChildren =
+  LayoutAccountNameProjectNameLayoutRoute._addFileChildren(
+    LayoutAccountNameProjectNameLayoutRouteChildren,
   )
 
-interface LayoutUserNameProjectNameRouteChildren {
-  LayoutUserNameProjectNameLayoutRoute: typeof LayoutUserNameProjectNameLayoutRouteWithChildren
+interface LayoutAccountNameProjectNameRouteChildren {
+  LayoutAccountNameProjectNameLayoutRoute: typeof LayoutAccountNameProjectNameLayoutRouteWithChildren
 }
 
-const LayoutUserNameProjectNameRouteChildren: LayoutUserNameProjectNameRouteChildren =
+const LayoutAccountNameProjectNameRouteChildren: LayoutAccountNameProjectNameRouteChildren =
   {
-    LayoutUserNameProjectNameLayoutRoute:
-      LayoutUserNameProjectNameLayoutRouteWithChildren,
+    LayoutAccountNameProjectNameLayoutRoute:
+      LayoutAccountNameProjectNameLayoutRouteWithChildren,
   }
 
-const LayoutUserNameProjectNameRouteWithChildren =
-  LayoutUserNameProjectNameRoute._addFileChildren(
-    LayoutUserNameProjectNameRouteChildren,
+const LayoutAccountNameProjectNameRouteWithChildren =
+  LayoutAccountNameProjectNameRoute._addFileChildren(
+    LayoutAccountNameProjectNameRouteChildren,
   )
 
 interface LayoutRouteChildren {
   LayoutAdminRoute: typeof LayoutAdminRoute
   LayoutDatasetsRoute: typeof LayoutDatasetsRoute
   LayoutLearnRoute: typeof LayoutLearnRoute
+  LayoutOrgsRoute: typeof LayoutOrgsRoute
   LayoutProjectsRoute: typeof LayoutProjectsRoute
   LayoutSettingsRoute: typeof LayoutSettingsRoute
   LayoutIndexRoute: typeof LayoutIndexRoute
-  LayoutUserNameProjectNameRoute: typeof LayoutUserNameProjectNameRouteWithChildren
+  LayoutAccountNameIndexRoute: typeof LayoutAccountNameIndexRoute
+  LayoutAccountNameProjectNameRoute: typeof LayoutAccountNameProjectNameRouteWithChildren
 }
 
 const LayoutRouteChildren: LayoutRouteChildren = {
   LayoutAdminRoute: LayoutAdminRoute,
   LayoutDatasetsRoute: LayoutDatasetsRoute,
   LayoutLearnRoute: LayoutLearnRoute,
+  LayoutOrgsRoute: LayoutOrgsRoute,
   LayoutProjectsRoute: LayoutProjectsRoute,
   LayoutSettingsRoute: LayoutSettingsRoute,
   LayoutIndexRoute: LayoutIndexRoute,
-  LayoutUserNameProjectNameRoute: LayoutUserNameProjectNameRouteWithChildren,
+  LayoutAccountNameIndexRoute: LayoutAccountNameIndexRoute,
+  LayoutAccountNameProjectNameRoute:
+    LayoutAccountNameProjectNameRouteWithChildren,
 }
 
 const LayoutRouteWithChildren =

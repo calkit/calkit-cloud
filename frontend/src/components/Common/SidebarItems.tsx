@@ -46,8 +46,8 @@ const SidebarItems = ({ onClose, basePath }: SidebarItemsProps) => {
   const finalItems = items
   const itemsRequireLogin = ["Collaborators", "Local machine"]
   const { user } = useAuth()
-  const routeApi = getRouteApi("/_layout/$userName/$projectName")
-  const { userName, projectName } = routeApi.useParams()
+  const routeApi = getRouteApi("/_layout/$accountName/$projectName")
+  const { accountName, projectName } = routeApi.useParams()
   const {
     isPending: localServerPending,
     error: localServerError,
@@ -55,7 +55,7 @@ const SidebarItems = ({ onClose, basePath }: SidebarItemsProps) => {
   } = useQuery({
     queryKey: ["local-server-sidebar"],
     queryFn: () =>
-      axios.get(`http://localhost:8866/projects/${userName}/${projectName}`),
+      axios.get(`http://localhost:8866/projects/${accountName}/${projectName}`),
     retry: false,
   })
   const localMachineColor =

@@ -84,13 +84,13 @@ const NewProject = ({ isOpen, onClose, defaultTemplate }: NewProjectProps) => {
     onSuccess: (data: ProjectPublic) => {
       mixpanel.track("Created new project")
       showToast("Success!", "Project created successfully.", "success")
-      const userName = data.owner_account_name
+      const accountName = data.owner_account_name
       const projectName = data.name
       reset()
       onClose()
       navigate({
-        to: "/$userName/$projectName",
-        params: { userName, projectName },
+        to: "/$accountName/$projectName",
+        params: { accountName, projectName },
       })
     },
     onError: (err: ApiError) => {

@@ -35,8 +35,8 @@ interface FilePost {
 const UploadFile = ({ isOpen, onClose, path }: UploadFileProps) => {
   const queryClient = useQueryClient()
   const showToast = useCustomToast()
-  const routeApi = getRouteApi("/_layout/$userName/$projectName")
-  const { userName, projectName } = routeApi.useParams()
+  const routeApi = getRouteApi("/_layout/$accountName/$projectName")
+  const { accountName, projectName } = routeApi.useParams()
   const {
     register,
     handleSubmit,
@@ -55,7 +55,7 @@ const UploadFile = ({ isOpen, onClose, path }: UploadFileProps) => {
         formData: {
           file: data.file[0],
         },
-        ownerName: userName,
+        ownerName: accountName,
         projectName: projectName,
         path: data.path,
         contentLength: data.file[0].size,
@@ -70,7 +70,7 @@ const UploadFile = ({ isOpen, onClose, path }: UploadFileProps) => {
     },
     onSettled: () => {
       queryClient.invalidateQueries({
-        queryKey: ["projects", userName, projectName, "files"],
+        queryKey: ["projects", accountName, projectName, "files"],
       })
     },
   })
