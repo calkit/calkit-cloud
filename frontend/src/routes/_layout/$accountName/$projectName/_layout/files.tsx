@@ -36,7 +36,7 @@ import useProject, { useProjectFiles } from "../../../../../hooks/useProject"
 const fileSearchSchema = z.object({ path: z.string().catch("") })
 
 export const Route = createFileRoute(
-  "/_layout/$userName/$projectName/_layout/files",
+  "/_layout/$accountName/$projectName/_layout/files",
 )({
   component: Files,
   validateSearch: (search) => fileSearchSchema.parse(search),
@@ -74,12 +74,12 @@ function Item({ item, level, selectedPath, setSelectedPath }: ItemProps) {
   const [isExpanded, setIsExpanded] = useState(
     pathShouldBeExpanded(item.path, selectedPath),
   )
-  const { userName, projectName } = Route.useParams()
+  const { accountName, projectName } = Route.useParams()
   const { data } = useQuery({
-    queryKey: ["projects", userName, projectName, "files", item.path],
+    queryKey: ["projects", accountName, projectName, "files", item.path],
     queryFn: () =>
       ProjectsService.getProjectContents({
-        ownerName: userName,
+        ownerName: accountName,
         projectName: projectName,
         path: item.path,
       }),
@@ -211,10 +211,10 @@ function Item({ item, level, selectedPath, setSelectedPath }: ItemProps) {
 }
 
 function Files() {
-  const { userName, projectName } = Route.useParams()
+  const { accountName, projectName } = Route.useParams()
   const { path } = Route.useSearch()
-  const { userHasWriteAccess } = useProject(userName, projectName)
-  const { filesRequest } = useProjectFiles(userName, projectName)
+  const { userHasWriteAccess } = useProject(accountName, projectName)
+  const { filesRequest } = useProjectFiles(accountName, projectName)
   const {
     isPending: filesPending,
     data: files,
@@ -223,10 +223,10 @@ function Files() {
   } = filesRequest
   const [selectedPath, setSelectedPath] = useState<string>(path)
   const selectedItemQuery = useQuery({
-    queryKey: ["projects", userName, projectName, "files", selectedPath],
+    queryKey: ["projects", accountName, projectName, "files", selectedPath],
     queryFn: () =>
       ProjectsService.getProjectContents({
-        ownerName: userName,
+        ownerName: accountName,
         projectName: projectName,
         path: selectedPath,
       }),
@@ -317,7 +317,7 @@ function Files() {
                 {selectedItemQuery?.data && selectedPath !== undefined ? (
                   <SelectedItemInfo
                     selectedItem={selectedItemQuery.data}
-                    ownerName={userName}
+                    ownerName={accountName}
                     projectName={projectName}
                     userHasWriteAccess={userHasWriteAccess}
                   />

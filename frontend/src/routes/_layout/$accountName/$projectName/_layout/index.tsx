@@ -35,26 +35,26 @@ import useProject, {
 import ProjectShowcase from "../../../../../components/Projects/ProjectShowcase"
 
 export const Route = createFileRoute(
-  "/_layout/$userName/$projectName/_layout/",
+  "/_layout/$accountName/$projectName/_layout/",
 )({
   component: Project,
 })
 
 function ProjectView() {
   const secBgColor = useColorModeValue("ui.secondary", "ui.darkSlate")
-  const { userName, projectName } = Route.useParams()
+  const { accountName, projectName } = Route.useParams()
   const [showClosedTodos, setShowClosedTodos] = useState(false)
   const { projectRequest, userHasWriteAccess } = useProject(
-    userName,
+    accountName,
     projectName,
   )
   const { issuesRequest, issueStateMutation } = useProjectIssues(
-    userName,
+    accountName,
     projectName,
     showClosedTodos,
   )
-  const { readmeRequest } = useProjectReadme(userName, projectName)
-  const { questionsRequest } = useProjectQuestions(userName, projectName)
+  const { readmeRequest } = useProjectReadme(accountName, projectName)
+  const { questionsRequest } = useProjectQuestions(accountName, projectName)
   const gitRepoUrl = projectRequest.data?.git_repo_url
   const codespacesUrl =
     String(gitRepoUrl).replace("://github.com/", "://codespaces.new/") +
@@ -88,7 +88,7 @@ function ProjectView() {
               {userHasWriteAccess ? (
                 <>
                   <Link
-                    href={`https://github.dev/${userName}/${projectName}/blob/main/calkit.yaml`}
+                    href={`https://github.dev/${accountName}/${projectName}/blob/main/calkit.yaml`}
                     isExternal
                   >
                     <IconButton
@@ -105,7 +105,10 @@ function ProjectView() {
                 ""
               )}
             </Flex>
-            <ProjectShowcase ownerName={userName} projectName={projectName} />
+            <ProjectShowcase
+              ownerName={accountName}
+              projectName={projectName}
+            />
           </Box>
           {/* README */}
           <Box py={4} px={6} mb={4} borderRadius="lg" bg={secBgColor}>
@@ -114,7 +117,7 @@ function ProjectView() {
               {userHasWriteAccess ? (
                 <>
                   <Link
-                    href={`https://github.dev/${userName}/${projectName}/blob/main/README.md`}
+                    href={`https://github.dev/${accountName}/${projectName}/blob/main/README.md`}
                     isExternal
                   >
                     <IconButton

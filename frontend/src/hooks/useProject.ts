@@ -2,14 +2,14 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { ProjectsService } from "../client"
 
-const useProject = (userName: string, projectName: string) => {
+const useProject = (accountName: string, projectName: string) => {
   const queryClient = useQueryClient()
 
   const projectRequest = useQuery({
-    queryKey: ["projects", userName, projectName],
+    queryKey: ["projects", accountName, projectName],
     queryFn: () =>
       ProjectsService.getProject({
-        ownerName: userName,
+        ownerName: accountName,
         projectName: projectName,
         getExtendedInfo: true,
       }),
@@ -28,10 +28,10 @@ const useProject = (userName: string, projectName: string) => {
   )
 
   const reproCheckRequest = useQuery({
-    queryKey: ["projects", userName, projectName, "repro-check"],
+    queryKey: ["projects", accountName, projectName, "repro-check"],
     queryFn: () =>
       ProjectsService.getProjectReproCheck({
-        ownerName: userName,
+        ownerName: accountName,
         projectName: projectName,
       }),
     refetchOnWindowFocus: false,
@@ -39,10 +39,10 @@ const useProject = (userName: string, projectName: string) => {
   })
 
   const showcaseRequest = useQuery({
-    queryKey: ["projects", userName, projectName, "showcase"],
+    queryKey: ["projects", accountName, projectName, "showcase"],
     queryFn: () =>
       ProjectsService.getProjectShowcase({
-        ownerName: userName,
+        ownerName: accountName,
         projectName: projectName,
       }),
     refetchOnWindowFocus: false,
@@ -52,12 +52,12 @@ const useProject = (userName: string, projectName: string) => {
   const putDevcontainerMutation = useMutation({
     mutationFn: () =>
       ProjectsService.putProjectDevContainer({
-        ownerName: userName,
+        ownerName: accountName,
         projectName: projectName,
       }),
     onSettled: () =>
       queryClient.invalidateQueries({
-        queryKey: ["projects", userName, projectName, "repro-check"],
+        queryKey: ["projects", accountName, projectName, "repro-check"],
       }),
   })
 
@@ -70,12 +70,12 @@ const useProject = (userName: string, projectName: string) => {
   }
 }
 
-const useProjectReadme = (userName: string, projectName: string) => {
+const useProjectReadme = (accountName: string, projectName: string) => {
   const readmeRequest = useQuery({
-    queryKey: ["projects", userName, projectName, "readme"],
+    queryKey: ["projects", accountName, projectName, "readme"],
     queryFn: () =>
       ProjectsService.getProjectContents({
-        ownerName: userName,
+        ownerName: accountName,
         projectName: projectName,
         path: "README.md",
       }),
@@ -83,48 +83,48 @@ const useProjectReadme = (userName: string, projectName: string) => {
   return { readmeRequest }
 }
 
-const useProjectQuestions = (userName: string, projectName: string) => {
+const useProjectQuestions = (accountName: string, projectName: string) => {
   const questionsRequest = useQuery({
-    queryKey: ["projects", userName, projectName, "questions"],
+    queryKey: ["projects", accountName, projectName, "questions"],
     queryFn: () =>
       ProjectsService.getProjectQuestions({
-        ownerName: userName,
+        ownerName: accountName,
         projectName: projectName,
       }),
   })
   return { questionsRequest }
 }
 
-const useProjectFigures = (userName: string, projectName: string) => {
+const useProjectFigures = (accountName: string, projectName: string) => {
   const figuresRequest = useQuery({
-    queryKey: ["projects", userName, projectName, "figures"],
+    queryKey: ["projects", accountName, projectName, "figures"],
     queryFn: () =>
       ProjectsService.getProjectFigures({
-        ownerName: userName,
+        ownerName: accountName,
         projectName: projectName,
       }),
   })
   return { figuresRequest }
 }
 
-const useProjectFiles = (userName: string, projectName: string) => {
+const useProjectFiles = (accountName: string, projectName: string) => {
   const filesRequest = useQuery({
-    queryKey: ["projects", userName, projectName, "files"],
+    queryKey: ["projects", accountName, projectName, "files"],
     queryFn: () =>
       ProjectsService.getProjectContents({
-        ownerName: userName,
+        ownerName: accountName,
         projectName: projectName,
       }),
   })
   return { filesRequest }
 }
 
-const useProjectDatasets = (userName: string, projectName: string) => {
+const useProjectDatasets = (accountName: string, projectName: string) => {
   const datasetsRequest = useQuery({
-    queryKey: ["projects", userName, projectName, "datasets"],
+    queryKey: ["projects", accountName, projectName, "datasets"],
     queryFn: () =>
       ProjectsService.getProjectDatasets({
-        ownerName: userName,
+        ownerName: accountName,
         projectName: projectName,
       }),
   })
@@ -132,12 +132,12 @@ const useProjectDatasets = (userName: string, projectName: string) => {
   return { datasetsRequest }
 }
 
-const useProjectEnvironments = (userName: string, projectName: string) => {
+const useProjectEnvironments = (accountName: string, projectName: string) => {
   const environmentsRequest = useQuery({
-    queryKey: ["projects", userName, projectName, "environments"],
+    queryKey: ["projects", accountName, projectName, "environments"],
     queryFn: () =>
       ProjectsService.getProjectEnvironments({
-        ownerName: userName,
+        ownerName: accountName,
         projectName: projectName,
       }),
   })
@@ -145,12 +145,12 @@ const useProjectEnvironments = (userName: string, projectName: string) => {
   return { environmentsRequest }
 }
 
-const useProjectPublications = (userName: string, projectName: string) => {
+const useProjectPublications = (accountName: string, projectName: string) => {
   const publicationsRequest = useQuery({
-    queryKey: ["projects", userName, projectName, "publications"],
+    queryKey: ["projects", accountName, projectName, "publications"],
     queryFn: () =>
       ProjectsService.getProjectPublications({
-        ownerName: userName,
+        ownerName: accountName,
         projectName: projectName,
       }),
   })
@@ -158,17 +158,17 @@ const useProjectPublications = (userName: string, projectName: string) => {
 }
 
 const useProjectIssues = (
-  userName: string,
+  accountName: string,
   projectName: string,
   showClosedTodos: boolean,
 ) => {
   const queryClient = useQueryClient()
 
   const issuesRequest = useQuery({
-    queryKey: ["projects", userName, projectName, "issues", showClosedTodos],
+    queryKey: ["projects", accountName, projectName, "issues", showClosedTodos],
     queryFn: () =>
       ProjectsService.getProjectIssues({
-        ownerName: userName,
+        ownerName: accountName,
         projectName: projectName,
         state: showClosedTodos ? "all" : "open",
       }),
@@ -184,14 +184,14 @@ const useProjectIssues = (
   const issueStateMutation = useMutation({
     mutationFn: (data: IssueStateChange) =>
       ProjectsService.patchProjectIssue({
-        ownerName: userName,
+        ownerName: accountName,
         projectName: projectName,
         issueNumber: data.issueNumber,
         requestBody: { state: data.state },
       }),
     onSettled: () =>
       queryClient.invalidateQueries({
-        queryKey: ["projects", userName, projectName, "issues"],
+        queryKey: ["projects", accountName, projectName, "issues"],
       }),
   })
 

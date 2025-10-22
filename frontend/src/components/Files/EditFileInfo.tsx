@@ -37,8 +37,8 @@ interface EditFileProps {
 const EditFileInfo = ({ isOpen, onClose, item }: EditFileProps) => {
   const queryClient = useQueryClient()
   const showToast = useCustomToast()
-  const routeApi = getRouteApi("/_layout/$userName/$projectName")
-  const { userName, projectName } = routeApi.useParams()
+  const routeApi = getRouteApi("/_layout/$accountName/$projectName")
+  const { accountName, projectName } = routeApi.useParams()
   type CalkitKind =
     | "figure"
     | "publication"
@@ -69,7 +69,7 @@ const EditFileInfo = ({ isOpen, onClose, item }: EditFileProps) => {
         data.kind = null
       }
       return ProjectsService.patchProjectContents({
-        ownerName: userName,
+        ownerName: accountName,
         projectName: projectName,
         path: item.path,
         requestBody: data,
@@ -85,7 +85,7 @@ const EditFileInfo = ({ isOpen, onClose, item }: EditFileProps) => {
     },
     onSettled: () => {
       queryClient.invalidateQueries({
-        queryKey: ["projects", userName, projectName, "files"],
+        queryKey: ["projects", accountName, projectName, "files"],
       })
     },
   })

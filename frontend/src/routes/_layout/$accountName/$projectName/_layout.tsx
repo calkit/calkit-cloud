@@ -42,11 +42,11 @@ import CloneProject from "../../../../components/Projects/CloneProject"
 import ProjectStatus from "../../../../components/Projects/ProjectStatus"
 import MakeProjectPublic from "../../../../components/Projects/MakeProjectPublic"
 
-export const Route = createFileRoute("/_layout/$userName/$projectName/_layout")(
-  {
-    component: ProjectLayout,
-  },
-)
+export const Route = createFileRoute(
+  "/_layout/$accountName/$projectName/_layout",
+)({
+  component: ProjectLayout,
+})
 
 interface ProjectMenuProps {
   project: ProjectPublic
@@ -111,9 +111,9 @@ function ProjectMenu({ project, userHasWriteAccess }: ProjectMenuProps) {
 }
 
 function ProjectLayout() {
-  const { userName, projectName } = Route.useParams()
+  const { accountName, projectName } = Route.useParams()
   const { projectRequest, userHasWriteAccess } = useProject(
-    userName,
+    accountName,
     projectName,
   )
   const isPending = projectRequest.isPending
@@ -124,9 +124,9 @@ function ProjectLayout() {
   }
   const helpDrawer = useDisclosure()
   const localServerQuery = useQuery({
-    queryKey: ["local-server", userName, projectName],
+    queryKey: ["local-server", accountName, projectName],
     queryFn: () =>
-      axios.get(`http://localhost:8866/projects/${userName}/${projectName}`),
+      axios.get(`http://localhost:8866/projects/${accountName}/${projectName}`),
     retry: false,
   })
   const titleSize = "lg"
@@ -145,7 +145,7 @@ function ProjectLayout() {
         </Flex>
       ) : (
         <Flex>
-          <Sidebar basePath={`/${userName}/${projectName}`} />
+          <Sidebar basePath={`/${accountName}/${projectName}`} />
           <Container maxW="full" mx={6} mb={10}>
             <Container
               maxW="100%"

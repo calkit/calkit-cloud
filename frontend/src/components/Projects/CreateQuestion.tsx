@@ -33,8 +33,8 @@ interface QuestionPost {
 const CreateQuestion = ({ isOpen, onClose }: CreateQuestionProps) => {
   const queryClient = useQueryClient()
   const showToast = useCustomToast()
-  const routeApi = getRouteApi("/_layout/$userName/$projectName")
-  const { userName, projectName } = routeApi.useParams()
+  const routeApi = getRouteApi("/_layout/$accountName/$projectName")
+  const { accountName, projectName } = routeApi.useParams()
   const {
     register,
     handleSubmit,
@@ -51,7 +51,7 @@ const CreateQuestion = ({ isOpen, onClose }: CreateQuestionProps) => {
   const mutation = useMutation({
     mutationFn: (data: QuestionPost) =>
       ProjectsService.postProjectQuestion({
-        ownerName: userName,
+        ownerName: accountName,
         projectName: projectName,
         requestBody: data,
       }),
@@ -65,7 +65,7 @@ const CreateQuestion = ({ isOpen, onClose }: CreateQuestionProps) => {
     },
     onSettled: () => {
       queryClient.invalidateQueries({
-        queryKey: ["projects", userName, projectName, "questions"],
+        queryKey: ["projects", accountName, projectName, "questions"],
       })
     },
   })

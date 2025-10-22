@@ -23,11 +23,11 @@ interface DiscardChangesProps {
 const DiscardChanges = ({ isOpen, onClose }: DiscardChangesProps) => {
   const queryClient = useQueryClient()
   const showToast = useCustomToast()
-  const routeApi = getRouteApi("/_layout/$userName/$projectName")
-  const { userName, projectName } = routeApi.useParams()
+  const routeApi = getRouteApi("/_layout/$accountName/$projectName")
+  const { accountName, projectName } = routeApi.useParams()
   const mutation = useMutation({
     mutationFn: () => {
-      const url = `http://localhost:8866/projects/${userName}/${projectName}/actions/discard-changes`
+      const url = `http://localhost:8866/projects/${accountName}/${projectName}/actions/discard-changes`
       return axios.post(url)
     },
     onSuccess: () => {
@@ -39,10 +39,10 @@ const DiscardChanges = ({ isOpen, onClose }: DiscardChangesProps) => {
     },
     onSettled: () => {
       queryClient.invalidateQueries({
-        queryKey: ["local-server-main", userName, projectName, "status"],
+        queryKey: ["local-server-main", accountName, projectName, "status"],
       })
       queryClient.invalidateQueries({
-        queryKey: ["local-server-main", userName, projectName, "pipeline"],
+        queryKey: ["local-server-main", accountName, projectName, "pipeline"],
       })
     },
   })

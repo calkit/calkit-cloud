@@ -36,8 +36,8 @@ interface DatasetPost {
 const DatasetFromExisting = ({ isOpen, onClose }: LabelDatasetProps) => {
   const queryClient = useQueryClient()
   const showToast = useCustomToast()
-  const routeApi = getRouteApi("/_layout/$userName/$projectName")
-  const { userName, projectName } = routeApi.useParams()
+  const routeApi = getRouteApi("/_layout/$accountName/$projectName")
+  const { accountName, projectName } = routeApi.useParams()
   const {
     register,
     handleSubmit,
@@ -60,7 +60,7 @@ const DatasetFromExisting = ({ isOpen, onClose }: LabelDatasetProps) => {
           path: data.path,
           description: data.description,
         },
-        ownerName: userName,
+        ownerName: accountName,
         projectName: projectName,
       }),
     onSuccess: () => {
@@ -73,7 +73,7 @@ const DatasetFromExisting = ({ isOpen, onClose }: LabelDatasetProps) => {
     },
     onSettled: () => {
       queryClient.invalidateQueries({
-        queryKey: ["projects", userName, projectName, "datasets"],
+        queryKey: ["projects", accountName, projectName, "datasets"],
       })
     },
   })

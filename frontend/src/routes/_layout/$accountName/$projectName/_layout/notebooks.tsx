@@ -20,7 +20,7 @@ import { ProjectsService, type Notebook } from "../../../../../client"
 import PageMenu from "../../../../../components/Common/PageMenu"
 
 export const Route = createFileRoute(
-  "/_layout/$userName/$projectName/_layout/notebooks",
+  "/_layout/$accountName/$projectName/_layout/notebooks",
 )({
   component: Notebooks,
 })
@@ -33,12 +33,12 @@ function NotebookContent({ notebook }: NotebookContentProps) {
   const borderRadius = "5px"
   const height = "81vh"
   const width = "1000px"
-  const { userName, projectName } = Route.useParams()
+  const { accountName, projectName } = Route.useParams()
   const { data, isPending } = useQuery({
     queryFn: () => axios.get(String(notebook.url)),
     queryKey: [
       "projects",
-      userName,
+      accountName,
       projectName,
       "notebook-content",
       notebook.path,
@@ -105,17 +105,17 @@ function NotebookContent({ notebook }: NotebookContentProps) {
 
 function Notebooks() {
   const bgActive = useColorModeValue("#E2E8F0", "#4A5568")
-  const { userName, projectName } = Route.useParams()
+  const { accountName, projectName } = Route.useParams()
   const [selectedTitle, setSelectedTitle] = useState<string>()
   const {
     isPending,
     error,
     data: allNotebooks,
   } = useQuery({
-    queryKey: ["projects", userName, projectName, "notebooks"],
+    queryKey: ["projects", accountName, projectName, "notebooks"],
     queryFn: () =>
       ProjectsService.getProjectNotebooks({
-        ownerName: userName,
+        ownerName: accountName,
         projectName: projectName,
       }),
   })

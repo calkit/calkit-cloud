@@ -51,8 +51,8 @@ type Stage = {
 const NewStage = ({ isOpen, onClose }: NewStageProps) => {
   const queryClient = useQueryClient()
   const showToast = useCustomToast()
-  const routeApi = getRouteApi("/_layout/$userName/$projectName")
-  const { userName, projectName } = routeApi.useParams()
+  const routeApi = getRouteApi("/_layout/$accountName/$projectName")
+  const { accountName, projectName } = routeApi.useParams()
   const {
     register,
     unregister,
@@ -75,7 +75,7 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
   const mutation = useMutation({
     mutationFn: (data: Stage) => {
       mixpanel.track("Clicked save new stage on local machine page")
-      const url = `http://localhost:8866/projects/${userName}/${projectName}/pipeline/stages`
+      const url = `http://localhost:8866/projects/${accountName}/${projectName}/pipeline/stages`
       let deps = null
       if (data.deps) {
         deps = data.deps.split(",")
@@ -104,10 +104,10 @@ const NewStage = ({ isOpen, onClose }: NewStageProps) => {
     },
     onSettled: () => {
       queryClient.invalidateQueries({
-        queryKey: ["local-server-main", userName, projectName, "status"],
+        queryKey: ["local-server-main", accountName, projectName, "status"],
       })
       queryClient.invalidateQueries({
-        queryKey: ["local-server-main", userName, projectName, "pipeline"],
+        queryKey: ["local-server-main", accountName, projectName, "pipeline"],
       })
     },
   })

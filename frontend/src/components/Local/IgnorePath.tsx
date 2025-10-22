@@ -38,8 +38,8 @@ interface IgnorePut {
 const IgnorePath = ({ path }: IgnorePathProps) => {
   const queryClient = useQueryClient()
   const showToast = useCustomToast()
-  const routeApi = getRouteApi("/_layout/$userName/$projectName")
-  const { userName, projectName } = routeApi.useParams()
+  const routeApi = getRouteApi("/_layout/$accountName/$projectName")
+  const { accountName, projectName } = routeApi.useParams()
   const {
     register,
     handleSubmit,
@@ -53,7 +53,7 @@ const IgnorePath = ({ path }: IgnorePathProps) => {
   const modalDisclosure = useDisclosure()
   const mutation = useMutation({
     mutationFn: (data: IgnorePut) => {
-      const url = `http://localhost:8866/projects/${userName}/${projectName}/git/ignored`
+      const url = `http://localhost:8866/projects/${accountName}/${projectName}/git/ignored`
       const payload = {
         path: path,
         commit: true,
@@ -72,10 +72,10 @@ const IgnorePath = ({ path }: IgnorePathProps) => {
     },
     onSettled: () => {
       queryClient.invalidateQueries({
-        queryKey: ["local-server-main", userName, projectName, "status"],
+        queryKey: ["local-server-main", accountName, projectName, "status"],
       })
       queryClient.invalidateQueries({
-        queryKey: ["local-server-main", userName, projectName, "pipeline"],
+        queryKey: ["local-server-main", accountName, projectName, "pipeline"],
       })
     },
   })

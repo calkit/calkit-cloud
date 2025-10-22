@@ -25,15 +25,15 @@ import UploadDataset from "../../../../../components/Datasets/UploadDataset"
 import useProject, { useProjectDatasets } from "../../../../../hooks/useProject"
 
 export const Route = createFileRoute(
-  "/_layout/$userName/$projectName/_layout/datasets",
+  "/_layout/$accountName/$projectName/_layout/datasets",
 )({
   component: ProjectData,
 })
 
 function ProjectDataView() {
-  const { userName, projectName } = Route.useParams()
-  const { userHasWriteAccess } = useProject(userName, projectName)
-  const { datasetsRequest } = useProjectDatasets(userName, projectName)
+  const { accountName, projectName } = Route.useParams()
+  const { userHasWriteAccess } = useProject(accountName, projectName)
+  const { datasetsRequest } = useProjectDatasets(accountName, projectName)
   const { isPending: dataPending, data: datasets } = datasetsRequest
   const uploadDataModal = useDisclosure()
   const labelDataModal = useDisclosure()

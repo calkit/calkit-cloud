@@ -29,7 +29,7 @@ import useProject, {
 import PublicationView from "../../../../../components/Publications/PublicationView"
 
 export const Route = createFileRoute(
-  "/_layout/$userName/$projectName/_layout/publications",
+  "/_layout/$accountName/$projectName/_layout/publications",
 )({
   component: Publications,
 })
@@ -96,9 +96,12 @@ function Publications() {
   const uploadPubModal = useDisclosure()
   const labelPubModal = useDisclosure()
   const newPubTemplateModal = useDisclosure()
-  const { userName, projectName } = Route.useParams()
-  const { userHasWriteAccess } = useProject(userName, projectName)
-  const { publicationsRequest } = useProjectPublications(userName, projectName)
+  const { accountName, projectName } = Route.useParams()
+  const { userHasWriteAccess } = useProject(accountName, projectName)
+  const { publicationsRequest } = useProjectPublications(
+    accountName,
+    projectName,
+  )
 
   return (
     <>
