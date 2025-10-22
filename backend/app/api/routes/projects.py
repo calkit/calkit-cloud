@@ -84,6 +84,7 @@ from app.models import (
     Publication,
     Question,
     User,
+    UserOrgMembership,
     UserProjectAccess,
 )
 from app.models.projects import (
@@ -93,13 +94,13 @@ from app.models.projects import (
     ShowcaseInput,
     ShowcaseMarkdown,
     ShowcaseMarkdownFileInput,
+    ShowcaseNotebook,
+    ShowcaseNotebookInput,
     ShowcasePublication,
     ShowcasePublicationInput,
     ShowcaseText,
     ShowcaseYaml,
     ShowcaseYamlFileInput,
-    ShowcaseNotebook,
-    ShowcaseNotebookInput,
 )
 from app.storage import (
     get_data_prefix,
@@ -125,7 +126,6 @@ def get_projects(
     search_for: str | None = None,
     owner_name: str | None = None,
 ) -> ProjectsPublic:
-    # TODO: Handle org member access
     if current_user is None:
         where_clause = Project.is_public
     else:
@@ -135,6 +135,17 @@ def get_projects(
             and_(
                 UserProjectAccess.user_id == current_user.id,
                 UserProjectAccess.access.is_not(None),
+            ),
+            Project.owner_account.has(
+                and_(
+                    Account.org_id.is_not(None),
+                    select(UserOrgMembership)
+                    .where(
+                        UserOrgMembership.user_id == current_user.id,
+                        UserOrgMembership.org_id == Account.org_id,
+                    )
+                    .exists(),
+                )
             ),
         )
     if owner_name is not None:
@@ -158,7 +169,6 @@ def get_projects(
         .select_from(Project)
         .distinct()
         .join(Project.user_access_records, isouter=True)
-        .join(Project.owner_account, isouter=True)
         .where(where_clause)
     )
     count = session.exec(count_query).one()
@@ -166,7 +176,6 @@ def get_projects(
         select(Project)
         .distinct()
         .join(Project.user_access_records, isouter=True)
-        .join(Project.owner_account, isouter=True)
         .where(where_clause)
         .order_by(sqlalchemy.desc(Project.created))
         .limit(limit)
@@ -185,7 +194,20 @@ def get_owned_projects(
     offset: int = 0,
     search_for: str | None = None,
 ) -> ProjectsPublic:
-    where_clause = Project.owner_account_id == current_user.account.id
+    where_clause = or_(
+        Project.owner_account_id == current_user.account.id,
+        Project.owner_account.has(
+            and_(
+                Account.org_id.is_not(None),
+                select(UserOrgMembership)
+                .where(
+                    UserOrgMembership.user_id == current_user.id,
+                    UserOrgMembership.org_id == Account.org_id,
+                )
+                .exists(),
+            )
+        ),
+    )
     if search_for is not None:
         search_for = f"%{search_for}%"
         where_clause = and_(
