@@ -414,6 +414,12 @@ export type OrgSubscriptionUpdate = {
   n_users: number
 }
 
+export type OrgUserPublic = {
+  name: string
+  github_name: string
+  role: string
+}
+
 export type OrgsResponse = {
   data: Array<OrgPublic>
   count: number

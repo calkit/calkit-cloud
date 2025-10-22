@@ -1935,6 +1935,23 @@ export const $OrgSubscriptionUpdate = {
   },
 } as const
 
+export const $OrgUserPublic = {
+  properties: {
+    name: {
+      type: "string",
+      isRequired: true,
+    },
+    github_name: {
+      type: "string",
+      isRequired: true,
+    },
+    role: {
+      type: "string",
+      isRequired: true,
+    },
+  },
+} as const
+
 export const $OrgsResponse = {
   properties: {
     data: {

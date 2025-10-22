@@ -18,9 +18,10 @@ import { createFileRoute } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
 import { Link as RouterLink } from "@tanstack/react-router"
 
-import { AccountsService, ProjectsService } from "../../../client"
+import { AccountsService, OrgsService, ProjectsService } from "../../../client"
 import NotFound from "../../../components/Common/NotFound"
 import { ExternalLinkIcon } from "@chakra-ui/icons"
+import { capitalizeFirstLetter } from "../../../utils"
 
 export const Route = createFileRoute("/_layout/$accountName/")({
   component: AccountPage,
@@ -29,7 +30,57 @@ export const Route = createFileRoute("/_layout/$accountName/")({
 function UsersTable() {
   // Fetch users for the org
   const { accountName } = Route.useParams()
-  return <></>
+  const { isPending, data: users } = useQuery({
+    queryKey: ["org-users", accountName],
+    queryFn: () => OrgsService.getOrgUsers({ orgName: accountName }),
+  })
+  return (
+    <>
+      <TableContainer>
+        <Table size={{ base: "sm", md: "md" }}>
+          <Thead>
+            <Tr>
+              <Th>Name</Th>
+              <Th>GitHub name</Th>
+              <Th>Role</Th>
+            </Tr>
+          </Thead>
+          {isPending ? (
+            <Tbody>
+              <Tr>
+                {new Array(3).fill(null).map((_, index) => (
+                  <Td key={index}>
+                    <SkeletonText noOfLines={1} paddingBlock="16px" />
+                  </Td>
+                ))}
+              </Tr>
+            </Tbody>
+          ) : (
+            <Tbody>
+              {users?.map((user) => (
+                <Tr key={user.name}>
+                  <Td>
+                    <Link as={RouterLink} to={`/${user.name}`}>
+                      {user.name}
+                    </Link>
+                  </Td>
+                  <Td>
+                    <Link
+                      href={`https://github.com/${user.github_name}`}
+                      isExternal
+                    >
+                      <ExternalLinkIcon mx="2px" /> {user.github_name}
+                    </Link>
+                  </Td>
+                  <Td>{capitalizeFirstLetter(user.role)}</Td>
+                </Tr>
+              ))}
+            </Tbody>
+          )}
+        </Table>
+      </TableContainer>
+    </>
+  )
 }
 
 function ProjectsTable() {
@@ -132,12 +183,12 @@ function AccountPage() {
           </Heading>
           {/* Add a users table if this is an org */}
           {account.kind === "org" && account.role ? (
-            <>
+            <Box mb={8}>
               <Heading size="md" mb={4}>
                 Users
               </Heading>
               <UsersTable />
-            </>
+            </Box>
           ) : (
             ""
           )}

@@ -5,6 +5,7 @@ import uuid
 from datetime import datetime
 from typing import Literal
 
+from app.models.core import UserPublic
 import requests
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
@@ -380,7 +381,7 @@ def get_org_storage(
 ) -> StorageUsage:
     org = get_org_from_db(org_name=org_name, session=session)
     if org is None:
-        logger.info("Org '{org_name}' does not exist")
+        logger.info(f"Org '{org_name}' does not exist")
         raise HTTPException(404)
     # Ensure the current user is an org admin or owner
     role = None
@@ -393,3 +394,40 @@ def get_org_storage(
     limit = org.subscription.storage_limit
     used = get_storage_usage(org.account.name)
     return StorageUsage(used_gb=used, limit_gb=limit)
+
+
+class OrgUserPublic(BaseModel):
+    name: str
+    github_name: str
+    role: str
+
+
+@router.get("/orgs/{org_name}/users")
+def get_org_users(
+    org_name: str,
+    session: SessionDep,
+    current_user: CurrentUser,
+) -> list[OrgUserPublic]:
+    org = get_org_from_db(org_name=org_name, session=session)
+    if org is None:
+        logger.info(f"Org '{org_name}' does not exist")
+        raise HTTPException(404)
+    # Ensure the current user is an org admin or owner
+    role = None
+    for membership in current_user.org_memberships:
+        if membership.org.account.name == org_name:
+            role = membership.role_name
+    if role is None:
+        logger.info("User is not a member of this org")
+        raise HTTPException(403)
+    resp = []
+    for membership in org.user_memberships:
+        user = membership.user
+        resp.append(
+            OrgUserPublic(
+                name=user.account.name,
+                github_name=user.github_username,
+                role=membership.role_name,
+            )
+        )
+    return resp

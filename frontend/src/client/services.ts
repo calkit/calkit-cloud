@@ -74,6 +74,7 @@ import type {
   OrgPublic,
   OrgsResponse,
   OrgSubscriptionUpdate,
+  OrgUserPublic,
   DatasetsResponse,
 } from "./models"
 
@@ -448,6 +449,9 @@ export type OrgsData = {
     requestBody: OrgSubscriptionUpdate
   }
   GetOrgStorage: {
+    orgName: string
+  }
+  GetOrgUsers: {
     orgName: string
   }
 }
@@ -2502,6 +2506,27 @@ export class OrgsService {
     return __request(OpenAPI, {
       method: "GET",
       url: "/orgs/{org_name}/storage",
+      path: {
+        org_name: orgName,
+      },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Get Org Users
+   * @returns OrgUserPublic Successful Response
+   * @throws ApiError
+   */
+  public static getOrgUsers(
+    data: OrgsData["GetOrgUsers"],
+  ): CancelablePromise<Array<OrgUserPublic>> {
+    const { orgName } = data
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/orgs/{org_name}/users",
       path: {
         org_name: orgName,
       },
