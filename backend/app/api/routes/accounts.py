@@ -18,6 +18,7 @@ router = APIRouter()
 class AccountPublic(SQLModel):
     name: str
     github_name: str
+    display_name: str
     kind: Literal["user", "org"]
     role: Literal["self", "read", "write", "admin", "owner"] | None = None
 
@@ -38,7 +39,7 @@ def get_account(
     account_dict["kind"] = (
         "org" if account_dict.get("org_id") is not None else "user"
     )
-    # Determine role
+    # Determine role and display name
     role = None
     if current_user is not None:
         if current_user.id == account.user_id:
@@ -50,4 +51,9 @@ def get_account(
                     role = org_membership.role_name
                     break
     account_dict["role"] = role
+    # Determine display name
+    if account.org is not None:
+        account_dict["display_name"] = account.org.display_name
+    else:
+        account_dict["display_name"] = account.name
     return AccountPublic.model_validate(account_dict)
