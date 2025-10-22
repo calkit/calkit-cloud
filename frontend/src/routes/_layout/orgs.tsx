@@ -119,7 +119,7 @@ function PublicOrgsTable() {
               {orgs?.data.map((org, index) => (
                 <Tr key={index} opacity={isPlaceholderData ? 0.5 : 1}>
                   <Td>
-                    <Link as={RouterLink} to={`/orgs/${org.name}`}>
+                    <Link as={RouterLink} to={`/${org.name}`}>
                       {org.display_name}
                     </Link>
                   </Td>
