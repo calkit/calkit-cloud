@@ -3,6 +3,7 @@ import {
   Container,
   Flex,
   Heading,
+  IconButton,
   Link,
   SkeletonText,
   Spinner,
@@ -13,6 +14,7 @@ import {
   Th,
   Thead,
   Tr,
+  useDisclosure,
 } from "@chakra-ui/react"
 import { createFileRoute } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
@@ -22,6 +24,8 @@ import { AccountsService, OrgsService, ProjectsService } from "../../../client"
 import NotFound from "../../../components/Common/NotFound"
 import { ExternalLinkIcon } from "@chakra-ui/icons"
 import { capitalizeFirstLetter } from "../../../utils"
+import { FaPlus } from "react-icons/fa"
+import AddMember from "../../../components/Orgs/AddMember"
 
 export const Route = createFileRoute("/_layout/$accountName/")({
   component: AccountPage,
@@ -158,6 +162,7 @@ function AccountPage() {
       return failureCount < 3
     },
   })
+  const { isOpen, onOpen, onClose } = useDisclosure()
 
   return (
     <Box>
@@ -183,10 +188,30 @@ function AccountPage() {
           {/* Add a users table if this is an org */}
           {account.kind === "org" && account.role ? (
             <Box mb={8}>
-              <Heading size="md" mb={4}>
-                Members
-              </Heading>
+              <Flex align="center" mb={4}>
+                <Heading size="md" mr={2}>
+                  Members
+                </Heading>
+                {["owner", "admin"].includes(account.role) ? (
+                  <IconButton
+                    aria-label="Add member"
+                    height="25px"
+                    width="28px"
+                    icon={<FaPlus />}
+                    size={"xs"}
+                    onClick={onOpen}
+                    variant="primary"
+                  />
+                ) : (
+                  ""
+                )}
+              </Flex>
               <UsersTable />
+              <AddMember
+                isOpen={isOpen}
+                onClose={onClose}
+                orgName={account.name}
+              />
             </Box>
           ) : (
             ""
