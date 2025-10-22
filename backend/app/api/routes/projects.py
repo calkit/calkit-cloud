@@ -123,6 +123,7 @@ def get_projects(
     limit: int = 100,
     offset: int = 0,
     search_for: str | None = None,
+    owner_name: str | None = None,
 ) -> ProjectsPublic:
     # TODO: Handle org member access
     if current_user is None:
@@ -135,6 +136,11 @@ def get_projects(
                 UserProjectAccess.user_id == current_user.id,
                 UserProjectAccess.access.is_not(None),
             ),
+        )
+    if owner_name is not None:
+        where_clause = and_(
+            where_clause,
+            Project.owner_account.has(Account.name == owner_name),
         )
     if search_for is not None:
         search_for = f"%{search_for}%"
@@ -152,6 +158,7 @@ def get_projects(
         .select_from(Project)
         .distinct()
         .join(Project.user_access_records, isouter=True)
+        .join(Project.owner_account, isouter=True)
         .where(where_clause)
     )
     count = session.exec(count_query).one()
@@ -159,6 +166,7 @@ def get_projects(
         select(Project)
         .distinct()
         .join(Project.user_access_records, isouter=True)
+        .join(Project.owner_account, isouter=True)
         .where(where_clause)
         .order_by(sqlalchemy.desc(Project.created))
         .limit(limit)
