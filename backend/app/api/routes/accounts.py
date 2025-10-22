@@ -19,6 +19,7 @@ class AccountPublic(SQLModel):
     name: str
     github_name: str
     kind: Literal["user", "org"]
+    role: Literal["self", "read", "write", "admin", "owner"] | None = None
 
 
 @router.get("/accounts/{account_name}")
@@ -33,6 +34,20 @@ def get_account(
         raise HTTPException(
             404, f"Account '{account_name}' not found or inaccessible."
         )
-    account = dict(account)
-    account["kind"] = "org" if account.get("org_id") is not None else "user"
-    return AccountPublic.model_validate(account)
+    account_dict = dict(account)
+    account_dict["kind"] = (
+        "org" if account_dict.get("org_id") is not None else "user"
+    )
+    # Determine role
+    role = None
+    if current_user is not None:
+        if current_user.id == account.user_id:
+            role = "self"
+        else:
+            # Check org access
+            for org_membership in current_user.org_memberships:
+                if org_membership.org_id == account.org_id:
+                    role = org_membership.role_name
+                    break
+    account_dict["role"] = role
+    return AccountPublic.model_validate(account_dict)
