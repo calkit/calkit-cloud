@@ -28,7 +28,6 @@ export const Route = createFileRoute("/_layout/$accountName/")({
 })
 
 function UsersTable() {
-  // Fetch users for the org
   const { accountName } = Route.useParams()
   const { isPending, data: users } = useQuery({
     queryKey: ["org-users", accountName],
