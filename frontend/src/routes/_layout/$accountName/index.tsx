@@ -128,6 +128,7 @@ function AccountPage() {
             mb={4}
           >
             {account.display_name}
+            {/* TODO: Show icons indicating user/org and role */}
           </Heading>
           {/* Add a users table if this is an org */}
           {account.kind === "org" && account.role ? (
