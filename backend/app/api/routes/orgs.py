@@ -5,9 +5,15 @@ import uuid
 from datetime import datetime, timedelta
 from typing import Literal
 
-import app.stripe
 import requests
-from app.api.deps import CurrentUser, SessionDep
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
+from sqlalchemy import func
+from sqlalchemy.exc import DataError
+from sqlmodel import Field, SQLModel, select
+
+import app.stripe
+from app.api.deps import CurrentUser, CurrentUserOptional, SessionDep
 from app.config import settings
 from app.core import INVALID_ACCOUNT_NAMES, utcnow
 from app.models import (
@@ -15,11 +21,11 @@ from app.models import (
     Account,
     DiscountCode,
     Message,
-    UpdateSubscriptionResponse,
     Org,
     OrgSubscription,
     StorageUsage,
     SubscriptionUpdate,
+    UpdateSubscriptionResponse,
     User,
     UserOrgMembership,
     UserSubscription,
@@ -28,10 +34,6 @@ from app.orgs import get_org_from_db
 from app.storage import get_storage_usage
 from app.subscriptions import PLAN_IDS, get_monthly_price
 from app.users import get_github_token
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
-from sqlalchemy.exc import DataError
-from sqlmodel import Field, select
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -65,6 +67,57 @@ def get_user_orgs(
             )
         )
     return resp
+
+
+class OrgsResponse(SQLModel):
+    data: list[OrgPublic]
+    count: int
+
+
+@router.get("/orgs")
+def get_orgs(
+    session: SessionDep,
+    current_user: CurrentUserOptional,
+    limit: int = 100,
+    offset: int = 0,
+    include_imported: bool = False,
+    search_for: str | None = None,
+) -> OrgsResponse:
+    """Get a list of orgs."""
+    query = select(Org).offset(offset).limit(limit).order_by(Org.display_name)
+    if search_for is not None:
+        search_for = f"%{search_for}%"
+        query = query.where(
+            Org.display_name.ilike(search_for)
+            | Org.github_name.ilike(search_for)
+            | Org.account.has(Account.name.ilike(search_for))
+        )
+    orgs = session.exec(query).all()
+    count_query = select(func.count()).select_from(Org)
+    if search_for is not None:
+        count_query = count_query.where(
+            Org.display_name.ilike(search_for)
+            | Org.github_name.ilike(search_for)
+            | Org.account.has(Account.name.ilike(search_for))
+        )
+    count = session.exec(count_query).one()
+    resp = []
+    for org in orgs:
+        role = "none"
+        if current_user is not None:
+            for membership in current_user.org_memberships:
+                if membership.org == org:
+                    role = membership.role_name
+        resp.append(
+            OrgPublic(
+                id=org.id,
+                name=org.account.name,
+                display_name=org.display_name,
+                github_name=org.github_name,
+                role=role,
+            )
+        )
+    return OrgsResponse(data=resp, count=count)
 
 
 class OrgPost(BaseModel):
