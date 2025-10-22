@@ -236,7 +236,7 @@ def add_org_member(
         raise HTTPException(400, "User already exists in org")
     # Make sure this org has enough seats left
     subscription = org.subscription
-    if subscription is None or subscription.paid_until < utcnow():
+    if not org.subscription_valid:
         logger.info(f"Org {org_name} has no valid subscription")
         raise HTTPException(400, "No valid subscription")
     n_users = subscription.n_users
