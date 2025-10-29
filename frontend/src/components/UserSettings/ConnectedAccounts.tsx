@@ -7,7 +7,7 @@ import {
   zenodoAuthStateParam,
   getZenodoRedirectUri,
   getZenodoAuthUrl,
-} from "../../utils"
+} from "../../lib/zenodo"
 import { UsersService } from "../../client"
 
 function ConnectedAccounts() {

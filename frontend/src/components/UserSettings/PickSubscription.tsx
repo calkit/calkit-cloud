@@ -51,7 +51,8 @@ import {
   OrgsService,
 } from "../../client"
 import useCustomToast from "../../hooks/useCustomToast"
-import { handleError, capitalizeFirstLetter } from "../../utils"
+import { capitalizeFirstLetter } from "../../lib/strings"
+import { handleError } from "../../lib/errors"
 import mixpanel from "mixpanel-browser"
 
 interface PickSubscriptionProps {

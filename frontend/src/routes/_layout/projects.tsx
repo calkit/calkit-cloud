@@ -25,7 +25,7 @@ import { z } from "zod"
 import { useEffect, useState } from "react"
 import { useDebounce } from "use-debounce"
 
-import { pageWidthNoSidebar } from "../../utils"
+import { pageWidthNoSidebar } from "../../lib/layout"
 import { ProjectsService } from "../../client"
 
 const projectsSearchSchema = z.object({

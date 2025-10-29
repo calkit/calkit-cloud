@@ -19,7 +19,7 @@ import DeleteAccount from "../../components/UserSettings/DeleteAccount"
 import UserInformation from "../../components/UserSettings/UserInformation"
 import UserTokens from "../../components/UserSettings/UserTokens"
 import Subscription from "../../components/UserSettings/Subscription"
-import { pageWidthNoSidebar } from "../../utils"
+import { pageWidthNoSidebar } from "../../lib/layout"
 import { isLoggedIn } from "../../hooks/useAuth"
 
 const tabsConfig = [

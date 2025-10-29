@@ -23,7 +23,7 @@ import mixpanel from "mixpanel-browser"
 
 import type { ApiError } from "../../client/core/ApiError"
 import useCustomToast from "../../hooks/useCustomToast"
-import { handleError } from "../../utils"
+import { handleError } from "../../lib/errors"
 
 interface NewStageProps {
   isOpen: boolean

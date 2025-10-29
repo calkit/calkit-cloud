@@ -20,7 +20,7 @@ import { type SubmitHandler, useForm } from "react-hook-form"
 
 import { type ApiError, type OrgPost, OrgsService } from "../../client"
 import useCustomToast from "../../hooks/useCustomToast"
-import { handleError } from "../../utils"
+import { handleError } from "../../lib/errors"
 
 interface NewOrgProps {
   isOpen: boolean

@@ -25,7 +25,7 @@ import {
 } from "../../client"
 import type { ApiError } from "../../client/core/ApiError"
 import useCustomToast from "../../hooks/useCustomToast"
-import { handleError } from "../../utils"
+import { handleError } from "../../lib/errors"
 import { useEffect } from "react"
 
 interface EditFileProps {
