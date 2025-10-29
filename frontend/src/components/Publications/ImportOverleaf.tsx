@@ -63,11 +63,6 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
   } = useForm<OverleafImportPost>({
     mode: "onBlur",
     criteriaMode: "all",
-    defaultValues: {
-      path: "",
-      title: "",
-      description: "",
-    },
   })
   const mutation = useMutation({
     mutationFn: (data: OverleafImportPost) =>

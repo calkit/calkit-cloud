@@ -2100,14 +2100,14 @@ def post_project_overleaf_publication(
     )
     input_paths = []
     for p in input_rel_paths:
-        if p == req.target_path:
+        if p == req.target_path or p.startswith("."):
             continue
         project_rel_path = os.path.join(req.path, p)
         if project_rel_path not in input_paths:
             input_paths.append(project_rel_path)
     stage = {
         "kind": "latex",
-        "target_path": req.target_path,
+        "target_path": os.path.join(req.path, req.target_path),
         "environment": req.environment_name,
         "inputs": input_paths,
     }
@@ -2115,7 +2115,9 @@ def post_project_overleaf_publication(
     pipeline["stages"] = stages
     ck_info["pipeline"] = pipeline
     # Create publication object
-    pdf_output_path = req.target_path.removesuffix(".tex") + ".pdf"
+    pdf_output_path = os.path.join(
+        req.path, req.target_path.removesuffix(".tex") + ".pdf"
+    )
     publication = {
         "path": pdf_output_path,
         "title": req.title,
