@@ -42,6 +42,7 @@ interface OverleafImportPost {
   overleaf_url: string
   stage: string
   environment?: string
+  overleaf_token?: string
   target_path: string
 }
 
@@ -131,6 +132,27 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
                 </FormErrorMessage>
               )}
             </FormControl>
+            {!connectedAccountsQuery.data?.overleaf ? (
+              <FormControl mt={4} isRequired isInvalid={!!errors.path}>
+                <FormLabel htmlFor="path">Overleaf token</FormLabel>
+                {/* TODO: Have tooltip/link here */}
+                <Input
+                  id="overleaf_token"
+                  {...register("overleaf_token", {
+                    required: "Overleaf token is required",
+                  })}
+                  placeholder={"Ex: olp_..."}
+                  type="text"
+                />
+                {errors.overleaf_token && (
+                  <FormErrorMessage>
+                    {errors.overleaf_token.message}
+                  </FormErrorMessage>
+                )}
+              </FormControl>
+            ) : (
+              ""
+            )}
             <FormControl mt={4} isRequired isInvalid={!!errors.path}>
               <FormLabel htmlFor="path">Destination folder</FormLabel>
               <Input
