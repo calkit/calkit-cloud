@@ -287,6 +287,10 @@ export const $ConnectedAccounts = {
       type: "boolean",
       isRequired: true,
     },
+    overleaf: {
+      type: "boolean",
+      isRequired: true,
+    },
   },
 } as const
 

@@ -62,6 +62,7 @@ export type Collaborator = {
 export type ConnectedAccounts = {
   github: boolean
   zenodo: boolean
+  overleaf: boolean
 }
 
 export type ContentPatch = {
