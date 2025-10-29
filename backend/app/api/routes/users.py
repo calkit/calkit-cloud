@@ -597,6 +597,8 @@ def put_user_overleaf_token(
     req: TokenPut, session: SessionDep, current_user: CurrentUser
 ) -> Message:
     """Update the current user's Overleaf token."""
+    if not req.token.startswith("olp_"):
+        raise HTTPException(422, "Overleaf tokens start with 'olp_'")
     users.save_overleaf_token(
         session=session,
         user=current_user,
@@ -604,6 +606,14 @@ def put_user_overleaf_token(
         expires=req.expires,
     )
     return Message(message="Token saved successfully")
+
+
+@router.get("/user/overleaf-token")
+def get_user_overleaf_token(
+    session: SessionDep, current_user: CurrentUser
+) -> ExternalTokenResponse:
+    token = users.get_overleaf_token(session=session, user=current_user)
+    return ExternalTokenResponse(access_token=token)
 
 
 @router.get("/user/storage")

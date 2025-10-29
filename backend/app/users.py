@@ -256,6 +256,12 @@ def save_zenodo_token(session: Session, user: User, zenodo_resp: dict):
     session.refresh(user.zenodo_token)
 
 
+def get_overleaf_token(session: Session, user: User) -> str:
+    if user.overleaf_token is None:
+        raise HTTPException(404, "User has no Overleaf token saved")
+    return decrypt_secret(user.overleaf_token.access_token)
+
+
 def save_overleaf_token(
     session: Session, user: User, token: str, expires: datetime | None
 ):
