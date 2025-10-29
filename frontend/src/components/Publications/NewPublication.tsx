@@ -23,7 +23,7 @@ import type { ApiError } from "../../client/core/ApiError"
 import useCustomToast from "../../hooks/useCustomToast"
 import { handleError } from "../../utils"
 
-interface UploadPublicationProps {
+interface NewPublicationProps {
   isOpen: boolean
   onClose: () => void
   variant: "upload" | "label" | "template"
@@ -46,11 +46,7 @@ interface PublicationPostWithFile {
   file?: FileList
 }
 
-const NewPublication = ({
-  isOpen,
-  onClose,
-  variant,
-}: UploadPublicationProps) => {
+const NewPublication = ({ isOpen, onClose, variant }: NewPublicationProps) => {
   const uploadFile = variant === "upload"
   const queryClient = useQueryClient()
   const showToast = useCustomToast()
