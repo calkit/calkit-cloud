@@ -2,6 +2,7 @@ import { Heading, HStack, Text, Icon, Button } from "@chakra-ui/react"
 import mixpanel from "mixpanel-browser"
 import { useQuery } from "@tanstack/react-query"
 import { FaCheck } from "react-icons/fa"
+import { FaX } from "react-icons/fa6"
 
 import {
   zenodoAuthStateParam,
@@ -35,7 +36,7 @@ function ConnectedAccounts() {
         "isLoading"
       ) : (
         <>
-          <HStack mb={4}>
+          <HStack>
             <Text>GitHub:</Text>
             {connectedAccountsQuery.data?.github ? (
               <Icon as={FaCheck} color="green.500" />
@@ -43,7 +44,7 @@ function ConnectedAccounts() {
               ""
             )}
           </HStack>
-          <HStack>
+          <HStack mt={4}>
             <Text>Zenodo:</Text>
             {connectedAccountsQuery.data?.zenodo ? (
               <Icon as={FaCheck} color="green.500" />
@@ -51,6 +52,14 @@ function ConnectedAccounts() {
               <Button variant="primary" onClick={handleConnectZenodo}>
                 Connect
               </Button>
+            )}
+          </HStack>
+          <HStack mt={4}>
+            <Text>Overleaf:</Text>
+            {connectedAccountsQuery.data?.overleaf ? (
+              <Icon as={FaCheck} color="green.500" />
+            ) : (
+              <Icon as={FaX} color="red.500" />
             )}
           </HStack>
         </>
