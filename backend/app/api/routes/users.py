@@ -512,6 +512,7 @@ def get_user_github_app_installations(
 class ConnectedAccounts(BaseModel):
     github: bool
     zenodo: bool
+    overleaf: bool
 
 
 @router.get("/user/connected-accounts")
@@ -521,6 +522,7 @@ def get_user_connected_accounts(
     return ConnectedAccounts(
         github=current_user.github_token is not None,
         zenodo=current_user.zenodo_token is not None,
+        overleaf=current_user.overleaf_token is not None,
     )
 
 

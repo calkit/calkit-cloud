@@ -116,6 +116,19 @@ class UserZenodoToken(SQLModel, table=True):
     refresh_token_expires: datetime | None
 
 
+class UserOverleafToken(SQLModel, table=True):
+    user_id: uuid.UUID = Field(foreign_key="user.id", primary_key=True)
+    updated: datetime = Field(
+        default_factory=utcnow,
+        sa_column_kwargs=dict(
+            server_onupdate=sqlalchemy.func.now(),
+            server_default=sqlalchemy.func.now(),
+        ),
+    )
+    access_token: str  # These should be encrypted
+    expires: datetime | None = Field(default=None)
+
+
 # Database model, database table inferred from class name
 class User(UserBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
@@ -126,6 +139,9 @@ class User(UserBase, table=True):
     account: Account = Relationship(back_populates="user", cascade_delete=True)
     github_token: UserGitHubToken | None = Relationship(cascade_delete=True)
     zenodo_token: UserZenodoToken | None = Relationship(cascade_delete=True)
+    overleaf_token: UserOverleafToken | None = Relationship(
+        cascade_delete=True
+    )
     org_memberships: list["UserOrgMembership"] = Relationship(
         back_populates="user",
         cascade_delete=True,
