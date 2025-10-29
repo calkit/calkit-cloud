@@ -35,11 +35,11 @@ interface OverleafImportPost {
   kind:
     | "journal-article"
     | "conference-paper"
-    | "presentation"
-    | "poster"
+    | "masters-thesis"
+    | "phd-thesis"
     | "report"
     | "book"
-  template?: "latex/article" | "latex/jfm"
+  overleaf_url: string
   stage?: string
   environment?: string
   file?: FileList
@@ -72,7 +72,6 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
           path: data.path,
           description: data.description,
           kind: data.kind,
-          template: data.template,
           stage: data.stage,
           environment: data.environment,
           file: data.file ? data.file[0] : null,
@@ -111,10 +110,24 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
           <ModalHeader>Import from Overleaf</ModalHeader>
           <ModalCloseButton />
           <ModalBody pb={6}>
-            <FormControl isRequired isInvalid={!!errors.path}>
-              <FormLabel htmlFor="path">
-                Path (subdirectory inside project)
-              </FormLabel>
+            <FormControl isRequired isInvalid={!!errors.overleaf_url}>
+              <FormLabel htmlFor="overleaf_url">Overleaf project URL</FormLabel>
+              <Input
+                id="overleaf_url"
+                {...register("overleaf_url", {
+                  required: "Overleaf project URL is required",
+                })}
+                placeholder={"Ex: https://www.overleaf.com/project/abc123..."}
+                type="text"
+              />
+              {errors.overleaf_url && (
+                <FormErrorMessage>
+                  {errors.overleaf_url.message}
+                </FormErrorMessage>
+              )}
+            </FormControl>
+            <FormControl mt={4} isRequired isInvalid={!!errors.path}>
+              <FormLabel htmlFor="path">Destination folder</FormLabel>
               <Input
                 id="path"
                 {...register("path", {
@@ -137,11 +150,11 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
                 })}
               >
                 <option value="journal-article">Journal article</option>
-                <option value="presentation">Presentation</option>
                 <option value="conference-paper">Conference paper</option>
-                <option value="poster">Poster</option>
                 <option value="report">Report</option>
                 <option value="book">Book</option>
+                <option value="masters-thesis">Master's thesis</option>
+                <option value="phd-thesis">PhD thesis</option>
               </Select>
             </FormControl>
             <FormControl mt={4} isRequired isInvalid={!!errors.title}>
