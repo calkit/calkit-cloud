@@ -183,7 +183,7 @@ def read_user_by_id(
     if user is None:
         raise HTTPException(404)
     if user == current_user:
-        return user
+        return UserPublic.model_validate(user)
     if not current_user.is_superuser:
         raise HTTPException(
             status_code=403,
