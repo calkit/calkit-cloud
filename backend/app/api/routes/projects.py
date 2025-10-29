@@ -2141,6 +2141,27 @@ def post_project_overleaf_publication(
         dst=os.path.join(repo.working_dir, req.path),
         ignore=lambda src, names: [".git"],
     )
+    # Add a sane LaTeX .gitignore file for the subdir
+    gitignore_txt = ""
+    for line in [
+        "*.log",
+        "*.synctex.gz",
+        "*.aux",
+        "*.toc",
+        "*.out",
+        "*.bbl",
+        "*.fdb_latexmk",
+        "*.blg",
+        "*.rej",
+        "*.tdo",
+        "*.fls",
+        "*.nav",
+    ]:
+        gitignore_txt += line + "\n"
+    with open(
+        os.path.join(repo.working_dir, req.path, ".gitignore"), "w"
+    ) as f:
+        f.write(gitignore_txt)
     # Save and commit calkit.yaml
     with open(os.path.join(repo.working_dir, "calkit.yaml"), "w") as f:
         ryaml.dump(ck_info, f)
