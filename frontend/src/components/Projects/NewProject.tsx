@@ -28,7 +28,7 @@ import {
   type ProjectPublic,
 } from "../../client"
 import useCustomToast from "../../hooks/useCustomToast"
-import { handleError } from "../../utils"
+import { handleError } from "../../lib/errors"
 
 interface NewProjectProps {
   isOpen: boolean

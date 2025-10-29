@@ -92,6 +92,19 @@ services:
       args:
         - NODE_ENV=development
 
+  # For mocking the GitHub API locally
+  github-mock:
+    image: stoplight/prism:4
+    platform: linux/amd64
+    networks:
+      - traefik-public
+      - default
+    command: mock --port 8082 --host 0.0.0.0 /github-openapi.json
+    volumes:
+      - ./test/api.github.com.json:/github-openapi.json
+    ports:
+      - "8082:8082"
+
 networks:
   traefik-public:
     # For local dev, don't expect an external Traefik network

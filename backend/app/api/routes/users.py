@@ -183,7 +183,7 @@ def read_user_by_id(
     if user is None:
         raise HTTPException(404)
     if user == current_user:
-        return user
+        return UserPublic.model_validate(user)
     if not current_user.is_superuser:
         raise HTTPException(
             status_code=403,
@@ -512,6 +512,7 @@ def get_user_github_app_installations(
 class ConnectedAccounts(BaseModel):
     github: bool
     zenodo: bool
+    overleaf: bool
 
 
 @router.get("/user/connected-accounts")
@@ -521,6 +522,7 @@ def get_user_connected_accounts(
     return ConnectedAccounts(
         github=current_user.github_token is not None,
         zenodo=current_user.zenodo_token is not None,
+        overleaf=current_user.overleaf_token is not None,
     )
 
 
@@ -582,6 +584,35 @@ def get_user_github_token(
     session: SessionDep, current_user: CurrentUser
 ) -> ExternalTokenResponse:
     token = users.get_github_token(session=session, user=current_user)
+    return ExternalTokenResponse(access_token=token)
+
+
+class TokenPut(BaseModel):
+    token: str
+    expires: datetime | None = None
+
+
+@router.put("/user/overleaf-token")
+def put_user_overleaf_token(
+    req: TokenPut, session: SessionDep, current_user: CurrentUser
+) -> Message:
+    """Update the current user's Overleaf token."""
+    if not req.token.startswith("olp_"):
+        raise HTTPException(422, "Overleaf tokens start with 'olp_'")
+    users.save_overleaf_token(
+        session=session,
+        user=current_user,
+        token=req.token,
+        expires=req.expires,
+    )
+    return Message(message="Token saved successfully")
+
+
+@router.get("/user/overleaf-token")
+def get_user_overleaf_token(
+    session: SessionDep, current_user: CurrentUser
+) -> ExternalTokenResponse:
+    token = users.get_overleaf_token(session=session, user=current_user)
     return ExternalTokenResponse(access_token=token)
 
 

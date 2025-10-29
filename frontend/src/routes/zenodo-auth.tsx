@@ -5,7 +5,7 @@ import { useEffect, useRef } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 
 import { UsersService } from "../client"
-import { getZenodoRedirectUri, zenodoAuthStateParam } from "../utils"
+import { getZenodoRedirectUri, zenodoAuthStateParam } from "../lib/zenodo"
 
 const authParamsSchema = z.object({
   code: z.string(),

@@ -23,7 +23,7 @@ import { useQuery } from "@tanstack/react-query"
 
 import { type SubscriptionPlan, MiscService } from "../../client"
 import useAuth from "../../hooks/useAuth"
-import { formatTimestamp } from "../../utils"
+import { formatTimestamp } from "../../lib/strings"
 import PickSubscription from "./PickSubscription"
 
 const Subscription = () => {

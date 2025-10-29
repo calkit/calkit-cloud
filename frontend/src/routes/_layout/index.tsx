@@ -31,7 +31,7 @@ import { ProjectsService } from "../../client"
 import ActionsMenu from "../../components/Common/ActionsMenu"
 import Navbar from "../../components/Common/Navbar"
 import CreateProject from "../../components/Projects/NewProject"
-import { pageWidthNoSidebar } from "../../utils"
+import { pageWidthNoSidebar } from "../../lib/layout"
 import useAuth from "../../hooks/useAuth"
 
 const projectsSearchSchema = z.object({

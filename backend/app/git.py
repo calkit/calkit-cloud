@@ -153,3 +153,31 @@ def get_dvc_pipeline_from_repo(repo: git.Repo) -> dict:
             return ryaml.load(f)
     else:
         return {}
+
+
+def get_overleaf_repo(
+    project: Project, user: User, session: Session, overleaf_project_id: str
+) -> git.Repo:
+    """Get a freshly pulled Overleaf repository for a user/project."""
+    if user.overleaf_token is None:
+        # This should never happen, since it would be checked in the caller
+        raise RuntimeError("User has no Overleaf token")
+    owner_name, project_name = project.owner_github_name, project.name
+    base_dir = (
+        f"/tmp/{user.github_username}/{owner_name}/"
+        f"{project_name}/overleaf/{overleaf_project_id}"
+    )
+    repo_dir = os.path.join(base_dir, "repo")
+    os.makedirs(base_dir, exist_ok=True)
+    overleaf_token = users.get_overleaf_token(session=session, user=user)
+    git_clone_url = (
+        f"https://git:{overleaf_token}@git.overleaf.com/{overleaf_project_id}"
+    )
+    if os.path.isdir(repo_dir):
+        # We should be able to simply go in here and pull
+        repo = git.Repo(repo_dir)
+        repo.git.pull()
+        return repo
+    else:
+        repo = git.Repo.clone_from(git_clone_url, repo_dir, depth=1)
+        return repo

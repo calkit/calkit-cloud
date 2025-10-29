@@ -23,7 +23,7 @@ import { Link as RouterLink } from "@tanstack/react-router"
 import { AccountsService, OrgsService, ProjectsService } from "../../../client"
 import NotFound from "../../../components/Common/NotFound"
 import { ExternalLinkIcon } from "@chakra-ui/icons"
-import { capitalizeFirstLetter } from "../../../utils"
+import { capitalizeFirstLetter } from "../../../lib/strings"
 import { FaPlus } from "react-icons/fa"
 import AddMember from "../../../components/Orgs/AddMember"
 

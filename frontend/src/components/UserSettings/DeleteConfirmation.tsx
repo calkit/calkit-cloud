@@ -14,7 +14,7 @@ import { useForm } from "react-hook-form"
 import { type ApiError, UsersService } from "../../client"
 import useAuth from "../../hooks/useAuth"
 import useCustomToast from "../../hooks/useCustomToast"
-import { handleError } from "../../utils"
+import { handleError } from "../../lib/errors"
 
 interface DeleteProps {
   isOpen: boolean

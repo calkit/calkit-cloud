@@ -23,7 +23,7 @@ import { type UserPublic, UsersService } from "../../client"
 import AddUser from "../../components/Admin/AddUser"
 import ActionsMenu from "../../components/Common/ActionsMenu"
 import Navbar from "../../components/Common/Navbar"
-import { pageWidthNoSidebar } from "../../utils"
+import { pageWidthNoSidebar } from "../../lib/layout"
 import { isLoggedIn } from "../../hooks/useAuth"
 
 const usersSearchSchema = z.object({

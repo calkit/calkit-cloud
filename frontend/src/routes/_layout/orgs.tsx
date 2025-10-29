@@ -25,7 +25,7 @@ import { z } from "zod"
 import { useEffect, useState } from "react"
 import { useDebounce } from "use-debounce"
 
-import { capitalizeFirstLetter } from "../../utils"
+import { capitalizeFirstLetter } from "../../lib/strings"
 import { OrgsService } from "../../client"
 
 const orgsSearchSchema = z.object({

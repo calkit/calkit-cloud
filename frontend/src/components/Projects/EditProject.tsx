@@ -22,7 +22,7 @@ import {
   ProjectsService,
 } from "../../client"
 import useCustomToast from "../../hooks/useCustomToast"
-import { handleError } from "../../utils"
+import { handleError } from "../../lib/errors"
 
 interface EditProjectProps {
   project: ProjectPublic

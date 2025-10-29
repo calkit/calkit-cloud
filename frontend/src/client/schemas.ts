@@ -287,6 +287,10 @@ export const $ConnectedAccounts = {
       type: "boolean",
       isRequired: true,
     },
+    overleaf: {
+      type: "boolean",
+      isRequired: true,
+    },
   },
 } as const
 
@@ -1968,6 +1972,83 @@ export const $OrgsResponse = {
   },
 } as const
 
+export const $OverleafPublicationPost = {
+  properties: {
+    path: {
+      type: "string",
+      isRequired: true,
+    },
+    overleaf_project_url: {
+      type: "string",
+      isRequired: true,
+    },
+    kind: {
+      type: "Enum",
+      enum: [
+        "journal-article",
+        "conference-paper",
+        "report",
+        "book",
+        "masters-thesis",
+        "phd-thesis",
+      ],
+      isRequired: true,
+    },
+    title: {
+      type: "string",
+      isRequired: true,
+    },
+    description: {
+      type: "string",
+      isRequired: true,
+    },
+    target_path: {
+      type: "string",
+      isRequired: true,
+    },
+    sync_paths: {
+      type: "array",
+      contains: {
+        type: "string",
+      },
+      default: [],
+    },
+    push_paths: {
+      type: "array",
+      contains: {
+        type: "string",
+      },
+      default: [],
+    },
+    stage_name: {
+      type: "string",
+      isRequired: true,
+    },
+    environment_name: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    overleaf_token: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+  },
+} as const
+
 export const $Pipeline = {
   properties: {
     mermaid: {
@@ -2756,6 +2837,63 @@ export const $Publication = {
         },
       ],
     },
+    overleaf: {
+      type: "any-of",
+      contains: [
+        {
+          type: "PublicationOverleaf",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+  },
+} as const
+
+export const $PublicationOverleaf = {
+  properties: {
+    project_id: {
+      type: "string",
+      isRequired: true,
+    },
+    wdir: {
+      type: "string",
+      isRequired: true,
+    },
+    push_paths: {
+      type: "array",
+      contains: {
+        type: "string",
+      },
+      default: [],
+    },
+    sync_paths: {
+      type: "array",
+      contains: {
+        type: "string",
+      },
+      default: [],
+    },
+    dvc_sync_paths: {
+      type: "array",
+      contains: {
+        type: "string",
+      },
+      default: [],
+    },
+    last_sync_commit: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      isRequired: true,
+    },
   },
 } as const
 
@@ -3247,6 +3385,27 @@ export const $TokenPost = {
       contains: [
         {
           type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+  },
+} as const
+
+export const $TokenPut = {
+  properties: {
+    token: {
+      type: "string",
+      isRequired: true,
+    },
+    expires: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          format: "date-time",
         },
         {
           type: "null",
