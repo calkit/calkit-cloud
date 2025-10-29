@@ -81,6 +81,7 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
           kind: data.kind,
           stage_name: data.stage,
           environment_name: data.environment,
+          overleaf_token: data.overleaf_token,
         },
         ownerName: accountName,
         projectName: projectName,
