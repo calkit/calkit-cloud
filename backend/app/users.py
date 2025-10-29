@@ -109,7 +109,7 @@ def get_github_token(session: Session, user: User) -> str:
         raise HTTPException(401, "User needs to authenticate with GitHub")
     # Refresh token if necessary
     # Should also handle tokens that don't exist?
-    if (utcnow() + timedelta(minutes=30)) >= token.expires:
+    if (utcnow() + timedelta(minutes=30)) >= token.expires:  # type: ignore
         # Make sure no other process is trying to refresh the token
         # Lock the user token row
         logger.info(f"Refreshing GitHub token for {user.email}")
@@ -155,7 +155,7 @@ def get_github_token(session: Session, user: User) -> str:
         session.commit()
     session.commit()
     session.refresh(user.github_token)
-    return decrypt_secret(user.github_token.access_token)
+    return decrypt_secret(user.github_token.access_token)  # type: ignore
 
 
 def save_github_token(
@@ -199,7 +199,7 @@ def get_zenodo_token(session: Session, user: User) -> str:
     # Refresh token if necessary
     # Should also handle tokens that don't exist?
     # TODO: Use with_for_update
-    if user.zenodo_token.expires <= utcnow():
+    if user.zenodo_token.expires <= utcnow():  # type: ignore
         logger.info(f"Refreshing Zenodo token for {user.email}")
         resp = requests.post(
             ZENODO_AUTH_URL,
@@ -240,7 +240,7 @@ def save_zenodo_token(session: Session, user: User, zenodo_resp: dict):
             access_token=encrypt_secret(zenodo_resp["access_token"]),
             refresh_token=encrypt_secret(zenodo_resp["refresh_token"]),
             expires=expires,
-        )
+        )  # type: ignore
     else:
         user.zenodo_token.access_token = encrypt_secret(
             zenodo_resp["access_token"]
