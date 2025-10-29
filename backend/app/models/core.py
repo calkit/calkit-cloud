@@ -693,6 +693,15 @@ class ContentsItem(_ContentsItemBase):
     dir_items: list[_ContentsItemBase] | None = None
 
 
+class PublicationOverleaf(BaseModel):
+    project_id: str
+    wdir: str
+    push_paths: list[str] = []
+    sync_paths: list[str] = []
+    dvc_sync_paths: list[str] = []
+    last_sync_commit: str | None
+
+
 class Publication(BaseModel):
     path: str
     title: str
@@ -712,6 +721,7 @@ class Publication(BaseModel):
     content: str | None = None
     stage_info: PipelineStage | None = None
     url: str | None = None
+    overleaf: PublicationOverleaf | None = None
 
 
 class Notebook(BaseModel):

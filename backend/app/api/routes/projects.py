@@ -4,6 +4,7 @@ import functools
 import hashlib
 import logging
 import os
+import shutil
 import subprocess
 import uuid
 from copy import deepcopy
@@ -61,6 +62,7 @@ from app.git import (
     get_ck_info,
     get_ck_info_from_repo,
     get_dvc_pipeline_from_repo,
+    get_overleaf_repo,
     get_repo,
 )
 from app.models import (
@@ -1995,6 +1997,153 @@ def post_project_publication(
         content=None,
         url=url,
     )
+
+
+class OverleafPublicationPost(BaseModel):
+    path: str
+    overleaf_project_url: str
+    kind: Literal[
+        "journal-article",
+        "conference-paper",
+        "report",
+        "book",
+        "masters-thesis",
+        "phd-thesis",
+    ]
+    title: str
+    description: str
+    target_path: str
+    sync_paths: list[str] = []
+    push_paths: list[str] = []
+    stage_name: str
+    environment_name: str | None = None
+
+
+@router.post("/projects/{owner_name}/{project_name}/publications/overleaf")
+def post_project_overleaf_publication(
+    owner_name: str,
+    project_name: str,
+    current_user: CurrentUser,
+    session: SessionDep,
+    req: OverleafPublicationPost,
+) -> Publication:
+    """Import a publication from Overleaf into a project."""
+    if current_user.overleaf_token is None:
+        raise HTTPException(400, "No Overleaf token found")
+    if not req.target_path.endswith(".tex"):
+        raise HTTPException(400, "Target path must end with '.tex'")
+    if req.path == ".":
+        raise HTTPException(400, "Path cannot be parent directory")
+    project = app.projects.get_project(
+        session=session,
+        owner_name=owner_name,
+        project_name=project_name,
+        current_user=current_user,
+        min_access_level="write",
+    )
+    repo = get_repo(
+        project=project, user=current_user, session=session, ttl=None
+    )
+    if os.path.exists(os.path.join(repo.working_dir, req.path)):
+        raise HTTPException(
+            400, f"Path '{req.path}' already exists in the repo"
+        )
+    # Handle projects that aren't yet Calkit projects
+    ck_info = get_ck_info_from_repo(repo)
+    publications = ck_info.get("publications", [])
+    # Make sure a publication with this path doesn't already exist
+    pubpaths = [pub.get("path") for pub in publications]
+    if req.path in pubpaths:
+        raise HTTPException(400, "A publication already exists at this path")
+    # Make sure we don't already have a stage with the same name
+    pipeline = ck_info.get("pipeline", {})
+    stages = pipeline.get("stages", {})
+    if req.stage_name in stages:
+        raise HTTPException(
+            400, f"A stage named '{req.stage_name}' already exists"
+        )
+    # Check environment spec
+    envs = ck_info.get("environments", {})
+    if req.environment_name in envs:
+        env = envs[req.environment_name]
+        if env.get("kind") != "docker" and "texlive" not in env.get(
+            "image", ""
+        ):
+            raise HTTPException(
+                400,
+                f"Environment {req.environment_name} exists, but is not a "
+                "TeXLive Docker environment",
+            )
+    else:
+        env = {"kind": "docker", "image": "texlive/texlive:latest-full"}
+        envs[req.environment_name] = env
+        ck_info["environments"] = envs
+    # Get the Overleaf repo
+    overleaf_project_id = req.overleaf_project_url.split("/")[-1]
+    overleaf_repo = get_overleaf_repo(
+        project=project,
+        user=current_user,
+        session=session,
+        overleaf_project_id=overleaf_project_id,
+    )
+    # Create build stage
+    input_rel_paths = set(
+        os.listdir(overleaf_repo.working_dir) + req.sync_paths + req.push_paths
+    )
+    input_paths = []
+    for p in input_rel_paths:
+        if p == req.target_path:
+            continue
+        project_rel_path = os.path.join(req.path, p)
+        if project_rel_path not in input_paths:
+            input_paths.append(project_rel_path)
+    stage = {
+        "kind": "latex",
+        "target_path": req.target_path,
+        "environment": req.environment_name,
+        "inputs": input_paths,
+    }
+    stages[req.stage_name] = stage
+    pipeline["stages"] = stages
+    ck_info["pipeline"] = pipeline
+    # Create publication object
+    pdf_output_path = req.target_path.removesuffix(".tex") + ".pdf"
+    publication = {
+        "path": pdf_output_path,
+        "title": req.title,
+        "description": req.description,
+        "stage": req.stage_name,
+        "overleaf": {
+            "project_id": overleaf_project_id,
+            "wdir": req.path,
+            "sync_paths": req.sync_paths,
+            "push_paths": req.push_paths,
+        },
+    }
+    publications.append(publication)
+    ck_info["publications"] = publications
+    # Save last Overleaf repo sync commit
+    last_overleaf_sync_commit = overleaf_repo.head.commit.hexsha
+    publication["overleaf"]["last_sync_commit"] = last_overleaf_sync_commit
+    # Actually copy in the files
+    shutil.copytree(
+        src=overleaf_repo.working_dir,
+        dst=os.path.join(repo.working_dir, req.path),
+        ignore=lambda src, names: [".git"],
+    )
+    # Save and commit calkit.yaml
+    with open(os.path.join(repo.working_dir, "calkit.yaml"), "w") as f:
+        ryaml.dump(ck_info, f)
+    repo.git.add("calkit.yaml")
+    repo.git.add(req.path)
+    repo.git.commit(
+        [
+            "-m",
+            f"Import Overleaf project ID {overleaf_project_id} to '{req.path}'",
+        ]
+    )
+    repo.git.push(["origin", repo.active_branch.name])
+    return Publication.model_validate(publication)
 
 
 @router.post("/projects/{owner_name}/{project_name}/syncs")
