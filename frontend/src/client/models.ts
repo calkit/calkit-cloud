@@ -443,6 +443,7 @@ export type OverleafPublicationPost = {
   push_paths?: Array<string>
   stage_name: string
   environment_name?: string | null
+  overleaf_token?: string | null
 }
 
 export type Pipeline = {

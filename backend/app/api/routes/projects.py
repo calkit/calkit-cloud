@@ -2017,6 +2017,7 @@ class OverleafPublicationPost(BaseModel):
     push_paths: list[str] = []
     stage_name: str
     environment_name: str | None = None
+    overleaf_token: str | None = None
 
 
 @router.post("/projects/{owner_name}/{project_name}/publications/overleaf")
@@ -2028,6 +2029,13 @@ def post_project_overleaf_publication(
     req: OverleafPublicationPost,
 ) -> Publication:
     """Import a publication from Overleaf into a project."""
+    if req.overleaf_token is not None:
+        users.save_overleaf_token(
+            session=session,
+            user=current_user,
+            token=req.overleaf_token,
+            expires=None,
+        )
     if current_user.overleaf_token is None:
         raise HTTPException(400, "No Overleaf token found")
     if not req.target_path.endswith(".tex"):

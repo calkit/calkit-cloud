@@ -2035,6 +2035,17 @@ export const $OverleafPublicationPost = {
         },
       ],
     },
+    overleaf_token: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
   },
 } as const
 
