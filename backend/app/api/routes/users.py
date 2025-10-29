@@ -587,6 +587,25 @@ def get_user_github_token(
     return ExternalTokenResponse(access_token=token)
 
 
+class TokenPut(BaseModel):
+    token: str
+    expires: datetime | None = None
+
+
+@router.put("/user/overleaf-token")
+def put_user_overleaf_token(
+    req: TokenPut, session: SessionDep, current_user: CurrentUser
+) -> Message:
+    """Update the current user's Overleaf token."""
+    users.save_overleaf_token(
+        session=session,
+        user=current_user,
+        token=req.token,
+        expires=req.expires,
+    )
+    return Message(message="Token saved successfully")
+
+
 @router.get("/user/storage")
 def get_user_storage(
     session: SessionDep,

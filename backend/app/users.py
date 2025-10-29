@@ -19,6 +19,7 @@ from app.models import (
     User,
     UserCreate,
     UserGitHubToken,
+    UserOverleafToken,
     UserSubscription,
     UserUpdate,
     UserZenodoToken,
@@ -253,6 +254,23 @@ def save_zenodo_token(session: Session, user: User, zenodo_resp: dict):
     session.add(user.zenodo_token)
     session.commit()
     session.refresh(user.zenodo_token)
+
+
+def save_overleaf_token(
+    session: Session, user: User, token: str, expires: datetime | None
+):
+    if user.overleaf_token is None:
+        user.overleaf_token = UserOverleafToken(
+            user_id=user.id,
+            access_token=encrypt_secret(token),
+            expires=expires,
+        )
+    else:
+        user.overleaf_token.access_token = encrypt_secret(token)
+        user.overleaf_token.expires = expires
+    session.add(user.overleaf_token)
+    session.commit()
+    session.refresh(user.overleaf_token)
 
 
 def check_user_subscription_active(session: Session, user: User) -> bool:
