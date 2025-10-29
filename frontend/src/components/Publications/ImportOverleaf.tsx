@@ -14,11 +14,11 @@ import {
   Select,
   Textarea,
 } from "@chakra-ui/react"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { type SubmitHandler, useForm } from "react-hook-form"
 import { getRouteApi } from "@tanstack/react-router"
 
-import { ProjectsService } from "../../client"
+import { ProjectsService, UsersService } from "../../client"
 import type { ApiError } from "../../client/core/ApiError"
 import useCustomToast from "../../hooks/useCustomToast"
 import { handleError } from "../../lib/errors"
@@ -40,9 +40,9 @@ interface OverleafImportPost {
     | "report"
     | "book"
   overleaf_url: string
-  stage?: string
+  stage: string
   environment?: string
-  file?: FileList
+  target_path: string
 }
 
 const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
@@ -50,6 +50,10 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
   const showToast = useCustomToast()
   const routeApi = getRouteApi("/_layout/$accountName/$projectName")
   const { accountName, projectName } = routeApi.useParams()
+  const connectedAccountsQuery = useQuery({
+    queryFn: () => UsersService.getUserConnectedAccounts(),
+    queryKey: ["user", "connected-accounts"],
+  })
   const {
     register,
     handleSubmit,
@@ -66,15 +70,16 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
   })
   const mutation = useMutation({
     mutationFn: (data: OverleafImportPost) =>
-      ProjectsService.postProjectPublication({
-        formData: {
+      ProjectsService.postProjectOverleafPublication({
+        requestBody: {
+          overleaf_project_url: data.overleaf_url,
           title: data.title,
           path: data.path,
+          target_path: data.target_path,
           description: data.description,
           kind: data.kind,
-          stage: data.stage,
-          environment: data.environment,
-          file: data.file ? data.file[0] : null,
+          stage_name: data.stage,
+          environment_name: data.environment,
         },
         ownerName: accountName,
         projectName: projectName,
@@ -138,6 +143,22 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
               />
               {errors.path && (
                 <FormErrorMessage>{errors.path.message}</FormErrorMessage>
+              )}
+            </FormControl>
+            <FormControl mt={4} isRequired isInvalid={!!errors.target_path}>
+              <FormLabel htmlFor="target_path">Target TeX file path</FormLabel>
+              <Input
+                id="target_path"
+                {...register("target_path", {
+                  required: "Target path is required",
+                })}
+                placeholder={"Ex: main.tex"}
+                type="text"
+              />
+              {errors.target_path && (
+                <FormErrorMessage>
+                  {errors.target_path.message}
+                </FormErrorMessage>
               )}
             </FormControl>
             <FormControl mt={4} isRequired isInvalid={!!errors.kind}>

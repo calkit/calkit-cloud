@@ -426,6 +426,25 @@ export type OrgsResponse = {
   count: number
 }
 
+export type OverleafPublicationPost = {
+  path: string
+  overleaf_project_url: string
+  kind:
+    | "journal-article"
+    | "conference-paper"
+    | "report"
+    | "book"
+    | "masters-thesis"
+    | "phd-thesis"
+  title: string
+  description: string
+  target_path: string
+  sync_paths?: Array<string>
+  push_paths?: Array<string>
+  stage_name: string
+  environment_name?: string | null
+}
+
 export type Pipeline = {
   mermaid: string
   stages: Record<string, PipelineStage | ForeachStage>
@@ -541,6 +560,16 @@ export type Publication = {
   content?: string | null
   stage_info?: PipelineStage | null
   url?: string | null
+  overleaf?: PublicationOverleaf | null
+}
+
+export type PublicationOverleaf = {
+  project_id: string
+  wdir: string
+  push_paths?: Array<string>
+  sync_paths?: Array<string>
+  dvc_sync_paths?: Array<string>
+  last_sync_commit: string | null
 }
 
 export type Question = {
@@ -677,6 +706,11 @@ export type TokenPost = {
   expires_days: number
   scope: "dvc" | null
   description?: string | null
+}
+
+export type TokenPut = {
+  token: string
+  expires?: string | null
 }
 
 export type TokenResp = {

@@ -16,6 +16,7 @@ import type {
   SubscriptionUpdate,
   TokenPatch,
   TokenPost,
+  TokenPut,
   TokenResp,
   UpdatePassword,
   UpdateSubscriptionResponse,
@@ -53,6 +54,7 @@ import type {
   IssuePost,
   LabelDatasetPost,
   Notebook,
+  OverleafPublicationPost,
   Pipeline,
   ProjectApp,
   ProjectCreate,
@@ -152,6 +154,9 @@ export type UsersData = {
   PostUserZenodoAuth: {
     code: string
     redirectUri: string
+  }
+  PutUserOverleafToken: {
+    requestBody: TokenPut
   }
 }
 
@@ -322,6 +327,11 @@ export type ProjectsData = {
     formData: Body_projects_post_project_publication
     ownerName: string
     projectName: string
+  }
+  PostProjectOverleafPublication: {
+    ownerName: string
+    projectName: string
+    requestBody: OverleafPublicationPost
   }
   PostProjectSync: {
     ownerName: string
@@ -1019,6 +1029,39 @@ export class UsersService {
     return __request(OpenAPI, {
       method: "GET",
       url: "/user/github-token",
+    })
+  }
+
+  /**
+   * Get User Overleaf Token
+   * @returns ExternalTokenResponse Successful Response
+   * @throws ApiError
+   */
+  public static getUserOverleafToken(): CancelablePromise<ExternalTokenResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/user/overleaf-token",
+    })
+  }
+
+  /**
+   * Put User Overleaf Token
+   * Update the current user's Overleaf token.
+   * @returns Message Successful Response
+   * @throws ApiError
+   */
+  public static putUserOverleafToken(
+    data: UsersData["PutUserOverleafToken"],
+  ): CancelablePromise<Message> {
+    const { requestBody } = data
+    return __request(OpenAPI, {
+      method: "PUT",
+      url: "/user/overleaf-token",
+      body: requestBody,
+      mediaType: "application/json",
+      errors: {
+        422: `Validation Error`,
+      },
     })
   }
 
@@ -1839,6 +1882,31 @@ export class ProjectsService {
       },
       formData: formData,
       mediaType: "application/x-www-form-urlencoded",
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Post Project Overleaf Publication
+   * Import a publication from Overleaf into a project.
+   * @returns Publication Successful Response
+   * @throws ApiError
+   */
+  public static postProjectOverleafPublication(
+    data: ProjectsData["PostProjectOverleafPublication"],
+  ): CancelablePromise<Publication> {
+    const { ownerName, projectName, requestBody } = data
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/projects/{owner_name}/{project_name}/publications/overleaf",
+      path: {
+        owner_name: ownerName,
+        project_name: projectName,
+      },
+      body: requestBody,
+      mediaType: "application/json",
       errors: {
         422: `Validation Error`,
       },
