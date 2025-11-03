@@ -24,7 +24,8 @@ import {
   UsersService,
 } from "../../client"
 import useCustomToast from "../../hooks/useCustomToast"
-import { emailPattern, handleError } from "../../utils"
+import { emailPattern } from "../../lib/strings"
+import { handleError } from "../../lib/errors"
 
 interface EditUserProps {
   user: UserPublic

@@ -20,22 +20,14 @@ import { type SubmitHandler, useForm } from "react-hook-form"
 
 import { type ApiError, type OrgPost, OrgsService } from "../../client"
 import useCustomToast from "../../hooks/useCustomToast"
-import { handleError } from "../../utils"
+import { handleError } from "../../lib/errors"
 
 interface NewOrgProps {
   isOpen: boolean
   onClose: () => void
-  defaultTemplate?: string
 }
 
-const NewOrg = ({ isOpen, onClose, defaultTemplate }: NewOrgProps) => {
-  const templates = ["calkit/example-basic", "calkit/example-matlab"]
-  if (!defaultTemplate) {
-    defaultTemplate = "calkit/example-basic"
-  }
-  if (!templates.includes(defaultTemplate)) {
-    templates.push(defaultTemplate)
-  }
+const NewOrg = ({ isOpen, onClose }: NewOrgProps) => {
   const queryClient = useQueryClient()
   const showToast = useCustomToast()
   const {

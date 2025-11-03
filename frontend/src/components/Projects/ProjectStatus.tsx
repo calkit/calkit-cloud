@@ -24,11 +24,8 @@ import {
 } from "../../client"
 import type { ApiError } from "../../client/core/ApiError"
 import useCustomToast from "../../hooks/useCustomToast"
-import {
-  formatTimestamp,
-  handleError,
-  capitalizeFirstLetter,
-} from "../../utils"
+import { formatTimestamp, capitalizeFirstLetter } from "../../lib/strings"
+import { handleError } from "../../lib/errors"
 
 interface ProjectStatusProps {
   project: ProjectPublic

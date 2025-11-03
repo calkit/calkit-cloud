@@ -19,9 +19,12 @@ import {
 import { createFileRoute, Link as RouterLink } from "@tanstack/react-router"
 import { FiFile } from "react-icons/fi"
 import { FaPlus } from "react-icons/fa"
+import { SiOverleaf } from "react-icons/si"
+import { ExternalLinkIcon } from "@chakra-ui/icons"
 
 import { type Publication } from "../../../../../client"
 import NewPublication from "../../../../../components/Publications/NewPublication"
+import ImportOverleaf from "../../../../../components/Publications/ImportOverleaf"
 import PageMenu from "../../../../../components/Common/PageMenu"
 import useProject, {
   useProjectPublications,
@@ -85,6 +88,20 @@ function PubView({ publication }: PubViewProps) {
           ) : (
             ""
           )}
+          {publication.overleaf?.project_id ? (
+            <Link
+              isExternal
+              href={`https://www.overleaf.com/project/${publication.overleaf.project_id}`}
+            >
+              <Flex align={"center"}>
+                <Icon as={SiOverleaf} color="green.500" />
+                <Text ml={0.5}>View on Overleaf</Text>
+                <Icon as={ExternalLinkIcon} ml={0.5} />
+              </Flex>
+            </Link>
+          ) : (
+            ""
+          )}
         </Box>
         {/* TODO: Add ability to comment on a publication */}
       </Box>
@@ -96,6 +113,7 @@ function Publications() {
   const uploadPubModal = useDisclosure()
   const labelPubModal = useDisclosure()
   const newPubTemplateModal = useDisclosure()
+  const overleafImportModal = useDisclosure()
   const { accountName, projectName } = Route.useParams()
   const { userHasWriteAccess } = useProject(accountName, projectName)
   const { publicationsRequest } = useProjectPublications(
@@ -133,6 +151,9 @@ function Publications() {
                       <MenuItem onClick={newPubTemplateModal.onOpen}>
                         Create new publication from template
                       </MenuItem>
+                      <MenuItem onClick={overleafImportModal.onOpen}>
+                        Import from Overleaf
+                      </MenuItem>
                       <MenuItem onClick={uploadPubModal.onOpen}>
                         Upload new publication
                       </MenuItem>
@@ -145,6 +166,10 @@ function Publications() {
                     isOpen={newPubTemplateModal.isOpen}
                     onClose={newPubTemplateModal.onClose}
                     variant="template"
+                  />
+                  <ImportOverleaf
+                    isOpen={overleafImportModal.isOpen}
+                    onClose={overleafImportModal.onClose}
                   />
                   <NewPublication
                     isOpen={uploadPubModal.isOpen}

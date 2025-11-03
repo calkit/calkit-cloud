@@ -23,7 +23,8 @@ import {
 } from "../../client"
 import useAuth from "../../hooks/useAuth"
 import useCustomToast from "../../hooks/useCustomToast"
-import { emailPattern, handleError } from "../../utils"
+import { emailPattern } from "../../lib/strings"
+import { handleError } from "../../lib/errors"
 import ConnectedAccounts from "./ConnectedAccounts"
 
 const UserInformation = () => {

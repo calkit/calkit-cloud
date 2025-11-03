@@ -19,6 +19,7 @@ from app.models import (
     User,
     UserCreate,
     UserGitHubToken,
+    UserOverleafToken,
     UserSubscription,
     UserUpdate,
     UserZenodoToken,
@@ -109,7 +110,7 @@ def get_github_token(session: Session, user: User) -> str:
         raise HTTPException(401, "User needs to authenticate with GitHub")
     # Refresh token if necessary
     # Should also handle tokens that don't exist?
-    if (utcnow() + timedelta(minutes=30)) >= token.expires:
+    if (utcnow() + timedelta(minutes=30)) >= token.expires:  # type: ignore
         # Make sure no other process is trying to refresh the token
         # Lock the user token row
         logger.info(f"Refreshing GitHub token for {user.email}")
@@ -155,7 +156,7 @@ def get_github_token(session: Session, user: User) -> str:
         session.commit()
     session.commit()
     session.refresh(user.github_token)
-    return decrypt_secret(user.github_token.access_token)
+    return decrypt_secret(user.github_token.access_token)  # type: ignore
 
 
 def save_github_token(
@@ -199,7 +200,7 @@ def get_zenodo_token(session: Session, user: User) -> str:
     # Refresh token if necessary
     # Should also handle tokens that don't exist?
     # TODO: Use with_for_update
-    if user.zenodo_token.expires <= utcnow():
+    if user.zenodo_token.expires <= utcnow():  # type: ignore
         logger.info(f"Refreshing Zenodo token for {user.email}")
         resp = requests.post(
             ZENODO_AUTH_URL,
@@ -240,7 +241,7 @@ def save_zenodo_token(session: Session, user: User, zenodo_resp: dict):
             access_token=encrypt_secret(zenodo_resp["access_token"]),
             refresh_token=encrypt_secret(zenodo_resp["refresh_token"]),
             expires=expires,
-        )
+        )  # type: ignore
     else:
         user.zenodo_token.access_token = encrypt_secret(
             zenodo_resp["access_token"]
@@ -253,6 +254,29 @@ def save_zenodo_token(session: Session, user: User, zenodo_resp: dict):
     session.add(user.zenodo_token)
     session.commit()
     session.refresh(user.zenodo_token)
+
+
+def get_overleaf_token(session: Session, user: User) -> str:
+    if user.overleaf_token is None:
+        raise HTTPException(404, "User has no Overleaf token saved")
+    return decrypt_secret(user.overleaf_token.access_token)
+
+
+def save_overleaf_token(
+    session: Session, user: User, token: str, expires: datetime | None
+):
+    if user.overleaf_token is None:
+        user.overleaf_token = UserOverleafToken(
+            user_id=user.id,
+            access_token=encrypt_secret(token),
+            expires=expires,
+        )
+    else:
+        user.overleaf_token.access_token = encrypt_secret(token)
+        user.overleaf_token.expires = expires
+    session.add(user.overleaf_token)
+    session.commit()
+    session.refresh(user.overleaf_token)
 
 
 def check_user_subscription_active(session: Session, user: User) -> bool:
