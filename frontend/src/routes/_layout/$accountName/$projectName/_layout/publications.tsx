@@ -19,6 +19,8 @@ import {
 import { createFileRoute, Link as RouterLink } from "@tanstack/react-router"
 import { FiFile } from "react-icons/fi"
 import { FaPlus } from "react-icons/fa"
+import { SiOverleaf } from "react-icons/si"
+import { ExternalLinkIcon } from "@chakra-ui/icons"
 
 import { type Publication } from "../../../../../client"
 import NewPublication from "../../../../../components/Publications/NewPublication"
@@ -83,6 +85,20 @@ function PubView({ publication }: PubViewProps) {
             <Text>
               Pipeline stage: <Code>{publication.stage}</Code>
             </Text>
+          ) : (
+            ""
+          )}
+          {publication.overleaf?.project_id ? (
+            <Link
+              isExternal
+              href={`https://www.overleaf.com/project/${publication.overleaf.project_id}`}
+            >
+              <Flex align={"center"}>
+                <Icon as={SiOverleaf} color="green.500" />
+                <Text ml={0.5}>View on Overleaf</Text>
+                <Icon as={ExternalLinkIcon} ml={0.5} />
+              </Flex>
+            </Link>
           ) : (
             ""
           )}
