@@ -7,29 +7,17 @@ import useAuth from "../hooks/useAuth"
 import Topbar from "../components/Common/Topbar"
 import PickSubscription from "../components/UserSettings/PickSubscription"
 import { UsersService } from "../client"
+import { appName } from "../lib/core"
 
 export const Route = createFileRoute("/_layout")({
   component: Layout,
 })
 
 function InstallGitHubApp() {
-  const appNameBase = "calkit"
-  const apiUrl = String(import.meta.env.VITE_API_URL)
-  const getAppName = () => {
-    if (apiUrl.includes("localhost")) {
-      return appNameBase + "-dev"
-    }
-    if (apiUrl.includes("staging")) {
-      return appNameBase + "-staging"
-    }
-    return appNameBase
-  }
   return (
     <>
       <Flex height="100vh" width="full" justify="center" align="center">
-        <Link
-          href={`https://github.com/apps/${getAppName()}/installations/new`}
-        >
+        <Link href={`https://github.com/apps/${appName}/installations/new`}>
           <Button variant={"primary"}>Add the Calkit app to GitHub</Button>
         </Link>
       </Flex>
@@ -56,17 +44,6 @@ function Layout() {
     enabled: () => Boolean(user),
     retry: 1,
   })
-  const appNameBase = "calkit"
-  const apiUrl = String(import.meta.env.VITE_API_URL)
-  const getAppName = () => {
-    if (apiUrl.includes("localhost")) {
-      return appNameBase + "-dev"
-    }
-    if (apiUrl.includes("staging")) {
-      return appNameBase + "-staging"
-    }
-    return appNameBase
-  }
   if (ghAppInstalledQuery.error) {
     logout()
   }
@@ -74,7 +51,7 @@ function Layout() {
   const ghAppNotInstalled =
     user && ghAppInstalledQuery.data && !ghAppInstalledQuery.data.total_count
   if (ghAppNotInstalled) {
-    location.href = `https://github.com/apps/${getAppName()}/installations/new`
+    location.href = `https://github.com/apps/${appName}/installations/new`
   }
 
   return (

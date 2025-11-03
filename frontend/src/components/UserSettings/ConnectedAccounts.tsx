@@ -5,10 +5,13 @@ import {
   Icon,
   Button,
   useDisclosure,
+  Flex,
+  Link,
+  Spinner,
 } from "@chakra-ui/react"
 import mixpanel from "mixpanel-browser"
 import { useQuery } from "@tanstack/react-query"
-import { FaCheck } from "react-icons/fa"
+import { FaCheck, FaPlus } from "react-icons/fa"
 
 import {
   zenodoAuthStateParam,
@@ -17,6 +20,7 @@ import {
 } from "../../lib/zenodo"
 import { UsersService } from "../../client"
 import UpdateOverleafToken from "./UpdateOverleafToken"
+import { appName } from "../../lib/core"
 
 function ConnectedAccounts() {
   const clientId = import.meta.env.VITE_ZENODO_CLIENT_ID
@@ -33,6 +37,10 @@ function ConnectedAccounts() {
     queryFn: () => UsersService.getUserConnectedAccounts(),
     queryKey: ["user", "connected-accounts"],
   })
+  const ghInstallQuery = useQuery({
+    queryFn: () => UsersService.getUserGithubAppInstallations(),
+    queryKey: ["user", "github-app-installations"],
+  })
   const overleafTokenModal = useDisclosure()
 
   return (
@@ -40,8 +48,10 @@ function ConnectedAccounts() {
       <Heading size="md" mb={4}>
         Connected accounts
       </Heading>
-      {connectedAccountsQuery.isPending ? (
-        "isLoading"
+      {connectedAccountsQuery.isPending || ghInstallQuery.isPending ? (
+        <Flex justify="center" align="center" height={"100vh"} width="full">
+          <Spinner size="xl" color="ui.main" />
+        </Flex>
       ) : (
         <>
           <HStack>
@@ -51,6 +61,26 @@ function ConnectedAccounts() {
             ) : (
               ""
             )}
+            <Text>Installed for:</Text>
+            {ghInstallQuery.data && ghInstallQuery.data.total_count > 0
+              ? ghInstallQuery.data.installations.map((inst: any) => (
+                  <Link
+                    key={inst.id}
+                    href={inst.html_url}
+                    isExternal
+                    variant="blue"
+                  >
+                    <Text key={inst.id}>{inst.account.login}</Text>
+                  </Link>
+                ))
+              : ""}
+            <Link
+              isExternal
+              href={`https://github.com/apps/${appName}/installations/new`}
+              mt={1.5}
+            >
+              <Icon as={FaPlus} />
+            </Link>
           </HStack>
           <HStack mt={4}>
             <Text>Zenodo:</Text>
