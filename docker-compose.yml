@@ -120,7 +120,6 @@ services:
       - MIXPANEL_TOKEN=${MIXPANEL_TOKEN?Variable not set}
       - ZENODO_CLIENT_ID=${ZENODO_CLIENT_ID?Variable not set}
       - ZENODO_CLIENT_SECRET=${ZENODO_CLIENT_SECRET?Variable not set}
-
     build:
       context: ./backend
       args:
