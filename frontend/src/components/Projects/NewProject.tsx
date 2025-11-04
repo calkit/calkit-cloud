@@ -14,6 +14,8 @@ import {
   ModalHeader,
   ModalOverlay,
   Select,
+  Link,
+  useDisclosure,
 } from "@chakra-ui/react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { type SubmitHandler, useForm } from "react-hook-form"
@@ -29,6 +31,7 @@ import {
 } from "../../client"
 import useCustomToast from "../../hooks/useCustomToast"
 import { handleError } from "../../lib/errors"
+import { appName } from "../../lib/core"
 
 interface NewProjectProps {
   isOpen: boolean
@@ -47,6 +50,7 @@ const NewProject = ({ isOpen, onClose, defaultTemplate }: NewProjectProps) => {
   const queryClient = useQueryClient()
   const showToast = useCustomToast()
   const navigate = useNavigate()
+  const errorModal = useDisclosure()
   const currentUser = queryClient.getQueryData<UserPublic>(["currentUser"])
   const githubUsername = currentUser?.github_username
     ? currentUser.github_username
@@ -94,6 +98,20 @@ const NewProject = ({ isOpen, onClose, defaultTemplate }: NewProjectProps) => {
       })
     },
     onError: (err: ApiError) => {
+      // If the error indicates that the Calkit GitHub App is not enabled,
+      // show an error modal with the link to install it
+      const msg = (err?.message || "").toLowerCase()
+      const bodyDetail =
+        typeof (err as any)?.body?.detail === "string"
+          ? ((err as any).body.detail as string).toLowerCase()
+          : ""
+      if (
+        msg.includes("calkit github app not enabled") ||
+        bodyDetail.includes("calkit github app not enabled")
+      ) {
+        errorModal.onOpen()
+        return
+      }
       handleError(err, showToast)
     },
     onSettled: () => {
@@ -192,7 +210,6 @@ const NewProject = ({ isOpen, onClose, defaultTemplate }: NewProjectProps) => {
               </FormControl>
             </Flex>
           </ModalBody>
-
           <ModalFooter gap={3}>
             <Button
               variant="primary"
@@ -202,6 +219,28 @@ const NewProject = ({ isOpen, onClose, defaultTemplate }: NewProjectProps) => {
               Save
             </Button>
             <Button onClick={onClose}>Cancel</Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+      {/* Error modal prompting user to install the GitHub App */}
+      <Modal isOpen={errorModal.isOpen} onClose={errorModal.onClose} isCentered>
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>GitHub app not enabled</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            To create a project, the Calkit GitHub App must be installed for
+            your account or organization and have access to any relevant repos.
+            Install it on GitHub, then return here and try again.
+          </ModalBody>
+          <ModalFooter gap={3}>
+            <Link
+              href={`https://github.com/apps/${appName}/installations/new`}
+              isExternal
+            >
+              <Button variant="primary">Install on GitHub</Button>
+            </Link>
+            <Button onClick={errorModal.onClose}>Close</Button>
           </ModalFooter>
         </ModalContent>
       </Modal>

@@ -354,11 +354,21 @@ def create_project(
             headers=headers,
         )
         if not resp.status_code == 201:
+            not_installed_message = (
+                "Calkit GitHub App not enabled for this account or repo."
+            )
             logger.warning(f"Failed to create: {resp.json()}")
             try:
                 message = resp.json()["errors"][0]["message"].capitalize()
+                if message.lower().startswith("name already exists"):
+                    message = not_installed_message
             except Exception:
-                message = "Failed to create GitHub repo"
+                try:
+                    message = resp.json()["message"]
+                    if message.lower().startswith("resource not accessible"):
+                        message = not_installed_message
+                except Exception:
+                    message = "Failed to create GitHub repo"
             raise HTTPException(resp.status_code, message)
         resp_json = resp.json()
         logger.info(f"Created GitHub repo with URL: {resp_json['html_url']}")
