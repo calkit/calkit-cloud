@@ -10,6 +10,7 @@ import {
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import React from "react"
+import { Box } from "@chakra-ui/react"
 import rehypeRaw from "rehype-raw"
 import rehypeSanitize from "rehype-sanitize"
 
@@ -58,24 +59,48 @@ const code = ({ insidePre = false, ...props }: codeProps) => {
 
 const Markdown = ({ children }: MarkdownProps) => {
   return (
-    <ReactMarkdown
-      components={{
-        h1: H1,
-        h2: H2,
-        h3: H3,
-        li: ListItem,
-        ol: OrderedList,
-        ul: UnorderedList,
-        p: p,
-        pre: pre,
-        code: code,
-        a: BlueLink,
+    <Box
+      /*
+       * Chakra's CSS reset sets img { display: block }, which makes README badges
+       * stack vertically. Override within markdown so images (and linked images)
+       * behave inline like on GitHub.
+       */
+      sx={{
+        "& p img": {
+          display: "inline",
+          verticalAlign: "middle",
+          marginRight: "0.375rem",
+        },
+        "& p a img": {
+          display: "inline",
+          verticalAlign: "middle",
+          marginRight: "0.375rem",
+        },
+        // Avoid extra right margin on the last image in a paragraph
+        "& p img:last-child, & p a:last-child img": {
+          marginRight: 0,
+        },
       }}
-      remarkPlugins={[remarkGfm]}
-      rehypePlugins={[rehypeRaw, rehypeSanitize]}
     >
-      {children}
-    </ReactMarkdown>
+      <ReactMarkdown
+        components={{
+          h1: H1,
+          h2: H2,
+          h3: H3,
+          li: ListItem,
+          ol: OrderedList,
+          ul: UnorderedList,
+          p: p,
+          pre: pre,
+          code: code,
+          a: BlueLink,
+        }}
+        remarkPlugins={[remarkGfm]}
+        rehypePlugins={[rehypeRaw, rehypeSanitize]}
+      >
+        {children}
+      </ReactMarkdown>
+    </Box>
   )
 }
 
