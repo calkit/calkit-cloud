@@ -5,13 +5,13 @@ concurrency: staging
 on:
   push:
     branches:
-      - master
+      - main
   workflow_dispatch:
     inputs:
       version:
         description: "Version to deploy (tag, branch, or commit SHA)"
         required: true
-        default: "master"
+        default: "main"
         type: string
 
 jobs:
