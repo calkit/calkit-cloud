@@ -230,8 +230,8 @@ const NewProject = ({ isOpen, onClose, defaultTemplate }: NewProjectProps) => {
           <ModalCloseButton />
           <ModalBody>
             To create a project, the Calkit GitHub App must be installed for
-            your account or organization. Install it on GitHub, then return here
-            and try again.
+            your account or organization and have access to any relevant repos.
+            Install it on GitHub, then return here and try again.
           </ModalBody>
           <ModalFooter gap={3}>
             <Link
