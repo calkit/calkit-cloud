@@ -87,10 +87,23 @@ services:
 
   frontend:
     restart: "no"
+    env_file:
+      - .env
     build:
       context: ./frontend
       args:
         - NODE_ENV=development
+      target: build-stage
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend/:/app
+      # Do not mount node_modules from host, use container's node_modules
+      - /app/node_modules
+    command:
+      - npm
+      - run
+      - dev
 
 networks:
   traefik-public:

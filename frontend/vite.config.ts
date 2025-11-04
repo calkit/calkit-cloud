@@ -7,6 +7,15 @@ const hash = Math.floor(Math.random() * 90000) + 10000
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react(), TanStackRouterVite()],
+  server: {
+    // Bind to all interfaces so it's reachable from host when running in Docker
+    host: true, // equivalent to 0.0.0.0
+    port: 5173,
+    strictPort: true,
+    // HMR generally works out-of-the-box when port is forwarded one-to-one.
+    // If you run into websocket issues behind proxies, set explicit HMR host/port here.
+    // hmr: { host: "localhost", port: 5173, protocol: "ws" },
+  },
   build: {
     rollupOptions: {
       output: {

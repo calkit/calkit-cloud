@@ -156,7 +156,7 @@ The production or staging URLs would use these same paths, but with your own dom
 
 Development URLs, for local development.
 
-Frontend: http://localhost
+Frontend: http://localhost:5173
 
 Backend: http://api.localhost
 
