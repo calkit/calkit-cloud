@@ -6,6 +6,13 @@ on:
   push:
     branches:
       - master
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to deploy (tag, branch, or commit SHA)"
+        required: true
+        default: "master"
+        type: string
 
 jobs:
   deploy:
@@ -47,5 +54,7 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.inputs.version || github.ref }}
       - run: docker compose -f docker-compose.yml --project-name ${{ vars.STACK_NAME }} build
       - run: docker compose -f docker-compose.yml --project-name ${{ vars.STACK_NAME }} up -d
