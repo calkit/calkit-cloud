@@ -358,7 +358,15 @@ def create_project(
             try:
                 message = resp.json()["errors"][0]["message"].capitalize()
             except Exception:
-                message = "Failed to create GitHub repo"
+                try:
+                    message = resp.json()["message"]
+                    if message.lower().startswith("resource not accessible"):
+                        message = (
+                            "Calkit GitHub App not enabled for this account "
+                            "or repo. "
+                        )
+                except Exception:
+                    message = "Failed to create GitHub repo"
             raise HTTPException(resp.status_code, message)
         resp_json = resp.json()
         logger.info(f"Created GitHub repo with URL: {resp_json['html_url']}")
