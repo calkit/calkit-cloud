@@ -177,7 +177,9 @@ def get_overleaf_repo(
         # We should be able to simply go in here and pull
         repo = git.Repo(repo_dir)
         repo.git.pull()
-        return repo
     else:
         repo = git.Repo.clone_from(git_clone_url, repo_dir, depth=1)
-        return repo
+    # Run git config so we make commits as this user
+    repo.git.config(["user.name", user.full_name])
+    repo.git.config(["user.email", user.email])
+    return repo

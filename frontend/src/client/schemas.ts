@@ -2049,6 +2049,40 @@ export const $OverleafPublicationPost = {
   },
 } as const
 
+export const $OverleafSyncPost = {
+  properties: {
+    path: {
+      type: "string",
+      isRequired: true,
+    },
+  },
+} as const
+
+export const $OverleafSyncResponse = {
+  properties: {
+    commits_from_overleaf: {
+      type: "number",
+      isRequired: true,
+    },
+    overleaf_commit: {
+      type: "string",
+      isRequired: true,
+    },
+    project_commit: {
+      type: "string",
+      isRequired: true,
+    },
+    committed_overleaf: {
+      type: "boolean",
+      isRequired: true,
+    },
+    committed_project: {
+      type: "boolean",
+      isRequired: true,
+    },
+  },
+} as const
+
 export const $Pipeline = {
   properties: {
     mermaid: {

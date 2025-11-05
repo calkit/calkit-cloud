@@ -55,6 +55,8 @@ import type {
   LabelDatasetPost,
   Notebook,
   OverleafPublicationPost,
+  OverleafSyncPost,
+  OverleafSyncResponse,
   Pipeline,
   ProjectApp,
   ProjectCreate,
@@ -332,6 +334,11 @@ export type ProjectsData = {
     ownerName: string
     projectName: string
     requestBody: OverleafPublicationPost
+  }
+  PostProjectOverleafSync: {
+    ownerName: string
+    projectName: string
+    requestBody: OverleafSyncPost
   }
   PostProjectSync: {
     ownerName: string
@@ -1901,6 +1908,30 @@ export class ProjectsService {
     return __request(OpenAPI, {
       method: "POST",
       url: "/projects/{owner_name}/{project_name}/publications/overleaf",
+      path: {
+        owner_name: ownerName,
+        project_name: projectName,
+      },
+      body: requestBody,
+      mediaType: "application/json",
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Post Project Overleaf Sync
+   * @returns OverleafSyncResponse Successful Response
+   * @throws ApiError
+   */
+  public static postProjectOverleafSync(
+    data: ProjectsData["PostProjectOverleafSync"],
+  ): CancelablePromise<OverleafSyncResponse> {
+    const { ownerName, projectName, requestBody } = data
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/projects/{owner_name}/{project_name}/overleaf-syncs",
       path: {
         owner_name: ownerName,
         project_name: projectName,
