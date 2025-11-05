@@ -956,6 +956,117 @@ export const $DiscountCodePublic = {
   },
 } as const
 
+export const $DvcForeachStage = {
+  properties: {
+    foreach: {
+      type: "any-of",
+      contains: [
+        {
+          type: "array",
+          contains: {
+            type: "string",
+          },
+        },
+        {
+          type: "string",
+        },
+      ],
+      isRequired: true,
+    },
+    do: {
+      type: "DvcPipelineStage",
+      isRequired: true,
+    },
+  },
+} as const
+
+export const $DvcPipelineStage = {
+  properties: {
+    cmd: {
+      type: "string",
+      isRequired: true,
+    },
+    deps: {
+      type: "any-of",
+      contains: [
+        {
+          type: "array",
+          contains: {
+            type: "string",
+          },
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    outs: {
+      type: "any-of",
+      contains: [
+        {
+          type: "array",
+          contains: {
+            type: "any-of",
+            contains: [
+              {
+                type: "string",
+              },
+              {
+                type: "dictionary",
+                contains: {
+                  type: "dictionary",
+                  contains: {
+                    properties: {},
+                  },
+                },
+              },
+            ],
+          },
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    desc: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    meta: {
+      type: "any-of",
+      contains: [
+        {
+          type: "dictionary",
+          contains: {
+            properties: {},
+          },
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    wdir: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+  },
+} as const
+
 export const $Environment = {
   properties: {
     name: {
@@ -1210,30 +1321,6 @@ export const $FileLockPost = {
   properties: {
     path: {
       type: "string",
-      isRequired: true,
-    },
-  },
-} as const
-
-export const $ForeachStage = {
-  properties: {
-    foreach: {
-      type: "any-of",
-      contains: [
-        {
-          type: "array",
-          contains: {
-            type: "string",
-          },
-        },
-        {
-          type: "string",
-        },
-      ],
-      isRequired: true,
-    },
-    do: {
-      type: "PipelineStage",
       isRequired: true,
     },
   },
@@ -2089,77 +2176,26 @@ export const $Pipeline = {
       type: "string",
       isRequired: true,
     },
-    stages: {
+    dvc_stages: {
       type: "dictionary",
       contains: {
         type: "any-of",
         contains: [
           {
-            type: "PipelineStage",
+            type: "DvcPipelineStage",
           },
           {
-            type: "ForeachStage",
+            type: "DvcForeachStage",
           },
         ],
       },
       isRequired: true,
     },
-    yaml: {
+    dvc_yaml: {
       type: "string",
       isRequired: true,
     },
-  },
-} as const
-
-export const $PipelineStage = {
-  properties: {
-    cmd: {
-      type: "string",
-      isRequired: true,
-    },
-    deps: {
-      type: "any-of",
-      contains: [
-        {
-          type: "array",
-          contains: {
-            type: "string",
-          },
-        },
-        {
-          type: "null",
-        },
-      ],
-    },
-    outs: {
-      type: "any-of",
-      contains: [
-        {
-          type: "array",
-          contains: {
-            type: "any-of",
-            contains: [
-              {
-                type: "string",
-              },
-              {
-                type: "dictionary",
-                contains: {
-                  type: "dictionary",
-                  contains: {
-                    properties: {},
-                  },
-                },
-              },
-            ],
-          },
-        },
-        {
-          type: "null",
-        },
-      ],
-    },
-    desc: {
+    calkit_yaml: {
       type: "any-of",
       contains: [
         {
@@ -2169,31 +2205,7 @@ export const $PipelineStage = {
           type: "null",
         },
       ],
-    },
-    meta: {
-      type: "any-of",
-      contains: [
-        {
-          type: "dictionary",
-          contains: {
-            properties: {},
-          },
-        },
-        {
-          type: "null",
-        },
-      ],
-    },
-    wdir: {
-      type: "any-of",
-      contains: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
+      isRequired: true,
     },
   },
 } as const
@@ -2853,7 +2865,7 @@ export const $Publication = {
       type: "any-of",
       contains: [
         {
-          type: "PipelineStage",
+          type: "DvcPipelineStage",
         },
         {
           type: "null",

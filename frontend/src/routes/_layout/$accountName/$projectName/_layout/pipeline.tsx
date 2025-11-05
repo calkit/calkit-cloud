@@ -56,19 +56,39 @@ function ProjectPipeline() {
                 </Mermaid>
               </Box>
               <Box width={isDiagramExpanded ? "100%" : "680px"}>
-                <Heading size="md" my={2}>
-                  DVC pipeline (<Code fontSize="lg">dvc.yaml</Code>)
-                </Heading>
-                <Code
-                  p={2}
-                  borderRadius={"lg"}
-                  display="block"
-                  whiteSpace="pre"
-                  height="80vh"
-                  overflowY="auto"
-                >
-                  {String(pipelineQuery?.data?.yaml)}
-                </Code>
+                {pipelineQuery?.data?.calkit_yaml ? (
+                  <>
+                    <Heading size="md" my={2}>
+                      Pipeline (from <Code fontSize="lg">calkit.yaml</Code>)
+                    </Heading>
+                    <Code
+                      p={2}
+                      borderRadius={"lg"}
+                      display="block"
+                      whiteSpace="pre"
+                      height="80vh"
+                      overflowY="auto"
+                    >
+                      {String(pipelineQuery?.data?.calkit_yaml)}
+                    </Code>
+                  </>
+                ) : (
+                  <>
+                    <Heading size="md" my={2}>
+                      Pipeline (from <Code fontSize="lg">dvc.yaml</Code>)
+                    </Heading>
+                    <Code
+                      p={2}
+                      borderRadius={"lg"}
+                      display="block"
+                      whiteSpace="pre"
+                      height="80vh"
+                      overflowY="auto"
+                    >
+                      {String(pipelineQuery?.data?.dvc_yaml)}
+                    </Code>
+                  </>
+                )}
               </Box>
             </>
           ) : (

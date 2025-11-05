@@ -193,6 +193,20 @@ export type DiscountCodePublic = {
   plan_name?: string | null
 }
 
+export type DvcForeachStage = {
+  foreach: Array<string> | string
+  do: DvcPipelineStage
+}
+
+export type DvcPipelineStage = {
+  cmd: string
+  deps?: Array<string> | null
+  outs?: Array<string | Record<string, Record<string, unknown>>> | null
+  desc?: string | null
+  meta?: Record<string, unknown> | null
+  wdir?: string | null
+}
+
 export type Environment = {
   name: string
   kind: string
@@ -247,11 +261,6 @@ export type FileLock = {
 
 export type FileLockPost = {
   path: string
-}
-
-export type ForeachStage = {
-  foreach: Array<string> | string
-  do: PipelineStage
 }
 
 export type GitHubInstallations = {
@@ -460,17 +469,9 @@ export type OverleafSyncResponse = {
 
 export type Pipeline = {
   mermaid: string
-  stages: Record<string, PipelineStage | ForeachStage>
-  yaml: string
-}
-
-export type PipelineStage = {
-  cmd: string
-  deps?: Array<string> | null
-  outs?: Array<string | Record<string, Record<string, unknown>>> | null
-  desc?: string | null
-  meta?: Record<string, unknown> | null
-  wdir?: string | null
+  dvc_stages: Record<string, DvcPipelineStage | DvcForeachStage>
+  dvc_yaml: string
+  calkit_yaml: string | null
 }
 
 export type ProjectApp = {
@@ -571,7 +572,7 @@ export type Publication = {
     | null
   stage?: string | null
   content?: string | null
-  stage_info?: PipelineStage | null
+  stage_info?: DvcPipelineStage | null
   url?: string | null
   overleaf?: PublicationOverleaf | null
 }

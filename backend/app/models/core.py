@@ -500,7 +500,7 @@ class UserProjectAccess(SQLModel, table=True):
     project: Project = Relationship(back_populates="user_access_records")
 
 
-class PipelineStage(SQLModel):
+class DvcPipelineStage(SQLModel):
     cmd: str
     deps: list[str] | None = None
     outs: list[str | dict[str, dict]] | None = None
@@ -509,15 +509,16 @@ class PipelineStage(SQLModel):
     wdir: str | None = None
 
 
-class ForeachStage(SQLModel):
+class DvcForeachStage(SQLModel):
     foreach: list[str] | str
-    do: PipelineStage
+    do: DvcPipelineStage
 
 
 class Pipeline(SQLModel):
     mermaid: str
-    stages: dict[str, PipelineStage | ForeachStage]
-    yaml: str
+    dvc_stages: dict[str, DvcPipelineStage | DvcForeachStage]
+    dvc_yaml: str
+    calkit_yaml: str | None
 
 
 class Question(SQLModel, table=True):
@@ -719,7 +720,7 @@ class Publication(BaseModel):
     ) = None
     stage: str | None = None
     content: str | None = None
-    stage_info: PipelineStage | None = None
+    stage_info: DvcPipelineStage | None = None
     url: str | None = None
     overleaf: PublicationOverleaf | None = None
 
