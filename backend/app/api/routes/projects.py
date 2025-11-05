@@ -2452,6 +2452,10 @@ def get_project_pipeline(
     with open(fpath) as f:
         dvc_content = f.read()
     dvc_pipeline = ryaml.load(dvc_content)
+    # Pop off any private stages
+    for stage_name in list(dvc_pipeline.get("stages", {}).keys()):
+        if stage_name.startswith("_"):
+            dvc_pipeline["stages"].pop(stage_name)
     params_fpath = os.path.join(repo.working_dir, "params.yaml")
     if os.path.isfile(params_fpath):
         with open(params_fpath) as f:
