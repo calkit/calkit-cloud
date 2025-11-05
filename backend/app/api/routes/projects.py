@@ -2187,19 +2187,29 @@ def post_project_overleaf_publication(
     return Publication.model_validate(publication)
 
 
-@router.post(
-    "/projects/{owner_name}/{project_name}/publications/{pub_path}"
-    "/overleaf-syncs"
-)
-def post_project_publication_overleaf_sync(
+class OverleafSyncPost(BaseModel):
+    path: str
+
+
+class OverleafSyncResponse(BaseModel):
+    commits_from_overleaf: int
+    overleaf_commit: str
+    project_commit: str
+    committed_overleaf: bool
+    committed_project: bool
+
+
+@router.post("/projects/{owner_name}/{project_name}/overleaf-syncs")
+def post_project_overleaf_sync(
     owner_name: str,
     project_name: str,
-    pub_path: str,
+    req: OverleafSyncPost,
     current_user: CurrentUser,
     session: SessionDep,
-) -> Publication:
+) -> OverleafSyncResponse:
     if current_user.overleaf_token is None:
         raise HTTPException(401, "Overleaf token not found")
+    pub_path = req.path
     project = app.projects.get_project(
         owner_name=owner_name,
         project_name=project_name,
@@ -2235,6 +2245,8 @@ def post_project_publication_overleaf_sync(
     sync_paths = publication["overleaf"].get("sync_paths", [])
     push_paths = publication["overleaf"].get("push_paths", [])
     # From calkit-python
+    overleaf_project_dir = overleaf_repo.working_dir
+    project_wdir = os.path.join(repo.working_dir, wdir)
     implicit_sync_paths = os.listdir(overleaf_repo.working_dir)
     for p in implicit_sync_paths:
         if p.startswith("."):
@@ -2245,9 +2257,13 @@ def post_project_publication_overleaf_sync(
                 sync_paths.append(p)
     git_sync_paths = sync_paths
     git_sync_paths_in_project = [
-        os.path.join(repo.working_dir, p) for p in sync_paths
+        os.path.join(project_wdir, p) for p in sync_paths
     ]
     if last_sync_commit:
+        logger.info(f"Syncing since {last_sync_commit}")
+        commits_since = list(
+            overleaf_repo.iter_commits(rev=f"{last_sync_commit}..HEAD")
+        )
         # Compute a patch in the Overleaf project between HEAD and the last
         # sync
         patch = overleaf_repo.git.format_patch(
@@ -2276,10 +2292,11 @@ def post_project_publication_overleaf_sync(
                 )
     else:
         # Simply copy in all files
-        overleaf_project_dir = overleaf_repo.working_dir
+        logger.info("Copying in all files from Overleaf")
+        commits_since = []
         for sync_path in sync_paths:
             src = os.path.join(overleaf_project_dir, sync_path)
-            dst = os.path.join(wdir, sync_path)
+            dst = os.path.join(project_wdir, sync_path)
             if os.path.isdir(src):
                 # Copy the directory and its contents
                 shutil.copytree(src, dst, dirs_exist_ok=True)
@@ -2295,7 +2312,7 @@ def post_project_publication_overleaf_sync(
                 )
     # Copy our versions of sync and push paths into the Overleaf project
     for sync_push_path in sync_paths + push_paths:
-        src = os.path.join(wdir, sync_push_path)
+        src = os.path.join(project_wdir, sync_push_path)
         dst = os.path.join(overleaf_project_dir, sync_push_path)
         if os.path.isdir(src):
             # Remove destination directory if it exists
@@ -2321,6 +2338,7 @@ def post_project_publication_overleaf_sync(
             continue
     # Stage the changes in the Overleaf project
     overleaf_repo.git.add(sync_paths + push_paths)
+    committed_overleaf = False
     if overleaf_repo.git.diff("--staged", sync_paths + push_paths):
         commit_message = "Sync with Calkit project"
         overleaf_repo.git.commit(
@@ -2329,17 +2347,19 @@ def post_project_publication_overleaf_sync(
             commit_message,
         )
         overleaf_repo.git.push()
+        committed_overleaf = True
     # Update the last sync commit
     last_overleaf_commit = overleaf_repo.head.commit.hexsha
     logger.info(f"Updating last sync commit as {last_overleaf_commit}")
     publication["overleaf"]["last_sync_commit"] = last_overleaf_commit
     # Write publications back to calkit.yaml
     ck_info["publications"] = publications
-    with open("calkit.yaml", "w") as f:
+    with open(os.path.join(repo.working_dir, "calkit.yaml"), "w") as f:
         calkit.ryaml.dump(ck_info, f)
     repo.git.add("calkit.yaml")
     # Stage the changes in the project repo
     repo.git.add(git_sync_paths_in_project)
+    committed_project = False
     if repo.git.diff("--staged", git_sync_paths_in_project + ["calkit.yaml"]):
         commit_message = f"Sync {wdir} with Overleaf project"
         repo.git.commit(
@@ -2348,7 +2368,14 @@ def post_project_publication_overleaf_sync(
             commit_message,
         )
         repo.git.push(["origin", repo.active_branch.name])
-    return Publication.model_validate(publication)
+        committed_project = True
+    return OverleafSyncResponse(
+        commits_from_overleaf=len(commits_since),
+        overleaf_commit=last_overleaf_commit,
+        project_commit=repo.head.commit.hexsha,
+        committed_overleaf=committed_overleaf,
+        committed_project=committed_project,
+    )
 
 
 @router.post("/projects/{owner_name}/{project_name}/syncs")

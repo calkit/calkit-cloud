@@ -15,12 +15,14 @@ import {
   Spinner,
   Badge,
   Code,
+  IconButton,
 } from "@chakra-ui/react"
 import { createFileRoute, Link as RouterLink } from "@tanstack/react-router"
 import { FiFile } from "react-icons/fi"
-import { FaPlus } from "react-icons/fa"
+import { FaPlus, FaSync } from "react-icons/fa"
 import { SiOverleaf } from "react-icons/si"
 import { ExternalLinkIcon } from "@chakra-ui/icons"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
 
 import { type Publication } from "../../../../../client"
 import NewPublication from "../../../../../components/Publications/NewPublication"
@@ -30,6 +32,10 @@ import useProject, {
   useProjectPublications,
 } from "../../../../../hooks/useProject"
 import PublicationView from "../../../../../components/Publications/PublicationView"
+import { ProjectsService } from "../../../../../client"
+import type { ApiError } from "../../../../../client/core/ApiError"
+import useCustomToast from "../../../../../hooks/useCustomToast"
+import { handleError } from "../../../../../lib/errors"
 
 export const Route = createFileRoute(
   "/_layout/$accountName/$projectName/_layout/publications",
@@ -39,10 +45,52 @@ export const Route = createFileRoute(
 
 interface PubViewProps {
   publication: Publication
+  userHasWriteAccess: boolean
 }
 
-function PubView({ publication }: PubViewProps) {
+function PubView({ publication, userHasWriteAccess }: PubViewProps) {
   const secBgColor = useColorModeValue("ui.secondary", "ui.darkSlate")
+  const { accountName, projectName } = Route.useParams()
+  const showToast = useCustomToast()
+  const queryClient = useQueryClient()
+  const overleafSyncMutation = useMutation({
+    mutationFn: () =>
+      ProjectsService.postProjectOverleafSync({
+        ownerName: accountName,
+        projectName: projectName,
+        requestBody: { path: publication.path },
+      }),
+    onSuccess: (data) => {
+      let message: string = "Synced with Overleaf."
+      if (data.commits_from_overleaf > 0) {
+        message = `Applied ${data.commits_from_overleaf} changes from Overleaf.`
+      }
+      if (data.committed_overleaf) {
+        message += ` Updated Overleaf to rev ${data.overleaf_commit.slice(0, 7)}.`
+      }
+      if (data.committed_project) {
+        message += ` Updated project to rev ${data.project_commit.slice(0, 7)}.`
+      }
+      if (
+        data.commits_from_overleaf === 0 &&
+        !data.committed_overleaf &&
+        !data.committed_project
+      ) {
+        message += " No changes made."
+      }
+      showToast("Success!", message, "success")
+      queryClient.invalidateQueries({
+        queryKey: ["projects", accountName, projectName, "publications"],
+      })
+    },
+    onError: (err: ApiError) => {
+      console.log("Error", err)
+      handleError(err, showToast)
+    },
+  })
+  const onClickSync = () => {
+    overleafSyncMutation.mutate()
+  }
 
   return (
     <Flex mb={2}>
@@ -89,16 +137,35 @@ function PubView({ publication }: PubViewProps) {
             ""
           )}
           {publication.overleaf?.project_id ? (
-            <Link
-              isExternal
-              href={`https://www.overleaf.com/project/${publication.overleaf.project_id}`}
-            >
-              <Flex align={"center"}>
-                <Icon as={SiOverleaf} color="green.500" />
-                <Text ml={0.5}>View on Overleaf</Text>
-                <Icon as={ExternalLinkIcon} ml={0.5} />
+            <>
+              <Link
+                isExternal
+                href={`https://www.overleaf.com/project/${publication.overleaf.project_id}`}
+              >
+                <Flex align={"center"}>
+                  <Icon as={SiOverleaf} color="green.500" />
+                  <Text ml={0.5}>View on Overleaf</Text>
+                  <Icon as={ExternalLinkIcon} ml={0.5} />
+                </Flex>
+              </Link>
+              <Flex align="center">
+                {userHasWriteAccess ? (
+                  <>
+                    <Text>Sync</Text>
+                    <IconButton
+                      size="xs"
+                      aria-label="Sync with Overleaf"
+                      icon={<FaSync />}
+                      ml={1}
+                      onClick={onClickSync}
+                      isLoading={overleafSyncMutation.isPending}
+                    />
+                  </>
+                ) : (
+                  ""
+                )}
               </Flex>
-            </Link>
+            </>
           ) : (
             ""
           )}
@@ -212,7 +279,11 @@ function Publications() {
             {publicationsRequest.data ? (
               <>
                 {publicationsRequest.data.map((pub) => (
-                  <PubView key={pub.path} publication={pub} />
+                  <PubView
+                    key={pub.path}
+                    publication={pub}
+                    userHasWriteAccess={userHasWriteAccess}
+                  />
                 ))}
               </>
             ) : (

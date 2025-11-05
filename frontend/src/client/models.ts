@@ -446,6 +446,18 @@ export type OverleafPublicationPost = {
   overleaf_token?: string | null
 }
 
+export type OverleafSyncPost = {
+  path: string
+}
+
+export type OverleafSyncResponse = {
+  commits_from_overleaf: number
+  overleaf_commit: string
+  project_commit: string
+  committed_overleaf: boolean
+  committed_project: boolean
+}
+
 export type Pipeline = {
   mermaid: string
   stages: Record<string, PipelineStage | ForeachStage>
