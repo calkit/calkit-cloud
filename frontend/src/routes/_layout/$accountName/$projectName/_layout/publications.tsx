@@ -151,12 +151,10 @@ function PubView({ publication, userHasWriteAccess }: PubViewProps) {
               <Flex align="center">
                 {userHasWriteAccess ? (
                   <>
-                    <Text>Sync</Text>
                     <IconButton
                       size="xs"
                       aria-label="Sync with Overleaf"
                       icon={<FaSync />}
-                      ml={1}
                       onClick={onClickSync}
                       isLoading={overleafSyncMutation.isPending}
                     />
