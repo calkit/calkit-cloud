@@ -15,7 +15,6 @@ import {
   Spinner,
   Badge,
   Code,
-  IconButton,
 } from "@chakra-ui/react"
 import { createFileRoute, Link as RouterLink } from "@tanstack/react-router"
 import { FiFile } from "react-icons/fi"
@@ -138,27 +137,28 @@ function PubView({ publication, userHasWriteAccess }: PubViewProps) {
           )}
           {publication.overleaf?.project_id ? (
             <>
-              <Link
-                isExternal
-                href={`https://www.overleaf.com/project/${publication.overleaf.project_id}`}
-              >
-                <Flex align={"center"}>
-                  <Icon as={SiOverleaf} color="green.500" />
-                  <Text ml={0.5}>View on Overleaf</Text>
-                  <Icon as={ExternalLinkIcon} ml={0.5} />
-                </Flex>
-              </Link>
               <Flex align="center">
+                <Link
+                  isExternal
+                  href={`https://www.overleaf.com/project/${publication.overleaf.project_id}`}
+                >
+                  <Flex align={"center"}>
+                    <Icon as={SiOverleaf} color="green.500" />
+                    <Text ml={0.5}>View on Overleaf</Text>
+                    <Icon as={ExternalLinkIcon} ml={0.5} />
+                  </Flex>
+                </Link>
                 {userHasWriteAccess ? (
-                  <>
-                    <IconButton
-                      size="xs"
-                      aria-label="Sync with Overleaf"
-                      icon={<FaSync />}
-                      onClick={onClickSync}
-                      isLoading={overleafSyncMutation.isPending}
-                    />
-                  </>
+                  <Button
+                    size="xs"
+                    onClick={onClickSync}
+                    isLoading={overleafSyncMutation.isPending}
+                    rightIcon={<FaSync />}
+                    ml={1}
+                    mt={1}
+                  >
+                    Sync
+                  </Button>
                 ) : (
                   ""
                 )}
