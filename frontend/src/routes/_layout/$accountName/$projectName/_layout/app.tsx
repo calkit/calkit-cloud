@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router"
-import { Box, Code, Flex, Spinner, Alert, AlertIcon } from "@chakra-ui/react"
+import { Box, Flex, Spinner, Alert, AlertIcon, Link } from "@chakra-ui/react"
 import { useQuery } from "@tanstack/react-query"
 
 import { ProjectsService } from "../../../../../client"
@@ -44,9 +44,17 @@ function ProjectApp() {
           ) : (
             <Alert mt={2} status="warning" borderRadius="xl">
               <AlertIcon />
-              An app has not yet been defined for this project. To add one,
-              modify the <Code mx={1}>app</Code>object in the project's{" "}
-              <Code mx={1}>calkit.yaml</Code> file.
+              An app has not yet been defined for this project. To add one, see
+              the relevant{" "}
+              <Link
+                ml={1}
+                isExternal
+                variant="blue"
+                href="https://docs.calkit.org/apps/"
+              >
+                documentation
+              </Link>
+              .
             </Alert>
           )}
         </Flex>
