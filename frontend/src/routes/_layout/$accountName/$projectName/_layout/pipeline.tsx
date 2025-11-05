@@ -7,6 +7,7 @@ import {
   Heading,
   Alert,
   AlertIcon,
+  Link,
 } from "@chakra-ui/react"
 import { useQuery } from "@tanstack/react-query"
 import { useState } from "react"
@@ -94,8 +95,16 @@ function ProjectPipeline() {
           ) : (
             <Alert mt={2} status="warning" borderRadius="xl">
               <AlertIcon />A pipeline has not yet been defined for this project.
-              To create one, add stages to the <Code mx={1}>dvc.yaml</Code>{" "}
-              file.
+              To create one, see the{" "}
+              <Link
+                ml={1}
+                isExternal
+                variant="blue"
+                href="https://docs.calkit.org/pipeline/"
+              >
+                pipeline documentation
+              </Link>
+              .
             </Alert>
           )}
         </Flex>

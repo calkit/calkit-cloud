@@ -138,12 +138,12 @@ function HelpContent({ userHasWriteAccess }: HelpContentProps) {
     return (
       <>
         <Text mb={mb}>
-          The project's DVC computational pipeline describes the steps (or
-          "stages") taken to produce all of the desired outputs. For example,
-          one stage could involve processing the raw data. Another could create
-          a figure from these. Another could produce a publication. The pipeline
-          can be run locally by executing <Code>calkit run</Code> in the project
-          working directory.
+          The project's pipeline describes the steps (or "stages") taken to
+          produce all of the desired outputs. For example, one stage could
+          involve processing the raw data. Another could create a figure from
+          these. Another could produce a publication. The pipeline can be run
+          locally by executing <Code>calkit run</Code> in the project working
+          directory.
         </Text>
         <Text mb={mb}>
           For instructions on how to create your pipeline, see the{" "}
