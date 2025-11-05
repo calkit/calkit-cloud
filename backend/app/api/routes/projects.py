@@ -2279,9 +2279,26 @@ def post_project_overleaf_sync(
         if patch:
             logger.info("Applying Overleaf Git patch to project repo")
             try:
-                repo.git.am(["--3way", "--directory", wdir, "-"], input=patch)
+                subprocess.run(
+                    [
+                        "git",
+                        "am",
+                        "--3way",
+                        "--directory",
+                        wdir,
+                        "-",
+                    ],
+                    input=patch,
+                    text=True,
+                    encoding="utf-8",
+                    capture_output=True,
+                    check=True,
+                    cwd=repo.working_dir,
+                )
             except Exception as e:
-                repo.git.am("--abort")
+                logger.info(f"Failed to sync: {e}")
+                if "in the middle of an am session" in repo.git.status():
+                    repo.git.am("--abort")
                 mixpanel.track(
                     user=current_user,
                     event_name="Overleaf sync failed",
