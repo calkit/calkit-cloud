@@ -8,22 +8,36 @@ import gcsfs
 import s3fs
 from app.config import settings
 from google.cloud import storage as gcs
+from google.oauth2 import service_account as gcs_service_account
 
 
-def remove_gcs_content_type(fpath):
-    client = gcs.Client()
-    bucket = client.bucket(f"calkit-{settings.ENVIRONMENT}")
-    blob = bucket.blob(fpath.removeprefix(f"gcs://{bucket.name}/"))
-    blob.content_type = None
-    blob.patch()
-
-
-def get_gcs_credentials():
+def get_gcs_credentials() -> dict | None:
     """Get GCS credentials from environment."""
     creds_json = os.getenv("GOOGLE_CREDENTIALS")
     if creds_json:
         return json.loads(creds_json)
     return None
+
+
+def get_gcs_client() -> gcs.Client:
+    """Get a Google Cloud Storage client with credentials from environment."""
+    creds_dict = get_gcs_credentials()
+    if creds_dict:
+        credentials = (
+            gcs_service_account.Credentials.from_service_account_info(
+                creds_dict
+            )
+        )
+        return gcs.Client(credentials=credentials)
+    return gcs.Client()
+
+
+def remove_gcs_content_type(fpath):
+    client = get_gcs_client()
+    bucket = client.bucket(f"calkit-{settings.ENVIRONMENT}")
+    blob = bucket.blob(fpath.removeprefix(f"gcs://{bucket.name}/"))
+    blob.content_type = None
+    blob.patch()
 
 
 def get_object_fs() -> s3fs.S3FileSystem | gcsfs.GCSFileSystem:
