@@ -2,6 +2,7 @@
 
 import functools
 import hashlib
+import io
 import logging
 import os
 import shutil
@@ -2449,8 +2450,17 @@ def get_project_pipeline(
     if not os.path.isfile(fpath):
         return
     with open(fpath) as f:
-        content = f.read()
-    dvc_pipeline = ryaml.load(content)
+        dvc_content = f.read()
+    ck_fpath = os.path.join(repo.working_dir, "calkit.yaml")
+    calkit_content = None
+    if os.path.isfile(ck_fpath):
+        with open(ck_fpath) as f:
+            ck_info = ryaml.load(f)
+        if "pipeline" in ck_info:
+            stream = io.StringIO()
+            ryaml.dump({"pipeline": ck_info["pipeline"]}, stream)
+            calkit_content = stream.getvalue()
+    dvc_pipeline = ryaml.load(dvc_content)
     params_fpath = os.path.join(repo.working_dir, "params.yaml")
     if os.path.isfile(params_fpath):
         with open(params_fpath) as f:
@@ -2463,7 +2473,10 @@ def get_project_pipeline(
         f"Created Mermaid diagram for {owner_name}/{project_name}:\n{mermaid}"
     )
     return Pipeline(
-        stages=dvc_pipeline["stages"], mermaid=mermaid, yaml=content
+        dvc_stages=dvc_pipeline["stages"],
+        mermaid=mermaid,
+        dvc_yaml=dvc_content,
+        calkit_yaml=calkit_content,
     )
 
 
