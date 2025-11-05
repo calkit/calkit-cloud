@@ -2451,15 +2451,6 @@ def get_project_pipeline(
         return
     with open(fpath) as f:
         dvc_content = f.read()
-    ck_fpath = os.path.join(repo.working_dir, "calkit.yaml")
-    calkit_content = None
-    if os.path.isfile(ck_fpath):
-        with open(ck_fpath) as f:
-            ck_info = ryaml.load(f)
-        if "pipeline" in ck_info:
-            stream = io.StringIO()
-            ryaml.dump({"pipeline": ck_info["pipeline"]}, stream)
-            calkit_content = stream.getvalue()
     dvc_pipeline = ryaml.load(dvc_content)
     params_fpath = os.path.join(repo.working_dir, "params.yaml")
     if os.path.isfile(params_fpath):
@@ -2472,6 +2463,16 @@ def get_project_pipeline(
     logger.info(
         f"Created Mermaid diagram for {owner_name}/{project_name}:\n{mermaid}"
     )
+    # See if we can read a Calkit pipeline
+    ck_fpath = os.path.join(repo.working_dir, "calkit.yaml")
+    calkit_content = None
+    if os.path.isfile(ck_fpath):
+        with open(ck_fpath) as f:
+            ck_info = ryaml.load(f)
+        if "pipeline" in ck_info:
+            stream = io.StringIO()
+            ryaml.dump({"pipeline": ck_info["pipeline"]}, stream)
+            calkit_content = stream.getvalue()
     return Pipeline(
         dvc_stages=dvc_pipeline["stages"],
         mermaid=mermaid,
