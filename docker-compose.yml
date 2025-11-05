@@ -120,11 +120,11 @@ services:
       - MIXPANEL_TOKEN=${MIXPANEL_TOKEN?Variable not set}
       - ZENODO_CLIENT_ID=${ZENODO_CLIENT_ID?Variable not set}
       - ZENODO_CLIENT_SECRET=${ZENODO_CLIENT_SECRET?Variable not set}
+      - GOOGLE_CREDENTIALS=${GOOGLE_CREDENTIALS-}
     build:
       context: ./backend
       args:
         INSTALL_DEV: ${INSTALL_DEV-false}
-        GOOGLE_CREDENTIALS: ${GOOGLE_CREDENTIALS-}
     labels:
       - traefik.enable=true
       - traefik.docker.network=traefik-public

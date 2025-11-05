@@ -1,5 +1,6 @@
 """Functionality for managing object storage."""
 
+import json
 import os
 from typing import Literal
 
@@ -17,6 +18,14 @@ def remove_gcs_content_type(fpath):
     blob.patch()
 
 
+def get_gcs_credentials():
+    """Get GCS credentials from environment."""
+    creds_json = os.getenv("GOOGLE_CREDENTIALS")
+    if creds_json:
+        return json.loads(creds_json)
+    return None
+
+
 def get_object_fs() -> s3fs.S3FileSystem | gcsfs.GCSFileSystem:
     if settings.ENVIRONMENT == "local":
         return s3fs.S3FileSystem(
@@ -24,7 +33,7 @@ def get_object_fs() -> s3fs.S3FileSystem | gcsfs.GCSFileSystem:
             key="root",
             secret=os.getenv("MINIO_ROOT_PASSWORD"),
         )
-    return gcsfs.GCSFileSystem()
+    return gcsfs.GCSFileSystem(token=get_gcs_credentials())
 
 
 def get_data_prefix() -> str:

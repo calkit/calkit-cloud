@@ -25,10 +25,6 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
     uv sync --frozen --no-install-project
 
-# Add Google credentials if specified
-ARG GOOGLE_CREDENTIALS
-RUN bash -c "if [ '$GOOGLE_CREDENTIALS' ] ; then mkdir -p /root/.config/gcloud && echo '$GOOGLE_CREDENTIALS' > /root/.config/gcloud/application_default_credentials.json ; fi"
-
 ENV PYTHONPATH=/app
 
 ENV PYTHONUNBUFFERED=1
