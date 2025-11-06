@@ -183,6 +183,7 @@ def get_contents_from_repo(
     dvc_lock_fpath = os.path.join(repo_dir, "dvc.lock")
     dvc_lock = {}
     if os.path.isfile(dvc_lock_fpath):
+        logger.info("Reading dvc.lock")
         with open(dvc_lock_fpath) as f:
             dvc_lock = yaml.safe_load(f)
     # Expand all DVC lock outs
