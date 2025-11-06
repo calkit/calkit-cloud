@@ -39,7 +39,7 @@ from app.storage import (
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-RETURN_CONTENT_SIZE_LIMIT = 1_000_000
+RETURN_CONTENT_SIZE_LIMIT = 10_000_000
 
 
 def get_project(
@@ -186,6 +186,7 @@ def get_contents_from_repo(
         with open(dvc_lock_fpath) as f:
             dvc_lock = yaml.safe_load(f)
     # Expand all DVC lock outs
+    logger.info("Expanding DVC lock outs")
     fs = get_object_fs()
     dvc_lock_outs = expand_dvc_lock_outs(
         dvc_lock, owner_name=owner_name, project_name=project_name, fs=fs
