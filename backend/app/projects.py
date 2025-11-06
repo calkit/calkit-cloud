@@ -39,7 +39,7 @@ from app.storage import (
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-RETURN_CONTENT_SIZE_LIMIT = 10_000_000
+RETURN_CONTENT_SIZE_LIMIT = 1_000_000
 
 
 def get_project(
