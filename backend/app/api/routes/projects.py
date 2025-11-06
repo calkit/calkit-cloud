@@ -119,6 +119,8 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+DEFAULT_REPO_TTL = 60  # Seconds
+
 
 @router.get("/projects")
 def get_projects(
@@ -572,7 +574,10 @@ def get_project(
     if get_extended_info:
         logger.info(f"Getting extended info for {owner_name}/{project_name}")
         repo = get_repo(
-            project=project, user=current_user, session=session, ttl=120
+            project=project,
+            user=current_user,
+            session=session,
+            ttl=DEFAULT_REPO_TTL,
         )
         ck_info = get_ck_info_from_repo(repo=repo)
         resp.calkit_info_keys = list(ck_info.keys())
@@ -896,7 +901,7 @@ def get_project_contents(
     session: SessionDep,
     current_user: CurrentUserOptional,
     path: str | None = None,
-    ttl: int | None = 120,
+    ttl: int | None = DEFAULT_REPO_TTL,
 ) -> ContentsItem:
     project = app.projects.get_project(
         owner_name=owner_name,
@@ -1112,7 +1117,10 @@ def get_project_questions(
         min_access_level="read",
     )
     ck_info = get_ck_info(
-        project=project, user=current_user, session=session, ttl=120
+        project=project,
+        user=current_user,
+        session=session,
+        ttl=DEFAULT_REPO_TTL,
     )
     project = _sync_questions_with_db(
         ck_info=ck_info, project=project, session=session
@@ -1173,7 +1181,10 @@ def get_project_figures(
         min_access_level="read",
     )
     repo = get_repo(
-        project=project, user=current_user, session=session, ttl=120
+        project=project,
+        user=current_user,
+        session=session,
+        ttl=DEFAULT_REPO_TTL,
     )
     ck_info = get_ck_info_from_repo(repo)
     figures = ck_info.get("figures", [])
@@ -1198,7 +1209,7 @@ def get_project_figure(
     figure_path: str,
     current_user: CurrentUserOptional,
     session: SessionDep,
-    ttl: int | None = 120,
+    ttl: int | None = DEFAULT_REPO_TTL,
 ) -> Figure:
     project = app.projects.get_project(
         session=session,
@@ -1382,7 +1393,10 @@ def post_figure_comment(
     )
     # First we need to make this this figure path exists in this project
     ck_info = get_ck_info(
-        project=project, user=current_user, session=session, ttl=120
+        project=project,
+        user=current_user,
+        session=session,
+        ttl=DEFAULT_REPO_TTL,
     )
     figures = ck_info.get("figures", [])
     fig_paths = [fig["path"] for fig in figures]
@@ -1460,7 +1474,10 @@ def get_project_datasets(
     )
     # Read the datasets file from the repo
     ck_info = get_ck_info(
-        project=project, user=current_user, session=session, ttl=120
+        project=project,
+        user=current_user,
+        session=session,
+        ttl=DEFAULT_REPO_TTL,
     )
     project = _sync_datasets_with_db(
         ck_info=ck_info, project=project, session=session
@@ -1487,7 +1504,10 @@ def get_project_dataset(
     )
     # Read the datasets file from the repo
     repo = get_repo(
-        project=project, user=current_user, session=session, ttl=120
+        project=project,
+        user=current_user,
+        session=session,
+        ttl=DEFAULT_REPO_TTL,
     )
     git_rev = repo.git.rev_parse(["HEAD"])
     repo_dir = repo.working_dir
@@ -1816,7 +1836,10 @@ def get_project_publications(
         min_access_level="read",
     )
     repo = get_repo(
-        project=project, user=current_user, session=session, ttl=120
+        project=project,
+        user=current_user,
+        session=session,
+        ttl=DEFAULT_REPO_TTL,
     )
     ck_info = get_ck_info_from_repo(repo)
     pipeline = get_dvc_pipeline_from_repo(repo)
@@ -2444,7 +2467,10 @@ def get_project_pipeline(
         min_access_level="read",
     )
     repo = get_repo(
-        project=project, user=current_user, session=session, ttl=120
+        project=project,
+        user=current_user,
+        session=session,
+        ttl=DEFAULT_REPO_TTL,
     )
     fpath = os.path.join(repo.working_dir, "dvc.yaml")
     if not os.path.isfile(fpath):
@@ -2829,7 +2855,10 @@ def get_project_references(
         min_access_level="read",
     )
     repo = get_repo(
-        project=project, user=current_user, session=session, ttl=120
+        project=project,
+        user=current_user,
+        session=session,
+        ttl=DEFAULT_REPO_TTL,
     )
     ck_info = get_ck_info_from_repo(repo)
     ref_collections = ck_info.get("references", [])
@@ -2907,7 +2936,10 @@ def get_project_environments(
         min_access_level="read",
     )
     repo = get_repo(
-        project=project, user=current_user, session=session, ttl=120
+        project=project,
+        user=current_user,
+        session=session,
+        ttl=DEFAULT_REPO_TTL,
     )
     ck_info = get_ck_info_from_repo(repo, process_includes=True)
     envs = ck_info.get("environments", {})
@@ -2990,7 +3022,10 @@ def get_project_software(
         min_access_level="read",
     )
     repo = get_repo(
-        project=project, user=current_user, session=session, ttl=120
+        project=project,
+        user=current_user,
+        session=session,
+        ttl=DEFAULT_REPO_TTL,
     )
     ck_info = get_ck_info_from_repo(repo)
     envs = ck_info.get("environments", [])
@@ -3093,7 +3128,10 @@ def get_project_notebooks(
         min_access_level="read",
     )
     repo = get_repo(
-        project=project, user=current_user, session=session, ttl=120
+        project=project,
+        user=current_user,
+        session=session,
+        ttl=DEFAULT_REPO_TTL,
     )
     ck_info = get_ck_info_from_repo(repo)
     notebooks = ck_info.get("notebooks", [])
@@ -3147,7 +3185,10 @@ def get_project_repro_check(
         min_access_level="read",
     )
     repo = get_repo(
-        project=project, user=current_user, session=session, ttl=120
+        project=project,
+        user=current_user,
+        session=session,
+        ttl=DEFAULT_REPO_TTL,
     )
     res = check_reproducibility(wdir=repo.working_dir)
     return res
@@ -3202,7 +3243,10 @@ def get_project_app(
         min_access_level="read",
     )
     ck_info = get_ck_info(
-        project=project, user=current_user, session=session, ttl=120
+        project=project,
+        user=current_user,
+        session=session,
+        ttl=DEFAULT_REPO_TTL,
     )
     project_app = ck_info.get("app")
     if project_app is None:
@@ -3216,7 +3260,7 @@ def get_project_showcase(
     project_name: str,
     current_user: CurrentUserOptional,
     session: SessionDep,
-    ttl: int | None = 120,
+    ttl: int | None = DEFAULT_REPO_TTL,
 ) -> Showcase | None:
     project = app.projects.get_project(
         owner_name=owner_name,
