@@ -183,9 +183,11 @@ def get_contents_from_repo(
     dvc_lock_fpath = os.path.join(repo_dir, "dvc.lock")
     dvc_lock = {}
     if os.path.isfile(dvc_lock_fpath):
+        logger.info("Reading dvc.lock")
         with open(dvc_lock_fpath) as f:
             dvc_lock = yaml.safe_load(f)
     # Expand all DVC lock outs
+    logger.info("Expanding DVC lock outs")
     fs = get_object_fs()
     dvc_lock_outs = expand_dvc_lock_outs(
         dvc_lock, owner_name=owner_name, project_name=project_name, fs=fs
@@ -359,10 +361,10 @@ def get_contents_from_repo(
                 logger.info(f"Writing {path} to object storage")
                 with fs.open(fp, "wb") as f:
                     f.write(content)
-            # If using Google Cloud Storage, we need to remove the content type
-            # metadata in order to set it for signed URLs
-            if settings.ENVIRONMENT != "local":
-                remove_gcs_content_type(fp)
+                # If using Google Cloud Storage, we need to remove the content
+                # type metadata in order to set it for signed URLs
+                if settings.ENVIRONMENT != "local":
+                    remove_gcs_content_type(fp)
             url = get_object_url(fp, fname=os.path.basename(path), fs=fs)
             # Do not send content
             content = None
