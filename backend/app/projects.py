@@ -39,7 +39,7 @@ from app.storage import (
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-RETURN_CONTENT_SIZE_LIMIT = 10_000_000
+RETURN_CONTENT_SIZE_LIMIT = 1_000_000
 
 
 def get_project(
@@ -360,10 +360,10 @@ def get_contents_from_repo(
                 logger.info(f"Writing {path} to object storage")
                 with fs.open(fp, "wb") as f:
                     f.write(content)
-            # If using Google Cloud Storage, we need to remove the content type
-            # metadata in order to set it for signed URLs
-            if settings.ENVIRONMENT != "local":
-                remove_gcs_content_type(fp)
+                # If using Google Cloud Storage, we need to remove the content
+                # type metadata in order to set it for signed URLs
+                if settings.ENVIRONMENT != "local":
+                    remove_gcs_content_type(fp)
             url = get_object_url(fp, fname=os.path.basename(path), fs=fs)
             # Do not send content
             content = None
