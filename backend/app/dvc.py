@@ -1,10 +1,12 @@
 """Functionality for working with DVC."""
 
+import concurrent.futures
 import glob
 import json
 import logging
 import os
 import tempfile
+from functools import lru_cache
 
 import ruamel.yaml
 from dvc.commands import dag
@@ -16,6 +18,20 @@ logging.basicConfig(level=logging.INFO)
 
 logger = logging.getLogger(__name__)
 yaml = ruamel.yaml.YAML()
+
+
+@lru_cache(maxsize=512)
+def _read_dvc_dir_cached(dvc_dir_path: str) -> list[dict] | None:
+    """Cache DVC .dir file contents by path.
+
+    Returns None if file doesn't exist.
+    """
+    fs = get_object_fs()
+    try:
+        with fs.open(dvc_dir_path) as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return None
 
 
 def make_mermaid_diagram(pipeline: dict, params: dict | None = None) -> str:
@@ -132,6 +148,49 @@ def expand_dvc_lock_outs(
         fs = get_object_fs()
     stages = dvc_lock.get("stages", {})
     dvc_lock_outs = {}
+    # Collect all .dir paths upfront
+    dir_outs_to_process = []
+    for stage_name, stage in stages.items():
+        for out in stage.get("outs", []):
+            outpath = out["path"]
+            md5 = out.get("md5", "")
+            if md5 and md5.endswith(".dir"):
+                dvc_dir_path = make_data_fpath(
+                    owner_name=owner_name,
+                    project_name=project_name,
+                    idx=md5[:2],
+                    md5=md5[2:],
+                )
+                dir_outs_to_process.append(
+                    (stage_name, out, outpath, dvc_dir_path)
+                )
+    # Batch-read all .dir files in parallel
+    # This replaces serial fs.exists() + fs.open() with parallel reads
+    dir_contents_map = {}
+    if dir_outs_to_process:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+            future_to_path = {
+                executor.submit(_read_dvc_dir_cached, dvc_dir_path): (
+                    stage_name,
+                    out,
+                    outpath,
+                    dvc_dir_path,
+                )
+                for (
+                    stage_name,
+                    out,
+                    outpath,
+                    dvc_dir_path,
+                ) in dir_outs_to_process
+            }
+            for future in concurrent.futures.as_completed(future_to_path):
+                stage_name, out, outpath, dvc_dir_path = future_to_path[future]
+                try:
+                    contents = future.result()
+                    if contents is not None:
+                        dir_contents_map[dvc_dir_path] = contents
+                except Exception as e:
+                    logger.warning(f"Failed to read {dvc_dir_path}: {e}")
     dvc_md5_sizes = {}
     for stage_name, stage in stages.items():
         for out in stage.get("outs", []):
@@ -146,9 +205,8 @@ def expand_dvc_lock_outs(
                     idx=md5[:2],
                     md5=md5[2:],
                 )
-                if fs.exists(dvc_dir_path):
-                    with fs.open(dvc_dir_path) as f:
-                        dvc_dir_contents = json.load(f)
+                if dvc_dir_path in dir_contents_map:
+                    dvc_dir_contents = dir_contents_map[dvc_dir_path]
                     dvc_lock_outs[outpath] = out
                     dvc_lock_outs[outpath]["dirname"] = os.path.dirname(
                         outpath
