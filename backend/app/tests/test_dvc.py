@@ -55,6 +55,7 @@ def test_output_from_pipeline():
     out = output_from_pipeline(
         "README.md", "my_stage", pipeline=pipeline, lock=lock
     )
+    assert isinstance(out, dict)
     assert out["path"] == "README.md"
     out = output_from_pipeline(
         "backend/scripts/create-initial-data.py",
@@ -62,6 +63,7 @@ def test_output_from_pipeline():
         pipeline=pipeline,
         lock=lock,
     )
+    assert isinstance(out, dict)
     assert out["path"] == "backend/scripts/create-initial-data.py"
     assert out["md5"].endswith("3c")
     out = output_from_pipeline(

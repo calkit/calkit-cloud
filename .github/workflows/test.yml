@@ -3,25 +3,22 @@ name: Test
 on:
   push:
     branches:
-      - master
+      - main
   pull_request:
     types:
       - opened
       - synchronize
 
 jobs:
-
   test:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v5
-
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: '3.11'
-
+          python-version: "3.13"
       - run: docker compose build
       - run: docker compose down -v --remove-orphans
       - run: docker compose up -d
@@ -37,7 +34,7 @@ jobs:
           path: backend/htmlcov
 
   # https://github.com/marketplace/actions/alls-green#why
-  alls-green:  # This job does nothing and is only used for the branch protection
+  alls-green: # This job does nothing and is only used for the branch protection
     if: always()
     needs:
       - test
