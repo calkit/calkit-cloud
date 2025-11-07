@@ -84,6 +84,19 @@ def get_user_by_email(*, session: Session, email: str) -> User | None:
     return session_user
 
 
+def get_user_by_github_username(
+    *, session: Session, github_username: str
+) -> User | None:
+    """Get a user by their GitHub username."""
+    statement = (
+        select(User)
+        .join(Account)
+        .where(Account.github_name == github_username)
+    )
+    session_user = session.exec(statement).first()
+    return session_user
+
+
 def authenticate(
     *, session: Session, email: str, password: str
 ) -> User | None:
