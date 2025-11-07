@@ -232,38 +232,47 @@ def login_with_github(code: str, session: SessionDep) -> Token:
 
 @router.post("/login/github-oidc")
 def login_with_github_oidc(oidc_token: str, session: SessionDep) -> Token:
-    """Authenticate using an OIDC token from GitHub.
+    """Authenticate using an OIDC token from GitHub Actions or Codespaces.
 
-    This endpoint validates the OIDC token from GitHub and returns
-    a Calkit access token. The OIDC token's claims are verified to ensure
-    it's from a trusted repository.
+    This endpoint validates the OIDC token from GitHub Actions or GitHub
+    Codespaces and returns a Calkit access token. The OIDC token's claims
+    are verified to ensure it's from a trusted repository.
 
-    The token should be obtained in GitHub Actions using:
+    For GitHub Actions, the token should be obtained using:
 
     ```yaml
     permissions:
       id-token: write
     ```
+
+    For GitHub Codespaces, the token is available via the
+    ACTIONS_ID_TOKEN_REQUEST_URL environment variable.
     """
-    logger.info("Validating GitHub Actions OIDC token")
-    # GitHub's OIDC token issuer
-    github_oidc_issuer = "https://token.actions.githubusercontent.com"
+    logger.info("Validating GitHub OIDC token")
+    # Supported GitHub OIDC token issuers
+    github_actions_issuer = "https://token.actions.githubusercontent.com"
+    github_codespaces_issuer = "https://vstoken.actions.githubusercontent.com"
     try:
         # First, decode without verification to get the header and claims
         unverified_header = jwt.get_unverified_header(oidc_token)
         unverified_claims = jwt.decode(
             oidc_token, options={"verify_signature": False}
         )
-        logger.info(f"OIDC token issuer: {unverified_claims.get('iss')}")
+        issuer = unverified_claims.get("iss")
+        logger.info(f"OIDC token issuer: {issuer}")
         logger.info(f"OIDC token subject: {unverified_claims.get('sub')}")
         logger.info(
             f"OIDC token repository: {unverified_claims.get('repository')}"
         )
-        # Verify the issuer
-        if unverified_claims.get("iss") != github_oidc_issuer:
+        # Verify the issuer is from GitHub Actions or Codespaces
+        if issuer not in [github_actions_issuer, github_codespaces_issuer]:
             raise HTTPException(400, "Invalid OIDC token issuer")
+        # Determine if this is from Actions or Codespaces
+        is_codespace = issuer == github_codespaces_issuer
+        source = "Codespace" if is_codespace else "GitHub Actions"
+        logger.info(f"Authenticating from {source}")
         # Get GitHub's OIDC JWKS (JSON Web Key Set) to verify the signature
-        jwks_url = f"{github_oidc_issuer}/.well-known/jwks"
+        jwks_url = f"{issuer}/.well-known/jwks"
         jwks_response = requests.get(jwks_url)
         if jwks_response.status_code != 200:
             raise HTTPException(500, "Failed to fetch GitHub JWKS")
@@ -286,7 +295,7 @@ def login_with_github_oidc(oidc_token: str, session: SessionDep) -> Token:
             key=public_key,  # type: ignore
             algorithms=["RS256"],
             audience=settings.DOMAIN,
-            issuer=github_oidc_issuer,
+            issuer=issuer,
         )
         logger.info(
             f"Successfully validated OIDC token for repository: "
@@ -295,7 +304,10 @@ def login_with_github_oidc(oidc_token: str, session: SessionDep) -> Token:
         # Extract repository information
         repository = claims.get("repository")  # e.g., "owner/repo"
         repository_owner = claims.get("repository_owner")
-        workflow = claims.get("workflow")
+        # Log Codespace-specific information if available
+        if is_codespace:
+            codespace_name = unverified_claims.get("codespace_name")
+            logger.info(f"Codespace name: {codespace_name}")
         if not repository:
             raise HTTPException(400, "Repository claim not found in token")
         # Find the user by GitHub username (repository owner)
@@ -313,13 +325,22 @@ def login_with_github_oidc(oidc_token: str, session: SessionDep) -> Token:
         if not user.is_active:
             logger.info(f"User {user.email} is not active")
             raise HTTPException(401, "User is not active")
-        # Generate a short-lived access token for the workflow
-        # Shorter expiration for CI/CD workflows
-        access_token_expires = timedelta(minutes=60)  # 1 hour
-        logger.info(
-            f"Generating access token for {user.email} from workflow: "
-            f"{workflow}"
-        )
+        # Generate access token with different expiration based on source
+        if is_codespace:
+            # Longer expiration for interactive Codespace sessions
+            access_token_expires = timedelta(hours=8)
+            logger.info(
+                f"Generating 8-hour access token for {user.email} "
+                f"from Codespace"
+            )
+        else:
+            # Shorter expiration for CI/CD workflows
+            access_token_expires = timedelta(minutes=60)
+            workflow = claims.get("workflow")
+            logger.info(
+                f"Generating 1-hour access token for {user.email} "
+                f"from workflow: {workflow}"
+            )
         return Token(
             access_token=security.create_access_token(
                 subject=user.id,
