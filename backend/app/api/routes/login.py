@@ -319,23 +319,37 @@ def login_with_github_oidc(
         # Extract repository information
         repository = claims.get("repository")  # e.g., "owner/repo"
         repository_owner = claims.get("repository_owner")
+        # The 'actor' claim is the GitHub username of the user who triggered
+        # the workflow, which works for both user-owned and org-owned repos
+        actor = claims.get("actor")
         # Log Codespace-specific information if available
         if is_codespace:
             codespace_name = unverified_claims.get("codespace_name")
             logger.info(f"Codespace name: {codespace_name}")
         if not repository:
             raise HTTPException(400, "Repository claim not found in token")
-        # Find the user by GitHub username (repository owner)
+        # Use actor as the GitHub username (person who triggered the workflow)
+        # This works for both user-owned and org-owned repositories
+        github_username = actor or repository_owner
+        if not github_username:
+            raise HTTPException(
+                400, "Neither actor nor repository_owner found in token"
+            )
+        logger.info(
+            f"Looking up user for GitHub username: {github_username} "
+            f"(repository: {repository}, owner: {repository_owner})"
+        )
+        # Find the user by GitHub username
         user = users.get_user_by_github_username(
-            session=session, github_username=repository_owner
+            session=session, github_username=github_username
         )
         if not user:
             logger.warning(
-                f"No user found for GitHub username: {repository_owner}"
+                f"No user found for GitHub username: {github_username}"
             )
             raise HTTPException(
                 404,
-                f"No user associated with GitHub account: {repository_owner}",
+                f"No user associated with GitHub account: {github_username}",
             )
         if not user.is_active:
             logger.info(f"User {user.email} is not active")
