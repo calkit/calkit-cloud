@@ -153,6 +153,10 @@ class User(UserBase, table=True):
         back_populates="user",
         cascade_delete=True,
     )
+    figure_comments: list["FigureComment"] = Relationship(
+        back_populates="user",
+        cascade_delete=True,
+    )
 
     @computed_field
     @property
@@ -413,6 +417,9 @@ class Project(ProjectBase, table=True):
     file_locks: list["FileLock"] = Relationship(
         back_populates="project", cascade_delete=True
     )
+    figure_comments: list["FigureComment"] = Relationship(
+        back_populates="project", cascade_delete=True
+    )
 
     @computed_field
     @property
@@ -552,7 +559,8 @@ class FigureComment(SQLModel, table=True):
     external_url: str | None = Field(default=None, max_length=2048)
     comment: str
     # Relationships
-    user: User = Relationship()
+    user: User = Relationship(back_populates="figure_comments")
+    project: Project = Relationship(back_populates="figure_comments")
 
     @computed_field
     @property
