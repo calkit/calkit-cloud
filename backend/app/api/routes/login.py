@@ -5,10 +5,13 @@ import secrets
 from datetime import timedelta
 from typing import Annotated, Any
 
+import jwt
 import requests
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import HTMLResponse
 from fastapi.security import OAuth2PasswordRequestForm
+from jwt.algorithms import RSAAlgorithm
+from jwt.exceptions import InvalidTokenError
 
 from app import mixpanel, security, users
 from app.api.deps import CurrentUser, SessionDep, get_current_active_superuser
@@ -225,3 +228,109 @@ def login_with_github(code: str, session: SessionDep) -> Token:
             ),
         )
     )
+
+
+@router.post("/login/github-oidc")
+def login_with_github_oidc(oidc_token: str, session: SessionDep) -> Token:
+    """Authenticate using an OIDC token from GitHub.
+
+    This endpoint validates the OIDC token from GitHub and returns
+    a Calkit access token. The OIDC token's claims are verified to ensure
+    it's from a trusted repository.
+
+    The token should be obtained in GitHub Actions using:
+
+    ```yaml
+    permissions:
+      id-token: write
+    ```
+    """
+    logger.info("Validating GitHub Actions OIDC token")
+    # GitHub's OIDC token issuer
+    github_oidc_issuer = "https://token.actions.githubusercontent.com"
+    try:
+        # First, decode without verification to get the header and claims
+        unverified_header = jwt.get_unverified_header(oidc_token)
+        unverified_claims = jwt.decode(
+            oidc_token, options={"verify_signature": False}
+        )
+        logger.info(f"OIDC token issuer: {unverified_claims.get('iss')}")
+        logger.info(f"OIDC token subject: {unverified_claims.get('sub')}")
+        logger.info(
+            f"OIDC token repository: {unverified_claims.get('repository')}"
+        )
+        # Verify the issuer
+        if unverified_claims.get("iss") != github_oidc_issuer:
+            raise HTTPException(400, "Invalid OIDC token issuer")
+        # Get GitHub's OIDC JWKS (JSON Web Key Set) to verify the signature
+        jwks_url = f"{github_oidc_issuer}/.well-known/jwks"
+        jwks_response = requests.get(jwks_url)
+        if jwks_response.status_code != 200:
+            raise HTTPException(500, "Failed to fetch GitHub JWKS")
+        jwks = jwks_response.json()
+        # Find the key matching the token's kid (key ID)
+        kid = unverified_header.get("kid")
+        signing_key = None
+        for key in jwks.get("keys", []):
+            if key.get("kid") == kid:
+                signing_key = key
+                break
+        if not signing_key:
+            raise HTTPException(400, "Unable to find signing key")
+        # Convert JWK to PEM format for PyJWT
+        public_key = RSAAlgorithm.from_jwk(signing_key)
+        # Verify and decode the token with signature validation
+        # Use the domain as the audience
+        claims = jwt.decode(
+            oidc_token,
+            key=public_key,  # type: ignore
+            algorithms=["RS256"],
+            audience=settings.DOMAIN,
+            issuer=github_oidc_issuer,
+        )
+        logger.info(
+            f"Successfully validated OIDC token for repository: "
+            f"{claims.get('repository')}"
+        )
+        # Extract repository information
+        repository = claims.get("repository")  # e.g., "owner/repo"
+        repository_owner = claims.get("repository_owner")
+        workflow = claims.get("workflow")
+        if not repository:
+            raise HTTPException(400, "Repository claim not found in token")
+        # Find the user by GitHub username (repository owner)
+        user = users.get_user_by_github_username(
+            session=session, github_username=repository_owner
+        )
+        if not user:
+            logger.warning(
+                f"No user found for GitHub username: {repository_owner}"
+            )
+            raise HTTPException(
+                404,
+                f"No user associated with GitHub account: {repository_owner}",
+            )
+        if not user.is_active:
+            logger.info(f"User {user.email} is not active")
+            raise HTTPException(401, "User is not active")
+        # Generate a short-lived access token for the workflow
+        # Shorter expiration for CI/CD workflows
+        access_token_expires = timedelta(minutes=60)  # 1 hour
+        logger.info(
+            f"Generating access token for {user.email} from workflow: "
+            f"{workflow}"
+        )
+        return Token(
+            access_token=security.create_access_token(
+                subject=user.id,
+                expires_delta=access_token_expires,
+            )
+        )
+    except InvalidTokenError as e:
+        logger.error(f"JWT validation error: {str(e)}")
+        raise HTTPException(400, f"Invalid OIDC token: {str(e)}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error validating OIDC token: {str(e)}")
+        raise HTTPException(500, f"Failed to validate OIDC token: {str(e)}")
