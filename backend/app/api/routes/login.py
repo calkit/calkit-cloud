@@ -319,9 +319,6 @@ def login_with_github_oidc(
         # Extract repository information
         repository = claims.get("repository")  # e.g., "owner/repo"
         repository_owner = claims.get("repository_owner")
-        # The 'actor' claim is the GitHub username of the user who triggered
-        # the workflow, which works for both user-owned and org-owned repos
-        actor = claims.get("actor")
         # Log Codespace-specific information if available
         if is_codespace:
             codespace_name = unverified_claims.get("codespace_name")
@@ -330,11 +327,9 @@ def login_with_github_oidc(
             raise HTTPException(400, "Repository claim not found in token")
         # Use actor as the GitHub username (person who triggered the workflow)
         # This works for both user-owned and org-owned repositories
-        github_username = actor or repository_owner
+        github_username = claims.get("actor")
         if not github_username:
-            raise HTTPException(
-                400, "Neither actor nor repository_owner found in token"
-            )
+            raise HTTPException(400, "No actor in token")
         logger.info(
             f"Looking up user for GitHub username: {github_username} "
             f"(repository: {repository}, owner: {repository_owner})"
