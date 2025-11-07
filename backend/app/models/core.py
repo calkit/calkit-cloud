@@ -569,7 +569,7 @@ class FigureComment(SQLModel, table=True):
 
     @computed_field
     @property
-    def user_full_name(self) -> str:
+    def user_full_name(self) -> str | None:
         return self.user.full_name
 
     @computed_field
