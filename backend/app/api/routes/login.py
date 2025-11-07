@@ -7,7 +7,7 @@ from typing import Annotated, Any
 
 import jwt
 import requests
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException
 from fastapi.responses import HTMLResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from jwt.algorithms import RSAAlgorithm
@@ -231,12 +231,17 @@ def login_with_github(code: str, session: SessionDep) -> Token:
 
 
 @router.post("/login/github-oidc")
-def login_with_github_oidc(oidc_token: str, session: SessionDep) -> Token:
+def login_with_github_oidc(
+    session: SessionDep,
+    authorization: str | None = Header(default=None),
+) -> Token:
     """Authenticate using an OIDC token from GitHub Actions or Codespaces.
 
     This endpoint validates the OIDC token from GitHub Actions or GitHub
     Codespaces and returns a Calkit access token. The OIDC token's claims
     are verified to ensure it's from a trusted repository.
+
+    The token must be provided in the Authorization header as: "Bearer <token>"
 
     For GitHub Actions, the token should be obtained using:
 
@@ -248,15 +253,25 @@ def login_with_github_oidc(oidc_token: str, session: SessionDep) -> Token:
     For GitHub Codespaces, the token is available via the
     ACTIONS_ID_TOKEN_REQUEST_URL environment variable.
     """
+    # Extract token from Authorization header
+    if not authorization:
+        raise HTTPException(
+            400, "Authorization header with Bearer token is required"
+        )
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(400, "Authorization header must use Bearer scheme")
+    token = authorization[7:]  # Remove "Bearer " prefix
+    if not token:
+        raise HTTPException(400, "OIDC token cannot be empty")
     logger.info("Validating GitHub OIDC token")
     # Supported GitHub OIDC token issuers
     github_actions_issuer = "https://token.actions.githubusercontent.com"
     github_codespaces_issuer = "https://vstoken.actions.githubusercontent.com"
     try:
         # First, decode without verification to get the header and claims
-        unverified_header = jwt.get_unverified_header(oidc_token)
+        unverified_header = jwt.get_unverified_header(token)
         unverified_claims = jwt.decode(
-            oidc_token, options={"verify_signature": False}
+            token, options={"verify_signature": False}
         )
         issuer = unverified_claims.get("iss")
         logger.info(f"OIDC token issuer: {issuer}")
@@ -291,7 +306,7 @@ def login_with_github_oidc(oidc_token: str, session: SessionDep) -> Token:
         # Verify and decode the token with signature validation
         # Use the domain as the audience
         claims = jwt.decode(
-            oidc_token,
+            token,
             key=public_key,  # type: ignore
             algorithms=["RS256"],
             audience=settings.DOMAIN,
