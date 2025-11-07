@@ -19,6 +19,14 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: "3.13"
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      - name: Cache Docker layers
+        uses: actions/cache@v3
+        with:
+          path: backend/.docker-cache
+          key: ${{ runner.os }}-build-${{ github.sha }}
+      - run: cp .env.template .env
       - run: docker compose build
       - run: docker compose down -v --remove-orphans
       - run: docker compose up -d
