@@ -30,8 +30,8 @@ interface ImportOverleafProps {
 
 interface OverleafImportPost {
   path: string
-  title: string
-  description: string
+  title?: string | null
+  description?: string | null
   kind:
     | "journal-article"
     | "conference-paper"
@@ -39,11 +39,12 @@ interface OverleafImportPost {
     | "phd-thesis"
     | "report"
     | "book"
+    | "other"
   overleaf_url: string
-  stage: string
-  environment?: string
-  overleaf_token?: string
-  target_path: string
+  stage?: string | null
+  environment?: string | null
+  overleaf_token?: string | null
+  target_path?: string | null
 }
 
 const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
@@ -63,6 +64,17 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
   } = useForm<OverleafImportPost>({
     mode: "onBlur",
     criteriaMode: "all",
+    defaultValues: {
+      path: "paper",
+      title: null,
+      description: null,
+      kind: "journal-article",
+      overleaf_url: undefined,
+      stage: null,
+      environment: null,
+      overleaf_token: null,
+      target_path: null,
+    },
   })
   const mutation = useMutation({
     mutationFn: (data: OverleafImportPost) =>
@@ -77,6 +89,8 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
           stage_name: data.stage,
           environment_name: data.environment,
           overleaf_token: data.overleaf_token,
+          sync_paths: [],
+          push_paths: [],
         },
         ownerName: accountName,
         projectName: projectName,
@@ -128,9 +142,10 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
                 </FormErrorMessage>
               )}
             </FormControl>
+            {/* Overleaf token, if account is not yet connected */}
             {!connectedAccountsQuery.data?.overleaf ? (
               <FormControl mt={4} isRequired isInvalid={!!errors.path}>
-                <FormLabel htmlFor="path">Overleaf token</FormLabel>
+                <FormLabel htmlFor="overleaf_token">Overleaf token</FormLabel>
                 {/* TODO: Have tooltip/link here */}
                 <Input
                   id="overleaf_token"
@@ -149,6 +164,7 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
             ) : (
               ""
             )}
+            {/* Destination folder */}
             <FormControl mt={4} isRequired isInvalid={!!errors.path}>
               <FormLabel htmlFor="path">Destination folder</FormLabel>
               <Input
@@ -163,22 +179,7 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
                 <FormErrorMessage>{errors.path.message}</FormErrorMessage>
               )}
             </FormControl>
-            <FormControl mt={4} isRequired isInvalid={!!errors.target_path}>
-              <FormLabel htmlFor="target_path">Target TeX file path</FormLabel>
-              <Input
-                id="target_path"
-                {...register("target_path", {
-                  required: "Target path is required",
-                })}
-                placeholder={"Ex: main.tex"}
-                type="text"
-              />
-              {errors.target_path && (
-                <FormErrorMessage>
-                  {errors.target_path.message}
-                </FormErrorMessage>
-              )}
-            </FormControl>
+            {/* Publication type */}
             <FormControl mt={4} isRequired isInvalid={!!errors.kind}>
               <FormLabel htmlFor="kind">Type</FormLabel>
               <Select
@@ -194,9 +195,11 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
                 <option value="book">Book</option>
                 <option value="masters-thesis">Master's thesis</option>
                 <option value="phd-thesis">PhD thesis</option>
+                <option value="other">Other</option>
               </Select>
             </FormControl>
-            <FormControl mt={4} isRequired isInvalid={!!errors.title}>
+            {/* Title */}
+            <FormControl mt={4} isInvalid={!!errors.title}>
               <FormLabel htmlFor="title">Title</FormLabel>
               <Input
                 id="title"
@@ -208,13 +211,27 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
                 <FormErrorMessage>{errors.title.message}</FormErrorMessage>
               )}
             </FormControl>
-            <FormControl mt={4} isRequired isInvalid={!!errors.description}>
+            {/* Target TeX file path */}
+            <FormControl mt={4} isInvalid={!!errors.target_path}>
+              <FormLabel htmlFor="target_path">Target TeX file path</FormLabel>
+              <Input
+                id="target_path"
+                {...register("target_path")}
+                placeholder={"Ex: main.tex"}
+                type="text"
+              />
+              {errors.target_path && (
+                <FormErrorMessage>
+                  {errors.target_path.message}
+                </FormErrorMessage>
+              )}
+            </FormControl>
+            {/* Description */}
+            <FormControl mt={4} isInvalid={!!errors.description}>
               <FormLabel htmlFor="description">Description</FormLabel>
               <Textarea
                 id="description"
-                {...register("description", {
-                  required: "Description is required",
-                })}
+                {...register("description")}
                 placeholder="Description"
               />
               {errors.description && (
@@ -224,8 +241,7 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
               )}
             </FormControl>
             {/* Environment name */}
-            {/* TODO: Detect if we have an environment to use already */}
-            <FormControl mt={4} isRequired isInvalid={!!errors.environment}>
+            <FormControl mt={4} isInvalid={!!errors.environment}>
               <FormLabel htmlFor="environment">
                 Docker environment name
               </FormLabel>
@@ -242,8 +258,8 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
               )}
             </FormControl>
             {/* Stage name */}
-            <FormControl mt={4} isRequired isInvalid={!!errors.stage}>
-              <FormLabel htmlFor="title">Pipeline stage name</FormLabel>
+            <FormControl mt={4} isInvalid={!!errors.stage}>
+              <FormLabel htmlFor="stage_name">Pipeline stage name</FormLabel>
               <Input
                 id="stage"
                 {...register("stage")}

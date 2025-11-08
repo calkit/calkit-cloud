@@ -104,6 +104,9 @@ export type LoginData = {
   LoginWithGithub: {
     code: string
   }
+  LoginWithGithubOidc: {
+    authorization?: string | null
+  }
 }
 
 export type UsersData = {
@@ -632,6 +635,44 @@ export class LoginService {
       url: "/login/github",
       query: {
         code,
+      },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Login With Github Oidc
+   * Authenticate using an OIDC token from GitHub Actions or Codespaces.
+   *
+   * This endpoint validates the OIDC token from GitHub Actions or GitHub
+   * Codespaces and returns a Calkit access token. The OIDC token's claims
+   * are verified to ensure it's from a trusted repository.
+   *
+   * The token must be provided in the Authorization header as: "Bearer <token>"
+   *
+   * For GitHub Actions, the token should be obtained using:
+   *
+   * ```yaml
+   * permissions:
+   * id-token: write
+   * ```
+   *
+   * For GitHub Codespaces, the token is available via the
+   * ACTIONS_ID_TOKEN_REQUEST_URL environment variable.
+   * @returns Token Successful Response
+   * @throws ApiError
+   */
+  public static loginWithGithubOidc(
+    data: LoginData["LoginWithGithubOidc"] = {},
+  ): CancelablePromise<Token> {
+    const { authorization } = data
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/login/github-oidc",
+      headers: {
+        authorization,
       },
       errors: {
         422: `Validation Error`,

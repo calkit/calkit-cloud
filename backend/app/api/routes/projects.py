@@ -37,6 +37,7 @@ from fastapi import (
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ValidationError
 from sqlmodel import Session, and_, func, not_, or_, select
+from TexSoup import TexSoup
 
 import app.projects
 from app import mixpanel, users
@@ -2043,13 +2044,14 @@ class OverleafPublicationPost(BaseModel):
         "book",
         "masters-thesis",
         "phd-thesis",
+        "other",
     ]
-    title: str
-    description: str
-    target_path: str
+    title: str | None = None
+    description: str | None = None
+    target_path: str | None = None
     sync_paths: list[str] = []
     push_paths: list[str] = []
-    stage_name: str
+    stage_name: str | None = None
     environment_name: str | None = None
     overleaf_token: str | None = None
 
@@ -2072,8 +2074,6 @@ def post_project_overleaf_publication(
         )
     if current_user.overleaf_token is None:
         raise HTTPException(400, "No Overleaf token found")
-    if not req.target_path.endswith(".tex"):
-        raise HTTPException(400, "Target path must end with '.tex'")
     if req.path == ".":
         raise HTTPException(400, "Path cannot be parent directory")
     project = app.projects.get_project(
@@ -2100,25 +2100,39 @@ def post_project_overleaf_publication(
     # Make sure we don't already have a stage with the same name
     pipeline = ck_info.get("pipeline", {})
     stages = pipeline.get("stages", {})
-    if req.stage_name in stages:
+    stage_name = req.stage_name or f"build-{req.path}"
+    if stage_name and stage_name in stages:
         raise HTTPException(
-            400, f"A stage named '{req.stage_name}' already exists"
+            400, f"A stage named '{stage_name}' already exists; please provide"
         )
-    # Check environment spec
+    # Check environment spec, auto-detecting a TeXlive env to use
     envs = ck_info.get("environments", {})
-    if req.environment_name in envs:
-        env = envs[req.environment_name]
+    env_name = req.environment_name
+    if not env_name:
+        for en, e in envs.items():
+            if e.get("kind") == "docker" and "texlive" in e.get("image", ""):
+                env_name = en
+                logger.info(f"Detected TeXlive env '{en}'")
+                break
+    elif env_name and env_name in envs:
+        env = envs[env_name]
         if env.get("kind") != "docker" and "texlive" not in env.get(
             "image", ""
         ):
             raise HTTPException(
                 400,
-                f"Environment {req.environment_name} exists, but is not a "
+                f"Environment {env_name} exists, but is not a "
                 "TeXLive Docker environment",
             )
     else:
+        if not env_name:
+            env_name = "tex"
+            n = 1
+            while env_name in envs:
+                env_name = f"tex-{n}"
+                n += 1
         env = {"kind": "docker", "image": "texlive/texlive:latest-full"}
-        envs[req.environment_name] = env
+        envs[env_name] = env
         ck_info["environments"] = envs
     # Get the Overleaf repo
     overleaf_project_id = req.overleaf_project_url.split("/")[-1]
@@ -2128,6 +2142,35 @@ def post_project_overleaf_publication(
         session=session,
         overleaf_project_id=overleaf_project_id,
     )
+    # If target path was not supplied, see if we can detect it
+    target_path = req.target_path
+    if not target_path:
+        overleaf_files = os.listdir(overleaf_repo.working_dir)
+        for candidate in ["main.tex", "paper.tex", "report.tex"]:
+            if candidate in overleaf_files:
+                target_path = candidate
+                break
+    if not target_path:
+        raise HTTPException(
+            400, "Target path cannot be detected; please specify"
+        )
+    logger.info(f"Using target path: {target_path}")
+    if not target_path.endswith(".tex"):
+        raise HTTPException(400, "Target path must end with '.tex'")
+    if target_path not in os.listdir(overleaf_repo.working_dir):
+        raise HTTPException(
+            400,
+            f"Target path '{target_path}' does not exist in Overleaf project",
+        )
+    # See if we can detect the title
+    title = req.title
+    if not title:
+        with open(os.path.join(overleaf_repo.working_dir, target_path)) as f:
+            overleaf_target_text = f.read()
+        texsoup = TexSoup(overleaf_target_text)
+        title = str(texsoup.title.string) if texsoup.title else None
+    if not title:
+        raise HTTPException(400, "Title cannot be detected; please provide")
     # Create build stage
     input_rel_paths = set(
         os.listdir(overleaf_repo.working_dir) + req.sync_paths + req.push_paths
@@ -2141,22 +2184,22 @@ def post_project_overleaf_publication(
             input_paths.append(project_rel_path)
     stage = {
         "kind": "latex",
-        "target_path": os.path.join(req.path, req.target_path),
-        "environment": req.environment_name,
+        "target_path": os.path.join(req.path, target_path),
+        "environment": env_name,
         "inputs": input_paths,
     }
-    stages[req.stage_name] = stage
+    stages[stage_name] = stage
     pipeline["stages"] = stages
     ck_info["pipeline"] = pipeline
     # Create publication object
     pdf_output_path = os.path.join(
-        req.path, req.target_path.removesuffix(".tex") + ".pdf"
+        req.path, target_path.removesuffix(".tex") + ".pdf"
     )
     publication = {
         "path": pdf_output_path,
-        "title": req.title,
+        "title": title,
         "description": req.description,
-        "stage": req.stage_name,
+        "stage": stage_name,
         "overleaf": {
             "project_id": overleaf_project_id,
             "wdir": req.path,
@@ -2196,11 +2239,23 @@ def post_project_overleaf_publication(
         os.path.join(repo.working_dir, req.path, ".gitignore"), "w"
     ) as f:
         f.write(gitignore_txt)
+    # Make sure we ignore the private clone repo for local Overleaf syncs
+    if not repo.ignored(".calkit/overleaf/"):
+        logger.info("Adding .calkit/overleaf/ to .gitignore")
+        with open(os.path.join(repo.working_dir, ".gitignore"), "a") as f:
+            f.write("\n.calkit/overleaf/\n")
+        repo.git.add(".gitignore")
     # Save and commit calkit.yaml
     with open(os.path.join(repo.working_dir, "calkit.yaml"), "w") as f:
         ryaml.dump(ck_info, f)
     repo.git.add("calkit.yaml")
     repo.git.add(req.path)
+    # Compile DVC pipeline
+    logger.info("Compiling DVC pipeline")
+    subprocess.run(
+        ["calkit", "check", "pipeline", "--compile"], cwd=repo.working_dir
+    )
+    repo.git.add("dvc.yaml")
     repo.git.commit(
         [
             "-m",
