@@ -317,7 +317,7 @@ def create_project(
             )
         )
         count = session.exec(count_query).one()
-        limit = subscription.private_projects_limit
+        limit = subscription.private_projects_limit  # type: ignore
         logger.info(f"{owner_name} has {count}/{limit} private projects")
         if limit is not None and count >= limit:
             raise HTTPException(400, "Private projects limit exceeded")
