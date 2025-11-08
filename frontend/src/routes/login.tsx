@@ -1,11 +1,13 @@
 import { Button, Container, Image, Text, Link } from "@chakra-ui/react"
 import { createFileRoute, redirect } from "@tanstack/react-router"
 
-import Logo from "/assets/images/calkit-no-bg.svg"
-import useAuth, { isLoggedIn } from "../hooks/useAuth"
 import { z } from "zod"
 import { useEffect, useRef } from "react"
 import mixpanel from "mixpanel-browser"
+import { FaGithub } from "react-icons/fa"
+
+import Logo from "/assets/images/calkit-no-bg.svg"
+import useAuth, { isLoggedIn } from "../hooks/useAuth"
 
 const githubAuthParamsSchema = z.object({
   code: z.string().optional(),
@@ -68,19 +70,17 @@ function Login() {
           alt="Logo"
           height="150px"
           alignSelf="center"
-          mb={-12}
+          mb={-9}
         />
-        <Text mb={3} fontSize="md">
-          Reproducibility = productivity
-        </Text>
         <Button
           variant="primary"
           isLoading={loginGitHubMutation.isPending}
           onClick={handleLoginClicked}
+          rightIcon={<FaGithub />}
         >
           Sign in with GitHub
         </Button>
-        <Text fontSize={10} mt={1}>
+        <Text fontSize={10} mt={-1}>
           <Link isExternal variant="default" href="https://calkit.org">
             Learn more
           </Link>

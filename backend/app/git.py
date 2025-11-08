@@ -109,6 +109,10 @@ def get_repo(
                     repo.git.remote(["add", "origin", git_clone_url])
                     logger.info("Git fetching")
                     repo.git.fetch(["origin", branch_name])
+                    # If we had any failed previous transactions, reset and
+                    # clean
+                    repo.git.reset()
+                    repo.git.clean("-fd")
                     repo.git.checkout([f"origin/{branch_name}"])
                     repo.git.branch(["-D", branch_name])
                     repo.git.checkout(["-b", branch_name])
@@ -123,9 +127,12 @@ def get_repo(
 
 
 def get_ck_info_from_repo(repo: git.Repo, process_includes=False) -> dict:
-    return calkit.load_calkit_info(
+    ck_info = calkit.load_calkit_info(
         wdir=repo.working_dir, process_includes=process_includes
     )
+    if ck_info is None:
+        ck_info = {}
+    return ck_info
 
 
 def get_ck_info(

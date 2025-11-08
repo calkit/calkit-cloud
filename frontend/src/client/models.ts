@@ -241,7 +241,7 @@ export type FigureComment = {
   external_url?: string | null
   comment: string
   readonly user_github_username: string
-  readonly user_full_name: string
+  readonly user_full_name: string | null
   readonly user_email: string
 }
 
@@ -445,12 +445,13 @@ export type OverleafPublicationPost = {
     | "book"
     | "masters-thesis"
     | "phd-thesis"
-  title: string
-  description: string
-  target_path: string
+    | "other"
+  title?: string | null
+  description?: string | null
+  target_path?: string | null
   sync_paths?: Array<string>
   push_paths?: Array<string>
-  stage_name: string
+  stage_name?: string | null
   environment_name?: string | null
   overleaf_token?: string | null
 }

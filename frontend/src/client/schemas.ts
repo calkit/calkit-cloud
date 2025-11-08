@@ -1259,7 +1259,15 @@ export const $FigureComment = {
       isRequired: true,
     },
     user_full_name: {
-      type: "string",
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
       isReadOnly: true,
       isRequired: true,
     },
@@ -2078,20 +2086,42 @@ export const $OverleafPublicationPost = {
         "book",
         "masters-thesis",
         "phd-thesis",
+        "other",
       ],
       isRequired: true,
     },
     title: {
-      type: "string",
-      isRequired: true,
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
     },
     description: {
-      type: "string",
-      isRequired: true,
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
     },
     target_path: {
-      type: "string",
-      isRequired: true,
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
     },
     sync_paths: {
       type: "array",
@@ -2108,8 +2138,15 @@ export const $OverleafPublicationPost = {
       default: [],
     },
     stage_name: {
-      type: "string",
-      isRequired: true,
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
     },
     environment_name: {
       type: "any-of",
