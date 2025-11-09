@@ -107,6 +107,9 @@ export type LoginData = {
   LoginWithGithubOidc: {
     authorization?: string | null
   }
+  LoginWithGithubToken: {
+    authorization?: string | null
+  }
 }
 
 export type UsersData = {
@@ -671,6 +674,28 @@ export class LoginService {
     return __request(OpenAPI, {
       method: "POST",
       url: "/login/github-oidc",
+      headers: {
+        authorization,
+      },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Login With Github Token
+   * Authenticate using a GitHub token, e.g., from a Codespace.
+   * @returns Token Successful Response
+   * @throws ApiError
+   */
+  public static loginWithGithubToken(
+    data: LoginData["LoginWithGithubToken"] = {},
+  ): CancelablePromise<Token> {
+    const { authorization } = data
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/login/github-token",
       headers: {
         authorization,
       },

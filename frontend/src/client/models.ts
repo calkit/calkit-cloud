@@ -454,6 +454,7 @@ export type OverleafPublicationPost = {
   stage_name?: string | null
   environment_name?: string | null
   overleaf_token?: string | null
+  auto_build?: boolean
 }
 
 export type OverleafSyncPost = {
