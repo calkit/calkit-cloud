@@ -1,5 +1,7 @@
 import {
   Button,
+  Checkbox,
+  Flex,
   FormControl,
   FormErrorMessage,
   FormLabel,
@@ -45,6 +47,7 @@ interface OverleafImportPost {
   environment?: string | null
   overleaf_token?: string | null
   target_path?: string | null
+  auto_build: boolean
 }
 
 const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
@@ -74,6 +77,7 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
       environment: null,
       overleaf_token: null,
       target_path: null,
+      auto_build: true,
     },
   })
   const mutation = useMutation({
@@ -91,6 +95,7 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
           overleaf_token: data.overleaf_token,
           sync_paths: [],
           push_paths: [],
+          auto_build: data.auto_build,
         },
         ownerName: accountName,
         projectName: projectName,
@@ -270,6 +275,14 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
                 <FormErrorMessage>{errors.stage.message}</FormErrorMessage>
               )}
             </FormControl>
+            {/* Auto-build */}
+            <Flex mt={4}>
+              <FormControl>
+                <Checkbox {...register("auto_build")} colorScheme="teal">
+                  Build PDF automatically when updated
+                </Checkbox>
+              </FormControl>
+            </Flex>
           </ModalBody>
           <ModalFooter gap={3}>
             <Button
