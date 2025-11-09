@@ -2170,6 +2170,10 @@ export const $OverleafPublicationPost = {
         },
       ],
     },
+    auto_build: {
+      type: "boolean",
+      default: true,
+    },
   },
 } as const
 

@@ -113,6 +113,7 @@ def get_repo(
                     # clean
                     repo.git.reset()
                     repo.git.clean("-fd")
+                    repo.git.stash("save", "Auto-stash before pull")
                     repo.git.checkout([f"origin/{branch_name}"])
                     repo.git.branch(["-D", branch_name])
                     repo.git.checkout(["-b", branch_name])

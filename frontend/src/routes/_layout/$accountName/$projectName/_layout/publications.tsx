@@ -99,7 +99,7 @@ function PubView({ publication, userHasWriteAccess }: PubViewProps) {
           {publication.title}
         </Heading>
         <Text>{publication.description}</Text>
-        <Box my={2} height={"80vh"} borderRadius="lg">
+        <Box my={2} height={"80vh"} borderRadius="lg" zIndex={0}>
           <PublicationView publication={publication} />
         </Box>
       </Box>

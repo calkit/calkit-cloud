@@ -2054,6 +2054,7 @@ class OverleafPublicationPost(BaseModel):
     stage_name: str | None = None
     environment_name: str | None = None
     overleaf_token: str | None = None
+    auto_build: bool = True
 
 
 @router.post("/projects/{owner_name}/{project_name}/publications/overleaf")
@@ -2124,13 +2125,12 @@ def post_project_overleaf_publication(
                 f"Environment {env_name} exists, but is not a "
                 "TeXLive Docker environment",
             )
-    else:
-        if not env_name:
-            env_name = "tex"
-            n = 1
-            while env_name in envs:
-                env_name = f"tex-{n}"
-                n += 1
+    if not env_name:
+        env_name = "tex"
+        n = 1
+        while env_name in envs:
+            env_name = f"tex-{n}"
+            n += 1
         env = {"kind": "docker", "image": "texlive/texlive:latest-full"}
         envs[env_name] = env
         ck_info["environments"] = envs
@@ -2177,7 +2177,7 @@ def post_project_overleaf_publication(
     )
     input_paths = []
     for p in input_rel_paths:
-        if p == req.target_path or p.startswith("."):
+        if p == target_path or p.startswith("."):
             continue
         project_rel_path = os.path.join(req.path, p)
         if project_rel_path not in input_paths:
@@ -2256,6 +2256,37 @@ def post_project_overleaf_publication(
         ["calkit", "check", "pipeline", "--compile"], cwd=repo.working_dir
     )
     repo.git.add("dvc.yaml")
+    # Add GitHub Actions workflow if desired
+    if req.auto_build:
+        workflow_dir = os.path.join(repo.working_dir, ".github", "workflows")
+        os.makedirs(workflow_dir, exist_ok=True)
+        workflow_files = os.listdir(workflow_dir)
+        has_calkit_workflow = False
+        for fname in workflow_files:
+            workflow_fpath = os.path.join(workflow_dir, fname)
+            with open(workflow_fpath) as f:
+                workflow_txt = f.read()
+            if "calkit" in workflow_txt:
+                has_calkit_workflow = True
+                logger.info(
+                    f"Found existing Calkit workflow at {workflow_fpath}"
+                )
+                break
+        if not has_calkit_workflow:
+            logger.info("Adding Calkit GitHub Actions workflow")
+            # Download workflow YAML from GitHub
+            download_url = (
+                "https://raw.githubusercontent.com/calkit/run-action/"
+                "refs/heads/main/example.yml"
+            )
+            download_resp = requests.get(download_url)
+            workflow_rel_path = os.path.join(
+                ".github", "workflows", "run-calkit.yml"
+            )
+            workflow_fpath = os.path.join(repo.working_dir, workflow_rel_path)
+            with open(workflow_fpath, "w") as f:
+                f.write(download_resp.text)
+            repo.git.add(workflow_rel_path)
     repo.git.commit(
         [
             "-m",

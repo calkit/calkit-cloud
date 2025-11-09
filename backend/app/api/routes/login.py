@@ -379,3 +379,52 @@ def login_with_github_oidc(
     except Exception as e:
         logger.error(f"Error validating OIDC token: {str(e)}")
         raise HTTPException(500, f"Failed to validate OIDC token: {str(e)}")
+
+
+@router.post("/login/github-token")
+def login_with_github_token(
+    session: SessionDep,
+    authorization: str | None = Header(default=None),
+) -> Token:
+    """Authenticate using a GitHub token, e.g., from a Codespace."""
+    # Extract token from Authorization header
+    if not authorization:
+        raise HTTPException(
+            400, "Authorization header with Bearer token is required"
+        )
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(400, "Authorization header must use Bearer scheme")
+    token = authorization[7:]  # Remove "Bearer " prefix
+    if not token:
+        raise HTTPException(400, "OIDC token cannot be empty")
+    response = requests.get(
+        "https://api.github.com/user",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    if not response.status_code == 200:
+        raise HTTPException(401, "Failed to authenticate with GitHub")
+    user_data = response.json()
+    github_username = user_data.get("login")
+    if not github_username:
+        raise HTTPException(400, "No username found in token")
+    # Find the user by GitHub username
+    user = users.get_user_by_github_username(
+        session=session, github_username=github_username
+    )
+    if not user:
+        logger.warning(f"No user found for GitHub username: {github_username}")
+        raise HTTPException(
+            404,
+            f"No user associated with GitHub account: {github_username}",
+        )
+    if not user.is_active:
+        logger.info(f"User {user.email} is not active")
+        raise HTTPException(401, "User is not active")
+    access_token_expires = timedelta(hours=24)
+    logger.info(f"Generating 24-hour access token for {user.email}")
+    return Token(
+        access_token=security.create_access_token(
+            subject=user.id,
+            expires_delta=access_token_expires,
+        )
+    )
