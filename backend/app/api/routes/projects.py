@@ -2125,13 +2125,12 @@ def post_project_overleaf_publication(
                 f"Environment {env_name} exists, but is not a "
                 "TeXLive Docker environment",
             )
-    else:
-        if not env_name:
-            env_name = "tex"
-            n = 1
-            while env_name in envs:
-                env_name = f"tex-{n}"
-                n += 1
+    if not env_name:
+        env_name = "tex"
+        n = 1
+        while env_name in envs:
+            env_name = f"tex-{n}"
+            n += 1
         env = {"kind": "docker", "image": "texlive/texlive:latest-full"}
         envs[env_name] = env
         ck_info["environments"] = envs
