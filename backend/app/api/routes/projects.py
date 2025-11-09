@@ -2177,7 +2177,7 @@ def post_project_overleaf_publication(
     )
     input_paths = []
     for p in input_rel_paths:
-        if p == req.target_path or p.startswith("."):
+        if p == target_path or p.startswith("."):
             continue
         project_rel_path = os.path.join(req.path, p)
         if project_rel_path not in input_paths:
