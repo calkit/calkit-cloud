@@ -267,6 +267,26 @@ def create_project(
     # Detect owner and repo name from Git repo URL
     # TODO: This should be generalized to not depend on GitHub?
     owner_name, repo_name = project_in.git_repo_url.split("/")[-2:]
+    # Validate that the owner is either the current user or an org they belong
+    # to before retrieving their GitHub token
+    # This prevents users from using their token to make API calls for repos
+    # they don't own
+    if owner_name != current_user.github_username:
+        # Check if it's an org the user belongs to
+        is_user_org = False
+        for membership in current_user.org_memberships:
+            if (
+                membership.org.account.github_name.lower()
+                == owner_name.lower()
+            ) and membership.role_name in ["owner", "admin", "write"]:
+                is_user_org = True
+                break
+        if not is_user_org:
+            raise HTTPException(
+                403,
+                "Can only create projects for yourself or organizations you "
+                "belong to",
+            )
     # Check if this user has exceeded their private projects limit if this one
     # is private
     if not project_in.is_public:
@@ -336,8 +356,6 @@ def create_project(
         logger.info("Git repo is already occupied by another project")
         raise HTTPException(409, "Repos can only be associated with 1 project")
     elif resp.status_code == 404:
-        if owner_name != current_user.github_username:
-            raise HTTPException(403, "Can only create new repos for yourself")
         # If not owned, create it
         logger.info(f"Creating GitHub repo for {owner_name}: {repo_name}")
         body = {
