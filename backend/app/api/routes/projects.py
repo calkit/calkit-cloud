@@ -271,9 +271,9 @@ def create_project(
     # to before retrieving their GitHub token
     # This prevents users from using their token to make API calls for repos
     # they don't own
+    is_user_org = False
     if owner_name != current_user.github_username:
         # Check if it's an org the user belongs to
-        is_user_org = False
         for membership in current_user.org_memberships:
             if (
                 membership.org.account.github_name.lower()
@@ -370,11 +370,11 @@ def create_project(
         # If creating from a template repo, we want it to be empty
         if project_in.template is None:
             body["gitignore_template"] = "Python"
-        resp = requests.post(
-            "https://api.github.com/user/repos",
-            json=body,
-            headers=headers,
-        )
+        if is_user_org:
+            post_url = f"https://api.github.com/orgs/{owner_name}/repos"
+        else:
+            post_url = "https://api.github.com/user/repos"
+        resp = requests.post(post_url, json=body, headers=headers)
         if not resp.status_code == 201:
             not_installed_message = (
                 "Calkit GitHub App not enabled for this account or repo."
