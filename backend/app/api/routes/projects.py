@@ -40,7 +40,7 @@ from sqlmodel import Session, and_, func, not_, or_, select
 from TexSoup import TexSoup
 
 import app.projects
-from app import mixpanel, users
+from app import mixpanel, orgs, users
 from app.api.deps import (
     CurrentUser,
     CurrentUserDvcScope,
@@ -298,8 +298,9 @@ def create_project(
         else:
             # Count private projects for an org
             # First check if this org exists in Calkit
-            query = select(Org).where(Org.account.has(github_name=owner_name))
-            org = session.exec(query).first()
+            org = orgs.get_org_by_github_name(
+                session=session, github_name=owner_name
+            )
             if org is None:
                 logger.info(f"Org '{owner_name}' does not exist in DB")
                 # Try to create the org
@@ -308,7 +309,9 @@ def create_project(
                     session=session,
                     current_user=current_user,
                 )
-                org = session.exec(query).first()
+                org = orgs.get_org_by_github_name(
+                    session=session, github_name=owner_name
+                )
             assert isinstance(org, Org)
             account_id = org.account.id
             subscription = org.subscription
@@ -394,7 +397,17 @@ def create_project(
             raise HTTPException(resp.status_code, message)
         resp_json = resp.json()
         logger.info(f"Created GitHub repo with URL: {resp_json['html_url']}")
-        add_info = {"owner_account_id": current_user.account.id}
+        # If this is an org, we need to get it's account ID
+        if is_user_org:
+            owner_org = orgs.get_org_by_github_name(
+                session=session, github_name=owner_name
+            )
+            if owner_org is None:
+                raise HTTPException(400, "Org not found")
+            owner_account_id = owner_org.account.id
+        else:
+            owner_account_id = current_user.account.id
+        add_info = {"owner_account_id": owner_account_id}
         if project_in.template is not None:
             add_info["parent_project_id"] = template_project.id
         project = Project.model_validate(project_in, update=add_info)
