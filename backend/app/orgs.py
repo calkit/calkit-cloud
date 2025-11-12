@@ -5,5 +5,10 @@ from sqlmodel import Session, select
 
 
 def get_org_from_db(org_name: str, session: Session) -> Org | None:
-    query = select(Org).where(Org.account.has(name=org_name))
+    query = select(Org).where(Org.account.has(name=org_name))  # type: ignore
+    return session.exec(query).first()
+
+
+def get_org_by_github_name(session: Session, github_name: str) -> Org | None:
+    query = select(Org).where(Org.account.has(github_name=github_name))  # type: ignore
     return session.exec(query).first()
