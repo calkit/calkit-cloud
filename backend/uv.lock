@@ -307,7 +307,7 @@ requires-dist = [
     { name = "alembic", specifier = ">=1.12.1,<2.0.0" },
     { name = "bcrypt", specifier = "==4.0.1" },
     { name = "bibtexparser", specifier = "==1.4.1" },
-    { name = "calkit-python", git = "https://github.com/calkit/calkit?rev=overleaf" },
+    { name = "calkit-python", specifier = "==0.32.0" },
     { name = "cryptography", specifier = "==43.0.0" },
     { name = "email-validator", specifier = ">=2.1.0.post1,<3.0.0.0" },
     { name = "emails", specifier = ">=0.6,<1.0" },
@@ -626,7 +626,7 @@ wheels = [
 [[package]]
 name = "calkit-python"
 version = "0.32.0"
-source = { git = "https://github.com/calkit/calkit?rev=overleaf#61dc60ae81544f8b065889ace6366024395b0611" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "arithmeval" },
     { name = "bibtexparser" },
@@ -635,6 +635,7 @@ dependencies = [
     { name = "dvc" },
     { name = "fastapi" },
     { name = "gitpython" },
+    { name = "json2latex" },
     { name = "jupyterlab" },
     { name = "keyring" },
     { name = "nbconvert" },
@@ -651,6 +652,10 @@ dependencies = [
     { name = "tqdm" },
     { name = "typer" },
     { name = "uvicorn" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/30/38/bc1570d958397880b0c477641591795df519062c2287581d5d5cf4b42b8b/calkit_python-0.32.0.tar.gz", hash = "sha256:008d835a3b9fe2bf6b7cf29211f5fcd560ce6b8be9d19133b42b7f3b4e2ed417", size = 8426355, upload-time = "2025-11-17T15:22:12.41Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/07/26/23bd1ee75927898d5dab86fa493e104211b2e0b76b37a6a2af1a363edcd1/calkit_python-0.32.0-py3-none-any.whl", hash = "sha256:efe8ee3fcb5ec3570cd13089e1dac82a0f60f58f9c30d71675fd69609874ac75", size = 205554, upload-time = "2025-11-17T15:22:10.662Z" },
 ]
 
 [[package]]
@@ -1444,7 +1449,7 @@ name = "exceptiongroup"
 version = "1.3.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "typing-extensions", marker = "python_full_version < '3.13'" },
+    { name = "typing-extensions", marker = "python_full_version < '3.11'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/0b/9f/a65090624ecf468cdca03533906e7c69ed7588582240cfe7cc9e770b50eb/exceptiongroup-1.3.0.tar.gz", hash = "sha256:b241f5885f560bc56a59ee63ca4c6a8bfa46ae4ad651af316d4e81817bb9fd88", size = 29749, upload-time = "2025-05-10T17:42:51.123Z" }
 wheels = [
@@ -2087,7 +2092,7 @@ name = "importlib-metadata"
 version = "8.7.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "zipp" },
+    { name = "zipp", marker = "python_full_version < '3.12'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/76/66/650a33bd90f786193e4de4b3ad86ea60b53c89b669a5c7be931fac31cdb0/importlib_metadata-8.7.0.tar.gz", hash = "sha256:d13b81ad223b890aa16c5471f2ac3056cf76c5f10f82d6f9292f0b415f389000", size = 56641, upload-time = "2025-04-27T15:29:01.736Z" }
 wheels = [
@@ -2296,6 +2301,18 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/00/2a/e867e8531cf3e36b41201936b7fa7ba7b5702dbef42922193f05c8976cd6/jmespath-1.0.1.tar.gz", hash = "sha256:90261b206d6defd58fdd5e85f478bf633a2901798906be2ad389150c5c60edbe", size = 25843, upload-time = "2022-06-17T18:00:12.224Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/31/b4/b9b800c45527aadd64d5b442f9b932b00648617eb5d63d2c7a6587b7cafc/jmespath-1.0.1-py3-none-any.whl", hash = "sha256:02e2e4cc71b5bcab88332eebf907519190dd9e6e82107fa7f83b1003a6252980", size = 20256, upload-time = "2022-06-17T18:00:10.251Z" },
+]
+
+[[package]]
+name = "json2latex"
+version = "0.0.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "roman" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/0c/6f/96dacfaf281181d67941c449f90e17f3b7fecca8a53d87fc336f0b4e6d0d/json2latex-0.0.2.tar.gz", hash = "sha256:b3e5cbc1c146fef7d3c68df8e7181d92bd377cbe413e82c5fbd38cdc2b5b168b", size = 4803, upload-time = "2020-03-01T00:32:34.208Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/66/20/d775b0a666d279d90f3e0bcc1aff5c03bc24c7f7e6e9bd4b91e850633739/json2latex-0.0.2-py3-none-any.whl", hash = "sha256:16736ec76bcbdd3ff60426259a5f462ade6a643106fe1c75baec4a27003cdfb9", size = 6058, upload-time = "2020-03-01T00:32:32.756Z" },
 ]
 
 [[package]]
@@ -4473,6 +4490,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/67/33/1a18839aaa8feef7983590c05c22c9c09d245ada6017d118325bbfcc7651/rich_toolkit-0.15.1.tar.gz", hash = "sha256:6f9630eb29f3843d19d48c3bd5706a086d36d62016687f9d0efa027ddc2dd08a", size = 115322, upload-time = "2025-09-04T09:28:11.789Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/c8/49/42821d55ead7b5a87c8d121edf323cb393d8579f63e933002ade900b784f/rich_toolkit-0.15.1-py3-none-any.whl", hash = "sha256:36a0b1d9a135d26776e4b78f1d5c2655da6e0ef432380b5c6b523c8d8ab97478", size = 29412, upload-time = "2025-09-04T09:28:10.587Z" },
+]
+
+[[package]]
+name = "roman"
+version = "5.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/9c/7c/3901b35ed856329bf98e84da8e5e0b4d899ea0027eee222f1be42a24ff3f/roman-5.2.tar.gz", hash = "sha256:275fe9f46290f7d0ffaea1c33251b92b8e463ace23660508ceef522e7587cb6f", size = 8185, upload-time = "2025-11-11T08:03:57.025Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/10/14/ea3cdd7276fcd731a9003fe4abeb6b395a38110ddff6a6a509f4ee00f741/roman-5.2-py3-none-any.whl", hash = "sha256:89d3b47400388806d06ff77ea77c79ab080bc127820dea6bf34e1f1c1b8e676e", size = 6041, upload-time = "2025-11-11T08:03:56.051Z" },
 ]
 
 [[package]]
