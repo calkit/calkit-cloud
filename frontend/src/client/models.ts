@@ -581,10 +581,10 @@ export type Publication = {
 
 export type PublicationOverleaf = {
   project_id: string
-  wdir: string
+  wdir?: string | null
+  url?: string | null
   push_paths?: Array<string>
   sync_paths?: Array<string>
-  dvc_sync_paths?: Array<string>
   last_sync_commit: string | null
 }
 
