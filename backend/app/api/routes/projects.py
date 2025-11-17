@@ -2132,6 +2132,8 @@ def post_project_overleaf_publication(
         raise HTTPException(
             400, f"Path '{req.path}' already exists in the repo"
         )
+    # Make sure path is a posix path
+    req.path = Path(req.path).as_posix()
     # Handle projects that aren't yet Calkit projects
     ck_info = get_ck_info_from_repo(repo)
     publications = ck_info.get("publications", [])
@@ -2258,7 +2260,6 @@ def post_project_overleaf_publication(
         },
         wdir=repo.working_dir,
     )
-    publication["overleaf"]["last_sync_commit"] = last_overleaf_sync_commit
     # Actually copy in the files
     shutil.copytree(
         src=overleaf_repo.working_dir,
