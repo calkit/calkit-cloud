@@ -67,4 +67,4 @@ exclude = ["alembic"]
 keep-runtime-typing = true
 
 [tool.uv.sources]
-calkit-python = { git = "https://github.com/calkit/calkit.git", rev = "overleaf" }
+calkit-python = { git = "https://github.com/calkit/calkit", rev = "overleaf" }

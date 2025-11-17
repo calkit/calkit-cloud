@@ -2400,6 +2400,7 @@ def post_project_overleaf_sync(
             path_in_project=path_in_project,
             sync_info_for_path=overleaf_sync_info[path_in_project],
             print_info=logger.info,
+            no_commit=False,
         )
     except Exception as e:
         logger.info(f"Failed to sync: {e}")
@@ -2413,9 +2414,12 @@ def post_project_overleaf_sync(
         raise HTTPException(
             400, "Overleaf sync failed; try locally with Calkit CLI"
         )
-    # TODO: Get data from the result of the sync
-    commits_since = res.get("commits_since", [])
-    last_overleaf_commit = res.get("last_overleaf_commit", "")
+    # Push the main repo (Overleaf has already been pushed in sync)
+    repo.git.push(["origin", repo.active_branch.name])
+    # Get data from the result of the sync
+    commits_since = res.get("commits_since_last_sync", [])
+    last_overleaf_commit = res.get("overleaf_commit_after", "")
+    last_project_commit = res.get("project_commit_after", "")
     committed_overleaf = res.get("committed_overleaf", False)
     committed_project = res.get("committed_project", False)
     mixpanel.track(
@@ -2424,8 +2428,6 @@ def post_project_overleaf_sync(
         add_event_info={
             "path": pub_path,
             "commits_from_overleaf": len(commits_since),
-            "last_overleaf_commit": last_overleaf_commit,
-            "project_commit": repo.head.commit.hexsha,
             "committed_overleaf": committed_overleaf,
             "committed_project": committed_project,
         },
@@ -2433,7 +2435,7 @@ def post_project_overleaf_sync(
     return OverleafSyncResponse(
         commits_from_overleaf=len(commits_since),
         overleaf_commit=last_overleaf_commit,
-        project_commit=repo.head.commit.hexsha,
+        project_commit=last_project_commit,
         committed_overleaf=committed_overleaf,
         committed_project=committed_project,
     )
