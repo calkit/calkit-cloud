@@ -2241,17 +2241,23 @@ def post_project_overleaf_publication(
         "title": title,
         "description": req.description,
         "stage": stage_name,
-        "overleaf": {
-            "project_id": overleaf_project_id,
-            "wdir": req.path,
-            "sync_paths": req.sync_paths,
-            "push_paths": req.push_paths,
-        },
     }
     publications.append(publication)
     ck_info["publications"] = publications
+    # Save Overleaf sync info
+    overleaf_syncs = ck_info.get("overleaf_syncs", {})
+    overleaf_syncs[req.path] = {"url": req.overleaf_project_url}
+    ck_info["overleaf_syncs"] = overleaf_syncs
     # Save last Overleaf repo sync commit
     last_overleaf_sync_commit = overleaf_repo.head.commit.hexsha
+    calkit.overleaf.write_sync_info(
+        synced_path=req.path,
+        info={
+            "project_id": overleaf_project_id,
+            "last_sync_commit": last_overleaf_sync_commit,
+        },
+        wdir=repo.working_dir,
+    )
     publication["overleaf"]["last_sync_commit"] = last_overleaf_sync_commit
     # Actually copy in the files
     shutil.copytree(
@@ -2290,6 +2296,7 @@ def post_project_overleaf_publication(
     with open(os.path.join(repo.working_dir, "calkit.yaml"), "w") as f:
         ryaml.dump(ck_info, f)
     repo.git.add("calkit.yaml")
+    repo.git.add(calkit.overleaf.get_sync_info_fpath())
     repo.git.add(req.path)
     # Compile DVC pipeline
     logger.info("Compiling DVC pipeline")
