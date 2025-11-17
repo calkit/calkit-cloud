@@ -2410,7 +2410,7 @@ def post_project_overleaf_sync(
         mixpanel.track(
             user=current_user,
             event_name="Overleaf sync failed",
-            add_event_info={"pub_path": pub_path, "exception": str(e)},
+            add_event_info={"path": path_in_project, "exception": str(e)},
         )
         raise HTTPException(
             400, "Overleaf sync failed; try locally with Calkit CLI"
@@ -2427,7 +2427,7 @@ def post_project_overleaf_sync(
         user=current_user,
         event_name="Overleaf sync",
         add_event_info={
-            "path": pub_path,
+            "path": path_in_project,
             "commits_from_overleaf": len(commits_since),
             "committed_overleaf": committed_overleaf,
             "committed_project": committed_project,
