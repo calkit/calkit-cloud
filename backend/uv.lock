@@ -307,7 +307,7 @@ requires-dist = [
     { name = "alembic", specifier = ">=1.12.1,<2.0.0" },
     { name = "bcrypt", specifier = "==4.0.1" },
     { name = "bibtexparser", specifier = "==1.4.1" },
-    { name = "calkit-python", specifier = ">=0.30.10" },
+    { name = "calkit-python", git = "https://github.com/calkit/calkit.git?rev=overleaf" },
     { name = "cryptography", specifier = "==43.0.0" },
     { name = "email-validator", specifier = ">=2.1.0.post1,<3.0.0.0" },
     { name = "emails", specifier = ">=0.6,<1.0" },
@@ -625,8 +625,8 @@ wheels = [
 
 [[package]]
 name = "calkit-python"
-version = "0.30.10"
-source = { registry = "https://pypi.org/simple" }
+version = "0.32.0"
+source = { git = "https://github.com/calkit/calkit.git?rev=overleaf#0a7122518b708c2923f0c63d426419490dbbbd18" }
 dependencies = [
     { name = "arithmeval" },
     { name = "bibtexparser" },
@@ -647,13 +647,10 @@ dependencies = [
     { name = "python-dotenv" },
     { name = "pywin32", marker = "sys_platform == 'win32'" },
     { name = "requests" },
+    { name = "sqlitedict" },
     { name = "tqdm" },
     { name = "typer" },
     { name = "uvicorn" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/4d/44/71aa198c0e9a537c4cee0d8e0405c4491099130802bd425a27185c0d8e34/calkit_python-0.30.10.tar.gz", hash = "sha256:73b18addc09e1d283628a36b41b617a13d0c56c748133e68170ee378b88ba885", size = 8408376, upload-time = "2025-11-05T15:42:51.263Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/8c/70/0cb08a6daaa8101b2a2bfe5fcacdbf4878c59f9d76d464d285c8478a9ec4/calkit_python-0.30.10-py3-none-any.whl", hash = "sha256:5854fa42393462dd777d0d989fcced12c8665369003baae06c26c824e5c4bdfa", size = 189731, upload-time = "2025-11-05T15:42:49.644Z" },
 ]
 
 [[package]]
@@ -1265,7 +1262,7 @@ wheels = [
 
 [[package]]
 name = "dvc"
-version = "3.62.0"
+version = "3.64.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "attrs" },
@@ -1312,9 +1309,9 @@ dependencies = [
     { name = "voluptuous" },
     { name = "zc-lockfile" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ad/6b/dccfd96d6fdec356e06c42814a30f747351000aee4737342d21df7fc6b64/dvc-3.62.0.tar.gz", hash = "sha256:cc247a5066869bd6ebd53d7decb108be7a839ebf45acea6ddc12d59ab812292c", size = 661381, upload-time = "2025-08-12T07:56:37.983Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/5b/17/c6b4587592c92a60a940805ce7458ab4008c57ab7fd097be5b772d811f1d/dvc-3.64.0.tar.gz", hash = "sha256:bfa330b253e5986fcfb4232cc62f399fddadd67311c262748d94131b1b61419b", size = 671537, upload-time = "2025-11-13T08:32:41.38Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/9d/15/5babefff2c1487774a290b370cd72b61ed401628dba35b7e4cb02861ec5f/dvc-3.62.0-py3-none-any.whl", hash = "sha256:1159540efacc1c1ef0ab6012465d8af6272944eccdce60e63df4d4cc15ffca65", size = 462508, upload-time = "2025-08-12T07:56:35.399Z" },
+    { url = "https://files.pythonhosted.org/packages/6a/04/754e1f47827694eca8d90a028869affcd41a0c5c64a010363f7f8337776d/dvc-3.64.0-py3-none-any.whl", hash = "sha256:a0f803d2d516da7a6e7fa763bb369c600416dd35ebd876edca5f13da7a62c2f0", size = 467819, upload-time = "2025-11-13T08:32:39.3Z" },
 ]
 
 [[package]]
@@ -2090,7 +2087,7 @@ name = "importlib-metadata"
 version = "8.7.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "zipp", marker = "python_full_version < '3.13'" },
+    { name = "zipp", marker = "python_full_version < '3.12'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/76/66/650a33bd90f786193e4de4b3ad86ea60b53c89b669a5c7be931fac31cdb0/importlib_metadata-8.7.0.tar.gz", hash = "sha256:d13b81ad223b890aa16c5471f2ac3056cf76c5f10f82d6f9292f0b415f389000", size = 56641, upload-time = "2025-04-27T15:29:01.736Z" }
 wheels = [
@@ -4674,6 +4671,8 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/6b/fa/3234f913fe9a6525a7b97c6dad1f51e72b917e6872e051a5e2ffd8b16fbb/ruamel.yaml.clib-0.2.14-cp314-cp314-macosx_15_0_arm64.whl", hash = "sha256:70eda7703b8126f5e52fcf276e6c0f40b0d314674f896fc58c47b0aef2b9ae83", size = 137970, upload-time = "2025-09-22T19:51:09.472Z" },
     { url = "https://files.pythonhosted.org/packages/ef/ec/4edbf17ac2c87fa0845dd366ef8d5852b96eb58fcd65fc1ecf5fe27b4641/ruamel.yaml.clib-0.2.14-cp314-cp314-musllinux_1_2_i686.whl", hash = "sha256:a0cb71ccc6ef9ce36eecb6272c81afdc2f565950cdcec33ae8e6cd8f7fc86f27", size = 739639, upload-time = "2025-09-22T19:51:10.566Z" },
     { url = "https://files.pythonhosted.org/packages/15/18/b0e1fafe59051de9e79cdd431863b03593ecfa8341c110affad7c8121efc/ruamel.yaml.clib-0.2.14-cp314-cp314-musllinux_1_2_x86_64.whl", hash = "sha256:e7cb9ad1d525d40f7d87b6df7c0ff916a66bc52cb61b66ac1b2a16d0c1b07640", size = 764456, upload-time = "2025-09-22T19:51:11.736Z" },
+    { url = "https://files.pythonhosted.org/packages/e7/cd/150fdb96b8fab27fe08d8a59fe67554568727981806e6bc2677a16081ec7/ruamel_yaml_clib-0.2.14-cp314-cp314-win32.whl", hash = "sha256:9b4104bf43ca0cd4e6f738cb86326a3b2f6eef00f417bd1e7efb7bdffe74c539", size = 102394, upload-time = "2025-11-14T21:57:36.703Z" },
+    { url = "https://files.pythonhosted.org/packages/bd/e6/a3fa40084558c7e1dc9546385f22a93949c890a8b2e445b2ba43935f51da/ruamel_yaml_clib-0.2.14-cp314-cp314-win_amd64.whl", hash = "sha256:13997d7d354a9890ea1ec5937a219817464e5cc344805b37671562a401ca3008", size = 122673, upload-time = "2025-11-14T21:57:38.177Z" },
 ]
 
 [[package]]
@@ -4903,6 +4902,12 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/03/51/665617fe4f8c6450f42a6d8d69243f9420f5677395572c2fe9d21b493b7b/sqlalchemy-2.0.44-cp313-cp313-win_amd64.whl", hash = "sha256:c1c80faaee1a6c3428cecf40d16a2365bcf56c424c92c2b6f0f9ad204b899e9e", size = 2127901, upload-time = "2025-10-10T15:03:27.548Z" },
     { url = "https://files.pythonhosted.org/packages/9c/5e/6a29fa884d9fb7ddadf6b69490a9d45fded3b38541713010dad16b77d015/sqlalchemy-2.0.44-py3-none-any.whl", hash = "sha256:19de7ca1246fbef9f9d1bff8f1ab25641569df226364a0e40457dc5457c54b05", size = 1928718, upload-time = "2025-10-10T15:29:45.32Z" },
 ]
+
+[[package]]
+name = "sqlitedict"
+version = "2.1.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/12/9a/7620d1e9dcb02839ed6d4b14064e609cdd7a8ae1e47289aa0456796dd9ca/sqlitedict-2.1.0.tar.gz", hash = "sha256:03d9cfb96d602996f1d4c2db2856f1224b96a9c431bdd16e78032a72940f9e8c", size = 21846, upload-time = "2022-12-03T13:39:13.102Z" }
 
 [[package]]
 name = "sqlmodel"
