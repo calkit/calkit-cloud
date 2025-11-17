@@ -2945,8 +2945,26 @@ export const $PublicationOverleaf = {
       isRequired: true,
     },
     wdir: {
-      type: "string",
-      isRequired: true,
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    url: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
     },
     push_paths: {
       type: "array",
@@ -2956,13 +2974,6 @@ export const $PublicationOverleaf = {
       default: [],
     },
     sync_paths: {
-      type: "array",
-      contains: {
-        type: "string",
-      },
-      default: [],
-    },
-    dvc_sync_paths: {
       type: "array",
       contains: {
         type: "string",

@@ -1848,7 +1848,7 @@ def post_project_dataset_upload(
         path=path,
         title=title,
         description=description,
-        content=None,
+        content=None,  # type: ignore
         url=url,
     )
 
@@ -1876,6 +1876,9 @@ def get_project_publications(
     ck_info = get_ck_info_from_repo(repo)
     pipeline = get_dvc_pipeline_from_repo(repo)
     publications = ck_info.get("publications", [])
+    overleaf_info = calkit.overleaf.get_sync_info(
+        wdir=repo.working_dir, ck_info=ck_info, fix_legacy=False
+    )
     resp = []
     for pub in publications:
         if "stage" in pub:
@@ -1890,6 +1893,13 @@ def get_project_publications(
                 # Prioritize URL if already defined
                 if "url" not in pub:
                     pub["url"] = item.url
+                # Patch in Overleaf info if we have it
+                if "overleaf" not in pub:
+                    pubdir = Path(os.path.dirname(pub["path"])).as_posix()
+                    if pubdir in overleaf_info:
+                        pub["overleaf"] = overleaf_info[pubdir] | {
+                            "wdir": pubdir
+                        }
             except HTTPException as e:
                 logger.warning(
                     f"Failed to get publication at path {pub['path']}: {e}"

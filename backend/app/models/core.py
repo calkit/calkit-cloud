@@ -704,10 +704,10 @@ class ContentsItem(_ContentsItemBase):
 
 class PublicationOverleaf(BaseModel):
     project_id: str
-    wdir: str
+    wdir: str | None = None
+    url: str | None = None
     push_paths: list[str] = []
     sync_paths: list[str] = []
-    dvc_sync_paths: list[str] = []
     last_sync_commit: str | None
 
 
