@@ -27,17 +27,6 @@ const useProject = (accountName: string, projectName: string) => {
     String(projectRequest.data?.current_user_access),
   )
 
-  const reproCheckRequest = useQuery({
-    queryKey: ["projects", accountName, projectName, "repro-check"],
-    queryFn: () =>
-      ProjectsService.getProjectReproCheck({
-        ownerName: accountName,
-        projectName: projectName,
-      }),
-    refetchOnWindowFocus: false,
-    refetchOnMount: false,
-  })
-
   const showcaseRequest = useQuery({
     queryKey: ["projects", accountName, projectName, "showcase"],
     queryFn: () =>
@@ -64,7 +53,6 @@ const useProject = (accountName: string, projectName: string) => {
   return {
     projectRequest,
     userHasWriteAccess,
-    reproCheckRequest,
     showcaseRequest,
     putDevcontainerMutation,
   }
