@@ -72,7 +72,7 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
       title: null,
       description: null,
       kind: "journal-article",
-      overleaf_url: undefined,
+      overleaf_url: "",
       stage: null,
       environment: null,
       overleaf_token: null,
@@ -137,6 +137,8 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
                 id="overleaf_url"
                 {...register("overleaf_url", {
                   required: "Overleaf project URL is required",
+                  validate: (value) =>
+                    value.trim() !== "" || "Overleaf project URL is required",
                 })}
                 placeholder={"Ex: https://www.overleaf.com/project/abc123..."}
                 type="text"
@@ -156,6 +158,10 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
                   id="overleaf_token"
                   {...register("overleaf_token", {
                     required: "Overleaf token is required",
+                    validate: (value) =>
+                      !value ||
+                      value.trim() !== "" ||
+                      "Overleaf token is required",
                   })}
                   placeholder={"Ex: olp_..."}
                   type="text"
@@ -176,6 +182,8 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
                 id="path"
                 {...register("path", {
                   required: "Path is required",
+                  validate: (value) =>
+                    value.trim() !== "" || "Path is required",
                 })}
                 placeholder={"Ex: paper"}
                 type="text"

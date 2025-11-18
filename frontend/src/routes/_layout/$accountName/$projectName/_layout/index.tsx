@@ -33,6 +33,7 @@ import useProject, {
   useProjectReadme,
 } from "../../../../../hooks/useProject"
 import ProjectShowcase from "../../../../../components/Projects/ProjectShowcase"
+import ImportOverleaf from "../../../../../components/Publications/ImportOverleaf"
 
 export const Route = createFileRoute(
   "/_layout/$accountName/$projectName/_layout/",
@@ -59,6 +60,10 @@ function ProjectView() {
   const codespacesUrl =
     String(gitRepoUrl).replace("://github.com/", "://codespaces.new/") +
     "?quickstart=1"
+  const githubDevUrl = String(gitRepoUrl).replace(
+    "://github.com/",
+    "://github.dev/",
+  )
   const removeFirstLine = (txt: any) => {
     let lines = String(txt).split("\n")
     lines.splice(0, 1)
@@ -76,6 +81,7 @@ function ProjectView() {
   const newIssueModal = useDisclosure()
   const newQuestionModal = useDisclosure()
   const newPubTemplateModal = useDisclosure()
+  const overleafImportModal = useDisclosure()
 
   return (
     <>
@@ -276,40 +282,33 @@ function ProjectView() {
                   </Link>
                 </Text>
                 <Text>
+                  🍃{" "}
+                  <Link onClick={overleafImportModal.onOpen}>
+                    Import and link a publication from Overleaf
+                  </Link>
+                </Text>
+                <Text>
+                  🚀{" "}
+                  <Link isExternal href={codespacesUrl}>
+                    Open in GitHub Codespace (edit and run){" "}
+                    <Icon height={"40%"} as={ExternalLinkIcon} pb={0.5} />
+                  </Link>
+                </Text>
+                <Text>
+                  ✏️{" "}
+                  <Link isExternal href={githubDevUrl}>
+                    Open in GitHub.dev (edit only){" "}
+                    <Icon height={"40%"} as={ExternalLinkIcon} pb={0.5} />
+                  </Link>
+                </Text>
+                <Text>
                   🔒{" "}
                   <Link
                     as={RouterLink}
                     to={"/settings"}
                     search={{ tab: "tokens" } as any}
                   >
-                    Manage user tokens
-                  </Link>
-                </Text>
-                <Text>
-                  🚀{" "}
-                  <Link isExternal href={codespacesUrl}>
-                    Open in GitHub Codespaces{" "}
-                    <Icon height={"40%"} as={ExternalLinkIcon} pb={0.5} />
-                  </Link>
-                </Text>
-                <Text>
-                  🔑{" "}
-                  <Link
-                    isExternal
-                    href={`${gitRepoUrl}/settings/secrets/codespaces`}
-                  >
-                    Configure GitHub Codespaces secrets{" "}
-                    <Icon height={"40%"} as={ExternalLinkIcon} pb={0.5} />
-                  </Link>
-                </Text>
-                <Text>
-                  🗝️{" "}
-                  <Link
-                    isExternal
-                    href={`${gitRepoUrl}/settings/secrets/actions`}
-                  >
-                    Configure GitHub Actions secrets{" "}
-                    <Icon height={"40%"} as={ExternalLinkIcon} pb={0.5} />
+                    Manage Calkit personal access tokens
                   </Link>
                 </Text>
               </Box>
@@ -317,6 +316,10 @@ function ProjectView() {
                 isOpen={newPubTemplateModal.isOpen}
                 onClose={newPubTemplateModal.onClose}
                 variant="template"
+              />
+              <ImportOverleaf
+                isOpen={overleafImportModal.isOpen}
+                onClose={overleafImportModal.onClose}
               />
             </>
           ) : (
