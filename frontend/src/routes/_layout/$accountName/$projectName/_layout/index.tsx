@@ -60,6 +60,10 @@ function ProjectView() {
   const codespacesUrl =
     String(gitRepoUrl).replace("://github.com/", "://codespaces.new/") +
     "?quickstart=1"
+  const githubDevUrl = String(gitRepoUrl).replace(
+    "://github.com/",
+    "://github.dev/",
+  )
   const removeFirstLine = (txt: any) => {
     let lines = String(txt).split("\n")
     lines.splice(0, 1)
@@ -284,40 +288,27 @@ function ProjectView() {
                   </Link>
                 </Text>
                 <Text>
+                  🚀{" "}
+                  <Link isExternal href={codespacesUrl}>
+                    Open in GitHub Codespace (edit and run){" "}
+                    <Icon height={"40%"} as={ExternalLinkIcon} pb={0.5} />
+                  </Link>
+                </Text>
+                <Text>
+                  ✏️{" "}
+                  <Link isExternal href={githubDevUrl}>
+                    Open in GitHub.dev (edit only){" "}
+                    <Icon height={"40%"} as={ExternalLinkIcon} pb={0.5} />
+                  </Link>
+                </Text>
+                <Text>
                   🔒{" "}
                   <Link
                     as={RouterLink}
                     to={"/settings"}
                     search={{ tab: "tokens" } as any}
                   >
-                    Manage user tokens
-                  </Link>
-                </Text>
-                <Text>
-                  🚀{" "}
-                  <Link isExternal href={codespacesUrl}>
-                    Open in GitHub Codespaces{" "}
-                    <Icon height={"40%"} as={ExternalLinkIcon} pb={0.5} />
-                  </Link>
-                </Text>
-                <Text>
-                  🔑{" "}
-                  <Link
-                    isExternal
-                    href={`${gitRepoUrl}/settings/secrets/codespaces`}
-                  >
-                    Configure GitHub Codespaces secrets{" "}
-                    <Icon height={"40%"} as={ExternalLinkIcon} pb={0.5} />
-                  </Link>
-                </Text>
-                <Text>
-                  🗝️{" "}
-                  <Link
-                    isExternal
-                    href={`${gitRepoUrl}/settings/secrets/actions`}
-                  >
-                    Configure GitHub Actions secrets{" "}
-                    <Icon height={"40%"} as={ExternalLinkIcon} pb={0.5} />
+                    Manage Calkit personal access tokens
                   </Link>
                 </Text>
               </Box>
