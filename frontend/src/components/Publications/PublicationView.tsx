@@ -58,8 +58,8 @@ function PublicationView({ publication }: PubViewProps) {
     contentView = (
       <Alert mt={2} status="warning" borderRadius="xl">
         <AlertIcon />
-        Cannot render content, either because it is empty or an unrecognized
-        file type.
+        No content found. Perhaps the publication hasn't been built and pushed
+        yet?
       </Alert>
     )
   }
