@@ -40,7 +40,11 @@ interface NewProjectProps {
 }
 
 const NewProject = ({ isOpen, onClose, defaultTemplate }: NewProjectProps) => {
-  const templates = ["calkit/example-basic", "calkit/example-matlab"]
+  const templates = [
+    "calkit/example-basic",
+    "calkit/example-matlab",
+    "calkit/example-analytics",
+  ]
   if (!defaultTemplate) {
     defaultTemplate = "calkit/example-basic"
   }
