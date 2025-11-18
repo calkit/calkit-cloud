@@ -138,7 +138,7 @@ def get_ck_info_from_repo(repo: git.Repo, process_includes=False) -> dict:
 
 def get_ck_info(
     project: Project,
-    user: User,
+    user: User | None,
     session: Session,
     ttl=None,
     process_includes=False,
