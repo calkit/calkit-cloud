@@ -184,17 +184,14 @@ function Notebooks() {
                 </PageMenu>
                 <Box>
                   {allNotebooks?.map((notebook) => (
-                    <>
+                    <Box key={notebook.path}>
                       {notebook.title === selectedTitle &&
                       (notebook.url || notebook.content) ? (
-                        <NotebookContent
-                          key={notebook.path}
-                          notebook={notebook}
-                        />
+                        <NotebookContent notebook={notebook} />
                       ) : (
                         ""
                       )}
-                    </>
+                    </Box>
                   ))}
                 </Box>
               </Flex>
