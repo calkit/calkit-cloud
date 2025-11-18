@@ -2247,9 +2247,9 @@ def post_project_overleaf_publication(
     publications.append(publication)
     ck_info["publications"] = publications
     # Save Overleaf sync info
-    overleaf_syncs = ck_info.get("overleaf_syncs", {})
-    overleaf_syncs[req.path] = {"url": req.overleaf_project_url}
-    ck_info["overleaf_syncs"] = overleaf_syncs
+    overleaf_sync_in_ck_info = ck_info.get("overleaf_sync", {})
+    overleaf_sync_in_ck_info[req.path] = {"url": req.overleaf_project_url}
+    ck_info["overleaf_sync"] = overleaf_sync_in_ck_info
     # Save last Overleaf repo sync commit
     last_overleaf_sync_commit = overleaf_repo.head.commit.hexsha
     calkit.overleaf.write_sync_info(
