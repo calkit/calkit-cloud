@@ -33,6 +33,7 @@ import useProject, {
   useProjectReadme,
 } from "../../../../../hooks/useProject"
 import ProjectShowcase from "../../../../../components/Projects/ProjectShowcase"
+import ImportOverleaf from "../../../../../components/Publications/ImportOverleaf"
 
 export const Route = createFileRoute(
   "/_layout/$accountName/$projectName/_layout/",
@@ -76,6 +77,7 @@ function ProjectView() {
   const newIssueModal = useDisclosure()
   const newQuestionModal = useDisclosure()
   const newPubTemplateModal = useDisclosure()
+  const overleafImportModal = useDisclosure()
 
   return (
     <>
@@ -276,6 +278,12 @@ function ProjectView() {
                   </Link>
                 </Text>
                 <Text>
+                  🍃{" "}
+                  <Link onClick={overleafImportModal.onOpen}>
+                    Import and link a publication from Overleaf
+                  </Link>
+                </Text>
+                <Text>
                   🔒{" "}
                   <Link
                     as={RouterLink}
@@ -317,6 +325,10 @@ function ProjectView() {
                 isOpen={newPubTemplateModal.isOpen}
                 onClose={newPubTemplateModal.onClose}
                 variant="template"
+              />
+              <ImportOverleaf
+                isOpen={overleafImportModal.isOpen}
+                onClose={overleafImportModal.onClose}
               />
             </>
           ) : (
