@@ -169,7 +169,7 @@ function ConnectedAccounts() {
                       aria-label="Save token"
                       icon={<FaCheck />}
                       size="xs"
-                      variant="primary"
+                      variant="ghost"
                       onClick={handleUpdateOverleafToken}
                       isLoading={updateOverleafTokenMutation.isPending}
                       p={-1}
