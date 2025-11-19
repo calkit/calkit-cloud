@@ -35,6 +35,7 @@ from fastapi import (
     UploadFile,
 )
 from fastapi.responses import StreamingResponse
+from git.exc import GitCommandError
 from pydantic import BaseModel, ValidationError
 from sqlmodel import Session, and_, func, not_, or_, select
 from TexSoup import TexSoup
@@ -2179,12 +2180,22 @@ def post_project_overleaf_publication(
         ck_info["environments"] = envs
     # Get the Overleaf repo
     overleaf_project_id = req.overleaf_project_url.split("/")[-1]
-    overleaf_repo = get_overleaf_repo(
-        project=project,
-        user=current_user,
-        session=session,
-        overleaf_project_id=overleaf_project_id,
-    )
+    try:
+        overleaf_repo = get_overleaf_repo(
+            project=project,
+            user=current_user,
+            session=session,
+            overleaf_project_id=overleaf_project_id,
+        )
+    except GitCommandError as e:
+        logger.error(f"Failed to clone Overleaf repo: {e}")
+        raise HTTPException(
+            400,
+            (
+                "Failed to fetch Overleaf project; check URL, token, "
+                "and that Git integration is enabled on Overleaf"
+            ),
+        )
     # If target path was not supplied, see if we can detect it
     target_path = req.target_path
     if not target_path:
@@ -2368,7 +2379,6 @@ def post_project_overleaf_sync(
 ) -> OverleafSyncResponse:
     if current_user.overleaf_token is None:
         raise HTTPException(401, "Overleaf token not found")
-    pub_path = req.path
     project = app.projects.get_project(
         owner_name=owner_name,
         project_name=project_name,
