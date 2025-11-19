@@ -127,7 +127,12 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
         isCentered
       >
         <ModalOverlay />
-        <ModalContent as="form" onSubmit={handleSubmit(onSubmit)}>
+        <ModalContent
+          as="form"
+          name="overleaf-import"
+          autoComplete="off"
+          onSubmit={handleSubmit(onSubmit)}
+        >
           <ModalHeader>Import from Overleaf</ModalHeader>
           <ModalCloseButton />
           <ModalBody pb={6}>
