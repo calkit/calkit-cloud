@@ -2379,7 +2379,6 @@ def post_project_overleaf_sync(
 ) -> OverleafSyncResponse:
     if current_user.overleaf_token is None:
         raise HTTPException(401, "Overleaf token not found")
-    pub_path = req.path
     project = app.projects.get_project(
         owner_name=owner_name,
         project_name=project_name,
