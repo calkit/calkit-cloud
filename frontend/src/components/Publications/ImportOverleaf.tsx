@@ -77,7 +77,7 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
       environment: null,
       overleaf_token: null,
       target_path: null,
-      auto_build: true,
+      auto_build: false,
     },
   })
   const mutation = useMutation({
