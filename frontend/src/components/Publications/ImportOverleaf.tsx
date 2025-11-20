@@ -291,7 +291,11 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
             {/* Auto-build */}
             <Flex mt={4}>
               <FormControl>
-                <Checkbox {...register("auto_build")} colorScheme="teal">
+                <Checkbox
+                  {...register("auto_build")}
+                  colorScheme="teal"
+                  id="auto_build"
+                >
                   Build PDF automatically when updated
                 </Checkbox>
               </FormControl>
