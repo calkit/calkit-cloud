@@ -15,6 +15,9 @@ import {
   ModalOverlay,
   Select,
   Textarea,
+  Switch,
+  HStack,
+  Text,
 } from "@chakra-ui/react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { type SubmitHandler, useForm } from "react-hook-form"
@@ -24,6 +27,7 @@ import { ProjectsService, UsersService } from "../../client"
 import type { ApiError } from "../../client/core/ApiError"
 import useCustomToast from "../../hooks/useCustomToast"
 import { handleError } from "../../lib/errors"
+import { useState } from "react"
 
 interface ImportOverleafProps {
   isOpen: boolean
@@ -80,6 +84,10 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
       auto_build: false,
     },
   })
+  const [importZip, setImportZip] = useState(false)
+  const [zipFile, setZipFile] = useState<File | null>(null)
+  const [isUploadingZip, setIsUploadingZip] = useState(false)
+
   const mutation = useMutation({
     mutationFn: (data: OverleafImportPost) =>
       ProjectsService.postProjectOverleafPublication({
@@ -114,8 +122,56 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
       })
     },
   })
-  const onSubmit: SubmitHandler<OverleafImportPost> = (data) => {
-    mutation.mutate(data)
+  const onSubmit: SubmitHandler<OverleafImportPost> = async (data) => {
+    if (importZip) {
+      // Validate file presence
+      if (!zipFile) {
+        showToast("Error", "ZIP file required for ZIP import.", "error")
+        return
+      }
+      try {
+        setIsUploadingZip(true)
+        const formData = new FormData()
+        formData.append("path", data.path)
+        formData.append("overleaf_project_url", data.overleaf_url)
+        formData.append("kind", data.kind)
+        if (data.title) formData.append("title", data.title)
+        if (data.description) formData.append("description", data.description)
+        if (data.target_path) formData.append("target_path", data.target_path)
+        if (data.stage) formData.append("stage_name", data.stage)
+        if (data.environment)
+          formData.append("environment_name", data.environment)
+        // Token not needed for ZIP mode
+        formData.append("auto_build", String(data.auto_build))
+        formData.append("file", zipFile)
+        const resp = await fetch(
+          `/projects/${accountName}/${projectName}/publications/overleaf`,
+          {
+            method: "POST",
+            body: formData,
+          },
+        )
+        if (!resp.ok) {
+          const txt = await resp.text()
+          throw new Error(txt || `Upload failed (${resp.status})`)
+        }
+        await resp.json()
+        showToast("Success!", "Overleaf ZIP imported.", "success")
+        reset()
+        setZipFile(null)
+        setImportZip(false)
+        onClose()
+        queryClient.invalidateQueries({
+          queryKey: ["projects", accountName, projectName, "publications"],
+        })
+      } catch (e: any) {
+        showToast("Error", e.message || "Failed to import ZIP", "error")
+      } finally {
+        setIsUploadingZip(false)
+      }
+    } else {
+      mutation.mutate(data)
+    }
   }
 
   return (
@@ -136,6 +192,23 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
           <ModalHeader>Import from Overleaf</ModalHeader>
           <ModalCloseButton />
           <ModalBody pb={6}>
+            <FormControl mb={4}>
+              <FormLabel>Import mode</FormLabel>
+              <HStack>
+                <Text fontSize="sm" color={importZip ? "gray.500" : undefined}>
+                  Import & link (premium)
+                </Text>
+                <Switch
+                  isChecked={importZip}
+                  onChange={(e) => setImportZip(e.target.checked)}
+                  colorScheme="teal"
+                  aria-label="Toggle ZIP import"
+                />
+                <Text fontSize="sm" color={!importZip ? "gray.500" : undefined}>
+                  Import ZIP
+                </Text>
+              </HStack>
+            </FormControl>
             <FormControl isRequired isInvalid={!!errors.overleaf_url}>
               <FormLabel htmlFor="overleaf_url">Overleaf project URL</FormLabel>
               <Input
@@ -154,11 +227,23 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
                 </FormErrorMessage>
               )}
             </FormControl>
-            {/* Overleaf token, if account is not yet connected */}
-            {!connectedAccountsQuery.data?.overleaf ? (
-              <FormControl mt={4} isRequired isInvalid={!!errors.path}>
+            {importZip ? (
+              <FormControl mt={4} isRequired>
+                <FormLabel htmlFor="zip_file">Overleaf ZIP file</FormLabel>
+                <Input
+                  id="zip_file"
+                  type="file"
+                  accept=".zip"
+                  onChange={(e) => setZipFile(e.target.files?.[0] || null)}
+                />
+              </FormControl>
+            ) : !connectedAccountsQuery.data?.overleaf ? (
+              <FormControl
+                mt={4}
+                isRequired
+                isInvalid={!!errors.overleaf_token}
+              >
                 <FormLabel htmlFor="overleaf_token">Overleaf token</FormLabel>
-                {/* TODO: Have tooltip/link here */}
                 <Input
                   id="overleaf_token"
                   {...register("overleaf_token", {
@@ -177,9 +262,7 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
                   </FormErrorMessage>
                 )}
               </FormControl>
-            ) : (
-              ""
-            )}
+            ) : null}
             {/* Destination folder */}
             <FormControl mt={4} isRequired isInvalid={!!errors.path}>
               <FormLabel htmlFor="path">Destination folder</FormLabel>
@@ -305,9 +388,9 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
             <Button
               variant="primary"
               type="submit"
-              isLoading={isSubmitting || mutation.isPending}
+              isLoading={isSubmitting || mutation.isPending || isUploadingZip}
             >
-              Save
+              {importZip ? "Import ZIP" : "Import & Link"}
             </Button>
             <Button onClick={onClose}>Cancel</Button>
           </ModalFooter>
