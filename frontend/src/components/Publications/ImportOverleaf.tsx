@@ -24,12 +24,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { type SubmitHandler, useForm } from "react-hook-form"
 import { getRouteApi } from "@tanstack/react-router"
 
-import { ProjectsService, UsersService } from "../../client"
+import { ProjectsService, UsersService, OpenAPI } from "../../client"
 import type { ApiError } from "../../client/core/ApiError"
 import useCustomToast from "../../hooks/useCustomToast"
 import { handleError } from "../../lib/errors"
 import { useState } from "react"
 import { DownloadIcon } from "@chakra-ui/icons"
+import { request as __request } from "../../client/core/request"
 
 interface ImportOverleafProps {
   isOpen: boolean
@@ -135,25 +136,35 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
       }
       try {
         setIsUploadingZip(true)
-        const formData = new FormData()
-        formData.append("path", data.path)
-        formData.append("overleaf_project_url", data.overleaf_url)
-        formData.append("kind", data.kind)
-        if (data.title) formData.append("title", data.title)
-        if (data.description) formData.append("description", data.description)
-        if (data.target_path) formData.append("target_path", data.target_path)
-        if (data.stage) formData.append("stage_name", data.stage)
-        if (data.environment)
-          formData.append("environment_name", data.environment)
-        // Token not needed for ZIP mode
-        formData.append("auto_build", String(data.auto_build))
-        formData.append("file", zipFile)
-        // formData not in generated types but supported by backend
-        await ProjectsService.postProjectOverleafPublication({
-          ownerName: accountName,
-          projectName: projectName,
-          formData: formData,
-        } as any)
+        // Build formData object for the API client
+        const formDataObj: Record<string, any> = {
+          path: data.path,
+          overleaf_project_url: data.overleaf_url,
+          kind: data.kind,
+          auto_build: String(data.auto_build),
+          file: zipFile,
+          sync_paths: [],
+          push_paths: [],
+        }
+        if (data.title) formDataObj.title = data.title
+        if (data.description) formDataObj.description = data.description
+        if (data.target_path) formDataObj.target_path = data.target_path
+        if (data.stage) formDataObj.stage_name = data.stage
+        if (data.environment) formDataObj.environment_name = data.environment
+
+        // Use __request directly since generated method doesn't support formData
+        await __request(OpenAPI, {
+          method: "POST",
+          url: "/projects/{owner_name}/{project_name}/publications/overleaf",
+          path: {
+            owner_name: accountName,
+            project_name: projectName,
+          },
+          formData: formDataObj,
+          errors: {
+            422: `Validation Error`,
+          },
+        })
         showToast("Success!", "Overleaf ZIP imported.", "success")
         reset()
         setZipFile(null)
