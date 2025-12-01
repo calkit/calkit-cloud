@@ -2251,6 +2251,7 @@ async def post_project_overleaf_publication(
             import tempfile
 
             with tempfile.TemporaryDirectory() as td:
+                await file.seek(0)
                 zip_bytes = await file.read()
                 zfpath = os.path.join(td, "archive.zip")
                 with open(zfpath, "wb") as zf:
@@ -2291,6 +2292,7 @@ async def post_project_overleaf_publication(
             import tempfile
 
             with tempfile.TemporaryDirectory() as td:
+                await file.seek(0)
                 zip_bytes = await file.read()
                 zfpath = os.path.join(td, "archive.zip")
                 with open(zfpath, "wb") as zf:
@@ -2320,6 +2322,7 @@ async def post_project_overleaf_publication(
         import tempfile
 
         with tempfile.TemporaryDirectory() as td:
+            await file.seek(0)
             zip_bytes = await file.read()
             zfpath = os.path.join(td, "archive.zip")
             with open(zfpath, "wb") as zf:
