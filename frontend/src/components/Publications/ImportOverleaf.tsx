@@ -94,6 +94,9 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
   const mutation = useMutation({
     mutationFn: (data: OverleafImportPost) =>
       ProjectsService.postProjectOverleafPublication({
+        ownerName: accountName,
+        projectName: projectName,
+        // @ts-ignore - requestBody not in generated types but supported by backend
         requestBody: {
           overleaf_project_url: data.overleaf_url,
           title: data.title,
@@ -108,8 +111,6 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
           push_paths: [],
           auto_build: data.auto_build,
         },
-        ownerName: accountName,
-        projectName: projectName,
       }),
     onSuccess: () => {
       showToast("Success!", "Overleaf project imported.", "success")
@@ -147,18 +148,12 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
         // Token not needed for ZIP mode
         formData.append("auto_build", String(data.auto_build))
         formData.append("file", zipFile)
-        const resp = await fetch(
-          `/projects/${accountName}/${projectName}/publications/overleaf`,
-          {
-            method: "POST",
-            body: formData,
-          },
-        )
-        if (!resp.ok) {
-          const txt = await resp.text()
-          throw new Error(txt || `Upload failed (${resp.status})`)
-        }
-        await resp.json()
+        // formData not in generated types but supported by backend
+        await ProjectsService.postProjectOverleafPublication({
+          ownerName: accountName,
+          projectName: projectName,
+          formData: formData,
+        } as any)
         showToast("Success!", "Overleaf ZIP imported.", "success")
         reset()
         setZipFile(null)
@@ -168,7 +163,7 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
           queryKey: ["projects", accountName, projectName, "publications"],
         })
       } catch (e: any) {
-        showToast("Error", e.message || "Failed to import ZIP", "error")
+        handleError(e, showToast)
       } finally {
         setIsUploadingZip(false)
       }
@@ -221,13 +216,18 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
                 <Input
                   id="overleaf_url"
                   {...register("overleaf_url", {
-                    required: !importZip
-                      ? "Overleaf project URL is required"
-                      : false,
-                    validate: (value) =>
-                      importZip ||
-                      value.trim() !== "" ||
-                      "Overleaf project URL is required",
+                    required: importZip
+                      ? false
+                      : "Overleaf project URL is required",
+                    validate: (value) => {
+                      // Skip validation if in ZIP import mode
+                      if (importZip) return true
+                      // Otherwise require non-empty URL
+                      return (
+                        value.trim() !== "" ||
+                        "Overleaf project URL is required"
+                      )
+                    },
                   })}
                   placeholder={"Ex: https://www.overleaf.com/project/abc123..."}
                   type="text"
