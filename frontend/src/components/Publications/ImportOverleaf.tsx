@@ -193,10 +193,9 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
           <ModalCloseButton />
           <ModalBody pb={6}>
             <FormControl mb={4}>
-              <FormLabel>Import mode</FormLabel>
               <HStack>
                 <Text fontSize="sm" color={importZip ? "gray.500" : undefined}>
-                  Import & link (premium)
+                  Import/link
                 </Text>
                 <Switch
                   isChecked={importZip}
@@ -390,7 +389,7 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
               type="submit"
               isLoading={isSubmitting || mutation.isPending || isUploadingZip}
             >
-              {importZip ? "Import ZIP" : "Import & Link"}
+              Save
             </Button>
             <Button onClick={onClose}>Cancel</Button>
           </ModalFooter>
