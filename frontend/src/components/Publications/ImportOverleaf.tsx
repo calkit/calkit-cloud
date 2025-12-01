@@ -230,6 +230,7 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
               <FormControl mt={4} isRequired>
                 <FormLabel htmlFor="zip_file">Overleaf ZIP file</FormLabel>
                 <Input
+                  pt={1}
                   id="zip_file"
                   type="file"
                   accept=".zip"
