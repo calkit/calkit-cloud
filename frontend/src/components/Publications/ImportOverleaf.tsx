@@ -18,6 +18,7 @@ import {
   Switch,
   HStack,
   Text,
+  IconButton,
 } from "@chakra-ui/react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { type SubmitHandler, useForm } from "react-hook-form"
@@ -28,6 +29,7 @@ import type { ApiError } from "../../client/core/ApiError"
 import useCustomToast from "../../hooks/useCustomToast"
 import { handleError } from "../../lib/errors"
 import { useState } from "react"
+import { DownloadIcon } from "@chakra-ui/icons"
 
 interface ImportOverleafProps {
   isOpen: boolean
@@ -67,6 +69,7 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
     register,
     handleSubmit,
     reset,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<OverleafImportPost>({
     mode: "onBlur",
@@ -208,18 +211,46 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
                 </Text>
               </HStack>
             </FormControl>
-            <FormControl isRequired isInvalid={!!errors.overleaf_url}>
+            {/* Overleaf URL field, required only if not importing ZIP */}
+            <FormControl
+              isRequired={!importZip}
+              isInvalid={!!errors.overleaf_url}
+            >
               <FormLabel htmlFor="overleaf_url">Overleaf project URL</FormLabel>
-              <Input
-                id="overleaf_url"
-                {...register("overleaf_url", {
-                  required: "Overleaf project URL is required",
-                  validate: (value) =>
-                    value.trim() !== "" || "Overleaf project URL is required",
-                })}
-                placeholder={"Ex: https://www.overleaf.com/project/abc123..."}
-                type="text"
-              />
+              <HStack>
+                <Input
+                  id="overleaf_url"
+                  {...register("overleaf_url", {
+                    required: !importZip
+                      ? "Overleaf project URL is required"
+                      : false,
+                    validate: (value) =>
+                      importZip ||
+                      value.trim() !== "" ||
+                      "Overleaf project URL is required",
+                  })}
+                  placeholder={"Ex: https://www.overleaf.com/project/abc123..."}
+                  type="text"
+                />
+                {/* Show download button if in ZIP mode and URL has a value */}
+                {importZip &&
+                  (() => {
+                    const overleafUrl = watch("overleaf_url")
+                    return overleafUrl && overleafUrl.trim() !== "" ? (
+                      <IconButton
+                        as="a"
+                        href={overleafUrl + "/download/zip"}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label="Download ZIP from Overleaf"
+                        icon={<DownloadIcon />}
+                        title="Download ZIP from Overleaf"
+                        variant="outline"
+                        size="md"
+                      />
+                    ) : null
+                  })()}
+              </HStack>
               {errors.overleaf_url && (
                 <FormErrorMessage>
                   {errors.overleaf_url.message}
