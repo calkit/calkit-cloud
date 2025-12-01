@@ -435,28 +435,6 @@ export type OrgsResponse = {
   count: number
 }
 
-export type OverleafPublicationPost = {
-  path: string
-  overleaf_project_url: string
-  kind:
-    | "journal-article"
-    | "conference-paper"
-    | "report"
-    | "book"
-    | "masters-thesis"
-    | "phd-thesis"
-    | "other"
-  title?: string | null
-  description?: string | null
-  target_path?: string | null
-  sync_paths?: Array<string>
-  push_paths?: Array<string>
-  stage_name?: string | null
-  environment_name?: string | null
-  overleaf_token?: string | null
-  auto_build?: boolean
-}
-
 export type OverleafSyncPost = {
   path: string
 }
