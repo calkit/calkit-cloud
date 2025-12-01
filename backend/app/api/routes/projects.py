@@ -2173,12 +2173,16 @@ async def post_project_overleaf_publication(
         raise HTTPException(
             400, f"Path '{req.path}' already exists in the repo"
         )
+    # Make sure path is a posix path
     req.path = Path(req.path).as_posix()
+    # Handle projects that aren't yet Calkit projects
     ck_info = get_ck_info_from_repo(repo)
     publications = ck_info.get("publications", [])
+    # Make sure a publication with this path doesn't already exist
     pubpaths = [pub.get("path") for pub in publications]
     if req.path in pubpaths:
         raise HTTPException(400, "A publication already exists at this path")
+    # Make sure we don't already have a stage with the same name
     pipeline = ck_info.get("pipeline", {})
     stages = pipeline.get("stages", {})
     stage_name = req.stage_name or f"build-{req.path}"
@@ -2186,6 +2190,7 @@ async def post_project_overleaf_publication(
         raise HTTPException(
             400, f"A stage named '{stage_name}' already exists; please provide"
         )
+    # Check environment spec, auto-detecting a TeXlive env to use
     envs = ck_info.get("environments", {})
     env_name = req.environment_name
     if not env_name:
@@ -2222,7 +2227,7 @@ async def post_project_overleaf_publication(
     if import_zip_mode:
         logger.info("Importing Overleaf ZIP archive; skipping linkage")
     else:
-        # Handle token saving & validation for linkage mode
+        # Handle token saving and validation for link mode
         if req.overleaf_token is not None:
             users.save_overleaf_token(
                 session=session,
@@ -2243,7 +2248,10 @@ async def post_project_overleaf_publication(
             logger.error(f"Failed to clone Overleaf repo: {e}")
             raise HTTPException(
                 400,
-                "Failed to fetch Overleaf project; check URL, token, and that Git integration is enabled on Overleaf",
+                (
+                    "Failed to fetch Overleaf project; check URL, token, "
+                    "and that Git integration is enabled on Overleaf"
+                ),
             )
     # Detect target path
     target_path = req.target_path
