@@ -353,7 +353,7 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
             </FormControl>
             {/* Stage name */}
             <FormControl mt={4} isInvalid={!!errors.stage}>
-              <FormLabel htmlFor="stage_name">Pipeline stage name</FormLabel>
+              <FormLabel htmlFor="stage">Pipeline stage name</FormLabel>
               <Input
                 id="stage"
                 {...register("stage")}
