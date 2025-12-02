@@ -2365,21 +2365,24 @@ async def post_project_overleaf_publication(
             ignore=lambda src, names: [".git"],
         )
     # Add publication-specific .gitignore
-    gitignore_txt = "\n".join(
-        [
-            "*.log",
-            "*.synctex.gz",
-            "*.aux",
-            "*.toc",
-            "*.out",
-            "*.bbl",
-            "*.fdb_latexmk",
-            "*.blg",
-            "*.rej",
-            "*.tdo",
-            "*.fls",
-            "*.nav",
-        ]
+    gitignore_txt = (
+        "\n".join(
+            [
+                "*.log",
+                "*.synctex.gz",
+                "*.aux",
+                "*.toc",
+                "*.out",
+                "*.bbl",
+                "*.fdb_latexmk",
+                "*.blg",
+                "*.rej",
+                "*.tdo",
+                "*.fls",
+                "*.nav",
+            ]
+        )
+        + "\n"
     )
     with open(os.path.join(dest_pub_dir, ".gitignore"), "w") as f:
         f.write(gitignore_txt)
