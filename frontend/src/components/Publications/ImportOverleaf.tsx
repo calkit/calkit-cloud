@@ -338,7 +338,7 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
               </FormControl>
             </Flex>
             {/* Advanced section toggle */}
-            <Box mt={4}>
+            <Box mt={3}>
               <Button
                 pl={0}
                 pr={2}
