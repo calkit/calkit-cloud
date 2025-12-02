@@ -2275,7 +2275,11 @@ async def post_project_overleaf_publication(
     input_rel_paths = set(overleaf_rel_paths + sync_paths + push_paths)
     input_paths: list[str] = []
     for p in input_rel_paths:
-        if p == target_path or p.startswith("."):
+        if (
+            p == target_path
+            or p.startswith(".")
+            or p == target_path.removesuffix(".tex") + ".pdf"
+        ):
             continue
         project_rel_path = os.path.join(path, p)
         if project_rel_path not in input_paths:
@@ -2322,7 +2326,10 @@ async def post_project_overleaf_publication(
         shutil.copytree(
             src=overleaf_abs_path,
             dst=dest_pub_dir,
-            ignore=lambda src, names: [".git"],
+            ignore=lambda src, names: [
+                ".git",
+                target_path.removesuffix(".tex") + ".pdf",
+            ],
         )
     # Add publication-specific .gitignore
     gitignore_txt = (
