@@ -129,9 +129,6 @@ const NewProject = ({ isOpen, onClose, defaultTemplate }: NewProjectProps) => {
       }
       handleError(err, showToast)
     },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["projects"] })
-    },
   })
   const onSubmit: SubmitHandler<ProjectPost> = (data) => {
     mutation.mutate(data)
