@@ -93,6 +93,8 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
   const mutation = useMutation({
     mutationFn: (data: OverleafImportPost) =>
       ProjectsService.postProjectOverleafPublication({
+        ownerName: accountName,
+        projectName: projectName,
         formData: {
           path: data.path,
           overleaf_project_url: data.overleaf_url,
@@ -106,8 +108,6 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
           overleaf_token: data.overleaf_token || undefined,
           file: data.file ? data.file[0] : null,
         },
-        ownerName: accountName,
-        projectName: projectName,
       }),
     onSuccess: (_pub, vars) => {
       showToast(
