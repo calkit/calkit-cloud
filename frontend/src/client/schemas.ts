@@ -152,10 +152,6 @@ export const $Body_projects_post_project_overleaf_publication = {
       type: "string",
       isRequired: true,
     },
-    overleaf_project_url: {
-      type: "string",
-      isRequired: true,
-    },
     kind: {
       type: "Enum",
       enum: [
@@ -168,6 +164,17 @@ export const $Body_projects_post_project_overleaf_publication = {
         "other",
       ],
       isRequired: true,
+    },
+    overleaf_project_url: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
     },
     title: {
       type: "any-of",

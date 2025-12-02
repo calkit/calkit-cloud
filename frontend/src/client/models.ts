@@ -32,7 +32,6 @@ export type Body_projects_post_project_figure = {
 
 export type Body_projects_post_project_overleaf_publication = {
   path: string
-  overleaf_project_url: string
   kind:
     | "journal-article"
     | "conference-paper"
@@ -41,6 +40,7 @@ export type Body_projects_post_project_overleaf_publication = {
     | "masters-thesis"
     | "phd-thesis"
     | "other"
+  overleaf_project_url?: string | null
   title?: string | null
   description?: string | null
   target_path?: string | null
