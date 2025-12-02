@@ -2157,7 +2157,7 @@ async def post_project_overleaf_publication(
     pipeline = ck_info.get("pipeline", {})
     stages = pipeline.get("stages", {})
     if not stage_name:
-        stage_name = f"build-{path}"
+        stage_name = f"build-{path.replace('/', '-')}"
     if stage_name and stage_name in stages:
         raise HTTPException(
             400, f"A stage named '{stage_name}' already exists; please provide"
