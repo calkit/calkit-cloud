@@ -86,7 +86,6 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
       overleaf_token: null,
       target_path: null,
       auto_build: false,
-      file: undefined,
     },
   })
   const [importZip, setImportZip] = useState(false)
