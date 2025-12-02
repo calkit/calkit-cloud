@@ -2110,7 +2110,7 @@ async def post_project_overleaf_publication(
     """Import a publication from Overleaf into a project.
 
     Supports two modes:
-    1. Import and link via cloning the Overleaf git repo.
+    1. Import and link via cloning the Overleaf Git repo.
        Requires an Overleaf token and performs sync setup.
     2. Import ZIP via user-provided downloaded archive.
        Skips linkage and sync info; just copies files into repo.
@@ -2123,8 +2123,7 @@ async def post_project_overleaf_publication(
         overleaf_project_url is None or overleaf_project_url.strip() == ""
     ) and file is None:
         raise HTTPException(
-            status_code=422,
-            detail="Either Overleaf project URL or ZIP file must be provided",
+            422, "Either Overleaf project URL or ZIP file must be provided"
         )
     # sync_paths and push_paths are always empty for now since we don't expose
     # them in the UI
@@ -2290,11 +2289,11 @@ async def post_project_overleaf_publication(
     }
     publications.append(publication)
     ck_info["publications"] = publications
-    if not import_zip_mode:
+    if not import_zip_mode and overleaf_repo is not None:
         overleaf_sync_in_ck_info = ck_info.get("overleaf_sync", {})
         overleaf_sync_in_ck_info[path] = {"url": overleaf_project_url}
         ck_info["overleaf_sync"] = overleaf_sync_in_ck_info
-        last_overleaf_sync_commit = overleaf_repo.head.commit.hexsha  # type: ignore
+        last_overleaf_sync_commit = overleaf_repo.head.commit.hexsha
         calkit.overleaf.write_sync_info(
             synced_path=path,
             info={
@@ -2303,6 +2302,8 @@ async def post_project_overleaf_publication(
             },
             wdir=repo.working_dir,
         )
+    elif not import_zip_mode and overleaf_repo is None:
+        raise HTTPException(500, "Failed to get Overleaf repo")
     # Copy files into repo
     dest_pub_dir = os.path.join(repo.working_dir, path)
     if not import_zip_mode:
