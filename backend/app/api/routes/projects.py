@@ -2105,7 +2105,7 @@ async def post_project_overleaf_publication(
     environment_name: Optional[Annotated[str, Form()]] = Form(None),
     overleaf_token: Optional[Annotated[str, Form()]] = Form(None),
     auto_build: Optional[Annotated[bool, Form()]] = Form(False),
-    file: Optional[Annotated[UploadFile, File()]] = File(None),
+    file: Optional[Annotated[UploadFile, File()]] = Form(None),
 ) -> Publication:
     """Import a publication from Overleaf into a project.
 
