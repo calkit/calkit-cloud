@@ -2085,7 +2085,6 @@ async def post_project_overleaf_publication(
     current_user: CurrentUser,
     session: SessionDep,
     path: Annotated[str, Form()],
-    overleaf_project_url: Annotated[str, Form()],
     kind: Annotated[
         Literal[
             "journal-article",
@@ -2098,6 +2097,7 @@ async def post_project_overleaf_publication(
         ],
         Form(),
     ],
+    overleaf_project_url: Optional[Annotated[str, Form()]] = Form(None),
     title: Optional[Annotated[str, Form()]] = Form(None),
     description: Optional[Annotated[str, Form()]] = Form(None),
     target_path: Optional[Annotated[str, Form()]] = Form(None),
@@ -2118,6 +2118,14 @@ async def post_project_overleaf_publication(
     Accepts multipart/form-data with an optional 'file' field
     (for the ZIP archive).
     """
+    # Validate input: require either an Overleaf URL or a ZIP file
+    if (
+        overleaf_project_url is None or overleaf_project_url.strip() == ""
+    ) and file is None:
+        raise HTTPException(
+            status_code=422,
+            detail="Either Overleaf project URL or ZIP file must be provided",
+        )
     # sync_paths and push_paths are always empty for now since we don't expose
     # them in the UI
     sync_paths: list[str] = []
