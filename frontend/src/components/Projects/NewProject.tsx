@@ -145,7 +145,6 @@ const NewProject = ({ isOpen, onClose, defaultTemplate }: NewProjectProps) => {
   }
   const onGitRepoUrlChange = (e: any) => {
     const value = String(e.target.value)
-    setValue("git_repo_url", value)
     if (!repoExists) return
     try {
       // Extract repo name from URL and generate a human title
