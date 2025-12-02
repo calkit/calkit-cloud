@@ -91,8 +91,7 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
   const [zipFile, setZipFile] = useState<File | null>(null)
   const mutation = useMutation({
     mutationFn: (data: OverleafImportPost & { file?: File | null }) => {
-      // Build minimal form data object excluding null/undefined, but preserving false
-      const fd: Record<string, any> = {
+      let fd: any = {
         path: data.path,
         overleaf_project_url: data.overleaf_url,
         kind: data.kind,
@@ -105,13 +104,11 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
       if (data.environment) fd.environment_name = data.environment
       if (data.overleaf_token) fd.overleaf_token = data.overleaf_token
       if (data.file) fd.file = data.file
-      // Debug log for diagnosing 422 field required
-      // eslint-disable-next-line no-console
-      console.debug("Overleaf import formData", fd)
+      console.log("Form data for Overleaf import:", fd)
       return ProjectsService.postProjectOverleafPublication({
         ownerName: accountName,
         projectName: projectName,
-        formData: fd as any,
+        formData: fd,
       })
     },
     onSuccess: (_pub, vars) => {
