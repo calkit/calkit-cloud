@@ -2331,6 +2331,12 @@ async def post_project_overleaf_publication(
                 target_path.removesuffix(".tex") + ".pdf",
             ],
         )
+    else:
+        # Make sure the output PDF doesn't exist
+        pdf_path = os.path.join(repo.working_dir, pdf_output_path)
+        if os.path.isfile(pdf_path):
+            logger.info("PDF was part of Overleaf ZIP; removing")
+            os.remove(pdf_path)
     # Add publication-specific .gitignore
     gitignore_txt = (
         "\n".join(
