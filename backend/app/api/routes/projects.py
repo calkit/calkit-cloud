@@ -558,8 +558,7 @@ def create_project(
             for membership in current_user.org_memberships:
                 if membership.org.account.name.lower() == owner_name.lower():
                     role = membership.role_name
-            # If we have no role defined, check on GitHub
-            # TODO
+            # TODO: If we have no role defined, check on GitHub
             if role not in ["owner", "admin"]:
                 logger.info("User is not an admin or owner of this org")
                 raise HTTPException(
@@ -570,6 +569,8 @@ def create_project(
                     ),
                 )
             owner_account_id = org.account.id
+            # Make public visibility match that on GitHub
+            project_in.is_public = not repo.get("private", True)
         else:
             owner_account_id = current_user.account.id
         project = Project.model_validate(
