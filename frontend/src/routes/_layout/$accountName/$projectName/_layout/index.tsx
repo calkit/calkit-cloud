@@ -284,7 +284,7 @@ function ProjectView() {
                 <Text>
                   🍃{" "}
                   <Link onClick={overleafImportModal.onOpen}>
-                    Import and link a publication from Overleaf
+                    Import/link a publication from Overleaf
                   </Link>
                 </Text>
                 <Text>

@@ -63,39 +63,37 @@ const SidebarItems = ({ onClose, basePath }: SidebarItemsProps) => {
       ? "gray"
       : "ui.success"
 
-  const listItems = finalItems.map(({ icon, title, path }) => (
-    <>
-      {itemsRequireLogin.includes(title) && !user ? (
-        ""
-      ) : (
-        <>
-          <Flex
-            as={Link}
-            to={basePath + path}
-            w="100%"
-            p={2}
-            key={title}
-            activeOptions={{ exact: true, includeSearch: false }}
-            activeProps={{
-              style: {
-                background: bgActive,
-                borderRadius: "12px",
-              },
-            }}
-            color={textColor}
-            onClick={onClose}
-          >
-            <Icon
-              as={icon}
-              color={title === "Local machine" ? localMachineColor : "default"}
-              alignSelf="center"
-            />
-            <Text ml={2}>{title}</Text>
-          </Flex>
-        </>
-      )}
-    </>
-  ))
+  const listItems = finalItems.map(({ icon, title, path }) => {
+    if (itemsRequireLogin.includes(title) && !user) {
+      return null
+    }
+
+    return (
+      <Flex
+        key={title}
+        as={Link}
+        to={basePath + path}
+        w="100%"
+        p={2}
+        activeOptions={{ exact: true, includeSearch: false }}
+        activeProps={{
+          style: {
+            background: bgActive,
+            borderRadius: "12px",
+          },
+        }}
+        color={textColor}
+        onClick={onClose}
+      >
+        <Icon
+          as={icon}
+          color={title === "Local machine" ? localMachineColor : "default"}
+          alignSelf="center"
+        />
+        <Text ml={2}>{title}</Text>
+      </Flex>
+    )
+  })
 
   return (
     <>

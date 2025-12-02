@@ -146,6 +146,128 @@ export const $Body_projects_post_project_figure = {
   },
 } as const
 
+export const $Body_projects_post_project_overleaf_publication = {
+  properties: {
+    path: {
+      type: "string",
+      isRequired: true,
+    },
+    kind: {
+      type: "Enum",
+      enum: [
+        "journal-article",
+        "conference-paper",
+        "report",
+        "book",
+        "masters-thesis",
+        "phd-thesis",
+        "other",
+      ],
+      isRequired: true,
+    },
+    overleaf_project_url: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    title: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    description: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    target_path: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    stage_name: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    environment_name: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    overleaf_token: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    auto_build: {
+      type: "any-of",
+      contains: [
+        {
+          type: "boolean",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    file: {
+      type: "any-of",
+      contains: [
+        {
+          type: "binary",
+          format: "binary",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+  },
+} as const
+
 export const $Body_projects_post_project_publication = {
   properties: {
     path: {
@@ -2063,116 +2185,6 @@ export const $OrgsResponse = {
     count: {
       type: "number",
       isRequired: true,
-    },
-  },
-} as const
-
-export const $OverleafPublicationPost = {
-  properties: {
-    path: {
-      type: "string",
-      isRequired: true,
-    },
-    overleaf_project_url: {
-      type: "string",
-      isRequired: true,
-    },
-    kind: {
-      type: "Enum",
-      enum: [
-        "journal-article",
-        "conference-paper",
-        "report",
-        "book",
-        "masters-thesis",
-        "phd-thesis",
-        "other",
-      ],
-      isRequired: true,
-    },
-    title: {
-      type: "any-of",
-      contains: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
-    },
-    description: {
-      type: "any-of",
-      contains: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
-    },
-    target_path: {
-      type: "any-of",
-      contains: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
-    },
-    sync_paths: {
-      type: "array",
-      contains: {
-        type: "string",
-      },
-      default: [],
-    },
-    push_paths: {
-      type: "array",
-      contains: {
-        type: "string",
-      },
-      default: [],
-    },
-    stage_name: {
-      type: "any-of",
-      contains: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
-    },
-    environment_name: {
-      type: "any-of",
-      contains: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
-    },
-    overleaf_token: {
-      type: "any-of",
-      contains: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
-    },
-    auto_build: {
-      type: "boolean",
-      default: true,
     },
   },
 } as const

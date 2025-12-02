@@ -32,6 +32,7 @@ import type {
   SubscriptionPlan,
   Body_projects_post_project_dataset_upload,
   Body_projects_post_project_figure,
+  Body_projects_post_project_overleaf_publication,
   Body_projects_post_project_publication,
   Body_projects_put_project_contents,
   Collaborator,
@@ -54,7 +55,6 @@ import type {
   IssuePost,
   LabelDatasetPost,
   Notebook,
-  OverleafPublicationPost,
   OverleafSyncPost,
   OverleafSyncResponse,
   Pipeline,
@@ -337,9 +337,9 @@ export type ProjectsData = {
     projectName: string
   }
   PostProjectOverleafPublication: {
+    formData: Body_projects_post_project_overleaf_publication
     ownerName: string
     projectName: string
-    requestBody: OverleafPublicationPost
   }
   PostProjectOverleafSync: {
     ownerName: string
@@ -1964,13 +1964,22 @@ export class ProjectsService {
   /**
    * Post Project Overleaf Publication
    * Import a publication from Overleaf into a project.
+   *
+   * Supports two modes:
+   * 1. Import and link via cloning the Overleaf git repo.
+   * Requires an Overleaf token and performs sync setup.
+   * 2. Import ZIP via user-provided downloaded archive.
+   * Skips linkage and sync info; just copies files into repo.
+   *
+   * Accepts multipart/form-data with an optional 'file' field
+   * (for the ZIP archive).
    * @returns Publication Successful Response
    * @throws ApiError
    */
   public static postProjectOverleafPublication(
     data: ProjectsData["PostProjectOverleafPublication"],
   ): CancelablePromise<Publication> {
-    const { ownerName, projectName, requestBody } = data
+    const { ownerName, projectName, formData } = data
     return __request(OpenAPI, {
       method: "POST",
       url: "/projects/{owner_name}/{project_name}/publications/overleaf",
@@ -1978,8 +1987,8 @@ export class ProjectsService {
         owner_name: ownerName,
         project_name: projectName,
       },
-      body: requestBody,
-      mediaType: "application/json",
+      formData: formData,
+      mediaType: "multipart/form-data",
       errors: {
         422: `Validation Error`,
       },

@@ -7,7 +7,9 @@ import logging
 import os
 import shutil
 import subprocess
+import tempfile
 import uuid
+import zipfile
 from copy import deepcopy
 from datetime import datetime
 from fnmatch import fnmatch
@@ -2060,7 +2062,7 @@ def post_project_publication(
             md5=md5[2:],
         )
         with fs.open(fpath, "wb") as f:
-            f.write(file_data)
+            f.write(file_data)  # type: ignore
         if settings.ENVIRONMENT != "local":
             remove_gcs_content_type(fpath)
         url = get_object_url(fpath=fpath, fname=os.path.basename(path))
@@ -2076,48 +2078,59 @@ def post_project_publication(
     )
 
 
-class OverleafPublicationPost(BaseModel):
-    path: str
-    overleaf_project_url: str
-    kind: Literal[
-        "journal-article",
-        "conference-paper",
-        "report",
-        "book",
-        "masters-thesis",
-        "phd-thesis",
-        "other",
-    ]
-    title: str | None = None
-    description: str | None = None
-    target_path: str | None = None
-    sync_paths: list[str] = []
-    push_paths: list[str] = []
-    stage_name: str | None = None
-    environment_name: str | None = None
-    overleaf_token: str | None = None
-    auto_build: bool = True
-
-
 @router.post("/projects/{owner_name}/{project_name}/publications/overleaf")
-def post_project_overleaf_publication(
+async def post_project_overleaf_publication(
     owner_name: str,
     project_name: str,
     current_user: CurrentUser,
     session: SessionDep,
-    req: OverleafPublicationPost,
+    path: Annotated[str, Form()],
+    kind: Annotated[
+        Literal[
+            "journal-article",
+            "conference-paper",
+            "report",
+            "book",
+            "masters-thesis",
+            "phd-thesis",
+            "other",
+        ],
+        Form(),
+    ],
+    overleaf_project_url: Optional[Annotated[str, Form()]] = Form(None),
+    title: Optional[Annotated[str, Form()]] = Form(None),
+    description: Optional[Annotated[str, Form()]] = Form(None),
+    target_path: Optional[Annotated[str, Form()]] = Form(None),
+    stage_name: Optional[Annotated[str, Form()]] = Form(None),
+    environment_name: Optional[Annotated[str, Form()]] = Form(None),
+    overleaf_token: Optional[Annotated[str, Form()]] = Form(None),
+    auto_build: Optional[Annotated[bool, Form()]] = Form(False),
+    file: Optional[Annotated[UploadFile, File()]] = File(None),
 ) -> Publication:
-    """Import a publication from Overleaf into a project."""
-    if req.overleaf_token is not None:
-        users.save_overleaf_token(
-            session=session,
-            user=current_user,
-            token=req.overleaf_token,
-            expires=None,
+    """Import a publication from Overleaf into a project.
+
+    Supports two modes:
+    1. Import and link via cloning the Overleaf Git repo.
+       Requires an Overleaf token and performs sync setup.
+    2. Import ZIP via user-provided downloaded archive.
+       Skips linkage and sync info; just copies files into repo.
+
+    Accepts multipart/form-data with an optional 'file' field
+    (for the ZIP archive).
+    """
+    # Validate input: require either an Overleaf URL or a ZIP file
+    if (
+        overleaf_project_url is None or overleaf_project_url.strip() == ""
+    ) and file is None:
+        raise HTTPException(
+            422, "Either Overleaf project URL or ZIP file must be provided"
         )
-    if current_user.overleaf_token is None:
-        raise HTTPException(400, "No Overleaf token found")
-    if req.path == ".":
+    # sync_paths and push_paths are always empty for now since we don't expose
+    # them in the UI
+    sync_paths: list[str] = []
+    push_paths: list[str] = []
+    # Basic path validation
+    if path == ".":
         raise HTTPException(400, "Path cannot be parent directory")
     project = app.projects.get_project(
         session=session,
@@ -2129,30 +2142,29 @@ def post_project_overleaf_publication(
     repo = get_repo(
         project=project, user=current_user, session=session, ttl=None
     )
-    if os.path.exists(os.path.join(repo.working_dir, req.path)):
-        raise HTTPException(
-            400, f"Path '{req.path}' already exists in the repo"
-        )
+    if os.path.exists(os.path.join(repo.working_dir, path)):
+        raise HTTPException(400, f"Path '{path}' already exists in the repo")
     # Make sure path is a posix path
-    req.path = Path(req.path).as_posix()
+    path = Path(path).as_posix()
     # Handle projects that aren't yet Calkit projects
     ck_info = get_ck_info_from_repo(repo)
     publications = ck_info.get("publications", [])
     # Make sure a publication with this path doesn't already exist
     pubpaths = [pub.get("path") for pub in publications]
-    if req.path in pubpaths:
+    if path in pubpaths:
         raise HTTPException(400, "A publication already exists at this path")
     # Make sure we don't already have a stage with the same name
     pipeline = ck_info.get("pipeline", {})
     stages = pipeline.get("stages", {})
-    stage_name = req.stage_name or f"build-{req.path}"
+    if not stage_name:
+        stage_name = f"build-{path.replace('/', '-')}"
     if stage_name and stage_name in stages:
         raise HTTPException(
             400, f"A stage named '{stage_name}' already exists; please provide"
         )
     # Check environment spec, auto-detecting a TeXlive env to use
     envs = ck_info.get("environments", {})
-    env_name = req.environment_name
+    env_name = environment_name
     if not env_name:
         for en, e in envs.items():
             if e.get("kind") == "docker" and "texlive" in e.get("image", ""):
@@ -2166,8 +2178,10 @@ def post_project_overleaf_publication(
         ):
             raise HTTPException(
                 400,
-                f"Environment {env_name} exists, but is not a "
-                "TeXLive Docker environment",
+                (
+                    f"Environment {env_name} exists, "
+                    "but is not a TeXLive Docker environment"
+                ),
             )
     if not env_name:
         env_name = "tex"
@@ -2178,28 +2192,48 @@ def post_project_overleaf_publication(
         env = {"kind": "docker", "image": "texlive/texlive:latest-full"}
         envs[env_name] = env
         ck_info["environments"] = envs
-    # Get the Overleaf repo
-    overleaf_project_id = req.overleaf_project_url.split("/")[-1]
-    try:
-        overleaf_repo = get_overleaf_repo(
-            project=project,
-            user=current_user,
-            session=session,
-            overleaf_project_id=overleaf_project_id,
-        )
-    except GitCommandError as e:
-        logger.error(f"Failed to clone Overleaf repo: {e}")
-        raise HTTPException(
-            400,
-            (
-                "Failed to fetch Overleaf project; check URL, token, "
-                "and that Git integration is enabled on Overleaf"
-            ),
-        )
-    # If target path was not supplied, see if we can detect it
-    target_path = req.target_path
+    # Determine mode: link vs zip
+    import_zip_mode = file is not None
+    overleaf_repo = None
+    if import_zip_mode:
+        overleaf_abs_path = os.path.join(repo.working_dir, path)
+        logger.info("Importing Overleaf ZIP archive; skipping linkage")
+        # Unzip the whole archive into the requested path
+        os.makedirs(overleaf_abs_path, exist_ok=True)
+        with zipfile.ZipFile(io.BytesIO(await file.read()), "r") as zf:
+            zf.extractall(overleaf_abs_path)
+    elif overleaf_project_url is not None:
+        overleaf_project_id = overleaf_project_url.split("/")[-1]
+        # Handle token saving and validation for link mode
+        if overleaf_token is not None:
+            users.save_overleaf_token(
+                session=session,
+                user=current_user,
+                token=overleaf_token,
+                expires=None,
+            )
+        if current_user.overleaf_token is None:
+            raise HTTPException(400, "No Overleaf token found")
+        try:
+            overleaf_repo = get_overleaf_repo(
+                project=project,
+                user=current_user,
+                session=session,
+                overleaf_project_id=overleaf_project_id,
+            )
+        except GitCommandError as e:
+            logger.error(f"Failed to clone Overleaf repo: {e}")
+            raise HTTPException(
+                400,
+                (
+                    "Failed to fetch Overleaf project; check URL, token, "
+                    "and that Git integration is enabled on Overleaf"
+                ),
+            )
+        overleaf_abs_path = overleaf_repo.working_dir
+    # Detect target path
     if not target_path:
-        overleaf_files = os.listdir(overleaf_repo.working_dir)
+        overleaf_files = os.listdir(overleaf_abs_path)
         for candidate in ["main.tex", "paper.tex", "report.tex"]:
             if candidate in overleaf_files:
                 target_path = candidate
@@ -2208,116 +2242,113 @@ def post_project_overleaf_publication(
         raise HTTPException(
             400, "Target path cannot be detected; please specify"
         )
-    logger.info(f"Using target path: {target_path}")
     if not target_path.endswith(".tex"):
         raise HTTPException(400, "Target path must end with '.tex'")
-    if target_path not in os.listdir(overleaf_repo.working_dir):
+    target_full_path = os.path.join(overleaf_abs_path, target_path)
+    if not os.path.isfile(target_full_path):
         raise HTTPException(
             400,
             f"Target path '{target_path}' does not exist in Overleaf project",
         )
-    # See if we can detect the title
-    title = req.title
+    # Detect title
     if not title:
-        with open(os.path.join(overleaf_repo.working_dir, target_path)) as f:
+        with open(target_full_path) as f:
             overleaf_target_text = f.read()
         texsoup = TexSoup(overleaf_target_text)
         title = str(texsoup.title.string) if texsoup.title else None
     if not title:
         raise HTTPException(400, "Title cannot be detected; please provide")
-    # Create build stage
-    input_rel_paths = set(
-        os.listdir(overleaf_repo.working_dir) + req.sync_paths + req.push_paths
-    )
-    input_paths = []
+    # Build stage inputs
+    overleaf_rel_paths = os.listdir(overleaf_abs_path)
+    input_rel_paths = set(overleaf_rel_paths + sync_paths + push_paths)
+    input_paths: list[str] = []
     for p in input_rel_paths:
         if p == target_path or p.startswith("."):
             continue
-        project_rel_path = os.path.join(req.path, p)
+        project_rel_path = os.path.join(path, p)
         if project_rel_path not in input_paths:
             input_paths.append(project_rel_path)
     stage = {
         "kind": "latex",
-        "target_path": os.path.join(req.path, target_path),
+        "target_path": os.path.join(path, target_path),
         "environment": env_name,
         "inputs": input_paths,
     }
     stages[stage_name] = stage
     pipeline["stages"] = stages
     ck_info["pipeline"] = pipeline
-    # Create publication object
     pdf_output_path = os.path.join(
-        req.path, target_path.removesuffix(".tex") + ".pdf"
+        path, target_path.removesuffix(".tex") + ".pdf"
     )
     publication = {
         "path": pdf_output_path,
         "title": title,
-        "description": req.description,
+        "description": description,
+        "kind": kind,
         "stage": stage_name,
     }
     publications.append(publication)
     ck_info["publications"] = publications
-    # Save Overleaf sync info
-    overleaf_sync_in_ck_info = ck_info.get("overleaf_sync", {})
-    overleaf_sync_in_ck_info[req.path] = {"url": req.overleaf_project_url}
-    ck_info["overleaf_sync"] = overleaf_sync_in_ck_info
-    # Save last Overleaf repo sync commit
-    last_overleaf_sync_commit = overleaf_repo.head.commit.hexsha
-    calkit.overleaf.write_sync_info(
-        synced_path=req.path,
-        info={
-            "project_id": overleaf_project_id,
-            "last_sync_commit": last_overleaf_sync_commit,
-        },
-        wdir=repo.working_dir,
+    if not import_zip_mode and overleaf_repo is not None:
+        overleaf_sync_in_ck_info = ck_info.get("overleaf_sync", {})
+        overleaf_sync_in_ck_info[path] = {"url": overleaf_project_url}
+        ck_info["overleaf_sync"] = overleaf_sync_in_ck_info
+        last_overleaf_sync_commit = overleaf_repo.head.commit.hexsha
+        calkit.overleaf.write_sync_info(
+            synced_path=path,
+            info={
+                "project_id": overleaf_project_id,
+                "last_sync_commit": last_overleaf_sync_commit,
+            },
+            wdir=repo.working_dir,
+        )
+    elif not import_zip_mode and overleaf_repo is None:
+        raise HTTPException(500, "Failed to get Overleaf repo")
+    # Copy files into repo
+    dest_pub_dir = os.path.join(repo.working_dir, path)
+    if not import_zip_mode:
+        shutil.copytree(
+            src=overleaf_abs_path,
+            dst=dest_pub_dir,
+            ignore=lambda src, names: [".git"],
+        )
+    # Add publication-specific .gitignore
+    gitignore_txt = (
+        "\n".join(
+            [
+                "*.log",
+                "*.synctex.gz",
+                "*.aux",
+                "*.toc",
+                "*.out",
+                "*.bbl",
+                "*.fdb_latexmk",
+                "*.blg",
+                "*.rej",
+                "*.tdo",
+                "*.fls",
+                "*.nav",
+            ]
+        )
+        + "\n"
     )
-    # Actually copy in the files
-    shutil.copytree(
-        src=overleaf_repo.working_dir,
-        dst=os.path.join(repo.working_dir, req.path),
-        ignore=lambda src, names: [".git"],
-    )
-    # Add a sane LaTeX .gitignore file for the subdir
-    gitignore_txt = ""
-    for line in [
-        "*.log",
-        "*.synctex.gz",
-        "*.aux",
-        "*.toc",
-        "*.out",
-        "*.bbl",
-        "*.fdb_latexmk",
-        "*.blg",
-        "*.rej",
-        "*.tdo",
-        "*.fls",
-        "*.nav",
-    ]:
-        gitignore_txt += line + "\n"
-    with open(
-        os.path.join(repo.working_dir, req.path, ".gitignore"), "w"
-    ) as f:
+    with open(os.path.join(dest_pub_dir, ".gitignore"), "w") as f:
         f.write(gitignore_txt)
-    # Make sure we ignore the private clone repo for local Overleaf syncs
     if not repo.ignored(".calkit/overleaf/"):
-        logger.info("Adding .calkit/overleaf/ to .gitignore")
         with open(os.path.join(repo.working_dir, ".gitignore"), "a") as f:
             f.write("\n.calkit/overleaf/\n")
         repo.git.add(".gitignore")
-    # Save and commit calkit.yaml
     with open(os.path.join(repo.working_dir, "calkit.yaml"), "w") as f:
         ryaml.dump(ck_info, f)
     repo.git.add("calkit.yaml")
-    repo.git.add(calkit.overleaf.get_sync_info_fpath())
-    repo.git.add(req.path)
-    # Compile DVC pipeline
-    logger.info("Compiling DVC pipeline")
+    if not import_zip_mode:
+        repo.git.add(calkit.overleaf.get_sync_info_fpath())
+    repo.git.add(path)
     subprocess.run(
         ["calkit", "check", "pipeline", "--compile"], cwd=repo.working_dir
     )
     repo.git.add("dvc.yaml")
-    # Add GitHub Actions workflow if desired
-    if req.auto_build:
+    if auto_build:
         workflow_dir = os.path.join(repo.working_dir, ".github", "workflows")
         os.makedirs(workflow_dir, exist_ok=True)
         workflow_files = os.listdir(workflow_dir)
@@ -2328,16 +2359,11 @@ def post_project_overleaf_publication(
                 workflow_txt = f.read()
             if "calkit" in workflow_txt:
                 has_calkit_workflow = True
-                logger.info(
-                    f"Found existing Calkit workflow at {workflow_fpath}"
-                )
                 break
         if not has_calkit_workflow:
-            logger.info("Adding Calkit GitHub Actions workflow")
-            # Download workflow YAML from GitHub
             download_url = (
-                "https://raw.githubusercontent.com/calkit/run-action/"
-                "refs/heads/main/example.yml"
+                "https://raw.githubusercontent.com/calkit/"
+                "run-action/refs/heads/main/example.yml"
             )
             download_resp = requests.get(download_url)
             workflow_rel_path = os.path.join(
@@ -2347,12 +2373,12 @@ def post_project_overleaf_publication(
             with open(workflow_fpath, "w") as f:
                 f.write(download_resp.text)
             repo.git.add(workflow_rel_path)
-    repo.git.commit(
-        [
-            "-m",
-            f"Import Overleaf project ID {overleaf_project_id} to '{req.path}'",
-        ]
+    commit_msg = (
+        f"Import Overleaf project ID {overleaf_project_id} to '{path}'"
+        if not import_zip_mode
+        else f"Import Overleaf ZIP to '{path}'"
     )
+    repo.git.commit(["-m", commit_msg])
     repo.git.push(["origin", repo.active_branch.name])
     return Publication.model_validate(publication)
 

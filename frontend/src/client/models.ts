@@ -30,6 +30,27 @@ export type Body_projects_post_project_figure = {
   file?: Blob | File | null
 }
 
+export type Body_projects_post_project_overleaf_publication = {
+  path: string
+  kind:
+    | "journal-article"
+    | "conference-paper"
+    | "report"
+    | "book"
+    | "masters-thesis"
+    | "phd-thesis"
+    | "other"
+  overleaf_project_url?: string | null
+  title?: string | null
+  description?: string | null
+  target_path?: string | null
+  stage_name?: string | null
+  environment_name?: string | null
+  overleaf_token?: string | null
+  auto_build?: boolean | null
+  file?: Blob | File | null
+}
+
 export type Body_projects_post_project_publication = {
   path: string
   kind:
@@ -433,28 +454,6 @@ export type OrgUserPublic = {
 export type OrgsResponse = {
   data: Array<OrgPublic>
   count: number
-}
-
-export type OverleafPublicationPost = {
-  path: string
-  overleaf_project_url: string
-  kind:
-    | "journal-article"
-    | "conference-paper"
-    | "report"
-    | "book"
-    | "masters-thesis"
-    | "phd-thesis"
-    | "other"
-  title?: string | null
-  description?: string | null
-  target_path?: string | null
-  sync_paths?: Array<string>
-  push_paths?: Array<string>
-  stage_name?: string | null
-  environment_name?: string | null
-  overleaf_token?: string | null
-  auto_build?: boolean
 }
 
 export type OverleafSyncPost = {

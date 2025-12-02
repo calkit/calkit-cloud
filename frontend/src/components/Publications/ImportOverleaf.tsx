@@ -15,10 +15,22 @@ import {
   ModalOverlay,
   Select,
   Textarea,
+  Switch,
+  HStack,
+  Text,
+  IconButton,
+  Collapse,
+  Box,
 } from "@chakra-ui/react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { type SubmitHandler, useForm } from "react-hook-form"
 import { getRouteApi } from "@tanstack/react-router"
+import { useState } from "react"
+import {
+  DownloadIcon,
+  ChevronDownIcon,
+  ChevronRightIcon,
+} from "@chakra-ui/icons"
 
 import { ProjectsService, UsersService } from "../../client"
 import type { ApiError } from "../../client/core/ApiError"
@@ -48,6 +60,7 @@ interface OverleafImportPost {
   overleaf_token?: string | null
   target_path?: string | null
   auto_build: boolean
+  file?: FileList
 }
 
 const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
@@ -63,6 +76,7 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
     register,
     handleSubmit,
     reset,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<OverleafImportPost>({
     mode: "onBlur",
@@ -80,29 +94,35 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
       auto_build: false,
     },
   })
+  const [importZip, setImportZip] = useState(false)
+  const [showAdvanced, setShowAdvanced] = useState(false)
   const mutation = useMutation({
     mutationFn: (data: OverleafImportPost) =>
       ProjectsService.postProjectOverleafPublication({
-        requestBody: {
-          overleaf_project_url: data.overleaf_url,
-          title: data.title,
+        formData: {
           path: data.path,
-          target_path: data.target_path,
-          description: data.description,
+          overleaf_project_url: data.overleaf_url,
           kind: data.kind,
-          stage_name: data.stage,
-          environment_name: data.environment,
-          overleaf_token: data.overleaf_token,
-          sync_paths: [],
-          push_paths: [],
           auto_build: data.auto_build,
+          title: data.title || undefined,
+          description: data.description || undefined,
+          target_path: data.target_path || undefined,
+          stage_name: data.stage || undefined,
+          environment_name: data.environment || undefined,
+          overleaf_token: data.overleaf_token || undefined,
+          file: data.file ? data.file[0] : null,
         },
         ownerName: accountName,
         projectName: projectName,
       }),
-    onSuccess: () => {
-      showToast("Success!", "Overleaf project imported.", "success")
+    onSuccess: (_pub, vars) => {
+      showToast(
+        "Success!",
+        vars.file ? "Overleaf ZIP imported." : "Overleaf project linked.",
+        "success",
+      )
       reset()
+      setImportZip(false)
       onClose()
     },
     onError: (err: ApiError) => {
@@ -136,29 +156,93 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
           <ModalHeader>Import from Overleaf</ModalHeader>
           <ModalCloseButton />
           <ModalBody pb={6}>
-            <FormControl isRequired isInvalid={!!errors.overleaf_url}>
+            <FormControl mb={4}>
+              <HStack>
+                <Text fontSize="sm" color={importZip ? "gray.500" : undefined}>
+                  Import/link
+                </Text>
+                <Switch
+                  isChecked={importZip}
+                  onChange={(e) => setImportZip(e.target.checked)}
+                  colorScheme="teal"
+                  aria-label="Toggle ZIP import"
+                />
+                <Text fontSize="sm" color={!importZip ? "gray.500" : undefined}>
+                  Import ZIP
+                </Text>
+              </HStack>
+            </FormControl>
+            {/* Overleaf URL field, required only if not importing ZIP */}
+            <FormControl
+              isRequired={!importZip}
+              isInvalid={!!errors.overleaf_url}
+            >
               <FormLabel htmlFor="overleaf_url">Overleaf project URL</FormLabel>
-              <Input
-                id="overleaf_url"
-                {...register("overleaf_url", {
-                  required: "Overleaf project URL is required",
-                  validate: (value) =>
-                    value.trim() !== "" || "Overleaf project URL is required",
-                })}
-                placeholder={"Ex: https://www.overleaf.com/project/abc123..."}
-                type="text"
-              />
+              <HStack>
+                <Input
+                  id="overleaf_url"
+                  {...register("overleaf_url", {
+                    required: importZip
+                      ? false
+                      : "Overleaf project URL is required",
+                    validate: (value) => {
+                      // Skip validation if in ZIP import mode
+                      if (importZip) return true
+                      // Otherwise require non-empty URL
+                      return (
+                        value.trim() !== "" ||
+                        "Overleaf project URL is required"
+                      )
+                    },
+                  })}
+                  placeholder={"Ex: https://www.overleaf.com/project/abc123..."}
+                  type="text"
+                />
+                {/* Show download button if in ZIP mode and URL has a value */}
+                {importZip &&
+                  (() => {
+                    const overleafUrl = watch("overleaf_url")
+                    return overleafUrl && overleafUrl.trim() !== "" ? (
+                      <IconButton
+                        as="a"
+                        href={overleafUrl + "/download/zip"}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label="Download ZIP from Overleaf"
+                        icon={<DownloadIcon />}
+                        title="Download ZIP from Overleaf"
+                        variant="outline"
+                        size="md"
+                      />
+                    ) : null
+                  })()}
+              </HStack>
               {errors.overleaf_url && (
                 <FormErrorMessage>
                   {errors.overleaf_url.message}
                 </FormErrorMessage>
               )}
             </FormControl>
-            {/* Overleaf token, if account is not yet connected */}
-            {!connectedAccountsQuery.data?.overleaf ? (
-              <FormControl mt={4} isRequired isInvalid={!!errors.path}>
+            {importZip ? (
+              <FormControl mt={4} isRequired>
+                <FormLabel htmlFor="zip_file">Overleaf ZIP file</FormLabel>
+                <Input
+                  pt={1}
+                  id="zip_file"
+                  {...register("file", {
+                    required: importZip ? "ZIP file is required" : false,
+                  })}
+                  type="file"
+                  accept=".zip"
+                />
+              </FormControl>
+            ) : !connectedAccountsQuery.data?.overleaf ? (
+              <FormControl
+                mt={4}
+                isRequired
+                isInvalid={!!errors.overleaf_token}
+              >
                 <FormLabel htmlFor="overleaf_token">Overleaf token</FormLabel>
-                {/* TODO: Have tooltip/link here */}
                 <Input
                   id="overleaf_token"
                   {...register("overleaf_token", {
@@ -177,9 +261,7 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
                   </FormErrorMessage>
                 )}
               </FormControl>
-            ) : (
-              ""
-            )}
+            ) : null}
             {/* Destination folder */}
             <FormControl mt={4} isRequired isInvalid={!!errors.path}>
               <FormLabel htmlFor="path">Destination folder</FormLabel>
@@ -202,7 +284,6 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
               <FormLabel htmlFor="kind">Type</FormLabel>
               <Select
                 id="kind"
-                placeholder="Select type"
                 {...register("kind", {
                   required: "Type is required",
                 })}
@@ -224,24 +305,10 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
                 {...register("title")}
                 placeholder="Title"
                 type="text"
+                autoComplete="off"
               />
               {errors.title && (
                 <FormErrorMessage>{errors.title.message}</FormErrorMessage>
-              )}
-            </FormControl>
-            {/* Target TeX file path */}
-            <FormControl mt={4} isInvalid={!!errors.target_path}>
-              <FormLabel htmlFor="target_path">Target TeX file path</FormLabel>
-              <Input
-                id="target_path"
-                {...register("target_path")}
-                placeholder={"Ex: main.tex"}
-                type="text"
-              />
-              {errors.target_path && (
-                <FormErrorMessage>
-                  {errors.target_path.message}
-                </FormErrorMessage>
               )}
             </FormControl>
             {/* Description */}
@@ -258,36 +325,6 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
                 </FormErrorMessage>
               )}
             </FormControl>
-            {/* Environment name */}
-            <FormControl mt={4} isInvalid={!!errors.environment}>
-              <FormLabel htmlFor="environment">
-                Docker environment name
-              </FormLabel>
-              <Input
-                id="environment"
-                {...register("environment")}
-                placeholder="Ex: tex"
-                type="text"
-              />
-              {errors.environment && (
-                <FormErrorMessage>
-                  {errors.environment.message}
-                </FormErrorMessage>
-              )}
-            </FormControl>
-            {/* Stage name */}
-            <FormControl mt={4} isInvalid={!!errors.stage}>
-              <FormLabel htmlFor="stage_name">Pipeline stage name</FormLabel>
-              <Input
-                id="stage"
-                {...register("stage")}
-                placeholder="Ex: build-paper"
-                type="text"
-              />
-              {errors.stage && (
-                <FormErrorMessage>{errors.stage.message}</FormErrorMessage>
-              )}
-            </FormControl>
             {/* Auto-build */}
             <Flex mt={4}>
               <FormControl>
@@ -300,6 +337,74 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
                 </Checkbox>
               </FormControl>
             </Flex>
+            {/* Advanced section toggle */}
+            <Box mt={3}>
+              <Button
+                pl={0}
+                pr={2}
+                variant="ghost"
+                size="md"
+                onClick={() => setShowAdvanced(!showAdvanced)}
+                leftIcon={
+                  showAdvanced ? <ChevronDownIcon /> : <ChevronRightIcon />
+                }
+                fontWeight="normal"
+              >
+                Advanced
+              </Button>
+            </Box>
+            {/* Advanced collapsible section */}
+            <Collapse in={showAdvanced} animateOpacity>
+              <Box pl={2} borderLeft="2px" borderColor="gray.200">
+                {/* Target TeX file path */}
+                <FormControl mt={4} isInvalid={!!errors.target_path}>
+                  <FormLabel htmlFor="target_path">
+                    Target TeX file path
+                  </FormLabel>
+                  <Input
+                    id="target_path"
+                    {...register("target_path")}
+                    placeholder={"Ex: main.tex"}
+                    type="text"
+                  />
+                  {errors.target_path && (
+                    <FormErrorMessage>
+                      {errors.target_path.message}
+                    </FormErrorMessage>
+                  )}
+                </FormControl>
+                {/* Environment name */}
+                <FormControl mt={4} isInvalid={!!errors.environment}>
+                  <FormLabel htmlFor="environment">
+                    Docker environment name
+                  </FormLabel>
+                  <Input
+                    id="environment"
+                    {...register("environment")}
+                    placeholder="Ex: tex"
+                    type="text"
+                  />
+                  {errors.environment && (
+                    <FormErrorMessage>
+                      {errors.environment.message}
+                    </FormErrorMessage>
+                  )}
+                </FormControl>
+                {/* Stage name */}
+                <FormControl mt={4} isInvalid={!!errors.stage}>
+                  <FormLabel htmlFor="stage">Pipeline stage name</FormLabel>
+                  <Input
+                    id="stage"
+                    {...register("stage")}
+                    placeholder="Ex: build-paper"
+                    type="text"
+                  />
+                  {errors.stage && (
+                    <FormErrorMessage>{errors.stage.message}</FormErrorMessage>
+                  )}
+                </FormControl>
+              </Box>
+            </Collapse>
           </ModalBody>
           <ModalFooter gap={3}>
             <Button
