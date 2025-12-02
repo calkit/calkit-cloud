@@ -2196,10 +2196,10 @@ async def post_project_overleaf_publication(
     # Determine mode: link vs zip
     import_zip_mode = file is not None
     overleaf_repo = None
-    overleaf_project_id = overleaf_project_url.split("/")[-1]
     if import_zip_mode:
         logger.info("Importing Overleaf ZIP archive; skipping linkage")
-    else:
+    elif overleaf_project_url is not None:
+        overleaf_project_id = overleaf_project_url.split("/")[-1]
         # Handle token saving and validation for link mode
         if overleaf_token is not None:
             users.save_overleaf_token(
