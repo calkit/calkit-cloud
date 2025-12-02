@@ -178,7 +178,7 @@ const NewProject = ({ isOpen, onClose, defaultTemplate }: NewProjectProps) => {
           <ModalBody pb={6}>
             <FormControl display="flex" alignItems="center" mb={4}>
               <FormLabel htmlFor="repo-exists" mb="0">
-                GitHub repo already exists?
+                GitHub repo exists?
               </FormLabel>
               <Switch
                 id="repo-exists"
