@@ -59,9 +59,9 @@ import type {
   OverleafSyncResponse,
   Pipeline,
   ProjectApp,
-  ProjectCreate,
   ProjectOptionalExtended,
   ProjectPatch,
+  ProjectPost,
   ProjectPublic,
   ProjectsPublic,
   ProjectStatus,
@@ -188,8 +188,8 @@ export type ProjectsData = {
     ownerName?: string | null
     searchFor?: string | null
   }
-  CreateProject: {
-    requestBody: ProjectCreate
+  PostProject: {
+    requestBody: ProjectPost
   }
   GetOwnedProjects: {
     limit?: number
@@ -1259,13 +1259,13 @@ export class ProjectsService {
   }
 
   /**
-   * Create Project
+   * Post Project
    * Create new project.
    * @returns ProjectPublic Successful Response
    * @throws ApiError
    */
-  public static createProject(
-    data: ProjectsData["CreateProject"],
+  public static postProject(
+    data: ProjectsData["PostProject"],
   ): CancelablePromise<ProjectPublic> {
     const { requestBody } = data
     return __request(OpenAPI, {
@@ -1966,7 +1966,7 @@ export class ProjectsService {
    * Import a publication from Overleaf into a project.
    *
    * Supports two modes:
-   * 1. Import and link via cloning the Overleaf git repo.
+   * 1. Import and link via cloning the Overleaf Git repo.
    * Requires an Overleaf token and performs sync setup.
    * 2. Import ZIP via user-provided downloaded archive.
    * Skips linkage and sync info; just copies files into repo.

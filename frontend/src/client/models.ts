@@ -482,21 +482,6 @@ export type ProjectApp = {
   description?: string | null
 }
 
-export type ProjectCreate = {
-  name: string
-  title: string
-  description?: string | null
-  is_public?: boolean
-  created?: string | null
-  updated?: string | null
-  git_repo_url?: string | null
-  latest_git_rev?: string | null
-  status?: string | null
-  status_updated?: string | null
-  status_message?: string | null
-  template?: string | null
-}
-
 export type ProjectOptionalExtended = {
   name: string
   title: string
@@ -522,6 +507,21 @@ export type ProjectPatch = {
   title?: string | null
   description?: string | null
   is_public?: boolean | null
+}
+
+export type ProjectPost = {
+  name: string
+  title: string
+  description?: string | null
+  is_public?: boolean
+  created?: string | null
+  updated?: string | null
+  git_repo_url?: string | null
+  latest_git_rev?: string | null
+  status?: string | null
+  status_updated?: string | null
+  status_message?: string | null
+  template?: string | null
 }
 
 export type ProjectPublic = {

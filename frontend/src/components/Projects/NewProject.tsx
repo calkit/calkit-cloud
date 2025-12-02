@@ -27,7 +27,7 @@ import { useNavigate } from "@tanstack/react-router"
 import {
   type ApiError,
   ProjectsService,
-  type ProjectCreate,
+  type ProjectPost,
   type UserPublic,
   type ProjectPublic,
 } from "../../client"
@@ -68,7 +68,7 @@ const NewProject = ({ isOpen, onClose, defaultTemplate }: NewProjectProps) => {
     reset,
     setValue,
     formState: { errors, isSubmitting },
-  } = useForm<ProjectCreate>({
+  } = useForm<ProjectPost>({
     mode: "onBlur",
     criteriaMode: "all",
     defaultValues: {
@@ -81,7 +81,7 @@ const NewProject = ({ isOpen, onClose, defaultTemplate }: NewProjectProps) => {
     },
   })
   const mutation = useMutation({
-    mutationFn: (data: ProjectCreate) => {
+    mutationFn: (data: ProjectPost) => {
       if (data.template === "") {
         data.template = null
       }
@@ -90,7 +90,7 @@ const NewProject = ({ isOpen, onClose, defaultTemplate }: NewProjectProps) => {
       if (gitName) {
         data.name = gitName.toLowerCase()
       }
-      return ProjectsService.createProject({ requestBody: data })
+      return ProjectsService.postProject({ requestBody: data })
     },
     onSuccess: (data: ProjectPublic) => {
       mixpanel.track("Created new project")
@@ -125,7 +125,7 @@ const NewProject = ({ isOpen, onClose, defaultTemplate }: NewProjectProps) => {
       queryClient.invalidateQueries({ queryKey: ["projects"] })
     },
   })
-  const onSubmit: SubmitHandler<ProjectCreate> = (data) => {
+  const onSubmit: SubmitHandler<ProjectPost> = (data) => {
     mutation.mutate(data)
   }
   const onTitleChange = (e: any) => {

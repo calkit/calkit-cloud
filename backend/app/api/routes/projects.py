@@ -85,7 +85,7 @@ from app.models import (
     OrgSubscription,
     Pipeline,
     Project,
-    ProjectCreate,
+    ProjectPost,
     ProjectPublic,
     ProjectsPublic,
     Publication,
@@ -244,11 +244,11 @@ def get_owned_projects(
 
 
 @router.post("/projects")
-def create_project(
+def post_project(
     *,
     session: SessionDep,
     current_user: CurrentUser,
-    project_in: ProjectCreate,
+    project_in: ProjectPost,
 ) -> ProjectPublic:
     """Create new project."""
     if project_in.git_repo_url is None:

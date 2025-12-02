@@ -479,7 +479,7 @@ class ProjectsPublic(SQLModel):
     count: int
 
 
-class ProjectCreate(ProjectBase):
+class ProjectPost(ProjectBase):
     name: str = Field(min_length=4, max_length=255)
     title: str = Field(min_length=4, max_length=255)
     description: str | None = Field(

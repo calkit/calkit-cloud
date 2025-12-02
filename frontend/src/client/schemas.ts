@@ -2312,136 +2312,6 @@ export const $ProjectApp = {
   },
 } as const
 
-export const $ProjectCreate = {
-  properties: {
-    name: {
-      type: "string",
-      isRequired: true,
-      maxLength: 255,
-      minLength: 4,
-    },
-    title: {
-      type: "string",
-      isRequired: true,
-      maxLength: 255,
-      minLength: 4,
-    },
-    description: {
-      type: "any-of",
-      contains: [
-        {
-          type: "string",
-          maxLength: 2048,
-          minLength: 0,
-        },
-        {
-          type: "null",
-        },
-      ],
-    },
-    is_public: {
-      type: "boolean",
-      default: false,
-    },
-    created: {
-      type: "any-of",
-      contains: [
-        {
-          type: "string",
-          format: "date-time",
-        },
-        {
-          type: "null",
-        },
-      ],
-    },
-    updated: {
-      type: "any-of",
-      contains: [
-        {
-          type: "string",
-          format: "date-time",
-        },
-        {
-          type: "null",
-        },
-      ],
-    },
-    git_repo_url: {
-      type: "any-of",
-      contains: [
-        {
-          type: "string",
-          maxLength: 2048,
-        },
-        {
-          type: "null",
-        },
-      ],
-    },
-    latest_git_rev: {
-      type: "any-of",
-      contains: [
-        {
-          type: "string",
-          maxLength: 40,
-        },
-        {
-          type: "null",
-        },
-      ],
-    },
-    status: {
-      type: "any-of",
-      contains: [
-        {
-          type: "string",
-          maxLength: 32,
-          minLength: 4,
-        },
-        {
-          type: "null",
-        },
-      ],
-    },
-    status_updated: {
-      type: "any-of",
-      contains: [
-        {
-          type: "string",
-          format: "date-time",
-        },
-        {
-          type: "null",
-        },
-      ],
-    },
-    status_message: {
-      type: "any-of",
-      contains: [
-        {
-          type: "string",
-          maxLength: 2048,
-        },
-        {
-          type: "null",
-        },
-      ],
-    },
-    template: {
-      type: "any-of",
-      contains: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
-    },
-  },
-} as const
-
 export const $ProjectOptionalExtended = {
   properties: {
     name: {
@@ -2638,6 +2508,136 @@ export const $ProjectPatch = {
       contains: [
         {
           type: "boolean",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+  },
+} as const
+
+export const $ProjectPost = {
+  properties: {
+    name: {
+      type: "string",
+      isRequired: true,
+      maxLength: 255,
+      minLength: 4,
+    },
+    title: {
+      type: "string",
+      isRequired: true,
+      maxLength: 255,
+      minLength: 4,
+    },
+    description: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          maxLength: 2048,
+          minLength: 0,
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    is_public: {
+      type: "boolean",
+      default: false,
+    },
+    created: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    updated: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    git_repo_url: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          maxLength: 2048,
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    latest_git_rev: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          maxLength: 40,
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    status: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          maxLength: 32,
+          minLength: 4,
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    status_updated: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    status_message: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          maxLength: 2048,
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    template: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
         },
         {
           type: "null",
