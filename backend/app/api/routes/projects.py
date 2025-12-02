@@ -424,7 +424,7 @@ def post_project(
         session.add(project)
         session.commit()
         session.refresh(project)
-        # Clone the repo and setup the Calkit DVC remote
+        # Clone the repo and set up the Calkit DVC remote
         repo = get_repo(
             project=project,
             session=session,
@@ -515,8 +515,11 @@ def post_project(
             commit_msg = "Create README.md, DVC config, and calkit.yaml"
         repo.git.commit(["-m", commit_msg])
         repo.git.push(["origin", repo.active_branch.name])
+    # Repo exists on GitHub
     elif resp.status_code == 200:
         logger.info(f"Repo exists on GitHub as {owner_name}/{repo_name}")
+        if not project_in.git_repo_exists:
+            raise HTTPException(400, "GitHub repo already exists")
         if project_in.template is not None:
             raise HTTPException(
                 400, "Templates can only be used with new repos"
@@ -530,7 +533,7 @@ def post_project(
             # This org must exist in Calkit and the user must have access to it
             # First check if this org exists in Calkit and try to create it
             # if it doesn't
-            query = select(Org).where(Org.account.has(github_name=owner_name))
+            query = select(Org).where(Org.account.has(github_name=owner_name))  # type: ignore
             org = session.exec(query).first()
             if org is None:
                 logger.info(f"Org '{owner_name}' does not exist in DB")
@@ -575,10 +578,12 @@ def post_project(
                     ),
                 )
             owner_account_id = org.account.id
-            # Make public visibility match that on GitHub
-            project_in.is_public = not repo.get("private", True)
         else:
             owner_account_id = current_user.account.id
+        # Make public visibility match that on GitHub
+        project_in.is_public = not repo.get("private", True)
+        if not project_in.description:
+            project_in.description = repo.get("description", None)
         project = Project.model_validate(
             project_in, update={"owner_account_id": owner_account_id}
         )
@@ -586,7 +591,7 @@ def post_project(
         session.add(project)
         session.commit()
         session.refresh(project)
-    return project
+    return project  # type: ignore
 
 
 class ProjectOptionalExtended(ProjectPublic):

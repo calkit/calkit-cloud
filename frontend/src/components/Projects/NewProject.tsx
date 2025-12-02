@@ -92,6 +92,9 @@ const NewProject = ({ isOpen, onClose, defaultTemplate }: NewProjectProps) => {
         data.name = gitName.toLowerCase()
       }
       data.git_repo_exists = repoExists
+      if (repoExists) {
+        data.template = null
+      }
       return ProjectsService.postProject({ requestBody: data })
     },
     onSuccess: (data: ProjectPublic) => {
@@ -101,6 +104,9 @@ const NewProject = ({ isOpen, onClose, defaultTemplate }: NewProjectProps) => {
       const projectName = data.name
       reset()
       onClose()
+      // Invalidate queries for user projects
+      queryClient.invalidateQueries({ queryKey: ["projects"] })
+      // Navigate to the new project's page
       navigate({
         to: "/$accountName/$projectName",
         params: { accountName, projectName },
