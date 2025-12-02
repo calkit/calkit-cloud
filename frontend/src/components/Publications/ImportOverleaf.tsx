@@ -19,12 +19,18 @@ import {
   HStack,
   Text,
   IconButton,
+  Collapse,
+  Box,
 } from "@chakra-ui/react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { type SubmitHandler, useForm } from "react-hook-form"
 import { getRouteApi } from "@tanstack/react-router"
 import { useState } from "react"
-import { DownloadIcon } from "@chakra-ui/icons"
+import {
+  DownloadIcon,
+  ChevronDownIcon,
+  ChevronRightIcon,
+} from "@chakra-ui/icons"
 
 import { ProjectsService, UsersService } from "../../client"
 import type { ApiError } from "../../client/core/ApiError"
@@ -89,6 +95,7 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
     },
   })
   const [importZip, setImportZip] = useState(false)
+  const [showAdvanced, setShowAdvanced] = useState(false)
   const mutation = useMutation({
     mutationFn: (data: OverleafImportPost) =>
       ProjectsService.postProjectOverleafPublication({
@@ -304,21 +311,6 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
                 <FormErrorMessage>{errors.title.message}</FormErrorMessage>
               )}
             </FormControl>
-            {/* Target TeX file path */}
-            <FormControl mt={4} isInvalid={!!errors.target_path}>
-              <FormLabel htmlFor="target_path">Target TeX file path</FormLabel>
-              <Input
-                id="target_path"
-                {...register("target_path")}
-                placeholder={"Ex: main.tex"}
-                type="text"
-              />
-              {errors.target_path && (
-                <FormErrorMessage>
-                  {errors.target_path.message}
-                </FormErrorMessage>
-              )}
-            </FormControl>
             {/* Description */}
             <FormControl mt={4} isInvalid={!!errors.description}>
               <FormLabel htmlFor="description">Description</FormLabel>
@@ -333,36 +325,6 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
                 </FormErrorMessage>
               )}
             </FormControl>
-            {/* Environment name */}
-            <FormControl mt={4} isInvalid={!!errors.environment}>
-              <FormLabel htmlFor="environment">
-                Docker environment name
-              </FormLabel>
-              <Input
-                id="environment"
-                {...register("environment")}
-                placeholder="Ex: tex"
-                type="text"
-              />
-              {errors.environment && (
-                <FormErrorMessage>
-                  {errors.environment.message}
-                </FormErrorMessage>
-              )}
-            </FormControl>
-            {/* Stage name */}
-            <FormControl mt={4} isInvalid={!!errors.stage}>
-              <FormLabel htmlFor="stage">Pipeline stage name</FormLabel>
-              <Input
-                id="stage"
-                {...register("stage")}
-                placeholder="Ex: build-paper"
-                type="text"
-              />
-              {errors.stage && (
-                <FormErrorMessage>{errors.stage.message}</FormErrorMessage>
-              )}
-            </FormControl>
             {/* Auto-build */}
             <Flex mt={4}>
               <FormControl>
@@ -375,6 +337,74 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
                 </Checkbox>
               </FormControl>
             </Flex>
+            {/* Advanced section toggle */}
+            <Box mt={4}>
+              <Button
+                pl={0}
+                pr={2}
+                variant="ghost"
+                size="md"
+                onClick={() => setShowAdvanced(!showAdvanced)}
+                leftIcon={
+                  showAdvanced ? <ChevronDownIcon /> : <ChevronRightIcon />
+                }
+                fontWeight="normal"
+              >
+                Advanced
+              </Button>
+            </Box>
+            {/* Advanced collapsible section */}
+            <Collapse in={showAdvanced} animateOpacity>
+              <Box pl={2} borderLeft="2px" borderColor="gray.200">
+                {/* Target TeX file path */}
+                <FormControl mt={4} isInvalid={!!errors.target_path}>
+                  <FormLabel htmlFor="target_path">
+                    Target TeX file path
+                  </FormLabel>
+                  <Input
+                    id="target_path"
+                    {...register("target_path")}
+                    placeholder={"Ex: main.tex"}
+                    type="text"
+                  />
+                  {errors.target_path && (
+                    <FormErrorMessage>
+                      {errors.target_path.message}
+                    </FormErrorMessage>
+                  )}
+                </FormControl>
+                {/* Environment name */}
+                <FormControl mt={4} isInvalid={!!errors.environment}>
+                  <FormLabel htmlFor="environment">
+                    Docker environment name
+                  </FormLabel>
+                  <Input
+                    id="environment"
+                    {...register("environment")}
+                    placeholder="Ex: tex"
+                    type="text"
+                  />
+                  {errors.environment && (
+                    <FormErrorMessage>
+                      {errors.environment.message}
+                    </FormErrorMessage>
+                  )}
+                </FormControl>
+                {/* Stage name */}
+                <FormControl mt={4} isInvalid={!!errors.stage}>
+                  <FormLabel htmlFor="stage">Pipeline stage name</FormLabel>
+                  <Input
+                    id="stage"
+                    {...register("stage")}
+                    placeholder="Ex: build-paper"
+                    type="text"
+                  />
+                  {errors.stage && (
+                    <FormErrorMessage>{errors.stage.message}</FormErrorMessage>
+                  )}
+                </FormControl>
+              </Box>
+            </Collapse>
           </ModalBody>
           <ModalFooter gap={3}>
             <Button
