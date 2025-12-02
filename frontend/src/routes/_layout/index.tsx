@@ -30,7 +30,7 @@ import { useDebounce } from "use-debounce"
 import { ProjectsService } from "../../client"
 import ActionsMenu from "../../components/Common/ActionsMenu"
 import Navbar from "../../components/Common/Navbar"
-import CreateProject from "../../components/Projects/NewProject"
+import NewProject from "../../components/Projects/NewProject"
 import { pageWidthNoSidebar } from "../../lib/layout"
 import useAuth from "../../hooks/useAuth"
 
@@ -96,7 +96,7 @@ function ProjectsTable() {
     <>
       <Flex alignItems="center">
         <Box mr={4}>
-          <Navbar verb={"New"} type={"project"} addModalAs={CreateProject} />
+          <Navbar verb={"New"} type={"project"} addModalAs={NewProject} />
         </Box>
         <Input placeholder="Search..." width="33%" onChange={onSearchChange} />
       </Flex>

@@ -85,7 +85,7 @@ from app.models import (
     OrgSubscription,
     Pipeline,
     Project,
-    ProjectCreate,
+    ProjectPost,
     ProjectPublic,
     ProjectsPublic,
     Publication,
@@ -244,13 +244,17 @@ def get_owned_projects(
 
 
 @router.post("/projects")
-def create_project(
+def post_project(
     *,
     session: SessionDep,
     current_user: CurrentUser,
-    project_in: ProjectCreate,
+    project_in: ProjectPost,
 ) -> ProjectPublic:
     """Create new project."""
+    if project_in.git_repo_exists and project_in.git_repo_url is None:
+        raise HTTPException(
+            400, "Git repo URL must be specified if Git repo exists"
+        )
     if project_in.git_repo_url is None:
         project_in.git_repo_url = (
             f"https://github.com/{current_user.account.name}/{project_in.name}"
@@ -292,7 +296,7 @@ def create_project(
             )
     # Check if this user has exceeded their private projects limit if this one
     # is private
-    if not project_in.is_public:
+    if not project_in.git_repo_exists and not project_in.is_public:
         logger.info(f"Checking private project count for {owner_name}")
         if current_user.account.name == owner_name:
             # Count private projects for user
@@ -362,6 +366,8 @@ def create_project(
         logger.info("Git repo is already occupied by another project")
         raise HTTPException(409, "Repos can only be associated with 1 project")
     elif resp.status_code == 404:
+        if project_in.git_repo_exists:
+            raise HTTPException(404, "GitHub repo not found")
         # If not owned, create it
         logger.info(f"Creating GitHub repo for {owner_name}: {repo_name}")
         body = {
@@ -418,7 +424,7 @@ def create_project(
         session.add(project)
         session.commit()
         session.refresh(project)
-        # Clone the repo and setup the Calkit DVC remote
+        # Clone the repo and set up the Calkit DVC remote
         repo = get_repo(
             project=project,
             session=session,
@@ -509,8 +515,11 @@ def create_project(
             commit_msg = "Create README.md, DVC config, and calkit.yaml"
         repo.git.commit(["-m", commit_msg])
         repo.git.push(["origin", repo.active_branch.name])
+    # Repo exists on GitHub
     elif resp.status_code == 200:
         logger.info(f"Repo exists on GitHub as {owner_name}/{repo_name}")
+        if not project_in.git_repo_exists:
+            raise HTTPException(400, "GitHub repo already exists")
         if project_in.template is not None:
             raise HTTPException(
                 400, "Templates can only be used with new repos"
@@ -524,7 +533,7 @@ def create_project(
             # This org must exist in Calkit and the user must have access to it
             # First check if this org exists in Calkit and try to create it
             # if it doesn't
-            query = select(Org).where(Org.account.has(github_name=owner_name))
+            query = select(Org).where(Org.account.has(github_name=owner_name))  # type: ignore
             org = session.exec(query).first()
             if org is None:
                 logger.info(f"Org '{owner_name}' does not exist in DB")
@@ -558,8 +567,7 @@ def create_project(
             for membership in current_user.org_memberships:
                 if membership.org.account.name.lower() == owner_name.lower():
                     role = membership.role_name
-            # If we have no role defined, check on GitHub
-            # TODO
+            # TODO: If we have no role defined, check on GitHub
             if role not in ["owner", "admin"]:
                 logger.info("User is not an admin or owner of this org")
                 raise HTTPException(
@@ -572,6 +580,10 @@ def create_project(
             owner_account_id = org.account.id
         else:
             owner_account_id = current_user.account.id
+        # Make public visibility match that on GitHub
+        project_in.is_public = not repo.get("private", True)
+        if not project_in.description:
+            project_in.description = repo.get("description", None)
         project = Project.model_validate(
             project_in, update={"owner_account_id": owner_account_id}
         )
@@ -579,7 +591,7 @@ def create_project(
         session.add(project)
         session.commit()
         session.refresh(project)
-    return project
+    return project  # type: ignore
 
 
 class ProjectOptionalExtended(ProjectPublic):
@@ -2263,7 +2275,11 @@ async def post_project_overleaf_publication(
     input_rel_paths = set(overleaf_rel_paths + sync_paths + push_paths)
     input_paths: list[str] = []
     for p in input_rel_paths:
-        if p == target_path or p.startswith("."):
+        if (
+            p == target_path
+            or p.startswith(".")
+            or p == target_path.removesuffix(".tex") + ".pdf"
+        ):
             continue
         project_rel_path = os.path.join(path, p)
         if project_rel_path not in input_paths:
@@ -2310,8 +2326,17 @@ async def post_project_overleaf_publication(
         shutil.copytree(
             src=overleaf_abs_path,
             dst=dest_pub_dir,
-            ignore=lambda src, names: [".git"],
+            ignore=lambda src, names: [
+                ".git",
+                target_path.removesuffix(".tex") + ".pdf",
+            ],
         )
+    else:
+        # Make sure the output PDF doesn't exist
+        pdf_path = os.path.join(repo.working_dir, pdf_output_path)
+        if os.path.isfile(pdf_path):
+            logger.info("PDF was part of Overleaf ZIP; removing")
+            os.remove(pdf_path)
     # Add publication-specific .gitignore
     gitignore_txt = (
         "\n".join(

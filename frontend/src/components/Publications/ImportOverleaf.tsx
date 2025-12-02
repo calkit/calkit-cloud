@@ -72,6 +72,7 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
     queryFn: () => UsersService.getUserConnectedAccounts(),
     queryKey: ["user", "connected-accounts"],
   })
+  const [importZip, setImportZip] = useState(false)
   const {
     register,
     handleSubmit,
@@ -94,7 +95,6 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
       auto_build: false,
     },
   })
-  const [importZip, setImportZip] = useState(false)
   const [showAdvanced, setShowAdvanced] = useState(false)
   const mutation = useMutation({
     mutationFn: (data: OverleafImportPost) =>
@@ -182,12 +182,9 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
                 <Input
                   id="overleaf_url"
                   {...register("overleaf_url", {
-                    required: importZip
-                      ? false
-                      : "Overleaf project URL is required",
                     validate: (value) => {
                       // Skip validation if in ZIP import mode
-                      if (importZip) return true
+                      if (watch("file")?.length) return true
                       // Otherwise require non-empty URL
                       return (
                         value.trim() !== "" ||
@@ -246,11 +243,14 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
                 <Input
                   id="overleaf_token"
                   {...register("overleaf_token", {
-                    required: "Overleaf token is required",
-                    validate: (value) =>
-                      !value ||
-                      value.trim() !== "" ||
-                      "Overleaf token is required",
+                    validate: (value) => {
+                      // Skip validation if in ZIP import mode
+                      if (watch("file")?.length) return true
+                      return (
+                        (value && value.trim() !== "") ||
+                        "Overleaf token is required"
+                      )
+                    },
                   })}
                   placeholder={"Ex: olp_..."}
                   type="text"

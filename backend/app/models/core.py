@@ -479,7 +479,7 @@ class ProjectsPublic(SQLModel):
     count: int
 
 
-class ProjectCreate(ProjectBase):
+class ProjectPost(ProjectBase):
     name: str = Field(min_length=4, max_length=255)
     title: str = Field(min_length=4, max_length=255)
     description: str | None = Field(
@@ -488,6 +488,7 @@ class ProjectCreate(ProjectBase):
     is_public: bool = Field(default=False)
     git_repo_url: str | None = Field(max_length=2048, default=None)
     template: str | None = None
+    git_repo_exists: bool | None = None
 
 
 class UserProjectAccess(SQLModel, table=True):
