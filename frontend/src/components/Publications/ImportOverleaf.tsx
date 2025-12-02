@@ -129,10 +129,6 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
     },
   })
   const onSubmit: SubmitHandler<OverleafImportPost> = (data) => {
-    if (importZip && !data.file) {
-      showToast("Error", "ZIP file required for ZIP import.", "error")
-      return
-    }
     mutation.mutate(data)
   }
 
