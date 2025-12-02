@@ -2197,7 +2197,12 @@ async def post_project_overleaf_publication(
     import_zip_mode = file is not None
     overleaf_repo = None
     if import_zip_mode:
+        overleaf_abs_path = os.path.join(repo.working_dir, path)
         logger.info("Importing Overleaf ZIP archive; skipping linkage")
+        # Unzip the whole archive into the requested path
+        os.makedirs(overleaf_abs_path, exist_ok=True)
+        with zipfile.ZipFile(io.BytesIO(await file.read()), "r") as zf:
+            zf.extractall(overleaf_abs_path)
     elif overleaf_project_url is not None:
         overleaf_project_id = overleaf_project_url.split("/")[-1]
         # Handle token saving and validation for link mode
@@ -2226,85 +2231,36 @@ async def post_project_overleaf_publication(
                     "and that Git integration is enabled on Overleaf"
                 ),
             )
+        overleaf_abs_path = overleaf_repo.working_dir
     # Detect target path
     if not target_path:
-        if import_zip_mode and file is not None:
-            # Look inside zip to find main tex file
-            with tempfile.TemporaryDirectory() as td:
-                await file.seek(0)
-                zip_bytes = await file.read()
-                zfpath = os.path.join(td, "archive.zip")
-                with open(zfpath, "wb") as zf:
-                    zf.write(zip_bytes)
-                with zipfile.ZipFile(zfpath) as zf:
-                    namelist = zf.namelist()
-                for candidate in ["main.tex", "paper.tex", "report.tex"]:
-                    if any(n.endswith(candidate) for n in namelist):
-                        target_path = candidate
-                        break
-        elif overleaf_repo is not None:
-            overleaf_files = os.listdir(overleaf_repo.working_dir)
-            for candidate in ["main.tex", "paper.tex", "report.tex"]:
-                if candidate in overleaf_files:
-                    target_path = candidate
-                    break
+        overleaf_files = os.listdir(overleaf_abs_path)
+        for candidate in ["main.tex", "paper.tex", "report.tex"]:
+            if candidate in overleaf_files:
+                target_path = candidate
+                break
     if not target_path:
         raise HTTPException(
             400, "Target path cannot be detected; please specify"
         )
     if not target_path.endswith(".tex"):
         raise HTTPException(400, "Target path must end with '.tex'")
-    if (
-        not import_zip_mode
-        and overleaf_repo is not None
-        and target_path not in os.listdir(overleaf_repo.working_dir)
-    ):
+    target_full_path = os.path.join(overleaf_abs_path, target_path)
+    if not os.path.isfile(target_full_path):
         raise HTTPException(
             400,
             f"Target path '{target_path}' does not exist in Overleaf project",
         )
     # Detect title
     if not title:
-        if import_zip_mode and file is not None:
-            with tempfile.TemporaryDirectory() as td:
-                await file.seek(0)
-                zip_bytes = await file.read()
-                zfpath = os.path.join(td, "archive.zip")
-                with open(zfpath, "wb") as zf:
-                    zf.write(zip_bytes)
-                with zipfile.ZipFile(zfpath) as zf:
-                    try:
-                        with zf.open(target_path) as tf:
-                            overleaf_target_text = tf.read().decode()
-                    except KeyError:
-                        overleaf_target_text = ""
-        elif overleaf_repo is not None:
-            with open(
-                os.path.join(overleaf_repo.working_dir, target_path)
-            ) as f:
-                overleaf_target_text = f.read()
-        else:
-            overleaf_target_text = ""
-        if overleaf_target_text:
-            texsoup = TexSoup(overleaf_target_text)
-            title = str(texsoup.title.string) if texsoup.title else None
+        with open(target_full_path) as f:
+            overleaf_target_text = f.read()
+        texsoup = TexSoup(overleaf_target_text)
+        title = str(texsoup.title.string) if texsoup.title else None
     if not title:
         raise HTTPException(400, "Title cannot be detected; please provide")
     # Build stage inputs
-    if import_zip_mode and file is not None:
-        with tempfile.TemporaryDirectory() as td:
-            await file.seek(0)
-            zip_bytes = await file.read()
-            zfpath = os.path.join(td, "archive.zip")
-            with open(zfpath, "wb") as zf:
-                zf.write(zip_bytes)
-            with zipfile.ZipFile(zfpath) as zf:
-                all_names = [n for n in zf.namelist() if not n.endswith("/")]
-        overleaf_rel_files = [os.path.basename(n) for n in all_names]
-    else:
-        overleaf_rel_files = (
-            os.listdir(overleaf_repo.working_dir) if overleaf_repo else []
-        )
+    overleaf_rel_files = os.listdir(overleaf_abs_path)
     input_rel_paths = set(overleaf_rel_files + sync_paths + push_paths)
     input_paths: list[str] = []
     for p in input_rel_paths:
@@ -2349,18 +2305,9 @@ async def post_project_overleaf_publication(
         )
     # Copy files into repo
     dest_pub_dir = os.path.join(repo.working_dir, path)
-    if import_zip_mode and file is not None:
-        with tempfile.TemporaryDirectory() as td:
-            await file.seek(0)
-            zip_bytes = await file.read()
-            zfpath = os.path.join(td, "archive.zip")
-            with open(zfpath, "wb") as zf:
-                zf.write(zip_bytes)
-            with zipfile.ZipFile(zfpath) as zf:
-                zf.extractall(dest_pub_dir)
-    else:
+    if not import_zip_mode:
         shutil.copytree(
-            src=overleaf_repo.working_dir,  # type: ignore
+            src=overleaf_abs_path,
             dst=dest_pub_dir,
             ignore=lambda src, names: [".git"],
         )
