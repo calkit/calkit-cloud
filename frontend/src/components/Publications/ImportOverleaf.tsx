@@ -54,6 +54,7 @@ interface OverleafImportPost {
   overleaf_token?: string | null
   target_path?: string | null
   auto_build: boolean
+  file?: FileList
 }
 
 const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
@@ -88,29 +89,25 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
     },
   })
   const [importZip, setImportZip] = useState(false)
-  const [zipFile, setZipFile] = useState<File | null>(null)
   const mutation = useMutation({
-    mutationFn: (data: OverleafImportPost & { file?: File | null }) => {
-      let fd: any = {
-        path: data.path,
-        overleaf_project_url: data.overleaf_url,
-        kind: data.kind,
-        auto_build: data.auto_build,
-      }
-      if (data.title) fd.title = data.title
-      if (data.description) fd.description = data.description
-      if (data.target_path) fd.target_path = data.target_path
-      if (data.stage) fd.stage_name = data.stage
-      if (data.environment) fd.environment_name = data.environment
-      if (data.overleaf_token) fd.overleaf_token = data.overleaf_token
-      if (data.file) fd.file = data.file
-      console.log("Form data for Overleaf import:", fd)
-      return ProjectsService.postProjectOverleafPublication({
+    mutationFn: (data: OverleafImportPost) =>
+      ProjectsService.postProjectOverleafPublication({
+        formData: {
+          path: data.path,
+          overleaf_project_url: data.overleaf_url,
+          kind: data.kind,
+          auto_build: data.auto_build,
+          title: data.title || undefined,
+          description: data.description || undefined,
+          target_path: data.target_path || undefined,
+          stage_name: data.stage || undefined,
+          environment_name: data.environment || undefined,
+          overleaf_token: data.overleaf_token || undefined,
+          file: data.file ? data.file[0] : null,
+        },
         ownerName: accountName,
         projectName: projectName,
-        formData: fd,
-      })
-    },
+      }),
     onSuccess: (_pub, vars) => {
       showToast(
         "Success!",
@@ -118,7 +115,6 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
         "success",
       )
       reset()
-      setZipFile(null)
       setImportZip(false)
       onClose()
     },
@@ -132,11 +128,11 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
     },
   })
   const onSubmit: SubmitHandler<OverleafImportPost> = (data) => {
-    if (importZip && !zipFile) {
+    if (importZip && !data.file) {
       showToast("Error", "ZIP file required for ZIP import.", "error")
       return
     }
-    mutation.mutate({ ...data, file: importZip ? zipFile : null })
+    mutation.mutate(data)
   }
 
   return (
@@ -230,9 +226,11 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
                 <Input
                   pt={1}
                   id="zip_file"
+                  {...register("file", {
+                    required: importZip ? "ZIP file is required" : false,
+                  })}
                   type="file"
                   accept=".zip"
-                  onChange={(e) => setZipFile(e.target.files?.[0] || null)}
                 />
               </FormControl>
             ) : !connectedAccountsQuery.data?.overleaf ? (
