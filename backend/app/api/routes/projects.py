@@ -2259,8 +2259,8 @@ async def post_project_overleaf_publication(
     if not title:
         raise HTTPException(400, "Title cannot be detected; please provide")
     # Build stage inputs
-    overleaf_rel_files = os.listdir(overleaf_abs_path)
-    input_rel_paths = set(overleaf_rel_files + sync_paths + push_paths)
+    overleaf_rel_paths = os.listdir(overleaf_abs_path)
+    input_rel_paths = set(overleaf_rel_paths + sync_paths + push_paths)
     input_paths: list[str] = []
     for p in input_rel_paths:
         if p == target_path or p.startswith("."):
