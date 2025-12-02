@@ -151,13 +151,14 @@ const NewProject = ({ isOpen, onClose, defaultTemplate }: NewProjectProps) => {
             <FormControl isRequired isInvalid={!!errors.title}>
               <FormLabel htmlFor="title">Title</FormLabel>
               <Input
-                id="name"
+                id="title"
                 {...register("title", {
                   required: "Title is required.",
                 })}
                 placeholder="Ex: Coherent structures in high Reynolds number boundary layers"
                 type="text"
                 onChange={onTitleChange}
+                autoComplete="off"
               />
               {errors.title && (
                 <FormErrorMessage>{errors.title.message}</FormErrorMessage>
@@ -170,6 +171,7 @@ const NewProject = ({ isOpen, onClose, defaultTemplate }: NewProjectProps) => {
                 {...register("description")}
                 placeholder="Description"
                 type="text"
+                autoComplete="off"
               />
             </FormControl>
             <FormControl mt={4}>
@@ -199,6 +201,7 @@ const NewProject = ({ isOpen, onClose, defaultTemplate }: NewProjectProps) => {
                 })}
                 placeholder="Ex: https://github.com/your_name/your_repo"
                 type="text"
+                autoComplete="off"
               />
               {errors.git_repo_url && (
                 <FormErrorMessage>
