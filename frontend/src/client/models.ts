@@ -522,6 +522,7 @@ export type ProjectPost = {
   status_updated?: string | null
   status_message?: string | null
   template?: string | null
+  git_repo_exists?: boolean | null
 }
 
 export type ProjectPublic = {

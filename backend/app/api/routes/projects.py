@@ -251,6 +251,10 @@ def post_project(
     project_in: ProjectPost,
 ) -> ProjectPublic:
     """Create new project."""
+    if project_in.git_repo_exists and project_in.git_repo_url is None:
+        raise HTTPException(
+            400, "Git repo URL must be specified if Git repo exists"
+        )
     if project_in.git_repo_url is None:
         project_in.git_repo_url = (
             f"https://github.com/{current_user.account.name}/{project_in.name}"
@@ -292,7 +296,7 @@ def post_project(
             )
     # Check if this user has exceeded their private projects limit if this one
     # is private
-    if not project_in.is_public:
+    if not project_in.git_repo_exists and not project_in.is_public:
         logger.info(f"Checking private project count for {owner_name}")
         if current_user.account.name == owner_name:
             # Count private projects for user
@@ -362,6 +366,8 @@ def post_project(
         logger.info("Git repo is already occupied by another project")
         raise HTTPException(409, "Repos can only be associated with 1 project")
     elif resp.status_code == 404:
+        if project_in.git_repo_exists:
+            raise HTTPException(404, "GitHub repo not found")
         # If not owned, create it
         logger.info(f"Creating GitHub repo for {owner_name}: {repo_name}")
         body = {

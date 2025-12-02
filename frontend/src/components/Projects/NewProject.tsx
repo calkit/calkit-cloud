@@ -78,6 +78,7 @@ const NewProject = ({ isOpen, onClose, defaultTemplate }: NewProjectProps) => {
       git_repo_url: `https://github.com/${githubUsername}/`,
       is_public: false,
       template: defaultTemplate,
+      git_repo_exists: false,
     },
   })
   const mutation = useMutation({
@@ -90,6 +91,7 @@ const NewProject = ({ isOpen, onClose, defaultTemplate }: NewProjectProps) => {
       if (gitName) {
         data.name = gitName.toLowerCase()
       }
+      data.git_repo_exists = repoExists
       return ProjectsService.postProject({ requestBody: data })
     },
     onSuccess: (data: ProjectPublic) => {

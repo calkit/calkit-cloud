@@ -2644,6 +2644,17 @@ export const $ProjectPost = {
         },
       ],
     },
+    git_repo_exists: {
+      type: "any-of",
+      contains: [
+        {
+          type: "boolean",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
   },
 } as const
 
