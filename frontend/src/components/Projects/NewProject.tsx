@@ -16,7 +16,9 @@ import {
   Select,
   Link,
   useDisclosure,
+  Switch,
 } from "@chakra-ui/react"
+import { useState } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { type SubmitHandler, useForm } from "react-hook-form"
 import mixpanel from "mixpanel-browser"
@@ -40,6 +42,7 @@ interface NewProjectProps {
 }
 
 const NewProject = ({ isOpen, onClose, defaultTemplate }: NewProjectProps) => {
+  const [repoExists, setRepoExists] = useState(false)
   const templates = [
     "calkit/example-basic",
     "calkit/example-matlab",
@@ -126,6 +129,7 @@ const NewProject = ({ isOpen, onClose, defaultTemplate }: NewProjectProps) => {
     mutation.mutate(data)
   }
   const onTitleChange = (e: any) => {
+    if (repoExists) return
     const projectName = String(e.target.value)
       .toLowerCase()
       .replace(/\s+/g, "-")
@@ -133,6 +137,25 @@ const NewProject = ({ isOpen, onClose, defaultTemplate }: NewProjectProps) => {
     const repoUrl = `https://github.com/${githubUsername}/${projectName}`
     setValue("git_repo_url", repoUrl)
     setValue("name", projectName)
+  }
+  const onGitRepoUrlChange = (e: any) => {
+    const value = String(e.target.value)
+    setValue("git_repo_url", value)
+    if (!repoExists) return
+    try {
+      // Extract repo name from URL and generate a human title
+      const parts = value.split("/").filter(Boolean)
+      const last = parts.at(-1) || ""
+      const repoName = last.replace(/\.git$/i, "")
+      const spaced = repoName.replace(/[-_]+/g, " ").trim()
+      const title = spaced
+        ? spaced.charAt(0).toUpperCase() + spaced.slice(1)
+        : ""
+      if (title) setValue("title", title)
+      if (repoName) setValue("name", repoName.toLowerCase())
+    } catch (_) {
+      // Ignore parsing errors
+    }
   }
 
   return (
@@ -148,6 +171,17 @@ const NewProject = ({ isOpen, onClose, defaultTemplate }: NewProjectProps) => {
           <ModalHeader>New project</ModalHeader>
           <ModalCloseButton />
           <ModalBody pb={6}>
+            <FormControl display="flex" alignItems="center" mb={4}>
+              <FormLabel htmlFor="repo-exists" mb="0">
+                GitHub repo already exists?
+              </FormLabel>
+              <Switch
+                id="repo-exists"
+                isChecked={repoExists}
+                onChange={(e) => setRepoExists(e.target.checked)}
+                colorScheme="teal"
+              />
+            </FormControl>
             <FormControl isRequired isInvalid={!!errors.title}>
               <FormLabel htmlFor="title">Title</FormLabel>
               <Input
@@ -157,7 +191,7 @@ const NewProject = ({ isOpen, onClose, defaultTemplate }: NewProjectProps) => {
                 })}
                 placeholder="Ex: Coherent structures in high Reynolds number boundary layers"
                 type="text"
-                onChange={onTitleChange}
+                onChange={!repoExists ? onTitleChange : undefined}
                 autoComplete="off"
               />
               {errors.title && (
@@ -174,30 +208,33 @@ const NewProject = ({ isOpen, onClose, defaultTemplate }: NewProjectProps) => {
                 autoComplete="off"
               />
             </FormControl>
-            <FormControl mt={4}>
-              <FormLabel htmlFor="template">Template</FormLabel>
-              <Select
-                id="template"
-                placeholder="Select a template..."
-                {...register("template", {})}
-                defaultValue={defaultTemplate}
-              >
-                {templates.map((template) => (
-                  <option key={template} value={template}>
-                    {template}
+            {!repoExists && (
+              <FormControl mt={4}>
+                <FormLabel htmlFor="template">Template</FormLabel>
+                <Select
+                  id="template"
+                  placeholder="Select a template..."
+                  {...register("template", {})}
+                  defaultValue={defaultTemplate}
+                >
+                  {templates.map((template) => (
+                    <option key={template} value={template}>
+                      {template}
+                    </option>
+                  ))}
+                  <option key="none" value="">
+                    None
                   </option>
-                ))}
-                <option key="none" value="">
-                  None
-                </option>
-              </Select>
-            </FormControl>
+                </Select>
+              </FormControl>
+            )}
             <FormControl mt={4} isInvalid={!!errors.git_repo_url}>
               <FormLabel htmlFor="git_repo_url">GitHub repo URL</FormLabel>
               <Input
                 id="git_repo_url"
                 {...register("git_repo_url", {
                   required: "GitHub repo URL is required.",
+                  onChange: onGitRepoUrlChange,
                 })}
                 placeholder="Ex: https://github.com/your_name/your_repo"
                 type="text"
@@ -209,13 +246,15 @@ const NewProject = ({ isOpen, onClose, defaultTemplate }: NewProjectProps) => {
                 </FormErrorMessage>
               )}
             </FormControl>
-            <Flex mt={4}>
-              <FormControl>
-                <Checkbox {...register("is_public")} colorScheme="teal">
-                  Public?
-                </Checkbox>
-              </FormControl>
-            </Flex>
+            {!repoExists && (
+              <Flex mt={4}>
+                <FormControl>
+                  <Checkbox {...register("is_public")} colorScheme="teal">
+                    Public?
+                  </Checkbox>
+                </FormControl>
+              </Flex>
+            )}
           </ModalBody>
           <ModalFooter gap={3}>
             <Button
