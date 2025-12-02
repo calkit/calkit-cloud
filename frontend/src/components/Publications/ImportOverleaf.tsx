@@ -300,6 +300,7 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
                 {...register("title")}
                 placeholder="Title"
                 type="text"
+                autoComplete="off"
               />
               {errors.title && (
                 <FormErrorMessage>{errors.title.message}</FormErrorMessage>
