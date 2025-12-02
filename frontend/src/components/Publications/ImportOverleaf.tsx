@@ -24,13 +24,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { type SubmitHandler, useForm } from "react-hook-form"
 import { getRouteApi } from "@tanstack/react-router"
 
-import { ProjectsService, UsersService, OpenAPI } from "../../client"
+import { ProjectsService, UsersService } from "../../client"
 import type { ApiError } from "../../client/core/ApiError"
 import useCustomToast from "../../hooks/useCustomToast"
 import { handleError } from "../../lib/errors"
 import { useState } from "react"
 import { DownloadIcon } from "@chakra-ui/icons"
-import { request as __request } from "../../client/core/request"
 
 interface ImportOverleafProps {
   isOpen: boolean
@@ -90,32 +89,40 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
   })
   const [importZip, setImportZip] = useState(false)
   const [zipFile, setZipFile] = useState<File | null>(null)
-  const [isUploadingZip, setIsUploadingZip] = useState(false)
-
   const mutation = useMutation({
-    mutationFn: (data: OverleafImportPost) =>
-      ProjectsService.postProjectOverleafPublication({
+    mutationFn: (data: OverleafImportPost & { file?: File | null }) => {
+      // Build minimal form data object excluding null/undefined, but preserving false
+      const fd: Record<string, any> = {
+        path: data.path,
+        overleaf_project_url: data.overleaf_url,
+        kind: data.kind,
+        auto_build: data.auto_build,
+      }
+      if (data.title) fd.title = data.title
+      if (data.description) fd.description = data.description
+      if (data.target_path) fd.target_path = data.target_path
+      if (data.stage) fd.stage_name = data.stage
+      if (data.environment) fd.environment_name = data.environment
+      if (data.overleaf_token) fd.overleaf_token = data.overleaf_token
+      if (data.file) fd.file = data.file
+      // Debug log for diagnosing 422 field required
+      // eslint-disable-next-line no-console
+      console.debug("Overleaf import formData", fd)
+      return ProjectsService.postProjectOverleafPublication({
         ownerName: accountName,
         projectName: projectName,
-        // @ts-ignore - requestBody not in generated types but supported by backend
-        requestBody: {
-          overleaf_project_url: data.overleaf_url,
-          title: data.title,
-          path: data.path,
-          target_path: data.target_path,
-          description: data.description,
-          kind: data.kind,
-          stage_name: data.stage,
-          environment_name: data.environment,
-          overleaf_token: data.overleaf_token,
-          sync_paths: [],
-          push_paths: [],
-          auto_build: data.auto_build,
-        },
-      }),
-    onSuccess: () => {
-      showToast("Success!", "Overleaf project imported.", "success")
+        formData: fd as any,
+      })
+    },
+    onSuccess: (_pub, vars) => {
+      showToast(
+        "Success!",
+        vars.file ? "Overleaf ZIP imported." : "Overleaf project linked.",
+        "success",
+      )
       reset()
+      setZipFile(null)
+      setImportZip(false)
       onClose()
     },
     onError: (err: ApiError) => {
@@ -127,60 +134,12 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
       })
     },
   })
-  const onSubmit: SubmitHandler<OverleafImportPost> = async (data) => {
-    if (importZip) {
-      // Validate file presence
-      if (!zipFile) {
-        showToast("Error", "ZIP file required for ZIP import.", "error")
-        return
-      }
-      try {
-        setIsUploadingZip(true)
-        // Build formData object for the API client
-        const formDataObj: Record<string, any> = {
-          path: data.path,
-          overleaf_project_url: data.overleaf_url,
-          kind: data.kind,
-          auto_build: String(data.auto_build),
-          file: zipFile,
-          sync_paths: [],
-          push_paths: [],
-        }
-        if (data.title) formDataObj.title = data.title
-        if (data.description) formDataObj.description = data.description
-        if (data.target_path) formDataObj.target_path = data.target_path
-        if (data.stage) formDataObj.stage_name = data.stage
-        if (data.environment) formDataObj.environment_name = data.environment
-
-        // Use __request directly since generated method doesn't support formData
-        await __request(OpenAPI, {
-          method: "POST",
-          url: "/projects/{owner_name}/{project_name}/publications/overleaf",
-          path: {
-            owner_name: accountName,
-            project_name: projectName,
-          },
-          formData: formDataObj,
-          errors: {
-            422: `Validation Error`,
-          },
-        })
-        showToast("Success!", "Overleaf ZIP imported.", "success")
-        reset()
-        setZipFile(null)
-        setImportZip(false)
-        onClose()
-        queryClient.invalidateQueries({
-          queryKey: ["projects", accountName, projectName, "publications"],
-        })
-      } catch (e: any) {
-        handleError(e, showToast)
-      } finally {
-        setIsUploadingZip(false)
-      }
-    } else {
-      mutation.mutate(data)
+  const onSubmit: SubmitHandler<OverleafImportPost> = (data) => {
+    if (importZip && !zipFile) {
+      showToast("Error", "ZIP file required for ZIP import.", "error")
+      return
     }
+    mutation.mutate({ ...data, file: importZip ? zipFile : null })
   }
 
   return (
@@ -430,7 +389,7 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
             <Button
               variant="primary"
               type="submit"
-              isLoading={isSubmitting || mutation.isPending || isUploadingZip}
+              isLoading={isSubmitting || mutation.isPending}
             >
               Save
             </Button>
