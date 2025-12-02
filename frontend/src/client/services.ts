@@ -1988,7 +1988,7 @@ export class ProjectsService {
         project_name: projectName,
       },
       formData: formData,
-      mediaType: "application/x-www-form-urlencoded",
+      mediaType: "multipart/form-data",
       errors: {
         422: `Validation Error`,
       },
