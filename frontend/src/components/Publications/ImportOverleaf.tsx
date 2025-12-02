@@ -277,7 +277,6 @@ const ImportOverleaf = ({ isOpen, onClose }: ImportOverleafProps) => {
               <FormLabel htmlFor="kind">Type</FormLabel>
               <Select
                 id="kind"
-                placeholder="Select type"
                 {...register("kind", {
                   required: "Type is required",
                 })}
