@@ -2062,7 +2062,7 @@ def post_project_publication(
             md5=md5[2:],
         )
         with fs.open(fpath, "wb") as f:
-            f.write(file_data)
+            f.write(file_data)  # type: ignore
         if settings.ENVIRONMENT != "local":
             remove_gcs_content_type(fpath)
         url = get_object_url(fpath=fpath, fname=os.path.basename(path))
