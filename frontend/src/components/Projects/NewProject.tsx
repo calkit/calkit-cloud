@@ -149,6 +149,7 @@ const NewProject = ({ isOpen, onClose, defaultTemplate }: NewProjectProps) => {
     try {
       // Extract repo name from URL and generate a human title
       const parts = value.split("/").filter(Boolean)
+      if (parts.length < 4) return
       const last = parts.at(-1) || ""
       const repoName = last.replace(/\.git$/i, "")
       const spaced = repoName.replace(/[-_]+/g, " ").trim()
