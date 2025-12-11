@@ -21,7 +21,9 @@ logger = logging.getLogger(__name__)
 max_tries = 60 * 5  # 5 minutes
 wait_seconds = 1
 
-engine = create_engine(str(settings.SQLALCHEMY_DATABASE_URI))
+engine = create_engine(
+    str(settings.SQLALCHEMY_DATABASE_URI), pool_size=10, max_overflow=10
+)
 
 # make sure all SQLModel models are imported (app.models) before initializing DB
 # otherwise, SQLModel might fail to initialize relationships properly
