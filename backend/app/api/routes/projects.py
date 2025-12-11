@@ -784,6 +784,7 @@ async def post_project_dvc_file(
     # Check if user has not exceeded their storage limit
     fs = get_object_fs()
     storage_limit_gb = project.owner.subscription.storage_limit
+    session.close()
     # Create bucket if it doesn't exist -- only necessary with MinIO
     if settings.ENVIRONMENT == "local" and not fs.exists(get_data_prefix()):
         fs.makedir(get_data_prefix())
