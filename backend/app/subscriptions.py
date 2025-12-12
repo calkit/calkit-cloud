@@ -20,13 +20,13 @@ PRICES_BY_PLAN_NAME = {
     "professional": 50.0,
 }
 PRIVATE_PROJECTS_LIMITS_BY_PLAN_NAME = {
-    "free": 1,
-    "standard": 2,
+    "free": 5,
+    "standard": None,
     "professional": None,
 }
 STORAGE_LIMITS_BY_PLAN_NAME = {
-    "free": 1,
-    "standard": 50,
+    "free": 10,
+    "standard": 100,
     "professional": 500,
 }
 
