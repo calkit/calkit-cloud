@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { useNavigate } from "@tanstack/react-router"
+import { useNavigate, useRouter } from "@tanstack/react-router"
 import { useState } from "react"
 import mixpanel from "mixpanel-browser"
 
@@ -21,6 +21,7 @@ const isLoggedIn = () => {
 const useAuth = () => {
   const [error, setError] = useState<string | null>(null)
   const navigate = useNavigate()
+  const router = useRouter()
   const showToast = useCustomToast()
   const queryClient = useQueryClient()
   const {
@@ -32,8 +33,7 @@ const useAuth = () => {
     queryFn: UsersService.getCurrentUser,
     enabled: isLoggedIn(),
     retry: (failureCount, error: any) => {
-      // Do not retry on any 4xx error
-      const status = error?.response?.status
+      const status = error?.status ?? error?.response?.status
       if (status >= 400 && status < 500) return false
       return failureCount < 3
     },
@@ -72,7 +72,9 @@ const useAuth = () => {
   const loginMutation = useMutation({
     mutationFn: login,
     onSuccess: () => {
-      navigate({ to: "/" })
+      const redirectTo = localStorage.getItem("post_login_redirect") || "/"
+      localStorage.removeItem("post_login_redirect")
+      navigate({ to: redirectTo })
     },
     onError: (err: ApiError) => {
       let errDetail = (err.body as any)?.detail
@@ -96,7 +98,9 @@ const useAuth = () => {
   const loginGitHubMutation = useMutation({
     mutationFn: loginGithub,
     onSuccess: () => {
-      navigate({ to: "/" })
+      const redirectTo = localStorage.getItem("post_login_redirect") || "/"
+      localStorage.removeItem("post_login_redirect")
+      navigate({ to: redirectTo })
     },
     onError: (err: ApiError) => {
       let errDetail = (err.body as any)?.detail
@@ -114,10 +118,16 @@ const useAuth = () => {
   const logout = () => {
     localStorage.removeItem("access_token")
     mixpanel.reset()
-    navigate({ to: "/", reloadDocument: true })
+    const currentHref = router.state.location.href
+    localStorage.setItem("post_login_redirect", currentHref)
+    navigate({
+      to: "/login",
+      search: (prev: any) => ({ ...prev, redirect: currentHref }),
+    })
   }
 
   if (getUserError) {
+    // Fallback: ensure we logout if an error slipped past onError
     logout()
   }
 

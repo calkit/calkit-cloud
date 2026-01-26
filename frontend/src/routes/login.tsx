@@ -12,15 +12,14 @@ import useAuth, { isLoggedIn } from "../hooks/useAuth"
 const githubAuthParamsSchema = z.object({
   code: z.string().optional(),
   state: z.string().optional(),
+  redirect: z.string().optional(),
 })
 
 export const Route = createFileRoute("/login")({
   component: Login,
   beforeLoad: async () => {
     if (isLoggedIn()) {
-      throw redirect({
-        to: "/",
-      })
+      throw redirect({ to: "/" })
     }
   },
   validateSearch: (search) => githubAuthParamsSchema.parse(search),
@@ -28,7 +27,11 @@ export const Route = createFileRoute("/login")({
 
 function Login() {
   const { loginGitHubMutation } = useAuth()
-  const { code: ghAuthCode, state: ghAuthStateRecv } = Route.useSearch()
+  const {
+    code: ghAuthCode,
+    state: ghAuthStateRecv,
+    redirect,
+  } = Route.useSearch()
   const isMounted = useRef(false)
 
   const clientId = import.meta.env.VITE_GH_CLIENT_ID
@@ -37,6 +40,9 @@ function Login() {
   useEffect(() => {
     if (!isMounted.current) {
       isMounted.current = true
+      if (redirect) {
+        localStorage.setItem("post_login_redirect", redirect)
+      }
       if (ghAuthCode && ghAuthStateRecv === ghAuthStateParam) {
         try {
           loginGitHubMutation.mutate(ghAuthCode)
