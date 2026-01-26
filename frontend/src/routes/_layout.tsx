@@ -45,7 +45,22 @@ function Layout() {
     retry: 1,
   })
   if (ghAppInstalledQuery.error) {
-    logout()
+    const status =
+      (ghAppInstalledQuery.error as any)?.status ??
+      (ghAppInstalledQuery.error as any)?.response?.status
+    const detail =
+      (ghAppInstalledQuery.error as any)?.body?.detail ??
+      (ghAppInstalledQuery.error as any)?.response?.data?.detail
+    const isAuthError =
+      status === 401 ||
+      status === 403 ||
+      detail === "Token has expired" ||
+      detail === "Invalid token" ||
+      detail === "Could not validate credentials"
+
+    if (isAuthError) {
+      logout()
+    }
   }
   // Check that the user has at least one installation
   const ghAppNotInstalled =

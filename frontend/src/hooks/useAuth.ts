@@ -127,8 +127,22 @@ const useAuth = () => {
   }
 
   if (getUserError) {
-    // Fallback: ensure we logout if an error slipped past onError
-    logout()
+    const status =
+      (getUserError as any)?.status ?? (getUserError as any)?.response?.status
+    const detail =
+      (getUserError as any)?.body?.detail ??
+      (getUserError as any)?.response?.data?.detail
+    const isAuthError =
+      status === 401 ||
+      status === 403 ||
+      detail === "Token has expired" ||
+      detail === "Invalid token" ||
+      detail === "Could not validate credentials"
+
+    if (isAuthError) {
+      logout()
+    }
+    // Do NOT logout on 404 or other non-auth errors; leave token intact
   }
 
   return {
