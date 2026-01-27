@@ -128,7 +128,6 @@ const useAuth = () => {
     if (isAuthenticationError(getUserError)) {
       logout()
     }
-    // Do NOT logout on 404 or other non-auth errors; leave token intact
   }
 
   return {
