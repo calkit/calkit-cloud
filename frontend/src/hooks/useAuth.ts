@@ -13,6 +13,7 @@ import {
   UsersService,
 } from "../client"
 import useCustomToast from "./useCustomToast"
+import { popPostLoginRedirect, isAuthenticationError } from "../lib/auth"
 
 const isLoggedIn = () => {
   return localStorage.getItem("access_token") !== null
@@ -32,8 +33,7 @@ const useAuth = () => {
     queryFn: UsersService.getCurrentUser,
     enabled: isLoggedIn(),
     retry: (failureCount, error: any) => {
-      // Do not retry on any 4xx error
-      const status = error?.response?.status
+      const status = error?.status ?? error?.response?.status
       if (status >= 400 && status < 500) return false
       return failureCount < 3
     },
@@ -72,7 +72,8 @@ const useAuth = () => {
   const loginMutation = useMutation({
     mutationFn: login,
     onSuccess: () => {
-      navigate({ to: "/" })
+      const redirectTo = popPostLoginRedirect()
+      navigate({ to: redirectTo || "/" })
     },
     onError: (err: ApiError) => {
       let errDetail = (err.body as any)?.detail
@@ -96,7 +97,8 @@ const useAuth = () => {
   const loginGitHubMutation = useMutation({
     mutationFn: loginGithub,
     onSuccess: () => {
-      navigate({ to: "/" })
+      const redirectTo = popPostLoginRedirect()
+      navigate({ to: redirectTo || "/" })
     },
     onError: (err: ApiError) => {
       let errDetail = (err.body as any)?.detail
@@ -114,11 +116,18 @@ const useAuth = () => {
   const logout = () => {
     localStorage.removeItem("access_token")
     mixpanel.reset()
-    navigate({ to: "/", reloadDocument: true })
+    localStorage.removeItem("post_login_redirect")
+    if (typeof window !== "undefined") {
+      window.location.replace("/")
+    } else {
+      navigate({ to: "/" })
+    }
   }
 
-  if (getUserError) {
-    logout()
+  if (getUserError && isLoggedIn()) {
+    if (isAuthenticationError(getUserError)) {
+      logout()
+    }
   }
 
   return {

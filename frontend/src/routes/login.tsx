@@ -8,6 +8,7 @@ import { FaGithub } from "react-icons/fa"
 
 import Logo from "/assets/images/calkit-no-bg.svg"
 import useAuth, { isLoggedIn } from "../hooks/useAuth"
+import { popPostLoginRedirect } from "../lib/auth"
 
 const githubAuthParamsSchema = z.object({
   code: z.string().optional(),
@@ -18,9 +19,8 @@ export const Route = createFileRoute("/login")({
   component: Login,
   beforeLoad: async () => {
     if (isLoggedIn()) {
-      throw redirect({
-        to: "/",
-      })
+      const stored = popPostLoginRedirect()
+      throw redirect({ to: stored || "/" })
     }
   },
   validateSearch: (search) => githubAuthParamsSchema.parse(search),

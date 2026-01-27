@@ -8,6 +8,7 @@ import Topbar from "../components/Common/Topbar"
 import PickSubscription from "../components/UserSettings/PickSubscription"
 import { UsersService } from "../client"
 import { appName } from "../lib/core"
+import { isAuthenticationError } from "../lib/auth"
 
 export const Route = createFileRoute("/_layout")({
   component: Layout,
@@ -45,7 +46,9 @@ function Layout() {
     retry: 1,
   })
   if (ghAppInstalledQuery.error) {
-    logout()
+    if (isAuthenticationError(ghAppInstalledQuery.error)) {
+      logout()
+    }
   }
   // Check that the user has at least one installation
   const ghAppNotInstalled =
