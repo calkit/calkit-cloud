@@ -1,4 +1,4 @@
-import { Button, Container, Text } from "@chakra-ui/react"
+import { Button, Container, Text } from "@/chakra"
 import { Link } from "@tanstack/react-router"
 import mixpanel from "mixpanel-browser"
 

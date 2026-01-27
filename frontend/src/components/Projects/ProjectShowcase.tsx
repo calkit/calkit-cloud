@@ -1,4 +1,4 @@
-import { Text, Flex, Spinner, Box, Code } from "@chakra-ui/react"
+import { Text, Flex, Spinner, Box, Code } from "@/chakra"
 
 import useProject from "../../hooks/useProject"
 import FigureView from "../Figures/FigureView"

@@ -8,7 +8,7 @@ import {
   ModalOverlay,
   Text,
   Link,
-} from "@chakra-ui/react"
+} from "@/chakra"
 
 import { type ProjectPublic } from "../../client"
 

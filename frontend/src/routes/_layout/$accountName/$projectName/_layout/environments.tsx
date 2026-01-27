@@ -14,7 +14,7 @@ import {
   Link,
   Alert,
   AlertIcon,
-} from "@chakra-ui/react"
+} from "@/chakra"
 import { createFileRoute, Link as RouterLink } from "@tanstack/react-router"
 import { FaCube, FaDocker } from "react-icons/fa"
 import { AiOutlinePython } from "react-icons/ai"

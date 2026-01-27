@@ -11,7 +11,7 @@ import {
   Text,
   useColorModeValue,
   useDisclosure,
-} from "@chakra-ui/react"
+} from "@/chakra"
 import { FiLogOut, FiMenu } from "react-icons/fi"
 
 import Logo from "/assets/images/kdot.svg"

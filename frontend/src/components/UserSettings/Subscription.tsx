@@ -18,7 +18,7 @@ import {
   ModalCloseButton,
   ModalBody,
   useDisclosure,
-} from "@chakra-ui/react"
+} from "@/chakra"
 import { useQuery } from "@tanstack/react-query"
 
 import { type SubscriptionPlan, MiscService } from "../../client"

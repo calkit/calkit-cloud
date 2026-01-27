@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react"
 import mermaid from "mermaid"
 import { zoom, zoomIdentity, ZoomBehavior, D3ZoomEvent } from "d3-zoom"
 import { select } from "d3-selection"
-import { Box, IconButton, Flex } from "@chakra-ui/react"
+import { Box, IconButton, Flex } from "@/chakra"
 import { FaHome, FaExpandAlt } from "react-icons/fa"
 
 interface MermaidProps {
@@ -97,7 +97,7 @@ const Mermaid = ({
         role="img"
         h={"100%"}
         w={"100%"}
-        sx={{
+        css={{
           "& svg": {
             height: "100%",
             width: "100%",

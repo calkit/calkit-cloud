@@ -6,7 +6,7 @@ import {
   TabPanel,
   TabPanels,
   Tabs,
-} from "@chakra-ui/react"
+} from "@/chakra"
 import { useQueryClient } from "@tanstack/react-query"
 import { createFileRoute, useNavigate, redirect } from "@tanstack/react-router"
 import { z } from "zod"
@@ -74,17 +74,19 @@ function UserSettings() {
       </Heading>
       <Tabs
         variant="enclosed"
-        index={activeTabIndex}
-        onChange={handleTabChange}
+        value={String(activeTabIndex)}
+        onValueChange={(detail) => handleTabChange(parseInt(detail.value))}
       >
         <TabList>
           {finalTabs.map((tab, index) => (
-            <Tab key={index}>{tab.title}</Tab>
+            <Tab key={index} value={String(index)}>
+              {tab.title}
+            </Tab>
           ))}
         </TabList>
         <TabPanels>
           {finalTabs.map((tab, index) => (
-            <TabPanel key={index}>
+            <TabPanel key={index} value={String(index)}>
               <tab.component />
             </TabPanel>
           ))}

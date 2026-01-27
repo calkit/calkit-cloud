@@ -15,7 +15,7 @@ import {
   Tr,
   Text,
   Input,
-} from "@chakra-ui/react"
+} from "@/chakra"
 import { ExternalLinkIcon } from "@chakra-ui/icons"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import {
@@ -125,7 +125,7 @@ function ProjectsTable() {
             <Tbody>
               {projects?.data.map((project) => (
                 <Tr key={project.id} opacity={isPlaceholderData ? 0.5 : 1}>
-                  <Td isTruncated maxWidth="150px">
+                  <Td truncate maxWidth="150px">
                     <Link
                       as={RouterLink}
                       to={`/${project.owner_account_name}/${project.name}`}
@@ -133,14 +133,14 @@ function ProjectsTable() {
                       {project.title}
                     </Link>
                   </Td>
-                  <Td isTruncated maxWidth="150px">
+                  <Td truncate maxWidth="150px">
                     <Link href={project.git_repo_url} isExternal>
                       <ExternalLinkIcon mx="2px" /> {project.git_repo_url}
                     </Link>
                   </Td>
                   <Td
                     color={!project.description ? "ui.dim" : "inherit"}
-                    isTruncated
+                    truncate
                     maxWidth="150px"
                   >
                     {project.description || "N/A"}
@@ -211,10 +211,10 @@ function PublicProjectsTable() {
             <Tbody>
               {projects?.data.map((project) => (
                 <Tr key={project.id} opacity={isPlaceholderData ? 0.5 : 1}>
-                  <Td isTruncated maxWidth="80px">
+                  <Td truncate maxWidth="80px">
                     {project.owner_account_name}
                   </Td>
-                  <Td isTruncated maxWidth="200px">
+                  <Td truncate maxWidth="200px">
                     <Link
                       as={RouterLink}
                       to={`/${project.owner_account_name}/${project.name}`}
@@ -224,7 +224,7 @@ function PublicProjectsTable() {
                   </Td>
                   <Td
                     color={!project.description ? "ui.dim" : "inherit"}
-                    isTruncated
+                    truncate
                     maxWidth="250px"
                   >
                     {project.description || "N/A"}

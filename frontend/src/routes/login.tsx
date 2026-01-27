@@ -1,4 +1,4 @@
-import { Button, Container, Image, Text, Link } from "@chakra-ui/react"
+import { Button, Container, Image, Text, Link } from "@/chakra"
 import { createFileRoute, redirect } from "@tanstack/react-router"
 
 import { z } from "zod"

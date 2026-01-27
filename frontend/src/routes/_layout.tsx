@@ -1,4 +1,4 @@
-import { Flex, Spinner, Box, Container, Link, Button } from "@chakra-ui/react"
+import { Flex, Spinner, Box, Container, Link, Button } from "@/chakra"
 import { Outlet, createFileRoute } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
 import mixpanel from "mixpanel-browser"

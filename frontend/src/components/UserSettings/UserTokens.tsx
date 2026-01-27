@@ -10,7 +10,7 @@ import {
   Checkbox,
   Button,
   useDisclosure,
-} from "@chakra-ui/react"
+} from "@/chakra"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 
 import { UsersService, type TokenPatch } from "../../client"
@@ -72,26 +72,26 @@ function UserTokens() {
                   key={token.id}
                   opacity={tokensQuery.isPlaceholderData ? 0.5 : 1}
                 >
-                  <Td isTruncated maxWidth="100px">
+                  <Td truncate maxWidth="100px">
                     {token.id}
                   </Td>
-                  <Td isTruncated maxWidth="200px">
+                  <Td truncate maxWidth="200px">
                     {token.description}
                   </Td>
-                  <Td isTruncated maxWidth="150px">
+                  <Td truncate maxWidth="150px">
                     {token.created}
                   </Td>
-                  <Td isTruncated maxWidth="150px">
+                  <Td truncate maxWidth="150px">
                     {token.expires}
                   </Td>
-                  <Td isTruncated maxWidth="150px">
+                  <Td truncate maxWidth="150px">
                     {token.scope ? token.scope : ""}
                   </Td>
-                  <Td isTruncated maxWidth="150px">
+                  <Td truncate maxWidth="150px">
                     <Checkbox
                       isChecked={token.is_active}
                       isDisabled={tokenActiveMutation.isPending}
-                      onChange={(e) =>
+                      onChange={(e: any) =>
                         tokenActiveMutation.mutate({
                           tokenId: String(token.id),
                           tokenPatch: { is_active: e.target.checked },

@@ -1,6 +1,6 @@
 import type { ComponentType, ElementType } from "react"
 
-import { Button, Flex, Icon, useDisclosure } from "@chakra-ui/react"
+import { Button, Flex, Icon, useDisclosure } from "@/chakra"
 import { FaPlus } from "react-icons/fa"
 
 interface NavbarProps {

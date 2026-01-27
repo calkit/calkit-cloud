@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router"
-import { Box, Container, Heading, Link, Text } from "@chakra-ui/react"
+import { Box, Container, Heading, Link, Text } from "@/chakra"
 
 export const Route = createFileRoute("/_layout/learn")({
   component: Learn,

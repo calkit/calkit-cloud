@@ -15,7 +15,7 @@ import {
   Spinner,
   Badge,
   Code,
-} from "@chakra-ui/react"
+} from "@/chakra"
 import { createFileRoute, Link as RouterLink } from "@tanstack/react-router"
 import { FiFile } from "react-icons/fi"
 import { FaPlus, FaSync } from "react-icons/fa"
@@ -257,7 +257,7 @@ function Publications() {
               ? publicationsRequest.data.map((pub) => (
                   <Link key={pub.path} href={`#${pub.path}`}>
                     <Text
-                      isTruncated
+                      truncate
                       noOfLines={1}
                       whiteSpace="nowrap"
                       overflow="hidden"

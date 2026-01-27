@@ -1,4 +1,4 @@
-import { Box, Image, Text } from "@chakra-ui/react"
+import { Box, Image, Text } from "@/chakra"
 import Plot from "react-plotly.js"
 import axios from "axios"
 import { useQuery } from "@tanstack/react-query"

@@ -6,7 +6,7 @@ import {
   RadioGroup,
   Stack,
   useColorMode,
-} from "@chakra-ui/react"
+} from "@/chakra"
 
 const Appearance = () => {
   const { colorMode, toggleColorMode } = useColorMode()

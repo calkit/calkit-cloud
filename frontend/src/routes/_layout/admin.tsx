@@ -13,7 +13,7 @@ import {
   Th,
   Thead,
   Tr,
-} from "@chakra-ui/react"
+} from "@/chakra"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute, useNavigate, redirect } from "@tanstack/react-router"
 import { useEffect } from "react"
@@ -108,7 +108,7 @@ function UsersTable() {
                 <Tr key={user.id}>
                   <Td
                     color={!user.full_name ? "ui.dim" : "inherit"}
-                    isTruncated
+                    truncate
                     maxWidth="150px"
                   >
                     {user.full_name || "N/A"}
@@ -118,10 +118,10 @@ function UsersTable() {
                       </Badge>
                     )}
                   </Td>
-                  <Td isTruncated maxWidth="150px">
+                  <Td truncate maxWidth="150px">
                     {user.github_username}
                   </Td>
-                  <Td isTruncated maxWidth="150px">
+                  <Td truncate maxWidth="150px">
                     {user.email}
                   </Td>
                   <Td>{user.is_superuser ? "Superuser" : "User"}</Td>

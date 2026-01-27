@@ -1,4 +1,4 @@
-import { useToast } from "@chakra-ui/react"
+import { useToast } from "@/chakra"
 import { useCallback } from "react"
 
 const useCustomToast = () => {

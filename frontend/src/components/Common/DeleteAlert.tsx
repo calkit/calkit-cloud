@@ -6,7 +6,7 @@ import {
   AlertDialogHeader,
   AlertDialogOverlay,
   Button,
-} from "@chakra-ui/react"
+} from "@/chakra"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import React from "react"
 import { useForm } from "react-hook-form"

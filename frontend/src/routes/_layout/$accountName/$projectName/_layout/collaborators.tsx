@@ -16,7 +16,7 @@ import {
   useDisclosure,
   Button,
   MenuList,
-} from "@chakra-ui/react"
+} from "@/chakra"
 import { BsThreeDotsVertical } from "react-icons/bs"
 import { FiTrash } from "react-icons/fi"
 import { createFileRoute } from "@tanstack/react-router"
@@ -121,12 +121,12 @@ function Collaborators() {
             <Tbody>
               {collaborators?.map((collaborator) => (
                 <Tr key={collaborator.github_username}>
-                  <Td isTruncated maxWidth="150px">
+                  <Td truncate maxWidth="150px">
                     {collaborator.github_username}
                   </Td>
                   <Td
                     color={!collaborator.full_name ? "ui.dim" : "inherit"}
-                    isTruncated
+                    truncate
                     maxWidth="150px"
                   >
                     {collaborator.full_name || "N/A"}
@@ -136,7 +136,7 @@ function Collaborators() {
                       </Badge>
                     )}
                   </Td>
-                  <Td isTruncated maxWidth="150px">
+                  <Td truncate maxWidth="150px">
                     {collaborator.email}
                   </Td>
                   <Td>{collaborator.access_level}</Td>

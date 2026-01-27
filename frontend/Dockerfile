@@ -4,6 +4,7 @@ FROM node:20 AS build-stage
 WORKDIR /app
 
 COPY package*.json /app/
+COPY scripts/ /app/scripts/
 
 RUN npm install
 

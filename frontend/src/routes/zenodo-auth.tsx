@@ -1,4 +1,4 @@
-import { Container, Text } from "@chakra-ui/react"
+import { Container, Text } from "@/chakra"
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { z } from "zod"
 import { useEffect, useRef } from "react"

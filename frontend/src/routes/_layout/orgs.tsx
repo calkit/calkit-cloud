@@ -13,7 +13,7 @@ import {
   Thead,
   Tr,
   Input,
-} from "@chakra-ui/react"
+} from "@/chakra"
 import { ExternalLinkIcon } from "@chakra-ui/icons"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import {

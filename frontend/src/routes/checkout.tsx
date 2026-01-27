@@ -1,4 +1,4 @@
-import { Container, Box, useColorModeValue } from "@chakra-ui/react"
+import { Container, Box, useColorModeValue } from "@/chakra"
 import { createFileRoute, redirect } from "@tanstack/react-router"
 import {
   EmbeddedCheckoutProvider,

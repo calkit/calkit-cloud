@@ -6,7 +6,7 @@ import {
   ModalContent,
   ModalHeader,
   ModalOverlay,
-} from "@chakra-ui/react"
+} from "@/chakra"
 
 import { Environment } from "../../client"
 

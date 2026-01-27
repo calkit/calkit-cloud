@@ -7,7 +7,7 @@ import {
   AlertDialogContent,
   AlertDialogOverlay,
   AlertDialogCloseButton,
-} from "@chakra-ui/react"
+} from "@/chakra"
 import { useQueryClient, useMutation } from "@tanstack/react-query"
 import { getRouteApi } from "@tanstack/react-router"
 import axios from "axios"

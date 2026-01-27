@@ -12,7 +12,7 @@ import {
   ModalHeader,
   ModalOverlay,
   Textarea,
-} from "@chakra-ui/react"
+} from "@/chakra"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { type SubmitHandler, useForm } from "react-hook-form"
 import { getRouteApi } from "@tanstack/react-router"

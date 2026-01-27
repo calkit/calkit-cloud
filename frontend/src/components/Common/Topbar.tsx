@@ -12,7 +12,7 @@ import {
   Text,
   useColorModeValue,
   useDisclosure,
-} from "@chakra-ui/react"
+} from "@/chakra"
 import { Link as RouterLink, useNavigate } from "@tanstack/react-router"
 import { FaGithub, FaPlus } from "react-icons/fa"
 
@@ -46,6 +46,7 @@ const NavLink = (props: Props) => {
         bg: useColorModeValue("gray.200", "gray.700"),
       }}
       to={getPath(children)}
+      {...({} as any)}
     >
       {children}
     </Box>
@@ -137,9 +138,7 @@ export default function Topbar() {
               aria-label="View GitHub repo."
             >
               <Flex alignItems={"center"} pt={0.5} pb={0.5}>
-                <Icon fontSize="2xl" mr={1}>
-                  <FaGithub />
-                </Icon>
+                <Icon as={FaGithub} fontSize="2xl" mr={1} />
                 <Text fontSize="xs">calkit/calkit-cloud</Text>
               </Flex>
             </Link>
@@ -149,7 +148,7 @@ export default function Topbar() {
               <Link
                 as={RouterLink}
                 to={"/login"}
-                onClick={(event) => {
+                onClick={(event: any) => {
                   event.preventDefault()
                   goToLoginWithRedirect()
                 }}

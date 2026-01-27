@@ -11,7 +11,7 @@ import {
   HStack,
   Link,
   Code,
-} from "@chakra-ui/react"
+} from "@/chakra"
 import { FaTimesCircle, FaUpload, FaLock } from "react-icons/fa"
 import { MdEdit } from "react-icons/md"
 import { ExternalLinkIcon } from "@chakra-ui/icons"

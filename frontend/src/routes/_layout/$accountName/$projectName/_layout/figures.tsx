@@ -16,7 +16,7 @@ import {
   Code,
   Tooltip,
   useColorModeValue,
-} from "@chakra-ui/react"
+} from "@/chakra"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute, Link as RouterLink } from "@tanstack/react-router"
 import { useState } from "react"
@@ -94,7 +94,7 @@ function FigureComments({ figure }: FigureCommentProps) {
 
   return (
     <>
-      <Heading size="s" mb={1}>
+      <Heading size="xs" mb={1}>
         Comments
       </Heading>
       <Box>
@@ -290,7 +290,7 @@ function ProjectFigures() {
                       openDelay={600}
                     >
                       <Text
-                        isTruncated
+                        truncate
                         noOfLines={1}
                         whiteSpace="nowrap"
                         overflow="hidden"

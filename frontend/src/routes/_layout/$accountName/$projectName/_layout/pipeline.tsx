@@ -8,7 +8,7 @@ import {
   Alert,
   AlertIcon,
   Link,
-} from "@chakra-ui/react"
+} from "@/chakra"
 import { useQuery } from "@tanstack/react-query"
 import { useState } from "react"
 

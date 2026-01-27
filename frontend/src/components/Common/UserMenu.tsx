@@ -1,11 +1,4 @@
-import {
-  Box,
-  IconButton,
-  Menu,
-  MenuButton,
-  MenuItem,
-  MenuList,
-} from "@chakra-ui/react"
+import { Box, IconButton, Menu, MenuButton, MenuItem, MenuList } from "@/chakra"
 import { Link } from "@tanstack/react-router"
 import { GiFox } from "react-icons/gi"
 import { FiLogOut, FiUser, FiUsers } from "react-icons/fi"

@@ -10,7 +10,7 @@ import {
   Spinner,
   Input,
   IconButton,
-} from "@chakra-ui/react"
+} from "@/chakra"
 import mixpanel from "mixpanel-browser"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { FaCheck, FaPlus, FaTimes } from "react-icons/fa"
@@ -159,7 +159,7 @@ function ConnectedAccounts() {
                       size="sm"
                       placeholder="Enter new token"
                       value={overleafToken}
-                      onChange={(e) => setOverleafToken(e.target.value)}
+                      onChange={(e: any) => setOverleafToken(e.target.value)}
                       onKeyDown={handleKeyPress}
                       maxLength={50}
                       width="400px"

@@ -1,75 +1,45 @@
-import { extendTheme } from "@chakra-ui/react"
+import { createSystem, defaultConfig, defineConfig } from "@chakra-ui/react"
 
-const disabledStyles = {
-  _disabled: {
-    backgroundColor: "ui.main",
-  },
-}
-
-const theme = extendTheme({
-  config: {
-    initialColorMode: "dark",
-    useSystemColorMode: true,
-  },
-  colors: {
-    ui: {
-      main: "#009688",
-      secondary: "#EDF2F7",
-      success: "#48BB78",
-      danger: "#E53E3E",
-      light: "#FAFAFA",
-      dark: "#1A202C",
-      darkSlate: "#252D3D",
-      dim: "#A0AEC0",
-    },
-  },
-  components: {
-    Button: {
-      variants: {
-        primary: {
-          backgroundColor: "ui.main",
-          color: "ui.light",
-          _hover: {
-            backgroundColor: "#00766C",
-          },
-          _disabled: {
-            ...disabledStyles,
-            _hover: {
-              ...disabledStyles,
-            },
-          },
+// Fresh theme built on Chakra v3 defaults with a teal-forward palette.
+const brandConfig = defineConfig({
+  theme: {
+    tokens: {
+      colors: {
+        brand: {
+          50: { value: "#e0f7f4" },
+          100: { value: "#b2ebe2" },
+          200: { value: "#7cd9cc" },
+          300: { value: "#4fc8b8" },
+          400: { value: "#2cb5a4" },
+          500: { value: "#009688" },
+          600: { value: "#00766c" },
+          700: { value: "#00564f" },
+          800: { value: "#003631" },
+          900: { value: "#001713" },
         },
         danger: {
-          backgroundColor: "ui.danger",
-          color: "ui.light",
-          _hover: {
-            backgroundColor: "#E32727",
-          },
+          500: { value: "#e53e3e" },
+          600: { value: "#c53030" },
         },
       },
     },
-    Link: {
-      variants: {
-        blue: ({ colorScheme = "blue" }) => ({
-          color: `${colorScheme}.500`,
-          _hover: {
-            color: `${colorScheme}.400`,
-          },
-        }),
-      },
-    },
-    Tabs: {
-      variants: {
-        enclosed: {
-          tab: {
-            _selected: {
-              color: "ui.main",
-            },
-          },
+    semanticTokens: {
+      colors: {
+        ui: {
+          main: { value: "{colors.brand.500}" },
+          secondary: { value: "#EDF2F7" },
+          success: { value: "#48BB78" },
+          danger: { value: "{colors.danger.500}" },
+          light: { value: "#FAFAFA" },
+          dark: { value: "#1A202C" },
+          darkSlate: { value: "#252D3D" },
+          dim: { value: "#A0AEC0" },
         },
       },
     },
   },
 })
 
-export default theme
+const system = createSystem(defaultConfig, brandConfig)
+
+export default system

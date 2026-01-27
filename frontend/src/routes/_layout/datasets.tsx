@@ -15,7 +15,7 @@ import {
   Tooltip,
   Tr,
   Input,
-} from "@chakra-ui/react"
+} from "@/chakra"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   createFileRoute,
@@ -121,10 +121,10 @@ function PublicDatasetsTable() {
             <Tbody>
               {datasets?.data.map((dataset, index) => (
                 <Tr key={index} opacity={isPlaceholderData ? 0.5 : 1}>
-                  <Td isTruncated maxWidth="80px">
+                  <Td truncate maxWidth="80px">
                     {dataset.project.owner_account_name}
                   </Td>
-                  <Td isTruncated maxWidth="150px">
+                  <Td truncate maxWidth="150px">
                     <Link
                       as={RouterLink}
                       to={`/${dataset.project.owner_account_name}/${dataset.project.name}/datasets`}
@@ -134,7 +134,7 @@ function PublicDatasetsTable() {
                       </Tooltip>
                     </Link>
                   </Td>
-                  <Td isTruncated maxWidth="150px">
+                  <Td truncate maxWidth="150px">
                     <Link
                       as={RouterLink}
                       to={`/${dataset.project.owner_account_name}/${dataset.project.name}/datasets`}
@@ -144,7 +144,7 @@ function PublicDatasetsTable() {
                       </Tooltip>
                     </Link>
                   </Td>
-                  <Td isTruncated maxWidth="150px">
+                  <Td truncate maxWidth="150px">
                     <Link
                       as={RouterLink}
                       to={`/${dataset.project.owner_account_name}/${dataset.project.name}/datasets`}
@@ -154,7 +154,7 @@ function PublicDatasetsTable() {
                   </Td>
                   <Td
                     color={!dataset.description ? "ui.dim" : "inherit"}
-                    isTruncated
+                    truncate
                     maxWidth="250px"
                   >
                     {dataset.description ? (

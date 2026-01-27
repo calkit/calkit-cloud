@@ -5,7 +5,7 @@ import {
   MenuItem,
   MenuList,
   useDisclosure,
-} from "@chakra-ui/react"
+} from "@/chakra"
 import { BsThreeDotsVertical } from "react-icons/bs"
 import { FiEdit, FiTrash } from "react-icons/fi"
 

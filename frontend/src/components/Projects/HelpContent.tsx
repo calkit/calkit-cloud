@@ -1,4 +1,4 @@
-import { Link, Text, Code } from "@chakra-ui/react"
+import { Link, Text, Code } from "@/chakra"
 import { Link as RouterLink, getRouteApi } from "@tanstack/react-router"
 
 interface HelpContentProps {

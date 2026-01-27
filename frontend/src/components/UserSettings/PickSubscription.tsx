@@ -34,7 +34,7 @@ import {
   ModalBody,
   ModalCloseButton,
   useDisclosure,
-} from "@chakra-ui/react"
+} from "@/chakra"
 import { MdCancel, MdCheck } from "react-icons/md"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { useState } from "react"
@@ -323,7 +323,7 @@ const PickSubscription = ({
               placeholder="Ex: my-lab"
               mr={2}
               value={orgName}
-              onChange={(e) => setOrgName(e.target.value)}
+              onChange={(e: any) => setOrgName(e.target.value)}
             />
             <Text mr={2}>Team size:</Text>
             <NumberInput
@@ -332,7 +332,7 @@ const PickSubscription = ({
               max={50}
               width={"75px"}
               value={teamSize}
-              onChange={(valueString) => setTeamSize(Number(valueString))}
+              onChange={(valueString: any) => setTeamSize(Number(valueString))}
             >
               <NumberInputField />
               <NumberInputStepper>
@@ -346,7 +346,7 @@ const PickSubscription = ({
         )}
 
         <Box mb={4}>
-          <SimpleGrid spacing={4} columns={team ? 2 : 3}>
+          <SimpleGrid gap={4} columns={team ? 2 : 3}>
             {/* Cards for each plan */}
             {getPlans().map((plan) => (
               <Card
@@ -411,7 +411,9 @@ const PickSubscription = ({
                   <Flex align={"center"}>
                     <Input
                       value={discountCode}
-                      onChange={({ target }) => setDiscountCode(target.value)}
+                      onChange={({ target }: any) =>
+                        setDiscountCode(target.value)
+                      }
                       placeholder="Enter discount code here"
                       isDisabled={
                         discountCodeCheckQuery.isLoading ||

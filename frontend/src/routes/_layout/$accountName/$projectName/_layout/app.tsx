@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router"
-import { Box, Flex, Spinner, Alert, AlertIcon, Link } from "@chakra-ui/react"
+import { Box, Flex, Spinner, Alert, AlertIcon, Link } from "@/chakra"
 import { useQuery } from "@tanstack/react-query"
 
 import { ProjectsService } from "../../../../../client"

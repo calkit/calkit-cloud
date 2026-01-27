@@ -1,4 +1,4 @@
-import { Box, useColorModeValue } from "@chakra-ui/react"
+import { Box, useColorModeValue } from "@/chakra"
 
 interface PageMenuProps {
   children: React.ReactNode

@@ -6,11 +6,11 @@ import {
   Text,
   Code,
   Link,
-} from "@chakra-ui/react"
+} from "@/chakra"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import React from "react"
-import { Box } from "@chakra-ui/react"
+import { Box } from "@/chakra"
 import rehypeRaw from "rehype-raw"
 import rehypeSanitize from "rehype-sanitize"
 
@@ -65,7 +65,7 @@ const Markdown = ({ children }: MarkdownProps) => {
        * stack vertically. Override within markdown so images (and linked images)
        * behave inline like on GitHub.
        */
-      sx={{
+      css={{
         "& p img": {
           display: "inline",
           verticalAlign: "middle",
@@ -87,9 +87,9 @@ const Markdown = ({ children }: MarkdownProps) => {
           h1: H1,
           h2: H2,
           h3: H3,
-          li: ListItem,
-          ol: OrderedList,
-          ul: UnorderedList,
+          li: ListItem as any,
+          ol: OrderedList as any,
+          ul: UnorderedList as any,
           p: p,
           pre: pre,
           code: code,

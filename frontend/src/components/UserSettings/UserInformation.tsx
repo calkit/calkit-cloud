@@ -10,7 +10,7 @@ import {
   Input,
   Text,
   useColorModeValue,
-} from "@chakra-ui/react"
+} from "@/chakra"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { useState } from "react"
 import { type SubmitHandler, useForm } from "react-hook-form"
@@ -103,7 +103,7 @@ const UserInformation = () => {
                 size="md"
                 py={2}
                 color={!currentUser?.full_name ? "ui.dim" : "inherit"}
-                isTruncated
+                truncate
                 maxWidth="250px"
               >
                 {currentUser?.full_name || "N/A"}
@@ -126,7 +126,7 @@ const UserInformation = () => {
                 w="auto"
               />
             ) : (
-              <Text size="md" py={2} isTruncated maxWidth="250px">
+              <Text size="md" py={2} truncate maxWidth="250px">
                 {currentUser?.email}
               </Text>
             )}

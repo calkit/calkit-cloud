@@ -16,7 +16,7 @@ import {
   IconButton,
   Link,
   Icon,
-} from "@chakra-ui/react"
+} from "@/chakra"
 import { createFileRoute, Link as RouterLink } from "@tanstack/react-router"
 import { useState } from "react"
 import { FaPlus } from "react-icons/fa"

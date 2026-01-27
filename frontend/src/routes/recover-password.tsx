@@ -6,7 +6,7 @@ import {
   Heading,
   Input,
   Text,
-} from "@chakra-ui/react"
+} from "@/chakra"
 import { useMutation } from "@tanstack/react-query"
 import { createFileRoute, redirect } from "@tanstack/react-router"
 import { type SubmitHandler, useForm } from "react-hook-form"

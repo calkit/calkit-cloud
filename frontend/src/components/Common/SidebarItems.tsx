@@ -1,4 +1,4 @@
-import { Box, Flex, Icon, Text, useColorModeValue } from "@chakra-ui/react"
+import { Box, Flex, Icon, Text, useColorModeValue } from "@/chakra"
 import { Link, getRouteApi } from "@tanstack/react-router"
 import {
   FiHome,
@@ -71,7 +71,7 @@ const SidebarItems = ({ onClose, basePath }: SidebarItemsProps) => {
     return (
       <Flex
         key={title}
-        as={Link}
+        as={Link as any}
         to={basePath + path}
         w="100%"
         p={2}
@@ -84,6 +84,7 @@ const SidebarItems = ({ onClose, basePath }: SidebarItemsProps) => {
         }}
         color={textColor}
         onClick={onClose}
+        {...({} as any)}
       >
         <Icon
           as={icon}

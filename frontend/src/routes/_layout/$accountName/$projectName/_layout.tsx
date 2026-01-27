@@ -20,7 +20,7 @@ import {
   MenuList,
   MenuItem,
   Box,
-} from "@chakra-ui/react"
+} from "@/chakra"
 import { createFileRoute, Outlet, notFound } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
 import { ExternalLinkIcon } from "@chakra-ui/icons"

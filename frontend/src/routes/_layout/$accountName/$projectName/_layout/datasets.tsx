@@ -16,7 +16,7 @@ import {
   Button,
   useDisclosure,
   Link,
-} from "@chakra-ui/react"
+} from "@/chakra"
 import { createFileRoute, Link as RouterLink } from "@tanstack/react-router"
 import { FaPlus } from "react-icons/fa"
 

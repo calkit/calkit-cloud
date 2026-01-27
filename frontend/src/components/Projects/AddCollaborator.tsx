@@ -11,7 +11,7 @@ import {
   ModalFooter,
   ModalHeader,
   ModalOverlay,
-} from "@chakra-ui/react"
+} from "@/chakra"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { getRouteApi } from "@tanstack/react-router"
 import { type SubmitHandler, useForm } from "react-hook-form"

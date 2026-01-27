@@ -17,7 +17,7 @@ import {
   Link,
   useDisclosure,
   Switch,
-} from "@chakra-ui/react"
+} from "@/chakra"
 import { useState } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { type SubmitHandler, useForm } from "react-hook-form"
@@ -183,7 +183,7 @@ const NewProject = ({ isOpen, onClose, defaultTemplate }: NewProjectProps) => {
               <Switch
                 id="repo-exists"
                 isChecked={repoExists}
-                onChange={(e) => setRepoExists(e.target.checked)}
+                onChange={(e: any) => setRepoExists(e.target.checked)}
                 colorScheme="teal"
               />
             </FormControl>

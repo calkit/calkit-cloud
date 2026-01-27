@@ -15,7 +15,7 @@ import {
   Thead,
   Tr,
   useDisclosure,
-} from "@chakra-ui/react"
+} from "@/chakra"
 import { createFileRoute } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
 import { Link as RouterLink } from "@tanstack/react-router"
@@ -118,7 +118,7 @@ function ProjectsTable() {
             <Tbody>
               {projects?.data.map((project) => (
                 <Tr key={project.id}>
-                  <Td isTruncated maxWidth="150px">
+                  <Td truncate maxWidth="150px">
                     <Link
                       as={RouterLink}
                       to={`/${project.owner_account_name}/${project.name}`}
@@ -126,14 +126,14 @@ function ProjectsTable() {
                       {project.title}
                     </Link>
                   </Td>
-                  <Td isTruncated maxWidth="150px">
+                  <Td truncate maxWidth="150px">
                     <Link href={project.git_repo_url} isExternal>
                       <ExternalLinkIcon mx="2px" /> {project.git_repo_url}
                     </Link>
                   </Td>
                   <Td
                     color={!project.description ? "ui.dim" : "inherit"}
-                    isTruncated
+                    truncate
                     maxWidth="150px"
                   >
                     {project.description || "N/A"}

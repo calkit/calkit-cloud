@@ -9,7 +9,7 @@ import {
   useDisclosure,
   IconButton,
   useColorModeValue,
-} from "@chakra-ui/react"
+} from "@/chakra"
 import { useQuery } from "@tanstack/react-query"
 import { FiFolder, FiFile, FiDatabase } from "react-icons/fi"
 import { FaMarkdown, FaPlus, FaLock } from "react-icons/fa6"
@@ -169,7 +169,7 @@ function Item({ item, level, selectedPath, setSelectedPath }: ItemProps) {
           color={item.calkit_object ? "green.500" : "default"}
         />
         <Text
-          isTruncated
+          truncate
           noOfLines={1}
           whiteSpace="nowrap"
           overflow="hidden"

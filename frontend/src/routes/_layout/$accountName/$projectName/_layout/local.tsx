@@ -14,7 +14,7 @@ import {
   Badge,
   useDisclosure,
   useColorModeValue,
-} from "@chakra-ui/react"
+} from "@/chakra"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 import axios from "axios"

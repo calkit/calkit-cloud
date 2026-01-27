@@ -8,7 +8,7 @@ import {
   Link,
   Icon,
   Tooltip,
-} from "@chakra-ui/react"
+} from "@/chakra"
 import { useQuery } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 import { useState } from "react"
@@ -166,7 +166,7 @@ function Notebooks() {
                             openDelay={600}
                           >
                             <Text
-                              isTruncated
+                              truncate
                               noOfLines={1}
                               whiteSpace="nowrap"
                               overflow="hidden"

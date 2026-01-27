@@ -8,7 +8,7 @@ import {
   Heading,
   Input,
   useColorModeValue,
-} from "@chakra-ui/react"
+} from "@/chakra"
 import { useMutation } from "@tanstack/react-query"
 import { type SubmitHandler, useForm } from "react-hook-form"
 

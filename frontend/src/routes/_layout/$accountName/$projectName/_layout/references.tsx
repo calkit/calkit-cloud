@@ -14,7 +14,7 @@ import {
   TableContainer,
   Link,
   useDisclosure,
-} from "@chakra-ui/react"
+} from "@/chakra"
 import { createFileRoute } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
 import { IoLibraryOutline } from "react-icons/io5"
@@ -39,7 +39,7 @@ interface ReferenceEntryTableProps {
 function ReferenceEntryTable({ referenceEntry }: ReferenceEntryTableProps) {
   return (
     <TableContainer whiteSpace="wrap">
-      <Table variant="simple" size="sm">
+      <Table variant="outline" size="sm">
         <Thead>
           <Tr>
             <Th w="100px" />
@@ -115,7 +115,7 @@ function References() {
                       <Flex alignItems="center">
                         <Icon mr={1} as={IoLibraryOutline} />
                         <Text
-                          isTruncated
+                          truncate
                           noOfLines={1}
                           whiteSpace="nowrap"
                           overflow="hidden"
@@ -141,7 +141,7 @@ function References() {
                                 onClick={() => handleLinkClick(entry)}
                               />
                               <Text
-                                isTruncated
+                                truncate
                                 noOfLines={1}
                                 whiteSpace="nowrap"
                                 overflow="hidden"

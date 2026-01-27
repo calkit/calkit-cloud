@@ -1,10 +1,4 @@
-import {
-  Button,
-  Container,
-  Heading,
-  Text,
-  useDisclosure,
-} from "@chakra-ui/react"
+import { Button, Container, Heading, Text, useDisclosure } from "@/chakra"
 
 import DeleteConfirmation from "./DeleteConfirmation"
 

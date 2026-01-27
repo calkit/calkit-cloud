@@ -13,7 +13,7 @@ import {
   ModalHeader,
   ModalOverlay,
   Text,
-} from "@chakra-ui/react"
+} from "@/chakra"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import mixpanel from "mixpanel-browser"
 import { type SubmitHandler, useForm } from "react-hook-form"

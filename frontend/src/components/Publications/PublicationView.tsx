@@ -1,4 +1,4 @@
-import { Image, Alert, AlertIcon } from "@chakra-ui/react"
+import { Image, Alert, AlertIcon } from "@/chakra"
 
 import { type Publication } from "../../client"
 

@@ -6,7 +6,7 @@ import {
   Box,
   ModalHeader,
   ModalOverlay,
-} from "@chakra-ui/react"
+} from "@/chakra"
 
 import { type ReferenceEntry } from "../../client"
 
