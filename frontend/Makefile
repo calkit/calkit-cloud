@@ -5,8 +5,12 @@ client:
 	node modify-openapi-operationids.js
 	npm run generate-client
 
-
 .PHONY: format
 format:
 	@echo "🚀 Formatting frontend"
 	@npx biome format --write ./src
+
+.PHONY: test
+test:
+	@echo "🚀 Running frontend tests"
+	@npx playwright test --reporter=list

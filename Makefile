@@ -37,3 +37,7 @@ frontend-client: ## Regenerate the OpenAPI client for the frontend.
 .PHONY: frontend
 frontend: ## Build the frontend.
 	@cd frontend && npm run build
+
+.PHONY: test-frontend
+test-frontend: ## Run frontend tests.
+	@cd frontend && make test
