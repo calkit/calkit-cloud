@@ -18,29 +18,9 @@ const theme = extendTheme({
       success: "#48BB78",
       danger: "#E53E3E",
       light: "#FAFAFA",
-      dark: "#0f141c",
-      darkSlate: "#192029",
+      dark: "#0a0e13",
+      darkSlate: "#10141a",
       dim: "#A0AEC0",
-    },
-  },
-  semanticTokens: {
-    colors: {
-      "chakra-body-bg": {
-        _light: "white",
-        _dark: "#0d1117",
-      },
-      "chakra-body-text": {
-        _light: "gray.800",
-        _dark: "gray.100",
-      },
-      "chakra-border-color": {
-        _light: "gray.200",
-        _dark: "gray.700",
-      },
-      "chakra-placeholder-color": {
-        _light: "gray.500",
-        _dark: "gray.400",
-      },
     },
   },
   styles: {
