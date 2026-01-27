@@ -13,21 +13,10 @@ import {
   UsersService,
 } from "../client"
 import useCustomToast from "./useCustomToast"
+import { popPostLoginRedirect, isAuthenticationError } from "../lib/auth"
 
 const isLoggedIn = () => {
   return localStorage.getItem("access_token") !== null
-}
-
-const popPostLoginRedirect = () => {
-  if (typeof window === "undefined") return null
-  const target = localStorage.getItem("post_login_redirect")
-  if (target && target.startsWith("/")) {
-    localStorage.removeItem("post_login_redirect")
-    return target
-  }
-  // Drop malformed/stale values
-  localStorage.removeItem("post_login_redirect")
-  return null
 }
 
 const useAuth = () => {
@@ -84,9 +73,7 @@ const useAuth = () => {
     mutationFn: login,
     onSuccess: () => {
       const redirectTo = popPostLoginRedirect()
-      const safeRedirect =
-        redirectTo && redirectTo.startsWith("/") ? redirectTo : "/"
-      navigate({ to: safeRedirect })
+      navigate({ to: redirectTo || "/" })
     },
     onError: (err: ApiError) => {
       let errDetail = (err.body as any)?.detail
@@ -111,9 +98,7 @@ const useAuth = () => {
     mutationFn: loginGithub,
     onSuccess: () => {
       const redirectTo = popPostLoginRedirect()
-      const safeRedirect =
-        redirectTo && redirectTo.startsWith("/") ? redirectTo : "/"
-      navigate({ to: safeRedirect })
+      navigate({ to: redirectTo || "/" })
     },
     onError: (err: ApiError) => {
       let errDetail = (err.body as any)?.detail
@@ -142,19 +127,7 @@ const useAuth = () => {
   // Only handle auth errors when we still have a token; otherwise we can end up
   // repeatedly navigating to /login and appending redirect params on every render.
   if (getUserError && isLoggedIn()) {
-    const status =
-      (getUserError as any)?.status ?? (getUserError as any)?.response?.status
-    const detail =
-      (getUserError as any)?.body?.detail ??
-      (getUserError as any)?.response?.data?.detail
-    const isAuthError =
-      status === 401 ||
-      status === 403 ||
-      detail === "Token has expired" ||
-      detail === "Invalid token" ||
-      detail === "Could not validate credentials"
-
-    if (isAuthError) {
+    if (isAuthenticationError(getUserError)) {
       logout()
     }
     // Do NOT logout on 404 or other non-auth errors; leave token intact

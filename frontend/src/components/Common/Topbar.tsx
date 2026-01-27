@@ -149,7 +149,10 @@ export default function Topbar() {
               <Link
                 as={RouterLink}
                 to={"/login"}
-                onClick={goToLoginWithRedirect}
+                onClick={(event) => {
+                  event.preventDefault()
+                  goToLoginWithRedirect()
+                }}
               >
                 <Button variant="primary">Sign in</Button>
               </Link>

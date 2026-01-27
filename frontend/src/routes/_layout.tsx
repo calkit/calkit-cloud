@@ -8,6 +8,7 @@ import Topbar from "../components/Common/Topbar"
 import PickSubscription from "../components/UserSettings/PickSubscription"
 import { UsersService } from "../client"
 import { appName } from "../lib/core"
+import { isAuthenticationError } from "../lib/auth"
 
 export const Route = createFileRoute("/_layout")({
   component: Layout,
@@ -45,20 +46,7 @@ function Layout() {
     retry: 1,
   })
   if (ghAppInstalledQuery.error) {
-    const status =
-      (ghAppInstalledQuery.error as any)?.status ??
-      (ghAppInstalledQuery.error as any)?.response?.status
-    const detail =
-      (ghAppInstalledQuery.error as any)?.body?.detail ??
-      (ghAppInstalledQuery.error as any)?.response?.data?.detail
-    const isAuthError =
-      status === 401 ||
-      status === 403 ||
-      detail === "Token has expired" ||
-      detail === "Invalid token" ||
-      detail === "Could not validate credentials"
-
-    if (isAuthError) {
+    if (isAuthenticationError(ghAppInstalledQuery.error)) {
       logout()
     }
   }
