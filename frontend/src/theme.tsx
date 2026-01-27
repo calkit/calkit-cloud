@@ -32,10 +32,15 @@ const brandConfig = defineConfig({
           danger: { value: "{colors.danger.500}" },
           light: { value: "#FAFAFA" },
           dark: { value: "#1A202C" },
-          darkSlate: { value: "#252D3D" },
+          darkSlate: { value: "{colors.gray.950}" },
           dim: { value: "#A0AEC0" },
         },
       },
+    },
+  },
+  globalCss: {
+    "html, body": {
+      colorPalette: "brand",
     },
   },
 })

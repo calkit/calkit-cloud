@@ -40,6 +40,10 @@ declare module "@tanstack/react-router" {
   }
 }
 
+// Set dark mode as default
+document.documentElement.classList.add("dark")
+document.documentElement.style.colorScheme = "dark"
+
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <ChakraProvider value={theme}>

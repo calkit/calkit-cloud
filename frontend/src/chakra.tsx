@@ -912,10 +912,33 @@ Radio.displayName = "Radio"
  * For now, we'll create a stub that returns the light value
  * You should migrate to using CSS or next-themes instead
  */
-export const useColorModeValue = (light: any, _dark: any) => {
-  // Return the light value by default
-  // In production, integrate with next-themes to get actual color mode
-  return light
+export const useColorModeValue = (light: any, dark: any) => {
+  // Check if dark mode is active by checking the document class
+  const [colorMode, setColorMode] = React.useState(() => {
+    if (typeof window !== "undefined") {
+      return document.documentElement.classList.contains("dark")
+        ? "dark"
+        : "light"
+    }
+    return "light"
+  })
+
+  React.useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setColorMode(
+        document.documentElement.classList.contains("dark") ? "dark" : "light",
+      )
+    })
+
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"],
+    })
+
+    return () => observer.disconnect()
+  }, [])
+
+  return colorMode === "dark" ? dark : light
 }
 
 /**
