@@ -59,6 +59,14 @@ export default function Topbar() {
   const newProjectModal = useDisclosure()
   const newOrgModal = useDisclosure()
   const navigate = useNavigate()
+  const goToLoginWithRedirect = () => {
+    const href =
+      typeof window !== "undefined"
+        ? `${window.location.pathname}${window.location.search}${window.location.hash}`
+        : "/"
+    localStorage.setItem("post_login_redirect", href)
+    navigate({ to: "/login" })
+  }
 
   return (
     <>
@@ -103,9 +111,7 @@ export default function Topbar() {
               aria-label="new-org"
               size="sm"
               mr={2}
-              onClick={
-                user ? newOrgModal.onOpen : () => navigate({ to: "/login" })
-              }
+              onClick={user ? newOrgModal.onOpen : goToLoginWithRedirect}
             >
               <Icon as={FaPlus} mr={1} />
               New org
@@ -115,9 +121,7 @@ export default function Topbar() {
               aria-label="new-project"
               size="sm"
               mr={6}
-              onClick={
-                user ? newProjectModal.onOpen : () => navigate({ to: "/login" })
-              }
+              onClick={user ? newProjectModal.onOpen : goToLoginWithRedirect}
             >
               <Icon as={FaPlus} mr={1} />
               New project
@@ -142,7 +146,11 @@ export default function Topbar() {
             {user ? (
               <UserMenu />
             ) : (
-              <Link as={RouterLink} to={"/login"}>
+              <Link
+                as={RouterLink}
+                to={"/login"}
+                onClick={goToLoginWithRedirect}
+              >
                 <Button variant="primary">Sign in</Button>
               </Link>
             )}

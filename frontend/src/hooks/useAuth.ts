@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { useNavigate, useRouter } from "@tanstack/react-router"
+import { useNavigate } from "@tanstack/react-router"
 import { useState } from "react"
 import mixpanel from "mixpanel-browser"
 
@@ -18,10 +18,21 @@ const isLoggedIn = () => {
   return localStorage.getItem("access_token") !== null
 }
 
+const popPostLoginRedirect = () => {
+  if (typeof window === "undefined") return null
+  const target = localStorage.getItem("post_login_redirect")
+  if (target && target.startsWith("/")) {
+    localStorage.removeItem("post_login_redirect")
+    return target
+  }
+  // Drop malformed/stale values
+  localStorage.removeItem("post_login_redirect")
+  return null
+}
+
 const useAuth = () => {
   const [error, setError] = useState<string | null>(null)
   const navigate = useNavigate()
-  const router = useRouter()
   const showToast = useCustomToast()
   const queryClient = useQueryClient()
   const {
@@ -72,9 +83,10 @@ const useAuth = () => {
   const loginMutation = useMutation({
     mutationFn: login,
     onSuccess: () => {
-      const redirectTo = localStorage.getItem("post_login_redirect") || "/"
-      localStorage.removeItem("post_login_redirect")
-      navigate({ to: redirectTo })
+      const redirectTo = popPostLoginRedirect()
+      const safeRedirect =
+        redirectTo && redirectTo.startsWith("/") ? redirectTo : "/"
+      navigate({ to: safeRedirect })
     },
     onError: (err: ApiError) => {
       let errDetail = (err.body as any)?.detail
@@ -98,9 +110,10 @@ const useAuth = () => {
   const loginGitHubMutation = useMutation({
     mutationFn: loginGithub,
     onSuccess: () => {
-      const redirectTo = localStorage.getItem("post_login_redirect") || "/"
-      localStorage.removeItem("post_login_redirect")
-      navigate({ to: redirectTo })
+      const redirectTo = popPostLoginRedirect()
+      const safeRedirect =
+        redirectTo && redirectTo.startsWith("/") ? redirectTo : "/"
+      navigate({ to: safeRedirect })
     },
     onError: (err: ApiError) => {
       let errDetail = (err.body as any)?.detail
@@ -118,15 +131,17 @@ const useAuth = () => {
   const logout = () => {
     localStorage.removeItem("access_token")
     mixpanel.reset()
-    const currentHref = router.state.location.href
-    localStorage.setItem("post_login_redirect", currentHref)
-    navigate({
-      to: "/login",
-      search: (prev: any) => ({ ...prev, redirect: currentHref }),
-    })
+    localStorage.removeItem("post_login_redirect")
+    if (typeof window !== "undefined") {
+      window.location.replace("/")
+    } else {
+      navigate({ to: "/" })
+    }
   }
 
-  if (getUserError) {
+  // Only handle auth errors when we still have a token; otherwise we can end up
+  // repeatedly navigating to /login and appending redirect params on every render.
+  if (getUserError && isLoggedIn()) {
     const status =
       (getUserError as any)?.status ?? (getUserError as any)?.response?.status
     const detail =

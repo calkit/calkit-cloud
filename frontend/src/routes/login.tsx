@@ -12,14 +12,27 @@ import useAuth, { isLoggedIn } from "../hooks/useAuth"
 const githubAuthParamsSchema = z.object({
   code: z.string().optional(),
   state: z.string().optional(),
-  redirect: z.string().optional(),
 })
+
+const popStoredRedirect = () => {
+  if (typeof window === "undefined") return null
+  const target = localStorage.getItem("post_login_redirect")
+  if (target && target.startsWith("/")) {
+    localStorage.removeItem("post_login_redirect")
+    return target
+  }
+  // Drop malformed/stale values
+  localStorage.removeItem("post_login_redirect")
+  return null
+}
 
 export const Route = createFileRoute("/login")({
   component: Login,
   beforeLoad: async () => {
     if (isLoggedIn()) {
-      throw redirect({ to: "/" })
+      const stored = popStoredRedirect()
+      const safeRedirect = stored && stored.startsWith("/") ? stored : "/"
+      throw redirect({ to: safeRedirect })
     }
   },
   validateSearch: (search) => githubAuthParamsSchema.parse(search),
@@ -27,11 +40,7 @@ export const Route = createFileRoute("/login")({
 
 function Login() {
   const { loginGitHubMutation } = useAuth()
-  const {
-    code: ghAuthCode,
-    state: ghAuthStateRecv,
-    redirect,
-  } = Route.useSearch()
+  const { code: ghAuthCode, state: ghAuthStateRecv } = Route.useSearch()
   const isMounted = useRef(false)
 
   const clientId = import.meta.env.VITE_GH_CLIENT_ID
@@ -40,9 +49,6 @@ function Login() {
   useEffect(() => {
     if (!isMounted.current) {
       isMounted.current = true
-      if (redirect) {
-        localStorage.setItem("post_login_redirect", redirect)
-      }
       if (ghAuthCode && ghAuthStateRecv === ghAuthStateParam) {
         try {
           loginGitHubMutation.mutate(ghAuthCode)
