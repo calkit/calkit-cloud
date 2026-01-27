@@ -124,8 +124,6 @@ const useAuth = () => {
     }
   }
 
-  // Only handle auth errors when we still have a token; otherwise we can end up
-  // repeatedly navigating to /login and appending redirect params on every render.
   if (getUserError && isLoggedIn()) {
     if (isAuthenticationError(getUserError)) {
       logout()
