@@ -250,7 +250,8 @@ function LocalServer() {
                         Actions
                       </Heading>
                       <Button m={2} variant="primary" onClick={openVSCode}>
-                        Open in VSCode <Icon ml={1} as={FiExternalLink} />
+                        Open in VSCode{" "}
+                        <Icon boxSize="1em" ml={1} as={FiExternalLink} />
                       </Button>
                       <Button
                         m={2}
@@ -272,7 +273,8 @@ function LocalServer() {
                           href={jupyterServerQuery.data?.data.url}
                         >
                           <Button variant="primary" m={2}>
-                            Open JupyterLab <Icon ml={1} as={FiExternalLink} />
+                            Open JupyterLab{" "}
+                            <Icon boxSize="1em" ml={1} as={FiExternalLink} />
                           </Button>
                         </Link>
                       ) : (

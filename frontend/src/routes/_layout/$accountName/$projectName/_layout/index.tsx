@@ -291,14 +291,14 @@ function ProjectView() {
                   🚀{" "}
                   <Link isExternal href={codespacesUrl}>
                     Open in GitHub Codespace (edit and run){" "}
-                    <Icon height={"40%"} as={ExternalLinkIcon} pb={0.5} />
+                    <Icon boxSize="1em" as={ExternalLinkIcon} pb={0.5} />
                   </Link>
                 </Text>
                 <Text>
                   ✏️{" "}
                   <Link isExternal href={githubDevUrl}>
                     Open in GitHub.dev (edit only){" "}
-                    <Icon height={"40%"} as={ExternalLinkIcon} pb={0.5} />
+                    <Icon boxSize="1em" as={ExternalLinkIcon} pb={0.5} />
                   </Link>
                 </Text>
                 <Text>

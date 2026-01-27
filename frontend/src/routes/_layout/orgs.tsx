@@ -128,7 +128,7 @@ function PublicOrgsTable() {
                       isExternal
                       href={`https://github.com/${org.github_name}`}
                     >
-                      <ExternalLinkIcon mx="2px" />
+                      <ExternalLinkIcon boxSize="1em" mx="2px" />
                       {org.github_name}
                     </Link>
                   </Td>

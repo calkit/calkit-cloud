@@ -72,7 +72,8 @@ function UsersTable() {
                       href={`https://github.com/${user.github_name}`}
                       isExternal
                     >
-                      <ExternalLinkIcon mx="2px" /> {user.github_name}
+                      <ExternalLinkIcon boxSize="1em" mx="2px" />{" "}
+                      {user.github_name}
                     </Link>
                   </Td>
                   <Td>{capitalizeFirstLetter(user.role)}</Td>
@@ -128,7 +129,8 @@ function ProjectsTable() {
                   </Td>
                   <Td truncate maxWidth="150px">
                     <Link href={project.git_repo_url} isExternal>
-                      <ExternalLinkIcon mx="2px" /> {project.git_repo_url}
+                      <ExternalLinkIcon boxSize="1em" mx="2px" />{" "}
+                      {project.git_repo_url}
                     </Link>
                   </Td>
                   <Td

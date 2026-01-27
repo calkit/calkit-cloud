@@ -215,7 +215,7 @@ function ProjectLayout() {
                   <Link href={project?.git_repo_url} isExternal>
                     <Flex alignItems="center">
                       <Icon as={FaGithub} pt={0.5} />
-                      <Icon as={ExternalLinkIcon} />
+                      <Icon boxSize="1em" as={ExternalLinkIcon} />
                     </Flex>
                   </Link>
                 </Box>

@@ -145,7 +145,7 @@ function PubView({ publication, userHasWriteAccess }: PubViewProps) {
                   <Flex align={"center"}>
                     <Icon as={SiOverleaf} color="green.500" />
                     <Text ml={0.5}>View on Overleaf</Text>
-                    <Icon as={ExternalLinkIcon} ml={0.5} />
+                    <Icon boxSize="1em" as={ExternalLinkIcon} ml={0.5} />
                   </Flex>
                 </Link>
                 {userHasWriteAccess ? (

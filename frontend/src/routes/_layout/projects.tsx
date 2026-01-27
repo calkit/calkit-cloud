@@ -135,7 +135,8 @@ function PublicProjectsTable() {
                   </Td>
                   <Td truncate maxWidth="150px">
                     <Link href={project.git_repo_url} isExternal>
-                      <ExternalLinkIcon mx="2px" /> {project.git_repo_url}
+                      <ExternalLinkIcon boxSize="1em" mx="2px" />{" "}
+                      {project.git_repo_url}
                     </Link>
                   </Td>
                   <Td
