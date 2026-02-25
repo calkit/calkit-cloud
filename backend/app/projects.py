@@ -164,6 +164,20 @@ def get_project(
     return project
 
 
+def _is_safe_symlink(target_path: str, repo_dir: str | os.PathLike) -> bool:
+    """Check if a symlink resolves to a path within the repo directory."""
+    try:
+        resolved_path = os.path.realpath(target_path)
+        repo_realpath = os.path.realpath(repo_dir)
+        # Ensure the symlink target is within the repo
+        return (
+            resolved_path.startswith(repo_realpath + os.sep)
+            or resolved_path == repo_realpath
+        )
+    except (OSError, ValueError):
+        return False
+
+
 def get_contents_from_repo(
     project: Project,
     repo: git.Repo,
@@ -172,6 +186,18 @@ def get_contents_from_repo(
     owner_name = project.owner_account_name
     project_name = project.name
     repo_dir = repo.working_dir
+    # If the path is an unsafe symlink, raise a 404
+    if path is not None and os.path.islink(
+        os.path.join(repo.working_dir, path)
+    ):
+        if not _is_safe_symlink(
+            os.path.join(repo.working_dir, path), repo.working_dir
+        ):
+            logger.warning(
+                f"Unsafe symlink detected in {owner_name}/{project_name} "
+                f"at {path}"
+            )
+            raise HTTPException(404)
     # Load Calkit entities
     if os.path.isfile(os.path.join(repo_dir, "calkit.yaml")):
         logger.info("Loading calkit.yaml")
