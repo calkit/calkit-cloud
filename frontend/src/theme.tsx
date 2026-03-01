@@ -18,10 +18,18 @@ const theme = extendTheme({
       success: "#48BB78",
       danger: "#E53E3E",
       light: "#FAFAFA",
-      dark: "#1A202C",
-      darkSlate: "#252D3D",
+      dark: "#0a0e13",
+      darkSlate: "#10141a",
       dim: "#A0AEC0",
     },
+  },
+  styles: {
+    global: (props: any) => ({
+      body: {
+        // fontSize: "14px", // Slightly smaller default font size
+        bg: props.colorMode === "dark" ? "ui.dark" : "white",
+      },
+    }),
   },
   components: {
     Button: {
@@ -68,6 +76,45 @@ const theme = extendTheme({
           },
         },
       },
+    },
+    Modal: {
+      baseStyle: (props: any) => ({
+        dialog: {
+          bg: props.colorMode === "dark" ? "#161b22" : "white",
+        },
+        overlay: {
+          bg: "blackAlpha.600",
+        },
+      }),
+    },
+    Card: {
+      baseStyle: (props: any) => ({
+        container: {
+          bg: props.colorMode === "dark" ? "#161b22" : "white",
+        },
+      }),
+    },
+    Menu: {
+      baseStyle: (props: any) => ({
+        list: {
+          bg: props.colorMode === "dark" ? "#161b22" : "white",
+          borderColor: props.colorMode === "dark" ? "gray.700" : "gray.200",
+        },
+        item: {
+          bg: props.colorMode === "dark" ? "#161b22" : "white",
+          _hover: {
+            bg: props.colorMode === "dark" ? "#0d1117" : "gray.100",
+          },
+        },
+      }),
+    },
+    Popover: {
+      baseStyle: (props: any) => ({
+        content: {
+          bg: props.colorMode === "dark" ? "#161b22" : "white",
+          borderColor: props.colorMode === "dark" ? "gray.700" : "gray.200",
+        },
+      }),
     },
   },
 })
