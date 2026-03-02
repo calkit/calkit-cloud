@@ -94,10 +94,6 @@ from app.models import (
     UserProjectAccess,
 )
 from app.models.projects import (
-    FileExistsResponse,
-    FileInfo,
-    FileListResponse,
-    FileOperationResponse,
     Showcase,
     ShowcaseFigure,
     ShowcaseFigureInput,
@@ -3646,10 +3642,9 @@ class FileOperationResponse(BaseModel):
         Backend-specific file ID (e.g., Google Drive file ID)
     params : dict | None
         Query parameters for the request
-    results: dict | None
-        Additional results or metadata from the operation, e.g., if we can
-        tell the client if the file exists, we can include that here to avoid
-        an extra round trip.
+    result : dict | None
+        Direct result from the operation if the server has the answer,
+        e.g., for exists/list operations to avoid an extra round trip.
     """
 
     backend: str
@@ -3662,7 +3657,7 @@ class FileOperationResponse(BaseModel):
     headers: dict | None = None
     file_id: str | None = None
     params: dict | None = None
-    results: dict | None = None
+    result: dict | None = None
 
 
 @router.get(
@@ -3730,7 +3725,7 @@ def get_project_file_operation(
             url=None,
             http_method=None,
             expires_at=None,
-            results={"exists": exists},
+            result={"exists": exists},
         )
     if operation == "list":
         files = fs.ls(full_path, False)
@@ -3740,7 +3735,7 @@ def get_project_file_operation(
             url=None,
             http_method=None,
             expires_at=None,
-            results={"files": files},
+            result={"files": files},
         )
     # Generate presigned URL
     url = get_object_url(
