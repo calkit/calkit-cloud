@@ -10,6 +10,33 @@ from app.config import settings
 from google.cloud import storage as gcs
 from google.oauth2 import service_account as gcs_service_account
 
+# Multipart/chunked upload configuration
+MULTIPART_THRESHOLD_BYTES = 64 * 1024 * 1024  # 64 MB
+MULTIPART_PART_SIZE_BYTES = 16 * 1024 * 1024  # 16 MB
+CHUNKED_CHUNK_SIZE_BYTES = 8 * 1024 * 1024  # 8 MB
+
+
+def get_backend() -> Literal["s3", "gcs"]:
+    """Get the configured storage backend for the current environment."""
+    return "s3" if settings.ENVIRONMENT == "local" else "gcs"
+
+
+def upload_should_be_chunked(content_length: int | None) -> bool:
+    """Determine if an upload should use multipart/chunked strategy."""
+    return (
+        content_length is not None
+        and content_length >= MULTIPART_THRESHOLD_BYTES
+    )
+
+
+def get_upload_chunk_size() -> int:
+    """Get the chunk/part size for the backend in bytes."""
+    return (
+        MULTIPART_PART_SIZE_BYTES
+        if get_backend() == "s3"
+        else CHUNKED_CHUNK_SIZE_BYTES
+    )
+
 
 def get_gcs_credentials() -> dict | None:
     """Get GCS credentials from environment."""
@@ -68,17 +95,64 @@ def make_data_fpath(
     return f"{prefix}/{project_name}/{idx}/{md5}"
 
 
+def _replace_local_object_host(url: str) -> str:
+    if settings.ENVIRONMENT == "local":
+        return url.replace(
+            "http://minio:9000", f"http://objects.{settings.DOMAIN}"
+        )
+    return url
+
+
 def get_object_url(
     fpath: str,
     fname: str | None = None,
     expires: int = 3600 * 24,
     fs: s3fs.S3FileSystem | gcsfs.GCSFileSystem | None = None,
     method: Literal["get", "put"] = "get",
+    *,
+    content_type: str | None = None,
+    chunked: bool = False,
     **kwargs,
 ) -> str:
     """Get a presigned URL for an object in object storage."""
     if fs is None:
         fs = get_object_fs()
+    # If chunked upload is requested, generate the appropriate init URL
+    if chunked and method == "put":
+        if settings.ENVIRONMENT == "local":
+            init_kwargs = {}
+            if content_type:
+                init_kwargs["ContentType"] = content_type
+            init_url = fs.sign(
+                fpath,
+                expiration=expires,
+                client_method="create_multipart_upload",
+                **(init_kwargs | kwargs),
+            )
+            if init_url is None:
+                raise RuntimeError("Failed to generate multipart init URL")
+            return _replace_local_object_host(init_url)
+        # GCS resumable upload
+        try:
+            init_url = fs.sign(
+                fpath,
+                expiration=expires,
+                method="POST",
+                **kwargs,
+            )
+        except Exception:
+            init_url = None
+        if init_url is None:
+            init_url = fs.sign(
+                fpath,
+                expiration=expires,
+                method="PUT",
+                **kwargs,
+            )
+        if init_url is None:
+            raise RuntimeError("Failed to generate chunked init URL")
+        return init_url
+    # Standard presigned URL
     if settings.ENVIRONMENT == "local":
         kws = {}
         if fname is not None:
@@ -97,12 +171,10 @@ def get_object_url(
             elif fname.endswith(".html"):
                 kws["response_type"] = "text/html"
         kws["method"] = method.upper()
-    url: str = fs.sign(fpath, expiration=expires, **(kws | kwargs))
-    if settings.ENVIRONMENT == "local":
-        url = url.replace(
-            "http://minio:9000", f"http://objects.{settings.DOMAIN}"
-        )
-    return url
+    signed_url = fs.sign(fpath, expiration=expires, **(kws | kwargs))
+    if signed_url is None:
+        raise RuntimeError("Failed to generate presigned URL")
+    return _replace_local_object_host(signed_url)
 
 
 def get_storage_usage(
@@ -111,4 +183,7 @@ def get_storage_usage(
     """Get storage usage in GB for a given owner."""
     if fs is None:
         fs = get_object_fs()
-    return fs.du(get_data_prefix_for_owner(owner_name)) / 1e9
+    usage = fs.du(get_data_prefix_for_owner(owner_name))
+    if isinstance(usage, dict):
+        usage = sum(float(v) for v in usage.values())
+    return float(usage) / 1e9

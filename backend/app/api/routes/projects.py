@@ -42,7 +42,7 @@ from sqlmodel import Session, and_, func, not_, or_, select
 from TexSoup import TexSoup
 
 import app.projects
-from app import mixpanel, orgs, users
+from app import mixpanel, orgs, storage, users
 from app.api.deps import (
     CurrentUser,
     CurrentUserDvcScope,
@@ -3747,14 +3747,7 @@ def post_project_fs_op(
     # to this system
     # For now, only support GCS/S3 via presigned URLs
     # Future: Add google_drive, box, huggingface backends
-    # Determine backend type
-    if settings.ENVIRONMENT == "local":
-        backend = "s3"
-    else:
-        backend = "gcs"
-    multipart_threshold_bytes = 64 * 1024 * 1024
-    multipart_part_size_bytes = 16 * 1024 * 1024
-    chunk_size_bytes = 8 * 1024 * 1024
+    backend = storage.get_backend()
     fs = get_object_fs()
     # Construct full storage path
     data_prefix = get_data_prefix()
@@ -3773,106 +3766,74 @@ def post_project_fs_op(
             backend=backend,
             result=FileListResult(files=files),
         )
-    if operation == "put" and content_length is not None:
-        if backend == "s3" and content_length > multipart_threshold_bytes:
-            kwargs = {}
-            if content_type:
-                kwargs["ContentType"] = content_type
-            init_url = fs.sign(
-                full_path,
-                expiration=900,
-                client_method="create_multipart_upload",
-                **kwargs,
+    if operation == "get":
+        url = get_object_url(
+            fpath=full_path,
+            fname=None,
+            expires=3600,
+            fs=fs,
+            method="get",
+        )
+        return FsOpResponse(
+            backend=backend,
+            access=PresignedUrlAccess(
+                kind="presigned-url",
+                url=url,
+                http_method="GET",
+            ),
+        )
+    # We are doing a PUT if we've made it this far
+    assert operation == "put"
+    # Determine if we need chunked upload for large puts
+    chunked = storage.upload_should_be_chunked(content_length)
+    try:
+        url = get_object_url(
+            fpath=full_path,
+            fname=None,
+            expires=900,
+            fs=fs,
+            method=operation,
+            content_length=content_length,
+            content_type=content_type,
+            chunked=chunked,
+        )
+    except RuntimeError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    # Build the appropriate access response based on operation and chunking
+    if chunked:
+        # At this point, content_length is guaranteed to be not None
+        assert content_length is not None
+        chunk_size = storage.get_upload_chunk_size()
+        if backend == "s3":
+            access = PresignedMultipartInitAccess(
+                kind="presigned-multipart-init",
+                init_url=url,
+                http_method="POST",
+                part_size_bytes=chunk_size,
+                estimated_part_count=(content_length + chunk_size - 1)
+                // chunk_size,
+                upload_size_bytes=content_length,
+                content_type=content_type,
             )
-            if init_url is None:
-                raise HTTPException(
-                    status_code=500,
-                    detail="Failed to generate multipart init URL",
-                )
-            if settings.ENVIRONMENT == "local":
-                init_url = init_url.replace(
-                    "http://minio:9000", f"http://objects.{settings.DOMAIN}"
-                )
-            return FsOpResponse(
-                backend=backend,
-                access=PresignedMultipartInitAccess(
-                    kind="presigned-multipart-init",
-                    init_url=init_url,
-                    http_method="POST",
-                    part_size_bytes=multipart_part_size_bytes,
-                    estimated_part_count=(
-                        content_length + multipart_part_size_bytes - 1
-                    )
-                    // multipart_part_size_bytes,
-                    upload_size_bytes=content_length,
-                    content_type=content_type,
-                    expires_at=None,
-                ),
+        else:  # GCS
+            access = PresignedChunkedInitAccess(
+                kind="presigned-chunked-init",
+                init_url=url,
+                http_method="POST",
+                chunk_size_bytes=chunk_size,
+                estimated_chunk_count=(content_length + chunk_size - 1)
+                // chunk_size,
+                upload_size_bytes=content_length,
+                content_type=content_type,
+                headers={"x-goog-resumable": "start"},
             )
-        if backend == "gcs" and content_length > multipart_threshold_bytes:
-            try:
-                init_url = fs.sign(
-                    full_path,
-                    expiration=900,
-                    method="POST",
-                )
-                init_http_method: Literal["POST", "PUT"] = "POST"
-            except Exception:
-                init_url = get_object_url(
-                    fpath=full_path,
-                    fname=None,
-                    expires=900,
-                    fs=fs,
-                    method="put",
-                )
-                init_http_method = "PUT"
-            if init_url is None:
-                raise HTTPException(
-                    status_code=500,
-                    detail="Failed to generate chunked init URL",
-                )
-            return FsOpResponse(
-                backend=backend,
-                access=PresignedChunkedInitAccess(
-                    kind="presigned-chunked-init",
-                    init_url=init_url,
-                    http_method=init_http_method,
-                    chunk_size_bytes=chunk_size_bytes,
-                    estimated_chunk_count=(
-                        content_length + chunk_size_bytes - 1
-                    )
-                    // chunk_size_bytes,
-                    upload_size_bytes=content_length,
-                    content_type=content_type,
-                    headers=(
-                        {"x-goog-resumable": "start"}
-                        if init_http_method == "POST"
-                        else None
-                    ),
-                    expires_at=None,
-                ),
-            )
-    # Generate presigned URL
-    url = get_object_url(
-        fpath=full_path,
-        fname=None,
-        expires=3600
-        if operation == "get"
-        else 900,  # 1hr for get, 15min for put
-        fs=fs,
-        method=operation,
-    )
-    return FsOpResponse(
-        backend=backend,
-        access=PresignedUrlAccess(
+    else:
+        http_method: Literal["GET", "PUT", "DELETE"] = (
+            "PUT" if operation == "put" else "GET"
+        )
+        access = PresignedUrlAccess(
             kind="presigned-url",
             url=url,
-            http_method="GET" if operation == "get" else "PUT",
-            expires_at=None,
-            headers=(
-                {"Content-Type": content_type}
-                if operation == "put" and content_type
-                else None
-            ),
-        ),
-    )
+            http_method=http_method,
+        )
+    return FsOpResponse(backend=backend, access=access)
