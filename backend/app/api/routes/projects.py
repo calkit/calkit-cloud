@@ -3767,6 +3767,30 @@ def post_project_fs_op(
             files = fs.ls(full_path, detail=req.detail)
         except FileNotFoundError:
             raise HTTPException(404, "Path not found")
+        prefix_to_strip = get_data_prefix()
+        data_prefix_candidates = [
+            f"{prefix_to_strip.rstrip('/')}/",
+            f"{prefix_to_strip.removeprefix('s3://').rstrip('/')}/",
+            f"{prefix_to_strip.removeprefix('gcs://').rstrip('/')}/",
+        ]
+
+        def strip_data_prefix(path: str) -> str:
+            for prefix in data_prefix_candidates:
+                if path.startswith(prefix):
+                    return path.removeprefix(prefix)
+            return path
+
+        if req.detail:
+            files = [
+                obj
+                | {
+                    "name": strip_data_prefix(obj.get("name", "")),
+                    "Key": strip_data_prefix(obj.get("Key", "")),
+                }
+                for obj in files
+            ]
+        else:
+            files = [strip_data_prefix(path) for path in files]
         return FsOpResponse(
             backend=backend,
             result=FileListResult(files=files),
