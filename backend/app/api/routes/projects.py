@@ -3621,6 +3621,32 @@ class PresignedUrlAccess(BaseModel):
     params: dict | None = None
 
 
+class PresignedMultipartInitAccess(BaseModel):
+    kind: Literal["presigned-multipart-init"]
+    init_url: str
+    http_method: Literal["POST"]
+    part_size_bytes: int
+    estimated_part_count: int
+    upload_size_bytes: int
+    content_type: str | None = None
+    headers: dict | None = None
+    params: dict | None = None
+    expires_at: datetime | None = None
+
+
+class PresignedChunkedInitAccess(BaseModel):
+    kind: Literal["presigned-chunked-init"]
+    init_url: str
+    http_method: Literal["POST", "PUT"]
+    chunk_size_bytes: int
+    estimated_chunk_count: int
+    upload_size_bytes: int
+    content_type: str | None = None
+    headers: dict | None = None
+    params: dict | None = None
+    expires_at: datetime | None = None
+
+
 class HttpRequestAccess(BaseModel):
     kind: Literal["http-request"]
     url: str
@@ -3649,7 +3675,7 @@ class ExistsResult(BaseModel):
     exists: bool
 
 
-class FileOperationResponse(BaseModel):
+class FsOpResponse(BaseModel):
     """Response describing how to perform a file operation
     (get/put/exists/list) for a given file path within the project.
     """
@@ -3657,7 +3683,11 @@ class FileOperationResponse(BaseModel):
     backend: Literal["gcs", "s3", "google-drive", "box", "hf"]
     access: (
         Annotated[
-            PresignedUrlAccess | HttpRequestAccess | SftpAccess,
+            PresignedUrlAccess
+            | PresignedMultipartInitAccess
+            | PresignedChunkedInitAccess
+            | HttpRequestAccess
+            | SftpAccess,
             Field(discriminator="kind"),
         ]
         | None
@@ -3665,17 +3695,21 @@ class FileOperationResponse(BaseModel):
     result: FileListResult | ExistsResult | None = None
 
 
-@router.get(
-    "/projects/{owner_name}/{project_name}/fs/{operation}/{file_path:path}"
-)
-def get_project_fs_operation_info(
+class FsOpRequest(BaseModel):
+    operation: Literal["get", "put", "exists", "list"]
+    file_path: str
+    content_length: int | None = None
+    content_type: str | None = None
+
+
+@router.post("/projects/{owner_name}/{project_name}/fs-ops")
+def post_project_fs_op(
     owner_name: str,
     project_name: str,
-    operation: Literal["get", "put", "exists", "list"],
-    file_path: str,
+    req: FsOpRequest,
     session: SessionDep,
     current_user: CurrentUserOptional,
-) -> FileOperationResponse:
+) -> FsOpResponse:
     """Endpoint for the fsspec client to know how to perform operations on a
     given file path within the project.
 
@@ -3685,6 +3719,14 @@ def get_project_fs_operation_info(
     - API credentials for indirect API access
     - Request delegation info for non-presigned flows
     """
+    operation = req.operation
+    file_path = req.file_path
+    content_length = req.content_length
+    content_type = req.content_type
+    if content_length is not None and content_length < 0:
+        raise HTTPException(
+            status_code=422, detail="content_length must be >= 0"
+        )
     # Verify project access
     min_access = "read" if operation in ["get", "list", "exists"] else "write"
     app.projects.get_project(
@@ -3710,6 +3752,9 @@ def get_project_fs_operation_info(
         backend = "s3"
     else:
         backend = "gcs"
+    multipart_threshold_bytes = 64 * 1024 * 1024
+    multipart_part_size_bytes = 16 * 1024 * 1024
+    chunk_size_bytes = 8 * 1024 * 1024
     fs = get_object_fs()
     # Construct full storage path
     data_prefix = get_data_prefix()
@@ -3718,16 +3763,95 @@ def get_project_fs_operation_info(
     # return that info to avoid an extra round trip
     if operation == "exists":
         exists = fs.exists(full_path)
-        return FileOperationResponse(
+        return FsOpResponse(
             backend=backend,
             result=ExistsResult(exists=exists),
         )
     if operation == "list":
         files = fs.ls(full_path, detail=False)
-        return FileOperationResponse(
+        return FsOpResponse(
             backend=backend,
             result=FileListResult(files=files),
         )
+    if operation == "put" and content_length is not None:
+        if backend == "s3" and content_length > multipart_threshold_bytes:
+            kwargs = {}
+            if content_type:
+                kwargs["ContentType"] = content_type
+            init_url = fs.sign(
+                full_path,
+                expiration=900,
+                client_method="create_multipart_upload",
+                **kwargs,
+            )
+            if init_url is None:
+                raise HTTPException(
+                    status_code=500,
+                    detail="Failed to generate multipart init URL",
+                )
+            if settings.ENVIRONMENT == "local":
+                init_url = init_url.replace(
+                    "http://minio:9000", f"http://objects.{settings.DOMAIN}"
+                )
+            return FsOpResponse(
+                backend=backend,
+                access=PresignedMultipartInitAccess(
+                    kind="presigned-multipart-init",
+                    init_url=init_url,
+                    http_method="POST",
+                    part_size_bytes=multipart_part_size_bytes,
+                    estimated_part_count=(
+                        content_length + multipart_part_size_bytes - 1
+                    )
+                    // multipart_part_size_bytes,
+                    upload_size_bytes=content_length,
+                    content_type=content_type,
+                    expires_at=None,
+                ),
+            )
+        if backend == "gcs" and content_length > multipart_threshold_bytes:
+            try:
+                init_url = fs.sign(
+                    full_path,
+                    expiration=900,
+                    method="POST",
+                )
+                init_http_method: Literal["POST", "PUT"] = "POST"
+            except Exception:
+                init_url = get_object_url(
+                    fpath=full_path,
+                    fname=None,
+                    expires=900,
+                    fs=fs,
+                    method="put",
+                )
+                init_http_method = "PUT"
+            if init_url is None:
+                raise HTTPException(
+                    status_code=500,
+                    detail="Failed to generate chunked init URL",
+                )
+            return FsOpResponse(
+                backend=backend,
+                access=PresignedChunkedInitAccess(
+                    kind="presigned-chunked-init",
+                    init_url=init_url,
+                    http_method=init_http_method,
+                    chunk_size_bytes=chunk_size_bytes,
+                    estimated_chunk_count=(
+                        content_length + chunk_size_bytes - 1
+                    )
+                    // chunk_size_bytes,
+                    upload_size_bytes=content_length,
+                    content_type=content_type,
+                    headers=(
+                        {"x-goog-resumable": "start"}
+                        if init_http_method == "POST"
+                        else None
+                    ),
+                    expires_at=None,
+                ),
+            )
     # Generate presigned URL
     url = get_object_url(
         fpath=full_path,
@@ -3738,12 +3862,17 @@ def get_project_fs_operation_info(
         fs=fs,
         method=operation,
     )
-    return FileOperationResponse(
+    return FsOpResponse(
         backend=backend,
         access=PresignedUrlAccess(
             kind="presigned-url",
             url=url,
             http_method="GET" if operation == "get" else "PUT",
             expires_at=None,
+            headers=(
+                {"Content-Type": content_type}
+                if operation == "put" and content_type
+                else None
+            ),
         ),
     )
