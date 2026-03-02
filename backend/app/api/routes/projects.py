@@ -3614,7 +3614,7 @@ def post_project_status(
 
 
 class PresignedUrlAccess(BaseModel):
-    kind: Literal["presigned-url"]
+    kind: Literal["presigned-url"] = "presigned-url"
     url: str
     http_method: Literal["GET", "PUT", "DELETE"]
     expires_at: datetime | None = None
@@ -3622,8 +3622,8 @@ class PresignedUrlAccess(BaseModel):
     params: dict | None = None
 
 
-class PresignedMultipartInitAccess(BaseModel):
-    kind: Literal["presigned-multipart-init"]
+class PresignedMultipartAccess(BaseModel):
+    kind: Literal["presigned-multipart"] = "presigned-multipart"
     bucket: str
     key: str
     upload_id: str
@@ -3635,8 +3635,8 @@ class PresignedMultipartInitAccess(BaseModel):
     content_type: str | None = None
 
 
-class PresignedChunkedInitAccess(BaseModel):
-    kind: Literal["presigned-chunked-init"]
+class PresignedChunkedAccess(BaseModel):
+    kind: Literal["presigned-chunked"] = "presigned-chunked"
     init_url: str
     http_method: Literal["POST", "PUT"]
     chunk_size_bytes: int
@@ -3649,7 +3649,7 @@ class PresignedChunkedInitAccess(BaseModel):
 
 
 class HttpRequestAccess(BaseModel):
-    kind: Literal["http-request"]
+    kind: Literal["http-request"] = "http-request"
     url: str
     http_method: Literal["GET", "POST", "PUT", "PATCH", "DELETE"]
     headers: dict | None = None
@@ -3658,7 +3658,7 @@ class HttpRequestAccess(BaseModel):
 
 
 class SftpAccess(BaseModel):
-    kind: Literal["sftp"]
+    kind: Literal["sftp"] = "sftp"
     host: str
     port: int = 22
     username: str
@@ -3685,8 +3685,8 @@ class FsOpResponse(BaseModel):
     access: (
         Annotated[
             PresignedUrlAccess
-            | PresignedMultipartInitAccess
-            | PresignedChunkedInitAccess
+            | PresignedMultipartAccess
+            | PresignedChunkedAccess
             | HttpRequestAccess
             | SftpAccess,
             Field(discriminator="kind"),
@@ -3778,7 +3778,6 @@ def post_project_fs_op(
         return FsOpResponse(
             backend=backend,
             access=PresignedUrlAccess(
-                kind="presigned-url",
                 url=url,
                 http_method="GET",
             ),
@@ -3801,8 +3800,7 @@ def post_project_fs_op(
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
         if backend == "s3":
-            access = PresignedMultipartInitAccess(
-                kind="presigned-multipart-init",
+            access = PresignedMultipartAccess(
                 bucket=upload_info["bucket"],
                 key=upload_info["key"],
                 upload_id=upload_info["upload_id"],
@@ -3814,8 +3812,7 @@ def post_project_fs_op(
                 content_type=content_type,
             )
         else:  # GCS
-            access = PresignedChunkedInitAccess(
-                kind="presigned-chunked-init",
+            access = PresignedChunkedAccess(
                 init_url=upload_info["init_url"],
                 http_method="POST",
                 chunk_size_bytes=upload_info["chunk_size_bytes"],
