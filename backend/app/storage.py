@@ -212,25 +212,20 @@ def get_object_url(
 
 
 def get_multipart_upload_info(
+    fs: s3fs.S3FileSystem | gcsfs.GCSFileSystem,
     fpath: str,
     upload_size_bytes: int,
     expires: int = 900,
     content_type: str | None = None,
-    backend: Literal["s3", "gcs"] | None = None,
 ) -> dict:
     """Get multipart/chunked upload info with all presigned URLs.
 
     For S3: Returns dict with upload_id, bucket, key, part_urls, complete_url
     For GCS: Returns dict with init_url for resumable upload
     """
-    if backend is None:
-        backend = get_backend()
-    part_size = get_upload_chunk_size(backend)
-    estimated_part_count = (upload_size_bytes + part_size - 1) // part_size
-    if backend == "s3":
-        fs = get_object_fs()
-        if not isinstance(fs, s3fs.S3FileSystem):
-            raise ValueError("S3 backend required for multipart upload")
+    if isinstance(fs, s3fs.S3FileSystem):
+        part_size = get_upload_chunk_size("s3")
+        estimated_part_count = (upload_size_bytes + part_size - 1) // part_size
         return _generate_multipart_urls(
             fpath=fpath,
             estimated_part_count=estimated_part_count,
@@ -239,8 +234,9 @@ def get_multipart_upload_info(
             fs=fs,
             content_type=content_type,
         )
-    else:  # GCS
-        fs = get_object_fs()
+    elif isinstance(fs, gcsfs.GCSFileSystem):
+        part_size = get_upload_chunk_size("gcs")
+        estimated_part_count = (upload_size_bytes + part_size - 1) // part_size
         try:
             init_url = fs.sign(
                 fpath,
@@ -262,6 +258,8 @@ def get_multipart_upload_info(
             "estimated_chunk_count": estimated_part_count,
             "chunk_size_bytes": part_size,
         }
+    else:
+        raise ValueError("Unsupported filesystem type")
 
 
 def get_storage_usage(

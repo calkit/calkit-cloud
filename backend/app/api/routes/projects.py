@@ -3791,11 +3791,11 @@ def post_project_fs_op(
         assert content_length is not None
         try:
             upload_info = storage.get_multipart_upload_info(
+                fs=fs,
                 fpath=full_path,
                 upload_size_bytes=content_length,
                 expires=900,
                 content_type=content_type,
-                backend=backend,
             )
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
@@ -3811,7 +3811,7 @@ def post_project_fs_op(
                 upload_size_bytes=content_length,
                 content_type=content_type,
             )
-        else:  # GCS
+        elif backend == "gcs":
             access = PresignedChunkedAccess(
                 init_url=upload_info["init_url"],
                 http_method="POST",
@@ -3821,6 +3821,12 @@ def post_project_fs_op(
                 content_type=content_type,
                 headers={"x-goog-resumable": "start"},
             )
+        else:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Chunked upload not supported for {backend}",
+            )
+    # Regular presigned PUT URL for smaller files
     else:
         try:
             url = get_object_url(
@@ -3833,7 +3839,6 @@ def post_project_fs_op(
         except RuntimeError as e:
             raise HTTPException(status_code=500, detail=str(e))
         access = PresignedUrlAccess(
-            kind="presigned-url",
             url=url,
             http_method="PUT",
         )
