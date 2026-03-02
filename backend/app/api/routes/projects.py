@@ -3762,7 +3762,10 @@ def post_project_fs_op(
             result=ExistsResult(exists=exists),
         )
     if operation == "list":
-        files = fs.ls(full_path, detail=False)
+        try:
+            files = fs.ls(full_path, detail=False)
+        except FileNotFoundError:
+            raise HTTPException(404, "Path not found")
         return FsOpResponse(
             backend=backend,
             result=FileListResult(files=files),
