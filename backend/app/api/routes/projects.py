@@ -113,6 +113,7 @@ from app.storage import (
     get_object_fs,
     get_object_url,
     get_storage_usage,
+    get_upload_chunk_size,
     make_data_fpath,
     remove_gcs_content_type,
 )
@@ -3623,15 +3624,15 @@ class PresignedUrlAccess(BaseModel):
 
 class PresignedMultipartInitAccess(BaseModel):
     kind: Literal["presigned-multipart-init"]
-    init_url: str
-    http_method: Literal["POST"]
+    bucket: str
+    key: str
+    upload_id: str
+    part_urls: list[str]
+    complete_url: str
     part_size_bytes: int
     estimated_part_count: int
     upload_size_bytes: int
     content_type: str | None = None
-    headers: dict | None = None
-    params: dict | None = None
-    expires_at: datetime | None = None
 
 
 class PresignedChunkedInitAccess(BaseModel):
@@ -3786,54 +3787,57 @@ def post_project_fs_op(
     assert operation == "put"
     # Determine if we need chunked upload for large puts
     chunked = storage.upload_should_be_chunked(content_length)
-    try:
-        url = get_object_url(
-            fpath=full_path,
-            fname=None,
-            expires=900,
-            fs=fs,
-            method=operation,
-            content_length=content_length,
-            content_type=content_type,
-            chunked=chunked,
-        )
-    except RuntimeError as e:
-        raise HTTPException(status_code=500, detail=str(e))
-    # Build the appropriate access response based on operation and chunking
     if chunked:
         # At this point, content_length is guaranteed to be not None
         assert content_length is not None
-        chunk_size = storage.get_upload_chunk_size()
+        try:
+            upload_info = storage.get_multipart_upload_info(
+                fpath=full_path,
+                upload_size_bytes=content_length,
+                expires=900,
+                content_type=content_type,
+                backend=backend,
+            )
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
         if backend == "s3":
             access = PresignedMultipartInitAccess(
                 kind="presigned-multipart-init",
-                init_url=url,
-                http_method="POST",
-                part_size_bytes=chunk_size,
-                estimated_part_count=(content_length + chunk_size - 1)
-                // chunk_size,
+                bucket=upload_info["bucket"],
+                key=upload_info["key"],
+                upload_id=upload_info["upload_id"],
+                part_urls=upload_info["part_urls"],
+                complete_url=upload_info["complete_url"],
+                part_size_bytes=get_upload_chunk_size(backend),
+                estimated_part_count=len(upload_info["part_urls"]),
                 upload_size_bytes=content_length,
                 content_type=content_type,
             )
         else:  # GCS
             access = PresignedChunkedInitAccess(
                 kind="presigned-chunked-init",
-                init_url=url,
+                init_url=upload_info["init_url"],
                 http_method="POST",
-                chunk_size_bytes=chunk_size,
-                estimated_chunk_count=(content_length + chunk_size - 1)
-                // chunk_size,
+                chunk_size_bytes=upload_info["chunk_size_bytes"],
+                estimated_chunk_count=upload_info["estimated_chunk_count"],
                 upload_size_bytes=content_length,
                 content_type=content_type,
                 headers={"x-goog-resumable": "start"},
             )
     else:
-        http_method: Literal["GET", "PUT", "DELETE"] = (
-            "PUT" if operation == "put" else "GET"
-        )
+        try:
+            url = get_object_url(
+                fpath=full_path,
+                fname=None,
+                expires=900,
+                fs=fs,
+                method="put",
+            )
+        except RuntimeError as e:
+            raise HTTPException(status_code=500, detail=str(e))
         access = PresignedUrlAccess(
             kind="presigned-url",
             url=url,
-            http_method=http_method,
+            http_method="PUT",
         )
     return FsOpResponse(backend=backend, access=access)

@@ -2,7 +2,7 @@
 
 import json
 import os
-from typing import Literal
+from typing import Any, Literal
 
 import gcsfs
 import s3fs
@@ -29,11 +29,13 @@ def upload_should_be_chunked(content_length: int | None) -> bool:
     )
 
 
-def get_upload_chunk_size() -> int:
-    """Get the chunk/part size for the backend in bytes."""
+def get_upload_chunk_size(backend: Literal["s3", "gcs"] | None = None) -> int:
+    """Get the chunk/part size for the specified backend in bytes."""
+    if backend is None:
+        backend = get_backend()
     return (
         MULTIPART_PART_SIZE_BYTES
-        if get_backend() == "s3"
+        if backend == "s3"
         else CHUNKED_CHUNK_SIZE_BYTES
     )
 
@@ -103,6 +105,71 @@ def _replace_local_object_host(url: str) -> str:
     return url
 
 
+def _generate_multipart_urls(
+    fpath: str,
+    estimated_part_count: int,
+    part_size_bytes: int,
+    expires: int,
+    fs: s3fs.S3FileSystem,
+    content_type: str | None = None,
+) -> dict:
+    """Generate presigned URLs for S3 multipart upload.
+
+    Returns a dict with:
+    - bucket: bucket name
+    - key: object key
+    - upload_id: multipart upload ID
+    - part_urls: list of presigned URLs for each part
+    - complete_url: presigned URL to complete the upload
+    """
+    # Parse bucket and key from fpath (e.g., "s3://bucket/path/to/object")
+    if fpath.startswith("s3://"):
+        bucket, _, key = fpath[5:].partition("/")
+    else:
+        raise ValueError(f"Invalid S3 path: {fpath}")
+    # Access the underlying boto3 client
+    s3_client: Any = fs.s3
+    # Initiate multipart upload
+    mpu = s3_client.create_multipart_upload(
+        Bucket=bucket,
+        Key=key,
+        **({"ContentType": content_type} if content_type else {}),
+    )
+    upload_id = mpu["UploadId"]
+    # Generate presigned URLs for each part
+    part_urls = []
+    for part_number in range(1, estimated_part_count + 1):
+        part_url = s3_client.generate_presigned_url(
+            "upload_part",
+            Params={
+                "Bucket": bucket,
+                "Key": key,
+                "PartNumber": part_number,
+                "UploadId": upload_id,
+            },
+            ExpiresIn=expires,
+        )
+        part_urls.append(_replace_local_object_host(part_url))
+    # Generate presigned URL for completing the multipart upload
+    complete_url = s3_client.generate_presigned_url(
+        "complete_multipart_upload",
+        Params={
+            "Bucket": bucket,
+            "Key": key,
+            "UploadId": upload_id,
+        },
+        ExpiresIn=expires,
+    )
+    complete_url = _replace_local_object_host(complete_url)
+    return {
+        "bucket": bucket,
+        "key": key,
+        "upload_id": upload_id,
+        "part_urls": part_urls,
+        "complete_url": complete_url,
+    }
+
+
 def get_object_url(
     fpath: str,
     fname: str | None = None,
@@ -111,49 +178,14 @@ def get_object_url(
     method: Literal["get", "put"] = "get",
     *,
     content_type: str | None = None,
-    chunked: bool = False,
     **kwargs,
 ) -> str:
-    """Get a presigned URL for an object in object storage."""
-    if chunked and method != "put":
-        raise ValueError("Chunked upload is only supported for PUT method")
+    """Get a presigned URL for an object in object storage.
+
+    For multipart/chunked uploads, use get_multipart_upload_info() instead.
+    """
     if fs is None:
         fs = get_object_fs()
-    # If chunked upload is requested, generate the appropriate init URL
-    if chunked and method == "put":
-        if settings.ENVIRONMENT == "local":
-            init_kwargs = {}
-            if content_type:
-                init_kwargs["ContentType"] = content_type
-            init_url = fs.sign(
-                fpath,
-                expiration=expires,
-                client_method="create_multipart_upload",
-                **(init_kwargs | kwargs),
-            )
-            if init_url is None:
-                raise RuntimeError("Failed to generate multipart init URL")
-            return _replace_local_object_host(init_url)
-        # GCS resumable upload
-        try:
-            init_url = fs.sign(
-                fpath,
-                expiration=expires,
-                method="POST",
-                **kwargs,
-            )
-        except Exception:
-            init_url = None
-        if init_url is None:
-            init_url = fs.sign(
-                fpath,
-                expiration=expires,
-                method="PUT",
-                **kwargs,
-            )
-        if init_url is None:
-            raise RuntimeError("Failed to generate chunked init URL")
-        return init_url
     # Standard presigned URL
     if settings.ENVIRONMENT == "local":
         kws = {}
@@ -177,6 +209,59 @@ def get_object_url(
     if signed_url is None:
         raise RuntimeError("Failed to generate presigned URL")
     return _replace_local_object_host(signed_url)
+
+
+def get_multipart_upload_info(
+    fpath: str,
+    upload_size_bytes: int,
+    expires: int = 900,
+    content_type: str | None = None,
+    backend: Literal["s3", "gcs"] | None = None,
+) -> dict:
+    """Get multipart/chunked upload info with all presigned URLs.
+
+    For S3: Returns dict with upload_id, bucket, key, part_urls, complete_url
+    For GCS: Returns dict with init_url for resumable upload
+    """
+    if backend is None:
+        backend = get_backend()
+    part_size = get_upload_chunk_size(backend)
+    estimated_part_count = (upload_size_bytes + part_size - 1) // part_size
+    if backend == "s3":
+        fs = get_object_fs()
+        if not isinstance(fs, s3fs.S3FileSystem):
+            raise ValueError("S3 backend required for multipart upload")
+        return _generate_multipart_urls(
+            fpath=fpath,
+            estimated_part_count=estimated_part_count,
+            part_size_bytes=part_size,
+            expires=expires,
+            fs=fs,
+            content_type=content_type,
+        )
+    else:  # GCS
+        fs = get_object_fs()
+        try:
+            init_url = fs.sign(
+                fpath,
+                expiration=expires,
+                method="POST",
+            )
+        except Exception:
+            init_url = None
+        if init_url is None:
+            init_url = fs.sign(
+                fpath,
+                expiration=expires,
+                method="PUT",
+            )
+        if init_url is None:
+            raise RuntimeError("Failed to generate chunked init URL")
+        return {
+            "init_url": init_url,
+            "estimated_chunk_count": estimated_part_count,
+            "chunk_size_bytes": part_size,
+        }
 
 
 def get_storage_usage(
