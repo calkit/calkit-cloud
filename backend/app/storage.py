@@ -70,7 +70,7 @@ def make_data_fpath(
 
 def get_object_url(
     fpath: str,
-    fname: str = None,
+    fname: str | None = None,
     expires: int = 3600 * 24,
     fs: s3fs.S3FileSystem | gcsfs.GCSFileSystem | None = None,
     method: Literal["get", "put"] = "get",

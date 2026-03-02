@@ -94,6 +94,10 @@ from app.models import (
     UserProjectAccess,
 )
 from app.models.projects import (
+    FileExistsResponse,
+    FileInfo,
+    FileListResponse,
+    FileOperationResponse,
     Showcase,
     ShowcaseFigure,
     ShowcaseFigureInput,
@@ -3609,4 +3613,149 @@ def post_project_status(
         status=project.status,
         message=project.status_message,
         timestamp=project.status_updated,
+    )
+
+
+class FileOperationResponse(BaseModel):
+    """Response when client asks: How do I perform this operation on this file?
+
+    The response tells the client how to access the file, varying by backend:
+    - Presigned URL backends (GCS, S3): Use url with http_method directly via HTTP
+    - API backends (Google Drive, Box): Call api_endpoint with token and headers
+    - XeT backends (HuggingFace): Use XeT protocol with provided credentials
+
+    Attributes
+    ----------
+    backend : str
+        Storage backend type: gcs, s3, google_drive, box, huggingface, azure, etc.
+    access_method : Literal["presigned_url", "api", "request", "xet"]
+        How to access the file
+    url : str | None
+        For presigned_url and request methods: the HTTP URL to use
+    http_method : str | None
+        HTTP method to use with the URL: GET, PUT, DELETE
+    expires_at : str | None
+        When the presigned URL expires (ISO 8601 datetime)
+    api_endpoint : str | None
+        For api method: the API endpoint to call
+    token : str | None
+        OAuth/API token for authentication
+    headers : dict | None
+        Additional HTTP headers to include in requests
+    file_id : str | None
+        Backend-specific file ID (e.g., Google Drive file ID)
+    params : dict | None
+        Query parameters for the request
+    results: dict | None
+        Additional results or metadata from the operation, e.g., if we can
+        tell the client if the file exists, we can include that here to avoid
+        an extra round trip.
+    """
+
+    backend: str
+    access_method: Literal["presigned_url", "api", "request", "xet"]
+    url: str | None = None
+    http_method: str | None = None
+    expires_at: str | None = None
+    api_endpoint: str | None = None
+    token: str | None = None
+    headers: dict | None = None
+    file_id: str | None = None
+    params: dict | None = None
+    results: dict | None = None
+
+
+@router.get(
+    "/projects/{owner_name}/{project_name}/fs/{operation}/{file_path:path}"
+)
+def get_project_file_operation(
+    owner_name: str,
+    project_name: str,
+    operation: Literal["get", "put", "exists", "list"],
+    file_path: str,
+    session: SessionDep,
+    current_user: CurrentUserOptional,
+) -> FileOperationResponse:
+    """Endpoint for the fsspec client to know how to perform operations on a
+    given file path within the project.
+
+    The client specifies the operation (get/put) and file path, and the server
+    responds with instructions on how to access it:
+    - Presigned URL for direct HTTP access
+    - API credentials for indirect API access
+    - XeT protocol info for HuggingFace
+
+    Args:
+        operation: "get" to read a file, "put" to write a file
+        file_path: Path to the file within the project
+
+    Returns:
+        Instructions on how to perform the operation
+    """
+    # Verify project access
+    min_access = "read" if operation in ["get", "list", "exists"] else "write"
+    project = app.projects.get_project(
+        owner_name=owner_name,
+        project_name=project_name,
+        session=session,
+        current_user=current_user,
+        min_access_level=min_access,
+    )
+    logger.info(
+        f"Getting {operation} instructions for "
+        f"{owner_name}/{project_name}/{file_path}"
+    )
+    # TODO: Determine project fs storage type
+    # Should we allow for multiple depending on the path?
+    # Is Git one?
+    # If none is defined, they are using the default object storage connected
+    # to this system
+    # For now, only support GCS/S3 via presigned URLs
+    # Future: Add google_drive, box, huggingface backends
+    # Determine backend type
+    if settings.ENVIRONMENT == "local":
+        backend = "s3"
+    else:
+        backend = "gcs"
+    fs = get_object_fs()
+    # Construct full storage path
+    data_prefix = get_data_prefix()
+    full_path = f"{data_prefix}/{owner_name}/{project_name}/{file_path}"
+    # If operation is "exists" or "list", we can check if the file exists and return that info to avoid an extra round trip
+    if operation == "exists":
+        exists = fs.exists(full_path)
+        return FileOperationResponse(
+            backend=backend,
+            access_method="presigned_url",
+            url=None,
+            http_method=None,
+            expires_at=None,
+            results={"exists": exists},
+        )
+    if operation == "list":
+        files = fs.ls(full_path, False)
+        return FileOperationResponse(
+            backend=backend,
+            access_method="presigned_url",
+            url=None,
+            http_method=None,
+            expires_at=None,
+            results={"files": files},
+        )
+    # Generate presigned URL
+    url = get_object_url(
+        fpath=full_path,
+        fname=None,
+        expires=3600
+        if operation == "get"
+        else 900,  # 1hr for get, 15min for put
+        fs=fs,
+        method=operation,
+    )
+    return FileOperationResponse(
+        backend=backend,
+        access_method="presigned_url",
+        url=url,
+        http_method="GET" if operation == "get" else "PUT",
+        expires_at=None,  # Could calculate this if needed
     )
