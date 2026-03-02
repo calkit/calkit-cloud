@@ -37,7 +37,7 @@ from fastapi import (
 )
 from fastapi.responses import StreamingResponse
 from git.exc import GitCommandError
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, Field, ValidationError
 from sqlmodel import Session, and_, func, not_, or_, select
 from TexSoup import TexSoup
 
@@ -3612,58 +3612,63 @@ def post_project_status(
     )
 
 
+class PresignedUrlAccess(BaseModel):
+    kind: Literal["presigned-url"]
+    url: str
+    http_method: Literal["GET", "PUT", "DELETE"]
+    expires_at: datetime | None = None
+    headers: dict | None = None
+    params: dict | None = None
+
+
+class HttpRequestAccess(BaseModel):
+    kind: Literal["http-request"]
+    url: str
+    http_method: Literal["GET", "POST", "PUT", "PATCH", "DELETE"]
+    headers: dict | None = None
+    params: dict | None = None
+    expires_at: datetime | None = None
+
+
+class SftpAccess(BaseModel):
+    kind: Literal["sftp"]
+    host: str
+    port: int = 22
+    username: str
+    password: str | None = None
+    private_key: str | None = None
+    remote_path: str
+    expires_at: datetime | None = None
+
+
+class FileListResult(BaseModel):
+    files: list[str]
+
+
+class ExistsResult(BaseModel):
+    exists: bool
+
+
 class FileOperationResponse(BaseModel):
-    """Response when client asks: How do I perform this operation on this file?
-
-    The response tells the client how to access the file, varying by backend:
-    - Presigned URL backends (GCS, S3): Use url with http_method directly via HTTP
-    - API backends (Google Drive, Box): Call api_endpoint with token and headers
-    - XeT backends (HuggingFace): Use XeT protocol with provided credentials
-
-    Attributes
-    ----------
-    backend : str
-        Storage backend type: gcs, s3, google_drive, box, huggingface, azure, etc.
-    access_method : Literal["presigned_url", "api", "request", "xet"]
-        How to access the file
-    url : str | None
-        For presigned_url and request methods: the HTTP URL to use
-    http_method : str | None
-        HTTP method to use with the URL: GET, PUT, DELETE
-    expires_at : str | None
-        When the presigned URL expires (ISO 8601 datetime)
-    api_endpoint : str | None
-        For api method: the API endpoint to call
-    token : str | None
-        OAuth/API token for authentication
-    headers : dict | None
-        Additional HTTP headers to include in requests
-    file_id : str | None
-        Backend-specific file ID (e.g., Google Drive file ID)
-    params : dict | None
-        Query parameters for the request
-    result : dict | None
-        Direct result from the operation if the server has the answer,
-        e.g., for exists/list operations to avoid an extra round trip.
+    """Response describing how to perform a file operation
+    (get/put/exists/list) for a given file path within the project.
     """
 
-    backend: str
-    access_method: Literal["presigned_url", "api", "request", "xet"]
-    url: str | None = None
-    http_method: str | None = None
-    expires_at: str | None = None
-    api_endpoint: str | None = None
-    token: str | None = None
-    headers: dict | None = None
-    file_id: str | None = None
-    params: dict | None = None
-    result: dict | None = None
+    backend: Literal["gcs", "s3", "google-drive", "box", "hf"]
+    access: (
+        Annotated[
+            PresignedUrlAccess | HttpRequestAccess | SftpAccess,
+            Field(discriminator="kind"),
+        ]
+        | None
+    ) = None
+    result: FileListResult | ExistsResult | None = None
 
 
 @router.get(
     "/projects/{owner_name}/{project_name}/fs/{operation}/{file_path:path}"
 )
-def get_project_file_operation(
+def get_project_fs_operation_info(
     owner_name: str,
     project_name: str,
     operation: Literal["get", "put", "exists", "list"],
@@ -3678,18 +3683,11 @@ def get_project_file_operation(
     responds with instructions on how to access it:
     - Presigned URL for direct HTTP access
     - API credentials for indirect API access
-    - XeT protocol info for HuggingFace
-
-    Args:
-        operation: "get" to read a file, "put" to write a file
-        file_path: Path to the file within the project
-
-    Returns:
-        Instructions on how to perform the operation
+    - Request delegation info for non-presigned flows
     """
     # Verify project access
     min_access = "read" if operation in ["get", "list", "exists"] else "write"
-    project = app.projects.get_project(
+    app.projects.get_project(
         owner_name=owner_name,
         project_name=project_name,
         session=session,
@@ -3716,26 +3714,19 @@ def get_project_file_operation(
     # Construct full storage path
     data_prefix = get_data_prefix()
     full_path = f"{data_prefix}/{owner_name}/{project_name}/{file_path}"
-    # If operation is "exists" or "list", we can check if the file exists and return that info to avoid an extra round trip
+    # If operation is "exists" or "list", we can check if the file exists and
+    # return that info to avoid an extra round trip
     if operation == "exists":
         exists = fs.exists(full_path)
         return FileOperationResponse(
             backend=backend,
-            access_method="presigned_url",
-            url=None,
-            http_method=None,
-            expires_at=None,
-            result={"exists": exists},
+            result=ExistsResult(exists=exists),
         )
     if operation == "list":
-        files = fs.ls(full_path, False)
+        files = fs.ls(full_path, detail=False)
         return FileOperationResponse(
             backend=backend,
-            access_method="presigned_url",
-            url=None,
-            http_method=None,
-            expires_at=None,
-            result={"files": files},
+            result=FileListResult(files=files),
         )
     # Generate presigned URL
     url = get_object_url(
@@ -3749,8 +3740,10 @@ def get_project_file_operation(
     )
     return FileOperationResponse(
         backend=backend,
-        access_method="presigned_url",
-        url=url,
-        http_method="GET" if operation == "get" else "PUT",
-        expires_at=None,  # Could calculate this if needed
+        access=PresignedUrlAccess(
+            kind="presigned-url",
+            url=url,
+            http_method="GET" if operation == "get" else "PUT",
+            expires_at=None,
+        ),
     )
