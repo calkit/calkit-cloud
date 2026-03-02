@@ -3669,7 +3669,7 @@ class SftpAccess(BaseModel):
 
 
 class FileListResult(BaseModel):
-    files: list[str]
+    files: list[str] | list[dict]  # Depends on detail flag in request
 
 
 class ExistsResult(BaseModel):
@@ -3701,6 +3701,7 @@ class FsOpRequest(BaseModel):
     file_path: str
     content_length: int | None = None
     content_type: str | None = None
+    detail: bool = False
 
 
 @router.post("/projects/{owner_name}/{project_name}/fs-ops")
@@ -3763,7 +3764,7 @@ def post_project_fs_op(
         )
     if operation == "list":
         try:
-            files = fs.ls(full_path, detail=False)
+            files = fs.ls(full_path, detail=req.detail)
         except FileNotFoundError:
             raise HTTPException(404, "Path not found")
         return FsOpResponse(
