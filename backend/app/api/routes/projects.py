@@ -3676,6 +3676,13 @@ class ExistsResult(BaseModel):
     exists: bool
 
 
+class InfoResult(BaseModel):
+    name: str
+    size: int
+    type: str  # "file" or "directory"
+    time_modified: str | None = None
+
+
 class FsOpResponse(BaseModel):
     """Response describing how to perform a file operation
     (get/put/exists/list) for a given file path within the project.
@@ -3693,11 +3700,11 @@ class FsOpResponse(BaseModel):
         ]
         | None
     ) = None
-    result: FileListResult | ExistsResult | None = None
+    result: FileListResult | ExistsResult | InfoResult | None = None
 
 
 class FsOpRequest(BaseModel):
-    operation: Literal["get", "put", "exists", "list"]
+    operation: Literal["get", "put", "exists", "list", "info"]
     file_path: str
     content_length: int | None = None
     content_type: str | None = None
@@ -3730,7 +3737,9 @@ def post_project_fs_op(
             status_code=422, detail="content_length must be >= 0"
         )
     # Verify project access
-    min_access = "read" if operation in ["get", "list", "exists"] else "write"
+    min_access = (
+        "read" if operation in ["get", "list", "exists", "info"] else "write"
+    )
     app.projects.get_project(
         owner_name=owner_name,
         project_name=project_name,
@@ -3761,6 +3770,20 @@ def post_project_fs_op(
         return FsOpResponse(
             backend=backend,
             result=ExistsResult(exists=exists),
+        )
+    if operation == "info":
+        try:
+            info_dict = fs.info(full_path)
+        except FileNotFoundError:
+            raise HTTPException(404, "Path not found")
+        return FsOpResponse(
+            backend=backend,
+            result=InfoResult(
+                name=info_dict.get("name", ""),
+                size=info_dict.get("size", 0),
+                type=info_dict.get("type", "file"),
+                time_modified=info_dict.get("time_modified"),
+            ),
         )
     if operation == "list":
         try:
