@@ -115,6 +115,8 @@ def get_object_url(
     **kwargs,
 ) -> str:
     """Get a presigned URL for an object in object storage."""
+    if chunked and method != "put":
+        raise ValueError("Chunked upload is only supported for PUT method")
     if fs is None:
         fs = get_object_fs()
     # If chunked upload is requested, generate the appropriate init URL
