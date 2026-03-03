@@ -3668,8 +3668,8 @@ class SftpAccess(BaseModel):
     expires_at: datetime | None = None
 
 
-class FileListResult(BaseModel):
-    files: list[str] | list[dict]  # Depends on detail flag in request
+class FsListResult(BaseModel):
+    paths: list[str] | list[dict]  # Depends on detail flag in request
 
 
 class ExistsResult(BaseModel):
@@ -3691,8 +3691,8 @@ class OperationResult(BaseModel):
 
 
 class FsOpResponse(BaseModel):
-    """Response describing how to perform a file operation
-    (get/put/exists/list) for a given file path within the project.
+    """Response describing how to perform a file system operation
+    (get/put/exists/list) for a given path within the project.
     """
 
     backend: Literal["gcs", "s3", "google-drive", "box", "hf"]
@@ -3707,12 +3707,14 @@ class FsOpResponse(BaseModel):
         ]
         | None
     ) = None
-    result: FileListResult | ExistsResult | InfoResult | None = None
+    result: (
+        FsListResult | ExistsResult | InfoResult | OperationResult | None
+    ) = None
 
 
 class FsOpRequest(BaseModel):
     operation: Literal["get", "put", "exists", "list", "info"]
-    file_path: str
+    path: str
     content_length: int | None = None
     content_type: str | None = None
     detail: bool = False
@@ -3727,16 +3729,16 @@ def post_project_fs_op(
     current_user: CurrentUserOptional,
 ) -> FsOpResponse:
     """Endpoint for the fsspec client to know how to perform operations on a
-    given file path within the project.
+    given path within the project.
 
-    The client specifies the operation (get/put) and file path, and the server
+    The client specifies the operation (get/put) and path, and the server
     responds with instructions on how to access it:
     - Presigned URL for direct HTTP access
     - API credentials for indirect API access
     - Request delegation info for non-presigned flows
     """
     operation = req.operation
-    file_path = req.file_path
+    path = req.path
     content_length = req.content_length
     content_type = req.content_type
     if content_length is not None and content_length < 0:
@@ -3756,7 +3758,7 @@ def post_project_fs_op(
     )
     logger.info(
         f"Getting {operation} instructions for "
-        f"{owner_name}/{project_name}/{file_path}"
+        f"{owner_name}/{project_name}/{path}"
     )
     # TODO: Determine project fs storage type
     # Should we allow for multiple depending on the path?
@@ -3769,7 +3771,7 @@ def post_project_fs_op(
     fs = get_object_fs()
     # Construct full storage path
     data_prefix = get_data_prefix()
-    full_path = f"{data_prefix}/{owner_name}/{project_name}/{file_path}"
+    full_path = f"{data_prefix}/{owner_name}/{project_name}/{path}"
     # If operation is "exists" or "list", we can check if the file exists and
     # return that info to avoid an extra round trip
     if operation == "exists":
@@ -3794,7 +3796,7 @@ def post_project_fs_op(
         )
     if operation == "list":
         try:
-            files = fs.ls(full_path, detail=req.detail)
+            paths = fs.ls(full_path, detail=req.detail)
         except FileNotFoundError:
             raise HTTPException(404, "Path not found")
         prefix_to_strip = get_data_prefix()
@@ -3811,19 +3813,19 @@ def post_project_fs_op(
             return path
 
         if req.detail:
-            files = [
+            paths = [
                 obj
                 | {
                     "name": strip_data_prefix(obj.get("name", "")),
                     "Key": strip_data_prefix(obj.get("Key", "")),
                 }
-                for obj in files
+                for obj in paths
             ]
         else:
-            files = [strip_data_prefix(path) for path in files]
+            paths = [strip_data_prefix(path) for path in paths]
         return FsOpResponse(
             backend=backend,
-            result=FileListResult(files=files),
+            result=FsListResult(paths=paths),
         )
     if operation == "get":
         url = get_object_url(
@@ -3855,8 +3857,11 @@ def post_project_fs_op(
                 expires=900,
                 content_type=content_type,
             )
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=str(e))
+        except Exception:
+            logger.exception(
+                f"Failed to get multipart upload info for {full_path}"
+            )
+            raise HTTPException(500, "Failed to determine upload method")
         if backend == "s3":
             access = PresignedMultipartAccess(
                 bucket=upload_info["bucket"],
