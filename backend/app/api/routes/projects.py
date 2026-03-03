@@ -796,8 +796,6 @@ async def post_project_dvc_file(
         logger.info("Rejecting request due to storage limit exceeded")
         mixpanel.user_out_of_storage(user=current_user)
         raise HTTPException(400, "Storage limit exceeded")
-    # TODO: Create presigned PUT to upload the file so it doesn't need to pass
-    # through this server
     fpath = make_data_fpath(
         owner_name=owner_name, project_name=project_name, idx=idx, md5=md5
     )
@@ -807,7 +805,7 @@ async def post_project_dvc_file(
     with fs.open(pending_fpath, "wb") as f:
         # See https://stackoverflow.com/q/73322065/2284865
         async for chunk in req.stream():
-            f.write(chunk)
+            f.write(chunk)  # type: ignore
             sig.update(chunk)
     # If using Google Cloud Storage, we need to remove the content type
     # metadata in order to set it for signed URLs
@@ -855,7 +853,21 @@ def get_project_dvc_file(
     logger.info(f"Checking for {fpath}")
     if not fs.exists(fpath):
         logger.info(f"{fpath} does not exist")
-        raise HTTPException(404)
+        # Try legacy path from before we started using the files/md5 prefix
+        legacy_fpath = make_data_fpath(
+            owner_name=owner_name,
+            project_name=project_name,
+            idx=idx,
+            md5=md5,
+            legacy=True,
+        )
+        if fs.exists(legacy_fpath):
+            logger.info(
+                f"Found legacy file at {legacy_fpath}; moving to {fpath}"
+            )
+            fs.mv(legacy_fpath, fpath)
+        else:
+            raise HTTPException(404)
 
     # TODO: Check if this user has read access to this project
     # Stream the file contents back to the user
