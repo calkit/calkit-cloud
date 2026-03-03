@@ -3887,8 +3887,7 @@ def post_project_fs_op(
             )
         else:
             raise HTTPException(
-                status_code=500,
-                detail=f"Chunked upload not supported for {backend}",
+                500, f"Chunked upload not supported for {backend}"
             )
     # Regular presigned PUT URL for smaller files
     else:
@@ -3900,8 +3899,9 @@ def post_project_fs_op(
                 fs=fs,
                 method="put",
             )
-        except RuntimeError as e:
-            raise HTTPException(status_code=500, detail=str(e))
+        except RuntimeError:
+            logger.exception(f"Failed to get presigned URL for {full_path}")
+            raise HTTPException(500, "Failed to get presigned URL")
         access = PresignedUrlAccess(
             url=url,
             http_method="PUT",
