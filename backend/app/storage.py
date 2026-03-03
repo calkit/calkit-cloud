@@ -92,10 +92,26 @@ def get_data_prefix_for_owner(owner_name: str) -> str:
 
 
 def make_data_fpath(
-    owner_name: str, project_name: str, idx: str, md5: str
+    owner_name: str,
+    project_name: str,
+    idx: str,
+    md5: str,
+    legacy: bool = False,
 ) -> str:
+    """Make a data file path for a given owner, project, index, and md5 hash.
+
+    This matches the DVC path structure we for storing data files, i.e.,
+    under the files/md5 subdirectory.
+
+    The legacy flag allows generating paths in the old format
+    (without files/md5) for backward compatibility with existing data.
+    New uploads should use the new format.
+    """
     prefix = get_data_prefix_for_owner(owner_name)
-    return f"{prefix}/{project_name}/{idx}/{md5}"
+    if legacy:
+        return f"{prefix}/{project_name}/{idx}/{md5}"
+    else:
+        return f"{prefix}/{project_name}/files/md5/{md5}/{idx}"
 
 
 def _replace_local_object_host(url: str) -> str:
