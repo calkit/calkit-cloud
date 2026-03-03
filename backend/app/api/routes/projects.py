@@ -3786,7 +3786,13 @@ def post_project_fs_op(
     # If operation is "exists" or "list", we can check if the file exists and
     # return that info to avoid an extra round trip
     if operation == "exists":
-        exists = fs.exists(full_path)
+        # Use ls here since some backends (like GCS) don't have an efficient
+        # way to check for existence
+        try:
+            res = fs.ls(full_path, detail=False)
+            exists = len(res) > 0
+        except FileNotFoundError:
+            exists = False
         return FsOpResponse(
             backend=backend,
             result=ExistsResult(exists=exists),
