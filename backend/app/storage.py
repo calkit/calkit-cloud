@@ -76,8 +76,14 @@ def get_object_fs() -> s3fs.S3FileSystem | gcsfs.GCSFileSystem:
             endpoint_url="http://minio:9000",
             key="root",
             secret=os.getenv("MINIO_ROOT_PASSWORD"),
+            skip_instance_cache=True,
+            cache_type="none",
         )
-    return gcsfs.GCSFileSystem(token=get_gcs_credentials())
+    return gcsfs.GCSFileSystem(
+        token=get_gcs_credentials(),
+        skip_instance_cache=True,
+        cache_type="none",
+    )
 
 
 def get_data_prefix() -> str:
