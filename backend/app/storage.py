@@ -100,7 +100,7 @@ def make_data_fpath(
 ) -> str:
     """Make a data file path for a given owner, project, index, and md5 hash.
 
-    This matches the DVC path structure we for storing data files, i.e.,
+    This matches the DVC path structure used for storing data files, i.e.,
     under the files/md5 subdirectory.
 
     The legacy flag allows generating paths in the old format
