@@ -869,7 +869,6 @@ def get_project_dvc_file(
         else:
             raise HTTPException(404)
 
-    # TODO: Check if this user has read access to this project
     # Stream the file contents back to the user
     def iterfile():
         with fs.open(fpath, "rb") as f:
