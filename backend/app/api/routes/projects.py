@@ -37,12 +37,12 @@ from fastapi import (
 )
 from fastapi.responses import StreamingResponse
 from git.exc import GitCommandError
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, Field, ValidationError
 from sqlmodel import Session, and_, func, not_, or_, select
 from TexSoup import TexSoup
 
 import app.projects
-from app import mixpanel, orgs, users
+from app import mixpanel, orgs, storage, users
 from app.api.deps import (
     CurrentUser,
     CurrentUserDvcScope,
@@ -3610,3 +3610,300 @@ def post_project_status(
         message=project.status_message,
         timestamp=project.status_updated,
     )
+
+
+class PresignedUrlAccess(BaseModel):
+    kind: Literal["presigned-url"] = "presigned-url"
+    url: str
+    http_method: Literal["GET", "PUT", "DELETE"]
+    expires_at: datetime | None = None
+    headers: dict | None = None
+    params: dict | None = None
+
+
+class PresignedMultipartAccess(BaseModel):
+    kind: Literal["presigned-multipart"] = "presigned-multipart"
+    bucket: str
+    key: str
+    upload_id: str
+    part_urls: list[str]
+    complete_url: str
+    abort_url: str
+    part_size_bytes: int
+    estimated_part_count: int
+    upload_size_bytes: int
+    content_type: str | None = None
+
+
+class PresignedChunkedAccess(BaseModel):
+    kind: Literal["presigned-chunked"] = "presigned-chunked"
+    init_url: str
+    http_method: Literal["POST", "PUT"]
+    chunk_size_bytes: int
+    estimated_chunk_count: int
+    upload_size_bytes: int
+    content_type: str | None = None
+    headers: dict | None = None
+    params: dict | None = None
+    expires_at: datetime | None = None
+
+
+class HttpRequestAccess(BaseModel):
+    kind: Literal["http-request"] = "http-request"
+    url: str
+    http_method: Literal["GET", "POST", "PUT", "PATCH", "DELETE"]
+    headers: dict | None = None
+    params: dict | None = None
+    expires_at: datetime | None = None
+
+
+class SftpAccess(BaseModel):
+    kind: Literal["sftp"] = "sftp"
+    host: str
+    port: int = 22
+    username: str
+    password: str | None = None
+    private_key: str | None = None
+    remote_path: str
+    expires_at: datetime | None = None
+
+
+class FsListResult(BaseModel):
+    paths: list[str] | list[dict]  # Depends on detail flag in request
+
+
+class ExistsResult(BaseModel):
+    exists: bool
+
+
+class InfoResult(BaseModel):
+    name: str
+    size: int
+    type: str  # "file" or "directory"
+    time_modified: str | None = None
+
+
+class OperationResult(BaseModel):
+    """Result for file operations like delete, move, copy."""
+
+    success: bool
+    message: str | None = None
+
+
+class FsOpResponse(BaseModel):
+    """Response describing how to perform a file system operation
+    (get/put/exists/list) for a given path within the project.
+    """
+
+    backend: Literal["gcs", "s3", "google-drive", "box", "hf"]
+    access: (
+        Annotated[
+            PresignedUrlAccess
+            | PresignedMultipartAccess
+            | PresignedChunkedAccess
+            | HttpRequestAccess
+            | SftpAccess,
+            Field(discriminator="kind"),
+        ]
+        | None
+    ) = None
+    result: (
+        FsListResult | ExistsResult | InfoResult | OperationResult | None
+    ) = None
+
+
+class FsOpRequest(BaseModel):
+    operation: Literal["get", "put", "exists", "list", "info"]
+    path: str
+    content_length: int | None = None
+    content_type: str | None = None
+    detail: bool = False
+
+
+@router.post("/projects/{owner_name}/{project_name}/fs-ops")
+def post_project_fs_op(
+    owner_name: str,
+    project_name: str,
+    req: FsOpRequest,
+    session: SessionDep,
+    current_user: CurrentUserOptional,
+) -> FsOpResponse:
+    """Endpoint for the fsspec client to know how to perform operations on a
+    given path within the project.
+
+    The client specifies the operation (get/put) and path, and the server
+    responds with instructions on how to access it:
+    - Presigned URL for direct HTTP access
+    - API credentials for indirect API access
+    - Request delegation info for non-presigned flows
+    """
+    operation = req.operation
+    path = req.path
+    content_length = req.content_length
+    content_type = req.content_type
+    if content_length is not None and content_length < 0:
+        raise HTTPException(
+            status_code=422, detail="content_length must be >= 0"
+        )
+    # Verify project access
+    min_access = (
+        "read" if operation in ["get", "list", "exists", "info"] else "write"
+    )
+    app.projects.get_project(
+        owner_name=owner_name,
+        project_name=project_name,
+        session=session,
+        current_user=current_user,
+        min_access_level=min_access,
+    )
+    logger.info(
+        f"Getting {operation} instructions for "
+        f"{owner_name}/{project_name}/{path}"
+    )
+    # TODO: Determine project fs storage type
+    # Should we allow for multiple depending on the path?
+    # Is Git one?
+    # If none is defined, they are using the default object storage connected
+    # to this system
+    # For now, only support GCS/S3 via presigned URLs
+    # Future: Add google_drive, box, huggingface backends
+    backend = storage.get_backend()
+    fs = get_object_fs()
+    # Construct full storage path
+    data_prefix = get_data_prefix()
+    full_path = f"{data_prefix}/{owner_name}/{project_name}/{path}"
+    # If operation is "exists" or "list", we can check if the file exists and
+    # return that info to avoid an extra round trip
+    if operation == "exists":
+        exists = fs.exists(full_path)
+        return FsOpResponse(
+            backend=backend,
+            result=ExistsResult(exists=exists),
+        )
+    if operation == "info":
+        try:
+            info_dict = fs.info(full_path)
+        except FileNotFoundError:
+            raise HTTPException(404, "Path not found")
+        return FsOpResponse(
+            backend=backend,
+            result=InfoResult(
+                name=info_dict.get("name", ""),
+                size=info_dict.get("size", 0),
+                type=info_dict.get("type", "file"),
+                time_modified=info_dict.get("time_modified"),
+            ),
+        )
+    if operation == "list":
+        try:
+            paths = fs.ls(full_path, detail=req.detail)
+        except FileNotFoundError:
+            raise HTTPException(404, "Path not found")
+        prefix_to_strip = get_data_prefix()
+        data_prefix_candidates = [
+            f"{prefix_to_strip.rstrip('/')}/",
+            f"{prefix_to_strip.removeprefix('s3://').rstrip('/')}/",
+            f"{prefix_to_strip.removeprefix('gcs://').rstrip('/')}/",
+        ]
+
+        def strip_data_prefix(path: str) -> str:
+            for prefix in data_prefix_candidates:
+                if path.startswith(prefix):
+                    return path.removeprefix(prefix)
+            return path
+
+        if req.detail:
+            paths = [
+                obj
+                | {
+                    "name": strip_data_prefix(obj.get("name", "")),
+                    "Key": strip_data_prefix(obj.get("Key", "")),
+                }
+                for obj in paths
+            ]
+        else:
+            paths = [strip_data_prefix(path) for path in paths]
+        return FsOpResponse(
+            backend=backend,
+            result=FsListResult(paths=paths),
+        )
+    if operation == "get":
+        url = get_object_url(
+            fpath=full_path,
+            fname=None,
+            expires=3600,
+            fs=fs,
+            method="get",
+        )
+        return FsOpResponse(
+            backend=backend,
+            access=PresignedUrlAccess(
+                url=url,
+                http_method="GET",
+            ),
+        )
+    # We are doing a PUT if we've made it this far
+    assert operation == "put"
+    # Determine if we need chunked upload for large puts
+    chunked = storage.upload_should_be_chunked(content_length)
+    if chunked:
+        # At this point, content_length is guaranteed to be not None
+        assert content_length is not None
+        try:
+            upload_info = storage.get_multipart_upload_info(
+                fs=fs,
+                fpath=full_path,
+                upload_size_bytes=content_length,
+                expires=900,
+                content_type=content_type,
+            )
+        except Exception:
+            logger.exception(
+                f"Failed to get multipart upload info for {full_path}"
+            )
+            raise HTTPException(500, "Failed to determine upload method")
+        if backend == "s3":
+            access = PresignedMultipartAccess(
+                bucket=upload_info["bucket"],
+                key=upload_info["key"],
+                upload_id=upload_info["upload_id"],
+                part_urls=upload_info["part_urls"],
+                complete_url=upload_info["complete_url"],
+                abort_url=upload_info["abort_url"],
+                part_size_bytes=upload_info["part_size_bytes"],
+                estimated_part_count=len(upload_info["part_urls"]),
+                upload_size_bytes=content_length,
+                content_type=content_type,
+            )
+        elif backend == "gcs":
+            access = PresignedChunkedAccess(
+                init_url=upload_info["init_url"],
+                http_method=upload_info["http_method"],
+                chunk_size_bytes=upload_info["chunk_size_bytes"],
+                estimated_chunk_count=upload_info["estimated_chunk_count"],
+                upload_size_bytes=content_length,
+                content_type=content_type,
+                headers={"x-goog-resumable": "start"},
+            )
+        else:
+            raise HTTPException(
+                500, f"Chunked upload not supported for {backend}"
+            )
+    # Regular presigned PUT URL for smaller files
+    else:
+        try:
+            url = get_object_url(
+                fpath=full_path,
+                fname=None,
+                expires=900,
+                fs=fs,
+                method="put",
+            )
+        except RuntimeError:
+            logger.exception(f"Failed to get presigned URL for {full_path}")
+            raise HTTPException(500, "Failed to get presigned URL")
+        access = PresignedUrlAccess(
+            url=url,
+            http_method="PUT",
+        )
+    return FsOpResponse(backend=backend, access=access)

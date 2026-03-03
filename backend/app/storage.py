@@ -2,13 +2,43 @@
 
 import json
 import os
-from typing import Literal
+from typing import Any, Literal
 
 import gcsfs
 import s3fs
 from app.config import settings
 from google.cloud import storage as gcs
 from google.oauth2 import service_account as gcs_service_account
+
+# Multipart/chunked upload configuration
+MULTIPART_THRESHOLD_BYTES = 64 * 1024 * 1024  # 64 MB
+MULTIPART_PART_SIZE_BYTES = 16 * 1024 * 1024  # 16 MB
+CHUNKED_CHUNK_SIZE_BYTES = 8 * 1024 * 1024  # 8 MB
+S3_MAX_PARTS = 10000  # S3 multipart upload limit
+
+
+def get_backend() -> Literal["s3", "gcs"]:
+    """Get the configured storage backend for the current environment."""
+    return "s3" if settings.ENVIRONMENT == "local" else "gcs"
+
+
+def upload_should_be_chunked(content_length: int | None) -> bool:
+    """Determine if an upload should use multipart/chunked strategy."""
+    return (
+        content_length is not None
+        and content_length >= MULTIPART_THRESHOLD_BYTES
+    )
+
+
+def get_upload_chunk_size(backend: Literal["s3", "gcs"] | None = None) -> int:
+    """Get the chunk/part size for the specified backend in bytes."""
+    if backend is None:
+        backend = get_backend()
+    return (
+        MULTIPART_PART_SIZE_BYTES
+        if backend == "s3"
+        else CHUNKED_CHUNK_SIZE_BYTES
+    )
 
 
 def get_gcs_credentials() -> dict | None:
@@ -68,17 +98,106 @@ def make_data_fpath(
     return f"{prefix}/{project_name}/{idx}/{md5}"
 
 
+def _replace_local_object_host(url: str) -> str:
+    if settings.ENVIRONMENT == "local":
+        return url.replace(
+            "http://minio:9000", f"http://objects.{settings.DOMAIN}"
+        )
+    return url
+
+
+def _generate_multipart_urls(
+    fpath: str,
+    estimated_part_count: int,
+    expires: int,
+    fs: s3fs.S3FileSystem,
+    content_type: str | None = None,
+) -> dict:
+    """Generate presigned URLs for S3 multipart upload.
+
+    Returns a dict with:
+    - bucket: bucket name
+    - key: object key
+    - upload_id: multipart upload ID
+    - part_urls: list of presigned URLs for each part
+    - complete_url: presigned URL to complete the upload
+    - abort_url: presigned URL to abort the upload
+    """
+    # Parse bucket and key from fpath (e.g., "s3://bucket/path/to/object")
+    if fpath.startswith("s3://"):
+        bucket, _, key = fpath[5:].partition("/")
+    else:
+        raise ValueError(f"Invalid S3 path: {fpath}")
+    # Access the underlying boto3 client
+    s3_client: Any = fs.s3
+    # Initiate multipart upload
+    mpu = s3_client.create_multipart_upload(
+        Bucket=bucket,
+        Key=key,
+        **({"ContentType": content_type} if content_type else {}),
+    )
+    upload_id = mpu["UploadId"]
+    # Generate presigned URLs for each part
+    part_urls = []
+    for part_number in range(1, estimated_part_count + 1):
+        part_url = s3_client.generate_presigned_url(
+            "upload_part",
+            Params={
+                "Bucket": bucket,
+                "Key": key,
+                "PartNumber": part_number,
+                "UploadId": upload_id,
+            },
+            ExpiresIn=expires,
+        )
+        part_urls.append(_replace_local_object_host(part_url))
+    # Generate presigned URL for completing the multipart upload
+    complete_url = s3_client.generate_presigned_url(
+        "complete_multipart_upload",
+        Params={
+            "Bucket": bucket,
+            "Key": key,
+            "UploadId": upload_id,
+        },
+        ExpiresIn=expires,
+    )
+    complete_url = _replace_local_object_host(complete_url)
+    # Generate presigned URL for aborting the multipart upload
+    abort_url = s3_client.generate_presigned_url(
+        "abort_multipart_upload",
+        Params={
+            "Bucket": bucket,
+            "Key": key,
+            "UploadId": upload_id,
+        },
+        ExpiresIn=expires,
+    )
+    abort_url = _replace_local_object_host(abort_url)
+    return {
+        "bucket": bucket,
+        "key": key,
+        "upload_id": upload_id,
+        "part_urls": part_urls,
+        "complete_url": complete_url,
+        "abort_url": abort_url,
+    }
+
+
 def get_object_url(
     fpath: str,
-    fname: str = None,
+    fname: str | None = None,
     expires: int = 3600 * 24,
     fs: s3fs.S3FileSystem | gcsfs.GCSFileSystem | None = None,
     method: Literal["get", "put"] = "get",
     **kwargs,
 ) -> str:
-    """Get a presigned URL for an object in object storage."""
+    """Get a presigned URL for an object in object storage.
+
+    For multipart/chunked uploads, use get_multipart_upload_info() instead.
+    """
     if fs is None:
         fs = get_object_fs()
+    # Standard presigned URL
     if settings.ENVIRONMENT == "local":
         kws = {}
         if fname is not None:
@@ -97,12 +216,80 @@ def get_object_url(
             elif fname.endswith(".html"):
                 kws["response_type"] = "text/html"
         kws["method"] = method.upper()
-    url: str = fs.sign(fpath, expiration=expires, **(kws | kwargs))
-    if settings.ENVIRONMENT == "local":
-        url = url.replace(
-            "http://minio:9000", f"http://objects.{settings.DOMAIN}"
+    signed_url = fs.sign(fpath, expiration=expires, **(kws | kwargs))
+    if signed_url is None:
+        raise RuntimeError("Failed to generate presigned URL")
+    return _replace_local_object_host(signed_url)
+
+
+def get_multipart_upload_info(
+    fs: s3fs.S3FileSystem | gcsfs.GCSFileSystem,
+    fpath: str,
+    upload_size_bytes: int,
+    expires: int = 900,
+    content_type: str | None = None,
+) -> dict:
+    """Get multipart/chunked upload info with all presigned URLs.
+
+    For S3: Returns dict with upload_id, bucket, key, part_urls, complete_url,
+    abort_url
+    For GCS: Returns dict with init_url for resumable upload
+
+    Note: For S3, this creates a multipart upload server-side. If the client
+    never completes or aborts, it will leave orphaned uploads. To prevent
+    storage costs, configure S3 lifecycle rules to automatically clean up
+    incomplete multipart uploads after a few days.
+    The abort_url is provided to allow
+    clients to explicitly clean up if they decide not to complete the upload.
+    """
+    if isinstance(fs, s3fs.S3FileSystem):
+        part_size = get_upload_chunk_size("s3")
+        estimated_part_count = (upload_size_bytes + part_size - 1) // part_size
+        # Enforce S3's 10,000-part limit by dynamically increasing part size
+        if estimated_part_count > S3_MAX_PARTS:
+            part_size = (upload_size_bytes + S3_MAX_PARTS - 1) // S3_MAX_PARTS
+            estimated_part_count = (
+                upload_size_bytes + part_size - 1
+            ) // part_size
+        result = _generate_multipart_urls(
+            fpath=fpath,
+            estimated_part_count=estimated_part_count,
+            expires=expires,
+            fs=fs,
+            content_type=content_type,
         )
-    return url
+        result["part_size_bytes"] = part_size
+        return result
+    elif isinstance(fs, gcsfs.GCSFileSystem):
+        part_size = get_upload_chunk_size("gcs")
+        estimated_part_count = (upload_size_bytes + part_size - 1) // part_size
+        # Try POST first (preferred), fall back to PUT
+        http_method = "POST"
+        try:
+            init_url = fs.sign(
+                fpath,
+                expiration=expires,
+                method="POST",
+            )
+        except Exception:
+            init_url = None
+        if init_url is None:
+            http_method = "PUT"
+            init_url = fs.sign(
+                fpath,
+                expiration=expires,
+                method="PUT",
+            )
+        if init_url is None:
+            raise RuntimeError("Failed to generate chunked init URL")
+        return {
+            "init_url": init_url,
+            "http_method": http_method,
+            "estimated_chunk_count": estimated_part_count,
+            "chunk_size_bytes": part_size,
+        }
+    else:
+        raise ValueError("Unsupported filesystem type")
 
 
 def get_storage_usage(
@@ -111,4 +298,7 @@ def get_storage_usage(
     """Get storage usage in GB for a given owner."""
     if fs is None:
         fs = get_object_fs()
-    return fs.du(get_data_prefix_for_owner(owner_name)) / 1e9
+    usage = fs.du(get_data_prefix_for_owner(owner_name))
+    if isinstance(usage, dict):
+        usage = sum(float(v) for v in usage.values())
+    return float(usage) / 1e9
