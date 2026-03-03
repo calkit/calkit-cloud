@@ -3683,6 +3683,13 @@ class InfoResult(BaseModel):
     time_modified: str | None = None
 
 
+class OperationResult(BaseModel):
+    """Result for file operations like delete, move, copy."""
+
+    success: bool
+    message: str | None = None
+
+
 class FsOpResponse(BaseModel):
     """Response describing how to perform a file operation
     (get/put/exists/list) for a given file path within the project.
