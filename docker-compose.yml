@@ -41,7 +41,6 @@ services:
 
   prestart:
     image: '${DOCKER_IMAGE_BACKEND?Variable not set}:${TAG-latest}'
-    pull_policy: never
     build:
       context: ./backend
     networks:
@@ -83,7 +82,6 @@ services:
 
   backend:
     image: '${DOCKER_IMAGE_BACKEND?Variable not set}:${TAG-latest}'
-    pull_policy: never
     restart: always
     networks:
       - traefik-public
@@ -148,7 +146,6 @@ services:
 
   frontend:
     image: '${DOCKER_IMAGE_FRONTEND?Variable not set}:${TAG-latest}'
-    pull_policy: never
     restart: always
     networks:
       - traefik-public

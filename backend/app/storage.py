@@ -14,6 +14,7 @@ from google.oauth2 import service_account as gcs_service_account
 MULTIPART_THRESHOLD_BYTES = 64 * 1024 * 1024  # 64 MB
 MULTIPART_PART_SIZE_BYTES = 16 * 1024 * 1024  # 16 MB
 CHUNKED_CHUNK_SIZE_BYTES = 8 * 1024 * 1024  # 8 MB
+S3_MAX_PARTS = 10000  # S3 multipart upload limit
 
 
 def get_backend() -> Literal["s3", "gcs"]:
@@ -108,7 +109,6 @@ def _replace_local_object_host(url: str) -> str:
 def _generate_multipart_urls(
     fpath: str,
     estimated_part_count: int,
-    part_size_bytes: int,
     expires: int,
     fs: s3fs.S3FileSystem,
     content_type: str | None = None,
@@ -121,6 +121,7 @@ def _generate_multipart_urls(
     - upload_id: multipart upload ID
     - part_urls: list of presigned URLs for each part
     - complete_url: presigned URL to complete the upload
+    - abort_url: presigned URL to abort the upload
     """
     # Parse bucket and key from fpath (e.g., "s3://bucket/path/to/object")
     if fpath.startswith("s3://"):
@@ -161,12 +162,24 @@ def _generate_multipart_urls(
         ExpiresIn=expires,
     )
     complete_url = _replace_local_object_host(complete_url)
+    # Generate presigned URL for aborting the multipart upload
+    abort_url = s3_client.generate_presigned_url(
+        "abort_multipart_upload",
+        Params={
+            "Bucket": bucket,
+            "Key": key,
+            "UploadId": upload_id,
+        },
+        ExpiresIn=expires,
+    )
+    abort_url = _replace_local_object_host(abort_url)
     return {
         "bucket": bucket,
         "key": key,
         "upload_id": upload_id,
         "part_urls": part_urls,
         "complete_url": complete_url,
+        "abort_url": abort_url,
     }
 
 
@@ -176,8 +189,6 @@ def get_object_url(
     expires: int = 3600 * 24,
     fs: s3fs.S3FileSystem | gcsfs.GCSFileSystem | None = None,
     method: Literal["get", "put"] = "get",
-    *,
-    content_type: str | None = None,
     **kwargs,
 ) -> str:
     """Get a presigned URL for an object in object storage.
@@ -220,23 +231,40 @@ def get_multipart_upload_info(
 ) -> dict:
     """Get multipart/chunked upload info with all presigned URLs.
 
-    For S3: Returns dict with upload_id, bucket, key, part_urls, complete_url
+    For S3: Returns dict with upload_id, bucket, key, part_urls, complete_url,
+    abort_url
     For GCS: Returns dict with init_url for resumable upload
+
+    Note: For S3, this creates a multipart upload server-side. If the client
+    never completes or aborts, it will leave orphaned uploads. To prevent
+    storage costs, configure S3 lifecycle rules to automatically clean up
+    incomplete multipart uploads after a few days.
+    The abort_url is provided to allow
+    clients to explicitly clean up if they decide not to complete the upload.
     """
     if isinstance(fs, s3fs.S3FileSystem):
         part_size = get_upload_chunk_size("s3")
         estimated_part_count = (upload_size_bytes + part_size - 1) // part_size
-        return _generate_multipart_urls(
+        # Enforce S3's 10,000-part limit by dynamically increasing part size
+        if estimated_part_count > S3_MAX_PARTS:
+            part_size = (upload_size_bytes + S3_MAX_PARTS - 1) // S3_MAX_PARTS
+            estimated_part_count = (
+                upload_size_bytes + part_size - 1
+            ) // part_size
+        result = _generate_multipart_urls(
             fpath=fpath,
             estimated_part_count=estimated_part_count,
-            part_size_bytes=part_size,
             expires=expires,
             fs=fs,
             content_type=content_type,
         )
+        result["part_size_bytes"] = part_size
+        return result
     elif isinstance(fs, gcsfs.GCSFileSystem):
         part_size = get_upload_chunk_size("gcs")
         estimated_part_count = (upload_size_bytes + part_size - 1) // part_size
+        # Try POST first (preferred), fall back to PUT
+        http_method = "POST"
         try:
             init_url = fs.sign(
                 fpath,
@@ -246,6 +274,7 @@ def get_multipart_upload_info(
         except Exception:
             init_url = None
         if init_url is None:
+            http_method = "PUT"
             init_url = fs.sign(
                 fpath,
                 expiration=expires,
@@ -255,6 +284,7 @@ def get_multipart_upload_info(
             raise RuntimeError("Failed to generate chunked init URL")
         return {
             "init_url": init_url,
+            "http_method": http_method,
             "estimated_chunk_count": estimated_part_count,
             "chunk_size_bytes": part_size,
         }

@@ -113,7 +113,6 @@ from app.storage import (
     get_object_fs,
     get_object_url,
     get_storage_usage,
-    get_upload_chunk_size,
     make_data_fpath,
     remove_gcs_content_type,
 )
@@ -3629,6 +3628,7 @@ class PresignedMultipartAccess(BaseModel):
     upload_id: str
     part_urls: list[str]
     complete_url: str
+    abort_url: str
     part_size_bytes: int
     estimated_part_count: int
     upload_size_bytes: int
@@ -3869,7 +3869,8 @@ def post_project_fs_op(
                 upload_id=upload_info["upload_id"],
                 part_urls=upload_info["part_urls"],
                 complete_url=upload_info["complete_url"],
-                part_size_bytes=get_upload_chunk_size(backend),
+                abort_url=upload_info["abort_url"],
+                part_size_bytes=upload_info["part_size_bytes"],
                 estimated_part_count=len(upload_info["part_urls"]),
                 upload_size_bytes=content_length,
                 content_type=content_type,
@@ -3877,7 +3878,7 @@ def post_project_fs_op(
         elif backend == "gcs":
             access = PresignedChunkedAccess(
                 init_url=upload_info["init_url"],
-                http_method="POST",
+                http_method=upload_info["http_method"],
                 chunk_size_bytes=upload_info["chunk_size_bytes"],
                 estimated_chunk_count=upload_info["estimated_chunk_count"],
                 upload_size_bytes=content_length,
