@@ -104,7 +104,7 @@ def make_data_fpath(
     under the files/md5 subdirectory.
 
     The legacy flag allows generating paths in the old format
-    (without files/md5) for backward compatibility with existing data.
+    (without 'files/md5/') for backward compatibility with existing data.
     New uploads should use the new format.
     """
     prefix = get_data_prefix_for_owner(owner_name)
