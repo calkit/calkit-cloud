@@ -111,7 +111,7 @@ def make_data_fpath(
     if legacy:
         return f"{prefix}/{project_name}/{idx}/{md5}"
     else:
-        return f"{prefix}/{project_name}/files/md5/{md5}/{idx}"
+        return f"{prefix}/{project_name}/files/md5/{idx}/{md5}"
 
 
 def _replace_local_object_host(url: str) -> str:
