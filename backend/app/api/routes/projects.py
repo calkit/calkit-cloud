@@ -853,21 +853,7 @@ def get_project_dvc_file(
     logger.info(f"Checking for {fpath}")
     if not fs.exists(fpath):
         logger.info(f"{fpath} does not exist")
-        # Try legacy path from before we started using the files/md5 prefix
-        legacy_fpath = make_data_fpath(
-            owner_name=owner_name,
-            project_name=project_name,
-            idx=idx,
-            md5=md5,
-            legacy=True,
-        )
-        if fs.exists(legacy_fpath):
-            logger.info(
-                f"Found legacy file at {legacy_fpath}; moving to {fpath}"
-            )
-            fs.mv(legacy_fpath, fpath)
-        else:
-            raise HTTPException(404)
+        raise HTTPException(404)
 
     # Stream the file contents back to the user
     def iterfile():
