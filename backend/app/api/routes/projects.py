@@ -3724,11 +3724,23 @@ class FsOpResponse(BaseModel):
 
 
 class FsOpRequest(BaseModel):
-    operation: Literal["get", "put", "exists", "list", "info"]
+    operation: Literal["get", "put", "exists", "list", "find", "info"]
     path: str
     content_length: int | None = None
     content_type: str | None = None
     detail: bool = False
+
+
+def _strip_data_prefix(path: str, data_prefix: str) -> str:
+    data_prefix_candidates = [
+        f"{data_prefix.rstrip('/')}/",
+        f"{data_prefix.removeprefix('s3://').rstrip('/')}/",
+        f"{data_prefix.removeprefix('gcs://').rstrip('/')}/",
+    ]
+    for prefix in data_prefix_candidates:
+        if path.startswith(prefix):
+            return path.removeprefix(prefix)
+    return path
 
 
 @router.post("/projects/{owner_name}/{project_name}/fs-ops")
@@ -3816,33 +3828,33 @@ def post_project_fs_op(
             paths = fs.ls(full_path, detail=req.detail)
         except FileNotFoundError:
             raise HTTPException(404, "Path not found")
-        prefix_to_strip = get_data_prefix()
-        data_prefix_candidates = [
-            f"{prefix_to_strip.rstrip('/')}/",
-            f"{prefix_to_strip.removeprefix('s3://').rstrip('/')}/",
-            f"{prefix_to_strip.removeprefix('gcs://').rstrip('/')}/",
-        ]
-
-        def strip_data_prefix(path: str) -> str:
-            for prefix in data_prefix_candidates:
-                if path.startswith(prefix):
-                    return path.removeprefix(prefix)
-            return path
-
         if req.detail:
             paths = [
                 obj
                 | {
-                    "name": strip_data_prefix(obj.get("name", "")),
-                    "Key": strip_data_prefix(obj.get("Key", "")),
+                    "name": _strip_data_prefix(
+                        obj.get("name", ""), data_prefix
+                    ),
+                    "Key": _strip_data_prefix(obj.get("Key", ""), data_prefix),
                 }
                 for obj in paths
             ]
         else:
-            paths = [strip_data_prefix(path) for path in paths]
+            paths = [_strip_data_prefix(path, data_prefix) for path in paths]
         return FsOpResponse(
             backend=backend,
             result=FsListResult(paths=paths),
+        )
+    if operation == "find":
+        try:
+            paths = fs.find(full_path)
+        except FileNotFoundError:
+            raise HTTPException(404, "Path not found")
+        return FsOpResponse(
+            backend=backend,
+            result=FsListResult(
+                paths=[_strip_data_prefix(path, data_prefix) for path in paths]
+            ),
         )
     if operation == "get":
         url = get_object_url(
