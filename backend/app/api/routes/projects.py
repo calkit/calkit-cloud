@@ -3847,14 +3847,38 @@ def post_project_fs_op(
         )
     if operation == "find":
         try:
-            paths = fs.find(full_path)
+            paths = fs.find(full_path, detail=req.detail)
         except FileNotFoundError:
             raise HTTPException(404, "Path not found")
+        if req.detail:
+            if isinstance(paths, dict):
+                paths = [
+                    obj
+                    | {
+                        "name": _strip_data_prefix(
+                            obj.get("name", path), data_prefix
+                        ),
+                        "Key": _strip_data_prefix(
+                            obj.get("Key", path), data_prefix
+                        ),
+                    }
+                    for path, obj in paths.items()
+                ]
+            else:
+                paths = [
+                    {
+                        "name": _strip_data_prefix(path, data_prefix),
+                        "Key": _strip_data_prefix(path, data_prefix),
+                    }
+                    for path in paths
+                ]
+        else:
+            if isinstance(paths, dict):
+                paths = list(paths.keys())
+            paths = [_strip_data_prefix(path, data_prefix) for path in paths]
         return FsOpResponse(
             backend=backend,
-            result=FsListResult(
-                paths=[_strip_data_prefix(path, data_prefix) for path in paths]
-            ),
+            result=FsListResult(paths=paths),
         )
     if operation == "get":
         url = get_object_url(
