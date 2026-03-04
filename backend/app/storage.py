@@ -347,7 +347,4 @@ def migrate_legacy_dvc_paths(dry_run=True):
                     )
                     print(f"Renaming {old_path} to {new_path}")
                     if not dry_run:
-                        try:
-                            fs.rename(old_path, new_path)
-                        except Exception as e:
-                            print(f"Error renaming {old_path}: {e}")
+                        fs.mv(old_path, new_path, recursive=True)
