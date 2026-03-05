@@ -456,7 +456,7 @@ def post_project_fs_batch_op(
                 path_result["content_base64"] = None
             except Exception as exc:
                 logger.exception(
-                    "Unexpected error while reading file content for %s", full_path
+                    f"Error while reading file content for {full_path}"
                 )
                 raise HTTPException(
                     status_code=500,
