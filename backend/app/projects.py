@@ -186,6 +186,14 @@ def get_contents_from_repo(
     owner_name = project.owner_account_name
     project_name = project.name
     repo_dir = repo.working_dir
+    # Prevent path traversal attacks
+    if path is not None:
+        # Check for absolute paths
+        if os.path.isabs(path):
+            raise HTTPException(400, "Absolute paths are not allowed")
+        # Check for parent directory references
+        if ".." in path.split(os.sep):
+            raise HTTPException(400, "Path traversal is not allowed")
     # If the path is an unsafe symlink, raise a 404
     if path is not None and os.path.islink(
         os.path.join(repo.working_dir, path)

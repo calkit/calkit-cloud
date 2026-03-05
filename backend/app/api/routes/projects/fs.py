@@ -2,6 +2,7 @@
 
 import base64
 import logging
+import os
 from datetime import datetime
 from typing import Annotated, Literal
 
@@ -162,6 +163,11 @@ def post_project_fs_op(
     path = req.path
     content_length = req.content_length
     content_type = req.content_type
+    # Prevent path traversal attacks
+    if os.path.isabs(path):
+        raise HTTPException(400, "Absolute paths are not allowed")
+    if ".." in path.split(os.sep):
+        raise HTTPException(400, "Path traversal is not allowed")
     if content_length is not None and content_length < 0:
         raise HTTPException(
             status_code=422, detail="content_length must be >= 0"
@@ -392,6 +398,12 @@ def post_project_fs_batch_op(
     operation = req.operation
     paths = req.paths
     include = req.include or []
+    # Prevent path traversal attacks
+    for path in paths:
+        if os.path.isabs(path):
+            raise HTTPException(400, "Absolute paths are not allowed")
+        if ".." in path.split(os.sep):
+            raise HTTPException(400, "Path traversal is not allowed")
     # Verify project access
     min_access = (
         "read" if operation in ["get", "list", "exists", "info"] else "write"
