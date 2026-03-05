@@ -367,11 +367,17 @@ class FsOpBatchRequest(BaseModel):
     detail: bool = False
 
 
+class FsOpBatchResult(BaseModel):
+    """Result for batch file system operations on multiple paths."""
+
+    exists: bool | None = None
+    info: dict | None = None
+    content_base64: str | None = None
+
+
 class FsOpBatchResponse(BaseModel):
     backend: Literal["gcs", "s3", "google-drive", "box", "hf"]
-    results: dict[
-        str, dict
-    ]  # path -> {exists: bool, info: {...}, content_base64: str}
+    results: dict[str, FsOpBatchResult]
 
 
 @router.post("/projects/{owner_name}/{project_name}/fs-ops-batch")
@@ -433,5 +439,5 @@ def post_project_fs_op_batch(
                 ).decode("utf-8")
             except (FileNotFoundError, Exception):
                 path_result["content_base64"] = None
-        results[path] = path_result
+        results[path] = FsOpBatchResult(**path_result)
     return FsOpBatchResponse(backend=backend, results=results)
