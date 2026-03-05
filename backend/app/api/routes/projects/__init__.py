@@ -6,6 +6,7 @@ from .core import router as core_router
 from .fs import router as fs_router
 
 # Re-export all public names (including endpoint functions) from submodules
+# for automated frontend client generation
 from .core import *  # noqa: F401,F403
 from .fs import *  # noqa: F401,F403
 
