@@ -174,7 +174,9 @@ def post_project_fs_op(
         )
     # Verify project access
     min_access = (
-        "read" if operation in ["get", "list", "exists", "info"] else "write"
+        "read"
+        if operation in ["get", "list", "exists", "info", "find"]
+        else "write"
     )
     app.projects.get_project(
         owner_name=owner_name,
