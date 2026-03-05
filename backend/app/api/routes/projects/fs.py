@@ -450,7 +450,15 @@ def post_project_fs_batch_op(
                 path_result["content_base64"] = base64.b64encode(
                     content_bytes
                 ).decode("utf-8")
-            except (FileNotFoundError, Exception):
+            except FileNotFoundError:
                 path_result["content_base64"] = None
+            except Exception as exc:
+                logger.exception(
+                    "Unexpected error while reading file content for %s", full_path
+                )
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Error reading file content for path: {path}",
+                ) from exc
         results[path] = FsOpBatchResult(**path_result)
     return FsOpBatchResponse(backend=backend, results=results)
