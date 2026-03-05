@@ -140,7 +140,7 @@ def _strip_data_prefix(path: str, data_prefix: str) -> str:
     return path
 
 
-@router.post("/projects/{owner_name}/{project_name}/fs-ops")
+@router.post("/projects/{owner_name}/{project_name}/fs/ops")
 def post_project_fs_op(
     owner_name: str,
     project_name: str,
@@ -380,8 +380,8 @@ class FsOpBatchResponse(BaseModel):
     results: dict[str, FsOpBatchResult]
 
 
-@router.post("/projects/{owner_name}/{project_name}/fs-ops-batch")
-def post_project_fs_op_batch(
+@router.post("/projects/{owner_name}/{project_name}/fs/ops/batch")
+def post_project_fs_batch_op(
     owner_name: str,
     project_name: str,
     req: FsOpBatchRequest,
