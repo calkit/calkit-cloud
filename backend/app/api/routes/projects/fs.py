@@ -20,6 +20,8 @@ router = APIRouter()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+RETURN_CONTENT_SIZE_LIMIT = 1_000_000
+
 
 class PresignedUrlAccess(BaseModel):
     kind: Literal["presigned-url"] = "presigned-url"
@@ -446,12 +448,24 @@ def post_project_fs_batch_op(
         # Handle content (if requested via include)
         if "content" in include:
             try:
-                content_bytes = fs.cat_file(full_path)
-                if isinstance(content_bytes, str):
-                    content_bytes = content_bytes.encode("utf-8")
-                path_result["content_base64"] = base64.b64encode(
-                    content_bytes
-                ).decode("utf-8")
+                # Check file size before reading content
+                info_dict = path_result.get("info")
+                if info_dict is None:
+                    info_dict = fs.info(full_path)
+                file_size = info_dict.get("size", 0)
+                if file_size > RETURN_CONTENT_SIZE_LIMIT:
+                    logger.info(
+                        f"Skipping content for {path} "
+                        f"(size: {file_size} > {RETURN_CONTENT_SIZE_LIMIT})"
+                    )
+                    path_result["content_base64"] = None
+                else:
+                    content_bytes = fs.cat_file(full_path)
+                    if isinstance(content_bytes, str):
+                        content_bytes = content_bytes.encode("utf-8")
+                    path_result["content_base64"] = base64.b64encode(
+                        content_bytes
+                    ).decode("utf-8")
             except FileNotFoundError:
                 path_result["content_base64"] = None
             except Exception as exc:
