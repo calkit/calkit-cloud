@@ -5,7 +5,7 @@ import logging
 from datetime import datetime
 from typing import Annotated, Literal
 
-from fastapi import HTTPException
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 import app
@@ -14,7 +14,7 @@ from app import storage
 from app.api.deps import CurrentUserOptional, SessionDep
 from app.storage import get_object_url
 
-from .core import router
+router = APIRouter()
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
