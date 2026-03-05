@@ -370,7 +370,6 @@ class FsOpBatchRequest(BaseModel):
     operation: Literal["exists", "info"]
     paths: list[str]
     include: list[Literal["exists", "info", "content"]] | None = None
-    detail: bool = False
 
 
 class FsOpBatchResult(BaseModel):
