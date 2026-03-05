@@ -3715,7 +3715,6 @@ class FsOpRequest(BaseModel):
     content_length: int | None = None
     content_type: str | None = None
     detail: bool = False
-    purpose: Literal["dvc", "general", "repo"] = "dvc"
 
 
 def _strip_data_prefix(path: str, data_prefix: str) -> str:
@@ -3780,16 +3779,8 @@ def post_project_fs_op(
     backend = storage.get_backend()
     fs = get_object_fs()
     # Construct full storage path
-    # If not for DVC, data goes in goes in the general storage folder
-    # DVC will request paths under files/md5
     data_prefix = get_data_prefix()
-    if req.purpose == "general":
-        full_path = f"{data_prefix}/{owner_name}/{project_name}/general/{path}"
-    elif req.purpose == "dvc":
-        full_path = f"{data_prefix}/{owner_name}/{project_name}/{path}"
-    elif req.purpose == "repo":
-        # TODO: Implement repo path fetching, optionally looking up by Git ref
-        raise HTTPException(501, "Repo path ops not yet implemented")
+    full_path = f"{data_prefix}/{owner_name}/{project_name}/{path}"
     # If operation is "exists" or "list", we can check if the file exists and
     # return that info to avoid an extra round trip
     if operation == "exists":
