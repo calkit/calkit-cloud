@@ -1253,6 +1253,15 @@ export const $Environment = {
   },
 } as const
 
+export const $ExistsResult = {
+  properties: {
+    exists: {
+      type: "boolean",
+      isRequired: true,
+    },
+  },
+} as const
+
 export const $ExternalTokenResponse = {
   properties: {
     access_token: {
@@ -1452,6 +1461,223 @@ export const $FileLockPost = {
     path: {
       type: "string",
       isRequired: true,
+    },
+  },
+} as const
+
+export const $FsListResult = {
+  properties: {
+    paths: {
+      type: "any-of",
+      contains: [
+        {
+          type: "array",
+          contains: {
+            type: "string",
+          },
+        },
+        {
+          type: "array",
+          contains: {
+            type: "dictionary",
+            contains: {
+              properties: {},
+            },
+          },
+        },
+      ],
+      isRequired: true,
+    },
+  },
+} as const
+
+export const $FsOpBatchRequest = {
+  properties: {
+    operation: {
+      type: "Enum",
+      enum: ["exists", "info"],
+      isRequired: true,
+    },
+    paths: {
+      type: "array",
+      contains: {
+        type: "string",
+      },
+      isRequired: true,
+    },
+    include: {
+      type: "any-of",
+      contains: [
+        {
+          type: "array",
+          contains: {
+            type: "Enum",
+            enum: ["exists", "info", "content"],
+          },
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+  },
+} as const
+
+export const $FsOpBatchResponse = {
+  properties: {
+    backend: {
+      type: "Enum",
+      enum: ["gcs", "s3", "google-drive", "box", "hf"],
+      isRequired: true,
+    },
+    results: {
+      type: "dictionary",
+      contains: {
+        type: "FsOpBatchResult",
+      },
+      isRequired: true,
+    },
+  },
+} as const
+
+export const $FsOpBatchResult = {
+  description: `Result for batch file system operations on multiple paths.`,
+  properties: {
+    exists: {
+      type: "any-of",
+      contains: [
+        {
+          type: "boolean",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    info: {
+      type: "any-of",
+      contains: [
+        {
+          type: "dictionary",
+          contains: {
+            properties: {},
+          },
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    content_base64: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+  },
+} as const
+
+export const $FsOpRequest = {
+  properties: {
+    operation: {
+      type: "Enum",
+      enum: ["get", "put", "exists", "list", "find", "info"],
+      isRequired: true,
+    },
+    path: {
+      type: "string",
+      isRequired: true,
+    },
+    content_length: {
+      type: "any-of",
+      contains: [
+        {
+          type: "number",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    content_type: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    detail: {
+      type: "boolean",
+      default: false,
+    },
+  },
+} as const
+
+export const $FsOpResponse = {
+  description: `Response describing how to perform a file system operation
+(get/put/exists/list) for a given path within the project.`,
+  properties: {
+    backend: {
+      type: "Enum",
+      enum: ["gcs", "s3", "google-drive", "box", "hf"],
+      isRequired: true,
+    },
+    access: {
+      type: "any-of",
+      contains: [
+        {
+          type: "one-of",
+          contains: [
+            {
+              type: "PresignedUrlAccess",
+            },
+            {
+              type: "PresignedMultipartAccess",
+            },
+            {
+              type: "PresignedChunkedAccess",
+            },
+            {
+              type: "HttpRequestAccess",
+            },
+            {
+              type: "SftpAccess",
+            },
+          ],
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    result: {
+      type: "any-of",
+      contains: [
+        {
+          type: "FsListResult",
+        },
+        {
+          type: "ExistsResult",
+        },
+        {
+          type: "InfoResult",
+        },
+        {
+          type: "OperationResult",
+        },
+        {
+          type: "null",
+        },
+      ],
     },
   },
 } as const
@@ -1667,6 +1893,63 @@ export const $HTTPValidationError = {
   },
 } as const
 
+export const $HttpRequestAccess = {
+  properties: {
+    kind: {
+      type: '"http-request"',
+    },
+    url: {
+      type: "string",
+      isRequired: true,
+    },
+    http_method: {
+      type: "Enum",
+      enum: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+      isRequired: true,
+    },
+    headers: {
+      type: "any-of",
+      contains: [
+        {
+          type: "dictionary",
+          contains: {
+            properties: {},
+          },
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    params: {
+      type: "any-of",
+      contains: [
+        {
+          type: "dictionary",
+          contains: {
+            properties: {},
+          },
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    expires_at: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+  },
+} as const
+
 export const $ImportInfo = {
   properties: {
     project_owner: {
@@ -1691,6 +1974,34 @@ export const $ImportInfo = {
     path: {
       type: "string",
       isRequired: true,
+    },
+  },
+} as const
+
+export const $InfoResult = {
+  properties: {
+    name: {
+      type: "string",
+      isRequired: true,
+    },
+    size: {
+      type: "number",
+      isRequired: true,
+    },
+    type: {
+      type: "string",
+      isRequired: true,
+    },
+    time_modified: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
     },
   },
 } as const
@@ -1934,6 +2245,27 @@ export const $Notebook = {
       ],
     },
     content: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+  },
+} as const
+
+export const $OperationResult = {
+  description: `Result for file operations like delete, move, copy.`,
+  properties: {
+    success: {
+      type: "boolean",
+      isRequired: true,
+    },
+    message: {
       type: "any-of",
       contains: [
         {
@@ -2259,6 +2591,201 @@ export const $Pipeline = {
         },
       ],
       isRequired: true,
+    },
+  },
+} as const
+
+export const $PresignedChunkedAccess = {
+  properties: {
+    kind: {
+      type: '"presigned-chunked"',
+    },
+    init_url: {
+      type: "string",
+      isRequired: true,
+    },
+    http_method: {
+      type: "Enum",
+      enum: ["POST", "PUT"],
+      isRequired: true,
+    },
+    chunk_size_bytes: {
+      type: "number",
+      isRequired: true,
+    },
+    estimated_chunk_count: {
+      type: "number",
+      isRequired: true,
+    },
+    upload_size_bytes: {
+      type: "number",
+      isRequired: true,
+    },
+    content_type: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    headers: {
+      type: "any-of",
+      contains: [
+        {
+          type: "dictionary",
+          contains: {
+            properties: {},
+          },
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    params: {
+      type: "any-of",
+      contains: [
+        {
+          type: "dictionary",
+          contains: {
+            properties: {},
+          },
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    expires_at: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+  },
+} as const
+
+export const $PresignedMultipartAccess = {
+  properties: {
+    kind: {
+      type: '"presigned-multipart"',
+    },
+    bucket: {
+      type: "string",
+      isRequired: true,
+    },
+    key: {
+      type: "string",
+      isRequired: true,
+    },
+    upload_id: {
+      type: "string",
+      isRequired: true,
+    },
+    part_urls: {
+      type: "array",
+      contains: {
+        type: "string",
+      },
+      isRequired: true,
+    },
+    complete_url: {
+      type: "string",
+      isRequired: true,
+    },
+    abort_url: {
+      type: "string",
+      isRequired: true,
+    },
+    part_size_bytes: {
+      type: "number",
+      isRequired: true,
+    },
+    estimated_part_count: {
+      type: "number",
+      isRequired: true,
+    },
+    upload_size_bytes: {
+      type: "number",
+      isRequired: true,
+    },
+    content_type: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+  },
+} as const
+
+export const $PresignedUrlAccess = {
+  properties: {
+    kind: {
+      type: '"presigned-url"',
+    },
+    url: {
+      type: "string",
+      isRequired: true,
+    },
+    http_method: {
+      type: "Enum",
+      enum: ["GET", "PUT", "DELETE"],
+      isRequired: true,
+    },
+    expires_at: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    headers: {
+      type: "any-of",
+      contains: [
+        {
+          type: "dictionary",
+          contains: {
+            properties: {},
+          },
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    params: {
+      type: "any-of",
+      contains: [
+        {
+          type: "dictionary",
+          contains: {
+            properties: {},
+          },
+        },
+        {
+          type: "null",
+        },
+      ],
     },
   },
 } as const
@@ -3281,6 +3808,64 @@ export const $ReproCheck = {
       type: "number",
       isReadOnly: true,
       isRequired: true,
+    },
+  },
+} as const
+
+export const $SftpAccess = {
+  properties: {
+    kind: {
+      type: '"sftp"',
+    },
+    host: {
+      type: "string",
+      isRequired: true,
+    },
+    port: {
+      type: "number",
+      default: 22,
+    },
+    username: {
+      type: "string",
+      isRequired: true,
+    },
+    password: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    private_key: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    remote_path: {
+      type: "string",
+      isRequired: true,
+    },
+    expires_at: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
     },
   },
 } as const

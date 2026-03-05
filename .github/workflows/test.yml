@@ -26,7 +26,7 @@ jobs:
         with:
           path: backend/.docker-cache
           key: ${{ runner.os }}-build-${{ github.sha }}
-      - run: cp .env.template .env
+      - run: cp .env.example .env
       - run: docker compose build
       - run: docker compose down -v --remove-orphans
       - run: docker compose up -d

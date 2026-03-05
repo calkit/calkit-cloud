@@ -238,6 +238,10 @@ export type Environment = {
   file_content?: string | null
 }
 
+export type ExistsResult = {
+  exists: boolean
+}
+
 export type ExternalTokenResponse = {
   access_token: string
 }
@@ -282,6 +286,54 @@ export type FileLock = {
 
 export type FileLockPost = {
   path: string
+}
+
+export type FsListResult = {
+  paths: Array<string> | Array<Record<string, unknown>>
+}
+
+export type FsOpBatchRequest = {
+  operation: "exists" | "info"
+  paths: Array<string>
+  include?: Array<"exists" | "info" | "content"> | null
+}
+
+export type FsOpBatchResponse = {
+  backend: "gcs" | "s3" | "google-drive" | "box" | "hf"
+  results: Record<string, FsOpBatchResult>
+}
+
+/**
+ * Result for batch file system operations on multiple paths.
+ */
+export type FsOpBatchResult = {
+  exists?: boolean | null
+  info?: Record<string, unknown> | null
+  content_base64?: string | null
+}
+
+export type FsOpRequest = {
+  operation: "get" | "put" | "exists" | "list" | "find" | "info"
+  path: string
+  content_length?: number | null
+  content_type?: string | null
+  detail?: boolean
+}
+
+/**
+ * Response describing how to perform a file system operation
+ * (get/put/exists/list) for a given path within the project.
+ */
+export type FsOpResponse = {
+  backend: "gcs" | "s3" | "google-drive" | "box" | "hf"
+  access?:
+    | PresignedUrlAccess
+    | PresignedMultipartAccess
+    | PresignedChunkedAccess
+    | HttpRequestAccess
+    | SftpAccess
+    | null
+  result?: FsListResult | ExistsResult | InfoResult | OperationResult | null
 }
 
 export type GitHubInstallations = {
@@ -340,11 +392,27 @@ export type HTTPValidationError = {
   detail?: Array<ValidationError>
 }
 
+export type HttpRequestAccess = {
+  kind?: "http-request"
+  url: string
+  http_method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE"
+  headers?: Record<string, unknown> | null
+  params?: Record<string, unknown> | null
+  expires_at?: string | null
+}
+
 export type ImportInfo = {
   project_owner: string
   project_name: string
   git_rev?: string | null
   path: string
+}
+
+export type InfoResult = {
+  name: string
+  size: number
+  type: string
+  time_modified?: string | null
 }
 
 export type Issue = {
@@ -399,6 +467,14 @@ export type Notebook = {
   output_format?: "html" | "notebook" | null
   url?: string | null
   content?: string | null
+}
+
+/**
+ * Result for file operations like delete, move, copy.
+ */
+export type OperationResult = {
+  success: boolean
+  message?: string | null
 }
 
 export type OrgMemberPost = {
@@ -473,6 +549,42 @@ export type Pipeline = {
   dvc_stages: Record<string, DvcPipelineStage | DvcForeachStage>
   dvc_yaml: string
   calkit_yaml: string | null
+}
+
+export type PresignedChunkedAccess = {
+  kind?: "presigned-chunked"
+  init_url: string
+  http_method: "POST" | "PUT"
+  chunk_size_bytes: number
+  estimated_chunk_count: number
+  upload_size_bytes: number
+  content_type?: string | null
+  headers?: Record<string, unknown> | null
+  params?: Record<string, unknown> | null
+  expires_at?: string | null
+}
+
+export type PresignedMultipartAccess = {
+  kind?: "presigned-multipart"
+  bucket: string
+  key: string
+  upload_id: string
+  part_urls: Array<string>
+  complete_url: string
+  abort_url: string
+  part_size_bytes: number
+  estimated_part_count: number
+  upload_size_bytes: number
+  content_type?: string | null
+}
+
+export type PresignedUrlAccess = {
+  kind?: "presigned-url"
+  url: string
+  http_method: "GET" | "PUT" | "DELETE"
+  expires_at?: string | null
+  headers?: Record<string, unknown> | null
+  params?: Record<string, unknown> | null
 }
 
 export type ProjectApp = {
@@ -648,6 +760,17 @@ export type ReproCheck = {
   readonly n_publications_with_import_or_stage: number
   readonly n_stages_without_env: number
   readonly n_stages_with_env: number
+}
+
+export type SftpAccess = {
+  kind?: "sftp"
+  host: string
+  port?: number
+  username: string
+  password?: string | null
+  private_key?: string | null
+  remote_path: string
+  expires_at?: string | null
 }
 
 export type Showcase = {

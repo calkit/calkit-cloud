@@ -46,6 +46,10 @@ import type {
   FigureCommentPost,
   FileLock,
   FileLockPost,
+  FsOpBatchRequest,
+  FsOpBatchResponse,
+  FsOpRequest,
+  FsOpResponse,
   GitHubRelease,
   GitHubReleasePost,
   GitItem,
@@ -451,6 +455,16 @@ export type ProjectsData = {
     ownerName: string
     projectName: string
     requestBody: ProjectStatusPost
+  }
+  PostProjectFsOp: {
+    ownerName: string
+    projectName: string
+    requestBody: FsOpRequest
+  }
+  PostProjectFsBatchOp: {
+    ownerName: string
+    projectName: string
+    requestBody: FsOpBatchRequest
   }
 }
 
@@ -2552,6 +2566,63 @@ export class ProjectsService {
     return __request(OpenAPI, {
       method: "POST",
       url: "/projects/{owner_name}/{project_name}/status",
+      path: {
+        owner_name: ownerName,
+        project_name: projectName,
+      },
+      body: requestBody,
+      mediaType: "application/json",
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Post Project Fs Op
+   * Endpoint for the fsspec client to know how to perform operations on a
+   * given path within the project.
+   *
+   * The client specifies the operation (get/put) and path, and the server
+   * responds with instructions on how to access it:
+   * - Presigned URL for direct HTTP access
+   * - API credentials for indirect API access
+   * - Request delegation info for non-presigned flows
+   * @returns FsOpResponse Successful Response
+   * @throws ApiError
+   */
+  public static postProjectFsOp(
+    data: ProjectsData["PostProjectFsOp"],
+  ): CancelablePromise<FsOpResponse> {
+    const { ownerName, projectName, requestBody } = data
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/projects/{owner_name}/{project_name}/fs/ops",
+      path: {
+        owner_name: ownerName,
+        project_name: projectName,
+      },
+      body: requestBody,
+      mediaType: "application/json",
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Post Project Fs Batch Op
+   * Endpoint for batch file system operations for multiple paths.
+   * @returns FsOpBatchResponse Successful Response
+   * @throws ApiError
+   */
+  public static postProjectFsBatchOp(
+    data: ProjectsData["PostProjectFsBatchOp"],
+  ): CancelablePromise<FsOpBatchResponse> {
+    const { ownerName, projectName, requestBody } = data
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/projects/{owner_name}/{project_name}/fs/ops/batch",
       path: {
         owner_name: ownerName,
         project_name: projectName,
