@@ -12,7 +12,7 @@ import app
 import app.projects
 from app import storage
 from app.api.deps import CurrentUserOptional, SessionDep
-from app.storage import get_data_prefix, get_object_fs, get_object_url
+from app.storage import get_object_url
 
 from .core import router
 
@@ -434,6 +434,8 @@ def post_project_fs_op_batch(
         if "content" in include:
             try:
                 content_bytes = fs.cat_file(full_path)
+                if isinstance(content_bytes, str):
+                    content_bytes = content_bytes.encode("utf-8")
                 path_result["content_base64"] = base64.b64encode(
                     content_bytes
                 ).decode("utf-8")
