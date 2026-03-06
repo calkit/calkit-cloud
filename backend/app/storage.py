@@ -4,11 +4,14 @@ import json
 import os
 from typing import Any, Literal
 
+import boto3
 import gcsfs
 import s3fs
-from app.config import settings
+from botocore.config import Config
 from google.cloud import storage as gcs
 from google.oauth2 import service_account as gcs_service_account
+
+from app.config import settings
 
 # Multipart/chunked upload configuration
 MULTIPART_THRESHOLD_BYTES = 64 * 1024 * 1024  # 64 MB
@@ -144,10 +147,33 @@ def _generate_multipart_urls(
         bucket, _, key = fpath[5:].partition("/")
     else:
         raise ValueError(f"Invalid S3 path: {fpath}")
-    # Access the underlying boto3 client
-    s3_client: Any = fs.s3
+    s3_config = Config(
+        signature_version="s3v4", s3={"addressing_style": "path"}
+    )
+    # Use an internal client for control-plane calls (create multipart upload)
+    control_client: Any = boto3.client(
+        "s3",
+        endpoint_url=fs.endpoint_url,
+        aws_access_key_id=fs.key,
+        aws_secret_access_key=fs.secret,
+        aws_session_token=fs.token,
+        config=s3_config,
+    )
+    # Sign URLs for the externally reachable host to avoid host/signature
+    # mismatch
+    presign_endpoint = fs.endpoint_url
+    if settings.ENVIRONMENT == "local":
+        presign_endpoint = f"http://objects.{settings.DOMAIN}"
+    presign_client: Any = boto3.client(
+        "s3",
+        endpoint_url=presign_endpoint,
+        aws_access_key_id=fs.key,
+        aws_secret_access_key=fs.secret,
+        aws_session_token=fs.token,
+        config=s3_config,
+    )
     # Initiate multipart upload
-    mpu = s3_client.create_multipart_upload(
+    mpu = control_client.create_multipart_upload(
         Bucket=bucket,
         Key=key,
         **({"ContentType": content_type} if content_type else {}),
@@ -156,7 +182,7 @@ def _generate_multipart_urls(
     # Generate presigned URLs for each part
     part_urls = []
     for part_number in range(1, estimated_part_count + 1):
-        part_url = s3_client.generate_presigned_url(
+        part_url = presign_client.generate_presigned_url(
             "upload_part",
             Params={
                 "Bucket": bucket,
@@ -166,9 +192,9 @@ def _generate_multipart_urls(
             },
             ExpiresIn=expires,
         )
-        part_urls.append(_replace_local_object_host(part_url))
+        part_urls.append(part_url)
     # Generate presigned URL for completing the multipart upload
-    complete_url = s3_client.generate_presigned_url(
+    complete_url = presign_client.generate_presigned_url(
         "complete_multipart_upload",
         Params={
             "Bucket": bucket,
@@ -177,9 +203,8 @@ def _generate_multipart_urls(
         },
         ExpiresIn=expires,
     )
-    complete_url = _replace_local_object_host(complete_url)
     # Generate presigned URL for aborting the multipart upload
-    abort_url = s3_client.generate_presigned_url(
+    abort_url = presign_client.generate_presigned_url(
         "abort_multipart_upload",
         Params={
             "Bucket": bucket,
@@ -188,7 +213,6 @@ def _generate_multipart_urls(
         },
         ExpiresIn=expires,
     )
-    abort_url = _replace_local_object_host(abort_url)
     return {
         "bucket": bucket,
         "key": key,
