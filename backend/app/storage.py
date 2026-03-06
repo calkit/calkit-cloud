@@ -214,7 +214,7 @@ def get_object_url(
     if fs is None:
         fs = get_object_fs()
     # Standard presigned URL
-    if settings.ENVIRONMENT == "local":
+    if isinstance(fs, s3fs.S3FileSystem):
         kws = {}
         if fname is not None:
             kws["ResponseContentDisposition"] = f"filename={fname}"
@@ -223,7 +223,7 @@ def get_object_url(
             elif fname.endswith(".html"):
                 kws["ResponseContentType"] = "text/html"
         kws["client_method"] = f"{method}_object"
-    else:
+    elif isinstance(fs, gcsfs.GCSFileSystem):
         kws = {}
         if fname is not None:
             kws["response_disposition"] = f"filename={fname}"
@@ -232,6 +232,8 @@ def get_object_url(
             elif fname.endswith(".html"):
                 kws["response_type"] = "text/html"
         kws["method"] = method.upper()
+    else:
+        raise ValueError("Unsupported filesystem type")
     signed_url = fs.sign(fpath, expiration=expires, **(kws | kwargs))
     if signed_url is None:
         raise RuntimeError("Failed to generate presigned URL")
@@ -279,6 +281,7 @@ def get_multipart_upload_info(
     elif isinstance(fs, gcsfs.GCSFileSystem):
         part_size = get_upload_chunk_size("gcs")
         estimated_part_count = (upload_size_bytes + part_size - 1) // part_size
+        init_headers = {"x-goog-resumable": "start"}
         # Try POST first (preferred), fall back to PUT
         http_method = "POST"
         try:
@@ -286,6 +289,7 @@ def get_multipart_upload_info(
                 fpath,
                 expiration=expires,
                 method="POST",
+                headers=init_headers,
             )
         except Exception:
             init_url = None
@@ -295,6 +299,7 @@ def get_multipart_upload_info(
                 fpath,
                 expiration=expires,
                 method="PUT",
+                headers=init_headers,
             )
         if init_url is None:
             raise RuntimeError("Failed to generate chunked init URL")

@@ -159,7 +159,6 @@ def post_project_fs_op(
     - Presigned URL for direct HTTP access
     - API credentials for indirect API access
     - Request delegation info for non-presigned flows
-
     """
     operation = req.operation
     path = req.path
@@ -352,6 +351,7 @@ def post_project_fs_op(
             )
     # Regular presigned PUT URL for smaller files
     else:
+        put_headers = None
         try:
             url = get_object_url(
                 fpath=full_path,
@@ -366,6 +366,7 @@ def post_project_fs_op(
         access = PresignedUrlAccess(
             url=url,
             http_method="PUT",
+            headers=put_headers,
         )
     return FsOpResponse(backend=backend, access=access)
 
