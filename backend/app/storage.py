@@ -4,11 +4,13 @@ import json
 import os
 from typing import Any, Literal
 
+import boto3
 import gcsfs
 import s3fs
-from app.config import settings
 from google.cloud import storage as gcs
 from google.oauth2 import service_account as gcs_service_account
+
+from app.config import settings
 
 # Multipart/chunked upload configuration
 MULTIPART_THRESHOLD_BYTES = 64 * 1024 * 1024  # 64 MB
@@ -144,8 +146,14 @@ def _generate_multipart_urls(
         bucket, _, key = fpath[5:].partition("/")
     else:
         raise ValueError(f"Invalid S3 path: {fpath}")
-    # Access the underlying boto3 client
-    s3_client: Any = fs.s3
+    # Use a boto3 client based on `fs` credentials to manage multipart upload,
+    # since s3fs doesn't expose multipart upload management directly
+    s3_client: Any = boto3.client(
+        "s3",
+        endpoint_url=fs.endpoint_url,
+        aws_access_key_id=fs.key,
+        aws_secret_access_key=fs.secret,
+    )
     # Initiate multipart upload
     mpu = s3_client.create_multipart_upload(
         Bucket=bucket,
