@@ -225,8 +225,8 @@ function ConnectedAccounts() {
             )}
           </HStack>
           <HStack mt={4}>
-            <Text>Google Drive:</Text>
-            {connectedAccountsQuery.data?.google_drive ? (
+            <Text>Google:</Text>
+            {connectedAccountsQuery.data?.google ? (
               <Icon as={FaCheck} color="green.500" />
             ) : (
               <Button variant="primary" size="sm" onClick={handleConnectGoogle}>

@@ -413,7 +413,7 @@ export const $ConnectedAccounts = {
       type: "boolean",
       isRequired: true,
     },
-    google_drive: {
+    google: {
       type: "boolean",
       isRequired: true,
     },
