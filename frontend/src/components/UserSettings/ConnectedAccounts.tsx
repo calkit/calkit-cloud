@@ -96,16 +96,13 @@ function ConnectedAccounts() {
 
   const disconnectAccountMutation = useMutation({
     mutationFn: (provider: string) => {
-      console.log("Disconnecting provider:", provider)
       return UsersService.deleteUserExternalCredential({ provider })
     },
     onSuccess: (_, provider) => {
-      console.log("Successfully disconnected:", provider)
       mixpanel.track("Disconnected account", { provider })
       showToast("Success!", `${provider} account disconnected.`, "success")
     },
     onError: (err: ApiError) => {
-      console.error("Disconnect error:", err)
       handleError(err, showToast)
     },
     onSettled: () => {
