@@ -520,35 +520,36 @@ class ConnectedAccounts(BaseModel):
 def get_user_connected_accounts(
     session: SessionDep, current_user: CurrentUser
 ) -> ConnectedAccounts:
-    # Check for new external credentials
-    github_cred = users.get_external_credential(
-        session=session,
-        user=current_user,
-        provider="github",
-    )
-    zenodo_cred = users.get_external_credential(
-        session=session,
-        user=current_user,
-        provider="zenodo",
-    )
-    overleaf_cred = users.get_external_credential(
-        session=session,
-        user=current_user,
-        provider="overleaf",
-    )
-    google_cred = users.get_external_credential(
-        session=session,
-        user=current_user,
-        provider="google",
+    # For OAuth providers, actually validate tokens work
+    # (triggers refresh/cleanup)
+    github_connected = False
+    try:
+        users.get_github_token(session=session, user=current_user)
+        github_connected = True
+    except HTTPException:
+        pass
+    zenodo_connected = False
+    try:
+        users.get_zenodo_token(session=session, user=current_user)
+        zenodo_connected = True
+    except HTTPException:
+        pass
+    google_connected = False
+    try:
+        users.get_google_token(session=session, user=current_user)
+        google_connected = True
+    except HTTPException:
+        pass
+    # Overleaf doesn't have refresh logic, just check if credential exists
+    overleaf_cred = current_user.get_external_credential(provider="overleaf")
+    overleaf_connected = (
+        overleaf_cred is not None or current_user.overleaf_token is not None
     )
     return ConnectedAccounts(
-        github=github_cred is not None
-        or current_user.github_token is not None,
-        zenodo=zenodo_cred is not None
-        or current_user.zenodo_token is not None,
-        overleaf=overleaf_cred is not None
-        or current_user.overleaf_token is not None,
-        google=google_cred is not None,
+        github=github_connected,
+        zenodo=zenodo_connected,
+        overleaf=overleaf_connected,
+        google=google_connected,
     )
 
 

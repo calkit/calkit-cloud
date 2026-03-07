@@ -377,7 +377,17 @@ def get_zenodo_token(session: Session, user: User) -> str:
             logger.error(
                 f"Failed to refresh Zenodo token for {user.email}: {msg}"
             )
-            raise HTTPException(resp.status_code, msg)
+            # Delete credential if refresh token is invalid
+            if zenodo_resp.get("error") == "invalid_grant":
+                logger.info(
+                    f"Deleting invalid Zenodo credential for {user.email}"
+                )
+                session.delete(credential)
+                session.commit()
+            raise HTTPException(
+                401,
+                "Zenodo token refresh failed. Please reconnect your account.",
+            )
         save_zenodo_token(session, user=user, zenodo_resp=zenodo_resp)
         # Re-fetch the updated credential
         credential = session.exec(query).first()
@@ -501,13 +511,29 @@ def get_google_token(session: Session, user: User) -> str:
                 msg = error_data.get(
                     "error_description", "Failed to refresh token"
                 )
+                error_code = error_data.get("error")
             except Exception:
                 msg = "Failed to refresh token"
+                error_code = None
             logger.error(
                 f"Failed to refresh Google token for {user.email}: {msg}"
             )
-            raise HTTPException(401, "Google token refresh failed")
+            # Delete credential if refresh token is invalid
+            if error_code in ["invalid_grant", "invalid_token"]:
+                logger.info(
+                    f"Deleting invalid Google credential for {user.email}"
+                )
+                session.delete(credential)
+                session.commit()
+            raise HTTPException(
+                401,
+                "Google token refresh failed. Please reconnect your account.",
+            )
         google_resp = resp.json()
+        # Preserve existing refresh_token if Google doesn't return a new one
+        if "refresh_token" not in google_resp:
+            tokens = json.loads(decrypt_secret(credential.secret_payload))
+            google_resp["refresh_token"] = tokens.get("refresh_token")
         save_google_token(session=session, user=user, google_resp=google_resp)
         # Re-fetch the updated credential
         credential = get_external_credential(

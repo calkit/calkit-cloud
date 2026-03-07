@@ -118,8 +118,8 @@ function ConnectedAccounts() {
       <Heading size="md" mb={4}>
         Connected accounts
       </Heading>
-      {connectedAccountsQuery.isPending || ghInstallQuery.isPending ? (
-        <Flex justify="center" align="center" height={"100vh"} width="full">
+      {connectedAccountsQuery.isPending ? (
+        <Flex justify="center" align="center" py={8}>
           <Spinner size="xl" color="ui.main" />
         </Flex>
       ) : (

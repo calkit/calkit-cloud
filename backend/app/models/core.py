@@ -210,6 +210,14 @@ class User(UserBase, table=True):
     def owned_projects(self) -> list["Project"]:
         return self.account.owned_projects
 
+    def get_external_credential(
+        self, provider: str, label: str = "default"
+    ) -> UserExternalCredential | None:
+        for cred in self.external_credentials:
+            if cred.provider == provider and cred.label == label:
+                return cred
+        return None
+
 
 # Properties to return via API, id is always required
 class UserPublic(UserBase):
