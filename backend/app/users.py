@@ -1,5 +1,6 @@
 """Functionality for working with users."""
 
+import json
 import logging
 from datetime import datetime, timedelta
 from typing import Any
@@ -20,10 +21,8 @@ from app.models import (
     UserCreate,
     UserExternalCredential,
     UserGitHubToken,
-    UserOverleafToken,
     UserSubscription,
     UserUpdate,
-    UserZenodoToken,
 )
 from app.security import (
     decrypt_secret,
@@ -190,31 +189,69 @@ def authenticate(
 
 
 def get_github_token(session: Session, user: User) -> str:
-    """Get a user's decrypted GitHub token, automatically refreshing if
-    necessary.
+    """Get a user's decrypted GitHub access token, automatically refreshing if
+    necessary. Tries new UserExternalCredential table first, falls back to
+    legacy UserGitHubToken.
     """
+    # Try new credential system first
     query = (
-        select(UserGitHubToken)
-        .where(UserGitHubToken.user_id == user.id)
+        select(UserExternalCredential)
+        .where(
+            UserExternalCredential.user_id == user.id,
+            UserExternalCredential.provider == "github",
+            UserExternalCredential.label == "default",
+        )
         .with_for_update()
     )
-    token = session.exec(query).first()
-    if token is None:
-        logger.info(f"{user.email} has no GitHub token")
-        raise HTTPException(401, "User needs to authenticate with GitHub")
-    # Refresh token if necessary
-    # Should also handle tokens that don't exist?
-    if (utcnow() + timedelta(minutes=30)) >= token.expires:  # type: ignore
-        # Make sure no other process is trying to refresh the token
-        # Lock the user token row
+    credential = session.exec(query).first()
+    # Fall back to legacy table if not in new system
+    if credential is None:
+        logger.info(
+            f"No UserExternalCredential for {user.email}, checking legacy table"
+        )
+        legacy_query = (
+            select(UserGitHubToken)
+            .where(UserGitHubToken.user_id == user.id)
+            .with_for_update()
+        )
+        legacy_token = session.exec(legacy_query).first()
+        if legacy_token is None:
+            logger.info(f"{user.email} has no GitHub token")
+            raise HTTPException(401, "User needs to authenticate with GitHub")
+        # Migrate from legacy to new system
+        logger.info(
+            f"Migrating {user.email} GitHub token to new credential system"
+        )
+        payload = json.dumps(
+            {
+                "access_token": decrypt_secret(legacy_token.access_token),
+                "refresh_token": decrypt_secret(legacy_token.refresh_token),
+            }
+        )
+        credential = save_external_credential(
+            session=session,
+            user=user,
+            provider="github",
+            secret_payload=payload,
+            credential_type="oauth2",
+            expires=legacy_token.expires,
+            refresh_token_expires=legacy_token.refresh_token_expires,
+        )
+    # Check if refresh needed
+    needs_refresh = (
+        credential.expires is not None
+        and (utcnow() + timedelta(minutes=30)) >= credential.expires
+    )
+    if needs_refresh:
         logger.info(f"Refreshing GitHub token for {user.email}")
+        tokens = json.loads(decrypt_secret(credential.secret_payload))
         resp = requests.post(
             "https://github.com/login/oauth/access_token",
             json=dict(
                 client_id=settings.GH_CLIENT_ID,
                 client_secret=settings.GH_CLIENT_SECRET,
                 grant_type="refresh_token",
-                refresh_token=decrypt_secret(token.refresh_token),
+                refresh_token=tokens["refresh_token"],
             ),
         )
         logger.info(f"GitHub token refresh status code: {resp.status_code}")
@@ -222,7 +259,7 @@ def get_github_token(session: Session, user: User) -> str:
         logger.info(
             f"GitHub token refresh response keys: {list(gh_resp.keys())}"
         )
-        # Handle failure, since all are 200 response codes
+        # Handle failure
         if "error" in gh_resp:
             msg = (
                 f"{gh_resp['error']}: "
@@ -231,78 +268,101 @@ def get_github_token(session: Session, user: User) -> str:
             logger.error(msg)
             if gh_resp["error"] == "bad_refresh_token":
                 logger.info(f"Bad refresh token for {user.email}")
-                logger.info(f"Deleting bad GitHub token for {user.email}")
-                session.delete(token)
+                logger.info(f"Deleting bad GitHub credential for {user.email}")
+                session.delete(credential)
                 session.commit()
             raise HTTPException(401, "GitHub token refresh failed")
-        # Save the newly refreshed token
-        now = utcnow()
-        expires = now + timedelta(seconds=int(gh_resp["expires_in"]))
-        rt_expires = now + timedelta(
-            seconds=int(gh_resp["refresh_token_expires_in"])
-        )
-        token.access_token = encrypt_secret(gh_resp["access_token"])
-        token.refresh_token = encrypt_secret(gh_resp["refresh_token"])
-        token.expires = expires
-        token.refresh_token_expires = rt_expires
-        token.updated = now
-        user.github_token = token
-        session.commit()
-    session.commit()
-    session.refresh(user.github_token)
-    return decrypt_secret(user.github_token.access_token)  # type: ignore
+        # Save refreshed token
+        save_github_token(session=session, user=user, github_resp=gh_resp)
+    tokens = json.loads(decrypt_secret(credential.secret_payload))
+    return tokens["access_token"]
 
 
 def save_github_token(
     session: Session, user: User, github_resp: dict
-) -> UserGitHubToken:
+) -> UserExternalCredential:
+    """Save GitHub OAuth token to new UserExternalCredential table."""
     now = utcnow()
     expires = now + timedelta(seconds=int(github_resp["expires_in"]))
     rt_expires = now + timedelta(
         seconds=int(github_resp["refresh_token_expires_in"])
     )
-    if user.github_token is None:
-        user.github_token = UserGitHubToken(
-            user_id=user.id,
-            access_token=encrypt_secret(github_resp["access_token"]),
-            refresh_token=encrypt_secret(github_resp["refresh_token"]),
-            expires=expires,
-            refresh_token_expires=rt_expires,
-        )
-    else:
-        user.github_token.access_token = encrypt_secret(
-            github_resp["access_token"]
-        )
-        user.github_token.refresh_token = encrypt_secret(
-            github_resp["refresh_token"]
-        )
-        user.github_token.expires = expires
-        user.github_token.refresh_token_expires = rt_expires
-        user.github_token.updated = now
-    session.add(user.github_token)
-    session.commit()
-    session.refresh(user.github_token)
-    return user.github_token
+    payload = json.dumps(
+        {
+            "access_token": github_resp["access_token"],
+            "refresh_token": github_resp["refresh_token"],
+        }
+    )
+    return save_external_credential(
+        session=session,
+        user=user,
+        provider="github",
+        secret_payload=payload,
+        credential_type="oauth2",
+        expires=expires,
+        refresh_token_expires=rt_expires,
+    )
 
 
 def get_zenodo_token(session: Session, user: User) -> str:
     """Get a user's decrypted Zenodo token, automatically refreshing if
-    necessary.
+    necessary. Tries new UserExternalCredential table first, falls back to
+    legacy UserZenodoToken.
     """
-    if user.zenodo_token is None:
-        raise HTTPException(401, "User needs to authenticate with Zenodo")
-    # Refresh token if necessary
-    # Should also handle tokens that don't exist?
-    # TODO: Use with_for_update
-    if user.zenodo_token.expires <= utcnow():  # type: ignore
+    # Try new credential system first
+    query = (
+        select(UserExternalCredential)
+        .where(
+            UserExternalCredential.user_id == user.id,
+            UserExternalCredential.provider == "zenodo",
+            UserExternalCredential.label == "default",
+        )
+        .with_for_update()
+    )
+    credential = session.exec(query).first()
+    # Fall back to legacy table if not in new system
+    if credential is None:
+        logger.info(
+            f"No UserExternalCredential for {user.email}, checking legacy "
+            "Zenodo table"
+        )
+        if user.zenodo_token is None:
+            raise HTTPException(401, "User needs to authenticate with Zenodo")
+        # Migrate from legacy to new system
+        logger.info(
+            f"Migrating {user.email} Zenodo token to new credential system"
+        )
+        payload = json.dumps(
+            {
+                "access_token": decrypt_secret(user.zenodo_token.access_token),
+                "refresh_token": decrypt_secret(
+                    user.zenodo_token.refresh_token
+                ),
+            }
+        )
+        credential = save_external_credential(
+            session=session,
+            user=user,
+            provider="zenodo",
+            secret_payload=payload,
+            credential_type="oauth2",
+            expires=user.zenodo_token.expires,
+            refresh_token_expires=user.zenodo_token.refresh_token_expires,
+        )
+    # Check if refresh needed
+    needs_refresh = (
+        credential.expires is not None and credential.expires <= utcnow()
+    )
+    if needs_refresh:
         logger.info(f"Refreshing Zenodo token for {user.email}")
+        tokens = json.loads(decrypt_secret(credential.secret_payload))
         resp = requests.post(
             ZENODO_AUTH_URL,
             data=dict(
                 client_id=settings.ZENODO_CLIENT_ID,
                 client_secret=settings.ZENODO_CLIENT_SECRET,
                 grant_type="refresh_token",
-                refresh_token=decrypt_secret(user.zenodo_token.refresh_token),
+                refresh_token=tokens["refresh_token"],
             ),
         )
         logger.info(f"Refreshed Zenodo token; status code: {resp.status_code}")
@@ -318,59 +378,90 @@ def get_zenodo_token(session: Session, user: User) -> str:
                 f"Failed to refresh Zenodo token for {user.email}: {msg}"
             )
             raise HTTPException(resp.status_code, msg)
-        save_zenodo_token(
-            session,
-            user=user,
-            zenodo_resp=zenodo_resp,
-        )
-    return decrypt_secret(user.zenodo_token.access_token)
+        save_zenodo_token(session, user=user, zenodo_resp=zenodo_resp)
+        # Re-fetch the updated credential
+        credential = session.exec(query).first()
+        if credential is None:
+            raise HTTPException(500, "Failed to save Zenodo token")
+    tokens = json.loads(decrypt_secret(credential.secret_payload))
+    return tokens["access_token"]
 
 
 def save_zenodo_token(session: Session, user: User, zenodo_resp: dict):
+    """Save Zenodo OAuth token to new UserExternalCredential table."""
     now = utcnow()
     expires = now + timedelta(seconds=int(zenodo_resp["expires_in"]))
-    if user.zenodo_token is None:
-        user.zenodo_token = UserZenodoToken(
-            user_id=user.id,
-            access_token=encrypt_secret(zenodo_resp["access_token"]),
-            refresh_token=encrypt_secret(zenodo_resp["refresh_token"]),
-            expires=expires,
-        )  # type: ignore
-    else:
-        user.zenodo_token.access_token = encrypt_secret(
-            zenodo_resp["access_token"]
-        )
-        user.zenodo_token.refresh_token = encrypt_secret(
-            zenodo_resp["refresh_token"]
-        )
-        user.zenodo_token.expires = expires
-        user.zenodo_token.updated = now
-    session.add(user.zenodo_token)
-    session.commit()
-    session.refresh(user.zenodo_token)
+    payload = json.dumps(
+        {
+            "access_token": zenodo_resp["access_token"],
+            "refresh_token": zenodo_resp["refresh_token"],
+        }
+    )
+    save_external_credential(
+        session=session,
+        user=user,
+        provider="zenodo",
+        secret_payload=payload,
+        credential_type="oauth2",
+        expires=expires,
+    )
 
 
 def get_overleaf_token(session: Session, user: User) -> str:
-    if user.overleaf_token is None:
-        raise HTTPException(404, "User has no Overleaf token saved")
-    return decrypt_secret(user.overleaf_token.access_token)
+    """Get a user's decrypted Overleaf token. Tries new UserExternalCredential
+    table first, falls back to legacy UserOverleafToken.
+    """
+    # Try new credential system first
+    credential = get_external_credential(
+        session=session,
+        user=user,
+        provider="overleaf",
+        label="default",
+    )
+    # Fall back to legacy table if not in new system
+    if credential is None:
+        logger.info(
+            f"No UserExternalCredential for {user.email}, checking legacy "
+            "Overleaf table"
+        )
+        if user.overleaf_token is None:
+            raise HTTPException(404, "User has no Overleaf token saved")
+        # Migrate from legacy to new system
+        logger.info(
+            f"Migrating {user.email} Overleaf token to new credential system"
+        )
+        payload = json.dumps(
+            {
+                "access_token": decrypt_secret(
+                    user.overleaf_token.access_token
+                ),
+            }
+        )
+        credential = save_external_credential(
+            session=session,
+            user=user,
+            provider="overleaf",
+            secret_payload=payload,
+            credential_type="pat",
+            expires=user.overleaf_token.expires,
+        )
+    tokens = json.loads(decrypt_secret(credential.secret_payload))
+    return tokens["access_token"]
 
 
 def save_overleaf_token(
     session: Session, user: User, token: str, expires: datetime | None
 ):
-    if user.overleaf_token is None:
-        user.overleaf_token = UserOverleafToken(
-            user_id=user.id,
-            access_token=encrypt_secret(token),
-            expires=expires,
-        )
-    else:
-        user.overleaf_token.access_token = encrypt_secret(token)
-        user.overleaf_token.expires = expires
-    session.add(user.overleaf_token)
-    session.commit()
-    session.refresh(user.overleaf_token)
+    """Save Overleaf PAT to new UserExternalCredential table."""
+    payload = json.dumps({"access_token": token})
+    save_external_credential(
+        session=session,
+        user=user,
+        provider="overleaf",
+        secret_payload=payload,
+        credential_type="pat",
+        expires=expires,
+    )
 
 
 def check_user_subscription_active(session: Session, user: User) -> bool:
