@@ -18,6 +18,7 @@ from app.models import (
     Account,
     User,
     UserCreate,
+    UserExternalCredential,
     UserGitHubToken,
     UserOverleafToken,
     UserSubscription,
@@ -34,6 +35,86 @@ from app.zenodo import AUTH_URL as ZENODO_AUTH_URL
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+def get_external_credential(
+    session: Session,
+    user: User,
+    provider: str,
+    label: str = "default",
+) -> UserExternalCredential | None:
+    statement = select(UserExternalCredential).where(
+        UserExternalCredential.user_id == user.id,
+        UserExternalCredential.provider == provider,
+        UserExternalCredential.label == label,
+    )
+    return session.exec(statement).first()
+
+
+def get_external_secret_payload(
+    session: Session,
+    user: User,
+    provider: str,
+    label: str = "default",
+) -> str:
+    credential = get_external_credential(
+        session=session,
+        user=user,
+        provider=provider,
+        label=label,
+    )
+    if credential is None:
+        raise HTTPException(404, f"No {provider} credential found")
+    return decrypt_secret(credential.secret_payload)
+
+
+def save_external_credential(
+    session: Session,
+    user: User,
+    provider: str,
+    secret_payload: str,
+    *,
+    credential_type: str = "oauth2",
+    label: str = "default",
+    scopes: str | None = None,
+    provider_account_id: str | None = None,
+    metadata_json: dict[str, Any] | None = None,
+    expires: datetime | None = None,
+    refresh_token_expires: datetime | None = None,
+) -> UserExternalCredential:
+    now = utcnow()
+    credential = get_external_credential(
+        session=session,
+        user=user,
+        provider=provider,
+        label=label,
+    )
+    if credential is None:
+        credential = UserExternalCredential(
+            user_id=user.id,
+            provider=provider,
+            credential_type=credential_type,
+            label=label,
+            secret_payload=encrypt_secret(secret_payload),
+            scopes=scopes,
+            provider_account_id=provider_account_id,
+            metadata_json=metadata_json,
+            expires=expires,
+            refresh_token_expires=refresh_token_expires,
+        )
+    else:
+        credential.credential_type = credential_type
+        credential.secret_payload = encrypt_secret(secret_payload)
+        credential.scopes = scopes
+        credential.provider_account_id = provider_account_id
+        credential.metadata_json = metadata_json
+        credential.expires = expires
+        credential.refresh_token_expires = refresh_token_expires
+        credential.updated = now
+    session.add(credential)
+    session.commit()
+    session.refresh(credential)
+    return credential
 
 
 def create_user(*, session: Session, user_create: UserCreate) -> User:
