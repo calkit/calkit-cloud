@@ -13,7 +13,7 @@ import {
 } from "@chakra-ui/react"
 import mixpanel from "mixpanel-browser"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { FaCheck, FaPlus, FaTimes } from "react-icons/fa"
+import { FaCheck, FaPlus, FaTimes, FaTrash } from "react-icons/fa"
 import { MdEdit } from "react-icons/md"
 import { useState } from "react"
 
@@ -60,6 +60,7 @@ function ConnectedAccounts() {
       `&state=${googleAuthStateParam}` +
       `&scope=${encodeURIComponent(scope)}` +
       "&access_type=offline" +
+      "&prompt=consent" +
       "&response_type=code" +
       `&redirect_uri=${encodeURIComponent(getGoogleRedirectUri())}`
   }
@@ -84,6 +85,27 @@ function ConnectedAccounts() {
       setOverleafToken("")
     },
     onError: (err: ApiError) => {
+      handleError(err, showToast)
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["user", "connected-accounts"],
+      })
+    },
+  })
+
+  const disconnectAccountMutation = useMutation({
+    mutationFn: (provider: string) => {
+      console.log("Disconnecting provider:", provider)
+      return UsersService.deleteUserExternalCredential({ provider })
+    },
+    onSuccess: (_, provider) => {
+      console.log("Successfully disconnected:", provider)
+      mixpanel.track("Disconnected account", { provider })
+      showToast("Success!", `${provider} account disconnected.`, "success")
+    },
+    onError: (err: ApiError) => {
+      console.error("Disconnect error:", err)
       handleError(err, showToast)
     },
     onSettled: () => {
@@ -160,7 +182,18 @@ function ConnectedAccounts() {
           <HStack mt={4}>
             <Text>Zenodo:</Text>
             {connectedAccountsQuery.data?.zenodo ? (
-              <Icon as={FaCheck} color="green.500" />
+              <>
+                <Icon as={FaCheck} color="green.500" />
+                <IconButton
+                  aria-label="Disconnect Zenodo"
+                  icon={<FaTrash />}
+                  size="xs"
+                  variant="ghost"
+                  colorScheme="red"
+                  onClick={() => disconnectAccountMutation.mutate("zenodo")}
+                  isLoading={disconnectAccountMutation.isPending}
+                />
+              </>
             ) : (
               <Button variant="primary" size="sm" onClick={handleConnectZenodo}>
                 Connect
@@ -203,15 +236,29 @@ function ConnectedAccounts() {
                     />
                   </>
                 ) : (
-                  <IconButton
-                    aria-label="Edit token"
-                    icon={<MdEdit />}
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => setIsEditingOverleaf(true)}
-                    p={-1}
-                    ml={-1}
-                  />
+                  <>
+                    <IconButton
+                      aria-label="Edit token"
+                      icon={<MdEdit />}
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setIsEditingOverleaf(true)}
+                      p={-1}
+                      ml={-1}
+                      mr={-3}
+                    />
+                    <IconButton
+                      aria-label="Disconnect Overleaf"
+                      icon={<FaTrash />}
+                      size="xs"
+                      variant="ghost"
+                      colorScheme="red"
+                      onClick={() =>
+                        disconnectAccountMutation.mutate("overleaf")
+                      }
+                      isLoading={disconnectAccountMutation.isPending}
+                    />
+                  </>
                 )}
               </>
             ) : (
@@ -227,7 +274,18 @@ function ConnectedAccounts() {
           <HStack mt={4}>
             <Text>Google:</Text>
             {connectedAccountsQuery.data?.google ? (
-              <Icon as={FaCheck} color="green.500" />
+              <>
+                <Icon as={FaCheck} color="green.500" />
+                <IconButton
+                  aria-label="Disconnect Google"
+                  icon={<FaTrash />}
+                  size="xs"
+                  variant="ghost"
+                  colorScheme="red"
+                  onClick={() => disconnectAccountMutation.mutate("google")}
+                  isLoading={disconnectAccountMutation.isPending}
+                />
+              </>
             ) : (
               <Button variant="primary" size="sm" onClick={handleConnectGoogle}>
                 Connect

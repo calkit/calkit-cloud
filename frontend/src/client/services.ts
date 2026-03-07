@@ -174,6 +174,9 @@ export type UsersData = {
     code: string
     redirectUri: string
   }
+  DeleteUserExternalCredential: {
+    provider: string
+  }
 }
 
 export type MiscData = {
@@ -1172,6 +1175,28 @@ export class UsersService {
       query: {
         code,
         redirect_uri: redirectUri,
+      },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Delete User External Credential
+   * Disconnect an external account by deleting its credential.
+   * @returns Message Successful Response
+   * @throws ApiError
+   */
+  public static deleteUserExternalCredential(
+    data: UsersData["DeleteUserExternalCredential"],
+  ): CancelablePromise<Message> {
+    const { provider } = data
+    return __request(OpenAPI, {
+      method: "DELETE",
+      url: "/user/external-credentials/{provider}",
+      path: {
+        provider,
       },
       errors: {
         422: `Validation Error`,

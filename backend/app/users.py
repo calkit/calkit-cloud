@@ -496,7 +496,7 @@ def get_google_token(session: Session, user: User) -> str:
         tokens = json.loads(decrypt_secret(credential.secret_payload))
         resp = requests.post(
             "https://oauth2.googleapis.com/token",
-            json=dict(
+            data=dict(
                 client_id=settings.GOOGLE_CLIENT_ID,
                 client_secret=settings.GOOGLE_CLIENT_SECRET,
                 grant_type="refresh_token",
@@ -549,15 +549,36 @@ def get_google_token(session: Session, user: User) -> str:
 
 
 def save_google_token(session: Session, user: User, google_resp: dict):
-    """Save Google OAuth token to UserExternalCredential table."""
+    """Save Google OAuth token to UserExternalCredential table.
+
+    Preserves existing refresh_token when Google doesn't return a new one
+    (Google often omits refresh_token on subsequent authorizations).
+    """
     now = utcnow()
     # Google's expires_in is in seconds
     expires = now + timedelta(seconds=int(google_resp["expires_in"]))
-    # Only refresh_token is optional in Google's response (only on first auth)
+    # Preserve existing refresh_token if not provided in response
+    refresh_token = google_resp.get("refresh_token")
+    if not refresh_token:
+        # Try to get existing refresh_token
+        existing_cred = get_external_credential(
+            session=session,
+            user=user,
+            provider="google",
+            label="default",
+        )
+        if existing_cred:
+            try:
+                existing_tokens = json.loads(
+                    decrypt_secret(existing_cred.secret_payload)
+                )
+                refresh_token = existing_tokens.get("refresh_token")
+            except Exception:
+                pass
     payload = json.dumps(
         {
             "access_token": google_resp["access_token"],
-            "refresh_token": google_resp.get("refresh_token"),
+            "refresh_token": refresh_token,
         }
     )
     save_external_credential(

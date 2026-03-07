@@ -560,9 +560,7 @@ def post_user_zenodo_auth(
     code: str,
     redirect_uri: str,
 ) -> Message:
-    logger.info(
-        f"Received request to authenticate with Zenodo using code: {code}"
-    )
+    logger.info(f"Received Zenodo auth request for user {current_user.email}")
     body = dict(
         client_id=settings.ZENODO_CLIENT_ID,
         client_secret=settings.ZENODO_CLIENT_SECRET,
@@ -648,9 +646,7 @@ def post_user_google_auth(
     redirect_uri: str,
 ) -> Message:
     """Authenticate with Google using authorization code."""
-    logger.info(
-        f"Received request to authenticate with Google using code: {code}"
-    )
+    logger.info(f"Received Google auth request for user {current_user.email}")
     body = dict(
         client_id=settings.GOOGLE_CLIENT_ID,
         client_secret=settings.GOOGLE_CLIENT_SECRET,
@@ -659,7 +655,7 @@ def post_user_google_auth(
         redirect_uri=redirect_uri,
     )
     url = "https://oauth2.googleapis.com/token"
-    resp = requests.post(url, json=body)
+    resp = requests.post(url, data=body)
     logger.info(f"Google response status code: {resp.status_code}")
     if resp.status_code != 200:
         try:
@@ -683,6 +679,32 @@ def get_user_overleaf_token(
 ) -> ExternalTokenResponse:
     token = users.get_overleaf_token(session=session, user=current_user)
     return ExternalTokenResponse(access_token=token)
+
+
+@router.delete("/user/external-credentials/{provider}")
+def delete_user_external_credential(
+    session: SessionDep, current_user: CurrentUser, provider: str
+) -> Message:
+    """Disconnect an external account by deleting its credential."""
+    if provider == "github":
+        raise HTTPException(
+            403, "Cannot disconnect GitHub as it is your login method"
+        )
+    credential = users.get_external_credential(
+        session=session,
+        user=current_user,
+        provider=provider,
+        label="default",
+    )
+    if credential:
+        session.delete(credential)
+    # Also delete legacy tokens if they exist
+    if provider == "zenodo" and current_user.zenodo_token:
+        session.delete(current_user.zenodo_token)
+    elif provider == "overleaf" and current_user.overleaf_token:
+        session.delete(current_user.overleaf_token)
+    session.commit()
+    return Message(message=f"{provider.capitalize()} account disconnected")
 
 
 @router.get("/user/storage")
