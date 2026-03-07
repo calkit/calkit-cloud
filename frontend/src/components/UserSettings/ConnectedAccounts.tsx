@@ -22,6 +22,11 @@ import {
   getZenodoRedirectUri,
   getZenodoAuthUrl,
 } from "../../lib/zenodo"
+import {
+  googleAuthStateParam,
+  getGoogleRedirectUri,
+  getGoogleAuthUrl,
+} from "../../lib/google"
 import { UsersService, type ApiError, type TokenPut } from "../../client"
 import UpdateOverleafToken from "./UpdateOverleafToken"
 import { appName } from "../../lib/core"
@@ -30,6 +35,7 @@ import { handleError } from "../../lib/errors"
 
 function ConnectedAccounts() {
   const clientId = import.meta.env.VITE_ZENODO_CLIENT_ID
+  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
   const queryClient = useQueryClient()
   const showToast = useCustomToast()
   const [isEditingOverleaf, setIsEditingOverleaf] = useState(false)
@@ -43,6 +49,19 @@ function ConnectedAccounts() {
       `&state=${zenodoAuthStateParam}` +
       "&scope=deposit%3Awrite+deposit%3Aactions&response_type=code" +
       `&redirect_uri=${encodeURIComponent(getZenodoRedirectUri())}`
+  }
+
+  const handleConnectGoogle = () => {
+    mixpanel.track("Clicked connect Google Drive")
+    // Google Drive API scope
+    const scope = "https://www.googleapis.com/auth/drive.file"
+    location.href =
+      `${getGoogleAuthUrl()}?client_id=${googleClientId}` +
+      `&state=${googleAuthStateParam}` +
+      `&scope=${encodeURIComponent(scope)}` +
+      "&access_type=offline" +
+      "&response_type=code" +
+      `&redirect_uri=${encodeURIComponent(getGoogleRedirectUri())}`
   }
   const connectedAccountsQuery = useQuery({
     queryFn: () => UsersService.getUserConnectedAccounts(),
@@ -201,6 +220,16 @@ function ConnectedAccounts() {
                 size="sm"
                 onClick={overleafTokenModal.onOpen}
               >
+                Connect
+              </Button>
+            )}
+          </HStack>
+          <HStack mt={4}>
+            <Text>Google Drive:</Text>
+            {connectedAccountsQuery.data?.google_drive ? (
+              <Icon as={FaCheck} color="green.500" />
+            ) : (
+              <Button variant="primary" size="sm" onClick={handleConnectGoogle}>
                 Connect
               </Button>
             )}

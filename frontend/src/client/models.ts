@@ -84,6 +84,7 @@ export type ConnectedAccounts = {
   github: boolean
   zenodo: boolean
   overleaf: boolean
+  google_drive: boolean
 }
 
 export type ContentPatch = {
