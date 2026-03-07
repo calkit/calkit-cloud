@@ -574,7 +574,12 @@ def post_user_zenodo_auth(
     resp = requests.post(url, data=body)
     logger.info(f"Zenodo response status code: {resp.status_code}")
     if resp.status_code != 200:
-        raise HTTPException(resp.status_code)
+        try:
+            error_msg = resp.json().get("error_description", resp.text)
+        except Exception:
+            error_msg = resp.text
+        logger.error(f"Zenodo auth failed: {error_msg}")
+        raise HTTPException(resp.status_code, error_msg)
     resp_json = resp.json()
     # Response should have these keys
     # - access_token

@@ -4,8 +4,10 @@ import { z } from "zod"
 import { useEffect, useRef } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 
-import { UsersService } from "../client"
+import { UsersService, type ApiError } from "../client"
 import { getZenodoRedirectUri, zenodoAuthStateParam } from "../lib/zenodo"
+import useCustomToast from "../hooks/useCustomToast"
+import { handleError } from "../lib/errors"
 
 const authParamsSchema = z.object({
   code: z.string(),
@@ -20,17 +22,26 @@ export const Route = createFileRoute("/zenodo-auth")({
 function ZenodoAuth() {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
+  const showToast = useCustomToast()
   const zenodoAuthMutation = useMutation({
     mutationFn: (code: string) =>
       UsersService.postUserZenodoAuth({
         code: code,
         redirectUri: getZenodoRedirectUri(),
       }),
-    onSettled: () => {
+    onSuccess: () => {
+      showToast("Success!", "Zenodo account connected successfully.", "success")
       queryClient.invalidateQueries({
         queryKey: ["user", "connected-accounts"],
       })
       navigate({ to: "/settings", search: { tab: "profile" } })
+    },
+    onError: (err: ApiError) => {
+      handleError(err, showToast)
+      // Still navigate back after showing error
+      setTimeout(() => {
+        navigate({ to: "/settings", search: { tab: "profile" } })
+      }, 2000)
     },
   })
   const { code: zenodoAuthCode, state: zenodoAuthStateRecv } = Route.useSearch()
