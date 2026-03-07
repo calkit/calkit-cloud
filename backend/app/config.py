@@ -133,6 +133,9 @@ class Settings(BaseSettings):
     # Zenodo
     ZENODO_CLIENT_ID: str
     ZENODO_CLIENT_SECRET: str
+    # Google
+    GOOGLE_CLIENT_ID: str
+    GOOGLE_CLIENT_SECRET: str
 
     def _check_default_secret(self, var_name: str, value: str | None) -> None:
         if value == "changethis":

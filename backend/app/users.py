@@ -388,7 +388,7 @@ def get_zenodo_token(session: Session, user: User) -> str:
 
 
 def save_zenodo_token(session: Session, user: User, zenodo_resp: dict):
-    """Save Zenodo OAuth token to new UserExternalCredential table."""
+    """Save Zenodo OAuth token to UserExternalCredential table."""
     now = utcnow()
     expires = now + timedelta(seconds=int(zenodo_resp["expires_in"]))
     payload = json.dumps(
@@ -452,7 +452,7 @@ def get_overleaf_token(session: Session, user: User) -> str:
 def save_overleaf_token(
     session: Session, user: User, token: str, expires: datetime | None
 ):
-    """Save Overleaf PAT to new UserExternalCredential table."""
+    """Save Overleaf PAT to UserExternalCredential table."""
     payload = json.dumps({"access_token": token})
     save_external_credential(
         session=session,
@@ -460,6 +460,86 @@ def save_overleaf_token(
         provider="overleaf",
         secret_payload=payload,
         credential_type="pat",
+        expires=expires,
+    )
+
+
+def get_google_token(session: Session, user: User) -> str:
+    """Get a user's decrypted Google access token, automatically refreshing if
+    necessary.
+    """
+    credential = get_external_credential(
+        session=session,
+        user=user,
+        provider="google",
+        label="default",
+    )
+    if credential is None:
+        raise HTTPException(401, "User needs to authenticate with Google")
+    # Check if refresh needed
+    needs_refresh = (
+        credential.expires is not None
+        and (utcnow() + timedelta(minutes=5)) >= credential.expires
+    )
+    if needs_refresh:
+        logger.info(f"Refreshing Google token for {user.email}")
+        tokens = json.loads(decrypt_secret(credential.secret_payload))
+        resp = requests.post(
+            "https://oauth2.googleapis.com/token",
+            json=dict(
+                client_id=settings.GOOGLE_CLIENT_ID,
+                client_secret=settings.GOOGLE_CLIENT_SECRET,
+                grant_type="refresh_token",
+                refresh_token=tokens["refresh_token"],
+            ),
+        )
+        logger.info(f"Google token refresh status code: {resp.status_code}")
+        # Handle failure
+        if resp.status_code != 200:
+            try:
+                error_data = resp.json()
+                msg = error_data.get(
+                    "error_description", "Failed to refresh token"
+                )
+            except Exception:
+                msg = "Failed to refresh token"
+            logger.error(
+                f"Failed to refresh Google token for {user.email}: {msg}"
+            )
+            raise HTTPException(401, "Google token refresh failed")
+        google_resp = resp.json()
+        save_google_token(session=session, user=user, google_resp=google_resp)
+        # Re-fetch the updated credential
+        credential = get_external_credential(
+            session=session,
+            user=user,
+            provider="google",
+            label="default",
+        )
+        if credential is None:
+            raise HTTPException(500, "Failed to save Google token")
+    tokens = json.loads(decrypt_secret(credential.secret_payload))
+    return tokens["access_token"]
+
+
+def save_google_token(session: Session, user: User, google_resp: dict):
+    """Save Google OAuth token to UserExternalCredential table."""
+    now = utcnow()
+    # Google's expires_in is in seconds
+    expires = now + timedelta(seconds=int(google_resp["expires_in"]))
+    # Only refresh_token is optional in Google's response (only on first auth)
+    payload = json.dumps(
+        {
+            "access_token": google_resp["access_token"],
+            "refresh_token": google_resp.get("refresh_token"),
+        }
+    )
+    save_external_credential(
+        session=session,
+        user=user,
+        provider="google",
+        secret_payload=payload,
+        credential_type="oauth2",
         expires=expires,
     )
 

@@ -513,16 +513,42 @@ class ConnectedAccounts(BaseModel):
     github: bool
     zenodo: bool
     overleaf: bool
+    google: bool
 
 
 @router.get("/user/connected-accounts")
 def get_user_connected_accounts(
     session: SessionDep, current_user: CurrentUser
 ) -> ConnectedAccounts:
+    # Check for new external credentials
+    github_cred = users.get_external_credential(
+        session=session,
+        user=current_user,
+        provider="github",
+    )
+    zenodo_cred = users.get_external_credential(
+        session=session,
+        user=current_user,
+        provider="zenodo",
+    )
+    overleaf_cred = users.get_external_credential(
+        session=session,
+        user=current_user,
+        provider="overleaf",
+    )
+    google_cred = users.get_external_credential(
+        session=session,
+        user=current_user,
+        provider="google",
+    )
     return ConnectedAccounts(
-        github=current_user.github_token is not None,
-        zenodo=current_user.zenodo_token is not None,
-        overleaf=current_user.overleaf_token is not None,
+        github=github_cred is not None
+        or current_user.github_token is not None,
+        zenodo=zenodo_cred is not None
+        or current_user.zenodo_token is not None,
+        overleaf=overleaf_cred is not None
+        or current_user.overleaf_token is not None,
+        google=google_cred is not None,
     )
 
 
@@ -606,6 +632,43 @@ def put_user_overleaf_token(
         expires=req.expires,
     )
     return Message(message="Token saved successfully")
+
+
+@router.post("/user/google-auth")
+def post_user_google_auth(
+    session: SessionDep,
+    current_user: CurrentUser,
+    code: str,
+    redirect_uri: str,
+) -> Message:
+    """Authenticate with Google using authorization code."""
+    logger.info(
+        f"Received request to authenticate with Google using code: {code}"
+    )
+    body = dict(
+        client_id=settings.GOOGLE_CLIENT_ID,
+        client_secret=settings.GOOGLE_CLIENT_SECRET,
+        grant_type="authorization_code",
+        code=code,
+        redirect_uri=redirect_uri,
+    )
+    url = "https://oauth2.googleapis.com/token"
+    resp = requests.post(url, json=body)
+    logger.info(f"Google response status code: {resp.status_code}")
+    if resp.status_code != 200:
+        try:
+            error_data = resp.json()
+            msg = error_data.get("error_description", "Failed to authenticate")
+        except Exception:
+            msg = "Failed to authenticate with Google"
+        logger.error(f"Google auth failed: {msg}")
+        raise HTTPException(resp.status_code, msg)
+    google_resp = resp.json()
+    logger.info("Saving Google token")
+    users.save_google_token(
+        session=session, user=current_user, google_resp=google_resp
+    )
+    return Message(message="success")
 
 
 @router.get("/user/overleaf-token")
