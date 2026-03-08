@@ -1,4 +1,4 @@
-# FastAPI Project - Backend
+# Calkit Cloud backend
 
 ## Requirements
 
@@ -7,21 +7,22 @@
 
 ## Local Development
 
-* Start the stack with Docker Compose:
+Start the stack with Docker Compose from the root of the repo:
 
 ```bash
-docker compose up -d
+make dev
 ```
 
-* Now you can open your browser and interact with these URLs:
+Now you can open your browser and interact with these URLs:
 
-Frontend, built with Docker, with routes handled based on the path: http://localhost
+Frontend, built with Docker, with routes handled based on the path:
+http://localhost:5173
 
 Backend, JSON based web API based on OpenAPI: http://api.localhost
 
-Automatic interactive documentation with Swagger UI (from the OpenAPI backend): http://localhost/docs
+Automatic interactive documentation with Swagger UI (from the OpenAPI backend): http://api.localhost/docs
 
-Adminer, database web administration: http://localhost:8080
+Adminer, database web administration: http://adminer.localhost
 
 Traefik UI, to see how the routes are being handled by the proxy: http://localhost:8090
 
@@ -39,7 +40,8 @@ To check the logs of a specific service, add the name of the service, e.g.:
 docker compose logs backend
 ```
 
-If your Docker is not running in `localhost` (the URLs above wouldn't work) you would need to use the IP or domain where your Docker is running.
+If your Docker is not running in `localhost` (the URLs above wouldn't work)
+you would need to use the IP or domain where your Docker is running.
 
 ## Backend local development, additional details
 
@@ -198,3 +200,32 @@ $ alembic upgrade head
 ```
 
 If you don't want to start with the default models and want to remove them / modify them, from the beginning, without having any previous revision, you can remove the revision files (`.py` Python files) under `./backend/app/alembic/versions/`. And then create a first migration as described above.
+
+## Secret key rotation (Fernet)
+
+Secrets are encrypted before being persisted in the database.
+A safe rotation pattern is:
+
+1. Generate a new Fernet key.
+2. Set `FERNET_KEYS` with the new key first and old key(s) after it
+   (comma-separated)
+3. Run a dry run:
+
+```bash
+python scripts/rotate-fernet-secrets.py --dry-run
+```
+
+4. Run the actual rewrite:
+
+```bash
+python scripts/rotate-fernet-secrets.py
+```
+
+5. After confirming everything still decrypts, remove old keys from
+`FERNET_KEYS`.
+
+Notes:
+
+- `FERNET_KEYS` is a comma-separated key list.
+- The first key is used for encryption.
+- Decryption attempts all configured keys in order.

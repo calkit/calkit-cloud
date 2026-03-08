@@ -32,6 +32,9 @@ class Settings(BaseSettings):
     API_V1_STR: str = ""
     SECRET_KEY: str = secrets.token_urlsafe(32)
     FERNET_KEY: str  # Can be generated with Fernet.generate_key()
+    # Optional comma-separated list of keys for decryption fallback.
+    # First key is treated as the active key for encryption.
+    FERNET_KEYS: str | None = None
     # 60 minutes * 24 hours * 8 days = 8 days
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8
     DOMAIN: str = "localhost"
@@ -55,6 +58,17 @@ class Settings(BaseSettings):
         # Otherwise, use the same as server_host
         return self.server_host
 
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def fernet_keys(self) -> list[str]:
+        if self.FERNET_KEYS:
+            keys = [
+                k.strip() for k in self.FERNET_KEYS.split(",") if k.strip()
+            ]
+            if keys:
+                return keys
+        return [self.FERNET_KEY]
+
     BACKEND_CORS_ORIGINS: Annotated[
         list[AnyUrl] | str, BeforeValidator(parse_cors)
     ] = []
@@ -76,7 +90,7 @@ class Settings(BaseSettings):
             host=self.POSTGRES_SERVER,
             port=self.POSTGRES_PORT,
             path=self.POSTGRES_DB,
-        )
+        )  # type: ignore
 
     SMTP_TLS: bool = True
     SMTP_SSL: bool = False
@@ -119,6 +133,9 @@ class Settings(BaseSettings):
     # Zenodo
     ZENODO_CLIENT_ID: str
     ZENODO_CLIENT_SECRET: str
+    # Google
+    GOOGLE_CLIENT_ID: str
+    GOOGLE_CLIENT_SECRET: str
 
     def _check_default_secret(self, var_name: str, value: str | None) -> None:
         if value == "changethis":

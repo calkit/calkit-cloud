@@ -13,7 +13,7 @@ import {
 } from "@chakra-ui/react"
 import mixpanel from "mixpanel-browser"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { FaCheck, FaPlus, FaTimes } from "react-icons/fa"
+import { FaCheck, FaPlus, FaTimes, FaTrash } from "react-icons/fa"
 import { MdEdit } from "react-icons/md"
 import { useState } from "react"
 
@@ -22,6 +22,11 @@ import {
   getZenodoRedirectUri,
   getZenodoAuthUrl,
 } from "../../lib/zenodo"
+import {
+  googleAuthStateParam,
+  getGoogleRedirectUri,
+  getGoogleAuthUrl,
+} from "../../lib/google"
 import { UsersService, type ApiError, type TokenPut } from "../../client"
 import UpdateOverleafToken from "./UpdateOverleafToken"
 import { appName } from "../../lib/core"
@@ -30,6 +35,7 @@ import { handleError } from "../../lib/errors"
 
 function ConnectedAccounts() {
   const clientId = import.meta.env.VITE_ZENODO_CLIENT_ID
+  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
   const queryClient = useQueryClient()
   const showToast = useCustomToast()
   const [isEditingOverleaf, setIsEditingOverleaf] = useState(false)
@@ -43,6 +49,20 @@ function ConnectedAccounts() {
       `&state=${zenodoAuthStateParam}` +
       "&scope=deposit%3Awrite+deposit%3Aactions&response_type=code" +
       `&redirect_uri=${encodeURIComponent(getZenodoRedirectUri())}`
+  }
+
+  const handleConnectGoogle = () => {
+    mixpanel.track("Clicked connect Google Drive")
+    // Google Drive API scope
+    const scope = "https://www.googleapis.com/auth/drive.file"
+    location.href =
+      `${getGoogleAuthUrl()}?client_id=${googleClientId}` +
+      `&state=${googleAuthStateParam}` +
+      `&scope=${encodeURIComponent(scope)}` +
+      "&access_type=offline" +
+      "&prompt=consent" +
+      "&response_type=code" +
+      `&redirect_uri=${encodeURIComponent(getGoogleRedirectUri())}`
   }
   const connectedAccountsQuery = useQuery({
     queryFn: () => UsersService.getUserConnectedAccounts(),
@@ -63,6 +83,24 @@ function ConnectedAccounts() {
       showToast("Success!", "Overleaf token updated successfully.", "success")
       setIsEditingOverleaf(false)
       setOverleafToken("")
+    },
+    onError: (err: ApiError) => {
+      handleError(err, showToast)
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["user", "connected-accounts"],
+      })
+    },
+  })
+
+  const disconnectAccountMutation = useMutation({
+    mutationFn: (provider: string) => {
+      return UsersService.deleteUserExternalCredential({ provider })
+    },
+    onSuccess: (_, provider) => {
+      mixpanel.track("Disconnected account", { provider })
+      showToast("Success!", `${provider} account disconnected.`, "success")
     },
     onError: (err: ApiError) => {
       handleError(err, showToast)
@@ -99,8 +137,8 @@ function ConnectedAccounts() {
       <Heading size="md" mb={4}>
         Connected accounts
       </Heading>
-      {connectedAccountsQuery.isPending || ghInstallQuery.isPending ? (
-        <Flex justify="center" align="center" height={"100vh"} width="full">
+      {connectedAccountsQuery.isPending ? (
+        <Flex justify="center" align="center" py={8}>
           <Spinner size="xl" color="ui.main" />
         </Flex>
       ) : (
@@ -141,7 +179,18 @@ function ConnectedAccounts() {
           <HStack mt={4}>
             <Text>Zenodo:</Text>
             {connectedAccountsQuery.data?.zenodo ? (
-              <Icon as={FaCheck} color="green.500" />
+              <>
+                <Icon as={FaCheck} color="green.500" />
+                <IconButton
+                  aria-label="Disconnect Zenodo"
+                  icon={<FaTrash />}
+                  size="xs"
+                  variant="ghost"
+                  colorScheme="red"
+                  onClick={() => disconnectAccountMutation.mutate("zenodo")}
+                  isLoading={disconnectAccountMutation.isPending}
+                />
+              </>
             ) : (
               <Button variant="primary" size="sm" onClick={handleConnectZenodo}>
                 Connect
@@ -184,15 +233,29 @@ function ConnectedAccounts() {
                     />
                   </>
                 ) : (
-                  <IconButton
-                    aria-label="Edit token"
-                    icon={<MdEdit />}
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => setIsEditingOverleaf(true)}
-                    p={-1}
-                    ml={-1}
-                  />
+                  <>
+                    <IconButton
+                      aria-label="Edit token"
+                      icon={<MdEdit />}
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setIsEditingOverleaf(true)}
+                      p={-1}
+                      ml={-1}
+                      mr={-3}
+                    />
+                    <IconButton
+                      aria-label="Disconnect Overleaf"
+                      icon={<FaTrash />}
+                      size="xs"
+                      variant="ghost"
+                      colorScheme="red"
+                      onClick={() =>
+                        disconnectAccountMutation.mutate("overleaf")
+                      }
+                      isLoading={disconnectAccountMutation.isPending}
+                    />
+                  </>
                 )}
               </>
             ) : (
@@ -201,6 +264,27 @@ function ConnectedAccounts() {
                 size="sm"
                 onClick={overleafTokenModal.onOpen}
               >
+                Connect
+              </Button>
+            )}
+          </HStack>
+          <HStack mt={4}>
+            <Text>Google:</Text>
+            {connectedAccountsQuery.data?.google ? (
+              <>
+                <Icon as={FaCheck} color="green.500" />
+                <IconButton
+                  aria-label="Disconnect Google"
+                  icon={<FaTrash />}
+                  size="xs"
+                  variant="ghost"
+                  colorScheme="red"
+                  onClick={() => disconnectAccountMutation.mutate("google")}
+                  isLoading={disconnectAccountMutation.isPending}
+                />
+              </>
+            ) : (
+              <Button variant="primary" size="sm" onClick={handleConnectGoogle}>
                 Connect
               </Button>
             )}

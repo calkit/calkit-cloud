@@ -2,7 +2,7 @@
 
 import uuid
 from datetime import datetime
-from typing import Literal, Union
+from typing import Any, Literal, Union
 
 import sqlalchemy
 from app import utcnow
@@ -129,6 +129,45 @@ class UserOverleafToken(SQLModel, table=True):
     expires: datetime | None = Field(default=None)
 
 
+class UserExternalCredential(SQLModel, table=True):
+    __table_args__ = (
+        sqlalchemy.UniqueConstraint(
+            "user_id",
+            "provider",
+            "label",
+            name="uq_userexternalcredential_user_provider_label",
+        ),
+        sqlalchemy.Index(
+            "ix_userexternalcredential_user_provider",
+            "user_id",
+            "provider",
+        ),
+    )
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="user.id")
+    provider: str = Field(min_length=2, max_length=64)
+    credential_type: str = Field(default="oauth2", min_length=2, max_length=64)
+    label: str = Field(default="default", min_length=1, max_length=128)
+    secret_payload: str  # This should be encrypted
+    scopes: str | None = Field(default=None, max_length=2048)
+    provider_account_id: str | None = Field(default=None, max_length=255)
+    metadata_json: dict[str, Any] | None = Field(
+        default=None,
+        sa_column=sqlalchemy.Column(sqlalchemy.JSON, nullable=True),
+    )
+    updated: datetime = Field(
+        default_factory=utcnow,
+        sa_column_kwargs=dict(
+            server_onupdate=sqlalchemy.func.now(),
+            server_default=sqlalchemy.func.now(),
+        ),
+    )
+    expires: datetime | None = Field(default=None)
+    refresh_token_expires: datetime | None = Field(default=None)
+    # Relationships
+    user: "User" = Relationship(back_populates="external_credentials")
+
+
 # Database model, database table inferred from class name
 class User(UserBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
@@ -141,6 +180,10 @@ class User(UserBase, table=True):
     zenodo_token: UserZenodoToken | None = Relationship(cascade_delete=True)
     overleaf_token: UserOverleafToken | None = Relationship(
         cascade_delete=True
+    )
+    external_credentials: list[UserExternalCredential] = Relationship(
+        back_populates="user",
+        cascade_delete=True,
     )
     org_memberships: list["UserOrgMembership"] = Relationship(
         back_populates="user",
@@ -166,6 +209,14 @@ class User(UserBase, table=True):
     @property
     def owned_projects(self) -> list["Project"]:
         return self.account.owned_projects
+
+    def get_external_credential(
+        self, provider: str, label: str = "default"
+    ) -> UserExternalCredential | None:
+        for cred in self.external_credentials:
+            if cred.provider == provider and cred.label == label:
+                return cred
+        return None
 
 
 # Properties to return via API, id is always required

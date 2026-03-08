@@ -413,6 +413,10 @@ export const $ConnectedAccounts = {
       type: "boolean",
       isRequired: true,
     },
+    google: {
+      type: "boolean",
+      isRequired: true,
+    },
   },
 } as const
 
@@ -2254,6 +2258,19 @@ export const $Notebook = {
           type: "null",
         },
       ],
+    },
+  },
+} as const
+
+export const $OAuthCodeExchange = {
+  properties: {
+    code: {
+      type: "string",
+      isRequired: true,
+    },
+    redirect_uri: {
+      type: "string",
+      isRequired: true,
     },
   },
 } as const

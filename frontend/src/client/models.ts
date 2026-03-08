@@ -84,6 +84,7 @@ export type ConnectedAccounts = {
   github: boolean
   zenodo: boolean
   overleaf: boolean
+  google: boolean
 }
 
 export type ContentPatch = {
@@ -467,6 +468,11 @@ export type Notebook = {
   output_format?: "html" | "notebook" | null
   url?: string | null
   content?: string | null
+}
+
+export type OAuthCodeExchange = {
+  code: string
+  redirect_uri: string
 }
 
 /**

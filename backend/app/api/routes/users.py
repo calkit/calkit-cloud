@@ -513,16 +513,43 @@ class ConnectedAccounts(BaseModel):
     github: bool
     zenodo: bool
     overleaf: bool
+    google: bool
 
 
 @router.get("/user/connected-accounts")
 def get_user_connected_accounts(
     session: SessionDep, current_user: CurrentUser
 ) -> ConnectedAccounts:
+    # For OAuth providers, actually validate tokens work
+    # (triggers refresh/cleanup)
+    github_connected = False
+    try:
+        users.get_github_token(session=session, user=current_user)
+        github_connected = True
+    except HTTPException:
+        pass
+    zenodo_connected = False
+    try:
+        users.get_zenodo_token(session=session, user=current_user)
+        zenodo_connected = True
+    except HTTPException:
+        pass
+    google_connected = False
+    try:
+        users.get_google_token(session=session, user=current_user)
+        google_connected = True
+    except HTTPException:
+        pass
+    # Overleaf doesn't have refresh logic, just check if credential exists
+    overleaf_cred = current_user.get_external_credential(provider="overleaf")
+    overleaf_connected = (
+        overleaf_cred is not None or current_user.overleaf_token is not None
+    )
     return ConnectedAccounts(
-        github=current_user.github_token is not None,
-        zenodo=current_user.zenodo_token is not None,
-        overleaf=current_user.overleaf_token is not None,
+        github=github_connected,
+        zenodo=zenodo_connected,
+        overleaf=overleaf_connected,
+        google=google_connected,
     )
 
 
@@ -530,24 +557,26 @@ def get_user_connected_accounts(
 def post_user_zenodo_auth(
     session: SessionDep,
     current_user: CurrentUser,
-    code: str,
-    redirect_uri: str,
+    req: "OAuthCodeExchange",
 ) -> Message:
-    logger.info(
-        f"Received request to authenticate with Zenodo using code: {code}"
-    )
+    logger.info(f"Received Zenodo auth request for user {current_user.email}")
     body = dict(
         client_id=settings.ZENODO_CLIENT_ID,
         client_secret=settings.ZENODO_CLIENT_SECRET,
         grant_type="authorization_code",
-        code=code,
-        redirect_uri=redirect_uri,
+        code=req.code,
+        redirect_uri=req.redirect_uri,
     )
     url = ZENODO_AUTH_URL
     resp = requests.post(url, data=body)
     logger.info(f"Zenodo response status code: {resp.status_code}")
     if resp.status_code != 200:
-        raise HTTPException(resp.status_code)
+        try:
+            error_msg = resp.json().get("error_description", resp.text)
+        except Exception:
+            error_msg = resp.text
+        logger.error(f"Zenodo auth failed: {error_msg}")
+        raise HTTPException(resp.status_code, error_msg)
     resp_json = resp.json()
     # Response should have these keys
     # - access_token
@@ -592,6 +621,11 @@ class TokenPut(BaseModel):
     expires: datetime | None = None
 
 
+class OAuthCodeExchange(BaseModel):
+    code: str
+    redirect_uri: str
+
+
 @router.put("/user/overleaf-token")
 def put_user_overleaf_token(
     req: TokenPut, session: SessionDep, current_user: CurrentUser
@@ -608,12 +642,72 @@ def put_user_overleaf_token(
     return Message(message="Token saved successfully")
 
 
+@router.post("/user/google-auth")
+def post_user_google_auth(
+    session: SessionDep,
+    current_user: CurrentUser,
+    req: OAuthCodeExchange,
+) -> Message:
+    """Authenticate with Google using authorization code."""
+    logger.info(f"Received Google auth request for user {current_user.email}")
+    body = dict(
+        client_id=settings.GOOGLE_CLIENT_ID,
+        client_secret=settings.GOOGLE_CLIENT_SECRET,
+        grant_type="authorization_code",
+        code=req.code,
+        redirect_uri=req.redirect_uri,
+    )
+    url = "https://oauth2.googleapis.com/token"
+    resp = requests.post(url, data=body)
+    logger.info(f"Google response status code: {resp.status_code}")
+    if resp.status_code != 200:
+        try:
+            error_data = resp.json()
+            msg = error_data.get("error_description", "Failed to authenticate")
+        except Exception:
+            msg = "Failed to authenticate with Google"
+        logger.error(f"Google auth failed: {msg}")
+        raise HTTPException(resp.status_code, msg)
+    google_resp = resp.json()
+    logger.info("Saving Google token")
+    users.save_google_token(
+        session=session, user=current_user, google_resp=google_resp
+    )
+    return Message(message="success")
+
+
 @router.get("/user/overleaf-token")
 def get_user_overleaf_token(
     session: SessionDep, current_user: CurrentUser
 ) -> ExternalTokenResponse:
     token = users.get_overleaf_token(session=session, user=current_user)
     return ExternalTokenResponse(access_token=token)
+
+
+@router.delete("/user/external-credentials/{provider}")
+def delete_user_external_credential(
+    session: SessionDep, current_user: CurrentUser, provider: str
+) -> Message:
+    """Disconnect an external account by deleting its credential."""
+    if provider == "github":
+        raise HTTPException(
+            403, "Cannot disconnect GitHub as it is your login method"
+        )
+    credential = users.get_external_credential(
+        session=session,
+        user=current_user,
+        provider=provider,
+        label="default",
+    )
+    if credential:
+        session.delete(credential)
+    # Also delete legacy tokens if they exist
+    if provider == "zenodo" and current_user.zenodo_token:
+        session.delete(current_user.zenodo_token)
+    elif provider == "overleaf" and current_user.overleaf_token:
+        session.delete(current_user.overleaf_token)
+    session.commit()
+    return Message(message=f"{provider.capitalize()} account disconnected")
 
 
 @router.get("/user/storage")
