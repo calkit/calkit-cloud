@@ -5,32 +5,34 @@ import { useEffect, useRef } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 
 import { UsersService, type ApiError } from "../client"
-import { getZenodoRedirectUri, zenodoAuthStateParam } from "../lib/zenodo"
+import { getGoogleRedirectUri, googleAuthStateParam } from "../lib/google"
 import useCustomToast from "../hooks/useCustomToast"
 import { handleError } from "../lib/errors"
 
 const authParamsSchema = z.object({
   code: z.string(),
   state: z.string(),
+  scope: z.string().optional(),
+  iss: z.string().optional(),
 })
 
-export const Route = createFileRoute("/zenodo-auth")({
-  component: ZenodoAuth,
+export const Route = createFileRoute("/google-auth")({
+  component: GoogleAuth,
   validateSearch: (search) => authParamsSchema.parse(search),
 })
 
-function ZenodoAuth() {
+function GoogleAuth() {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const showToast = useCustomToast()
-  const zenodoAuthMutation = useMutation({
+  const googleAuthMutation = useMutation({
     mutationFn: (code: string) =>
-      UsersService.postUserZenodoAuth({
+      UsersService.postUserGoogleAuth({
         code: code,
-        redirectUri: getZenodoRedirectUri(),
+        redirectUri: getGoogleRedirectUri(),
       }),
     onSuccess: () => {
-      showToast("Success!", "Zenodo account connected successfully.", "success")
+      showToast("Success!", "Google account connected successfully.", "success")
       queryClient.invalidateQueries({
         queryKey: ["user", "connected-accounts"],
       })
@@ -44,24 +46,24 @@ function ZenodoAuth() {
       }, 2000)
     },
   })
-  const { code: zenodoAuthCode, state: zenodoAuthStateRecv } = Route.useSearch()
+  const { code: googleAuthCode, state: googleAuthStateRecv } = Route.useSearch()
   const isMounted = useRef(false)
 
   useEffect(() => {
     if (!isMounted.current) {
       isMounted.current = true
-      if (zenodoAuthCode && zenodoAuthStateRecv === zenodoAuthStateParam) {
+      if (googleAuthCode && googleAuthStateRecv === googleAuthStateParam) {
         try {
-          zenodoAuthMutation.mutate(zenodoAuthCode)
+          googleAuthMutation.mutate(googleAuthCode)
         } catch {
           // Error should be handled in the mutation
         }
       } else if (
-        zenodoAuthCode &&
-        zenodoAuthStateRecv !== zenodoAuthStateParam
+        googleAuthCode &&
+        googleAuthStateRecv !== googleAuthStateParam
       ) {
         console.error(
-          `Received state parameter does not match sent (${zenodoAuthStateParam})`,
+          `Received state parameter does not match sent (${googleAuthStateParam})`,
         )
       }
     }
@@ -78,8 +80,8 @@ function ZenodoAuth() {
         centerContent
       >
         <Text>
-          {zenodoAuthMutation.isPending
-            ? "Authenticating with Zenodo..."
+          {googleAuthMutation.isPending
+            ? "Authenticating with Google..."
             : "Done"}
         </Text>
       </Container>

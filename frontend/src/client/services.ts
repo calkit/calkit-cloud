@@ -170,6 +170,13 @@ export type UsersData = {
   PutUserOverleafToken: {
     requestBody: TokenPut
   }
+  PostUserGoogleAuth: {
+    code: string
+    redirectUri: string
+  }
+  DeleteUserExternalCredential: {
+    provider: string
+  }
 }
 
 export type MiscData = {
@@ -1146,6 +1153,51 @@ export class UsersService {
       url: "/user/overleaf-token",
       body: requestBody,
       mediaType: "application/json",
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Post User Google Auth
+   * Authenticate with Google using authorization code.
+   * @returns Message Successful Response
+   * @throws ApiError
+   */
+  public static postUserGoogleAuth(
+    data: UsersData["PostUserGoogleAuth"],
+  ): CancelablePromise<Message> {
+    const { code, redirectUri } = data
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/user/google-auth",
+      query: {
+        code,
+        redirect_uri: redirectUri,
+      },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Delete User External Credential
+   * Disconnect an external account by deleting its credential.
+   * @returns Message Successful Response
+   * @throws ApiError
+   */
+  public static deleteUserExternalCredential(
+    data: UsersData["DeleteUserExternalCredential"],
+  ): CancelablePromise<Message> {
+    const { provider } = data
+    return __request(OpenAPI, {
+      method: "DELETE",
+      url: "/user/external-credentials/{provider}",
+      path: {
+        provider,
+      },
       errors: {
         422: `Validation Error`,
       },

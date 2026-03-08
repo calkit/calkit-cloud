@@ -413,6 +413,10 @@ export const $ConnectedAccounts = {
       type: "boolean",
       isRequired: true,
     },
+    google: {
+      type: "boolean",
+      isRequired: true,
+    },
   },
 } as const
 
