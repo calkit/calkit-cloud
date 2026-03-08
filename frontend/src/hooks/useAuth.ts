@@ -87,9 +87,12 @@ const useAuth = () => {
     },
   })
 
-  const loginGithub = async (code: string) => {
+  const loginGithub = async (data: { code: string; redirectUri: string }) => {
     const response = await LoginService.loginWithGithub({
-      code,
+      requestBody: {
+        code: data.code,
+        redirect_uri: data.redirectUri,
+      },
     })
     localStorage.setItem("access_token", response.access_token)
   }

@@ -33,13 +33,22 @@ function Login() {
 
   const clientId = import.meta.env.VITE_GH_CLIENT_ID
   const ghAuthStateParam = "sdkjh4e0934t" // TODO: Generate randomly
+  const getGitHubRedirectUri = () => {
+    const baseUrl =
+      import.meta.env.VITE_API_URL?.replace("/api", "") ||
+      window.location.origin
+    return `${baseUrl}/login`
+  }
 
   useEffect(() => {
     if (!isMounted.current) {
       isMounted.current = true
       if (ghAuthCode && ghAuthStateRecv === ghAuthStateParam) {
         try {
-          loginGitHubMutation.mutate(ghAuthCode)
+          loginGitHubMutation.mutate({
+            code: ghAuthCode,
+            redirectUri: getGitHubRedirectUri(),
+          })
         } catch {
           // Error should be handled in the mutation
         }

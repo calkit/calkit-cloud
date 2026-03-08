@@ -28,8 +28,10 @@ function GoogleAuth() {
   const googleAuthMutation = useMutation({
     mutationFn: (code: string) =>
       UsersService.postUserGoogleAuth({
-        code: code,
-        redirectUri: getGoogleRedirectUri(),
+        requestBody: {
+          code,
+          redirect_uri: getGoogleRedirectUri(),
+        },
       }),
     onSuccess: () => {
       showToast("Success!", "Google account connected successfully.", "success")

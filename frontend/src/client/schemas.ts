@@ -2262,6 +2262,19 @@ export const $Notebook = {
   },
 } as const
 
+export const $OAuthCodeExchange = {
+  properties: {
+    code: {
+      type: "string",
+      isRequired: true,
+    },
+    redirect_uri: {
+      type: "string",
+      isRequired: true,
+    },
+  },
+} as const
+
 export const $OperationResult = {
   description: `Result for file operations like delete, move, copy.`,
   properties: {

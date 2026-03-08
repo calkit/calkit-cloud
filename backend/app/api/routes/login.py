@@ -12,6 +12,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from jwt.algorithms import RSAAlgorithm
 from jwt.exceptions import InvalidTokenError
+from pydantic import BaseModel
 
 from app import mixpanel, security, users
 from app.api.deps import CurrentUser, SessionDep, get_current_active_superuser
@@ -132,8 +133,13 @@ def recover_password_html_content(email: str, session: SessionDep) -> Any:
     )
 
 
-@router.get("/login/github")
-def login_with_github(code: str, session: SessionDep) -> Token:
+class OAuthCodeExchange(BaseModel):
+    code: str
+    redirect_uri: str
+
+
+@router.post("/login/github")
+def login_with_github(req: OAuthCodeExchange, session: SessionDep) -> Token:
     """Log in a user from GitHub authentication, creating a new account if
     necessary.
 
@@ -149,7 +155,8 @@ def login_with_github(code: str, session: SessionDep) -> Token:
         'token_type': 'bearer'}
     ```
     """
-    logger.info(f"Requesting GitHub access token with code: {code}")
+    code = req.code
+    logger.info("Requesting GitHub access token")
     resp = requests.get(
         "https://github.com/login/oauth/access_token",
         params=dict(

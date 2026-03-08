@@ -26,8 +26,10 @@ function ZenodoAuth() {
   const zenodoAuthMutation = useMutation({
     mutationFn: (code: string) =>
       UsersService.postUserZenodoAuth({
-        code: code,
-        redirectUri: getZenodoRedirectUri(),
+        requestBody: {
+          code,
+          redirect_uri: getZenodoRedirectUri(),
+        },
       }),
     onSuccess: () => {
       showToast("Success!", "Zenodo account connected successfully.", "success")

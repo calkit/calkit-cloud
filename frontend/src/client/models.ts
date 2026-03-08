@@ -470,6 +470,11 @@ export type Notebook = {
   content?: string | null
 }
 
+export type OAuthCodeExchange = {
+  code: string
+  redirect_uri: string
+}
+
 /**
  * Result for file operations like delete, move, copy.
  */

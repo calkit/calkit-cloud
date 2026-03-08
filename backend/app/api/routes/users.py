@@ -557,16 +557,15 @@ def get_user_connected_accounts(
 def post_user_zenodo_auth(
     session: SessionDep,
     current_user: CurrentUser,
-    code: str,
-    redirect_uri: str,
+    req: "OAuthCodeExchange",
 ) -> Message:
     logger.info(f"Received Zenodo auth request for user {current_user.email}")
     body = dict(
         client_id=settings.ZENODO_CLIENT_ID,
         client_secret=settings.ZENODO_CLIENT_SECRET,
         grant_type="authorization_code",
-        code=code,
-        redirect_uri=redirect_uri,
+        code=req.code,
+        redirect_uri=req.redirect_uri,
     )
     url = ZENODO_AUTH_URL
     resp = requests.post(url, data=body)
@@ -622,6 +621,11 @@ class TokenPut(BaseModel):
     expires: datetime | None = None
 
 
+class OAuthCodeExchange(BaseModel):
+    code: str
+    redirect_uri: str
+
+
 @router.put("/user/overleaf-token")
 def put_user_overleaf_token(
     req: TokenPut, session: SessionDep, current_user: CurrentUser
@@ -642,8 +646,7 @@ def put_user_overleaf_token(
 def post_user_google_auth(
     session: SessionDep,
     current_user: CurrentUser,
-    code: str,
-    redirect_uri: str,
+    req: OAuthCodeExchange,
 ) -> Message:
     """Authenticate with Google using authorization code."""
     logger.info(f"Received Google auth request for user {current_user.email}")
@@ -651,8 +654,8 @@ def post_user_google_auth(
         client_id=settings.GOOGLE_CLIENT_ID,
         client_secret=settings.GOOGLE_CLIENT_SECRET,
         grant_type="authorization_code",
-        code=code,
-        redirect_uri=redirect_uri,
+        code=req.code,
+        redirect_uri=req.redirect_uri,
     )
     url = "https://oauth2.googleapis.com/token"
     resp = requests.post(url, data=body)

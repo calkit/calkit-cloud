@@ -7,6 +7,7 @@ import type {
   Body_login_login_access_token,
   Message,
   NewPassword,
+  OAuthCodeExchange,
   Token,
   UserPublic,
   ConnectedAccounts,
@@ -106,7 +107,7 @@ export type LoginData = {
     email: string
   }
   LoginWithGithub: {
-    code: string
+    requestBody: OAuthCodeExchange
   }
   LoginWithGithubOidc: {
     authorization?: string | null
@@ -164,15 +165,13 @@ export type UsersData = {
     tokenId: string
   }
   PostUserZenodoAuth: {
-    code: string
-    redirectUri: string
+    requestBody: OAuthCodeExchange
   }
   PutUserOverleafToken: {
     requestBody: TokenPut
   }
   PostUserGoogleAuth: {
-    code: string
-    redirectUri: string
+    requestBody: OAuthCodeExchange
   }
   DeleteUserExternalCredential: {
     provider: string
@@ -653,13 +652,12 @@ export class LoginService {
   public static loginWithGithub(
     data: LoginData["LoginWithGithub"],
   ): CancelablePromise<Token> {
-    const { code } = data
+    const { requestBody } = data
     return __request(OpenAPI, {
-      method: "GET",
+      method: "POST",
       url: "/login/github",
-      query: {
-        code,
-      },
+      body: requestBody,
+      mediaType: "application/json",
       errors: {
         422: `Validation Error`,
       },
@@ -1088,14 +1086,12 @@ export class UsersService {
   public static postUserZenodoAuth(
     data: UsersData["PostUserZenodoAuth"],
   ): CancelablePromise<Message> {
-    const { code, redirectUri } = data
+    const { requestBody } = data
     return __request(OpenAPI, {
       method: "POST",
       url: "/user/zenodo-auth",
-      query: {
-        code,
-        redirect_uri: redirectUri,
-      },
+      body: requestBody,
+      mediaType: "application/json",
       errors: {
         422: `Validation Error`,
       },
@@ -1168,14 +1164,12 @@ export class UsersService {
   public static postUserGoogleAuth(
     data: UsersData["PostUserGoogleAuth"],
   ): CancelablePromise<Message> {
-    const { code, redirectUri } = data
+    const { requestBody } = data
     return __request(OpenAPI, {
       method: "POST",
       url: "/user/google-auth",
-      query: {
-        code,
-        redirect_uri: redirectUri,
-      },
+      body: requestBody,
+      mediaType: "application/json",
       errors: {
         422: `Validation Error`,
       },
