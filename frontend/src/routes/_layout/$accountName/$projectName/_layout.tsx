@@ -146,7 +146,11 @@ function ProjectLayout() {
       ) : (
         <Flex>
           <Sidebar basePath={`/${accountName}/${projectName}`} />
-          <Container maxW="full" mx={6} mb={10}>
+          <Container
+            maxW="full"
+            overflowY="scroll"
+            height="calc(100vh - 64px)"
+          >
             <Container
               maxW="100%"
               alignContent="center"
