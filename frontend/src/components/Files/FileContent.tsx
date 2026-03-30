@@ -13,7 +13,8 @@ function getLanguage(name: string): string {
   if (name.endsWith(".py")) return "python"
   if (name.endsWith(".ts") || name.endsWith(".tsx")) return "typescript"
   if (name.endsWith(".js") || name.endsWith(".jsx")) return "javascript"
-  if (name.endsWith(".yaml") || name.endsWith(".yml") || name === "dvc.lock") return "yaml"
+  if (name.endsWith(".yaml") || name.endsWith(".yml") || name === "dvc.lock")
+    return "yaml"
   if (name.endsWith(".json")) return "json"
   if (name.endsWith(".sh") || name.endsWith(".bash")) return "bash"
   if (name.endsWith(".r") || name.endsWith(".R")) return "r"
@@ -50,7 +51,12 @@ function FileContent({ item }: FileContentProps) {
   }
   if (name.endsWith(".pdf")) {
     return (
-      <Box height="calc(100vh - 160px)" width="100%" borderRadius="lg" overflow="hidden">
+      <Box
+        height="calc(100vh - 160px)"
+        width="100%"
+        borderRadius="lg"
+        overflow="hidden"
+      >
         <embed
           height="100%"
           width="100%"

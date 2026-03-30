@@ -149,8 +149,11 @@ function ProjectLayout() {
           <Container
             maxW="full"
             mx={6}
-            overflowY="scroll"
             height="calc(100vh - 64px)"
+            overflow="hidden"
+            display="flex"
+            flexDirection="column"
+            px={0}
           >
             <Container
               maxW="100%"
@@ -161,6 +164,7 @@ function ProjectLayout() {
               display="flex"
               flexWrap="wrap"
               px={0}
+              flexShrink={0}
             >
               <Box maxW="100%" mr={2}>
                 <Heading size={titleSize}>{project?.title}</Heading>
@@ -254,7 +258,9 @@ function ProjectLayout() {
                 )}
               </Box>
             </Container>
-            <Outlet />
+            <Box flex={1} overflowY="auto" minH={0}>
+              <Outlet />
+            </Box>
           </Container>
           <Drawer
             isOpen={helpDrawer.isOpen}

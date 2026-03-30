@@ -385,8 +385,14 @@ function Files() {
           <Flex flex={1} minW={0} gap={6} align="flex-start">
             <Box flex={1} minW={0} minH={0} overflowY="auto" overflowX="auto">
               {selectedPath !== undefined &&
-              (selectedItemQuery.isPending || selectedItemQuery.isRefetching) ? (
-                <Flex justify="center" align="center" height="full" width="full">
+              (selectedItemQuery.isPending ||
+                selectedItemQuery.isRefetching) ? (
+                <Flex
+                  justify="center"
+                  align="center"
+                  height="full"
+                  width="full"
+                >
                   <Spinner size="xl" color="ui.main" />
                 </Flex>
               ) : selectedItemQuery?.data?.content ||
@@ -403,27 +409,28 @@ function Files() {
               bg={useColorModeValue("ui.secondary", "ui.darkSlate")}
               h="fit-content"
             >
-            <Heading size="md" mb={2}>
-              Info
-            </Heading>
-            {selectedPath !== undefined &&
-            (selectedItemQuery.isPending || selectedItemQuery.isRefetching) ? (
-              ""
-            ) : (
-              <>
-                {selectedItemQuery?.data && selectedPath !== undefined ? (
-                  <SelectedItemInfo
-                    selectedItem={selectedItemQuery.data}
-                    ownerName={accountName}
-                    projectName={projectName}
-                    userHasWriteAccess={userHasWriteAccess}
-                  />
-                ) : (
-                  ""
-                )}
-              </>
-            )}
-          </Box>
+              <Heading size="md" mb={2}>
+                Info
+              </Heading>
+              {selectedPath !== undefined &&
+              (selectedItemQuery.isPending ||
+                selectedItemQuery.isRefetching) ? (
+                ""
+              ) : (
+                <>
+                  {selectedItemQuery?.data && selectedPath !== undefined ? (
+                    <SelectedItemInfo
+                      selectedItem={selectedItemQuery.data}
+                      ownerName={accountName}
+                      projectName={projectName}
+                      userHasWriteAccess={userHasWriteAccess}
+                    />
+                  ) : (
+                    ""
+                  )}
+                </>
+              )}
+            </Box>
           </Flex>
         </Flex>
       )}
