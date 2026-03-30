@@ -90,7 +90,11 @@ function Notebooks() {
   )
   const compareModal = useDisclosure()
 
-  const { isPending, error, data: allNotebooks } = useQuery({
+  const {
+    isPending,
+    error,
+    data: allNotebooks,
+  } = useQuery({
     queryKey: ["projects", accountName, projectName, "notebooks", ref],
     queryFn: () =>
       getProjectNotebooksAtRef({
@@ -158,10 +162,7 @@ function Notebooks() {
                     <Text>No notebooks found</Text>
                   </Flex>
                 ) : (
-                  <SimpleGrid
-                    columns={{ base: 2, md: 3, lg: 4 }}
-                    spacing={4}
-                  >
+                  <SimpleGrid columns={{ base: 2, md: 3, lg: 4 }} spacing={4}>
                     {allNotebooks.map((notebook) => (
                       <NotebookThumbnail
                         key={notebook.path}

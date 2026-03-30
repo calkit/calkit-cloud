@@ -69,10 +69,9 @@ services:
       args:
         INSTALL_DEV: ${INSTALL_DEV-true}
     command:
-      - fastapi
-      - run
-      - --reload
-      - "app/main.py"
+      - sh
+      - -c
+      - "uv sync --frozen && fastapi run --reload app/main.py"
     environment:
       SMTP_HOST: "mailcatcher"
       SMTP_PORT: "1025"
@@ -103,9 +102,9 @@ services:
       # Do not mount node_modules from host, use container's node_modules
       - /app/node_modules
     command:
-      - npm
-      - run
-      - dev
+      - sh
+      - -c
+      - "npm install && npm run dev"
 
 networks:
   traefik-public:

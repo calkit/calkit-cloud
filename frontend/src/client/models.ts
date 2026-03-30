@@ -255,6 +255,7 @@ export type Figure = {
   dataset?: string | null
   content?: string | null
   url?: string | null
+  comment_count?: number
 }
 
 export type FigureComment = {

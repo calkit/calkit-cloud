@@ -14,6 +14,7 @@ import {
   TableContainer,
   Link,
   useDisclosure,
+  Button,
 } from "@chakra-ui/react"
 import { createFileRoute } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
@@ -77,6 +78,7 @@ function References() {
   })
   const fileViewModal = useDisclosure()
   const [selectedEntry, setSelectedEntry] = useState<ReferenceEntry>()
+  const [visibleCount, setVisibleCount] = useState(25)
   const handleLinkClick = (entry: ReferenceEntry) => {
     if (!entry.url) {
       return
@@ -84,6 +86,14 @@ function References() {
     setSelectedEntry(entry)
     fileViewModal.onOpen()
   }
+
+  // Flatten all entries for pagination
+  const allEntries =
+    allReferences?.flatMap((refs) =>
+      (refs.entries ?? []).map((e) => ({ ...e, _refPath: refs.path })),
+    ) ?? []
+  const totalEntries = allEntries.length
+  const visibleEntries = allEntries.slice(0, visibleCount)
 
   return (
     <>
@@ -162,45 +172,44 @@ function References() {
                 ))}
               </PageMenu>
               {/* A view for all the reference items' content */}
-              <Box pr={4}>
-                {allReferences?.map((references) => (
-                  <Box key={references.path} mb={4}>
-                    <Heading size="md" id={references.path} mb={2}>
-                      {references.path}
-                    </Heading>
-                    {references.entries?.map((entry) => (
-                      <Box
-                        key={entry.key}
-                        borderRadius="lg"
-                        borderWidth={1}
-                        mb={2}
-                        p={2}
-                        boxSizing="border-box"
-                      >
-                        <Flex alignItems="center">
-                          <Heading size="sm" id={references.path + entry.key}>
-                            {entry.key}
-                          </Heading>
-
-                          <Text ml={1} fontSize="sm">
-                            {entry.file_path ? (
-                              <Link
-                                onClick={() => {
-                                  handleLinkClick(entry)
-                                }}
-                              >
-                                {`(${entry.file_path})`}
-                              </Link>
-                            ) : (
-                              ""
-                            )}
-                          </Text>
-                        </Flex>
-                        <ReferenceEntryTable referenceEntry={entry} />
-                      </Box>
-                    ))}
+              <Box pr={4} flex={1}>
+                {visibleEntries.map((entry) => (
+                  <Box
+                    key={`${entry._refPath}-${entry.key}`}
+                    borderRadius="lg"
+                    borderWidth={1}
+                    mb={2}
+                    p={2}
+                    boxSizing="border-box"
+                  >
+                    <Flex alignItems="center">
+                      <Heading size="sm" id={entry._refPath + entry.key}>
+                        {entry.key}
+                      </Heading>
+                      <Text ml={1} fontSize="sm">
+                        {entry.file_path ? (
+                          <Link onClick={() => handleLinkClick(entry)}>
+                            {`(${entry.file_path})`}
+                          </Link>
+                        ) : (
+                          ""
+                        )}
+                      </Text>
+                    </Flex>
+                    <ReferenceEntryTable referenceEntry={entry} />
                   </Box>
                 ))}
+                {visibleCount < totalEntries && (
+                  <Flex justify="center" mt={2} mb={4}>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setVisibleCount((n) => n + 25)}
+                    >
+                      Show more ({totalEntries - visibleCount} remaining)
+                    </Button>
+                  </Flex>
+                )}
               </Box>
             </Flex>
           )}

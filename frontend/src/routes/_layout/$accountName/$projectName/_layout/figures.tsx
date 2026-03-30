@@ -14,18 +14,19 @@ import {
   SimpleGrid,
   useColorModeValue,
   Image,
+  Input,
+  Badge,
 } from "@chakra-ui/react"
 import { useQuery } from "@tanstack/react-query"
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { useState } from "react"
-import { FaPlus, FaRegFileImage, FaRegFilePdf } from "react-icons/fa"
+import { FaPlus, FaRegFileImage, FaRegFilePdf, FaComment } from "react-icons/fa"
 import { FiFile } from "react-icons/fi"
 import { z } from "zod"
 
 import UploadFigure from "../../../../../components/Figures/UploadFigure"
 import LabelAsFigure from "../../../../../components/Figures/FigureFromExisting"
 import { type Figure } from "../../../../../client"
-import PageMenu from "../../../../../components/Common/PageMenu"
 import useProject from "../../../../../hooks/useProject"
 import { getProjectFiguresAtRef } from "../../../../../lib/projectRefApi"
 import { ArtifactCompareModal } from "../../../../../components/Common/ArtifactCompareModal"
@@ -123,9 +124,19 @@ function FigureThumbnail({
         {renderThumb()}
       </Box>
       <Box p={3}>
-        <Text fontWeight="semibold" fontSize="sm" noOfLines={1}>
-          {figure.title}
-        </Text>
+        <Flex align="center" justify="space-between" gap={1}>
+          <Text fontWeight="semibold" fontSize="sm" noOfLines={1} flex={1}>
+            {figure.title}
+          </Text>
+          {(figure.comment_count ?? 0) > 0 && (
+            <Flex align="center" gap={1} color="gray.500" flexShrink={0}>
+              <Icon as={FaComment} fontSize="xs" />
+              <Badge fontSize="xs" variant="subtle" colorScheme="gray">
+                {figure.comment_count}
+              </Badge>
+            </Flex>
+          )}
+        </Flex>
         {figure.description && (
           <Text fontSize="xs" color="gray.500" noOfLines={2} mt={0.5}>
             {figure.description}
@@ -143,6 +154,7 @@ function ProjectFigures() {
   const { userHasWriteAccess } = useProject(accountName, projectName)
   const [selectedFigure, setSelectedFigure] = useState<Figure | null>(null)
   const compareModal = useDisclosure()
+  const [search, setSearch] = useState("")
 
   const { isPending: figuresPending, data: figures } = useQuery({
     queryKey: ["projects", accountName, projectName, "figures", ref],
@@ -161,111 +173,108 @@ function ProjectFigures() {
     compareModal.onOpen()
   }
 
+  const filteredFigures = figures?.filter((f) => {
+    const q = search.toLowerCase()
+    return (
+      f.title.toLowerCase().includes(q) ||
+      f.path.toLowerCase().includes(q) ||
+      (f.description ?? "").toLowerCase().includes(q)
+    )
+  })
+
   return (
     <>
-      <Flex>
-        <PageMenu>
-          <Flex align="center" mb={2} mt={1}>
-            <Heading size="md">Figures</Heading>
-            {userHasWriteAccess && !ref ? (
-              <>
-                <Menu>
-                  <MenuButton
-                    as={Button}
-                    variant="primary"
-                    height={"25px"}
-                    width={"9px"}
-                    px={1}
-                    ml={2}
-                  >
-                    <Icon as={FaPlus} fontSize="xs" />
-                  </MenuButton>
-                  <MenuList>
-                    <MenuItem onClick={uploadFigureModal.onOpen}>
-                      Upload new figure
-                    </MenuItem>
-                    <MenuItem onClick={labelFigureModal.onOpen}>
-                      Label existing file as figure
-                    </MenuItem>
-                  </MenuList>
-                </Menu>
-                <UploadFigure
-                  isOpen={uploadFigureModal.isOpen}
-                  onClose={uploadFigureModal.onClose}
-                />
-                <LabelAsFigure
-                  isOpen={labelFigureModal.isOpen}
-                  onClose={labelFigureModal.onClose}
-                />
-              </>
-            ) : (
-              ""
-            )}
-          </Flex>
-          {figures
-            ? figures.map((figure) => (
-                <Box key={figure.path}>
-                  <Text
-                    fontSize="sm"
-                    cursor="pointer"
-                    _hover={{ color: "blue.500" }}
-                    noOfLines={1}
-                    onClick={() => openFigure(figure)}
-                  >
-                    <Icon
-                      height={"15px"}
-                      pt={0.5}
-                      mr={0.5}
-                      as={getIcon(figure)}
-                    />
-                    {figure.title}
-                  </Text>
-                </Box>
-              ))
-            : ""}
-        </PageMenu>
+      <Box>
+        <Flex align="center" mb={4} gap={2} wrap="wrap">
+          <Heading size="md">Figures</Heading>
+          {userHasWriteAccess && !ref ? (
+            <>
+              <Menu>
+                <MenuButton
+                  as={Button}
+                  variant="primary"
+                  height="25px"
+                  width="9px"
+                  px={1}
+                >
+                  <Icon as={FaPlus} fontSize="xs" />
+                </MenuButton>
+                <MenuList>
+                  <MenuItem onClick={uploadFigureModal.onOpen}>
+                    Upload new figure
+                  </MenuItem>
+                  <MenuItem onClick={labelFigureModal.onOpen}>
+                    Label existing file as figure
+                  </MenuItem>
+                </MenuList>
+              </Menu>
+              <UploadFigure
+                isOpen={uploadFigureModal.isOpen}
+                onClose={uploadFigureModal.onClose}
+              />
+              <LabelAsFigure
+                isOpen={labelFigureModal.isOpen}
+                onClose={labelFigureModal.onClose}
+              />
+            </>
+          ) : null}
+          <Input
+            placeholder="Search figures…"
+            size="sm"
+            maxW="220px"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            ml="auto"
+          />
+        </Flex>
 
         {figuresPending ? (
-          <Flex justify="center" align="center" height={"100vh"} width="full">
+          <Flex justify="center" align="center" height="300px" width="full">
             <Spinner size="xl" color="ui.main" />
           </Flex>
-        ) : (
-          <Box flex={1} p={4} overflowY="auto">
-            {!figures || figures.length === 0 ? (
-              <Flex
-                direction="column"
-                align="center"
-                justify="center"
-                height="300px"
-                color="gray.500"
+        ) : !filteredFigures || figures?.length === 0 ? (
+          <Flex
+            direction="column"
+            align="center"
+            justify="center"
+            height="300px"
+            color="gray.500"
+          >
+            <Icon as={FaRegFileImage} fontSize="4xl" mb={3} />
+            <Text>No figures found</Text>
+            {ref && (
+              <Button
+                mt={3}
+                size="sm"
+                variant="ghost"
+                onClick={() => navigate({ search: {} })}
               >
-                <Icon as={FaRegFileImage} fontSize="4xl" mb={3} />
-                <Text>No figures found</Text>
-                {ref && (
-                  <Button
-                    mt={3}
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => navigate({ search: {} })}
-                  >
-                    Clear ref filter
-                  </Button>
-                )}
-              </Flex>
-            ) : (
-              <SimpleGrid columns={{ base: 2, md: 3, lg: 4, xl: 5 }} spacing={4}>
-                {figures.map((figure) => (
-                  <FigureThumbnail
-                    key={figure.path}
-                    figure={figure}
-                    onClick={() => openFigure(figure)}
-                  />
-                ))}
-              </SimpleGrid>
+                Clear ref filter
+              </Button>
             )}
-          </Box>
+          </Flex>
+        ) : filteredFigures?.length === 0 ? (
+          <Flex
+            direction="column"
+            align="center"
+            justify="center"
+            height="200px"
+            color="gray.500"
+          >
+            <Text>No figures match "{search}"</Text>
+          </Flex>
+        ) : (
+          <SimpleGrid columns={{ base: 2, md: 3, lg: 4, xl: 5 }} spacing={4}>
+            {filteredFigures!.map((figure) => (
+              <FigureThumbnail
+                key={figure.path}
+                figure={figure}
+                onClick={() => openFigure(figure)}
+              />
+            ))}
+          </SimpleGrid>
         )}
-      </Flex>
+      </Box>
 
       {selectedFigure && (
         <ArtifactCompareModal

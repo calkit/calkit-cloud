@@ -54,15 +54,40 @@ export async function getProjectHistory(params: {
   ownerName: string
   projectName: string
   limit?: number
+  offset?: number
 }): Promise<CommitHistory[]> {
-  const { ownerName, projectName, limit = 100 } = params
+  const { ownerName, projectName, limit = 50, offset = 0 } = params
   const headers = await authHeaders()
   const response = await axios.get<CommitHistory[]>(
     `${OpenAPI.BASE}/projects/${ownerName}/${projectName}/git/history`,
     {
-      params: { limit },
+      params: { limit, offset },
       headers,
     },
+  )
+  return response.data
+}
+
+export interface CommitDetail extends CommitHistory {
+  changed_files: {
+    path: string
+    old_path: string | null
+    change_type: string
+    insertions: number | null
+    deletions: number | null
+  }[]
+}
+
+export async function getProjectCommit(params: {
+  ownerName: string
+  projectName: string
+  commitHash: string
+}): Promise<CommitDetail> {
+  const { ownerName, projectName, commitHash } = params
+  const headers = await authHeaders()
+  const response = await axios.get<CommitDetail>(
+    `${OpenAPI.BASE}/projects/${ownerName}/${projectName}/git/commits/${commitHash}`,
+    { headers },
   )
   return response.data
 }

@@ -237,9 +237,7 @@ def _get_contents_from_repo_dir(
             raise HTTPException(400, "Path traversal is not allowed")
     # If the path is an unsafe symlink, raise a 404
     if path is not None and os.path.islink(os.path.join(repo_dir, path)):
-        if not _is_safe_symlink(
-            os.path.join(repo_dir, path), repo_dir
-        ):
+        if not _is_safe_symlink(os.path.join(repo_dir, path), repo_dir):
             logger.warning(
                 f"Unsafe symlink detected in {owner_name}/{project_name} "
                 f"at {path}"
@@ -527,9 +525,7 @@ def _get_contents_from_repo_dir(
             )
             url = None
             if fp is not None:
-                url = get_object_url(
-                    fp, fname=os.path.basename(path), fs=fs
-                )
+                url = get_object_url(fp, fname=os.path.basename(path), fs=fs)
             size = dvc_out.get("size")
             dvc_type = "dir" if md5.endswith(".dir") else "file"
             # TODO: If this is a directory, list dir_items

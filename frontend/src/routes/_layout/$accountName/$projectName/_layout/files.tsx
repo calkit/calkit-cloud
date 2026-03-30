@@ -301,7 +301,7 @@ function Files() {
           <Spinner size="xl" color="ui.main" />
         </Flex>
       ) : (
-        <Flex height={"100%"}>
+        <Flex height={"100%"} gap={6}>
           <PageMenu>
             <Flex align="center" gap={1} mb={2} wrap="wrap">
               <Heading size="md">All files</Heading>
@@ -398,12 +398,13 @@ function Files() {
             flexShrink={0}
             px={3}
             py={2}
-            ml={6}
             borderRadius="lg"
             bg={useColorModeValue("ui.secondary", "ui.darkSlate")}
             h="fit-content"
           >
-            <Heading size="md" mb={2}>Info</Heading>
+            <Heading size="md" mb={2}>
+              Info
+            </Heading>
             {selectedPath !== undefined &&
             (selectedItemQuery.isPending || selectedItemQuery.isRefetching) ? (
               ""

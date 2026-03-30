@@ -52,7 +52,12 @@ interface PubInfoProps {
   userHasWriteAccess: boolean
 }
 
-function PubInfo({ publication, ownerName, projectName, userHasWriteAccess }: PubInfoProps) {
+function PubInfo({
+  publication,
+  ownerName,
+  projectName,
+  userHasWriteAccess,
+}: PubInfoProps) {
   const secBgColor = useColorModeValue("ui.secondary", "ui.darkSlate")
   const compareModal = useDisclosure()
   const showToast = useCustomToast()
@@ -73,7 +78,11 @@ function PubInfo({ publication, ownerName, projectName, userHasWriteAccess }: Pu
         message += ` Updated Overleaf to rev ${data.overleaf_commit.slice(0, 7)}.`
       if (data.committed_project)
         message += ` Updated project to rev ${data.project_commit.slice(0, 7)}.`
-      if (!data.commits_from_overleaf && !data.committed_overleaf && !data.committed_project)
+      if (
+        !data.commits_from_overleaf &&
+        !data.committed_overleaf &&
+        !data.committed_project
+      )
         message += " No changes made."
       showToast("Success!", message, "success")
       queryClient.invalidateQueries({
@@ -85,11 +94,17 @@ function PubInfo({ publication, ownerName, projectName, userHasWriteAccess }: Pu
 
   return (
     <Box bg={secBgColor} borderRadius="lg" p={3} h="fit-content">
-      <Heading size="sm" mb={2}>Info</Heading>
+      <Heading size="sm" mb={2}>
+        Info
+      </Heading>
       {publication.path && (
         <Text fontSize="sm">
           Path:{" "}
-          <Link as={RouterLink} to="../files" search={{ path: publication.path } as any}>
+          <Link
+            as={RouterLink}
+            to="../files"
+            search={{ path: publication.path } as any}
+          >
             {publication.path}
           </Link>
         </Text>
@@ -155,11 +170,15 @@ function Publications() {
   const overleafImportModal = useDisclosure()
   const { accountName, projectName } = Route.useParams()
   const { userHasWriteAccess } = useProject(accountName, projectName)
-  const { publicationsRequest } = useProjectPublications(accountName, projectName)
+  const { publicationsRequest } = useProjectPublications(
+    accountName,
+    projectName,
+  )
   const [selectedPath, setSelectedPath] = useState<string | undefined>()
 
-  const selectedPub = publicationsRequest.data?.find((p) => p.path === selectedPath)
-    ?? publicationsRequest.data?.[0]
+  const selectedPub =
+    publicationsRequest.data?.find((p) => p.path === selectedPath) ??
+    publicationsRequest.data?.[0]
 
   return (
     <>
@@ -238,7 +257,9 @@ function Publications() {
                   spacing={1}
                 >
                   <Icon as={FiFile} flexShrink={0} />
-                  <Text fontSize="sm" noOfLines={1}>{pub.title}</Text>
+                  <Text fontSize="sm" noOfLines={1}>
+                    {pub.title}
+                  </Text>
                 </HStack>
               )
             })}
@@ -248,7 +269,9 @@ function Publications() {
           <Box flex={1} minW={0} mx={4}>
             {selectedPub ? (
               <>
-                <Heading size="md" mb={1}>{selectedPub.title}</Heading>
+                <Heading size="md" mb={1}>
+                  {selectedPub.title}
+                </Heading>
                 {selectedPub.description && (
                   <Text fontSize="sm" color="gray.500" mb={2}>
                     {selectedPub.description}
@@ -259,7 +282,12 @@ function Publications() {
                 </Box>
               </>
             ) : (
-              <Flex align="center" justify="center" height="300px" color="gray.500">
+              <Flex
+                align="center"
+                justify="center"
+                height="300px"
+                color="gray.500"
+              >
                 <Text>No publications found</Text>
               </Flex>
             )}

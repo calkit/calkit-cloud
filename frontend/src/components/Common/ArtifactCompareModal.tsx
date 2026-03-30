@@ -25,8 +25,10 @@ import {
   IconButton,
   Tooltip,
   Link,
+  Textarea,
+  Avatar,
 } from "@chakra-ui/react"
-import { useQuery } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useState } from "react"
 import { FaLink } from "react-icons/fa"
 
@@ -40,7 +42,14 @@ import {
 } from "../../lib/projectRefApi"
 import FigureView from "../Figures/FigureView"
 import FileContent from "../Files/FileContent"
-import { type Figure, type Publication, type Notebook, type ContentsItem } from "../../client"
+import {
+  type Figure,
+  type Publication,
+  type Notebook,
+  type ContentsItem,
+  ProjectsService,
+} from "../../client"
+import useAuth from "../../hooks/useAuth"
 
 /** "file" covers auto-detected types not explicitly declared in calkit.yaml. */
 export type ArtifactKind = "figure" | "publication" | "notebook" | "file"
@@ -85,7 +94,8 @@ function ArtifactContent({
 
   if (kind === "publication") {
     const pub = data as Publication
-    if (!pub.url) return <Text color="gray.500">No URL for this publication.</Text>
+    if (!pub.url)
+      return <Text color="gray.500">No URL for this publication.</Text>
     if (path.endsWith(".pdf") || pub.url?.includes(".pdf")) {
       return (
         <Box height="70vh" width="100%">
@@ -149,26 +159,46 @@ function useArtifactAtRef(
   enabled: boolean,
 ) {
   return useQuery({
-    queryKey: ["projects", ownerName, projectName, kind, path, ref, "compare-modal"],
+    queryKey: [
+      "projects",
+      ownerName,
+      projectName,
+      kind,
+      path,
+      ref,
+      "compare-modal",
+    ],
     queryFn: async () => {
       if (kind === "file") {
         return getProjectContentsAtRef({ ownerName, projectName, path, ref })
       }
       if (kind === "figure") {
-        const figs = await getProjectFiguresAtRef({ ownerName, projectName, ref })
+        const figs = await getProjectFiguresAtRef({
+          ownerName,
+          projectName,
+          ref,
+        })
         // Fall back to contents API if not declared in calkit.yaml
         const found = figs.find((f) => f.path === path)
         if (found) return found
         return getProjectContentsAtRef({ ownerName, projectName, path, ref })
       }
       if (kind === "publication") {
-        const pubs = await getProjectPublicationsAtRef({ ownerName, projectName, ref })
+        const pubs = await getProjectPublicationsAtRef({
+          ownerName,
+          projectName,
+          ref,
+        })
         const found = pubs.find((p) => p.path === path)
         if (found) return found
         return getProjectContentsAtRef({ ownerName, projectName, path, ref })
       }
       if (kind === "notebook") {
-        const nbs = await getProjectNotebooksAtRef({ ownerName, projectName, ref })
+        const nbs = await getProjectNotebooksAtRef({
+          ownerName,
+          projectName,
+          ref,
+        })
         const found = nbs.find((n) => n.path === path)
         if (found) return found
         return getProjectContentsAtRef({ ownerName, projectName, path, ref })
@@ -177,6 +207,111 @@ function useArtifactAtRef(
     enabled,
     retry: false,
   })
+}
+
+function FigureComments({
+  ownerName,
+  projectName,
+  path,
+}: {
+  ownerName: string
+  projectName: string
+  path: string
+}) {
+  const { user } = useAuth()
+  const queryClient = useQueryClient()
+  const borderColor = useColorModeValue("gray.200", "gray.600")
+  const [draft, setDraft] = useState("")
+
+  const commentsQuery = useQuery({
+    queryKey: ["projects", ownerName, projectName, "figure-comments", path],
+    queryFn: () =>
+      ProjectsService.getFigureComments({
+        ownerName,
+        projectName,
+        figurePath: path,
+      }),
+  })
+
+  const postMutation = useMutation({
+    mutationFn: () =>
+      ProjectsService.postFigureComment({
+        ownerName,
+        projectName,
+        requestBody: { figure_path: path, comment: draft },
+      }),
+    onSuccess: () => {
+      setDraft("")
+      queryClient.invalidateQueries({
+        queryKey: ["projects", ownerName, projectName, "figure-comments", path],
+      })
+      queryClient.invalidateQueries({
+        queryKey: ["projects", ownerName, projectName, "figures"],
+      })
+    },
+  })
+
+  return (
+    <Box>
+      <Heading size="xs" mb={3}>
+        Comments
+      </Heading>
+      {commentsQuery.isPending ? (
+        <Spinner size="sm" />
+      ) : (commentsQuery.data?.length ?? 0) === 0 ? (
+        <Text fontSize="xs" color="gray.500" mb={3}>
+          No comments yet.
+        </Text>
+      ) : (
+        <VStack align="stretch" spacing={3} mb={4}>
+          {commentsQuery.data?.map((c) => (
+            <Flex key={c.id} gap={2}>
+              <Avatar name={c.user_github_username} size="xs" mt={0.5} />
+              <Box
+                flex={1}
+                borderWidth={1}
+                borderColor={borderColor}
+                borderRadius="md"
+                p={2}
+              >
+                <Flex align="center" gap={2} mb={1}>
+                  <Text fontSize="xs" fontWeight="bold">
+                    {c.user_github_username}
+                  </Text>
+                  <Text fontSize="xs" color="gray.500">
+                    {new Date(c.created ?? "").toLocaleDateString()}
+                  </Text>
+                </Flex>
+                <Text fontSize="sm" whiteSpace="pre-wrap">
+                  {c.comment}
+                </Text>
+              </Box>
+            </Flex>
+          ))}
+        </VStack>
+      )}
+      {user && (
+        <Box>
+          <Textarea
+            placeholder="Add a comment…"
+            size="sm"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            rows={3}
+            mb={2}
+          />
+          <Button
+            size="sm"
+            isDisabled={!draft.trim()}
+            isLoading={postMutation.isPending}
+            onClick={() => postMutation.mutate()}
+          >
+            Post
+          </Button>
+        </Box>
+      )}
+    </Box>
+  )
 }
 
 export function ArtifactCompareModal({
@@ -277,7 +412,7 @@ export function ArtifactCompareModal({
           <Flex gap={4} height="80vh">
             {/* Version history sidebar */}
             <Box
-              w="240px"
+              w="200px"
               flexShrink={0}
               borderRightWidth={1}
               borderColor={borderColor}
@@ -288,7 +423,12 @@ export function ArtifactCompareModal({
                 Version history
               </Heading>
               {(ref1 || ref2) && (
-                <Button size="xs" variant="ghost" mb={2} onClick={clearComparison}>
+                <Button
+                  size="xs"
+                  variant="ghost"
+                  mb={2}
+                  onClick={clearComparison}
+                >
                   Clear selection
                 </Button>
               )}
@@ -314,9 +454,7 @@ export function ArtifactCompareModal({
                         p={2}
                         borderRadius="md"
                         cursor="pointer"
-                        bg={
-                          isRef1 || isRef2 ? selectedBg : undefined
-                        }
+                        bg={isRef1 || isRef2 ? selectedBg : undefined}
                         _hover={{ bg: isRef1 || isRef2 ? selectedBg : hoverBg }}
                         onClick={() => handleCommitClick(commit)}
                         borderWidth={isRef1 || isRef2 ? 1 : 0}
@@ -349,7 +487,7 @@ export function ArtifactCompareModal({
             </Box>
 
             {/* Artifact content area */}
-            <Box flex={1} overflowY="auto">
+            <Box flex={1} overflowY="auto" minW={0}>
               {isComparing ? (
                 <Flex gap={4} align="flex-start" height="100%">
                   <Box flex={1}>
@@ -409,6 +547,24 @@ export function ArtifactCompareModal({
                 </>
               )}
             </Box>
+
+            {/* Figure comments panel */}
+            {kind === "figure" && (
+              <Box
+                w="220px"
+                flexShrink={0}
+                borderLeftWidth={1}
+                borderColor={borderColor}
+                pl={3}
+                overflowY="auto"
+              >
+                <FigureComments
+                  ownerName={ownerName}
+                  projectName={projectName}
+                  path={path}
+                />
+              </Box>
+            )}
           </Flex>
         </ModalBody>
       </ModalContent>

@@ -6,7 +6,9 @@ from app.core import read_last_line_from_csv
 
 
 def test_read_last_line_from_csv(tmp_dir):
-    subprocess.check_call(["git", "config", "--global", "user.name", "CI Test"])
+    subprocess.check_call(
+        ["git", "config", "--global", "user.name", "CI Test"]
+    )
     subprocess.check_call(
         ["git", "config", "--global", "user.email", "ci-test@example.com"]
     )

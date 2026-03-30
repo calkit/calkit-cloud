@@ -224,9 +224,7 @@ def get_overleaf_repo(
     return repo
 
 
-def search_refs(
-    repo: git.Repo, query: str | None = None
-) -> list[dict]:
+def search_refs(repo: git.Repo, query: str | None = None) -> list[dict]:
     """Search for refs (branches, tags, commits) in a repository.
 
     Args:
@@ -256,28 +254,39 @@ def search_refs(
                 # Try to get commit message for fuzzy matching
                 try:
                     commit = repo.commit(branch)
-                    if query_lower not in (commit.message or "").lower() and \
-                       query_lower not in (commit.author.name or "").lower():
+                    if (
+                        query_lower not in (commit.message or "").lower()
+                        and query_lower
+                        not in (commit.author.name or "").lower()
+                    ):
                         continue
                 except:
                     pass
 
             try:
                 commit = repo.commit(branch)
-                refs.append({
-                    "name": name,
-                    "type": "branch",
-                    "message": commit.message.split('\n')[0] if commit.message else None,
-                    "author": commit.author.name,
-                    "timestamp": commit.committed_datetime.isoformat(),
-                    "short_hash": commit.hexsha[:7],
-                })
+                refs.append(
+                    {
+                        "name": name,
+                        "type": "branch",
+                        "message": commit.message.split("\n")[0]
+                        if commit.message
+                        else None,
+                        "author": commit.author.name,
+                        "timestamp": commit.committed_datetime.isoformat(),
+                        "short_hash": commit.hexsha[:7],
+                    }
+                )
             except Exception as e:
-                logger.warning(f"Failed to get commit info for branch {name}: {e}")
-                refs.append({
-                    "name": name,
-                    "type": "branch",
-                })
+                logger.warning(
+                    f"Failed to get commit info for branch {name}: {e}"
+                )
+                refs.append(
+                    {
+                        "name": name,
+                        "type": "branch",
+                    }
+                )
     except Exception as e:
         logger.warning(f"Failed to list branches: {e}")
 
@@ -298,51 +307,65 @@ def search_refs(
                 commit = repo.commit(tag)
                 message = None
                 if tag.tag and tag.tag.message:
-                    message = tag.tag.message.split('\n')[0]
+                    message = tag.tag.message.split("\n")[0]
                 elif commit.message:
-                    message = commit.message.split('\n')[0]
+                    message = commit.message.split("\n")[0]
 
-                refs.append({
-                    "name": name,
-                    "type": "tag",
-                    "message": message,
-                    "author": commit.author.name if commit.author else None,
-                    "timestamp": commit.committed_datetime.isoformat() if commit.committed_datetime else None,
-                    "short_hash": commit.hexsha[:7],
-                })
+                refs.append(
+                    {
+                        "name": name,
+                        "type": "tag",
+                        "message": message,
+                        "author": commit.author.name
+                        if commit.author
+                        else None,
+                        "timestamp": commit.committed_datetime.isoformat()
+                        if commit.committed_datetime
+                        else None,
+                        "short_hash": commit.hexsha[:7],
+                    }
+                )
             except Exception as e:
-                logger.warning(f"Failed to get commit info for tag {name}: {e}")
-                refs.append({
-                    "name": name,
-                    "type": "tag",
-                })
+                logger.warning(
+                    f"Failed to get commit info for tag {name}: {e}"
+                )
+                refs.append(
+                    {
+                        "name": name,
+                        "type": "tag",
+                    }
+                )
     except Exception as e:
         logger.warning(f"Failed to list tags: {e}")
 
     # Add recent commits
     try:
         max_commits = 50
-        for commit in repo.iter_commits('HEAD', max_count=max_commits):
+        for commit in repo.iter_commits("HEAD", max_count=max_commits):
             short_hash = commit.hexsha[:7]
-            message = commit.message.split('\n')[0] if commit.message else ""
+            message = commit.message.split("\n")[0] if commit.message else ""
 
             # Check if this commit matches the query
             if query_lower:
-                if not (query_lower in short_hash.lower() or
-                       query_lower in message.lower() or
-                       query_lower in (commit.author.name or "").lower()):
+                if not (
+                    query_lower in short_hash.lower()
+                    or query_lower in message.lower()
+                    or query_lower in (commit.author.name or "").lower()
+                ):
                     continue
 
             # Avoid duplicates with branches/tags
-            if short_hash not in [r.get('short_hash', '') for r in refs]:
-                refs.append({
-                    "name": short_hash,
-                    "type": "commit",
-                    "message": message,
-                    "author": commit.author.name,
-                    "timestamp": commit.committed_datetime.isoformat(),
-                    "short_hash": short_hash,
-                })
+            if short_hash not in [r.get("short_hash", "") for r in refs]:
+                refs.append(
+                    {
+                        "name": short_hash,
+                        "type": "commit",
+                        "message": message,
+                        "author": commit.author.name,
+                        "timestamp": commit.committed_datetime.isoformat(),
+                        "short_hash": short_hash,
+                    }
+                )
     except Exception as e:
         logger.warning(f"Failed to list commits: {e}")
 
@@ -387,11 +410,16 @@ def get_file_history(
                 if commit.hexsha in seen:
                     continue
                 seen.add(commit.hexsha)
+                msg = (
+                    commit.message
+                    if isinstance(commit.message, str)
+                    else commit.message.decode()
+                )
                 commits.append(
                     {
                         "hash": commit.hexsha,
                         "short_hash": commit.hexsha[:7],
-                        "message": commit.message,
+                        "message": msg,
                         "author": commit.author.name,
                         "author_email": commit.author.email,
                         "timestamp": commit.committed_datetime.isoformat(),
@@ -399,7 +427,7 @@ def get_file_history(
                         "parent_hashes": [
                             p.hexsha[:7] for p in commit.parents
                         ],
-                        "summary": commit.message.split("\n")[0],
+                        "summary": msg.split("\n")[0],
                     }
                 )
         except Exception as exc:
@@ -411,8 +439,55 @@ def get_file_history(
     _collect(path)
     # DVC pointer file
     _collect(f"{path}.dvc")
-    # DVC lock file covers pipeline outputs
-    _collect("dvc.lock")
+    # DVC lock file: only include commits where this file's entry actually changed
+    try:
+        import yaml as _yaml
+
+        def _get_dvc_lock_hash(commit: git.Commit) -> str | None:
+            """Return the md5/hash for `path` in dvc.lock at this commit."""
+            try:
+                blob = commit.tree["dvc.lock"]
+                lock_data = _yaml.safe_load(blob.data_stream.read())
+                stages = lock_data.get("stages", {})
+                for stage in stages.values():
+                    for out in stage.get("outs", []):
+                        if out.get("path") == path:
+                            return out.get("md5") or out.get("hash")
+            except (KeyError, Exception):
+                return None
+
+        prev_hash: str | None = None
+        for commit in repo.iter_commits(
+            "HEAD", paths="dvc.lock", max_count=max_count * 4
+        ):
+            current_hash = _get_dvc_lock_hash(commit)
+            if current_hash is not None and current_hash != prev_hash:
+                if commit.hexsha not in seen:
+                    seen.add(commit.hexsha)
+                    msg = (
+                        commit.message
+                        if isinstance(commit.message, str)
+                        else commit.message.decode()
+                    )
+                    commits.append(
+                        {
+                            "hash": commit.hexsha,
+                            "short_hash": commit.hexsha[:7],
+                            "message": msg,
+                            "author": commit.author.name,
+                            "author_email": commit.author.email,
+                            "timestamp": commit.committed_datetime.isoformat(),
+                            "committed_date": commit.committed_date,
+                            "parent_hashes": [
+                                p.hexsha[:7] for p in commit.parents
+                            ],
+                            "summary": msg.split("\n")[0],
+                        }
+                    )
+            if current_hash is not None:
+                prev_hash = current_hash
+    except Exception as exc:
+        logger.warning(f"Failed to get dvc.lock history for {path!r}: {exc}")
 
     # Sort newest-first
     commits.sort(key=lambda c: c["committed_date"], reverse=True)
@@ -427,9 +502,7 @@ def get_file_history(
     return result[:max_count]
 
 
-def get_commit_history(
-    repo: git.Repo, max_count: int = 100
-) -> list[dict]:
+def get_commit_history(repo: git.Repo, max_count: int = 100) -> list[dict]:
     """Get detailed commit history for a repository.
 
     Args:
@@ -442,18 +515,20 @@ def get_commit_history(
     commits = []
 
     try:
-        for commit in repo.iter_commits('HEAD', max_count=max_count):
-            commits.append({
-                "hash": commit.hexsha,
-                "short_hash": commit.hexsha[:7],
-                "message": commit.message,
-                "author": commit.author.name,
-                "author_email": commit.author.email,
-                "timestamp": commit.committed_datetime.isoformat(),
-                "committed_date": commit.committed_date,
-                "parent_hashes": [p.hexsha[:7] for p in commit.parents],
-                "summary": commit.message.split('\n')[0],
-            })
+        for commit in repo.iter_commits("HEAD", max_count=max_count):
+            commits.append(
+                {
+                    "hash": commit.hexsha,
+                    "short_hash": commit.hexsha[:7],
+                    "message": commit.message,
+                    "author": commit.author.name,
+                    "author_email": commit.author.email,
+                    "timestamp": commit.committed_datetime.isoformat(),
+                    "committed_date": commit.committed_date,
+                    "parent_hashes": [p.hexsha[:7] for p in commit.parents],
+                    "summary": commit.message.split("\n")[0],
+                }
+            )
     except Exception as e:
         logger.warning(f"Failed to get commit history: {e}")
 

@@ -597,6 +597,7 @@ class Figure(SQLModel):
     dataset: str | None = None
     content: str | None = None  # Base64 encoded
     url: str | None = None
+    comment_count: int = 0
     # TODO: Link to a dataset, or does the pipeline do that?
     # TODO: Add content, or maybe we can just get from Git contents via path?
 

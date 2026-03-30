@@ -10,13 +10,29 @@ import {
   Code,
   useColorModeValue,
   Divider,
+  Button,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalCloseButton,
+  ModalBody,
+  HStack,
+  Icon,
 } from "@chakra-ui/react"
 import { useQuery } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
+import { useState } from "react"
 import { z } from "zod"
+import { FaPlus, FaMinus, FaFile } from "react-icons/fa"
 
 import PageMenu from "../../../../../components/Common/PageMenu"
-import { getProjectHistory, searchProjectRefs } from "../../../../../lib/projectRefApi"
+import {
+  getProjectHistory,
+  getProjectCommit,
+  searchProjectRefs,
+  type CommitHistory,
+} from "../../../../../lib/projectRefApi"
 
 const historySearchSchema = z.object({
   ref: z.string().optional(),
@@ -29,20 +45,169 @@ export const Route = createFileRoute(
   validateSearch: (search) => historySearchSchema.parse(search),
 })
 
+const PAGE_SIZE = 30
+
+const CHANGE_COLORS: Record<string, string> = {
+  A: "green",
+  D: "red",
+  M: "blue",
+  R: "purple",
+  C: "orange",
+}
+
+const CHANGE_LABELS: Record<string, string> = {
+  A: "Added",
+  D: "Deleted",
+  M: "Modified",
+  R: "Renamed",
+  C: "Copied",
+}
+
+function CommitDetailModal({
+  isOpen,
+  onClose,
+  ownerName,
+  projectName,
+  commit,
+}: {
+  isOpen: boolean
+  onClose: () => void
+  ownerName: string
+  projectName: string
+  commit: CommitHistory | null
+}) {
+  const borderColor = useColorModeValue("gray.200", "gray.600")
+  const detailQuery = useQuery({
+    queryKey: ["projects", ownerName, projectName, "commit", commit?.hash],
+    queryFn: () =>
+      getProjectCommit({
+        ownerName,
+        projectName,
+        commitHash: commit!.hash,
+      }),
+    enabled: isOpen && Boolean(commit),
+  })
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} size="2xl" scrollBehavior="inside">
+      <ModalOverlay />
+      <ModalContent>
+        <ModalHeader pr={12}>
+          {commit && (
+            <Flex align="center" gap={2}>
+              <Code fontSize="sm">{commit.short_hash}</Code>
+              <Text fontSize="md" fontWeight="semibold" noOfLines={2}>
+                {commit.summary}
+              </Text>
+            </Flex>
+          )}
+        </ModalHeader>
+        <ModalCloseButton />
+        <ModalBody pb={6}>
+          {commit && (
+            <Flex gap={2} fontSize="sm" color="gray.500" mb={4}>
+              <Text>{commit.author}</Text>
+              <Text>•</Text>
+              <Text>
+                {new Date(commit.timestamp).toLocaleDateString()} at{" "}
+                {new Date(commit.timestamp).toLocaleTimeString()}
+              </Text>
+            </Flex>
+          )}
+          {commit?.message && commit.message.split("\n").length > 1 && (
+            <Box
+              mb={4}
+              p={3}
+              borderRadius="md"
+              borderWidth={1}
+              borderColor={borderColor}
+            >
+              <Text fontSize="sm" whiteSpace="pre-wrap" color="gray.600">
+                {commit.message.split("\n").slice(1).join("\n").trim()}
+              </Text>
+            </Box>
+          )}
+          <Heading size="xs" mb={2}>
+            Changed files
+          </Heading>
+          {detailQuery.isPending ? (
+            <Flex justify="center" py={4}>
+              <Spinner size="md" />
+            </Flex>
+          ) : detailQuery.data?.changed_files?.length === 0 ? (
+            <Text fontSize="sm" color="gray.500">
+              No changed files
+            </Text>
+          ) : (
+            <VStack align="stretch" spacing={1}>
+              {detailQuery.data?.changed_files?.map((f, i) => (
+                <HStack key={i} spacing={2} py={1}>
+                  <Badge
+                    colorScheme={CHANGE_COLORS[f.change_type] ?? "gray"}
+                    fontSize="xs"
+                    minW="60px"
+                    textAlign="center"
+                  >
+                    {CHANGE_LABELS[f.change_type] ?? f.change_type}
+                  </Badge>
+                  <Icon as={FaFile} color="gray.400" fontSize="xs" />
+                  <Code fontSize="xs">{f.path}</Code>
+                  {f.old_path && (
+                    <Text fontSize="xs" color="gray.400">
+                      (from {f.old_path})
+                    </Text>
+                  )}
+                  {f.insertions != null && (
+                    <Flex gap={1} ml="auto" fontSize="xs">
+                      <Text color="green.500">
+                        <Icon as={FaPlus} />
+                        {f.insertions}
+                      </Text>
+                      <Text color="red.500">
+                        <Icon as={FaMinus} />
+                        {f.deletions}
+                      </Text>
+                    </Flex>
+                  )}
+                </HStack>
+              ))}
+            </VStack>
+          )}
+        </ModalBody>
+      </ModalContent>
+    </Modal>
+  )
+}
+
 function History() {
   const { accountName, projectName } = Route.useParams()
-  const { ref } = Route.useSearch()
   const bgHover = useColorModeValue("gray.50", "gray.700")
   const borderColor = useColorModeValue("gray.200", "gray.600")
+  const [page, setPage] = useState(0)
+  const [allCommits, setAllCommits] = useState<CommitHistory[]>([])
+  const [hasMore, setHasMore] = useState(true)
+  const [selectedCommit, setSelectedCommit] = useState<CommitHistory | null>(
+    null,
+  )
+  const [detailOpen, setDetailOpen] = useState(false)
 
-  const { data: commits = [], isPending: isLoadingHistory } = useQuery({
-    queryKey: ["projects", accountName, projectName, "history", ref],
-    queryFn: () =>
-      getProjectHistory({
+  const { isPending: isLoadingHistory, isFetching } = useQuery({
+    queryKey: ["projects", accountName, projectName, "history", "page", page],
+    queryFn: async () => {
+      const results = await getProjectHistory({
         ownerName: accountName,
         projectName: projectName,
-        limit: 100,
-      }),
+        limit: PAGE_SIZE,
+        offset: page * PAGE_SIZE,
+      })
+      setAllCommits((prev) => {
+        if (page === 0) return results
+        const existing = new Set(prev.map((c) => c.hash))
+        return [...prev, ...results.filter((c) => !existing.has(c.hash))]
+      })
+      setHasMore(results.length === PAGE_SIZE)
+      return results
+    },
   })
 
   const { data: branches = [] } = useQuery({
@@ -66,6 +231,11 @@ function History() {
       }),
     select: (refs) => refs.filter((r) => r.type === "tag"),
   })
+
+  const openCommit = (commit: CommitHistory) => {
+    setSelectedCommit(commit)
+    setDetailOpen(true)
+  }
 
   return (
     <Flex height="100%">
@@ -143,68 +313,104 @@ function History() {
       </PageMenu>
 
       <Box flex={1} p={4} maxH="100%" overflowY="auto">
-        <Heading size="md" mb={4}>Commit history</Heading>
+        <Heading size="md" mb={4}>
+          Commit history
+        </Heading>
 
-        {isLoadingHistory ? (
+        {isLoadingHistory && allCommits.length === 0 ? (
           <Flex justify="center" align="center" height="400px">
             <Spinner size="lg" color="ui.main" />
           </Flex>
-        ) : commits.length === 0 ? (
+        ) : allCommits.length === 0 ? (
           <Text color="gray.500">No commits found</Text>
         ) : (
-          <VStack align="stretch" spacing={3}>
-            {commits.map((commit) => (
-              <Box
-                key={commit.hash}
-                p={3}
-                borderWidth={1}
-                borderColor={borderColor}
-                borderRadius="md"
-                _hover={{ bg: bgHover }}
-              >
-                <Flex align="flex-start" gap={3} mb={2}>
-                  <Avatar
-                    name={commit.author}
-                    size="sm"
-                    src={`https://www.gravatar.com/avatar/${commit.author_email}?s=32&d=identicon`}
-                  />
-                  <VStack align="flex-start" spacing={0} flex={1}>
-                    <Flex gap={2} align="center">
-                      <Code fontSize="sm" colorScheme="gray">
-                        {commit.short_hash}
-                      </Code>
-                      <Text fontWeight="bold" fontSize="sm" flex={1} noOfLines={1}>
-                        {commit.summary}
-                      </Text>
-                    </Flex>
-                    <Flex gap={2} fontSize="xs" color="gray.500" mt={1}>
-                      <Text>{commit.author}</Text>
-                      <Text>•</Text>
-                      <Text>
-                        {new Date(commit.timestamp).toLocaleDateString()} at{" "}
-                        {new Date(commit.timestamp).toLocaleTimeString()}
-                      </Text>
-                    </Flex>
-                  </VStack>
-                </Flex>
+          <>
+            <VStack align="stretch" spacing={3}>
+              {allCommits.map((commit) => (
+                <Box
+                  key={commit.hash}
+                  p={3}
+                  borderWidth={1}
+                  borderColor={borderColor}
+                  borderRadius="md"
+                  _hover={{ bg: bgHover, cursor: "pointer" }}
+                  onClick={() => openCommit(commit)}
+                >
+                  <Flex align="flex-start" gap={3} mb={2}>
+                    <Avatar
+                      name={commit.author}
+                      size="sm"
+                      src={`https://www.gravatar.com/avatar/${commit.author_email}?s=32&d=identicon`}
+                    />
+                    <VStack align="flex-start" spacing={0} flex={1}>
+                      <Flex gap={2} align="center">
+                        <Code fontSize="sm" colorScheme="gray">
+                          {commit.short_hash}
+                        </Code>
+                        <Text
+                          fontWeight="bold"
+                          fontSize="sm"
+                          flex={1}
+                          noOfLines={1}
+                        >
+                          {commit.summary}
+                        </Text>
+                      </Flex>
+                      <Flex gap={2} fontSize="xs" color="gray.500" mt={1}>
+                        <Text>{commit.author}</Text>
+                        <Text>•</Text>
+                        <Text>
+                          {new Date(commit.timestamp).toLocaleDateString()} at{" "}
+                          {new Date(commit.timestamp).toLocaleTimeString()}
+                        </Text>
+                      </Flex>
+                    </VStack>
+                  </Flex>
 
-                {commit.message.split("\n").length > 1 && (
-                  <Box
-                    pl={12}
-                    pt={1}
-                    borderLeftWidth={2}
-                    borderLeftColor={borderColor}
-                  >
-                    <Text fontSize="xs" color="gray.600" whiteSpace="pre-wrap">
-                      {commit.message.split("\n").slice(1).join("\n")}
-                    </Text>
-                  </Box>
-                )}
-              </Box>
-            ))}
-          </VStack>
+                  {commit.message.split("\n").length > 1 && (
+                    <Box
+                      pl={12}
+                      pt={1}
+                      borderLeftWidth={2}
+                      borderLeftColor={borderColor}
+                    >
+                      <Text
+                        fontSize="xs"
+                        color="gray.600"
+                        whiteSpace="pre-wrap"
+                        noOfLines={3}
+                      >
+                        {commit.message.split("\n").slice(1).join("\n")}
+                      </Text>
+                    </Box>
+                  )}
+                </Box>
+              ))}
+            </VStack>
+
+            {hasMore && (
+              <Flex justify="center" mt={4}>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  isLoading={isFetching}
+                  onClick={() => setPage((p) => p + 1)}
+                >
+                  Load more
+                </Button>
+              </Flex>
+            )}
+          </>
         )}
       </Box>
+
+      <CommitDetailModal
+        isOpen={detailOpen}
+        onClose={() => setDetailOpen(false)}
+        ownerName={accountName}
+        projectName={projectName}
+        commit={selectedCommit}
+      />
     </Flex>
   )
 }

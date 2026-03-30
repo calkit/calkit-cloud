@@ -801,18 +801,10 @@ def get_project_history(
     project_name: str,
     session: SessionDep,
     current_user: CurrentUserOptional,
-    limit: int = Query(100, description="Max number of commits to return"),
+    limit: int = Query(50, description="Max number of commits to return"),
+    offset: int = Query(0, description="Number of commits to skip"),
 ):
-    """Get git commit history for a project.
-
-    Args:
-        owner_name: Owner of the project
-        project_name: Name of the project
-        limit: Maximum number of commits to return (default 100)
-
-    Returns:
-        List of commit objects with hash, message, author, timestamp, etc.
-    """
+    """Get paginated git commit history for a project."""
     from app.git import get_commit_history
 
     project = app.projects.get_project(
@@ -828,8 +820,75 @@ def get_project_history(
         session=session,
         full_history=True,
     )
-    history = get_commit_history(repo, max_count=limit)
-    return history
+    history = get_commit_history(repo, max_count=limit + offset)
+    return history[offset : offset + limit]
+
+
+@router.get("/projects/{owner_name}/{project_name}/git/commits/{commit_hash}")
+def get_project_commit(
+    owner_name: str,
+    project_name: str,
+    commit_hash: str,
+    session: SessionDep,
+    current_user: CurrentUserOptional,
+):
+    """Get details for a specific commit including changed files."""
+    project = app.projects.get_project(
+        session=session,
+        owner_name=owner_name,
+        project_name=project_name,
+        current_user=current_user,
+        min_access_level="read",
+    )
+    repo = get_repo(
+        project=project,
+        user=current_user,
+        session=session,
+        full_history=True,
+    )
+    try:
+        commit = repo.commit(commit_hash)
+    except Exception:
+        raise HTTPException(404, "Commit not found")
+    changed_files = []
+    if commit.parents:
+        parent = commit.parents[0]
+        diff = parent.diff(commit)
+        for d in diff:
+            change_type = d.change_type  # A, D, M, R, etc.
+            changed_files.append(
+                {
+                    "path": d.b_path or d.a_path,
+                    "old_path": d.a_path if change_type == "R" else None,
+                    "change_type": change_type,
+                    "insertions": None,
+                    "deletions": None,
+                }
+            )
+    else:
+        # Initial commit — list all files
+        for item in commit.tree.traverse():
+            if item.type == "blob":  # type: ignore[union-attr]
+                changed_files.append(
+                    {
+                        "path": item.path,  # type: ignore[union-attr]
+                        "old_path": None,
+                        "change_type": "A",
+                        "insertions": None,
+                        "deletions": None,
+                    }
+                )
+    return {
+        "hash": commit.hexsha,
+        "short_hash": commit.hexsha[:7],
+        "message": commit.message,
+        "summary": commit.message.split("\n")[0],
+        "author": commit.author.name,
+        "author_email": commit.author.email,
+        "timestamp": commit.committed_datetime.isoformat(),
+        "parent_hashes": [p.hexsha[:7] for p in commit.parents],
+        "changed_files": changed_files,
+    }
 
 
 @router.get("/projects/{owner_name}/{project_name}/git/file-history")
@@ -1370,8 +1429,47 @@ def get_project_figures(
         ref=ref,
     )
     figures = ck_info.get("figures", [])
+    declared_paths = {fig["path"] for fig in figures}
+    # Auto-detect figures from the repo tree
+    _FIGURE_EXTS = {".png", ".jpg", ".jpeg", ".svg", ".gif"}
+    _FIGURE_DIRS = {"figures", "figure", "figs", "fig", "plots", "images"}
+    try:
+        commit = repo.commit(ref) if ref else repo.head.commit
+        for blob in commit.tree.traverse():
+            if blob.type != "blob":  # type: ignore[union-attr]
+                continue
+            parts = blob.path.split("/")  # type: ignore[union-attr]
+            # Skip hidden folders like .calkit
+            if any(p.startswith(".") for p in parts):
+                continue
+            ext = (
+                "." + parts[-1].rsplit(".", 1)[-1] if "." in parts[-1] else ""
+            )
+            parent_dir = parts[-2].lower() if len(parts) > 1 else ""
+            if ext.lower() in _FIGURE_EXTS and parent_dir in _FIGURE_DIRS:
+                if blob.path not in declared_paths:  # type: ignore[union-attr]
+                    stem = (
+                        parts[-1]
+                        .rsplit(".", 1)[0]
+                        .replace("_", " ")
+                        .replace("-", " ")
+                        .title()
+                    )
+                    figures.append({"path": blob.path, "title": stem})  # type: ignore[union-attr]
+    except Exception:
+        pass
     if not figures:
-        return figures
+        return []
+    # Build comment count map from DB
+    from sqlmodel import func as sqlfunc
+
+    comment_counts = dict(
+        session.exec(
+            select(FigureComment.figure_path, sqlfunc.count(FigureComment.id))
+            .where(FigureComment.project_id == project.id)
+            .group_by(FigureComment.figure_path)
+        ).all()
+    )
     # Get the figure content and base64 encode it
     for fig in figures:
         item = app.projects.get_contents_from_repo(
@@ -1382,6 +1480,7 @@ def get_project_figures(
         )
         fig["content"] = item.content
         fig["url"] = item.url
+        fig["comment_count"] = comment_counts.get(fig["path"], 0)
     return [Figure.model_validate(fig) for fig in figures]
 
 
