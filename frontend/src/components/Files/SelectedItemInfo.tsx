@@ -23,14 +23,33 @@ import UploadFile from "./UploadFile"
 import { ProjectsService } from "../../client"
 import { ArtifactCompareModal, type ArtifactKind } from "../Common/ArtifactCompareModal"
 
-const FIGURE_EXTS = new Set([".png", ".jpg", ".jpeg", ".svg", ".gif", ".pdf", ".json", ".html"])
+const FIGURE_EXTS = new Set([".png", ".jpg", ".jpeg", ".svg", ".gif", ".json", ".html"])
+const PUBLICATION_EXTS = new Set([".pdf", ".html"])
 const NOTEBOOK_EXTS = new Set([".ipynb"])
+
+// Path segments that hint at figure or publication directories
+const FIGURE_DIRS = new Set(["figures", "figure", "figs", "fig", "plots", "images"])
+const PUBLICATION_DIRS = new Set(["paper", "papers", "publications", "publication", "pub", "pubs", "manuscript", "article"])
 
 function inferKindFromPath(path: string): ArtifactKind | undefined {
   const lower = path.toLowerCase()
-  const ext = lower.slice(lower.lastIndexOf("."))
-  if (NOTEBOOK_EXTS.has(ext)) return "notebook"
+  const parts = lower.split("/")
+  const ext = parts[parts.length - 1].includes(".")
+    ? "." + parts[parts.length - 1].split(".").pop()!
+    : ""
+
+  // Notebooks: always by extension, never in hidden folders
+  if (NOTEBOOK_EXTS.has(ext) && !parts.some((p) => p.startsWith("."))) return "notebook"
+
+  // Check parent directory name for figures/publications first
+  const parentDir = parts.length > 1 ? parts[parts.length - 2] : ""
+  if (PUBLICATION_DIRS.has(parentDir) && PUBLICATION_EXTS.has(ext)) return "publication"
+  if (FIGURE_DIRS.has(parentDir) && FIGURE_EXTS.has(ext)) return "figure"
+
+  // Fall back to extension only (PDFs outside known dirs are figures by default)
   if (FIGURE_EXTS.has(ext)) return "figure"
+  if (ext === ".pdf") return "figure"
+
   return undefined
 }
 
