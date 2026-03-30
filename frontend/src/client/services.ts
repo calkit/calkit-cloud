@@ -252,6 +252,10 @@ export type ProjectsData = {
     offset?: number
     ownerName: string
     projectName: string
+    /**
+     * Branch, tag, or commit to read history from
+     */
+    ref?: string | null
   }
   GetProjectCommit: {
     commitHash: string
@@ -1601,7 +1605,7 @@ export class ProjectsService {
   public static getProjectHistory(
     data: ProjectsData["GetProjectHistory"],
   ): CancelablePromise<unknown> {
-    const { ownerName, projectName, limit = 50, offset = 0 } = data
+    const { ownerName, projectName, limit = 50, offset = 0, ref } = data
     return __request(OpenAPI, {
       method: "GET",
       url: "/projects/{owner_name}/{project_name}/git/history",
@@ -1612,6 +1616,7 @@ export class ProjectsService {
       query: {
         limit,
         offset,
+        ref,
       },
       errors: {
         422: `Validation Error`,

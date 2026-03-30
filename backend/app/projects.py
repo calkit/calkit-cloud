@@ -206,12 +206,18 @@ def _repo_dir_for_ref(repo: git.Repo, ref: str | None):
     if ref is None:
         yield repo.working_dir
         return
-    try:
-        archive_bytes = subprocess.check_output(
-            ["git", "archive", ref],
-            cwd=repo.working_dir,
-        )
-    except subprocess.CalledProcessError:
+    candidates = [ref, f"origin/{ref}"]
+    archive_bytes = None
+    for candidate in candidates:
+        try:
+            archive_bytes = subprocess.check_output(
+                ["git", "archive", candidate],
+                cwd=repo.working_dir,
+            )
+            break
+        except subprocess.CalledProcessError:
+            continue
+    if archive_bytes is None:
         raise HTTPException(404, f"Git ref '{ref}' was not found")
     with tempfile.TemporaryDirectory(prefix="calkit-ref-") as tmpdir:
         with tarfile.open(fileobj=io.BytesIO(archive_bytes)) as tf:

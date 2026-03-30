@@ -14,30 +14,9 @@ import { useNavigate } from "@tanstack/react-router"
 import { useEffect, useRef, useState } from "react"
 import { FaSearch, FaProjectDiagram, FaUsers, FaDatabase } from "react-icons/fa"
 
-import axios from "axios"
+import { MiscService, type SearchResults } from "../../client"
 
-interface SearchResultItem {
-  kind: "project" | "org" | "dataset"
-  name: string
-  title: string | null
-  description: string | null
-  owner_name: string | null
-  project_name: string | null
-}
-
-interface SearchResults {
-  results: SearchResultItem[]
-}
-
-async function globalSearch(q: string): Promise<SearchResults> {
-  const token = localStorage.getItem("access_token")
-  const headers = token ? { Authorization: `Bearer ${token}` } : {}
-  const resp = await axios.get("/api/v1/search", {
-    params: { q },
-    headers,
-  })
-  return resp.data
-}
+type SearchResultItem = SearchResults["results"][number]
 
 const KIND_ICON = {
   project: FaProjectDiagram,
@@ -73,9 +52,9 @@ export default function GlobalSearch() {
   const labelColor = useColorModeValue("gray.500", "gray.400")
   const inputBg = useColorModeValue("white", "gray.700")
 
-  const { data, isFetching } = useQuery({
+  const { data, isFetching, isSuccess } = useQuery({
     queryKey: ["global-search", debouncedQuery],
-    queryFn: () => globalSearch(debouncedQuery),
+    queryFn: () => MiscService.globalSearch({ q: debouncedQuery }),
     enabled: debouncedQuery.length >= 2,
     staleTime: 30_000,
   })
@@ -120,7 +99,7 @@ export default function GlobalSearch() {
   }
 
   const showDropdown =
-    isOpen && debouncedQuery.length >= 2 && (isFetching || results.length > 0)
+    isOpen && debouncedQuery.length >= 2 && (isFetching || isSuccess)
 
   return (
     <Box ref={containerRef} position="relative" w="220px">
@@ -163,7 +142,7 @@ export default function GlobalSearch() {
         >
           {results.length === 0 && !isFetching && (
             <Text p={3} fontSize="sm" color={labelColor}>
-              No results
+              No results found
             </Text>
           )}
           {kinds.map((kind) => {

@@ -17,12 +17,16 @@ import {
   Code,
   HStack,
 } from "@chakra-ui/react"
-import { createFileRoute, Link as RouterLink } from "@tanstack/react-router"
+import {
+  createFileRoute,
+  Link as RouterLink,
+  useNavigate,
+} from "@tanstack/react-router"
 import { FiFile } from "react-icons/fi"
 import { FaPlus, FaSync, FaCodeBranch } from "react-icons/fa"
 import { SiOverleaf } from "react-icons/si"
 import { ExternalLinkIcon } from "@chakra-ui/icons"
-import { useState } from "react"
+import { z } from "zod"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 
 import { type Publication } from "../../../../../client"
@@ -39,10 +43,15 @@ import useCustomToast from "../../../../../hooks/useCustomToast"
 import { handleError } from "../../../../../lib/errors"
 import { ArtifactCompareModal } from "../../../../../components/Common/ArtifactCompareModal"
 
+const pubSearchSchema = z.object({
+  path: z.string().optional(),
+})
+
 export const Route = createFileRoute(
   "/_layout/$accountName/$projectName/_layout/publications",
 )({
   component: Publications,
+  validateSearch: (search) => pubSearchSchema.parse(search),
 })
 
 interface PubInfoProps {
@@ -174,7 +183,10 @@ function Publications() {
     accountName,
     projectName,
   )
-  const [selectedPath, setSelectedPath] = useState<string | undefined>()
+  const { path: selectedPath } = Route.useSearch()
+  const navigate = useNavigate({ from: Route.fullPath })
+  const setSelectedPath = (p: string) =>
+    navigate({ search: (prev) => ({ ...prev, path: p }) })
 
   const selectedPub =
     publicationsRequest.data?.find((p) => p.path === selectedPath) ??

@@ -13,7 +13,7 @@ import {
 } from "@chakra-ui/react"
 import { useQuery } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
-import { useState } from "react"
+import { useNavigate } from "@tanstack/react-router"
 import { SiJupyter } from "react-icons/si"
 import { FaCodeBranch } from "react-icons/fa"
 import { z } from "zod"
@@ -28,6 +28,7 @@ import { ArtifactCompareModal } from "../../../../../components/Common/ArtifactC
 
 const notebookSearchSchema = z.object({
   ref: z.string().optional(),
+  path: z.string().optional(),
 })
 
 export const Route = createFileRoute(
@@ -136,8 +137,10 @@ function NotebookInfo({
 
 function Notebooks() {
   const { accountName, projectName } = Route.useParams()
-  const { ref } = Route.useSearch()
-  const [selectedPath, setSelectedPath] = useState<string | undefined>()
+  const { ref, path: selectedPath } = Route.useSearch()
+  const navigate = useNavigate({ from: Route.fullPath })
+  const setSelectedPath = (p: string) =>
+    navigate({ search: (prev) => ({ ...prev, path: p }) })
 
   const { isPending, data: notebooks } = useQuery({
     queryKey: ["projects", accountName, projectName, "notebooks", ref],
@@ -181,7 +184,7 @@ function Notebooks() {
                     cursor="pointer"
                     fontWeight={isSelected ? "semibold" : "normal"}
                     _hover={{ color: "blue.500" }}
-                    onClick={() => setSelectedPath(nb.path)}
+                    onClick={() => setSelectedPath(nb.path ?? "")}
                     spacing={1}
                   >
                     <Icon as={SiJupyter} flexShrink={0} color="orange.400" />

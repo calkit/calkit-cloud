@@ -2204,8 +2204,15 @@ export const $Notebook = {
       isRequired: true,
     },
     title: {
-      type: "string",
-      isRequired: true,
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
     },
     description: {
       type: "any-of",

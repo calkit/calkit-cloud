@@ -19,7 +19,7 @@ import {
 } from "@chakra-ui/react"
 import { useQuery } from "@tanstack/react-query"
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { FaPlus, FaRegFileImage, FaRegFilePdf, FaComment } from "react-icons/fa"
 import { FiFile } from "react-icons/fi"
 import { z } from "zod"
@@ -34,6 +34,7 @@ import { ArtifactCompareModal } from "../../../../../components/Common/ArtifactC
 const figuresSearchSchema = z.object({
   ref: z.string().optional(),
   compareRef: z.string().optional(),
+  path: z.string().optional(),
 })
 
 export const Route = createFileRoute(
@@ -149,7 +150,7 @@ function FigureThumbnail({
 
 function ProjectFigures() {
   const { accountName, projectName } = Route.useParams()
-  const { ref } = Route.useSearch()
+  const { ref, path: selectedPath } = Route.useSearch()
   const navigate = useNavigate({ from: Route.fullPath })
   const { userHasWriteAccess } = useProject(accountName, projectName)
   const [selectedFigure, setSelectedFigure] = useState<Figure | null>(null)
@@ -168,7 +169,19 @@ function ProjectFigures() {
   const uploadFigureModal = useDisclosure()
   const labelFigureModal = useDisclosure()
 
+  // Auto-open modal when path is in URL
+  useEffect(() => {
+    if (selectedPath && figures) {
+      const fig = figures.find((f) => f.path === selectedPath)
+      if (fig) {
+        setSelectedFigure(fig)
+        compareModal.onOpen()
+      }
+    }
+  }, [selectedPath, figures])
+
   const openFigure = (figure: Figure) => {
+    navigate({ search: (prev) => ({ ...prev, path: figure.path }) })
     setSelectedFigure(figure)
     compareModal.onOpen()
   }
@@ -281,6 +294,7 @@ function ProjectFigures() {
           onClose={() => {
             compareModal.onClose()
             setSelectedFigure(null)
+            navigate({ search: (prev) => ({ ...prev, path: undefined }) })
           }}
           ownerName={accountName}
           projectName={projectName}

@@ -27,10 +27,18 @@ import {
   Link,
   Textarea,
   Avatar,
+  Tabs,
+  TabList,
+  Tab,
+  TabPanels,
+  TabPanel,
+  Icon,
 } from "@chakra-ui/react"
+import { FaCodeBranch } from "react-icons/fa"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useState, useEffect } from "react"
 import { FaLink } from "react-icons/fa"
+import ReactDiffViewer, { DiffMethod } from "react-diff-viewer-continued"
 
 import {
   getProjectFileHistory,
@@ -38,7 +46,9 @@ import {
   getProjectPublicationsAtRef,
   getProjectNotebooksAtRef,
   getProjectContentsAtRef,
+  searchProjectRefs,
   type CommitHistory,
+  type Ref,
 } from "../../lib/projectRefApi"
 import FigureView from "../Figures/FigureView"
 import FileContent from "../Files/FileContent"
@@ -343,6 +353,15 @@ export function ArtifactCompareModal({
     enabled: isOpen,
   })
 
+  const refsQuery = useQuery({
+    queryKey: ["projects", ownerName, projectName, "refs"],
+    queryFn: () => searchProjectRefs({ ownerName, projectName }),
+    enabled: isOpen,
+  })
+  const branches = (refsQuery.data ?? []).filter(
+    (r: Ref) => r.type === "branch",
+  )
+
   const artifact1Query = useArtifactAtRef(
     ownerName,
     projectName,
@@ -425,9 +444,6 @@ export function ArtifactCompareModal({
               pr={3}
               overflowY="auto"
             >
-              <Heading size="xs" mb={2}>
-                Version history
-              </Heading>
               {(ref1 || ref2) && (
                 <Button
                   size="xs"
@@ -443,91 +459,218 @@ export function ArtifactCompareModal({
                   Click another version to compare
                 </Text>
               )}
-              {historyQuery.isPending ? (
-                <Spinner size="sm" />
-              ) : (historyQuery.data?.length ?? 0) === 0 ? (
-                <Text fontSize="xs" color="gray.500">
-                  No version history found.
-                </Text>
-              ) : (
-                <VStack align="stretch" spacing={1}>
-                  {historyQuery.data?.map((commit) => {
-                    const isRef1 = commit.short_hash === ref1
-                    const isRef2 = commit.short_hash === ref2
-                    return (
-                      <Box
-                        key={commit.hash}
-                        p={2}
-                        borderRadius="md"
-                        cursor="pointer"
-                        bg={isRef1 || isRef2 ? selectedBg : undefined}
-                        _hover={{ bg: isRef1 || isRef2 ? selectedBg : hoverBg }}
-                        onClick={() => handleCommitClick(commit)}
-                        borderWidth={isRef1 || isRef2 ? 1 : 0}
-                        borderColor="blue.300"
-                      >
-                        <Flex align="center" gap={1} mb={0.5}>
-                          <Code fontSize="xs">{commit.short_hash}</Code>
-                          {isRef1 && (
-                            <Badge colorScheme="blue" fontSize="xs">
-                              A
-                            </Badge>
-                          )}
-                          {isRef2 && (
-                            <Badge colorScheme="purple" fontSize="xs">
-                              B
-                            </Badge>
-                          )}
-                        </Flex>
-                        <Text fontSize="xs" noOfLines={1}>
-                          {commit.summary}
-                        </Text>
-                        <Text fontSize="xs" color="gray.500">
-                          {new Date(commit.timestamp).toLocaleDateString()}
-                        </Text>
-                      </Box>
-                    )
-                  })}
-                </VStack>
-              )}
+              <Tabs size="sm" variant="enclosed">
+                <TabList>
+                  <Tab fontSize="xs">Commits</Tab>
+                  <Tab fontSize="xs">Branches</Tab>
+                </TabList>
+                <TabPanels>
+                  <TabPanel px={0} pb={0}>
+                    {historyQuery.isPending ? (
+                      <Flex justify="center" py={2}>
+                        <Spinner size="sm" color="ui.main" />
+                      </Flex>
+                    ) : (historyQuery.data?.length ?? 0) === 0 ? (
+                      <Text fontSize="xs" color="gray.500">
+                        No version history found.
+                      </Text>
+                    ) : (
+                      <VStack align="stretch" spacing={1}>
+                        {historyQuery.data?.map((commit) => {
+                          const isRef1 = commit.short_hash === ref1
+                          const isRef2 = commit.short_hash === ref2
+                          return (
+                            <Box
+                              key={commit.hash}
+                              p={2}
+                              borderRadius="md"
+                              cursor="pointer"
+                              bg={isRef1 || isRef2 ? selectedBg : undefined}
+                              _hover={{
+                                bg: isRef1 || isRef2 ? selectedBg : hoverBg,
+                              }}
+                              onClick={() => handleCommitClick(commit)}
+                              borderWidth={isRef1 || isRef2 ? 1 : 0}
+                              borderColor="blue.300"
+                            >
+                              <Flex align="center" gap={1} mb={0.5}>
+                                <Code fontSize="xs">{commit.short_hash}</Code>
+                                {isRef1 && (
+                                  <Badge colorScheme="blue" fontSize="xs">
+                                    A
+                                  </Badge>
+                                )}
+                                {isRef2 && (
+                                  <Badge colorScheme="purple" fontSize="xs">
+                                    B
+                                  </Badge>
+                                )}
+                              </Flex>
+                              <Text fontSize="xs" noOfLines={1}>
+                                {commit.summary}
+                              </Text>
+                              <Text fontSize="xs" color="gray.500">
+                                {new Date(
+                                  commit.timestamp,
+                                ).toLocaleDateString()}
+                              </Text>
+                            </Box>
+                          )
+                        })}
+                      </VStack>
+                    )}
+                  </TabPanel>
+                  <TabPanel px={0} pb={0}>
+                    {refsQuery.isPending ? (
+                      <Flex justify="center" py={2}>
+                        <Spinner size="sm" color="ui.main" />
+                      </Flex>
+                    ) : branches.length === 0 ? (
+                      <Text fontSize="xs" color="gray.500">
+                        No branches found.
+                      </Text>
+                    ) : (
+                      <VStack align="stretch" spacing={1}>
+                        {branches.map((branch: Ref) => {
+                          const isRef1 = branch.name === ref1
+                          const isRef2 = branch.name === ref2
+                          return (
+                            <Box
+                              key={branch.name}
+                              p={2}
+                              borderRadius="md"
+                              cursor="pointer"
+                              bg={isRef1 || isRef2 ? selectedBg : undefined}
+                              _hover={{
+                                bg: isRef1 || isRef2 ? selectedBg : hoverBg,
+                              }}
+                              onClick={() => {
+                                if (!ref1 || ref1 === branch.name) {
+                                  setRef1(branch.name)
+                                  setRef2(undefined)
+                                } else if (!ref2) {
+                                  setRef2(branch.name)
+                                } else {
+                                  setRef1(branch.name)
+                                  setRef2(undefined)
+                                }
+                              }}
+                              borderWidth={isRef1 || isRef2 ? 1 : 0}
+                              borderColor="blue.300"
+                            >
+                              <Flex align="center" gap={1}>
+                                <Icon
+                                  as={FaCodeBranch}
+                                  fontSize="xs"
+                                  color="gray.400"
+                                  flexShrink={0}
+                                />
+                                <Text fontSize="xs" noOfLines={1} flex={1}>
+                                  {branch.name}
+                                </Text>
+                                {isRef1 && (
+                                  <Badge colorScheme="blue" fontSize="xs">
+                                    A
+                                  </Badge>
+                                )}
+                                {isRef2 && (
+                                  <Badge colorScheme="purple" fontSize="xs">
+                                    B
+                                  </Badge>
+                                )}
+                                {branch.is_default && (
+                                  <Badge colorScheme="green" fontSize="xs">
+                                    default
+                                  </Badge>
+                                )}
+                              </Flex>
+                            </Box>
+                          )
+                        })}
+                      </VStack>
+                    )}
+                  </TabPanel>
+                </TabPanels>
+              </Tabs>
             </Box>
 
             {/* Artifact content area */}
             <Box flex={1} overflowY="auto" minW={0}>
               {isComparing ? (
-                <Flex gap={4} align="flex-start" height="100%">
-                  <Box flex={1}>
-                    <Flex align="center" gap={2} mb={2}>
-                      <Badge colorScheme="blue">A</Badge>
-                      <Code fontSize="sm">{ref1}</Code>
+                <>
+                  {kind === "file" &&
+                  artifact1Query.data &&
+                  artifact2Query.data ? (
+                    (() => {
+                      const decode = (
+                        d: Figure | Publication | Notebook | ContentsItem,
+                      ) => {
+                        const item = d as ContentsItem
+                        if (item.content) return atob(item.content)
+                        return ""
+                      }
+                      return (
+                        <ReactDiffViewer
+                          oldValue={decode(artifact1Query.data)}
+                          newValue={decode(artifact2Query.data)}
+                          leftTitle={
+                            <Flex align="center" gap={1}>
+                              <Badge colorScheme="blue">A</Badge>
+                              <Code fontSize="xs">{ref1}</Code>
+                            </Flex>
+                          }
+                          rightTitle={
+                            <Flex align="center" gap={1}>
+                              <Badge colorScheme="purple">B</Badge>
+                              <Code fontSize="xs">{ref2}</Code>
+                            </Flex>
+                          }
+                          compareMethod={DiffMethod.WORDS}
+                          useDarkTheme
+                          styles={{
+                            variables: {
+                              dark: { gutterBackground: "#1a202c" },
+                            },
+                          }}
+                        />
+                      )
+                    })()
+                  ) : (
+                    <Flex gap={4} align="flex-start" height="100%">
+                      <Box flex={1}>
+                        <Flex align="center" gap={2} mb={2}>
+                          <Badge colorScheme="blue">A</Badge>
+                          <Code fontSize="sm">{ref1}</Code>
+                        </Flex>
+                        {artifact1Query.isPending ? (
+                          <Spinner />
+                        ) : (
+                          <ArtifactContent
+                            kind={kind}
+                            path={path}
+                            data={artifact1Query.data}
+                          />
+                        )}
+                      </Box>
+                      <Divider orientation="vertical" />
+                      <Box flex={1}>
+                        <Flex align="center" gap={2} mb={2}>
+                          <Badge colorScheme="purple">B</Badge>
+                          <Code fontSize="sm">{ref2}</Code>
+                        </Flex>
+                        {artifact2Query.isPending ? (
+                          <Spinner />
+                        ) : (
+                          <ArtifactContent
+                            kind={kind}
+                            path={path}
+                            data={artifact2Query.data}
+                          />
+                        )}
+                      </Box>
                     </Flex>
-                    {artifact1Query.isPending ? (
-                      <Spinner />
-                    ) : (
-                      <ArtifactContent
-                        kind={kind}
-                        path={path}
-                        data={artifact1Query.data}
-                      />
-                    )}
-                  </Box>
-                  <Divider orientation="vertical" />
-                  <Box flex={1}>
-                    <Flex align="center" gap={2} mb={2}>
-                      <Badge colorScheme="purple">B</Badge>
-                      <Code fontSize="sm">{ref2}</Code>
-                    </Flex>
-                    {artifact2Query.isPending ? (
-                      <Spinner />
-                    ) : (
-                      <ArtifactContent
-                        kind={kind}
-                        path={path}
-                        data={artifact2Query.data}
-                      />
-                    )}
-                  </Box>
-                </Flex>
+                  )}
+                </>
               ) : (
                 <>
                   {ref1 && (
