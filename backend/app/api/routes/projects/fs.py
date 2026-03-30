@@ -234,7 +234,7 @@ def post_project_fs_op(
         try:
             paths = fs.ls(full_path, detail=req.detail)
         except FileNotFoundError:
-            raise HTTPException(404, "Path not found")
+            paths = []
         if req.detail:
             paths = [
                 obj
@@ -256,7 +256,7 @@ def post_project_fs_op(
         try:
             paths = fs.find(full_path, detail=req.detail)
         except FileNotFoundError:
-            raise HTTPException(404, "Path not found")
+            paths = []
         if req.detail:
             if isinstance(paths, dict):
                 paths = [
