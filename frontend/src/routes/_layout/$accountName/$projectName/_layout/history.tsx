@@ -19,12 +19,15 @@ import {
   ModalBody,
   HStack,
   Icon,
+  Collapse,
 } from "@chakra-ui/react"
 import { useQuery } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 import { useState } from "react"
 import { z } from "zod"
-import { FaPlus, FaMinus, FaFile } from "react-icons/fa"
+import { FaFile, FaChevronDown, FaChevronRight } from "react-icons/fa"
+import SyntaxHighlighter from "react-syntax-highlighter"
+import { atomOneDark } from "react-syntax-highlighter/dist/esm/styles/hljs"
 
 import PageMenu from "../../../../../components/Common/PageMenu"
 import {
@@ -63,6 +66,92 @@ const CHANGE_LABELS: Record<string, string> = {
   C: "Copied",
 }
 
+function FileDiffEntry({
+  file,
+}: {
+  file: {
+    path: string
+    old_path: string | null
+    change_type: string
+    insertions: number | null
+    deletions: number | null
+    patch: string | null
+  }
+}) {
+  const [expanded, setExpanded] = useState(false)
+  const borderColor = useColorModeValue("gray.200", "gray.600")
+  const hoverBg = useColorModeValue("gray.50", "gray.700")
+  const hasDiff = Boolean(file.patch)
+
+  return (
+    <Box
+      borderWidth={1}
+      borderColor={borderColor}
+      borderRadius="md"
+      overflow="hidden"
+    >
+      <HStack
+        px={3}
+        py={2}
+        spacing={2}
+        cursor={hasDiff ? "pointer" : "default"}
+        onClick={() => hasDiff && setExpanded((v) => !v)}
+        _hover={hasDiff ? { bg: hoverBg } : {}}
+      >
+        {hasDiff && (
+          <Icon
+            as={expanded ? FaChevronDown : FaChevronRight}
+            fontSize="xs"
+            color="gray.400"
+          />
+        )}
+        <Badge
+          colorScheme={CHANGE_COLORS[file.change_type] ?? "gray"}
+          fontSize="xs"
+          minW="60px"
+          textAlign="center"
+          flexShrink={0}
+        >
+          {CHANGE_LABELS[file.change_type] ?? file.change_type}
+        </Badge>
+        <Icon as={FaFile} color="gray.400" fontSize="xs" flexShrink={0} />
+        <Code fontSize="xs" flex={1} isTruncated>
+          {file.path}
+        </Code>
+        {file.old_path && (
+          <Text fontSize="xs" color="gray.400" flexShrink={0}>
+            from {file.old_path}
+          </Text>
+        )}
+        {file.insertions != null && (
+          <HStack spacing={1} fontSize="xs" flexShrink={0}>
+            <Text color="green.500" fontWeight="bold">
+              +{file.insertions}
+            </Text>
+            <Text color="red.500" fontWeight="bold">
+              -{file.deletions}
+            </Text>
+          </HStack>
+        )}
+      </HStack>
+      {hasDiff && (
+        <Collapse in={expanded} animateOpacity>
+          <Box maxH="400px" overflowY="auto" fontSize="xs">
+            <SyntaxHighlighter
+              language="diff"
+              style={atomOneDark}
+              customStyle={{ margin: 0, borderRadius: 0, fontSize: "12px" }}
+              showLineNumbers={false}
+            >
+              {file.patch!}
+            </SyntaxHighlighter>
+          </Box>
+        </Collapse>
+      )}
+    </Box>
+  )
+}
+
 function CommitDetailModal({
   isOpen,
   onClose,
@@ -89,7 +178,7 @@ function CommitDetailModal({
   })
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="2xl" scrollBehavior="inside">
+    <Modal isOpen={isOpen} onClose={onClose} size="4xl" scrollBehavior="inside">
       <ModalOverlay />
       <ModalContent>
         <ModalHeader pr={12}>
@@ -139,37 +228,9 @@ function CommitDetailModal({
               No changed files
             </Text>
           ) : (
-            <VStack align="stretch" spacing={1}>
+            <VStack align="stretch" spacing={2}>
               {detailQuery.data?.changed_files?.map((f, i) => (
-                <HStack key={i} spacing={2} py={1}>
-                  <Badge
-                    colorScheme={CHANGE_COLORS[f.change_type] ?? "gray"}
-                    fontSize="xs"
-                    minW="60px"
-                    textAlign="center"
-                  >
-                    {CHANGE_LABELS[f.change_type] ?? f.change_type}
-                  </Badge>
-                  <Icon as={FaFile} color="gray.400" fontSize="xs" />
-                  <Code fontSize="xs">{f.path}</Code>
-                  {f.old_path && (
-                    <Text fontSize="xs" color="gray.400">
-                      (from {f.old_path})
-                    </Text>
-                  )}
-                  {f.insertions != null && (
-                    <Flex gap={1} ml="auto" fontSize="xs">
-                      <Text color="green.500">
-                        <Icon as={FaPlus} />
-                        {f.insertions}
-                      </Text>
-                      <Text color="red.500">
-                        <Icon as={FaMinus} />
-                        {f.deletions}
-                      </Text>
-                    </Flex>
-                  )}
-                </HStack>
+                <FileDiffEntry key={i} file={f} />
               ))}
             </VStack>
           )}

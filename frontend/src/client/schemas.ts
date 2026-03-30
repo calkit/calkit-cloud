@@ -1340,6 +1340,10 @@ export const $Figure = {
         },
       ],
     },
+    comment_count: {
+      type: "number",
+      default: 0,
+    },
   },
 } as const
 

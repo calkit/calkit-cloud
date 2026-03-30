@@ -241,7 +241,25 @@ export type ProjectsData = {
      * Max number of commits to return
      */
     limit?: number
+    /**
+     * Number of commits to skip
+     */
+    offset?: number
     ownerName: string
+    projectName: string
+  }
+  GetProjectCommit: {
+    commitHash: string
+    ownerName: string
+    projectName: string
+  }
+  GetProjectFileHistory: {
+    /**
+     * Max number of commits to return
+     */
+    limit?: number
+    ownerName: string
+    path: string
     projectName: string
   }
   PostProjectDvcFile: {
@@ -1549,22 +1567,14 @@ export class ProjectsService {
 
   /**
    * Get Project History
-   * Get git commit history for a project.
-   *
-   * Args:
-   * owner_name: Owner of the project
-   * project_name: Name of the project
-   * limit: Maximum number of commits to return (default 100)
-   *
-   * Returns:
-   * List of commit objects with hash, message, author, timestamp, etc.
+   * Get paginated git commit history for a project.
    * @returns unknown Successful Response
    * @throws ApiError
    */
   public static getProjectHistory(
     data: ProjectsData["GetProjectHistory"],
   ): CancelablePromise<unknown> {
-    const { ownerName, projectName, limit = 100 } = data
+    const { ownerName, projectName, limit = 50, offset = 0 } = data
     return __request(OpenAPI, {
       method: "GET",
       url: "/projects/{owner_name}/{project_name}/git/history",
@@ -1573,6 +1583,61 @@ export class ProjectsService {
         project_name: projectName,
       },
       query: {
+        limit,
+        offset,
+      },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Get Project Commit
+   * Get details for a specific commit including changed files.
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static getProjectCommit(
+    data: ProjectsData["GetProjectCommit"],
+  ): CancelablePromise<unknown> {
+    const { ownerName, projectName, commitHash } = data
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/projects/{owner_name}/{project_name}/git/commits/{commit_hash}",
+      path: {
+        owner_name: ownerName,
+        project_name: projectName,
+        commit_hash: commitHash,
+      },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Get Project File History
+   * Get git commit history for a specific file path.
+   *
+   * Returns commits that touched the file directly, its DVC pointer (.dvc),
+   * or dvc.lock (for pipeline outputs), so DVC-tracked artifacts are covered.
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static getProjectFileHistory(
+    data: ProjectsData["GetProjectFileHistory"],
+  ): CancelablePromise<unknown> {
+    const { ownerName, projectName, path, limit = 100 } = data
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/projects/{owner_name}/{project_name}/git/file-history",
+      path: {
+        owner_name: ownerName,
+        project_name: projectName,
+      },
+      query: {
+        path,
         limit,
       },
       errors: {

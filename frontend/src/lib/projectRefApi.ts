@@ -75,6 +75,7 @@ export interface CommitDetail extends CommitHistory {
     change_type: string
     insertions: number | null
     deletions: number | null
+    patch: string | null
   }[]
 }
 

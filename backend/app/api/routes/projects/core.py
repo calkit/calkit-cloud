@@ -853,16 +853,32 @@ def get_project_commit(
     changed_files = []
     if commit.parents:
         parent = commit.parents[0]
-        diff = parent.diff(commit)
+        diff = parent.diff(commit, create_patch=True)
         for d in diff:
             change_type = d.change_type  # A, D, M, R, etc.
+            patch_bytes = d.diff if d.diff else b""
+            try:
+                patch = patch_bytes.decode("utf-8", errors="replace")
+            except Exception:
+                patch = ""
+            insertions = sum(
+                1
+                for line in patch.splitlines()
+                if line.startswith("+") and not line.startswith("+++")
+            )
+            deletions = sum(
+                1
+                for line in patch.splitlines()
+                if line.startswith("-") and not line.startswith("---")
+            )
             changed_files.append(
                 {
                     "path": d.b_path or d.a_path,
                     "old_path": d.a_path if change_type == "R" else None,
                     "change_type": change_type,
-                    "insertions": None,
-                    "deletions": None,
+                    "insertions": insertions,
+                    "deletions": deletions,
+                    "patch": patch,
                 }
             )
     else:
@@ -876,6 +892,7 @@ def get_project_commit(
                         "change_type": "A",
                         "insertions": None,
                         "deletions": None,
+                        "patch": None,
                     }
                 )
     return {
