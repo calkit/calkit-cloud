@@ -242,6 +242,7 @@ function SelectedItemInfo({
           isExternal
         >
           <Button size="sm" mt={2}>
+            <Icon mr={1} as={MdEdit} />
             Edit on GitHub.dev <Icon ml={1} as={ExternalLinkIcon} />
           </Button>
         </Link>
