@@ -3,10 +3,17 @@ import {
   Box,
   Button,
   Flex,
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+  PopoverBody,
   Spinner,
   Text,
   Icon,
   Heading,
+  Tag,
+  TagLabel,
+  TagCloseButton,
   useDisclosure,
   IconButton,
   useColorModeValue,
@@ -23,6 +30,7 @@ import {
   FaRegFileImage,
   FaRegFolderOpen,
   FaSync,
+  FaHistory,
 } from "react-icons/fa"
 import { BsFiletypeYml } from "react-icons/bs"
 import { z } from "zod"
@@ -39,7 +47,6 @@ import { RefPicker } from "../../../../../components/Common/RefPicker"
 const fileSearchSchema = z.object({
   path: z.string().catch(""),
   ref: z.string().optional(),
-  compareRef: z.string().optional(),
 })
 
 export const Route = createFileRoute(
@@ -226,11 +233,11 @@ function Item({ item, level, selectedPath, setSelectedPath }: ItemProps) {
 
 function Files() {
   const { accountName, projectName } = Route.useParams()
-  const { path, ref, compareRef } = Route.useSearch()
+  const { path, ref } = Route.useSearch()
   const navigate = useNavigate({ from: Route.fullPath })
   const { userHasWriteAccess } = useProject(accountName, projectName)
   const [refInput, setRefInput] = useState(ref ?? "")
-  const [compareRefInput, setCompareRefInput] = useState(compareRef ?? "")
+  const versionPopover = useDisclosure()
 
   const {
     isPending: filesPending,
@@ -265,26 +272,6 @@ function Files() {
       }),
     enabled: selectedPath !== undefined,
   })
-  const compareItemQuery = useQuery({
-    queryKey: [
-      "projects",
-      accountName,
-      projectName,
-      "files",
-      selectedPath,
-      compareRef,
-      "compare",
-    ],
-    queryFn: () =>
-      getProjectContentsAtRef({
-        ownerName: accountName,
-        projectName: projectName,
-        path: selectedPath,
-        ref: compareRef,
-      }),
-    enabled: selectedPath !== undefined && Boolean(compareRef),
-    retry: false,
-  })
   const fileUploadModal = useDisclosure()
   if (Array.isArray(files?.dir_items)) {
     files.dir_items.sort(sortByTypeAndName)
@@ -292,31 +279,19 @@ function Files() {
   const refresh = () => {
     refetch()
     selectedItemQuery.refetch()
-    if (compareRef) {
-      compareItemQuery.refetch()
-    }
   }
 
-  const applyRefs = () => {
+  const applyRef = (value: string) => {
+    setRefInput(value)
     navigate({
-      search: (prev) => ({
-        ...prev,
-        ref: refInput || undefined,
-        compareRef: compareRefInput || undefined,
-      }),
+      search: (prev) => ({ ...prev, ref: value || undefined }),
     })
+    versionPopover.onClose()
   }
 
-  const clearRefs = () => {
+  const clearRef = () => {
     setRefInput("")
-    setCompareRefInput("")
-    navigate({
-      search: (prev) => ({
-        ...prev,
-        ref: undefined,
-        compareRef: undefined,
-      }),
-    })
+    navigate({ search: (prev) => ({ ...prev, ref: undefined }) })
   }
 
   return (
@@ -328,52 +303,18 @@ function Files() {
       ) : (
         <Flex height={"100%"}>
           <PageMenu>
-            <Box mb={2}>
-              <Text fontSize="xs" mb={1}>
-                Git refs
-              </Text>
-              <RefPicker
-                ownerName={accountName}
-                projectName={projectName}
-                value={refInput}
-                onChange={setRefInput}
-                placeholder="Primary ref (main, v1.2.0, ...)"
-              />
-              <Box mt={2} />
-              <RefPicker
-                ownerName={accountName}
-                projectName={projectName}
-                value={compareRefInput}
-                onChange={setCompareRefInput}
-                placeholder="Compare ref (optional)"
-              />
-              <Flex gap={1} mt={2}>
-                <Button size="xs" onClick={applyRefs}>
-                  Apply
-                </Button>
-                <Button size="xs" variant="ghost" onClick={clearRefs}>
-                  Clear
-                </Button>
-              </Flex>
-            </Box>
-            <Flex gap={2}>
-              <Heading size="md" mb={1}>
-                All files
-              </Heading>
-              {userHasWriteAccess && !ref && !compareRef ? (
-                <>
-                  <IconButton
-                    variant="primary"
-                    height="25px"
-                    fontSize="sm"
-                    onClick={fileUploadModal.onOpen}
-                    icon={<FaPlus />}
-                    aria-label="upload"
-                  />
-                </>
-              ) : (
-                ""
-              )}
+            <Flex align="center" gap={1} mb={2} wrap="wrap">
+              <Heading size="md">All files</Heading>
+              {userHasWriteAccess && !ref ? (
+                <IconButton
+                  variant="primary"
+                  height="25px"
+                  fontSize="sm"
+                  onClick={fileUploadModal.onOpen}
+                  icon={<FaPlus />}
+                  aria-label="upload"
+                />
+              ) : null}
               <IconButton
                 aria-label="refresh"
                 height="25px"
@@ -381,6 +322,51 @@ function Files() {
                 onClick={refresh}
               />
             </Flex>
+
+            {/* Version selector — compact badge when a ref is active, icon button otherwise */}
+            <Box mb={3}>
+              {ref ? (
+                <Tag size="sm" colorScheme="blue" borderRadius="full">
+                  <Icon as={FaHistory} mr={1} fontSize="10px" />
+                  <TagLabel fontSize="xs" maxW="120px" isTruncated>
+                    {ref}
+                  </TagLabel>
+                  <TagCloseButton onClick={clearRef} />
+                </Tag>
+              ) : (
+                <Popover
+                  isOpen={versionPopover.isOpen}
+                  onClose={versionPopover.onClose}
+                  placement="bottom-start"
+                >
+                  <PopoverTrigger>
+                    <Button
+                      size="xs"
+                      variant="ghost"
+                      leftIcon={<Icon as={FaHistory} />}
+                      onClick={versionPopover.onOpen}
+                      color="gray.500"
+                    >
+                      Browse a version
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent w="300px" zIndex={10}>
+                    <PopoverBody p={2}>
+                      <Text fontSize="xs" color="gray.500" mb={2}>
+                        View files at a branch, tag, or commit
+                      </Text>
+                      <RefPicker
+                        ownerName={accountName}
+                        projectName={projectName}
+                        value={refInput}
+                        onChange={applyRef}
+                        placeholder="Search branches, tags, commits…"
+                      />
+                    </PopoverBody>
+                  </PopoverContent>
+                </Popover>
+              )}
+            </Box>
             <UploadFile
               isOpen={fileUploadModal.isOpen}
               onClose={fileUploadModal.onClose}
@@ -402,43 +388,10 @@ function Files() {
               <Flex justify="center" align="center" height="full" width="full">
                 <Spinner size="xl" color="ui.main" />
               </Flex>
-            ) : (
-              <>
-                {compareRef ? (
-                  <Flex gap={4} alignItems="flex-start">
-                    <Box flex={1} minW={0}>
-                      <Text fontSize="sm" fontWeight="bold" mb={1}>
-                        {ref || "default"}
-                      </Text>
-                      {selectedItemQuery?.data?.content ||
-                      selectedItemQuery?.data?.url ? (
-                        <FileContent item={selectedItemQuery?.data} />
-                      ) : (
-                        <Text>No artifact found for this ref.</Text>
-                      )}
-                    </Box>
-                    <Box flex={1} minW={0}>
-                      <Text fontSize="sm" fontWeight="bold" mb={1}>
-                        {compareRef}
-                      </Text>
-                      {compareItemQuery.isPending ? (
-                        <Spinner size="md" color="ui.main" />
-                      ) : compareItemQuery.data?.content ||
-                        compareItemQuery.data?.url ? (
-                        <FileContent item={compareItemQuery.data} />
-                      ) : (
-                        <Text>No artifact found for this ref.</Text>
-                      )}
-                    </Box>
-                  </Flex>
-                ) : selectedItemQuery?.data?.content ||
-                  selectedItemQuery?.data?.url ? (
-                  <FileContent item={selectedItemQuery?.data} />
-                ) : (
-                  ""
-                )}
-              </>
-            )}
+            ) : selectedItemQuery?.data?.content ||
+              selectedItemQuery?.data?.url ? (
+              <FileContent item={selectedItemQuery.data!} />
+            ) : null}
           </Box>
           <Box w="280px" flexShrink={0} px={4} borderLeftWidth={1} borderColor="inherit">
             <Heading size="md" mb={2}>Info</Heading>
