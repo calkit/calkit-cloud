@@ -393,7 +393,16 @@ function Files() {
               <FileContent item={selectedItemQuery.data!} />
             ) : null}
           </Box>
-          <Box w="280px" flexShrink={0} px={4} borderLeftWidth={1} borderColor="inherit">
+          <Box
+            w="280px"
+            flexShrink={0}
+            px={3}
+            py={2}
+            ml={6}
+            borderRadius="lg"
+            bg={useColorModeValue("ui.secondary", "ui.darkSlate")}
+            h="fit-content"
+          >
             <Heading size="md" mb={2}>Info</Heading>
             {selectedPath !== undefined &&
             (selectedItemQuery.isPending || selectedItemQuery.isRefetching) ? (
