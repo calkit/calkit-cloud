@@ -121,6 +121,7 @@ function FileLock({ item, ownerName, projectName }: FileLockProps) {
       return (
         <Flex mt={2}>
           <Button
+            size="sm"
             aria-label="Lock file"
             onClick={() => createLockMutation.mutate()}
             isLoading={createLockMutation.isPending}
@@ -200,6 +201,7 @@ function SelectedItemInfo({
       userHasWriteAccess ? (
         <>
           <Button
+            size="sm"
             mt={2}
             onClick={uploadNewVersionModal.onOpen}
             isDisabled={Boolean(selectedItem.lock)}
@@ -232,6 +234,20 @@ function SelectedItemInfo({
           />
         </>
       ) : null}
+      {selectedItem.type === "file" &&
+      selectedItem.in_repo &&
+      userHasWriteAccess ? (
+        <Link
+          href={`https://github.dev/${ownerName}/${projectName}/blob/main/${selectedItem.path}`}
+          isExternal
+        >
+          <Button size="sm" mt={2}>
+            Edit on GitHub.dev <Icon ml={1} as={ExternalLinkIcon} />
+          </Button>
+        </Link>
+      ) : (
+        ""
+      )}
       <HStack alignContent={"center"} mt={4} mb={1} gap={1}>
         <Heading size={"sm"}>Artifact info</Heading>
         {userHasWriteAccess ? (
@@ -298,20 +314,6 @@ function SelectedItemInfo({
           Pipeline stage:{" "}
           <Code>{String(selectedItem.calkit_object.stage)}</Code>
         </Text>
-      ) : (
-        ""
-      )}
-      {selectedItem.type === "file" &&
-      selectedItem.in_repo &&
-      userHasWriteAccess ? (
-        <Link
-          href={`https://github.dev/${ownerName}/${projectName}/blob/main/${selectedItem.path}`}
-          isExternal
-        >
-          <Button mt={3}>
-            Edit on GitHub.dev <Icon ml={1} as={ExternalLinkIcon} />
-          </Button>
-        </Link>
       ) : (
         ""
       )}
