@@ -8,6 +8,7 @@ import {
   TagLabel,
   Text,
   VStack,
+  useColorModeValue,
 } from "@chakra-ui/react"
 import { useQuery } from "@tanstack/react-query"
 import { useEffect, useRef, useState } from "react"
@@ -33,6 +34,11 @@ export function RefPicker({
   const [searchInput, setSearchInput] = useState("")
   const [isOpen, setIsOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
+  const dropdownBg = useColorModeValue("white", "gray.800")
+  const dropdownBorder = useColorModeValue("gray.200", "gray.600")
+  const hoverBg = useColorModeValue("gray.100", "gray.700")
+  const selectedBg = useColorModeValue("gray.50", "gray.700")
+  const messageColor = useColorModeValue("gray.600", "gray.400")
 
   const { data: refs = [], isPending } = useQuery({
     queryKey: ["search_refs", ownerName, projectName, searchInput],
@@ -100,9 +106,9 @@ export function RefPicker({
               left={0}
               right={0}
               mt={1}
-              bg="white"
+              bg={dropdownBg}
               border="1px solid"
-              borderColor="gray.200"
+              borderColor={dropdownBorder}
               borderRadius="md"
               boxShadow="md"
               maxH="300px"
@@ -124,9 +130,9 @@ export function RefPicker({
                       key={`${ref.type}-${ref.name}`}
                       p={2}
                       cursor="pointer"
-                      _hover={{ bg: "gray.100" }}
+                      _hover={{ bg: hoverBg }}
                       borderBottomWidth={1}
-                      borderBottomColor="gray.100"
+                      borderBottomColor={dropdownBorder}
                       onClick={() => handleSelectRef(ref)}
                     >
                       <Flex justify="space-between" align="flex-start" gap={2}>
@@ -140,7 +146,11 @@ export function RefPicker({
                             </Tag>
                           </Flex>
                           {ref.message && (
-                            <Text fontSize="xs" color="gray.600" noOfLines={1}>
+                            <Text
+                              fontSize="xs"
+                              color={messageColor}
+                              noOfLines={1}
+                            >
                               {ref.message}
                             </Text>
                           )}
@@ -174,12 +184,12 @@ export function RefPicker({
       </Flex>
 
       {selectedRef && value && (
-        <Box mt={2} p={2} bg="gray.50" borderRadius="md" fontSize="xs">
+        <Box mt={2} p={2} bg={selectedBg} borderRadius="md" fontSize="xs">
           <Tag size="sm" mr={1}>
             <TagLabel>{selectedRef.type}</TagLabel>
           </Tag>
           {selectedRef.message && (
-            <Text mt={1} color="gray.600" noOfLines={2}>
+            <Text mt={1} color={messageColor} noOfLines={2}>
               {selectedRef.message}
             </Text>
           )}

@@ -350,7 +350,12 @@ function Files() {
                       Browse a version
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent w="300px" zIndex={10}>
+                  <PopoverContent
+                    w="300px"
+                    zIndex={10}
+                    bg={useColorModeValue("white", "gray.800")}
+                    borderColor={useColorModeValue("gray.200", "gray.600")}
+                  >
                     <PopoverBody p={2}>
                       <Text fontSize="xs" color="gray.500" mb={2}>
                         View files at a branch, tag, or commit
