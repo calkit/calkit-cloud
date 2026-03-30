@@ -47,6 +47,8 @@ import { RefPicker } from "../../../../../components/Common/RefPicker"
 const fileSearchSchema = z.object({
   path: z.string().catch(""),
   ref: z.string().optional(),
+  compare_ref: z.string().optional(),
+  compare_ref2: z.string().optional(),
 })
 
 export const Route = createFileRoute(
@@ -233,7 +235,7 @@ function Item({ item, level, selectedPath, setSelectedPath }: ItemProps) {
 
 function Files() {
   const { accountName, projectName } = Route.useParams()
-  const { path, ref } = Route.useSearch()
+  const { path, ref, compare_ref, compare_ref2 } = Route.useSearch()
   const navigate = useNavigate({ from: Route.fullPath })
   const { userHasWriteAccess } = useProject(accountName, projectName)
   const [refInput, setRefInput] = useState(ref ?? "")
@@ -429,6 +431,8 @@ function Files() {
                       ownerName={accountName}
                       projectName={projectName}
                       userHasWriteAccess={userHasWriteAccess}
+                      compareRef={compare_ref}
+                      compareRef2={compare_ref2}
                     />
                   ) : (
                     ""

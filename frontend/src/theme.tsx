@@ -24,6 +24,18 @@ const theme = extendTheme({
     },
   },
   components: {
+    Input: {
+      defaultProps: {
+        borderRadius: "md",
+      },
+      variants: {
+        outline: {
+          field: {
+            borderRadius: "md",
+          },
+        },
+      },
+    },
     Button: {
       variants: {
         primary: {

@@ -3833,6 +3833,76 @@ export const $ReproCheck = {
   },
 } as const
 
+export const $SearchResultItem = {
+  properties: {
+    kind: {
+      type: "Enum",
+      enum: ["project", "org", "dataset"],
+      isRequired: true,
+    },
+    name: {
+      type: "string",
+      isRequired: true,
+    },
+    title: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    description: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    owner_name: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    project_name: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+  },
+} as const
+
+export const $SearchResults = {
+  properties: {
+    results: {
+      type: "array",
+      contains: {
+        type: "SearchResultItem",
+      },
+      isRequired: true,
+    },
+  },
+} as const
+
 export const $SftpAccess = {
   properties: {
     kind: {

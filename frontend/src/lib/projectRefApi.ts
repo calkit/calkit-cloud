@@ -55,13 +55,14 @@ export async function getProjectHistory(params: {
   projectName: string
   limit?: number
   offset?: number
+  ref?: string
 }): Promise<CommitHistory[]> {
-  const { ownerName, projectName, limit = 50, offset = 0 } = params
+  const { ownerName, projectName, limit = 50, offset = 0, ref } = params
   const headers = await authHeaders()
   const response = await axios.get<CommitHistory[]>(
     `${OpenAPI.BASE}/projects/${ownerName}/${projectName}/git/history`,
     {
-      params: { limit, offset },
+      params: { limit, offset, ref },
       headers,
     },
   )
@@ -151,6 +152,9 @@ export interface Ref {
   author?: string
   timestamp?: string
   short_hash?: string
+  is_default?: boolean
+  ahead?: number
+  behind?: number
 }
 
 export async function getProjectFileHistory(params: {

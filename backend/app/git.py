@@ -224,6 +224,49 @@ def get_overleaf_repo(
     return repo
 
 
+def get_default_branch(repo: git.Repo) -> str:
+    """Return the default branch name (e.g. 'main' or 'master')."""
+    try:
+        # origin/HEAD symbolic ref is the most reliable source
+        origin_head = repo.remotes.origin.refs["HEAD"]
+        ref_path = origin_head.ref.name  # e.g. "origin/main"
+        return ref_path.removeprefix("origin/")
+    except Exception:
+        pass
+    # Fall back: look for common default names
+    branch_names = {b.name for b in repo.branches}
+    for candidate in ("main", "master", "trunk", "develop"):
+        if candidate in branch_names:
+            return candidate
+    # Last resort: use whatever HEAD points to
+    try:
+        return repo.active_branch.name
+    except Exception:
+        return "main"
+
+
+def _ahead_behind(
+    repo: git.Repo, branch_ref: str, base_ref: str
+) -> tuple[int, int]:
+    """Return (ahead, behind) commit counts of branch_ref vs base_ref."""
+    try:
+        ahead = sum(
+            1
+            for _ in repo.iter_commits(
+                f"{base_ref}..{branch_ref}", max_count=200
+            )
+        )
+        behind = sum(
+            1
+            for _ in repo.iter_commits(
+                f"{branch_ref}..{base_ref}", max_count=200
+            )
+        )
+        return ahead, behind
+    except Exception:
+        return 0, 0
+
+
 def search_refs(repo: git.Repo, query: str | None = None) -> list[dict]:
     """Search for refs (branches, tags, commits) in a repository.
 
@@ -246,49 +289,84 @@ def search_refs(repo: git.Repo, query: str | None = None) -> list[dict]:
     except Exception as e:
         logger.warning(f"Failed to fetch refs: {e}")
 
-    # Add branches
-    try:
-        for branch in repo.branches:
-            name = branch.name
-            if query_lower and query_lower not in name.lower():
-                # Try to get commit message for fuzzy matching
-                try:
-                    commit = repo.commit(branch)
-                    if (
-                        query_lower not in (commit.message or "").lower()
-                        and query_lower
-                        not in (commit.author.name or "").lower()
-                    ):
-                        continue
-                except:
-                    pass
+    default_branch = get_default_branch(repo)
 
+    # Add branches — prefer remote refs so shallow clones see all branches
+    seen_branches: set[str] = set()
+    try:
+        remote_refs = list(repo.remotes.origin.refs)
+    except Exception:
+        remote_refs = []
+    branch_sources = [
+        (ref.name.removeprefix("origin/"), ref)
+        for ref in remote_refs
+        if not ref.name.endswith("/HEAD")
+    ] + [
+        (branch.name, branch)
+        for branch in repo.branches
+        if branch.name
+        not in {
+            r.name.removeprefix("origin/")
+            for r in remote_refs
+            if not r.name.endswith("/HEAD")
+        }
+    ]
+    for name, ref in branch_sources:
+        if name in seen_branches:
+            continue
+        seen_branches.add(name)
+        if query_lower and query_lower not in name.lower():
             try:
-                commit = repo.commit(branch)
-                refs.append(
-                    {
-                        "name": name,
-                        "type": "branch",
-                        "message": commit.message.split("\n")[0]
-                        if commit.message
-                        else None,
-                        "author": commit.author.name,
-                        "timestamp": commit.committed_datetime.isoformat(),
-                        "short_hash": commit.hexsha[:7],
-                    }
+                commit = repo.commit(ref)
+                msg = (
+                    commit.message
+                    if isinstance(commit.message, str)
+                    else commit.message.decode()
                 )
-            except Exception as e:
-                logger.warning(
-                    f"Failed to get commit info for branch {name}: {e}"
-                )
-                refs.append(
-                    {
-                        "name": name,
-                        "type": "branch",
-                    }
-                )
-    except Exception as e:
-        logger.warning(f"Failed to list branches: {e}")
+                if (
+                    query_lower not in msg.lower()
+                    and query_lower not in (commit.author.name or "").lower()
+                ):
+                    continue
+            except Exception:
+                continue
+        try:
+            commit = repo.commit(ref)
+            msg = (
+                commit.message
+                if isinstance(commit.message, str)
+                else commit.message.decode()
+            )
+            is_default = name == default_branch
+            ahead, behind = (
+                (0, 0)
+                if is_default
+                else _ahead_behind(repo, name, default_branch)
+            )
+            refs.append(
+                {
+                    "name": name,
+                    "type": "branch",
+                    "message": msg.split("\n")[0],
+                    "author": commit.author.name,
+                    "timestamp": commit.committed_datetime.isoformat(),
+                    "short_hash": commit.hexsha[:7],
+                    "is_default": is_default,
+                    "ahead": ahead,
+                    "behind": behind,
+                }
+            )
+        except Exception as e:
+            logger.warning(f"Failed to get commit info for branch {name}: {e}")
+            refs.append(
+                {
+                    "name": name,
+                    "type": "branch",
+                    "is_default": name == default_branch,
+                    "ahead": 0,
+                    "behind": 0,
+                }
+            )
 
     # Add tags
     try:
@@ -502,34 +580,48 @@ def get_file_history(
     return result[:max_count]
 
 
-def get_commit_history(repo: git.Repo, max_count: int = 100) -> list[dict]:
+def get_commit_history(
+    repo: git.Repo, max_count: int = 100, ref: str | None = None
+) -> list[dict]:
     """Get detailed commit history for a repository.
 
     Args:
         repo: GitPython Repo object
         max_count: Maximum number of commits to return
+        ref: Branch, tag, or commit to start history from (defaults to HEAD)
 
     Returns:
         List of dicts with commit details (hash, message, author, date, etc.)
     """
     commits = []
+    start = ref if ref else "HEAD"
 
-    try:
-        for commit in repo.iter_commits("HEAD", max_count=max_count):
-            commits.append(
-                {
-                    "hash": commit.hexsha,
-                    "short_hash": commit.hexsha[:7],
-                    "message": commit.message,
-                    "author": commit.author.name,
-                    "author_email": commit.author.email,
-                    "timestamp": commit.committed_datetime.isoformat(),
-                    "committed_date": commit.committed_date,
-                    "parent_hashes": [p.hexsha[:7] for p in commit.parents],
-                    "summary": commit.message.split("\n")[0],
-                }
+    # If the ref doesn't exist locally, try the remote tracking branch
+    candidates = [start]
+    if ref:
+        candidates.append(f"origin/{ref}")
+    for candidate in candidates:
+        try:
+            for commit in repo.iter_commits(candidate, max_count=max_count):
+                commits.append(
+                    {
+                        "hash": commit.hexsha,
+                        "short_hash": commit.hexsha[:7],
+                        "message": commit.message,
+                        "author": commit.author.name,
+                        "author_email": commit.author.email,
+                        "timestamp": commit.committed_datetime.isoformat(),
+                        "committed_date": commit.committed_date,
+                        "parent_hashes": [
+                            p.hexsha[:7] for p in commit.parents
+                        ],
+                        "summary": commit.message.split("\n")[0],
+                    }
+                )
+            break
+        except Exception as e:
+            logger.warning(
+                f"Failed to get commit history for {candidate}: {e}"
             )
-    except Exception as e:
-        logger.warning(f"Failed to get commit history: {e}")
 
     return commits

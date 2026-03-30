@@ -4,24 +4,33 @@ import os
 import uuid
 from typing import Literal
 
-from app.api.deps import CurrentUser, SessionDep, get_current_active_superuser
+from app.api.deps import (
+    CurrentUser,
+    CurrentUserOptional,
+    SessionDep,
+    get_current_active_superuser,
+)
 from app.core import utcnow
 from app.messaging import generate_test_email, send_email
 from app.models import (
     PLAN_IDS,
     Account,
+    Dataset,
     DiscountCode,
     DiscountCodePost,
     Message,
+    Org,
+    Project,
     User,
+    UserOrgMembership,
 )
+from sqlmodel import and_, or_, select
 from app.stripe import stripe
 from app.subscriptions import SubscriptionPlan, get_plans
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from pydantic.networks import EmailStr
 from sqlalchemy.exc import DataError
-from sqlmodel import select
 from starlette.requests import Request
 
 router = APIRouter()
@@ -219,3 +228,131 @@ def get_subscription_plans(
     current_user: CurrentUser,
 ) -> list[SubscriptionPlan]:
     return get_plans()
+
+
+class SearchResultItem(BaseModel):
+    kind: Literal["project", "org", "dataset"]
+    name: str
+    title: str | None = None
+    description: str | None = None
+    owner_name: str | None = None
+    project_name: str | None = None
+
+
+class SearchResults(BaseModel):
+    results: list[SearchResultItem]
+
+
+@router.get("/search")
+def global_search(
+    q: str,
+    session: SessionDep,
+    current_user: CurrentUserOptional,
+    limit: int = 5,
+) -> SearchResults:
+    if not q or len(q) < 2:
+        return SearchResults(results=[])
+    pattern = f"%{q}%"
+    results: list[SearchResultItem] = []
+
+    # Projects
+    if current_user is None:
+        proj_where = Project.is_public
+    else:
+        proj_where = or_(
+            Project.is_public,
+            Project.owner_account_id == current_user.account.id,
+            Project.owner_account.has(  # type: ignore
+                and_(
+                    Account.org_id.is_not(None),  # type: ignore
+                    select(UserOrgMembership)
+                    .where(
+                        UserOrgMembership.user_id == current_user.id,
+                        UserOrgMembership.org_id == Account.org_id,
+                    )
+                    .exists(),
+                )
+            ),
+        )
+    proj_where = and_(
+        proj_where,
+        or_(
+            Project.name.ilike(pattern),  # type: ignore
+            Project.title.ilike(pattern),  # type: ignore
+            Project.description.ilike(pattern),  # type: ignore
+        ),
+    )
+    projects = session.exec(
+        select(Project)
+        .distinct()
+        .where(proj_where)
+        .order_by(Project.name)  # type: ignore
+        .limit(limit)
+    ).all()
+    for p in projects:
+        results.append(
+            SearchResultItem(
+                kind="project",
+                name=p.name,
+                title=p.title,
+                description=p.description,
+                owner_name=p.owner_account_name,
+            )
+        )
+
+    # Orgs
+    org_results = session.exec(
+        select(Org)
+        .join(Account, Account.org_id == Org.id)  # type: ignore
+        .where(
+            or_(
+                Account.name.ilike(pattern),  # type: ignore
+                Org.display_name.ilike(pattern),  # type: ignore
+            )
+        )
+        .limit(limit)
+    ).all()
+    for o in org_results:
+        results.append(
+            SearchResultItem(
+                kind="org",
+                name=o.account.name,
+                title=o.display_name,
+            )
+        )
+
+    # Datasets
+    if current_user is None:
+        ds_where = Project.is_public
+    else:
+        ds_where = or_(
+            Project.is_public,
+            Project.owner_account_id == current_user.account.id,
+        )
+    ds_where = and_(
+        ds_where,
+        or_(
+            Dataset.path.ilike(pattern),  # type: ignore
+            Dataset.title.ilike(pattern),  # type: ignore
+            Dataset.description.ilike(pattern),  # type: ignore
+        ),
+    )
+    datasets = session.exec(
+        select(Dataset)
+        .join(Project, Project.id == Dataset.project_id)  # type: ignore
+        .where(ds_where)
+        .limit(limit)
+    ).all()
+    for d in datasets:
+        results.append(
+            SearchResultItem(
+                kind="dataset",
+                name=d.path,
+                title=d.title,
+                description=d.description,
+                owner_name=d.project.owner_account_name,
+                project_name=d.project.name,
+            )
+        )
+
+    return SearchResults(results=results)

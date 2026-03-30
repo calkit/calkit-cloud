@@ -17,6 +17,7 @@ import { MdEdit } from "react-icons/md"
 import { ExternalLinkIcon } from "@chakra-ui/icons"
 import { type ContentsItem } from "../../client"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useEffect } from "react"
 import EditFileInfo from "./EditFileInfo"
 import useAuth from "../../hooks/useAuth"
 import UploadFile from "./UploadFile"
@@ -164,6 +165,8 @@ interface SelectedItemProps {
   ownerName: string
   projectName: string
   userHasWriteAccess: boolean
+  compareRef?: string
+  compareRef2?: string
 }
 
 function SelectedItemInfo({
@@ -171,10 +174,16 @@ function SelectedItemInfo({
   ownerName,
   projectName,
   userHasWriteAccess,
+  compareRef,
+  compareRef2,
 }: SelectedItemProps) {
   const fileInfoModal = useDisclosure()
   const uploadNewVersionModal = useDisclosure()
   const compareModal = useDisclosure()
+
+  useEffect(() => {
+    if (compareRef) compareModal.onOpen()
+  }, [compareRef])
 
   const artifactKind: ArtifactKind | undefined =
     (selectedItem.calkit_object?.kind as ArtifactKind | undefined) ??
@@ -231,6 +240,8 @@ function SelectedItemInfo({
             projectName={projectName}
             path={selectedItem.path}
             kind={artifactKind ?? "file"}
+            initialRef={compareRef}
+            initialRef2={compareRef2}
           />
         </>
       ) : null}

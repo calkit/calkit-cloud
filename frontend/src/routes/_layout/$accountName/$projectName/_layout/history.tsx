@@ -20,12 +20,19 @@ import {
   HStack,
   Icon,
   Collapse,
+  Tooltip,
 } from "@chakra-ui/react"
 import { useQuery } from "@tanstack/react-query"
-import { createFileRoute } from "@tanstack/react-router"
-import { useState } from "react"
+import { createFileRoute, useNavigate } from "@tanstack/react-router"
+import { useState, useEffect } from "react"
 import { z } from "zod"
-import { FaFile, FaChevronDown, FaChevronRight } from "react-icons/fa"
+import {
+  FaFile,
+  FaChevronDown,
+  FaChevronRight,
+  FaCodeBranch,
+} from "react-icons/fa"
+import { FiArrowUp, FiArrowDown } from "react-icons/fi"
 import SyntaxHighlighter from "react-syntax-highlighter"
 import { atomOneDark } from "react-syntax-highlighter/dist/esm/styles/hljs"
 
@@ -242,7 +249,10 @@ function CommitDetailModal({
 
 function History() {
   const { accountName, projectName } = Route.useParams()
+  const { ref: selectedRef } = Route.useSearch()
+  const navigate = useNavigate({ from: Route.fullPath })
   const bgHover = useColorModeValue("gray.50", "gray.700")
+  const bgSelected = useColorModeValue("blue.50", "blue.900")
   const borderColor = useColorModeValue("gray.200", "gray.600")
   const [page, setPage] = useState(0)
   const [allCommits, setAllCommits] = useState<CommitHistory[]>([])
@@ -252,14 +262,30 @@ function History() {
   )
   const [detailOpen, setDetailOpen] = useState(false)
 
+  // Reset pagination when ref changes
+  useEffect(() => {
+    setPage(0)
+    setAllCommits([])
+    setHasMore(true)
+  }, [selectedRef])
+
   const { isPending: isLoadingHistory, isFetching } = useQuery({
-    queryKey: ["projects", accountName, projectName, "history", "page", page],
+    queryKey: [
+      "projects",
+      accountName,
+      projectName,
+      "history",
+      selectedRef,
+      "page",
+      page,
+    ],
     queryFn: async () => {
       const results = await getProjectHistory({
         ownerName: accountName,
         projectName: projectName,
         limit: PAGE_SIZE,
         offset: page * PAGE_SIZE,
+        ref: selectedRef,
       })
       setAllCommits((prev) => {
         if (page === 0) return results
@@ -271,32 +297,38 @@ function History() {
     },
   })
 
-  const { data: branches = [] } = useQuery({
-    queryKey: ["projects", accountName, projectName, "refs", "branches"],
+  const refsQuery = useQuery({
+    queryKey: ["projects", accountName, projectName, "refs", "all"],
     queryFn: () =>
       searchProjectRefs({
         ownerName: accountName,
         projectName: projectName,
         q: undefined,
       }),
-    select: (refs) => refs.filter((r) => r.type === "branch"),
   })
 
-  const { data: tags = [] } = useQuery({
-    queryKey: ["projects", accountName, projectName, "refs", "tags"],
-    queryFn: () =>
-      searchProjectRefs({
-        ownerName: accountName,
-        projectName: projectName,
-        q: undefined,
-      }),
-    select: (refs) => refs.filter((r) => r.type === "tag"),
-  })
+  const branches = (refsQuery.data ?? [])
+    .filter((r) => r.type === "branch")
+    .sort((a, b) => (b.is_default ? 1 : 0) - (a.is_default ? 1 : 0))
+
+  const tags = (refsQuery.data ?? []).filter((r) => r.type === "tag")
+
+  const selectRef = (name: string) => {
+    navigate({ search: (prev) => ({ ...prev, ref: name }) })
+  }
+
+  const clearRef = () => {
+    navigate({ search: (prev) => ({ ...prev, ref: undefined }) })
+  }
 
   const openCommit = (commit: CommitHistory) => {
     setSelectedCommit(commit)
     setDetailOpen(true)
   }
+
+  const historyLabel = selectedRef
+    ? `History: ${selectedRef}`
+    : "Commit history"
 
   return (
     <Flex height="100%">
@@ -305,30 +337,104 @@ function History() {
           <Heading size="md" mb={2}>
             Branches
           </Heading>
-          {branches.length === 0 ? (
+          {refsQuery.isPending ? (
+            <Flex justify="center" py={2}>
+              <Spinner size="sm" color="ui.main" />
+            </Flex>
+          ) : branches.length === 0 ? (
             <Text fontSize="sm" color="gray.500">
               No branches found
             </Text>
           ) : (
             <VStack align="stretch" spacing={1}>
-              {branches.map((branch) => (
-                <Box
-                  key={branch.name}
-                  p={2}
-                  borderRadius="md"
-                  _hover={{ bg: bgHover }}
-                  cursor="pointer"
-                >
-                  <Text fontWeight="bold" fontSize="sm">
-                    {branch.name}
-                  </Text>
-                  {branch.message && (
-                    <Text fontSize="xs" color="gray.600" noOfLines={1}>
-                      {branch.message}
-                    </Text>
-                  )}
-                </Box>
-              ))}
+              {branches.map((branch) => {
+                const isSelected = selectedRef === branch.name
+                return (
+                  <Box
+                    key={branch.name}
+                    p={2}
+                    borderRadius="md"
+                    bg={isSelected ? bgSelected : undefined}
+                    borderWidth={isSelected ? 1 : 0}
+                    borderColor="blue.300"
+                    _hover={{ bg: isSelected ? bgSelected : bgHover }}
+                    cursor="pointer"
+                    onClick={() =>
+                      isSelected ? clearRef() : selectRef(branch.name)
+                    }
+                  >
+                    <Flex align="center" gap={1} wrap="wrap">
+                      <Icon
+                        as={FaCodeBranch}
+                        fontSize="xs"
+                        color="gray.400"
+                        flexShrink={0}
+                      />
+                      <Text
+                        fontWeight="bold"
+                        fontSize="sm"
+                        flex={1}
+                        noOfLines={1}
+                      >
+                        {branch.name}
+                      </Text>
+                      {branch.is_default && (
+                        <Badge colorScheme="green" fontSize="xs" flexShrink={0}>
+                          default
+                        </Badge>
+                      )}
+                      {!branch.is_default &&
+                        (branch.ahead! > 0 || branch.behind! > 0) && (
+                          <HStack spacing={1} flexShrink={0}>
+                            {branch.ahead! > 0 && (
+                              <Tooltip
+                                label={`${branch.ahead} commits ahead of default`}
+                              >
+                                <HStack spacing={0}>
+                                  <Icon
+                                    as={FiArrowUp}
+                                    fontSize="xs"
+                                    color="green.400"
+                                  />
+                                  <Text fontSize="xs" color="green.400">
+                                    {branch.ahead}
+                                  </Text>
+                                </HStack>
+                              </Tooltip>
+                            )}
+                            {branch.behind! > 0 && (
+                              <Tooltip
+                                label={`${branch.behind} commits behind default`}
+                              >
+                                <HStack spacing={0}>
+                                  <Icon
+                                    as={FiArrowDown}
+                                    fontSize="xs"
+                                    color="orange.400"
+                                  />
+                                  <Text fontSize="xs" color="orange.400">
+                                    {branch.behind}
+                                  </Text>
+                                </HStack>
+                              </Tooltip>
+                            )}
+                          </HStack>
+                        )}
+                    </Flex>
+                    {branch.message && (
+                      <Text
+                        fontSize="xs"
+                        color="gray.500"
+                        noOfLines={1}
+                        mt={0.5}
+                        pl={4}
+                      >
+                        {branch.message}
+                      </Text>
+                    )}
+                  </Box>
+                )
+              })}
             </VStack>
           )}
         </Box>
@@ -339,44 +445,62 @@ function History() {
           <Heading size="md" mb={2}>
             Tags
           </Heading>
-          {tags.length === 0 ? (
+          {refsQuery.isPending ? (
+            <Flex justify="center" py={2}>
+              <Spinner size="sm" color="ui.main" />
+            </Flex>
+          ) : tags.length === 0 ? (
             <Text fontSize="sm" color="gray.500">
               No tags found
             </Text>
           ) : (
             <VStack align="stretch" spacing={1}>
-              {tags.map((tag) => (
-                <Box
-                  key={tag.name}
-                  p={2}
-                  borderRadius="md"
-                  _hover={{ bg: bgHover }}
-                  cursor="pointer"
-                >
-                  <Flex align="center" gap={2}>
-                    <Badge colorScheme="purple" fontSize="xs">
-                      Tag
-                    </Badge>
-                    <Text fontWeight="bold" fontSize="sm">
-                      {tag.name}
-                    </Text>
-                  </Flex>
-                  {tag.message && (
-                    <Text fontSize="xs" color="gray.600" noOfLines={1} mt={1}>
-                      {tag.message}
-                    </Text>
-                  )}
-                </Box>
-              ))}
+              {tags.map((tag) => {
+                const isSelected = selectedRef === tag.name
+                return (
+                  <Box
+                    key={tag.name}
+                    p={2}
+                    borderRadius="md"
+                    bg={isSelected ? bgSelected : undefined}
+                    borderWidth={isSelected ? 1 : 0}
+                    borderColor="blue.300"
+                    _hover={{ bg: isSelected ? bgSelected : bgHover }}
+                    cursor="pointer"
+                    onClick={() =>
+                      isSelected ? clearRef() : selectRef(tag.name)
+                    }
+                  >
+                    <Flex align="center" gap={2}>
+                      <Badge colorScheme="purple" fontSize="xs">
+                        Tag
+                      </Badge>
+                      <Text fontWeight="bold" fontSize="sm" noOfLines={1}>
+                        {tag.name}
+                      </Text>
+                    </Flex>
+                    {tag.message && (
+                      <Text fontSize="xs" color="gray.500" noOfLines={1} mt={1}>
+                        {tag.message}
+                      </Text>
+                    )}
+                  </Box>
+                )
+              })}
             </VStack>
           )}
         </Box>
       </PageMenu>
 
       <Box flex={1} p={4} maxH="100%" overflowY="auto">
-        <Heading size="md" mb={4}>
-          Commit history
-        </Heading>
+        <Flex align="center" gap={2} mb={4}>
+          <Heading size="md">{historyLabel}</Heading>
+          {selectedRef && (
+            <Button size="xs" variant="ghost" onClick={clearRef}>
+              Clear
+            </Button>
+          )}
+        </Flex>
 
         {isLoadingHistory && allCommits.length === 0 ? (
           <Flex justify="center" align="center" height="400px">

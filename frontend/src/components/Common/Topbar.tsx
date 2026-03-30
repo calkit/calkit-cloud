@@ -20,6 +20,7 @@ import useAuth from "../../hooks/useAuth"
 import NewOrg from "../Orgs/NewOrg"
 import NewProject from "../Projects/NewProject"
 import UserMenu from "./UserMenu"
+import GlobalSearch from "./GlobalSearch"
 
 interface Props {
   children: React.ReactNode
@@ -106,7 +107,8 @@ export default function Topbar() {
               ))}
             </HStack>
           </HStack>
-          <Flex alignItems={"center"}>
+          <Flex alignItems={"center"} gap={2}>
+            <GlobalSearch />
             <Button
               aria-label="new-org"
               size="sm"

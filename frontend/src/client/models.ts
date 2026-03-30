@@ -463,7 +463,7 @@ export type NewPassword = {
 
 export type Notebook = {
   path: string
-  title: string
+  title?: string | null
   description?: string | null
   stage?: string | null
   output_format?: "html" | "notebook" | null
@@ -767,6 +767,19 @@ export type ReproCheck = {
   readonly n_publications_with_import_or_stage: number
   readonly n_stages_without_env: number
   readonly n_stages_with_env: number
+}
+
+export type SearchResultItem = {
+  kind: "project" | "org" | "dataset"
+  name: string
+  title?: string | null
+  description?: string | null
+  owner_name?: string | null
+  project_name?: string | null
+}
+
+export type SearchResults = {
+  results: Array<SearchResultItem>
 }
 
 export type SftpAccess = {

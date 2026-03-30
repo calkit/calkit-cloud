@@ -29,7 +29,7 @@ import {
   Avatar,
 } from "@chakra-ui/react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { FaLink } from "react-icons/fa"
 
 import {
@@ -61,8 +61,8 @@ interface ArtifactCompareModalProps {
   projectName: string
   path: string
   kind: ArtifactKind
-  /** If provided, show this ref as the initial primary ref. */
   initialRef?: string
+  initialRef2?: string
 }
 
 /** Render the artifact content for a given kind/data. */
@@ -322,13 +322,19 @@ export function ArtifactCompareModal({
   path,
   kind,
   initialRef,
+  initialRef2,
 }: ArtifactCompareModalProps) {
   const borderColor = useColorModeValue("gray.200", "gray.600")
   const hoverBg = useColorModeValue("gray.50", "gray.700")
   const selectedBg = useColorModeValue("blue.50", "blue.900")
 
   const [ref1, setRef1] = useState<string | undefined>(initialRef)
-  const [ref2, setRef2] = useState<string | undefined>()
+  const [ref2, setRef2] = useState<string | undefined>(initialRef2)
+
+  useEffect(() => {
+    setRef1(initialRef)
+    setRef2(initialRef2)
+  }, [initialRef, initialRef2])
 
   const historyQuery = useQuery({
     queryKey: ["projects", ownerName, projectName, "file-history", path],
@@ -358,10 +364,10 @@ export function ArtifactCompareModal({
 
   const getShareUrl = () => {
     const url = new URL(window.location.href)
-    if (ref1) url.searchParams.set("ref", ref1)
-    else url.searchParams.delete("ref")
-    if (ref2) url.searchParams.set("compareRef", ref2)
-    else url.searchParams.delete("compareRef")
+    if (ref1) url.searchParams.set("compare_ref", ref1)
+    else url.searchParams.delete("compare_ref")
+    if (ref2) url.searchParams.set("compare_ref2", ref2)
+    else url.searchParams.delete("compare_ref2")
     return url.toString()
   }
 

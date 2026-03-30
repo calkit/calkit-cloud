@@ -30,6 +30,7 @@ import type {
   DiscountCode,
   DiscountCodePost,
   DiscountCodePublic,
+  SearchResults,
   SubscriptionPlan,
   Body_projects_post_project_dataset_upload,
   Body_projects_post_project_figure,
@@ -188,6 +189,10 @@ export type MiscData = {
   }
   PostDiscountCode: {
     requestBody: DiscountCodePost
+  }
+  GlobalSearch: {
+    limit?: number
+    q: string
   }
 }
 
@@ -1342,6 +1347,28 @@ export class MiscService {
     return __request(OpenAPI, {
       method: "GET",
       url: "/subscription-plans",
+    })
+  }
+
+  /**
+   * Global Search
+   * @returns SearchResults Successful Response
+   * @throws ApiError
+   */
+  public static globalSearch(
+    data: MiscData["GlobalSearch"],
+  ): CancelablePromise<SearchResults> {
+    const { q, limit = 5 } = data
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/search",
+      query: {
+        q,
+        limit,
+      },
+      errors: {
+        422: `Validation Error`,
+      },
     })
   }
 }

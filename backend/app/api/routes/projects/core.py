@@ -7,6 +7,7 @@ import logging
 import os
 import shutil
 import subprocess
+import sys
 import uuid
 import zipfile
 from copy import deepcopy
@@ -803,6 +804,9 @@ def get_project_history(
     current_user: CurrentUserOptional,
     limit: int = Query(50, description="Max number of commits to return"),
     offset: int = Query(0, description="Number of commits to skip"),
+    ref: Optional[str] = Query(
+        None, description="Branch, tag, or commit to read history from"
+    ),
 ):
     """Get paginated git commit history for a project."""
     from app.git import get_commit_history
@@ -820,7 +824,7 @@ def get_project_history(
         session=session,
         full_history=True,
     )
-    history = get_commit_history(repo, max_count=limit + offset)
+    history = get_commit_history(repo, max_count=limit + offset, ref=ref)
     return history[offset : offset + limit]
 
 
@@ -1600,15 +1604,20 @@ def post_project_figure(
         # Initialize DVC if it's never been
         if not os.path.isdir(os.path.join(repo.working_dir, ".dvc")):
             logger.info("Calling dvc init since .dvc directory is missing")
-            subprocess.call(["dvc", "init"], cwd=repo.working_dir)
-        dvc_out = subprocess.check_output(
-            ["dvc", "add", path], cwd=repo.working_dir
-        ).decode()
-        for line in dvc_out.split("\n"):
-            if line.strip().startswith("git add"):
-                cmd = line.strip().split()
-                logger.info(f"Calling {cmd}")
-                repo.git.add(cmd[2:])
+            subprocess.call(
+                [sys.executable, "-m", "dvc", "init"], cwd=repo.working_dir
+            )
+        logger.info(f"Running dvc add {path}")
+        subprocess.check_call(
+            [sys.executable, "-m", "dvc", "add", path],
+            cwd=repo.working_dir,
+        )
+        files_to_stage = [path + ".dvc"]
+        gitignore = os.path.join(os.path.dirname(path), ".gitignore")
+        if os.path.isfile(os.path.join(repo.working_dir, gitignore)):
+            files_to_stage.append(gitignore)
+        logger.info(f"Git-adding {files_to_stage}")
+        repo.git.add(files_to_stage)
     elif not os.path.isfile(os.path.join(repo.working_dir, path)):
         raise HTTPException(
             400, "File must exist in repo if not being uploaded"
@@ -2091,14 +2100,17 @@ def post_project_dataset_upload(
     if not os.path.isdir(os.path.join(repo.working_dir, ".dvc")):
         logger.info("Calling dvc init since .dvc directory is missing")
         subprocess.call(["dvc", "init"], cwd=repo.working_dir)
-    dvc_out = subprocess.check_output(
-        ["dvc", "add", path], cwd=repo.working_dir
-    ).decode()
-    for line in dvc_out.split("\n"):
-        if line.strip().startswith("git add"):
-            cmd = line.strip().split()
-            logger.info(f"Calling {cmd}")
-            repo.git.add(cmd[2:])
+    import dvc.repo as dvc_repo_mod
+
+    logger.info(f"Running dvc add {path}")
+    with dvc_repo_mod.Repo(repo.working_dir) as dvc_repo:
+        dvc_repo.add(path)
+    files_to_stage = [path + ".dvc"]
+    gitignore = os.path.join(os.path.dirname(path), ".gitignore")
+    if os.path.isfile(os.path.join(repo.working_dir, gitignore)):
+        files_to_stage.append(gitignore)
+    logger.info(f"Git-adding {files_to_stage}")
+    repo.git.add(files_to_stage)
     # Update figures
     datasets.append(dict(path=path, title=title, description=description))
     ck_info["datasets"] = datasets
@@ -2278,15 +2290,20 @@ def post_project_publication(
         # Initialize DVC if it's never been
         if not os.path.isdir(os.path.join(repo.working_dir, ".dvc")):
             logger.info("Calling dvc init since .dvc directory is missing")
-            subprocess.call(["dvc", "init"], cwd=repo.working_dir)
-        dvc_out = subprocess.check_output(
-            ["dvc", "add", path], cwd=repo.working_dir
-        ).decode()
-        for line in dvc_out.split("\n"):
-            if line.strip().startswith("git add"):
-                cmd = line.strip().split()
-                logger.info(f"Calling {cmd}")
-                repo.git.add(cmd[2:])
+            subprocess.call(
+                [sys.executable, "-m", "dvc", "init"], cwd=repo.working_dir
+            )
+        logger.info(f"Running dvc add {path}")
+        subprocess.check_call(
+            [sys.executable, "-m", "dvc", "add", path],
+            cwd=repo.working_dir,
+        )
+        files_to_stage = [path + ".dvc"]
+        gitignore = os.path.join(os.path.dirname(path), ".gitignore")
+        if os.path.isfile(os.path.join(repo.working_dir, gitignore)):
+            files_to_stage.append(gitignore)
+        logger.info(f"Git-adding {files_to_stage}")
+        repo.git.add(files_to_stage)
     elif template is not None:
         # TODO: Centralize template names
         if template not in ["latex/article", "latex/jfm"]:
@@ -3410,13 +3427,21 @@ def get_project_software(
         repo=repo,
         ref=ref,
     )
-    envs = ck_info.get("environments", [])
+    envs = ck_info.get("environments", {})
     resp = []
-    for env in envs:
-        fpath = os.path.join(repo.working_dir, env["path"])
-        with open(fpath) as f:
-            env["file_content"] = f.read()
-        resp.append(Environment.model_validate(env))
+    for env_name, env in envs.items():
+        env_resp = env | {"all_attrs": env}
+        env_resp["name"] = env_name
+        env_path = env.get("path")
+        if env_path:
+            fpath = os.path.join(repo.working_dir, env_path)
+            if os.path.isfile(fpath):
+                with open(fpath) as f:
+                    env_resp["file_content"] = f.read()
+        try:
+            resp.append(Environment.model_validate(env_resp))
+        except ValidationError as e:
+            logger.warning(f"Invalid environment: {e}")
     return Software(environments=resp)
 
 
@@ -3523,18 +3548,36 @@ def get_project_notebooks(
         ref=ref,
     )
     notebooks = ck_info.get("notebooks", [])
+    # Also detect undeclared .ipynb files not under hidden directories
+    declared_paths = {nb["path"] for nb in notebooks}
+    try:
+        for root, dirs, files in os.walk(repo.working_dir):
+            dirs[:] = [d for d in dirs if not d.startswith(".")]
+            for fname in files:
+                if fname.endswith(".ipynb"):
+                    rel = os.path.relpath(
+                        os.path.join(root, fname), repo.working_dir
+                    )
+                    if rel not in declared_paths:
+                        notebooks.append({"path": rel})
+                        declared_paths.add(rel)
+    except Exception as e:
+        logger.warning(f"Failed to scan for undeclared notebooks: {e}")
     if not notebooks:
         return notebooks
     # Get the notebook content and base64 encode it
     for notebook in notebooks:
-        item = app.projects.get_contents_from_repo(
-            project=project,
-            repo=repo,
-            path=notebook["path"],
-            ref=ref,
-        )
         try:
-            # If the notebook has HTML output, return that
+            item = app.projects.get_contents_from_repo(
+                project=project,
+                repo=repo,
+                path=notebook["path"],
+                ref=ref,
+            )
+        except HTTPException:
+            continue
+        try:
+            # If the notebook has a pre-built HTML output, prefer that
             html_path = get_executed_notebook_path(
                 notebook_path=notebook["path"], to="html"
             )
@@ -3559,6 +3602,9 @@ def get_project_notebooks(
                     notebook["output_format"] = "notebook"
                 elif rcd[0].endswith(".html"):
                     notebook["output_format"] = "html"
+        # Default: raw .ipynb content (no HTML version available)
+        if not notebook.get("output_format") and item.content and not item.url:
+            notebook["output_format"] = "notebook"
     return [Notebook.model_validate(nb) for nb in notebooks]
 
 

@@ -788,7 +788,7 @@ class Publication(BaseModel):
 
 class Notebook(BaseModel):
     path: str
-    title: str
+    title: str | None = None
     description: str | None = None
     stage: str | None = None
     output_format: Literal["html", "notebook"] | None = None
@@ -805,3 +805,6 @@ class Ref(BaseModel):
     author: str | None = None  # Commit author
     timestamp: str | None = None  # ISO format datetime
     short_hash: str | None = None  # Short commit hash (7 chars)
+    is_default: bool = False  # Whether this is the default branch
+    ahead: int = 0  # Commits ahead of default branch
+    behind: int = 0  # Commits behind default branch

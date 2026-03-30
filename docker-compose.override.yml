@@ -69,9 +69,10 @@ services:
       args:
         INSTALL_DEV: ${INSTALL_DEV-true}
     command:
-      - sh
-      - -c
-      - "uv sync --frozen && fastapi run --reload app/main.py"
+      - fastapi
+      - run
+      - --reload
+      - "app/main.py"
     environment:
       SMTP_HOST: "mailcatcher"
       SMTP_PORT: "1025"

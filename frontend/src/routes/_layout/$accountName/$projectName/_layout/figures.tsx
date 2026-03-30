@@ -224,7 +224,6 @@ function ProjectFigures() {
             maxW="220px"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            ml="auto"
           />
         </Flex>
 
