@@ -13,6 +13,7 @@ import app
 import app.projects
 from app import storage
 from app.api.deps import CurrentUserOptional, SessionDep
+from app.config import settings
 from app.storage import get_object_url
 
 router = APIRouter()
@@ -201,6 +202,8 @@ def post_project_fs_op(
     fs = storage.get_object_fs()
     # Construct full storage path
     data_prefix = storage.get_data_prefix()
+    if settings.ENVIRONMENT == "local" and not fs.exists(data_prefix):
+        fs.makedir(data_prefix)
     full_path = f"{data_prefix}/{owner_name}/{project_name}/{path}"
     # If operation is "exists" or "list", we can check if the file exists and
     # return that info to avoid an extra round trip
@@ -234,7 +237,8 @@ def post_project_fs_op(
         try:
             paths = fs.ls(full_path, detail=req.detail)
         except FileNotFoundError:
-            raise HTTPException(404, "Path not found")
+            # Missing prefixes are normal in fresh projects; return empty list.
+            paths = []
         if req.detail:
             paths = [
                 obj
@@ -256,7 +260,9 @@ def post_project_fs_op(
         try:
             paths = fs.find(full_path, detail=req.detail)
         except FileNotFoundError:
-            raise HTTPException(404, "Path not found")
+            # For "find", a missing prefix should behave like no matches.
+            # This avoids noisy 404s for normal existence probes.
+            paths = {} if req.detail else []
         if req.detail:
             if isinstance(paths, dict):
                 paths = [
@@ -422,6 +428,8 @@ def post_project_fs_batch_op(
     backend = storage.get_backend()
     fs = storage.get_object_fs()
     data_prefix = storage.get_data_prefix()
+    if settings.ENVIRONMENT == "local" and not fs.exists(data_prefix):
+        fs.makedir(data_prefix)
     results = {}
     for path in paths:
         full_path = f"{data_prefix}/{owner_name}/{project_name}/{path}"

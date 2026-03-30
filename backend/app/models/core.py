@@ -793,3 +793,14 @@ class Notebook(BaseModel):
     output_format: Literal["html", "notebook"] | None = None
     url: str | None = None
     content: str | None = None
+
+
+class Ref(BaseModel):
+    """Represents a Git reference (commit, tag, or branch)."""
+
+    name: str  # Full ref name (e.g., "main", "v1.0.0", "abc123def456...")
+    type: Literal["branch", "tag", "commit"]  # Type of ref
+    message: str | None = None  # Commit/tag message
+    author: str | None = None  # Commit author
+    timestamp: str | None = None  # ISO format datetime
+    short_hash: str | None = None  # Short commit hash (7 chars)

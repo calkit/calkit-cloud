@@ -89,6 +89,8 @@ services:
     restart: "no"
     env_file:
       - .env
+    environment:
+      - VITE_API_URL=http://api.localhost
     build:
       context: ./frontend
       args:

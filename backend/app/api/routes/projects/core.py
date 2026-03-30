@@ -89,6 +89,7 @@ from app.models import (
     ProjectsPublic,
     Publication,
     Question,
+    Ref,
     User,
     UserOrgMembership,
     UserProjectAccess,
@@ -605,6 +606,7 @@ def get_project(
     session: SessionDep,
     current_user: CurrentUserOptional,
     get_extended_info: bool = False,
+    ref: str | None = None,
 ) -> ProjectOptionalExtended:
     project = app.projects.get_project(
         session=session,
@@ -624,6 +626,7 @@ def get_project(
             user=current_user,
             session=session,
             ttl=DEFAULT_REPO_TTL,
+            ref=ref,
         )
         ck_info = get_ck_info_from_repo(repo=repo)
         resp.calkit_info_keys = list(ck_info.keys())
@@ -752,6 +755,81 @@ def get_project_git_repo(
         headers={"Authorization": f"Bearer {token}"},
     )
     return resp.json()
+
+
+@router.get("/projects/{owner_name}/{project_name}/git/refs")
+def search_project_refs(
+    owner_name: str,
+    project_name: str,
+    session: SessionDep,
+    current_user: CurrentUserOptional,
+    q: Optional[str] = Query(None, description="Search query for refs"),
+):
+    """Get git refs (branches, tags, commits) in a project.
+
+    Args:
+        owner_name: Owner of the project
+        project_name: Name of the project
+        q: Optional search query to filter refs by branch name, tag name,
+           commit message, or author
+
+    Returns:
+        List of matching Ref objects with name, type, message, author, timestamp
+    """
+    from app.git import search_refs
+
+    project = app.projects.get_project(
+        session=session,
+        owner_name=owner_name,
+        project_name=project_name,
+        current_user=current_user,
+        min_access_level="read",
+    )
+    repo = get_repo(
+        project=project,
+        user=current_user,
+        session=session,
+        full_history=True,
+    )
+    refs = search_refs(repo, query=q)
+    return refs
+
+
+@router.get("/projects/{owner_name}/{project_name}/git/history")
+def get_project_history(
+    owner_name: str,
+    project_name: str,
+    session: SessionDep,
+    current_user: CurrentUserOptional,
+    limit: int = Query(100, description="Max number of commits to return"),
+):
+    """Get git commit history for a project.
+
+    Args:
+        owner_name: Owner of the project
+        project_name: Name of the project
+        limit: Maximum number of commits to return (default 100)
+
+    Returns:
+        List of commit objects with hash, message, author, timestamp, etc.
+    """
+    from app.git import get_commit_history
+
+    project = app.projects.get_project(
+        session=session,
+        owner_name=owner_name,
+        project_name=project_name,
+        current_user=current_user,
+        min_access_level="read",
+    )
+    repo = get_repo(
+        project=project,
+        user=current_user,
+        session=session,
+        full_history=True,
+    )
+    history = get_commit_history(repo, max_count=limit)
+    return history
 
 
 @router.post("/projects/{owner_name}/{project_name}/dvc/files/md5/{idx}/{md5}")
@@ -908,6 +986,7 @@ def get_project_git_contents(
     current_user: CurrentUser,
     path: str | None = None,
     astype: Literal["", ".raw", ".html", ".object"] = "",
+    ref: str | None = None,
 ) -> list[GitItem] | GitItemWithContents | str:
     app.projects.get_project(
         session=session,
@@ -925,7 +1004,8 @@ def get_project_git_contents(
         "Authorization": f"Bearer {token}",
         "Accept": f"application/vnd.github{astype}+json",
     }
-    resp = requests.get(url, headers=headers)
+    params = {"ref": ref} if ref is not None else None
+    resp = requests.get(url, headers=headers, params=params)
     logger.info(f"Response status code from GitHub: {resp.status_code}")
     if resp.status_code >= 400:
         logger.info(f"GitHub API call failed: {resp.text}")
@@ -946,6 +1026,7 @@ def get_project_contents(
     current_user: CurrentUserOptional,
     path: str | None = None,
     ttl: int | None = DEFAULT_REPO_TTL,
+    ref: str | None = None,
 ) -> ContentsItem:
     project = app.projects.get_project(
         owner_name=owner_name,
@@ -957,10 +1038,17 @@ def get_project_contents(
     # Get the repo
     # TODO: Stop using a TTL and rely on latest commit hash
     repo = get_repo(
-        project=project, user=current_user, session=session, ttl=ttl
+        project=project,
+        user=current_user,
+        session=session,
+        ttl=ttl,
+        ref=ref,
     )
     return app.projects.get_contents_from_repo(
-        project=project, repo=repo, path=path
+        project=project,
+        repo=repo,
+        path=path,
+        ref=ref,
     )
 
 
@@ -1152,6 +1240,7 @@ def get_project_questions(
     project_name: str,
     current_user: CurrentUserOptional,
     session: SessionDep,
+    ref: str | None = None,
 ) -> list[Question]:
     project = app.projects.get_project(
         owner_name=owner_name,
@@ -1165,6 +1254,7 @@ def get_project_questions(
         user=current_user,
         session=session,
         ttl=DEFAULT_REPO_TTL,
+        ref=ref,
     )
     project = _sync_questions_with_db(
         ck_info=ck_info, project=project, session=session
@@ -1195,7 +1285,12 @@ def post_project_question(
     repo = get_repo(
         project=project, user=current_user, session=session, ttl=None
     )
-    ck_info = get_ck_info_from_repo(repo)
+    ck_info = app.projects.get_ck_info_for_ref(
+        project=project,
+        repo=repo,
+        ref=ref,
+        process_includes=True,
+    )
     ck_questions = ck_info.get("questions", [])
     ck_questions.append(req.question)
     ck_info["questions"] = ck_questions
@@ -1216,6 +1311,7 @@ def get_project_figures(
     project_name: str,
     current_user: CurrentUserOptional,
     session: SessionDep,
+    ref: str | None = None,
 ) -> list[Figure]:
     project = app.projects.get_project(
         session=session,
@@ -1229,8 +1325,13 @@ def get_project_figures(
         user=current_user,
         session=session,
         ttl=DEFAULT_REPO_TTL,
+        ref=ref,
     )
-    ck_info = get_ck_info_from_repo(repo)
+    ck_info = app.projects.get_ck_info_for_ref(
+        project=project,
+        repo=repo,
+        ref=ref,
+    )
     figures = ck_info.get("figures", [])
     if not figures:
         return figures
@@ -1240,6 +1341,7 @@ def get_project_figures(
             project=project,
             repo=repo,
             path=fig["path"],
+            ref=ref,
         )
         fig["content"] = item.content
         fig["url"] = item.url
@@ -1254,6 +1356,7 @@ def get_project_figure(
     current_user: CurrentUserOptional,
     session: SessionDep,
     ttl: int | None = DEFAULT_REPO_TTL,
+    ref: str | None = None,
 ) -> Figure:
     project = app.projects.get_project(
         session=session,
@@ -1263,10 +1366,17 @@ def get_project_figure(
         min_access_level="read",
     )
     repo = get_repo(
-        project=project, user=current_user, session=session, ttl=ttl
+        project=project,
+        user=current_user,
+        session=session,
+        ttl=ttl,
+        ref=ref,
     )
     return app.projects.get_figure_from_repo(
-        project=project, repo=repo, path=figure_path
+        project=project,
+        repo=repo,
+        path=figure_path,
+        ref=ref,
     )
 
 
@@ -1508,6 +1618,7 @@ def get_project_datasets(
     project_name: str,
     current_user: CurrentUserOptional,
     session: SessionDep,
+    ref: str | None = None,
 ) -> list[Dataset]:
     project = app.projects.get_project(
         session=session,
@@ -1522,6 +1633,7 @@ def get_project_datasets(
         user=current_user,
         session=session,
         ttl=DEFAULT_REPO_TTL,
+        ref=ref,
     )
     project = _sync_datasets_with_db(
         ck_info=ck_info, project=project, session=session
@@ -1537,6 +1649,7 @@ def get_project_dataset(
     current_user: CurrentUserOptional,
     session: SessionDep,
     filter_paths: list[str] | None = Query(default=None),
+    ref: str | None = None,
 ) -> DatasetForImport:
     logger.info(f"Received request to get dataset with path: {path}")
     project = app.projects.get_project(
@@ -1552,10 +1665,15 @@ def get_project_dataset(
         user=current_user,
         session=session,
         ttl=DEFAULT_REPO_TTL,
+        ref=ref,
     )
     git_rev = repo.git.rev_parse(["HEAD"])
     repo_dir = repo.working_dir
-    ck_info = get_ck_info_from_repo(repo)
+    ck_info = app.projects.get_ck_info_for_ref(
+        project=project,
+        repo=repo,
+        ref=ref,
+    )
     datasets = ck_info.get("datasets", [])
     # First check if this path is even a dataset
     ds = None
@@ -1721,7 +1839,11 @@ def post_project_dataset_label(
     repo = get_repo(
         project=project, user=current_user, session=session, ttl=None
     )
-    ck_info = get_ck_info_from_repo(repo)
+    ck_info = app.projects.get_ck_info_for_ref(
+        project=project,
+        repo=repo,
+        ref=ref,
+    )
     datasets = ck_info.get("datasets", [])
     ds_paths = [ds.get("path") for ds in datasets]
     if req.path in ds_paths:
@@ -1871,6 +1993,7 @@ def get_project_publications(
     project_name: str,
     current_user: CurrentUserOptional,
     session: SessionDep,
+    ref: str | None = None,
 ) -> list[Publication]:
     project = app.projects.get_project(
         owner_name=owner_name,
@@ -1884,6 +2007,7 @@ def get_project_publications(
         user=current_user,
         session=session,
         ttl=DEFAULT_REPO_TTL,
+        ref=ref,
     )
     ck_info = get_ck_info_from_repo(repo)
     pipeline = get_dvc_pipeline_from_repo(repo)
@@ -1899,7 +2023,10 @@ def get_project_publications(
         if "path" in pub:
             try:
                 item = app.projects.get_contents_from_repo(
-                    project=project, repo=repo, path=pub["path"]
+                    project=project,
+                    repo=repo,
+                    path=pub["path"],
+                    ref=ref,
                 )
                 pub["content"] = item.content
                 # Prioritize URL if already defined
@@ -2539,6 +2666,7 @@ def get_project_pipeline(
     project_name: str,
     current_user: CurrentUserOptional,
     session: SessionDep,
+    ref: str | None = None,
 ) -> Pipeline | None:
     project = app.projects.get_project(
         owner_name=owner_name,
@@ -2552,6 +2680,7 @@ def get_project_pipeline(
         user=current_user,
         session=session,
         ttl=DEFAULT_REPO_TTL,
+        ref=ref,
     )
     fpath = os.path.join(repo.working_dir, "dvc.yaml")
     if not os.path.isfile(fpath):
@@ -2927,6 +3056,7 @@ def get_project_references(
     project_name: str,
     current_user: CurrentUserOptional,
     session: SessionDep,
+    ref: str | None = None,
 ) -> list[References]:
     project = app.projects.get_project(
         owner_name=owner_name,
@@ -2940,6 +3070,7 @@ def get_project_references(
         user=current_user,
         session=session,
         ttl=DEFAULT_REPO_TTL,
+        ref=ref,
     )
     ck_info = get_ck_info_from_repo(repo)
     ref_collections = ck_info.get("references", [])
@@ -2970,6 +3101,7 @@ def get_project_references(
                             project=project,
                             repo=repo,
                             path=file_path,
+                            ref=ref,
                         )
                         url = contents_item.url
                     except HTTPException as e:
@@ -3008,6 +3140,7 @@ def get_project_environments(
     project_name: str,
     current_user: CurrentUserOptional,
     session: SessionDep,
+    ref: str | None = None,
 ) -> list[Environment]:
     project = app.projects.get_project(
         owner_name=owner_name,
@@ -3021,8 +3154,13 @@ def get_project_environments(
         user=current_user,
         session=session,
         ttl=DEFAULT_REPO_TTL,
+        ref=ref,
     )
-    ck_info = get_ck_info_from_repo(repo, process_includes=True)
+    ck_info = app.projects.get_ck_info_for_ref(
+        project=project,
+        repo=repo,
+        ref=ref,
+    )
     envs = ck_info.get("environments", {})
     resp = []
     for env_name, env in envs.items():
@@ -3059,7 +3197,11 @@ def post_project_environment(
     repo = get_repo(
         project=project, user=current_user, session=session, ttl=None
     )
-    ck_info = get_ck_info_from_repo(repo)
+    ck_info = app.projects.get_ck_info_for_ref(
+        project=project,
+        repo=repo,
+        ref=ref,
+    )
     envs = ck_info.get("environments", {})
     if req.name in envs:
         raise HTTPException(400, "Environment with same name already exists")
@@ -3094,6 +3236,7 @@ def get_project_software(
     project_name: str,
     current_user: CurrentUserOptional,
     session: SessionDep,
+    ref: str | None = None,
 ) -> Software:
     project = app.projects.get_project(
         owner_name=owner_name,
@@ -3107,8 +3250,13 @@ def get_project_software(
         user=current_user,
         session=session,
         ttl=DEFAULT_REPO_TTL,
+        ref=ref,
     )
-    ck_info = get_ck_info_from_repo(repo)
+    ck_info = app.projects.get_ck_info_for_ref(
+        project=project,
+        repo=repo,
+        ref=ref,
+    )
     envs = ck_info.get("environments", [])
     resp = []
     for env in envs:
@@ -3200,6 +3348,7 @@ def get_project_notebooks(
     project_name: str,
     current_user: CurrentUserOptional,
     session: SessionDep,
+    ref: str | None = None,
 ) -> list[Notebook]:
     project = app.projects.get_project(
         session=session,
@@ -3213,8 +3362,13 @@ def get_project_notebooks(
         user=current_user,
         session=session,
         ttl=DEFAULT_REPO_TTL,
+        ref=ref,
     )
-    ck_info = get_ck_info_from_repo(repo)
+    ck_info = app.projects.get_ck_info_for_ref(
+        project=project,
+        repo=repo,
+        ref=ref,
+    )
     notebooks = ck_info.get("notebooks", [])
     if not notebooks:
         return notebooks
@@ -3224,6 +3378,7 @@ def get_project_notebooks(
             project=project,
             repo=repo,
             path=notebook["path"],
+            ref=ref,
         )
         try:
             # If the notebook has HTML output, return that
@@ -3231,7 +3386,10 @@ def get_project_notebooks(
                 notebook_path=notebook["path"], to="html"
             )
             html_item = app.projects.get_contents_from_repo(
-                project=project, repo=repo, path=html_path
+                project=project,
+                repo=repo,
+                path=html_path,
+                ref=ref,
             )
             item = html_item
             notebook["output_format"] = "html"
@@ -3257,6 +3415,7 @@ def get_project_repro_check(
     project_name: str,
     current_user: CurrentUserOptional,
     session: SessionDep,
+    ref: str | None = None,
 ) -> ReproCheck:
     project = app.projects.get_project(
         session=session,
@@ -3270,6 +3429,7 @@ def get_project_repro_check(
         user=current_user,
         session=session,
         ttl=DEFAULT_REPO_TTL,
+        ref=ref,
     )
     res = check_reproducibility(wdir=repo.working_dir)
     return res
@@ -3315,6 +3475,7 @@ def get_project_app(
     project_name: str,
     current_user: CurrentUserOptional,
     session: SessionDep,
+    ref: str | None = None,
 ) -> ProjectApp | None:
     project = app.projects.get_project(
         owner_name=owner_name,
@@ -3328,6 +3489,7 @@ def get_project_app(
         user=current_user,
         session=session,
         ttl=DEFAULT_REPO_TTL,
+        ref=ref,
     )
     project_app = ck_info.get("app")
     if project_app is None:
@@ -3342,6 +3504,7 @@ def get_project_showcase(
     current_user: CurrentUserOptional,
     session: SessionDep,
     ttl: int | None = DEFAULT_REPO_TTL,
+    ref: str | None = None,
 ) -> Showcase | None:
     project = app.projects.get_project(
         owner_name=owner_name,
@@ -3354,7 +3517,11 @@ def get_project_showcase(
         elements=[ShowcaseText(text="Showcase is not correctly defined.")]
     )
     repo = get_repo(
-        project=project, user=current_user, session=session, ttl=ttl
+        project=project,
+        user=current_user,
+        session=session,
+        ttl=ttl,
+        ref=ref,
     )
     ck_info = get_ck_info_from_repo(repo)
     showcase = ck_info.get("showcase")
@@ -3379,6 +3546,7 @@ def get_project_showcase(
                         project=project,
                         repo=repo,
                         path=element_in.figure,
+                        ref=ref,
                     )
                 )
             except Exception as e:
@@ -3395,6 +3563,7 @@ def get_project_showcase(
                         project=project,
                         repo=repo,
                         path=element_in.publication,
+                        ref=ref,
                     )
                 )
             except Exception as e:
@@ -3453,6 +3622,7 @@ def get_project_showcase(
                         project=project,
                         repo=repo,
                         path=element_in.notebook,
+                        ref=ref,
                     )
                 )
             except Exception as e:

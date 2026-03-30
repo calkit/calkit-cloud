@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import {
   Box,
+  Button,
   Flex,
   Spinner,
   Text,
@@ -26,14 +27,20 @@ import {
 import { BsFiletypeYml } from "react-icons/bs"
 import { z } from "zod"
 
-import { ProjectsService, type ContentsItem } from "../../../../../client"
+import { type ContentsItem } from "../../../../../client"
 import UploadFile from "../../../../../components/Files/UploadFile"
 import PageMenu from "../../../../../components/Common/PageMenu"
 import FileContent from "../../../../../components/Files/FileContent"
 import SelectedItemInfo from "../../../../../components/Files/SelectedItemInfo"
-import useProject, { useProjectFiles } from "../../../../../hooks/useProject"
+import useProject from "../../../../../hooks/useProject"
+import { getProjectContentsAtRef } from "../../../../../lib/projectRefApi"
+import { RefPicker } from "../../../../../components/Common/RefPicker"
 
-const fileSearchSchema = z.object({ path: z.string().catch("") })
+const fileSearchSchema = z.object({
+  path: z.string().catch(""),
+  ref: z.string().optional(),
+  compareRef: z.string().optional(),
+})
 
 export const Route = createFileRoute(
   "/_layout/$accountName/$projectName/_layout/files",
@@ -75,13 +82,15 @@ function Item({ item, level, selectedPath, setSelectedPath }: ItemProps) {
     pathShouldBeExpanded(item.path, selectedPath),
   )
   const { accountName, projectName } = Route.useParams()
+  const { ref } = Route.useSearch()
   const { data } = useQuery({
-    queryKey: ["projects", accountName, projectName, "files", item.path],
+    queryKey: ["projects", accountName, projectName, "files", item.path, ref],
     queryFn: () =>
-      ProjectsService.getProjectContents({
+      getProjectContentsAtRef({
         ownerName: accountName,
         projectName: projectName,
         path: item.path,
+        ref,
       }),
     enabled: isExpanded,
   })
@@ -143,7 +152,12 @@ function Item({ item, level, selectedPath, setSelectedPath }: ItemProps) {
   const handleClick = () => {
     setIsExpanded(!isExpanded)
     setSelectedPath(item.path)
-    navigate({ search: { path: item.path } })
+    navigate({
+      search: (prev) => ({
+        ...prev,
+        path: item.path,
+      }),
+    })
   }
 
   if (Array.isArray(data)) {
@@ -212,25 +226,64 @@ function Item({ item, level, selectedPath, setSelectedPath }: ItemProps) {
 
 function Files() {
   const { accountName, projectName } = Route.useParams()
-  const { path } = Route.useSearch()
+  const { path, ref, compareRef } = Route.useSearch()
+  const navigate = useNavigate({ from: Route.fullPath })
   const { userHasWriteAccess } = useProject(accountName, projectName)
-  const { filesRequest } = useProjectFiles(accountName, projectName)
+  const [refInput, setRefInput] = useState(ref ?? "")
+  const [compareRefInput, setCompareRefInput] = useState(compareRef ?? "")
+
   const {
     isPending: filesPending,
     data: files,
     refetch,
     isRefetching,
-  } = filesRequest
+  } = useQuery({
+    queryKey: ["projects", accountName, projectName, "files", ref],
+    queryFn: () =>
+      getProjectContentsAtRef({
+        ownerName: accountName,
+        projectName: projectName,
+        ref,
+      }),
+  })
   const [selectedPath, setSelectedPath] = useState<string>(path)
   const selectedItemQuery = useQuery({
-    queryKey: ["projects", accountName, projectName, "files", selectedPath],
+    queryKey: [
+      "projects",
+      accountName,
+      projectName,
+      "files",
+      selectedPath,
+      ref,
+    ],
     queryFn: () =>
-      ProjectsService.getProjectContents({
+      getProjectContentsAtRef({
         ownerName: accountName,
         projectName: projectName,
         path: selectedPath,
+        ref,
       }),
     enabled: selectedPath !== undefined,
+  })
+  const compareItemQuery = useQuery({
+    queryKey: [
+      "projects",
+      accountName,
+      projectName,
+      "files",
+      selectedPath,
+      compareRef,
+      "compare",
+    ],
+    queryFn: () =>
+      getProjectContentsAtRef({
+        ownerName: accountName,
+        projectName: projectName,
+        path: selectedPath,
+        ref: compareRef,
+      }),
+    enabled: selectedPath !== undefined && Boolean(compareRef),
+    retry: false,
   })
   const fileUploadModal = useDisclosure()
   if (Array.isArray(files?.dir_items)) {
@@ -239,6 +292,31 @@ function Files() {
   const refresh = () => {
     refetch()
     selectedItemQuery.refetch()
+    if (compareRef) {
+      compareItemQuery.refetch()
+    }
+  }
+
+  const applyRefs = () => {
+    navigate({
+      search: (prev) => ({
+        ...prev,
+        ref: refInput || undefined,
+        compareRef: compareRefInput || undefined,
+      }),
+    })
+  }
+
+  const clearRefs = () => {
+    setRefInput("")
+    setCompareRefInput("")
+    navigate({
+      search: (prev) => ({
+        ...prev,
+        ref: undefined,
+        compareRef: undefined,
+      }),
+    })
   }
 
   return (
@@ -250,11 +328,39 @@ function Files() {
       ) : (
         <Flex height={"100%"}>
           <PageMenu>
+            <Box mb={2}>
+              <Text fontSize="xs" mb={1}>
+                Git refs
+              </Text>
+              <RefPicker
+                ownerName={accountName}
+                projectName={projectName}
+                value={refInput}
+                onChange={setRefInput}
+                placeholder="Primary ref (main, v1.2.0, ...)"
+              />
+              <Box mt={2} />
+              <RefPicker
+                ownerName={accountName}
+                projectName={projectName}
+                value={compareRefInput}
+                onChange={setCompareRefInput}
+                placeholder="Compare ref (optional)"
+              />
+              <Flex gap={1} mt={2}>
+                <Button size="xs" onClick={applyRefs}>
+                  Apply
+                </Button>
+                <Button size="xs" variant="ghost" onClick={clearRefs}>
+                  Clear
+                </Button>
+              </Flex>
+            </Box>
             <Flex gap={2}>
               <Heading size="md" mb={1}>
                 All files
               </Heading>
-              {userHasWriteAccess ? (
+              {userHasWriteAccess && !ref && !compareRef ? (
                 <>
                   <IconButton
                     variant="primary"
@@ -290,7 +396,7 @@ function Files() {
                 ))
               : ""}
           </PageMenu>
-          <Box minW="685px" maxH="82vh">
+          <Box minW="685px" maxH="82vh" flex={1}>
             {selectedPath !== undefined &&
             (selectedItemQuery.isPending || selectedItemQuery.isRefetching) ? (
               <Flex justify="center" align="center" height="full" width="full">
@@ -298,8 +404,35 @@ function Files() {
               </Flex>
             ) : (
               <>
-                {selectedItemQuery?.data?.content ||
-                selectedItemQuery?.data?.url ? (
+                {compareRef ? (
+                  <Flex gap={4} alignItems="flex-start">
+                    <Box flex={1}>
+                      <Text fontSize="sm" fontWeight="bold" mb={1}>
+                        {ref || "default"}
+                      </Text>
+                      {selectedItemQuery?.data?.content ||
+                      selectedItemQuery?.data?.url ? (
+                        <FileContent item={selectedItemQuery?.data} />
+                      ) : (
+                        <Text>No artifact found for this ref.</Text>
+                      )}
+                    </Box>
+                    <Box flex={1}>
+                      <Text fontSize="sm" fontWeight="bold" mb={1}>
+                        {compareRef}
+                      </Text>
+                      {compareItemQuery.isPending ? (
+                        <Spinner size="md" color="ui.main" />
+                      ) : compareItemQuery.data?.content ||
+                        compareItemQuery.data?.url ? (
+                        <FileContent item={compareItemQuery.data} />
+                      ) : (
+                        <Text>No artifact found for this ref.</Text>
+                      )}
+                    </Box>
+                  </Flex>
+                ) : selectedItemQuery?.data?.content ||
+                  selectedItemQuery?.data?.url ? (
                   <FileContent item={selectedItemQuery?.data} />
                 ) : (
                   ""

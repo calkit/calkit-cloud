@@ -23,6 +23,8 @@ def get_repo(
     session: Session,
     ttl: int | None = None,
     fresh=False,
+    ref: str | None = None,
+    full_history: bool = False,
 ) -> git.Repo:
     """Ensure that the repo exists and is ready for operating upon for the
     user.
@@ -34,8 +36,8 @@ def get_repo(
     """
     owner_name = project.owner_github_name
     project_name = project.name
-    # Add the file to the repo(s) -- we may need to clone it
-    # If it already exists, just git pull
+    # Add the file to the repo(s) -- we may need to clone it.
+    # Ref-based reads should not mutate this working tree checkout.
     if user is not None:
         base_dir = f"/tmp/{user.github_username}/{owner_name}/{project_name}"
     else:
@@ -67,16 +69,13 @@ def get_repo(
         try:
             with lock:
                 try:
-                    subprocess.check_call(
-                        [
-                            "git",
-                            "clone",
-                            "--depth",
-                            "1",
-                            git_clone_url,
-                            repo_dir,
-                        ]
-                    )
+                    clone_cmd = ["git", "clone"]
+                    # Keep clones shallow by default for speed, but allow
+                    # full history for git history/ref browsing features.
+                    if not full_history:
+                        clone_cmd += ["--depth", "1"]
+                    clone_cmd += [git_clone_url, repo_dir]
+                    subprocess.check_call(clone_cmd)
                 except subprocess.CalledProcessError:
                     logger.error("Failed to clone repo")
                     # It's possible another process cloned this repo just as
@@ -104,19 +103,38 @@ def get_repo(
             with lock:
                 if ttl is None or ((time.time() - last_updated) > ttl):
                     logger.info("Updating remote in case token was refreshed")
-                    branch_name = repo.active_branch.name
                     repo.git.remote(["remove", "origin"])
                     repo.git.remote(["add", "origin", git_clone_url])
                     logger.info("Git fetching")
-                    repo.git.fetch(["origin", branch_name])
-                    # If we had any failed previous transactions, reset and
-                    # clean
-                    repo.git.reset()
-                    repo.git.clean("-fd")
-                    repo.git.stash("save", "Auto-stash before pull")
-                    repo.git.checkout([f"origin/{branch_name}"])
-                    repo.git.branch(["-D", branch_name])
-                    repo.git.checkout(["-b", branch_name])
+                    if full_history:
+                        try:
+                            is_shallow = (
+                                repo.git.rev_parse(
+                                    "--is-shallow-repository"
+                                ).strip()
+                                == "true"
+                            )
+                        except GitCommandError:
+                            is_shallow = os.path.isfile(
+                                os.path.join(repo.git_dir, "shallow")
+                            )
+                        if is_shallow:
+                            repo.git.fetch(["--unshallow", "--tags"])
+                        else:
+                            repo.git.fetch(["--all", "--tags"])
+                    elif ref is None:
+                        branch_name = repo.active_branch.name
+                        repo.git.fetch(["origin", branch_name])
+                        # If we had any failed previous transactions, reset
+                        # and clean
+                        repo.git.reset()
+                        repo.git.clean("-fd")
+                        repo.git.stash("save", "Auto-stash before pull")
+                        repo.git.checkout([f"origin/{branch_name}"])
+                        repo.git.branch(["-D", branch_name])
+                        repo.git.checkout(["-b", branch_name])
+                    else:
+                        repo.git.fetch(["--all", "--tags"])
                     subprocess.call(["touch", updated_fpath])
         except Timeout:
             logger.warning("Git repo lock timed out")
@@ -142,16 +160,29 @@ def get_ck_info(
     session: Session,
     ttl=None,
     process_includes=False,
+    ref: str | None = None,
 ) -> dict:
     """Load the calkit.yaml file contents into a dictionary."""
-    repo = get_repo(project=project, user=user, session=session, ttl=ttl)
+    repo = get_repo(
+        project=project,
+        user=user,
+        session=session,
+        ttl=ttl,
+        ref=ref,
+    )
     return get_ck_info_from_repo(repo=repo, process_includes=process_includes)
 
 
 def get_dvc_pipeline(
-    project: Project, user: User, session: Session, ttl=None
+    project: Project,
+    user: User | None,
+    session: Session,
+    ttl=None,
+    ref: str | None = None,
 ) -> dict:
-    repo = get_repo(project=project, user=user, session=session, ttl=ttl)
+    repo = get_repo(
+        project=project, user=user, session=session, ttl=ttl, ref=ref
+    )
     return get_dvc_pipeline_from_repo(repo)
 
 
@@ -191,3 +222,177 @@ def get_overleaf_repo(
     repo.git.config(["user.name", user.full_name])
     repo.git.config(["user.email", user.email])
     return repo
+
+
+def search_refs(
+    repo: git.Repo, query: str | None = None
+) -> list[dict]:
+    """Search for refs (branches, tags, commits) in a repository.
+
+    Args:
+        repo: GitPython Repo object
+        query: Optional search query to filter by branch name, tag name,
+               commit message, or author name
+
+    Returns:
+        List of dicts with ref information (name, type, message, author, timestamp)
+    """
+    from app.models import Ref
+
+    refs = []
+    query_lower = query.lower() if query else None
+
+    try:
+        # Fetch all refs to ensure we have latest
+        repo.remotes.origin.fetch()
+    except Exception as e:
+        logger.warning(f"Failed to fetch refs: {e}")
+
+    # Add branches
+    try:
+        for branch in repo.branches:
+            name = branch.name
+            if query_lower and query_lower not in name.lower():
+                # Try to get commit message for fuzzy matching
+                try:
+                    commit = repo.commit(branch)
+                    if query_lower not in (commit.message or "").lower() and \
+                       query_lower not in (commit.author.name or "").lower():
+                        continue
+                except:
+                    pass
+
+            try:
+                commit = repo.commit(branch)
+                refs.append({
+                    "name": name,
+                    "type": "branch",
+                    "message": commit.message.split('\n')[0] if commit.message else None,
+                    "author": commit.author.name,
+                    "timestamp": commit.committed_datetime.isoformat(),
+                    "short_hash": commit.hexsha[:7],
+                })
+            except Exception as e:
+                logger.warning(f"Failed to get commit info for branch {name}: {e}")
+                refs.append({
+                    "name": name,
+                    "type": "branch",
+                })
+    except Exception as e:
+        logger.warning(f"Failed to list branches: {e}")
+
+    # Add tags
+    try:
+        for tag in repo.tags:
+            name = tag.name
+            if query_lower and query_lower not in name.lower():
+                # Try to get tag message for fuzzy matching
+                try:
+                    if tag.tag and tag.tag.message:
+                        if query_lower not in tag.tag.message.lower():
+                            continue
+                except:
+                    pass
+
+            try:
+                commit = repo.commit(tag)
+                message = None
+                if tag.tag and tag.tag.message:
+                    message = tag.tag.message.split('\n')[0]
+                elif commit.message:
+                    message = commit.message.split('\n')[0]
+
+                refs.append({
+                    "name": name,
+                    "type": "tag",
+                    "message": message,
+                    "author": commit.author.name if commit.author else None,
+                    "timestamp": commit.committed_datetime.isoformat() if commit.committed_datetime else None,
+                    "short_hash": commit.hexsha[:7],
+                })
+            except Exception as e:
+                logger.warning(f"Failed to get commit info for tag {name}: {e}")
+                refs.append({
+                    "name": name,
+                    "type": "tag",
+                })
+    except Exception as e:
+        logger.warning(f"Failed to list tags: {e}")
+
+    # Add recent commits
+    try:
+        max_commits = 50
+        for commit in repo.iter_commits('HEAD', max_count=max_commits):
+            short_hash = commit.hexsha[:7]
+            message = commit.message.split('\n')[0] if commit.message else ""
+
+            # Check if this commit matches the query
+            if query_lower:
+                if not (query_lower in short_hash.lower() or
+                       query_lower in message.lower() or
+                       query_lower in (commit.author.name or "").lower()):
+                    continue
+
+            # Avoid duplicates with branches/tags
+            if short_hash not in [r.get('short_hash', '') for r in refs]:
+                refs.append({
+                    "name": short_hash,
+                    "type": "commit",
+                    "message": message,
+                    "author": commit.author.name,
+                    "timestamp": commit.committed_datetime.isoformat(),
+                    "short_hash": short_hash,
+                })
+    except Exception as e:
+        logger.warning(f"Failed to list commits: {e}")
+
+    # Sort refs: branches first, then tags, then commits; newest first in each
+    type_order = {"branch": 0, "tag": 1, "commit": 2}
+    refs.sort(
+        key=lambda r: (
+            type_order.get(r.get("type", "commit"), 3),
+            r.get("timestamp") or "",
+            r.get("name") or "",
+        ),
+        reverse=False,
+    )
+    refs.sort(key=lambda r: r.get("timestamp") or "", reverse=True)
+    refs.sort(
+        key=lambda r: type_order.get(r.get("type", "commit"), 3),
+        reverse=False,
+    )
+
+    return [Ref(**r) for r in refs]
+
+
+def get_commit_history(
+    repo: git.Repo, max_count: int = 100
+) -> list[dict]:
+    """Get detailed commit history for a repository.
+
+    Args:
+        repo: GitPython Repo object
+        max_count: Maximum number of commits to return
+
+    Returns:
+        List of dicts with commit details (hash, message, author, date, etc.)
+    """
+    commits = []
+
+    try:
+        for commit in repo.iter_commits('HEAD', max_count=max_count):
+            commits.append({
+                "hash": commit.hexsha,
+                "short_hash": commit.hexsha[:7],
+                "message": commit.message,
+                "author": commit.author.name,
+                "author_email": commit.author.email,
+                "timestamp": commit.committed_datetime.isoformat(),
+                "committed_date": commit.committed_date,
+                "parent_hashes": [p.hexsha[:7] for p in commit.parents],
+                "summary": commit.message.split('\n')[0],
+            })
+    except Exception as e:
+        logger.warning(f"Failed to get commit history: {e}")
+
+    return commits

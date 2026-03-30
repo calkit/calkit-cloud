@@ -2,6 +2,7 @@ import {
   Text,
   Flex,
   Box,
+  Button,
   Spinner,
   useColorModeValue,
   Heading,
@@ -10,19 +11,28 @@ import {
   Tooltip,
 } from "@chakra-ui/react"
 import { useQuery } from "@tanstack/react-query"
-import { createFileRoute } from "@tanstack/react-router"
+import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { useState } from "react"
 import { SiJupyter } from "react-icons/si"
 import { IpynbRenderer } from "react-ipynb-renderer"
 import axios from "axios"
+import { z } from "zod"
 
-import { ProjectsService, type Notebook } from "../../../../../client"
+import { type Notebook } from "../../../../../client"
 import PageMenu from "../../../../../components/Common/PageMenu"
+import { getProjectNotebooksAtRef } from "../../../../../lib/projectRefApi"
+import { RefPicker } from "../../../../../components/Common/RefPicker"
+
+const notebookSearchSchema = z.object({
+  ref: z.string().optional(),
+  compareRef: z.string().optional(),
+})
 
 export const Route = createFileRoute(
   "/_layout/$accountName/$projectName/_layout/notebooks",
 )({
   component: Notebooks,
+  validateSearch: (search) => notebookSearchSchema.parse(search),
 })
 
 interface NotebookContentProps {
@@ -106,19 +116,68 @@ function NotebookContent({ notebook }: NotebookContentProps) {
 function Notebooks() {
   const bgActive = useColorModeValue("#E2E8F0", "#4A5568")
   const { accountName, projectName } = Route.useParams()
+  const { ref, compareRef } = Route.useSearch()
+  const navigate = useNavigate({ from: Route.fullPath })
   const [selectedTitle, setSelectedTitle] = useState<string>()
+  const [refInput, setRefInput] = useState(ref ?? "")
+  const [compareRefInput, setCompareRefInput] = useState(compareRef ?? "")
   const {
     isPending,
     error,
     data: allNotebooks,
   } = useQuery({
-    queryKey: ["projects", accountName, projectName, "notebooks"],
+    queryKey: ["projects", accountName, projectName, "notebooks", ref],
     queryFn: () =>
-      ProjectsService.getProjectNotebooks({
+      getProjectNotebooksAtRef({
         ownerName: accountName,
         projectName: projectName,
+        ref,
       }),
   })
+  const compareNotebooksQuery = useQuery({
+    queryKey: [
+      "projects",
+      accountName,
+      projectName,
+      "notebooks",
+      compareRef,
+      "compare",
+    ],
+    queryFn: () =>
+      getProjectNotebooksAtRef({
+        ownerName: accountName,
+        projectName: projectName,
+        ref: compareRef,
+      }),
+    enabled: Boolean(compareRef),
+    retry: false,
+  })
+
+  const applyRefs = () => {
+    navigate({
+      search: {
+        ref: refInput || undefined,
+        compareRef: compareRefInput || undefined,
+      },
+    })
+  }
+
+  const clearRefs = () => {
+    setRefInput("")
+    setCompareRefInput("")
+    navigate({
+      search: {
+        ref: undefined,
+        compareRef: undefined,
+      },
+    })
+  }
+
+  const selectedNotebook = allNotebooks?.find((n) => n.title === selectedTitle)
+  const compareNotebook = compareNotebooksQuery.data?.find(
+    (n) => n.path === selectedNotebook?.path,
+  )
+
   if (allNotebooks && !selectedTitle && allNotebooks[0]) {
     setSelectedTitle(allNotebooks[0].title)
   }
@@ -140,6 +199,34 @@ function Notebooks() {
               <Flex width="full" my={0} py={0}>
                 {/* Notebooks table of contents */}
                 <PageMenu>
+                  <Box mb={2}>
+                    <Text fontSize="xs" mb={1}>
+                      Git refs
+                    </Text>
+                    <RefPicker
+                      ownerName={accountName}
+                      projectName={projectName}
+                      value={refInput}
+                      onChange={setRefInput}
+                      placeholder="Primary ref (main, v1.2.0, ...)"
+                    />
+                    <Box mt={2} />
+                    <RefPicker
+                      ownerName={accountName}
+                      projectName={projectName}
+                      value={compareRefInput}
+                      onChange={setCompareRefInput}
+                      placeholder="Compare ref (optional)"
+                    />
+                    <Flex gap={1} mt={2}>
+                      <Button size="xs" onClick={applyRefs}>
+                        Apply
+                      </Button>
+                      <Button size="xs" variant="ghost" onClick={clearRefs}>
+                        Clear
+                      </Button>
+                    </Flex>
+                  </Box>
                   <Heading size="md" mb={1}>
                     Notebooks
                   </Heading>
@@ -183,16 +270,34 @@ function Notebooks() {
                   ))}
                 </PageMenu>
                 <Box>
-                  {allNotebooks?.map((notebook) => (
-                    <Box key={notebook.path}>
-                      {notebook.title === selectedTitle &&
-                      (notebook.url || notebook.content) ? (
-                        <NotebookContent notebook={notebook} />
+                  {selectedNotebook ? (
+                    <Flex gap={4} alignItems="flex-start">
+                      <Box>
+                        <Text fontSize="sm" fontWeight="bold" mb={1}>
+                          {ref || "default"}
+                        </Text>
+                        <NotebookContent notebook={selectedNotebook} />
+                      </Box>
+                      {compareRef ? (
+                        <Box>
+                          <Text fontSize="sm" fontWeight="bold" mb={1}>
+                            {compareRef}
+                          </Text>
+                          {compareNotebooksQuery.isPending ? (
+                            <Spinner size="md" color="ui.main" />
+                          ) : compareNotebook ? (
+                            <NotebookContent notebook={compareNotebook} />
+                          ) : (
+                            <Text>Notebook not found at compare ref.</Text>
+                          )}
+                        </Box>
                       ) : (
                         ""
                       )}
-                    </Box>
-                  ))}
+                    </Flex>
+                  ) : (
+                    ""
+                  )}
                 </Box>
               </Flex>
             </>

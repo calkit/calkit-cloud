@@ -18,10 +18,15 @@ import {
   useColorModeValue,
 } from "@chakra-ui/react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { createFileRoute, Link as RouterLink } from "@tanstack/react-router"
+import {
+  createFileRoute,
+  Link as RouterLink,
+  useNavigate,
+} from "@tanstack/react-router"
 import { useState } from "react"
 import { FaPlus, FaRegFileImage, FaRegFilePdf } from "react-icons/fa"
 import { FiFile } from "react-icons/fi"
+import { z } from "zod"
 
 import UploadFigure from "../../../../../components/Figures/UploadFigure"
 import LabelAsFigure from "../../../../../components/Figures/FigureFromExisting"
@@ -31,14 +36,22 @@ import {
   type FigureCommentPost,
 } from "../../../../../client"
 import PageMenu from "../../../../../components/Common/PageMenu"
-import useProject, { useProjectFigures } from "../../../../../hooks/useProject"
+import useProject from "../../../../../hooks/useProject"
 import useAuth from "../../../../../hooks/useAuth"
 import FigureView from "../../../../../components/Figures/FigureView"
+import { getProjectFiguresAtRef } from "../../../../../lib/projectRefApi"
+import { RefPicker } from "../../../../../components/Common/RefPicker"
+
+const figuresSearchSchema = z.object({
+  ref: z.string().optional(),
+  compareRef: z.string().optional(),
+})
 
 export const Route = createFileRoute(
   "/_layout/$accountName/$projectName/_layout/figures",
 )({
   component: ProjectFigures,
+  validateSearch: (search) => figuresSearchSchema.parse(search),
 })
 
 interface FigureCommentProps {
@@ -160,15 +173,26 @@ function FigureComments({ figure }: FigureCommentProps) {
 
 interface FigurePanelProps {
   figure: Figure
+  compareFigure?: Figure
+  refLabel: string
+  compareRefLabel?: string
 }
 
-function FigurePanel({ figure }: FigurePanelProps) {
+function FigurePanel({
+  figure,
+  compareFigure,
+  refLabel,
+  compareRefLabel,
+}: FigurePanelProps) {
   const secBgColor = useColorModeValue("ui.secondary", "ui.darkSlate")
 
   return (
     <>
       <Flex pt={1} height={"100%"} width="full" mb={4}>
         <Box minW={"666px"} borderRadius="lg" bg={secBgColor} px={4} py={3}>
+          <Text fontSize="sm" fontWeight="bold">
+            {refLabel}
+          </Text>
           <Heading size="md" mb={1}>
             {figure.title}
           </Heading>
@@ -181,6 +205,39 @@ function FigurePanel({ figure }: FigurePanelProps) {
             "No content found"
           )}
         </Box>
+        {compareRefLabel ? (
+          <Box
+            minW={"666px"}
+            borderRadius="lg"
+            bg={secBgColor}
+            px={4}
+            py={3}
+            ml={2}
+          >
+            <Text fontSize="sm" fontWeight="bold">
+              {compareRefLabel}
+            </Text>
+            {compareFigure ? (
+              <>
+                <Heading size="md" mb={1}>
+                  {compareFigure.title}
+                </Heading>
+                <Text>{compareFigure.description}</Text>
+                {compareFigure.content || compareFigure.url ? (
+                  <Box mt={3} mb={1}>
+                    <FigureView figure={compareFigure} width="635px" />
+                  </Box>
+                ) : (
+                  "No content found"
+                )}
+              </>
+            ) : (
+              <Text>Figure not found at compare ref.</Text>
+            )}
+          </Box>
+        ) : (
+          ""
+        )}
         <Box
           mx={4}
           width={"100%"}
@@ -233,20 +290,97 @@ const getIcon = (figure: Figure) => {
 
 function ProjectFigures() {
   const { accountName, projectName } = Route.useParams()
+  const { ref, compareRef } = Route.useSearch()
+  const navigate = useNavigate({ from: Route.fullPath })
   const { userHasWriteAccess } = useProject(accountName, projectName)
-  const { figuresRequest } = useProjectFigures(accountName, projectName)
-  const { isPending: figuresPending, data: figures } = figuresRequest
+  const [refInput, setRefInput] = useState(ref ?? "")
+  const [compareRefInput, setCompareRefInput] = useState(compareRef ?? "")
+  const { isPending: figuresPending, data: figures } = useQuery({
+    queryKey: ["projects", accountName, projectName, "figures", ref],
+    queryFn: () =>
+      getProjectFiguresAtRef({
+        ownerName: accountName,
+        projectName: projectName,
+        ref,
+      }),
+  })
+  const compareFiguresQuery = useQuery({
+    queryKey: [
+      "projects",
+      accountName,
+      projectName,
+      "figures",
+      compareRef,
+      "compare",
+    ],
+    queryFn: () =>
+      getProjectFiguresAtRef({
+        ownerName: accountName,
+        projectName: projectName,
+        ref: compareRef,
+      }),
+    enabled: Boolean(compareRef),
+    retry: false,
+  })
   const uploadFigureModal = useDisclosure()
   const labelFigureModal = useDisclosure()
+
+  const applyRefs = () => {
+    navigate({
+      search: {
+        ref: refInput || undefined,
+        compareRef: compareRefInput || undefined,
+      },
+    })
+  }
+
+  const clearRefs = () => {
+    setRefInput("")
+    setCompareRefInput("")
+    navigate({
+      search: {
+        ref: undefined,
+        compareRef: undefined,
+      },
+    })
+  }
 
   return (
     <>
       <Flex>
         {/* A bit of a nav bar with all the figures listed */}
         <PageMenu>
+          <Box mb={2}>
+            <Text fontSize="xs" mb={1}>
+              Git refs
+            </Text>
+            <RefPicker
+              ownerName={accountName}
+              projectName={projectName}
+              value={refInput}
+              onChange={setRefInput}
+              placeholder="Primary ref (main, v1.2.0, ...)"
+            />
+            <Box mt={2} />
+            <RefPicker
+              ownerName={accountName}
+              projectName={projectName}
+              value={compareRefInput}
+              onChange={setCompareRefInput}
+              placeholder="Compare ref (optional)"
+            />
+            <Flex gap={1} mt={2}>
+              <Button size="xs" onClick={applyRefs}>
+                Apply
+              </Button>
+              <Button size="xs" variant="ghost" onClick={clearRefs}>
+                Clear
+              </Button>
+            </Flex>
+          </Box>
           <Flex align="center" mb={2} mt={1}>
             <Heading size="md">Figures</Heading>
-            {userHasWriteAccess ? (
+            {userHasWriteAccess && !ref && !compareRef ? (
               <>
                 <Menu>
                   <MenuButton
@@ -321,7 +455,14 @@ function ProjectFigures() {
             <Box width="full" mt={-1} ml={-2} mb={2}>
               {figures?.map((figure) => (
                 <Box id={figure.path} key={figure.title} mb={-1}>
-                  <FigurePanel figure={figure} />
+                  <FigurePanel
+                    figure={figure}
+                    compareFigure={compareFiguresQuery.data?.find(
+                      (f) => f.path === figure.path,
+                    )}
+                    refLabel={ref || "default"}
+                    compareRefLabel={compareRef || undefined}
+                  />
                 </Box>
               ))}
             </Box>

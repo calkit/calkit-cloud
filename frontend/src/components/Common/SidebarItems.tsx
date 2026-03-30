@@ -8,6 +8,7 @@ import {
   FiDatabase,
   FiImage,
   FiFolder,
+  FiGitBranch,
 } from "react-icons/fi"
 import { FaLaptop } from "react-icons/fa"
 import { IoLibraryOutline } from "react-icons/io5"
@@ -28,6 +29,7 @@ const items = [
   { icon: FiImage, title: "Figures", path: "/figures" },
   { icon: FiBookOpen, title: "Publications", path: "/publications" },
   { icon: SiJupyter, title: "Notebooks", path: "/notebooks" },
+  { icon: FiGitBranch, title: "History", path: "/history" },
   { icon: FiHardDrive, title: "Software", path: "/software" },
   { icon: FiUsers, title: "Collaborators", path: "/collaborators" },
   { icon: IoLibraryOutline, title: "References", path: "/references" },
