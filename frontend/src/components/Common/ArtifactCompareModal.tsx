@@ -35,12 +35,15 @@ import {
   getProjectFiguresAtRef,
   getProjectPublicationsAtRef,
   getProjectNotebooksAtRef,
+  getProjectContentsAtRef,
   type CommitHistory,
 } from "../../lib/projectRefApi"
 import FigureView from "../Figures/FigureView"
-import { type Figure, type Publication, type Notebook } from "../../client"
+import FileContent from "../Files/FileContent"
+import { type Figure, type Publication, type Notebook, type ContentsItem } from "../../client"
 
-type ArtifactKind = "figure" | "publication" | "notebook"
+/** "file" covers auto-detected types not explicitly declared in calkit.yaml. */
+export type ArtifactKind = "figure" | "publication" | "notebook" | "file"
 
 interface ArtifactCompareModalProps {
   isOpen: boolean
@@ -61,9 +64,16 @@ function ArtifactContent({
 }: {
   kind: ArtifactKind
   path: string
-  data: Figure | Publication | Notebook | undefined
+  data: Figure | Publication | Notebook | ContentsItem | undefined
 }) {
   if (!data) return <Text color="gray.500">Not available at this version.</Text>
+
+  if (kind === "file") {
+    const item = data as ContentsItem
+    if (!item.content && !item.url)
+      return <Text color="gray.500">No content found for this version.</Text>
+    return <FileContent item={item} />
+  }
 
   if (kind === "figure") {
     const fig = data as Figure
@@ -141,21 +151,27 @@ function useArtifactAtRef(
   return useQuery({
     queryKey: ["projects", ownerName, projectName, kind, path, ref, "compare-modal"],
     queryFn: async () => {
+      if (kind === "file") {
+        return getProjectContentsAtRef({ ownerName, projectName, path, ref })
+      }
       if (kind === "figure") {
         const figs = await getProjectFiguresAtRef({ ownerName, projectName, ref })
-        return figs.find((f) => f.path === path)
+        // Fall back to contents API if not declared in calkit.yaml
+        const found = figs.find((f) => f.path === path)
+        if (found) return found
+        return getProjectContentsAtRef({ ownerName, projectName, path, ref })
       }
       if (kind === "publication") {
-        const pubs = await getProjectPublicationsAtRef({
-          ownerName,
-          projectName,
-          ref,
-        })
-        return pubs.find((p) => p.path === path)
+        const pubs = await getProjectPublicationsAtRef({ ownerName, projectName, ref })
+        const found = pubs.find((p) => p.path === path)
+        if (found) return found
+        return getProjectContentsAtRef({ ownerName, projectName, path, ref })
       }
       if (kind === "notebook") {
         const nbs = await getProjectNotebooksAtRef({ ownerName, projectName, ref })
-        return nbs.find((n) => n.path === path)
+        const found = nbs.find((n) => n.path === path)
+        if (found) return found
+        return getProjectContentsAtRef({ ownerName, projectName, path, ref })
       }
     },
     enabled,

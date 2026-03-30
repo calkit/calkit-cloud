@@ -21,7 +21,18 @@ import EditFileInfo from "./EditFileInfo"
 import useAuth from "../../hooks/useAuth"
 import UploadFile from "./UploadFile"
 import { ProjectsService } from "../../client"
-import { ArtifactCompareModal } from "../Common/ArtifactCompareModal"
+import { ArtifactCompareModal, type ArtifactKind } from "../Common/ArtifactCompareModal"
+
+const FIGURE_EXTS = new Set([".png", ".jpg", ".jpeg", ".svg", ".gif", ".pdf", ".json", ".html"])
+const NOTEBOOK_EXTS = new Set([".ipynb"])
+
+function inferKindFromPath(path: string): ArtifactKind | undefined {
+  const lower = path.toLowerCase()
+  const ext = lower.slice(lower.lastIndexOf("."))
+  if (NOTEBOOK_EXTS.has(ext)) return "notebook"
+  if (FIGURE_EXTS.has(ext)) return "figure"
+  return undefined
+}
 
 interface FileLockProps {
   item: ContentsItem
@@ -116,11 +127,11 @@ function SelectedItemInfo({
   const uploadNewVersionModal = useDisclosure()
   const compareModal = useDisclosure()
 
-  const artifactKind = selectedItem.calkit_object?.kind as
-    | "figure"
-    | "publication"
-    | "notebook"
-    | undefined
+  const artifactKind: ArtifactKind | undefined =
+    (selectedItem.calkit_object?.kind as ArtifactKind | undefined) ??
+    (selectedItem.type === "file"
+      ? inferKindFromPath(selectedItem.path)
+      : undefined)
 
   return (
     <Box minW="300px">
@@ -157,9 +168,7 @@ function SelectedItemInfo({
       ) : (
         ""
       )}
-      {selectedItem.type === "file" &&
-      artifactKind &&
-      ["figure", "publication", "notebook"].includes(artifactKind) ? (
+      {selectedItem.type === "file" && artifactKind ? (
         <>
           <Button mt={2} onClick={compareModal.onOpen} size="sm">
             <Icon as={FaCodeBranch} mr={1} />
@@ -171,12 +180,10 @@ function SelectedItemInfo({
             ownerName={ownerName}
             projectName={projectName}
             path={selectedItem.path}
-            kind={artifactKind as "figure" | "publication" | "notebook"}
+            kind={artifactKind}
           />
         </>
-      ) : (
-        ""
-      )}
+      ) : null}
       <HStack alignContent={"center"} mt={4} mb={1} gap={1}>
         <Heading size={"sm"}>Artifact info</Heading>
         {userHasWriteAccess ? (
@@ -203,12 +210,14 @@ function SelectedItemInfo({
       </HStack>
       <Text>
         Type:
-        {selectedItem.calkit_object?.kind ? (
-          <>
-            <Badge ml={1} bgColor="green.500">
-              {String(selectedItem.calkit_object.kind)}
-            </Badge>
-          </>
+        {artifactKind ? (
+          <Badge
+            ml={1}
+            bgColor={selectedItem.calkit_object?.kind ? "green.500" : "gray.400"}
+            title={selectedItem.calkit_object?.kind ? undefined : "Auto-detected"}
+          >
+            {artifactKind}
+          </Badge>
         ) : (
           <Badge ml={1} bgColor="gray">
             None
