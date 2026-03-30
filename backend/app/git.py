@@ -365,6 +365,68 @@ def search_refs(
     return [Ref(**r) for r in refs]
 
 
+def get_file_history(
+    repo: git.Repo,
+    path: str,
+    max_count: int = 100,
+) -> list[dict]:
+    """Get commit history for a specific file path.
+
+    Checks the file itself, the `<path>.dvc` pointer file, and `dvc.lock`
+    (for pipeline outputs) so that DVC-tracked artifacts are covered too.
+    Deduplicates by commit hash and returns commits sorted newest-first.
+    """
+    seen: set[str] = set()
+    commits: list[dict] = []
+
+    def _collect(git_path: str) -> None:
+        try:
+            for commit in repo.iter_commits(
+                "HEAD", paths=git_path, max_count=max_count
+            ):
+                if commit.hexsha in seen:
+                    continue
+                seen.add(commit.hexsha)
+                commits.append(
+                    {
+                        "hash": commit.hexsha,
+                        "short_hash": commit.hexsha[:7],
+                        "message": commit.message,
+                        "author": commit.author.name,
+                        "author_email": commit.author.email,
+                        "timestamp": commit.committed_datetime.isoformat(),
+                        "committed_date": commit.committed_date,
+                        "parent_hashes": [
+                            p.hexsha[:7] for p in commit.parents
+                        ],
+                        "summary": commit.message.split("\n")[0],
+                    }
+                )
+        except Exception as exc:
+            logger.warning(
+                f"Failed to get file history for {git_path!r}: {exc}"
+            )
+
+    # Direct git-tracked file
+    _collect(path)
+    # DVC pointer file
+    _collect(f"{path}.dvc")
+    # DVC lock file covers pipeline outputs
+    _collect("dvc.lock")
+
+    # Sort newest-first
+    commits.sort(key=lambda c: c["committed_date"], reverse=True)
+    # Re-deduplicate after merge (committed_date tie-break is irrelevant here
+    # but the set already handles correctness).
+    seen2: set[str] = set()
+    result = []
+    for c in commits:
+        if c["hash"] not in seen2:
+            seen2.add(c["hash"])
+            result.append(c)
+    return result[:max_count]
+
+
 def get_commit_history(
     repo: git.Repo, max_count: int = 100
 ) -> list[dict]:

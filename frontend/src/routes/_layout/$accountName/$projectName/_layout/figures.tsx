@@ -4,7 +4,6 @@ import {
   Spinner,
   Flex,
   Text,
-  Textarea,
   Button,
   Icon,
   useDisclosure,
@@ -12,17 +11,12 @@ import {
   MenuButton,
   MenuList,
   MenuItem,
-  Link,
-  Code,
-  Tooltip,
+  SimpleGrid,
   useColorModeValue,
+  Image,
 } from "@chakra-ui/react"
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import {
-  createFileRoute,
-  Link as RouterLink,
-  useNavigate,
-} from "@tanstack/react-router"
+import { useQuery } from "@tanstack/react-query"
+import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { useState } from "react"
 import { FaPlus, FaRegFileImage, FaRegFilePdf } from "react-icons/fa"
 import { FiFile } from "react-icons/fi"
@@ -30,17 +24,11 @@ import { z } from "zod"
 
 import UploadFigure from "../../../../../components/Figures/UploadFigure"
 import LabelAsFigure from "../../../../../components/Figures/FigureFromExisting"
-import {
-  ProjectsService,
-  type Figure,
-  type FigureCommentPost,
-} from "../../../../../client"
+import { type Figure } from "../../../../../client"
 import PageMenu from "../../../../../components/Common/PageMenu"
 import useProject from "../../../../../hooks/useProject"
-import useAuth from "../../../../../hooks/useAuth"
-import FigureView from "../../../../../components/Figures/FigureView"
 import { getProjectFiguresAtRef } from "../../../../../lib/projectRefApi"
-import { RefPicker } from "../../../../../components/Common/RefPicker"
+import { ArtifactCompareModal } from "../../../../../components/Common/ArtifactCompareModal"
 
 const figuresSearchSchema = z.object({
   ref: z.string().optional(),
@@ -54,230 +42,6 @@ export const Route = createFileRoute(
   validateSearch: (search) => figuresSearchSchema.parse(search),
 })
 
-interface FigureCommentProps {
-  figure: Figure
-}
-
-function FigureComments({ figure }: FigureCommentProps) {
-  const { user } = useAuth()
-  const queryClient = useQueryClient()
-  const { accountName, projectName } = Route.useParams()
-  const { isPending, data: comments } = useQuery({
-    queryKey: [accountName, projectName, "figure-comments", figure.path],
-    queryFn: () =>
-      ProjectsService.getFigureComments({
-        ownerName: accountName,
-        projectName: projectName,
-        figurePath: figure.path,
-      }),
-  })
-  const [commentInput, setCommentInput] = useState("")
-  const handleInputChange = (val: any) => {
-    setCommentInput(val.target.value)
-  }
-  const mutation = useMutation({
-    mutationFn: (data: FigureCommentPost) =>
-      ProjectsService.postFigureComment({
-        ownerName: accountName,
-        projectName: projectName,
-        requestBody: data,
-      }),
-    onSettled: () => {
-      queryClient.invalidateQueries({
-        queryKey: [accountName, projectName, "figure-comments", figure.path],
-      })
-    },
-  })
-  const onButtonClick = () => {
-    mutation.mutate({ figure_path: figure.path, comment: commentInput })
-    setCommentInput("")
-  }
-  const stringToColor = (str: string) => {
-    let hash = 0
-    str.split("").forEach((char) => {
-      hash = char.charCodeAt(0) + ((hash << 5) - hash)
-    })
-    let color = "#"
-    for (let i = 0; i < 3; i++) {
-      const value = (hash >> (i * 8)) & 0xff
-      color += value.toString(16).padStart(2, "0")
-    }
-    return color
-  }
-
-  return (
-    <>
-      <Heading size="s" mb={1}>
-        Comments
-      </Heading>
-      <Box>
-        {isPending ? (
-          <Flex justify="center" align="center" height="100vh" width="full">
-            <Spinner size="xl" color="ui.main" />
-          </Flex>
-        ) : (
-          <Box
-            p={2}
-            my={2}
-            maxH={"340px"}
-            overflowY={"auto"}
-            flexDirection={"column"}
-            display={"flex"}
-            borderWidth={"1px"}
-            borderRadius={"md"}
-          >
-            {comments?.map((comment) => (
-              <Box key={comment.id}>
-                <Flex>
-                  <Box mr={1}>
-                    <Text
-                      fontWeight={"bold"}
-                      color={stringToColor(comment.user_email)}
-                    >
-                      {comment.user_github_username}:
-                    </Text>
-                  </Box>
-                  <Box mr={1}>{comment.comment}</Box>
-                </Flex>
-              </Box>
-            ))}
-          </Box>
-        )}
-        {user ? (
-          <>
-            <Textarea
-              mt={2}
-              value={commentInput}
-              onChange={handleInputChange}
-              placeholder="Add a comment"
-            />
-            <Flex justifyItems={"end"} justifyContent={"end"}>
-              <Button
-                id={figure.path}
-                my={2}
-                isDisabled={commentInput === ""}
-                isLoading={mutation.isPending}
-                onClick={onButtonClick}
-              >
-                Submit
-              </Button>
-            </Flex>
-          </>
-        ) : (
-          ""
-        )}
-      </Box>
-    </>
-  )
-}
-
-interface FigurePanelProps {
-  figure: Figure
-  compareFigure?: Figure
-  refLabel: string
-  compareRefLabel?: string
-}
-
-function FigurePanel({
-  figure,
-  compareFigure,
-  refLabel,
-  compareRefLabel,
-}: FigurePanelProps) {
-  const secBgColor = useColorModeValue("ui.secondary", "ui.darkSlate")
-
-  return (
-    <>
-      <Flex pt={1} height={"100%"} width="full" mb={4}>
-        <Box minW={"666px"} borderRadius="lg" bg={secBgColor} px={4} py={3}>
-          <Text fontSize="sm" fontWeight="bold">
-            {refLabel}
-          </Text>
-          <Heading size="md" mb={1}>
-            {figure.title}
-          </Heading>
-          <Text>{figure.description}</Text>
-          {figure.content || figure.url ? (
-            <Box mt={3} mb={1}>
-              <FigureView figure={figure} width="635px" />
-            </Box>
-          ) : (
-            "No content found"
-          )}
-        </Box>
-        {compareRefLabel ? (
-          <Box
-            minW={"666px"}
-            borderRadius="lg"
-            bg={secBgColor}
-            px={4}
-            py={3}
-            ml={2}
-          >
-            <Text fontSize="sm" fontWeight="bold">
-              {compareRefLabel}
-            </Text>
-            {compareFigure ? (
-              <>
-                <Heading size="md" mb={1}>
-                  {compareFigure.title}
-                </Heading>
-                <Text>{compareFigure.description}</Text>
-                {compareFigure.content || compareFigure.url ? (
-                  <Box mt={3} mb={1}>
-                    <FigureView figure={compareFigure} width="635px" />
-                  </Box>
-                ) : (
-                  "No content found"
-                )}
-              </>
-            ) : (
-              <Text>Figure not found at compare ref.</Text>
-            )}
-          </Box>
-        ) : (
-          ""
-        )}
-        <Box
-          mx={4}
-          width={"100%"}
-          maxH={"550px"}
-          py={3}
-          px={4}
-          borderRadius="lg"
-          bg={secBgColor}
-        >
-          <Box mb={2}>
-            <Heading size="sm" mb={0.5}>
-              Info
-            </Heading>
-            <Text>
-              Path:{" "}
-              <Link
-                as={RouterLink}
-                to={"../files"}
-                search={{ path: figure.path } as any}
-              >
-                {figure.path}
-              </Link>
-            </Text>
-            {figure.stage ? (
-              <Text>
-                Stage: <Code>{figure.stage}</Code>
-              </Text>
-            ) : (
-              ""
-            )}
-          </Box>
-          <Box minW={"33%"} maxH={"550px"}>
-            <FigureComments figure={figure} />
-          </Box>
-        </Box>
-      </Flex>
-    </>
-  )
-}
-
 const getIcon = (figure: Figure) => {
   if (figure.path.endsWith(".png") || figure.path.endsWith(".jpg")) {
     return FaRegFileImage
@@ -288,13 +52,98 @@ const getIcon = (figure: Figure) => {
   return FiFile
 }
 
+/** Small thumbnail card for a figure in the gallery. */
+function FigureThumbnail({
+  figure,
+  onClick,
+}: {
+  figure: Figure
+  onClick: () => void
+}) {
+  const borderColor = useColorModeValue("gray.200", "gray.600")
+  const bg = useColorModeValue("white", "gray.800")
+  const hoverBg = useColorModeValue("gray.50", "gray.700")
+
+  const renderThumb = () => {
+    if (
+      (figure.path.endsWith(".png") ||
+        figure.path.endsWith(".jpg") ||
+        figure.path.endsWith(".jpeg") ||
+        figure.path.endsWith(".svg")) &&
+      (figure.content || figure.url)
+    ) {
+      const ext = figure.path.split(".").pop() ?? "png"
+      const mimeMap: Record<string, string> = {
+        png: "image/png",
+        jpg: "image/jpeg",
+        jpeg: "image/jpeg",
+        svg: "image/svg+xml",
+      }
+      const mime = mimeMap[ext] ?? "image/png"
+      return (
+        <Image
+          src={
+            figure.content
+              ? `data:${mime};base64,${figure.content}`
+              : String(figure.url)
+          }
+          alt={figure.title}
+          objectFit="contain"
+          width="100%"
+          height="140px"
+        />
+      )
+    }
+    return (
+      <Flex
+        height="140px"
+        align="center"
+        justify="center"
+        color="gray.400"
+        fontSize="3xl"
+      >
+        <Icon as={getIcon(figure)} />
+      </Flex>
+    )
+  }
+
+  return (
+    <Box
+      borderWidth={1}
+      borderColor={borderColor}
+      borderRadius="lg"
+      overflow="hidden"
+      bg={bg}
+      cursor="pointer"
+      _hover={{ bg: hoverBg, shadow: "md" }}
+      onClick={onClick}
+      transition="all 0.15s"
+    >
+      <Box overflow="hidden" bg="gray.50">
+        {renderThumb()}
+      </Box>
+      <Box p={3}>
+        <Text fontWeight="semibold" fontSize="sm" noOfLines={1}>
+          {figure.title}
+        </Text>
+        {figure.description && (
+          <Text fontSize="xs" color="gray.500" noOfLines={2} mt={0.5}>
+            {figure.description}
+          </Text>
+        )}
+      </Box>
+    </Box>
+  )
+}
+
 function ProjectFigures() {
   const { accountName, projectName } = Route.useParams()
-  const { ref, compareRef } = Route.useSearch()
+  const { ref } = Route.useSearch()
   const navigate = useNavigate({ from: Route.fullPath })
   const { userHasWriteAccess } = useProject(accountName, projectName)
-  const [refInput, setRefInput] = useState(ref ?? "")
-  const [compareRefInput, setCompareRefInput] = useState(compareRef ?? "")
+  const [selectedFigure, setSelectedFigure] = useState<Figure | null>(null)
+  const compareModal = useDisclosure()
+
   const { isPending: figuresPending, data: figures } = useQuery({
     queryKey: ["projects", accountName, projectName, "figures", ref],
     queryFn: () =>
@@ -304,83 +153,21 @@ function ProjectFigures() {
         ref,
       }),
   })
-  const compareFiguresQuery = useQuery({
-    queryKey: [
-      "projects",
-      accountName,
-      projectName,
-      "figures",
-      compareRef,
-      "compare",
-    ],
-    queryFn: () =>
-      getProjectFiguresAtRef({
-        ownerName: accountName,
-        projectName: projectName,
-        ref: compareRef,
-      }),
-    enabled: Boolean(compareRef),
-    retry: false,
-  })
   const uploadFigureModal = useDisclosure()
   const labelFigureModal = useDisclosure()
 
-  const applyRefs = () => {
-    navigate({
-      search: {
-        ref: refInput || undefined,
-        compareRef: compareRefInput || undefined,
-      },
-    })
-  }
-
-  const clearRefs = () => {
-    setRefInput("")
-    setCompareRefInput("")
-    navigate({
-      search: {
-        ref: undefined,
-        compareRef: undefined,
-      },
-    })
+  const openFigure = (figure: Figure) => {
+    setSelectedFigure(figure)
+    compareModal.onOpen()
   }
 
   return (
     <>
       <Flex>
-        {/* A bit of a nav bar with all the figures listed */}
         <PageMenu>
-          <Box mb={2}>
-            <Text fontSize="xs" mb={1}>
-              Git refs
-            </Text>
-            <RefPicker
-              ownerName={accountName}
-              projectName={projectName}
-              value={refInput}
-              onChange={setRefInput}
-              placeholder="Primary ref (main, v1.2.0, ...)"
-            />
-            <Box mt={2} />
-            <RefPicker
-              ownerName={accountName}
-              projectName={projectName}
-              value={compareRefInput}
-              onChange={setCompareRefInput}
-              placeholder="Compare ref (optional)"
-            />
-            <Flex gap={1} mt={2}>
-              <Button size="xs" onClick={applyRefs}>
-                Apply
-              </Button>
-              <Button size="xs" variant="ghost" onClick={clearRefs}>
-                Clear
-              </Button>
-            </Flex>
-          </Box>
           <Flex align="center" mb={2} mt={1}>
             <Heading size="md">Figures</Heading>
-            {userHasWriteAccess && !ref && !compareRef ? (
+            {userHasWriteAccess && !ref ? (
               <>
                 <Menu>
                   <MenuButton
@@ -418,57 +205,82 @@ function ProjectFigures() {
           {figures
             ? figures.map((figure) => (
                 <Box key={figure.path}>
-                  <Link href={`#${figure.path}`}>
-                    <Tooltip
-                      label={`${figure.title}: ${figure.description}`}
-                      openDelay={600}
-                    >
-                      <Text
-                        isTruncated
-                        noOfLines={1}
-                        whiteSpace="nowrap"
-                        overflow="hidden"
-                        textOverflow="ellipsis"
-                        display="inline-block"
-                        maxW="100%"
-                      >
-                        <Icon
-                          height={"15px"}
-                          pt={0.5}
-                          mr={0.5}
-                          as={getIcon(figure)}
-                        />
-                        {figure.title}
-                      </Text>
-                    </Tooltip>
-                  </Link>
+                  <Text
+                    fontSize="sm"
+                    cursor="pointer"
+                    _hover={{ color: "blue.500" }}
+                    noOfLines={1}
+                    onClick={() => openFigure(figure)}
+                  >
+                    <Icon
+                      height={"15px"}
+                      pt={0.5}
+                      mr={0.5}
+                      as={getIcon(figure)}
+                    />
+                    {figure.title}
+                  </Text>
                 </Box>
               ))
             : ""}
         </PageMenu>
-        <>
-          {figuresPending ? (
-            <Flex justify="center" align="center" height={"100vh"} width="full">
-              <Spinner size="xl" color="ui.main" />
-            </Flex>
-          ) : (
-            <Box width="full" mt={-1} ml={-2} mb={2}>
-              {figures?.map((figure) => (
-                <Box id={figure.path} key={figure.title} mb={-1}>
-                  <FigurePanel
+
+        {figuresPending ? (
+          <Flex justify="center" align="center" height={"100vh"} width="full">
+            <Spinner size="xl" color="ui.main" />
+          </Flex>
+        ) : (
+          <Box flex={1} p={4} overflowY="auto">
+            {!figures || figures.length === 0 ? (
+              <Flex
+                direction="column"
+                align="center"
+                justify="center"
+                height="300px"
+                color="gray.500"
+              >
+                <Icon as={FaRegFileImage} fontSize="4xl" mb={3} />
+                <Text>No figures found</Text>
+                {ref && (
+                  <Button
+                    mt={3}
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => navigate({ search: {} })}
+                  >
+                    Clear ref filter
+                  </Button>
+                )}
+              </Flex>
+            ) : (
+              <SimpleGrid columns={{ base: 2, md: 3, lg: 4, xl: 5 }} spacing={4}>
+                {figures.map((figure) => (
+                  <FigureThumbnail
+                    key={figure.path}
                     figure={figure}
-                    compareFigure={compareFiguresQuery.data?.find(
-                      (f) => f.path === figure.path,
-                    )}
-                    refLabel={ref || "default"}
-                    compareRefLabel={compareRef || undefined}
+                    onClick={() => openFigure(figure)}
                   />
-                </Box>
-              ))}
-            </Box>
-          )}
-        </>
+                ))}
+              </SimpleGrid>
+            )}
+          </Box>
+        )}
       </Flex>
+
+      {selectedFigure && (
+        <ArtifactCompareModal
+          isOpen={compareModal.isOpen}
+          onClose={() => {
+            compareModal.onClose()
+            setSelectedFigure(null)
+          }}
+          ownerName={accountName}
+          projectName={projectName}
+          path={selectedFigure.path}
+          kind="figure"
+          initialRef={ref}
+        />
+      )}
     </>
   )
 }

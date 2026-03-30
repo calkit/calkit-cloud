@@ -396,7 +396,7 @@ function Files() {
                 ))
               : ""}
           </PageMenu>
-          <Box minW="685px" maxH="82vh" flex={1}>
+          <Box flex={1} minW={0} maxH="82vh" overflowY="auto" overflowX="auto">
             {selectedPath !== undefined &&
             (selectedItemQuery.isPending || selectedItemQuery.isRefetching) ? (
               <Flex justify="center" align="center" height="full" width="full">
@@ -406,7 +406,7 @@ function Files() {
               <>
                 {compareRef ? (
                   <Flex gap={4} alignItems="flex-start">
-                    <Box flex={1}>
+                    <Box flex={1} minW={0}>
                       <Text fontSize="sm" fontWeight="bold" mb={1}>
                         {ref || "default"}
                       </Text>
@@ -417,7 +417,7 @@ function Files() {
                         <Text>No artifact found for this ref.</Text>
                       )}
                     </Box>
-                    <Box flex={1}>
+                    <Box flex={1} minW={0}>
                       <Text fontSize="sm" fontWeight="bold" mb={1}>
                         {compareRef}
                       </Text>
@@ -440,8 +440,8 @@ function Files() {
               </>
             )}
           </Box>
-          <Box mx={5}>
-            <Heading size="md">Info</Heading>
+          <Box w="280px" flexShrink={0} px={4} borderLeftWidth={1} borderColor="inherit">
+            <Heading size="md" mb={2}>Info</Heading>
             {selectedPath !== undefined &&
             (selectedItemQuery.isPending || selectedItemQuery.isRefetching) ? (
               ""

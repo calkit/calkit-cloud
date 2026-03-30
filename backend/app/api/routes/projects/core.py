@@ -832,6 +832,43 @@ def get_project_history(
     return history
 
 
+@router.get("/projects/{owner_name}/{project_name}/git/file-history")
+def get_project_file_history(
+    owner_name: str,
+    project_name: str,
+    path: str,
+    session: SessionDep,
+    current_user: CurrentUserOptional,
+    limit: int = Query(100, description="Max number of commits to return"),
+):
+    """Get git commit history for a specific file path.
+
+    Returns commits that touched the file directly, its DVC pointer (.dvc),
+    or dvc.lock (for pipeline outputs), so DVC-tracked artifacts are covered.
+    """
+    from app.git import get_file_history
+
+    # Prevent path traversal
+    if os.path.isabs(path):
+        raise HTTPException(400, "Absolute paths are not allowed")
+    if ".." in path.split(os.sep):
+        raise HTTPException(400, "Path traversal is not allowed")
+    project = app.projects.get_project(
+        session=session,
+        owner_name=owner_name,
+        project_name=project_name,
+        current_user=current_user,
+        min_access_level="read",
+    )
+    repo = get_repo(
+        project=project,
+        user=current_user,
+        session=session,
+        full_history=True,
+    )
+    return get_file_history(repo, path=path, max_count=limit)
+
+
 @router.post("/projects/{owner_name}/{project_name}/dvc/files/md5/{idx}/{md5}")
 async def post_project_dvc_file(
     *,

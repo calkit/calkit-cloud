@@ -12,7 +12,7 @@ import {
   Link,
   Code,
 } from "@chakra-ui/react"
-import { FaTimesCircle, FaUpload, FaLock } from "react-icons/fa"
+import { FaTimesCircle, FaUpload, FaLock, FaCodeBranch } from "react-icons/fa"
 import { MdEdit } from "react-icons/md"
 import { ExternalLinkIcon } from "@chakra-ui/icons"
 import { type ContentsItem } from "../../client"
@@ -21,6 +21,7 @@ import EditFileInfo from "./EditFileInfo"
 import useAuth from "../../hooks/useAuth"
 import UploadFile from "./UploadFile"
 import { ProjectsService } from "../../client"
+import { ArtifactCompareModal } from "../Common/ArtifactCompareModal"
 
 interface FileLockProps {
   item: ContentsItem
@@ -113,6 +114,13 @@ function SelectedItemInfo({
 }: SelectedItemProps) {
   const fileInfoModal = useDisclosure()
   const uploadNewVersionModal = useDisclosure()
+  const compareModal = useDisclosure()
+
+  const artifactKind = selectedItem.calkit_object?.kind as
+    | "figure"
+    | "publication"
+    | "notebook"
+    | undefined
 
   return (
     <Box minW="300px">
@@ -144,6 +152,26 @@ function SelectedItemInfo({
             onClose={uploadNewVersionModal.onClose}
             isOpen={uploadNewVersionModal.isOpen}
             path={selectedItem.path}
+          />
+        </>
+      ) : (
+        ""
+      )}
+      {selectedItem.type === "file" &&
+      artifactKind &&
+      ["figure", "publication", "notebook"].includes(artifactKind) ? (
+        <>
+          <Button mt={2} onClick={compareModal.onOpen} size="sm">
+            <Icon as={FaCodeBranch} mr={1} />
+            Compare versions
+          </Button>
+          <ArtifactCompareModal
+            isOpen={compareModal.isOpen}
+            onClose={compareModal.onClose}
+            ownerName={ownerName}
+            projectName={projectName}
+            path={selectedItem.path}
+            kind={artifactKind as "figure" | "publication" | "notebook"}
           />
         </>
       ) : (

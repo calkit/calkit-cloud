@@ -127,6 +127,24 @@ export interface Ref {
   short_hash?: string
 }
 
+export async function getProjectFileHistory(params: {
+  ownerName: string
+  projectName: string
+  path: string
+  limit?: number
+}): Promise<CommitHistory[]> {
+  const { ownerName, projectName, path, limit = 100 } = params
+  const headers = await authHeaders()
+  const response = await axios.get<CommitHistory[]>(
+    `${OpenAPI.BASE}/projects/${ownerName}/${projectName}/git/file-history`,
+    {
+      params: { path, limit },
+      headers,
+    },
+  )
+  return response.data
+}
+
 export async function searchProjectRefs(params: {
   ownerName: string
   projectName: string
