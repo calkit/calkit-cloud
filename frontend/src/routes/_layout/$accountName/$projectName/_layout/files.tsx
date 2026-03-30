@@ -301,7 +301,7 @@ function Files() {
           <Spinner size="xl" color="ui.main" />
         </Flex>
       ) : (
-        <Flex height={"100%"} gap={6}>
+        <Flex height={"100%"}>
           <PageMenu>
             <Flex align="center" gap={1} mb={2} wrap="wrap">
               <Heading size="md">All files</Heading>
@@ -382,26 +382,27 @@ function Files() {
                 ))
               : ""}
           </PageMenu>
-          <Box flex={1} minW={0} maxH="82vh" overflowY="auto" overflowX="auto">
-            {selectedPath !== undefined &&
-            (selectedItemQuery.isPending || selectedItemQuery.isRefetching) ? (
-              <Flex justify="center" align="center" height="full" width="full">
-                <Spinner size="xl" color="ui.main" />
-              </Flex>
-            ) : selectedItemQuery?.data?.content ||
-              selectedItemQuery?.data?.url ? (
-              <FileContent item={selectedItemQuery.data!} />
-            ) : null}
-          </Box>
-          <Box
-            w="280px"
-            flexShrink={0}
-            px={3}
-            py={2}
-            borderRadius="lg"
-            bg={useColorModeValue("ui.secondary", "ui.darkSlate")}
-            h="fit-content"
-          >
+          <Flex flex={1} minW={0} gap={6} align="flex-start">
+            <Box flex={1} minW={0} minH={0} overflowY="auto" overflowX="auto">
+              {selectedPath !== undefined &&
+              (selectedItemQuery.isPending || selectedItemQuery.isRefetching) ? (
+                <Flex justify="center" align="center" height="full" width="full">
+                  <Spinner size="xl" color="ui.main" />
+                </Flex>
+              ) : selectedItemQuery?.data?.content ||
+                selectedItemQuery?.data?.url ? (
+                <FileContent item={selectedItemQuery.data!} />
+              ) : null}
+            </Box>
+            <Box
+              w="280px"
+              flexShrink={0}
+              px={3}
+              py={2}
+              borderRadius="lg"
+              bg={useColorModeValue("ui.secondary", "ui.darkSlate")}
+              h="fit-content"
+            >
             <Heading size="md" mb={2}>
               Info
             </Heading>
@@ -423,6 +424,7 @@ function Files() {
               </>
             )}
           </Box>
+          </Flex>
         </Flex>
       )}
     </>

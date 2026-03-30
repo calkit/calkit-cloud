@@ -27,12 +27,14 @@ function FileContent({ item }: FileContentProps) {
   }
   if (name.endsWith(".pdf")) {
     return (
-      <embed
-        height="100%"
-        width="100%"
-        type="application/pdf"
-        src={content ? `data:application/pdf;base64,${content}` : String(url)}
-      />
+      <Box height="calc(100vh - 160px)" width="100%" borderRadius="lg" overflow="hidden">
+        <embed
+          height="100%"
+          width="100%"
+          type="application/pdf"
+          src={content ? `data:application/pdf;base64,${content}` : String(url)}
+        />
+      </Box>
     )
   }
   if (name.endsWith(".md") && content) {
@@ -48,9 +50,7 @@ function FileContent({ item }: FileContentProps) {
       borderRadius="lg"
       display="block"
       whiteSpace="pre"
-      height="82vh"
-      overflowY="auto"
-      maxW="685px"
+      maxW="100%"
       overflowX="auto"
     >
       {content ? String(atob(content)) : ""}
