@@ -216,11 +216,11 @@ function SelectedItemInfo({
       ) : (
         ""
       )}
-      {selectedItem.type === "file" && artifactKind ? (
+      {selectedItem.type === "file" ? (
         <>
           <Button mt={2} onClick={compareModal.onOpen} size="sm">
             <Icon as={FaCodeBranch} mr={1} />
-            Compare versions
+            Browse history
           </Button>
           <ArtifactCompareModal
             isOpen={compareModal.isOpen}
@@ -228,7 +228,7 @@ function SelectedItemInfo({
             ownerName={ownerName}
             projectName={projectName}
             path={selectedItem.path}
-            kind={artifactKind}
+            kind={artifactKind ?? "file"}
           />
         </>
       ) : null}

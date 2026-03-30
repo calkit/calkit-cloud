@@ -98,7 +98,7 @@ function ArtifactContent({
       return <Text color="gray.500">No URL for this publication.</Text>
     if (path.endsWith(".pdf") || pub.url?.includes(".pdf")) {
       return (
-        <Box height="70vh" width="100%">
+        <Box height="75vh" width="100%">
           <embed
             height="100%"
             width="100%"
@@ -121,7 +121,7 @@ function ArtifactContent({
       return <Text color="gray.500">No content for this version.</Text>
     if (nb.content && nb.output_format === "html") {
       return (
-        <Box height="70vh" width="100%">
+        <Box height="75vh" width="100%">
           <embed
             height="100%"
             width="100%"
@@ -133,7 +133,7 @@ function ArtifactContent({
     }
     if (nb.url) {
       return (
-        <Box height="70vh" width="100%">
+        <Box height="75vh" width="100%">
           <iframe
             height="100%"
             width="100%"
