@@ -143,7 +143,7 @@ function History() {
       </PageMenu>
 
       <Box flex={1} p={4} maxH="100%" overflowY="auto">
-        <Heading mb={4}>Commit History</Heading>
+        <Heading size="md" mb={4}>Commit history</Heading>
 
         {isLoadingHistory ? (
           <Flex justify="center" align="center" height="400px">
