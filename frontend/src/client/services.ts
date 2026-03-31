@@ -73,6 +73,8 @@ import type {
   ProjectStatus,
   ProjectStatusPost,
   Publication,
+  PublicationComment,
+  PublicationCommentPost,
   Question,
   QuestionPost,
   References,
@@ -366,6 +368,21 @@ export type ProjectsData = {
     ownerName: string
     projectName: string
     requestBody: FigureCommentPost
+  }
+  GetPublicationComments: {
+    ownerName: string
+    projectName: string
+    publicationPath?: string | null
+  }
+  PostPublicationComment: {
+    ownerName: string
+    projectName: string
+    requestBody: PublicationCommentPost
+  }
+  DeletePublicationComment: {
+    commentId: string
+    ownerName: string
+    projectName: string
   }
   GetProjectDatasets: {
     ownerName: string
@@ -2083,6 +2100,78 @@ export class ProjectsService {
       },
       body: requestBody,
       mediaType: "application/json",
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Get Publication Comments
+   * @returns PublicationComment Successful Response
+   * @throws ApiError
+   */
+  public static getPublicationComments(
+    data: ProjectsData["GetPublicationComments"],
+  ): CancelablePromise<Array<PublicationComment>> {
+    const { ownerName, projectName, publicationPath } = data
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/projects/{owner_name}/{project_name}/publication-comments",
+      path: {
+        owner_name: ownerName,
+        project_name: projectName,
+      },
+      query: {
+        publication_path: publicationPath,
+      },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Post Publication Comment
+   * @returns PublicationComment Successful Response
+   * @throws ApiError
+   */
+  public static postPublicationComment(
+    data: ProjectsData["PostPublicationComment"],
+  ): CancelablePromise<PublicationComment> {
+    const { ownerName, projectName, requestBody } = data
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/projects/{owner_name}/{project_name}/publication-comments",
+      path: {
+        owner_name: ownerName,
+        project_name: projectName,
+      },
+      body: requestBody,
+      mediaType: "application/json",
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Delete Publication Comment
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static deletePublicationComment(
+    data: ProjectsData["DeletePublicationComment"],
+  ): CancelablePromise<unknown> {
+    const { ownerName, projectName, commentId } = data
+    return __request(OpenAPI, {
+      method: "DELETE",
+      url: "/projects/{owner_name}/{project_name}/publication-comments/{comment_id}",
+      path: {
+        owner_name: ownerName,
+        project_name: projectName,
+        comment_id: commentId,
+      },
       errors: {
         422: `Validation Error`,
       },

@@ -14,6 +14,7 @@ import {
 import mixpanel from "mixpanel-browser"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { FaCheck, FaPlus, FaTimes, FaTrash } from "react-icons/fa"
+import LoadingSpinner from "../Common/LoadingSpinner"
 import { MdEdit } from "react-icons/md"
 import { useState } from "react"
 
@@ -138,9 +139,7 @@ function ConnectedAccounts() {
         Connected accounts
       </Heading>
       {connectedAccountsQuery.isPending ? (
-        <Flex justify="center" align="center" py={8}>
-          <Spinner size="xl" color="ui.main" />
-        </Flex>
+        <LoadingSpinner height="80px" />
       ) : (
         <>
           <HStack align="center">

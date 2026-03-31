@@ -78,6 +78,8 @@ from app.models import (
     Figure,
     FigureComment,
     FigureCommentPost,
+    PublicationComment,
+    PublicationCommentPost,
     FileLock,
     Message,
     Notebook,
@@ -1707,17 +1709,22 @@ def post_figure_comment(
         current_user=current_user,
         min_access_level="write",
     )
-    # First we need to make this this figure path exists in this project
-    ck_info = get_ck_info(
+    # Verify the figure path exists in the project (declared or auto-detected)
+    repo = get_repo(
         project=project,
         user=current_user,
         session=session,
         ttl=DEFAULT_REPO_TTL,
     )
+    ck_info = get_ck_info_from_repo(repo)
     figures = ck_info.get("figures", [])
-    fig_paths = [fig["path"] for fig in figures]
+    fig_paths = {fig["path"] for fig in figures}
     if comment_in.figure_path not in fig_paths:
-        raise HTTPException(404)
+        # Also accept paths that exist as files in the repo tree
+        try:
+            repo.head.commit.tree[comment_in.figure_path]
+        except KeyError:
+            raise HTTPException(404)
     comment = FigureComment(
         project_id=project.id,
         figure_path=comment_in.figure_path,
@@ -1728,6 +1735,85 @@ def post_figure_comment(
     session.commit()
     session.refresh(comment)
     return comment
+
+
+@router.get("/projects/{owner_name}/{project_name}/publication-comments")
+def get_publication_comments(
+    owner_name: str,
+    project_name: str,
+    current_user: CurrentUserOptional,
+    session: SessionDep,
+    publication_path: str | None = None,
+) -> list[PublicationComment]:
+    project = app.projects.get_project(
+        session=session,
+        owner_name=owner_name,
+        project_name=project_name,
+        current_user=current_user,
+        min_access_level="read",
+    )
+    query = select(PublicationComment).where(
+        PublicationComment.project_id == project.id
+    )
+    if publication_path is not None:
+        query = query.where(
+            PublicationComment.publication_path == publication_path
+        )
+    return session.exec(query).fetchall()
+
+
+@router.post("/projects/{owner_name}/{project_name}/publication-comments")
+def post_publication_comment(
+    owner_name: str,
+    project_name: str,
+    comment_in: PublicationCommentPost,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> PublicationComment:
+    project = app.projects.get_project(
+        session=session,
+        owner_name=owner_name,
+        project_name=project_name,
+        current_user=current_user,
+        min_access_level="write",
+    )
+    comment = PublicationComment(
+        project_id=project.id,
+        publication_path=comment_in.publication_path,
+        comment=comment_in.comment,
+        highlight=comment_in.highlight,
+        user_id=current_user.id,
+    )
+    session.add(comment)
+    session.commit()
+    session.refresh(comment)
+    return comment
+
+
+@router.delete(
+    "/projects/{owner_name}/{project_name}/publication-comments/{comment_id}"
+)
+def delete_publication_comment(
+    owner_name: str,
+    project_name: str,
+    comment_id: uuid.UUID,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> None:
+    project = app.projects.get_project(
+        session=session,
+        owner_name=owner_name,
+        project_name=project_name,
+        current_user=current_user,
+        min_access_level="read",
+    )
+    comment = session.get(PublicationComment, comment_id)
+    if comment is None or comment.project_id != project.id:
+        raise HTTPException(404)
+    if comment.user_id != current_user.id:
+        raise HTTPException(403)
+    session.delete(comment)
+    session.commit()
 
 
 def _sync_datasets_with_db(

@@ -1,3 +1,4 @@
+import LoadingSpinner from "../../../../../components/Common/LoadingSpinner"
 import {
   Text,
   Flex,
@@ -158,9 +159,7 @@ function Notebooks() {
   return (
     <>
       {isPending ? (
-        <Flex justify="center" align="center" height="full" width="full">
-          <Spinner size="xl" color="ui.main" />
-        </Flex>
+        <LoadingSpinner />
       ) : (
         <Flex height="100%" gap={0}>
           {/* Left: list */}

@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router"
 import { Box, Flex, Spinner, Alert, AlertIcon, Link } from "@chakra-ui/react"
+import LoadingSpinner from "../../../../../components/Common/LoadingSpinner"
 import { useQuery } from "@tanstack/react-query"
 
 import { ProjectsService } from "../../../../../client"
@@ -24,9 +25,7 @@ function ProjectApp() {
   return (
     <>
       {appQuery.isPending ? (
-        <Flex justify="center" align="center" height="100vh" width="full">
-          <Spinner size="xl" color="ui.main" />
-        </Flex>
+        <LoadingSpinner height="100vh" />
       ) : (
         <Flex>
           {appQuery.data?.url ? (

@@ -36,6 +36,7 @@ import { FiArrowUp, FiArrowDown } from "react-icons/fi"
 import SyntaxHighlighter from "react-syntax-highlighter"
 import { atomOneDark } from "react-syntax-highlighter/dist/esm/styles/hljs"
 
+import LoadingSpinner from "../../../../../components/Common/LoadingSpinner"
 import PageMenu from "../../../../../components/Common/PageMenu"
 import {
   getProjectHistory,
@@ -228,7 +229,7 @@ function CommitDetailModal({
           </Heading>
           {detailQuery.isPending ? (
             <Flex justify="center" py={4}>
-              <Spinner size="md" />
+              <Spinner size="xl" color="ui.main" />
             </Flex>
           ) : detailQuery.data?.changed_files?.length === 0 ? (
             <Text fontSize="sm" color="gray.500">
@@ -503,9 +504,7 @@ function History() {
         </Flex>
 
         {isLoadingHistory && allCommits.length === 0 ? (
-          <Flex justify="center" align="center" height="400px">
-            <Spinner size="lg" color="ui.main" />
-          </Flex>
+          <LoadingSpinner height="400px" />
         ) : allCommits.length === 0 ? (
           <Text color="gray.500">No commits found</Text>
         ) : (

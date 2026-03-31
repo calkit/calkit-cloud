@@ -3516,6 +3516,140 @@ export const $Publication = {
   },
 } as const
 
+export const $PublicationComment = {
+  description: `A comment (optionally with a PDF highlight) on a publication.
+
+The \`\`highlight\`\` field stores a portable JSON object compatible with the
+react-pdf-highlighter position format so the data can be synced to git
+objects (e.g. via a git-bug-style process) without schema changes.
+
+\`\`git_ref\`\` is reserved for a future sync process that writes comment
+threads into the git object store so they travel with the repo.
+\`\`external_url\`\` is reserved for linking to a GitHub issue or PR created
+from this comment.`,
+  properties: {
+    id: {
+      type: "string",
+      format: "uuid",
+    },
+    project_id: {
+      type: "string",
+      isRequired: true,
+      format: "uuid",
+    },
+    publication_path: {
+      type: "string",
+      isRequired: true,
+      maxLength: 255,
+    },
+    user_id: {
+      type: "string",
+      isRequired: true,
+      format: "uuid",
+    },
+    created: {
+      type: "string",
+      format: "date-time",
+    },
+    updated: {
+      type: "string",
+      format: "date-time",
+    },
+    comment: {
+      type: "string",
+      isRequired: true,
+    },
+    highlight: {
+      type: "any-of",
+      contains: [
+        {
+          type: "dictionary",
+          contains: {
+            properties: {},
+          },
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    git_ref: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          maxLength: 255,
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    external_url: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          maxLength: 2048,
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    user_github_username: {
+      type: "string",
+      isReadOnly: true,
+      isRequired: true,
+    },
+    user_full_name: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      isReadOnly: true,
+      isRequired: true,
+    },
+    user_email: {
+      type: "string",
+      isReadOnly: true,
+      isRequired: true,
+    },
+  },
+} as const
+
+export const $PublicationCommentPost = {
+  properties: {
+    publication_path: {
+      type: "string",
+      isRequired: true,
+    },
+    comment: {
+      type: "string",
+      isRequired: true,
+    },
+    highlight: {
+      type: "any-of",
+      contains: [
+        {
+          type: "dictionary",
+          contains: {
+            properties: {},
+          },
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+  },
+} as const
+
 export const $PublicationOverleaf = {
   properties: {
     project_id: {

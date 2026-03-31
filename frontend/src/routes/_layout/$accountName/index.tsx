@@ -1,3 +1,4 @@
+import LoadingSpinner from "../../components/Common/LoadingSpinner"
 import {
   Box,
   Container,
@@ -167,9 +168,7 @@ function AccountPage() {
   return (
     <Box>
       {isPending ? (
-        <Flex justify="center" align="center" height="100vh" width="full">
-          <Spinner size="xl" color="ui.main" />
-        </Flex>
+        <LoadingSpinner height="100vh" />
       ) : !account?.name ? (
         <>
           <NotFound />

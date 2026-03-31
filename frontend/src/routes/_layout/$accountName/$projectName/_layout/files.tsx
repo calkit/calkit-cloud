@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
+import LoadingSpinner from "../../../../../components/Common/LoadingSpinner"
 import {
   Box,
   Button,
@@ -299,9 +300,7 @@ function Files() {
   return (
     <>
       {filesPending || isRefetching ? (
-        <Flex justify="center" align="center" height="full" width="full">
-          <Spinner size="xl" color="ui.main" />
-        </Flex>
+        <LoadingSpinner />
       ) : (
         <Flex height={"100%"}>
           <PageMenu>
@@ -394,14 +393,7 @@ function Files() {
               {selectedPath !== undefined &&
               (selectedItemQuery.isPending ||
                 selectedItemQuery.isRefetching) ? (
-                <Flex
-                  justify="center"
-                  align="center"
-                  height="full"
-                  width="full"
-                >
-                  <Spinner size="xl" color="ui.main" />
-                </Flex>
+                <LoadingSpinner />
               ) : selectedItemQuery?.data?.content ||
                 selectedItemQuery?.data?.url ? (
                 <FileContent item={selectedItemQuery.data!} />

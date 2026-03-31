@@ -1,3 +1,4 @@
+import LoadingSpinner from "../../../../../components/Common/LoadingSpinner"
 import {
   Box,
   Heading,
@@ -241,9 +242,7 @@ function ProjectFigures() {
         </Flex>
 
         {figuresPending ? (
-          <Flex justify="center" align="center" height="300px" width="full">
-            <Spinner size="xl" color="ui.main" />
-          </Flex>
+          <LoadingSpinner height="300px" />
         ) : !filteredFigures || figures?.length === 0 ? (
           <Flex
             direction="column"

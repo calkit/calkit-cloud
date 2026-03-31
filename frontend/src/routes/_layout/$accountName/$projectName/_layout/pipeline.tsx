@@ -12,6 +12,7 @@ import {
 import { useQuery } from "@tanstack/react-query"
 import { useState } from "react"
 
+import LoadingSpinner from "../../../../../components/Common/LoadingSpinner"
 import Mermaid from "../../../../../components/Common/Mermaid"
 import { ProjectsService } from "../../../../../client"
 
@@ -36,9 +37,7 @@ function ProjectPipeline() {
   return (
     <>
       {pipelineQuery.isPending ? (
-        <Flex justify="center" align="center" height="100vh" width="full">
-          <Spinner size="xl" color="ui.main" />
-        </Flex>
+        <LoadingSpinner height="100vh" />
       ) : (
         <Flex flexDir={isDiagramExpanded ? "column" : "row"}>
           {pipelineQuery.data ? (

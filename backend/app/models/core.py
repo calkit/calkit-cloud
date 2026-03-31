@@ -200,6 +200,14 @@ class User(UserBase, table=True):
         back_populates="user",
         cascade_delete=True,
     )
+    publication_comments: list["PublicationComment"] = Relationship(
+        back_populates="user",
+        cascade_delete=True,
+    )
+    notifications: list["Notification"] = Relationship(
+        back_populates="user",
+        cascade_delete=True,
+    )
 
     @computed_field
     @property
@@ -471,6 +479,12 @@ class Project(ProjectBase, table=True):
     figure_comments: list["FigureComment"] = Relationship(
         back_populates="project", cascade_delete=True
     )
+    publication_comments: list["PublicationComment"] = Relationship(
+        back_populates="project", cascade_delete=True
+    )
+    notifications: list["Notification"] = Relationship(
+        back_populates="project", cascade_delete=True
+    )
 
     @computed_field
     @property
@@ -610,6 +624,7 @@ class FigureComment(SQLModel, table=True):
     created: datetime = Field(default_factory=utcnow)
     updated: datetime = Field(default_factory=utcnow)
     external_url: str | None = Field(default=None, max_length=2048)
+    resolved: bool = Field(default=False)
     comment: str
     # Relationships
     user: User = Relationship(back_populates="figure_comments")
@@ -634,6 +649,89 @@ class FigureComment(SQLModel, table=True):
 class FigureCommentPost(SQLModel):
     figure_path: str
     comment: str
+    create_github_issue: bool = True
+
+
+class PublicationComment(SQLModel, table=True):
+    """A comment (optionally with a PDF highlight) on a publication.
+
+    The ``highlight`` field stores a portable JSON object compatible with the
+    react-pdf-highlighter position format so the data can be synced to git
+    objects (e.g. via a git-bug-style process) without schema changes.
+
+    ``git_ref`` is reserved for a future sync process that writes comment
+    threads into the git object store so they travel with the repo.
+    ``external_url`` is reserved for linking to a GitHub issue or PR created
+    from this comment.
+    """
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    project_id: uuid.UUID = Field(foreign_key="project.id")
+    publication_path: str = Field(max_length=255)
+    user_id: uuid.UUID = Field(foreign_key="user.id")
+    created: datetime = Field(default_factory=utcnow)
+    updated: datetime = Field(default_factory=utcnow)
+    comment: str
+    # Portable highlight position — stored as-is from react-pdf-highlighter.
+    # Shape: {position: {boundingRect, rects, pageNumber}, content: {text?}}
+    highlight: dict | None = Field(
+        default=None,
+        sa_column=sqlalchemy.Column(sqlalchemy.JSON, nullable=True),
+    )
+    # Reserved for future git-object sync (e.g. git-bug-style refs/calkit/…)
+    git_ref: str | None = Field(default=None, max_length=255)
+    # URL of the linked external tracker item (e.g. GitHub issue)
+    external_url: str | None = Field(default=None, max_length=2048)
+    # True once the linked issue is closed / comment is addressed
+    resolved: bool = Field(default=False)
+    # Relationships
+    user: User = Relationship(back_populates="publication_comments")
+    project: Project = Relationship(back_populates="publication_comments")
+
+    @computed_field
+    @property
+    def user_github_username(self) -> str:
+        return self.user.github_username
+
+    @computed_field
+    @property
+    def user_full_name(self) -> str | None:
+        return self.user.full_name
+
+    @computed_field
+    @property
+    def user_email(self) -> str:
+        return self.user.email
+
+
+class PublicationCommentPost(SQLModel):
+    publication_path: str
+    comment: str
+    highlight: dict | None = None
+    create_github_issue: bool = True
+
+
+class Notification(SQLModel, table=True):
+    """In-app notification delivered to a user when a comment is posted on
+    their project (or a project they collaborate on).
+
+    Designed to be lightweight: no fan-out to external services here.
+    ``link`` stores a frontend URL (e.g. ``/owner/project/publications?path=…``)
+    so the notification can deep-link directly to the relevant item.
+    """
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="user.id")
+    project_id: uuid.UUID = Field(foreign_key="project.id")
+    # Human-readable message, e.g. "Alice commented on pub.pdf"
+    message: str = Field(max_length=500)
+    # Frontend deep-link, e.g. "/owner/project/publications?path=pub.pdf"
+    link: str = Field(max_length=2048)
+    read: bool = Field(default=False)
+    created: datetime = Field(default_factory=utcnow)
+    # Relationships
+    user: User = Relationship(back_populates="notifications")
+    project: Project = Relationship(back_populates="notifications")
 
 
 class DatasetBase(SQLModel):

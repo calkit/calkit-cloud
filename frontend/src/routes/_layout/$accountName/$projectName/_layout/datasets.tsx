@@ -1,3 +1,4 @@
+import LoadingSpinner from "../../../../../components/Common/LoadingSpinner"
 import {
   Box,
   Heading,
@@ -78,9 +79,7 @@ function ProjectDataView() {
         )}
       </Flex>
       {dataPending ? (
-        <Flex justify="center" align="center" height={"100vh"} width="full">
-          <Spinner size="xl" color="ui.main" />
-        </Flex>
+        <LoadingSpinner height="100vh" />
       ) : (
         <Box>
           <SimpleGrid columns={[3, null, 4]} gap={6}>

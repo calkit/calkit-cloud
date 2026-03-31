@@ -16,6 +16,7 @@ import {
   Badge,
   Code,
   HStack,
+  VStack,
 } from "@chakra-ui/react"
 import {
   createFileRoute,
@@ -27,8 +28,10 @@ import { FaPlus, FaSync, FaCodeBranch } from "react-icons/fa"
 import { SiOverleaf } from "react-icons/si"
 import { ExternalLinkIcon } from "@chakra-ui/icons"
 import { z } from "zod"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useRef } from "react"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
+import LoadingSpinner from "../../../../../components/Common/LoadingSpinner"
 import { type Publication } from "../../../../../client"
 import NewPublication from "../../../../../components/Publications/NewPublication"
 import ImportOverleaf from "../../../../../components/Publications/ImportOverleaf"
@@ -37,11 +40,17 @@ import useProject, {
   useProjectPublications,
 } from "../../../../../hooks/useProject"
 import PublicationView from "../../../../../components/Publications/PublicationView"
+import PdfAnnotator, {
+  CommentList,
+  commentToHighlight,
+  type AnnotationHighlight,
+} from "../../../../../components/Publications/PdfAnnotator"
 import { ProjectsService } from "../../../../../client"
 import type { ApiError } from "../../../../../client/core/ApiError"
 import useCustomToast from "../../../../../hooks/useCustomToast"
 import { handleError } from "../../../../../lib/errors"
 import { ArtifactCompareModal } from "../../../../../components/Common/ArtifactCompareModal"
+import useAuth from "../../../../../hooks/useAuth"
 
 const pubSearchSchema = z.object({
   path: z.string().optional(),
@@ -187,17 +196,63 @@ function Publications() {
   const navigate = useNavigate({ from: Route.fullPath })
   const setSelectedPath = (p: string) =>
     navigate({ search: (prev) => ({ ...prev, path: p }) })
+  const { user } = useAuth()
+  const queryClient = useQueryClient()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const pdfScrollRef = useRef<(h: any) => void>(() => {})
 
   const selectedPub =
     publicationsRequest.data?.find((p) => p.path === selectedPath) ??
     publicationsRequest.data?.[0]
 
+  const isPdf = selectedPub?.path?.endsWith(".pdf") ?? false
+
+  const commentsQuery = useQuery({
+    queryKey: [
+      "projects",
+      accountName,
+      projectName,
+      "publication-comments",
+      selectedPub?.path ?? "",
+    ],
+    queryFn: () =>
+      ProjectsService.getPublicationComments({
+        ownerName: accountName,
+        projectName,
+        publicationPath: selectedPub!.path,
+      }),
+    enabled: isPdf && !!selectedPub,
+  })
+
+  const deletePubCommentMutation = useMutation({
+    mutationFn: (commentId: string) =>
+      ProjectsService.deletePublicationComment({
+        ownerName: accountName,
+        projectName,
+        commentId,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [
+          "projects",
+          accountName,
+          projectName,
+          "publication-comments",
+          selectedPub?.path,
+        ],
+      })
+    },
+  })
+
+  const pdfComments = commentsQuery.data ?? []
+  const pdfHighlights: AnnotationHighlight[] = pdfComments
+    .map(commentToHighlight)
+    .filter((h): h is AnnotationHighlight => h !== null)
+
   return (
     <>
       {publicationsRequest.isPending ? (
-        <Flex justify="center" align="center" height="100vh" width="full">
-          <Spinner size="xl" color="ui.main" />
-        </Flex>
+        <LoadingSpinner height="100vh" />
       ) : (
         <Flex height="100%" gap={0}>
           {/* Left: tree index */}
@@ -278,7 +333,7 @@ function Publications() {
           </PageMenu>
 
           {/* Center: publication viewer */}
-          <Box flex={1} minW={0} mx={4}>
+          <Box flex={1} minW={0} mx={4} minH={0}>
             {selectedPub ? (
               <>
                 <Heading size="md" mb={1}>
@@ -289,9 +344,21 @@ function Publications() {
                     {selectedPub.description}
                   </Text>
                 )}
-                <Box height="80vh" borderRadius="lg" overflow="hidden">
-                  <PublicationView publication={selectedPub} />
-                </Box>
+                {isPdf && selectedPub.url ? (
+                  <Box height="80vh">
+                    <PdfAnnotator
+                      url={String(selectedPub.url)}
+                      ownerName={accountName}
+                      projectName={projectName}
+                      publicationPath={selectedPub.path}
+                      externalScrollRef={pdfScrollRef}
+                    />
+                  </Box>
+                ) : (
+                  <Box height="80vh" borderRadius="lg" overflow="hidden">
+                    <PublicationView publication={selectedPub} />
+                  </Box>
+                )}
               </>
             ) : (
               <Flex
@@ -305,15 +372,26 @@ function Publications() {
             )}
           </Box>
 
-          {/* Right: info + compare */}
+          {/* Right: info + compare + comments */}
           {selectedPub && (
-            <Box w="240px" flexShrink={0}>
-              <PubInfo
-                publication={selectedPub}
-                ownerName={accountName}
-                projectName={projectName}
-                userHasWriteAccess={userHasWriteAccess}
-              />
+            <Box w="280px" flexShrink={0} overflowY="auto">
+              <VStack align="stretch" spacing={3}>
+                <PubInfo
+                  publication={selectedPub}
+                  ownerName={accountName}
+                  projectName={projectName}
+                  userHasWriteAccess={userHasWriteAccess}
+                />
+                {isPdf && (
+                  <CommentList
+                    comments={pdfComments}
+                    highlights={pdfHighlights}
+                    scrollToHighlight={(h) => pdfScrollRef.current(h)}
+                    currentUserId={user?.id}
+                    onDelete={(id) => deletePubCommentMutation.mutate(id)}
+                  />
+                )}
+              </VStack>
             </Box>
           )}
         </Flex>

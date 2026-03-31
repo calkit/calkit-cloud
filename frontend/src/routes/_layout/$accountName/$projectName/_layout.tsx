@@ -31,6 +31,7 @@ import { BsThreeDots } from "react-icons/bs"
 import axios from "axios"
 import mixpanel from "mixpanel-browser"
 
+import LoadingSpinner from "../../../../components/Common/LoadingSpinner"
 import Sidebar from "../../../../components/Common/Sidebar"
 import { ProjectPublic } from "../../../../client"
 import EditProject from "../../../../components/Projects/EditProject"
@@ -140,9 +141,7 @@ function ProjectLayout() {
   return (
     <>
       {isPending || localServerQuery.isPending ? (
-        <Flex justify="center" align="center" height="100vh" width="full">
-          <Spinner size="xl" color="ui.main" />
-        </Flex>
+        <LoadingSpinner height="100vh" />
       ) : (
         <Flex>
           <Sidebar basePath={`/${accountName}/${projectName}`} />

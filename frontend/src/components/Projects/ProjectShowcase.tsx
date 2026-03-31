@@ -1,5 +1,6 @@
 import { Text, Flex, Spinner, Box, Code } from "@chakra-ui/react"
 
+import LoadingSpinner from "../Common/LoadingSpinner"
 import useProject from "../../hooks/useProject"
 import FigureView from "../Figures/FigureView"
 import PublicationView from "../Publications/PublicationView"
@@ -16,9 +17,7 @@ function ProjectShowcase({ ownerName, projectName }: ProjectShowcaseProps) {
   return (
     <>
       {showcaseRequest.isPending ? (
-        <Flex justify="center" align="center" height="100px" width="full">
-          <Spinner size="xl" color="ui.main" />
-        </Flex>
+        <LoadingSpinner height="100px" />
       ) : showcaseRequest.data ? (
         <>
           {showcaseRequest.data.elements.map((item) => (

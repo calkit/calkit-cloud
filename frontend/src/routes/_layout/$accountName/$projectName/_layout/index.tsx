@@ -1,3 +1,4 @@
+import LoadingSpinner from "../../../../../components/Common/LoadingSpinner"
 import {
   Box,
   Spinner,
@@ -141,9 +142,7 @@ function ProjectView() {
               )}
             </Flex>
             {readmeRequest.isPending ? (
-              <Flex justify="center" align="center" height="100vh" width="full">
-                <Spinner size="xl" color="ui.main" />
-              </Flex>
+              <LoadingSpinner height="100vh" />
             ) : readmeRequest.data ? (
               <Markdown>
                 {removeFirstLine(atob(String(readmeRequest?.data?.content)))}
@@ -181,9 +180,7 @@ function ProjectView() {
               )}
             </Flex>
             {questionsRequest.isPending ? (
-              <Flex justify="center" align="center" height="100px" width="full">
-                <Spinner size="xl" color="ui.main" />
-              </Flex>
+              <LoadingSpinner height="100px" />
             ) : (
               <OrderedList>
                 {questionsRequest.data?.map((question) => (
@@ -238,9 +235,7 @@ function ProjectView() {
             {issuesRequest.isPending ||
             issuesRequest.isRefetching ||
             issueStateMutation.isPending ? (
-              <Flex justify="center" align="center" height="100%" width="100%">
-                <Spinner size="xl" color="ui.main" />
-              </Flex>
+              <LoadingSpinner />
             ) : (
               <>
                 {issuesRequest?.data?.map((issue) => (

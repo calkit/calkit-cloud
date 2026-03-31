@@ -698,6 +698,40 @@ export type Publication = {
   overleaf?: PublicationOverleaf | null
 }
 
+/**
+ * A comment (optionally with a PDF highlight) on a publication.
+ *
+ * The ``highlight`` field stores a portable JSON object compatible with the
+ * react-pdf-highlighter position format so the data can be synced to git
+ * objects (e.g. via a git-bug-style process) without schema changes.
+ *
+ * ``git_ref`` is reserved for a future sync process that writes comment
+ * threads into the git object store so they travel with the repo.
+ * ``external_url`` is reserved for linking to a GitHub issue or PR created
+ * from this comment.
+ */
+export type PublicationComment = {
+  id?: string
+  project_id: string
+  publication_path: string
+  user_id: string
+  created?: string
+  updated?: string
+  comment: string
+  highlight?: Record<string, unknown> | null
+  git_ref?: string | null
+  external_url?: string | null
+  readonly user_github_username: string
+  readonly user_full_name: string | null
+  readonly user_email: string
+}
+
+export type PublicationCommentPost = {
+  publication_path: string
+  comment: string
+  highlight?: Record<string, unknown> | null
+}
+
 export type PublicationOverleaf = {
   project_id: string
   wdir?: string | null

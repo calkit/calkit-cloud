@@ -22,6 +22,7 @@ import { IoLibraryOutline } from "react-icons/io5"
 import { FiFile } from "react-icons/fi"
 import { useState } from "react"
 
+import LoadingSpinner from "../../../../../components/Common/LoadingSpinner"
 import { ProjectsService, type ReferenceEntry } from "../../../../../client"
 import FileViewModal from "../../../../../components/References/FileViewModal"
 import { BsFilePdf } from "react-icons/bs"
@@ -98,9 +99,7 @@ function References() {
   return (
     <>
       {isPending ? (
-        <Flex justify="center" align="center" height="full" width="full">
-          <Spinner size="xl" color="ui.main" />
-        </Flex>
+        <LoadingSpinner />
       ) : (
         <>
           {error ? (

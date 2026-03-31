@@ -1,3 +1,4 @@
+import LoadingSpinner from "../../../../../components/Common/LoadingSpinner"
 import {
   Box,
   Heading,
@@ -145,9 +146,7 @@ function ProjectEnvsView() {
         <Heading size="md">Environments</Heading>
       </Flex>
       {environmentsPending ? (
-        <Flex justify="center" align="center" height={"100vh"} width="full">
-          <Spinner size="xl" color="ui.main" />
-        </Flex>
+        <LoadingSpinner height="100vh" />
       ) : environments?.length ? (
         <Box>
           <SimpleGrid columns={[2, null, 3]} gap={6}>

@@ -19,7 +19,6 @@ import { MdOutlineDashboard } from "react-icons/md"
 import useAuth from "../../hooks/useAuth"
 import { TiFlowMerge } from "react-icons/ti"
 import { FaCubes } from "react-icons/fa"
-import { ProjectsService } from "../../client"
 
 const items = [
   { icon: FiHome, title: "Project home", path: "" },
@@ -66,35 +65,10 @@ const SidebarItems = ({ onClose, basePath }: SidebarItemsProps) => {
       ? "gray"
       : "ui.success"
 
-  const { data: appData, isPending: appPending } = useQuery({
-    queryKey: ["projects", accountName, projectName, "app"],
-    queryFn: () =>
-      ProjectsService.getProjectApp({ ownerName: accountName, projectName }),
-    retry: false,
-    staleTime: 60_000,
-  })
-
-  const { data: softwareData, isPending: softwarePending } = useQuery({
-    queryKey: ["projects", accountName, projectName, "software"],
-    queryFn: () =>
-      ProjectsService.getProjectSoftware({
-        ownerName: accountName,
-        projectName,
-      }),
-    retry: false,
-    staleTime: 60_000,
-  })
-
-  const hasApp = appPending || Boolean(appData)
-  const hasSoftware =
-    softwarePending || (softwareData?.environments?.length ?? 0) > 0
-
   const listItems = finalItems.map(({ icon, title, path }) => {
     if (itemsRequireLogin.includes(title) && !user) {
       return null
     }
-    if (title === "App" && !hasApp) return null
-    if (title === "Software" && !hasSoftware) return null
 
     return (
       <Flex
