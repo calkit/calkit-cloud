@@ -1388,6 +1388,10 @@ export const $FigureComment = {
         },
       ],
     },
+    resolved: {
+      type: "boolean",
+      default: false,
+    },
     comment: {
       type: "string",
       isRequired: true,
@@ -1427,6 +1431,10 @@ export const $FigureCommentPost = {
     comment: {
       type: "string",
       isRequired: true,
+    },
+    create_github_issue: {
+      type: "boolean",
+      default: true,
     },
   },
 } as const
@@ -3597,6 +3605,10 @@ from this comment.`,
         },
       ],
     },
+    resolved: {
+      type: "boolean",
+      default: false,
+    },
     user_github_username: {
       type: "string",
       isReadOnly: true,
@@ -3646,6 +3658,10 @@ export const $PublicationCommentPost = {
           type: "null",
         },
       ],
+    },
+    create_github_issue: {
+      type: "boolean",
+      default: true,
     },
   },
 } as const
