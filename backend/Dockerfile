@@ -1,10 +1,10 @@
-FROM python:3.12
+FROM python:3.14
 
 WORKDIR /app/
 
-# Install uv
+# Install uv (pinned by version and digest for reproducible builds)
 # Ref: https://docs.astral.sh/uv/guides/integration/docker/#installing-uv
-COPY --from=ghcr.io/astral-sh/uv:0.7.20 /uv /uvx /bin/
+COPY --from=ghcr.io/astral-sh/uv:0.11.2@sha256:c4f5de312ee66d46810635ffc5df34a1973ba753e7241ce3a08ef979ddd7bea5 /uv /uvx /bin/
 
 # Place executables in the environment at the front of the path
 # Ref: https://docs.astral.sh/uv/guides/integration/docker/#using-the-environment
@@ -13,6 +13,9 @@ ENV PATH="/app/.venv/bin:$PATH"
 # Compile bytecode
 # Ref: https://docs.astral.sh/uv/guides/integration/docker/#compiling-bytecode
 ENV UV_COMPILE_BYTECODE=1
+
+# Use the base image interpreter instead of downloading managed Python builds
+ENV UV_PYTHON_DOWNLOADS=never
 
 # uv Cache
 # Ref: https://docs.astral.sh/uv/guides/integration/docker/#caching
