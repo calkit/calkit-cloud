@@ -51,6 +51,11 @@ function NotebookView({ notebook }: { notebook: Notebook }) {
           overflow="hidden"
           sx={{
             ".ipynb-renderer-root": { borderRadius: "var(--chakra-radii-lg)" },
+            ".ipynb-renderer-root #notebook-container": {
+              width: "100%",
+              marginLeft: 0,
+              marginRight: 0,
+            },
             ".ipynb-renderer-root pre, .ipynb-renderer-root .CodeMirror": {
               fontSize: "13px !important",
               lineHeight: "1.5 !important",
@@ -197,7 +202,7 @@ function Notebooks() {
           </PageMenu>
 
           {/* Center: viewer */}
-          <Box flex={1} minW={0} mx={4}>
+          <Box flex={1} minW={0} mr={4}>
             {selectedNotebook ? (
               <>
                 <Heading size="md" mb={1}>

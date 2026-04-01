@@ -33,11 +33,12 @@ import {
   TabPanels,
   TabPanel,
   Icon,
+  Checkbox,
+  Switch,
 } from "@chakra-ui/react"
-import { FaCodeBranch } from "react-icons/fa"
+import { FaCheck, FaCodeBranch, FaLink, FaUndo } from "react-icons/fa"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useState, useEffect } from "react"
-import { FaLink } from "react-icons/fa"
 import ReactDiffViewer, { DiffMethod } from "react-diff-viewer-continued"
 
 import {
@@ -60,6 +61,8 @@ import {
   ProjectsService,
 } from "../../client"
 import useAuth from "../../hooks/useAuth"
+import { IpynbRenderer } from "react-ipynb-renderer"
+import "react-ipynb-renderer/dist/styles/monokai.css"
 
 /** "file" covers auto-detected types not explicitly declared in calkit.yaml. */
 export type ArtifactKind = "figure" | "publication" | "notebook" | "file"
@@ -129,6 +132,18 @@ function ArtifactContent({
     const nb = data as Notebook
     if (!nb.url && !nb.content)
       return <Text color="gray.500">No content for this version.</Text>
+    if (nb.content && nb.output_format === "notebook") {
+      try {
+        const json = JSON.parse(atob(nb.content))
+        return (
+          <Box height="75vh" overflowY="auto">
+            <IpynbRenderer ipynb={json} syntaxTheme="atomDark" />
+          </Box>
+        )
+      } catch {
+        // fall through
+      }
+    }
     if (nb.content && nb.output_format === "html") {
       return (
         <Box height="75vh" width="100%">
@@ -232,6 +247,7 @@ function FigureComments({
   const queryClient = useQueryClient()
   const borderColor = useColorModeValue("gray.200", "gray.600")
   const [draft, setDraft] = useState("")
+  const [createIssue, setCreateIssue] = useState(true)
 
   const commentsQuery = useQuery({
     queryKey: ["projects", ownerName, projectName, "figure-comments", path],
@@ -243,12 +259,18 @@ function FigureComments({
       }),
   })
 
+  const [showResolved, setShowResolved] = useState(false)
+
   const postMutation = useMutation({
     mutationFn: () =>
       ProjectsService.postFigureComment({
         ownerName,
         projectName,
-        requestBody: { figure_path: path, comment: draft },
+        requestBody: {
+          figure_path: path,
+          comment: draft,
+          create_github_issue: createIssue,
+        },
       }),
     onSuccess: () => {
       setDraft("")
@@ -261,43 +283,118 @@ function FigureComments({
     },
   })
 
+  const resolveMutation = useMutation({
+    mutationFn: ({
+      commentId,
+      resolved,
+    }: {
+      commentId: string
+      resolved: boolean
+    }) =>
+      ProjectsService.patchFigureComment({
+        ownerName,
+        projectName,
+        commentId,
+        requestBody: { resolved },
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["projects", ownerName, projectName, "figure-comments", path],
+      })
+    },
+  })
+
+  const allComments = commentsQuery.data ?? []
+  const displayedComments = showResolved
+    ? allComments
+    : allComments.filter((c) => !c.resolved)
+
   return (
     <Box>
-      <Heading size="xs" mb={3}>
-        Comments
-      </Heading>
+      <Flex align="center" justify="space-between" mb={3}>
+        <Heading size="xs">
+          Comments ({allComments.filter((c) => !c.resolved).length} open)
+        </Heading>
+        <Flex align="center" gap={1}>
+          <Text fontSize="xs" color="gray.500">
+            Resolved
+          </Text>
+          <Switch
+            size="sm"
+            isChecked={showResolved}
+            onChange={(e) => setShowResolved(e.target.checked)}
+          />
+        </Flex>
+      </Flex>
       {commentsQuery.isPending ? (
-        <Spinner size="sm" />
-      ) : (commentsQuery.data?.length ?? 0) === 0 ? (
+        <Spinner size="sm" color="ui.main" />
+      ) : displayedComments.length === 0 ? (
         <Text fontSize="xs" color="gray.500" mb={3}>
-          No comments yet.
+          {allComments.length === 0 ? "No comments yet." : "No open comments."}
         </Text>
       ) : (
         <VStack align="stretch" spacing={3} mb={4}>
-          {commentsQuery.data?.map((c) => (
-            <Flex key={c.id} gap={2}>
-              <Avatar name={c.user_github_username} size="xs" mt={0.5} />
-              <Box
-                flex={1}
-                borderWidth={1}
-                borderColor={borderColor}
-                borderRadius="md"
-                p={2}
-              >
-                <Flex align="center" gap={2} mb={1}>
-                  <Text fontSize="xs" fontWeight="bold">
-                    {c.user_github_username}
+          {displayedComments.map((c) => {
+            const isResolved = !!c.resolved
+            return (
+              <Flex key={c.id} gap={2}>
+                <Avatar name={c.user_github_username} size="xs" mt={0.5} />
+                <Box
+                  flex={1}
+                  borderWidth={1}
+                  borderColor={isResolved ? "green.200" : borderColor}
+                  borderRadius="md"
+                  p={2}
+                  opacity={isResolved ? 0.7 : 1}
+                >
+                  <Flex align="center" gap={1} mb={1} wrap="wrap">
+                    <Text fontSize="xs" fontWeight="bold" mr={1}>
+                      {c.user_github_username}
+                    </Text>
+                    <Text fontSize="xs" color="gray.500" mr="auto">
+                      {new Date(c.created ?? "").toLocaleDateString()}
+                    </Text>
+                    {c.external_url && (
+                      <Link
+                        href={c.external_url}
+                        isExternal
+                        fontSize="xs"
+                        color="blue.400"
+                      >
+                        <Icon as={FaLink} />
+                      </Link>
+                    )}
+                    {user && (
+                      <IconButton
+                        aria-label={isResolved ? "Unresolve" : "Resolve"}
+                        icon={
+                          isResolved ? (
+                            <Icon as={FaUndo} />
+                          ) : (
+                            <Icon as={FaCheck} />
+                          )
+                        }
+                        size="xs"
+                        variant="ghost"
+                        colorScheme={isResolved ? "gray" : "green"}
+                        isLoading={resolveMutation.isPending}
+                        onClick={() =>
+                          c.id &&
+                          resolveMutation.mutate({
+                            commentId: c.id,
+                            resolved: !isResolved,
+                          })
+                        }
+                      />
+                    )}
+                  </Flex>
+                  <Text fontSize="sm" whiteSpace="pre-wrap">
+                    {c.comment}
                   </Text>
-                  <Text fontSize="xs" color="gray.500">
-                    {new Date(c.created ?? "").toLocaleDateString()}
-                  </Text>
-                </Flex>
-                <Text fontSize="sm" whiteSpace="pre-wrap">
-                  {c.comment}
-                </Text>
-              </Box>
-            </Flex>
-          ))}
+                </Box>
+              </Flex>
+            )
+          })}
         </VStack>
       )}
       {user && (
@@ -310,14 +407,23 @@ function FigureComments({
             rows={3}
             mb={2}
           />
-          <Button
-            size="sm"
-            isDisabled={!draft.trim()}
-            isLoading={postMutation.isPending}
-            onClick={() => postMutation.mutate()}
-          >
-            Post
-          </Button>
+          <Flex align="center" gap={3} mb={2}>
+            <Checkbox
+              size="sm"
+              isChecked={createIssue}
+              onChange={(e) => setCreateIssue(e.target.checked)}
+            >
+              Create GitHub issue
+            </Checkbox>
+            <Button
+              size="sm"
+              isDisabled={!draft.trim()}
+              isLoading={postMutation.isPending}
+              onClick={() => postMutation.mutate()}
+            >
+              Post
+            </Button>
+          </Flex>
         </Box>
       )}
     </Box>
@@ -643,7 +749,7 @@ export function ArtifactCompareModal({
                           <Code fontSize="sm">{ref1}</Code>
                         </Flex>
                         {artifact1Query.isPending ? (
-                          <Spinner />
+                          <Spinner color="ui.main" />
                         ) : (
                           <ArtifactContent
                             kind={kind}
@@ -659,7 +765,7 @@ export function ArtifactCompareModal({
                           <Code fontSize="sm">{ref2}</Code>
                         </Flex>
                         {artifact2Query.isPending ? (
-                          <Spinner />
+                          <Spinner color="ui.main" />
                         ) : (
                           <ArtifactContent
                             kind={kind}
@@ -684,7 +790,7 @@ export function ArtifactCompareModal({
                   )}
                   {artifact1Query.isPending ? (
                     <Flex justify="center" align="center" height="200px">
-                      <Spinner />
+                      <Spinner color="ui.main" />
                     </Flex>
                   ) : (
                     <ArtifactContent
@@ -700,7 +806,7 @@ export function ArtifactCompareModal({
             {/* Figure comments panel */}
             {kind === "figure" && (
               <Box
-                w="220px"
+                w="300px"
                 flexShrink={0}
                 borderLeftWidth={1}
                 borderColor={borderColor}

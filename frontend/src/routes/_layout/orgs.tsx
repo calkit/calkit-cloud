@@ -12,7 +12,6 @@ import {
   Th,
   Thead,
   Tr,
-  Input,
 } from "@chakra-ui/react"
 import { ExternalLinkIcon } from "@chakra-ui/icons"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
@@ -27,6 +26,7 @@ import { useDebounce } from "use-debounce"
 
 import { capitalizeFirstLetter } from "../../lib/strings"
 import { OrgsService } from "../../client"
+import ClearableInput from "../../components/Common/ClearableInput"
 
 const orgsSearchSchema = z.object({
   page: z.number().catch(1),
@@ -82,18 +82,14 @@ function PublicOrgsTable() {
     }
   }, [page, queryClient, hasNextPage, searchFor])
 
-  const onSearchChange = (e: any) => {
-    setSearchForText(e.target.value)
-    // TODO: Add search to URL query params
-  }
-
   return (
     <>
-      <Input
+      <ClearableInput
         mb={4}
         placeholder="Search..."
         width="33%"
-        onChange={onSearchChange}
+        value={searchForText ?? ""}
+        onValueChange={setSearchForText}
       />
       <TableContainer>
         <Table size={{ base: "sm", md: "md" }}>

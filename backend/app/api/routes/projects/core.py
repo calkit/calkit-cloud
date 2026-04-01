@@ -57,6 +57,7 @@ from app.core import (
     CATEGORIES_SINGULAR_TO_PLURAL,
     params_from_url,
     ryaml,
+    utcnow,
 )
 from app.dvc import (
     expand_dvc_lock_outs,
@@ -78,6 +79,7 @@ from app.models import (
     Figure,
     FigureComment,
     FigureCommentPost,
+    Notification,
     PublicationComment,
     PublicationCommentPost,
     FileLock,
@@ -1685,8 +1687,173 @@ def get_figure_comments(
     query = select(FigureComment).where(FigureComment.project_id == project.id)
     if figure_path is not None:
         query = query.where(FigureComment.figure_path == figure_path)
-    comments = session.exec(query).fetchall()
+    comments = list(session.exec(query).fetchall())
+    _sync_github_issue_resolutions(session, comments, current_user)
     return comments
+
+
+class CommentResolvePatch(BaseModel):
+    resolved: bool
+
+
+@router.patch(
+    "/projects/{owner_name}/{project_name}/figure-comments/{comment_id}"
+)
+def patch_figure_comment(
+    owner_name: str,
+    project_name: str,
+    comment_id: uuid.UUID,
+    patch: CommentResolvePatch,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> FigureComment:
+    project = app.projects.get_project(
+        session=session,
+        owner_name=owner_name,
+        project_name=project_name,
+        current_user=current_user,
+        min_access_level="read",
+    )
+    comment = session.get(FigureComment, comment_id)
+    if comment is None or comment.project_id != project.id:
+        raise HTTPException(404)
+    comment.resolved = utcnow() if patch.resolved else None
+    session.add(comment)
+    session.commit()
+    session.refresh(comment)
+    mixpanel.user_resolved_comment(
+        current_user, owner_name, project_name, "figure", patch.resolved
+    )
+    return comment
+
+
+def _sync_github_issue_resolutions(
+    session: Session,
+    comments: list,
+    current_user,
+) -> None:
+    """Check GitHub issue status for unresolved comments with an external_url.
+
+    If the linked issue is closed, mark the comment resolved. Silently ignores
+    any errors (rate limits, missing token, unexpected URL shape, etc.) so this
+    never breaks a read request.
+    """
+    unresolved_with_url = [
+        c for c in comments if c.external_url and c.resolved is None
+    ]
+    if not unresolved_with_url:
+        return
+    # Try to get a GitHub token; fall back to unauthenticated (60 req/hr)
+    token: str | None = None
+    if current_user is not None:
+        try:
+            token = users.get_github_token(session, current_user)
+        except Exception:
+            pass
+    headers = {"Accept": "application/vnd.github+json"}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    changed = False
+    for comment in unresolved_with_url:
+        url = comment.external_url
+        # Parse owner/repo/number from https://github.com/{owner}/{repo}/issues/{n}
+        try:
+            parts = url.rstrip("/").split("/")
+            issue_number = int(parts[-1])
+            repo = f"{parts[-4]}/{parts[-3]}"
+        except Exception:
+            continue
+        try:
+            resp = requests.get(
+                f"https://api.github.com/repos/{repo}/issues/{issue_number}",
+                headers=headers,
+                timeout=5,
+            )
+            if (
+                resp.status_code == 200
+                and resp.json().get("state") == "closed"
+            ):
+                comment.resolved = utcnow()
+                session.add(comment)
+                changed = True
+        except Exception as exc:
+            logger.debug(f"GitHub issue sync failed for {url}: {exc}")
+    if changed:
+        session.commit()
+
+
+def _try_create_github_issue(
+    session: Session,
+    current_user: User,
+    project: Project,
+    title: str,
+    body: str,
+) -> str | None:
+    """Create a GitHub issue on the project repo and return its URL.
+
+    Returns None if the project has no GitHub repo or the user has no token.
+    Never raises — failures are logged and silently swallowed so a missing
+    token doesn't prevent the comment from being saved.
+    """
+    github_repo = project.github_repo
+    if not github_repo:
+        return None
+    try:
+        token = users.get_github_token(session, current_user)
+    except HTTPException:
+        logger.info(
+            f"Skipping GitHub issue creation for {current_user.email}: "
+            "no GitHub token"
+        )
+        return None
+    resp = requests.post(
+        f"https://api.github.com/repos/{github_repo}/issues",
+        json={"title": title, "body": body},
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/vnd.github+json",
+        },
+        timeout=10,
+    )
+    if not resp.ok:
+        logger.warning(
+            f"GitHub issue creation failed for {github_repo}: "
+            f"{resp.status_code} {resp.text}"
+        )
+        return None
+    return resp.json().get("html_url")
+
+
+def _fan_out_notifications(
+    session: Session,
+    project: Project,
+    commenter_id: uuid.UUID,
+    message: str,
+    link: str,
+) -> None:
+    """Create Notification rows for all project members except the commenter."""
+    # Collect user IDs: project owner + anyone with explicit access
+    recipient_ids: set[uuid.UUID] = set()
+    owner_account = session.get(Account, project.owner_account_id)
+    if owner_account and owner_account.user_id:
+        recipient_ids.add(owner_account.user_id)
+    access_rows = session.exec(
+        select(UserProjectAccess).where(
+            UserProjectAccess.project_id == project.id
+        )
+    ).fetchall()
+    for row in access_rows:
+        recipient_ids.add(row.user_id)
+    recipient_ids.discard(commenter_id)
+    for uid in recipient_ids:
+        session.add(
+            Notification(
+                user_id=uid,
+                project_id=project.id,
+                message=message,
+                link=link,
+            )
+        )
 
 
 @router.post("/projects/{owner_name}/{project_name}/figure-comments")
@@ -1732,8 +1899,39 @@ def post_figure_comment(
         user_id=current_user.id,
     )
     session.add(comment)
+    session.flush()  # get comment.id before creating the issue
+    issue_url = None
+    if comment_in.create_github_issue:
+        app_base = settings.frontend_host.rstrip("/")
+        figure_link = (
+            f"{app_base}/{owner_name}/{project_name}/figures"
+            f"?path={comment_in.figure_path}"
+        )
+        issue_url = _try_create_github_issue(
+            session=session,
+            current_user=current_user,
+            project=project,
+            title=f"Comment on figure: {comment_in.figure_path}",
+            body=(
+                f"Comment on [{comment_in.figure_path}]({figure_link}):\n\n"
+                f"{comment_in.comment}"
+            ),
+        )
+        if issue_url:
+            comment.external_url = issue_url
+    commenter_name = current_user.full_name or current_user.account.github_name
+    _fan_out_notifications(
+        session=session,
+        project=project,
+        commenter_id=current_user.id,
+        message=f"{commenter_name} commented on figure {comment_in.figure_path}",
+        link=f"/{owner_name}/{project_name}/figures?path={comment_in.figure_path}",
+    )
     session.commit()
     session.refresh(comment)
+    mixpanel.user_posted_figure_comment(
+        current_user, owner_name, project_name, comment_in.figure_path
+    )
     return comment
 
 
@@ -1759,7 +1957,40 @@ def get_publication_comments(
         query = query.where(
             PublicationComment.publication_path == publication_path
         )
-    return session.exec(query).fetchall()
+    comments = list(session.exec(query).fetchall())
+    _sync_github_issue_resolutions(session, comments, current_user)
+    return comments
+
+
+@router.patch(
+    "/projects/{owner_name}/{project_name}/publication-comments/{comment_id}"
+)
+def patch_publication_comment(
+    owner_name: str,
+    project_name: str,
+    comment_id: uuid.UUID,
+    patch: CommentResolvePatch,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> PublicationComment:
+    project = app.projects.get_project(
+        session=session,
+        owner_name=owner_name,
+        project_name=project_name,
+        current_user=current_user,
+        min_access_level="read",
+    )
+    comment = session.get(PublicationComment, comment_id)
+    if comment is None or comment.project_id != project.id:
+        raise HTTPException(404)
+    comment.resolved = utcnow() if patch.resolved else None
+    session.add(comment)
+    session.commit()
+    session.refresh(comment)
+    mixpanel.user_resolved_comment(
+        current_user, owner_name, project_name, "publication", patch.resolved
+    )
+    return comment
 
 
 @router.post("/projects/{owner_name}/{project_name}/publication-comments")
@@ -1785,8 +2016,56 @@ def post_publication_comment(
         user_id=current_user.id,
     )
     session.add(comment)
+    session.flush()
+    if comment_in.create_github_issue:
+        app_base = settings.frontend_host.rstrip("/")
+        pub_link = (
+            f"{app_base}/{owner_name}/{project_name}/publications"
+            f"?path={comment_in.publication_path}"
+        )
+        highlighted_text = (
+            comment_in.highlight.get("content", {}).get("text", "")
+            if comment_in.highlight
+            else ""
+        )
+        body_lines = [
+            f"Comment on [{comment_in.publication_path}]({pub_link}):",
+            "",
+            comment_in.comment,
+        ]
+        if highlighted_text:
+            body_lines += ["", f"> {highlighted_text}"]
+        issue_url = _try_create_github_issue(
+            session=session,
+            current_user=current_user,
+            project=project,
+            title=f"Comment on publication: {comment_in.publication_path}",
+            body="\n".join(body_lines),
+        )
+        if issue_url:
+            comment.external_url = issue_url
+    commenter_name = current_user.full_name or current_user.account.github_name
+    _fan_out_notifications(
+        session=session,
+        project=project,
+        commenter_id=current_user.id,
+        message=(
+            f"{commenter_name} commented on {comment_in.publication_path}"
+        ),
+        link=(
+            f"/{owner_name}/{project_name}/publications"
+            f"?path={comment_in.publication_path}"
+        ),
+    )
     session.commit()
     session.refresh(comment)
+    mixpanel.user_posted_publication_comment(
+        current_user,
+        owner_name,
+        project_name,
+        comment_in.publication_path,
+        has_highlight=bool(comment_in.highlight),
+    )
     return comment
 
 
@@ -3481,9 +3760,14 @@ def post_project_environment(
     return Environment.model_validate(new_env | {"all_attrs": new_env})
 
 
+class SoftwareItem(BaseModel):
+    title: str
+    path: str
+    description: str | None = None
+
+
 class Software(BaseModel):
-    environments: list[Environment]
-    # TODO: Add scripts, packages, apps?
+    items: list[SoftwareItem]
 
 
 @router.get("/projects/{owner_name}/{project_name}/software")
@@ -3513,22 +3797,14 @@ def get_project_software(
         repo=repo,
         ref=ref,
     )
-    envs = ck_info.get("environments", {})
-    resp = []
-    for env_name, env in envs.items():
-        env_resp = env | {"all_attrs": env}
-        env_resp["name"] = env_name
-        env_path = env.get("path")
-        if env_path:
-            fpath = os.path.join(repo.working_dir, env_path)
-            if os.path.isfile(fpath):
-                with open(fpath) as f:
-                    env_resp["file_content"] = f.read()
+    raw = ck_info.get("software", [])
+    items = []
+    for entry in raw:
         try:
-            resp.append(Environment.model_validate(env_resp))
+            items.append(SoftwareItem.model_validate(entry))
         except ValidationError as e:
-            logger.warning(f"Invalid environment: {e}")
-    return Software(environments=resp)
+            logger.warning(f"Invalid software entry: {e}")
+    return Software(items=items)
 
 
 @router.get("/projects/{owner_name}/{project_name}/file-locks")

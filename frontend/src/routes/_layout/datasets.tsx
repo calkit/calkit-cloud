@@ -14,7 +14,6 @@ import {
   Text,
   Tooltip,
   Tr,
-  Input,
 } from "@chakra-ui/react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import {
@@ -28,6 +27,7 @@ import { useDebounce } from "use-debounce"
 
 import { pageWidthNoSidebar } from "../../lib/layout"
 import { DatasetsService } from "../../client"
+import ClearableInput from "../../components/Common/ClearableInput"
 
 const datasetsSearchSchema = z.object({
   page: z.number().catch(1),
@@ -83,18 +83,14 @@ function PublicDatasetsTable() {
     }
   }, [page, queryClient, hasNextPage, searchFor])
 
-  const onSearchChange = (e: any) => {
-    setSearchForText(e.target.value)
-    // TODO: Search URL params
-  }
-
   return (
     <>
-      <Input
+      <ClearableInput
         mb={4}
         placeholder="Search..."
         width="33%"
-        onChange={onSearchChange}
+        value={searchForText ?? ""}
+        onValueChange={setSearchForText}
       />
       <TableContainer>
         <Table size={{ base: "sm", md: "md" }}>

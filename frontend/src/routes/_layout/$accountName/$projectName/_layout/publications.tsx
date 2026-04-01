@@ -224,12 +224,19 @@ function Publications() {
     enabled: isPdf && !!selectedPub,
   })
 
-  const deletePubCommentMutation = useMutation({
-    mutationFn: (commentId: string) =>
-      ProjectsService.deletePublicationComment({
+  const resolvePubCommentMutation = useMutation({
+    mutationFn: ({
+      commentId,
+      resolved,
+    }: {
+      commentId: string
+      resolved: boolean
+    }) =>
+      ProjectsService.patchPublicationComment({
         ownerName: accountName,
         projectName,
         commentId,
+        requestBody: { resolved },
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({
@@ -272,7 +279,7 @@ function Publications() {
                     >
                       <Icon as={FaPlus} fontSize="xs" />
                     </MenuButton>
-                    <MenuList>
+                    <MenuList zIndex="popover">
                       <MenuItem onClick={newPubTemplateModal.onOpen}>
                         Create new from template
                       </MenuItem>
@@ -333,7 +340,7 @@ function Publications() {
           </PageMenu>
 
           {/* Center: publication viewer */}
-          <Box flex={1} minW={0} mx={4} minH={0}>
+          <Box flex={1} minW={0} mr={4} minH={0}>
             {selectedPub ? (
               <>
                 <Heading size="md" mb={1}>
@@ -388,7 +395,12 @@ function Publications() {
                     highlights={pdfHighlights}
                     scrollToHighlight={(h) => pdfScrollRef.current(h)}
                     currentUserId={user?.id}
-                    onDelete={(id) => deletePubCommentMutation.mutate(id)}
+                    onResolve={(id, resolved) =>
+                      resolvePubCommentMutation.mutate({
+                        commentId: id,
+                        resolved,
+                      })
+                    }
                   />
                 )}
               </VStack>

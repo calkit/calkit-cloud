@@ -399,6 +399,15 @@ export const $Collaborator = {
   },
 } as const
 
+export const $CommentResolvePatch = {
+  properties: {
+    resolved: {
+      type: "boolean",
+      isRequired: true,
+    },
+  },
+} as const
+
 export const $ConnectedAccounts = {
   properties: {
     github: {
@@ -1389,8 +1398,16 @@ export const $FigureComment = {
       ],
     },
     resolved: {
-      type: "boolean",
-      default: false,
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
     },
     comment: {
       type: "string",
@@ -2277,6 +2294,57 @@ export const $Notebook = {
           type: "null",
         },
       ],
+    },
+  },
+} as const
+
+export const $Notification = {
+  description: `In-app notification delivered to a user when a comment is posted on
+their project (or a project they collaborate on).
+
+Designed to be lightweight: no fan-out to external services here.
+\`\`link\`\` stores a frontend URL (e.g. \`\`/owner/project/publications?path=…\`\`)
+so the notification can deep-link directly to the relevant item.`,
+  properties: {
+    id: {
+      type: "string",
+      format: "uuid",
+    },
+    user_id: {
+      type: "string",
+      isRequired: true,
+      format: "uuid",
+    },
+    project_id: {
+      type: "string",
+      isRequired: true,
+      format: "uuid",
+    },
+    message: {
+      type: "string",
+      isRequired: true,
+      maxLength: 500,
+    },
+    link: {
+      type: "string",
+      isRequired: true,
+      maxLength: 2048,
+    },
+    read: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    created: {
+      type: "string",
+      format: "date-time",
     },
   },
 } as const
@@ -3606,8 +3674,16 @@ from this comment.`,
       ],
     },
     resolved: {
-      type: "boolean",
-      default: false,
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
     },
     user_github_username: {
       type: "string",
@@ -4206,12 +4282,36 @@ export const $ShowcaseYaml = {
 
 export const $Software = {
   properties: {
-    environments: {
+    items: {
       type: "array",
       contains: {
-        type: "Environment",
+        type: "SoftwareItem",
       },
       isRequired: true,
+    },
+  },
+} as const
+
+export const $SoftwareItem = {
+  properties: {
+    title: {
+      type: "string",
+      isRequired: true,
+    },
+    path: {
+      type: "string",
+      isRequired: true,
+    },
+    description: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
     },
   },
 } as const

@@ -80,6 +80,10 @@ export type Collaborator = {
   access_level: string
 }
 
+export type CommentResolvePatch = {
+  resolved: boolean
+}
+
 export type ConnectedAccounts = {
   github: boolean
   zenodo: boolean
@@ -266,7 +270,7 @@ export type FigureComment = {
   created?: string
   updated?: string
   external_url?: string | null
-  resolved?: boolean
+  resolved?: string | null
   comment: string
   readonly user_github_username: string
   readonly user_full_name: string | null
@@ -471,6 +475,24 @@ export type Notebook = {
   output_format?: "html" | "notebook" | null
   url?: string | null
   content?: string | null
+}
+
+/**
+ * In-app notification delivered to a user when a comment is posted on
+ * their project (or a project they collaborate on).
+ *
+ * Designed to be lightweight: no fan-out to external services here.
+ * ``link`` stores a frontend URL (e.g. ``/owner/project/publications?path=…``)
+ * so the notification can deep-link directly to the relevant item.
+ */
+export type Notification = {
+  id?: string
+  user_id: string
+  project_id: string
+  message: string
+  link: string
+  read?: string | null
+  created?: string
 }
 
 export type OAuthCodeExchange = {
@@ -723,7 +745,7 @@ export type PublicationComment = {
   highlight?: Record<string, unknown> | null
   git_ref?: string | null
   external_url?: string | null
-  resolved?: boolean
+  resolved?: string | null
   readonly user_github_username: string
   readonly user_full_name: string | null
   readonly user_email: string
@@ -867,7 +889,13 @@ export type ShowcaseYaml = {
 }
 
 export type Software = {
-  environments: Array<Environment>
+  items: Array<SoftwareItem>
+}
+
+export type SoftwareItem = {
+  title: string
+  path: string
+  description?: string | null
 }
 
 export type StorageUsage = {

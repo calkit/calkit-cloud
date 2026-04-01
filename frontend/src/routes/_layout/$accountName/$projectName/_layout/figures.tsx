@@ -1,4 +1,5 @@
 import LoadingSpinner from "../../../../../components/Common/LoadingSpinner"
+import ClearableInput from "../../../../../components/Common/ClearableInput"
 import {
   Box,
   Heading,
@@ -15,7 +16,6 @@ import {
   SimpleGrid,
   useColorModeValue,
   Image,
-  Input,
   Badge,
 } from "@chakra-ui/react"
 import { useQuery } from "@tanstack/react-query"
@@ -232,12 +232,12 @@ function ProjectFigures() {
               />
             </>
           ) : null}
-          <Input
+          <ClearableInput
             placeholder="Search figures…"
             size="sm"
             maxW="220px"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onValueChange={setSearch}
           />
         </Flex>
 

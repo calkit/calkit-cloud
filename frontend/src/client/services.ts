@@ -30,6 +30,7 @@ import type {
   DiscountCode,
   DiscountCodePost,
   DiscountCodePublic,
+  Notification,
   SearchResults,
   SubscriptionPlan,
   Body_projects_post_project_dataset_upload,
@@ -38,6 +39,7 @@ import type {
   Body_projects_post_project_publication,
   Body_projects_put_project_contents,
   Collaborator,
+  CommentResolvePatch,
   ContentPatch,
   ContentsItem,
   Dataset,
@@ -195,6 +197,12 @@ export type MiscData = {
   GlobalSearch: {
     limit?: number
     q: string
+  }
+  GetNotifications: {
+    unreadOnly?: boolean
+  }
+  MarkNotificationRead: {
+    notificationId: string
   }
 }
 
@@ -369,6 +377,12 @@ export type ProjectsData = {
     projectName: string
     requestBody: FigureCommentPost
   }
+  PatchFigureComment: {
+    commentId: string
+    ownerName: string
+    projectName: string
+    requestBody: CommentResolvePatch
+  }
   GetPublicationComments: {
     ownerName: string
     projectName: string
@@ -378,6 +392,12 @@ export type ProjectsData = {
     ownerName: string
     projectName: string
     requestBody: PublicationCommentPost
+  }
+  PatchPublicationComment: {
+    commentId: string
+    ownerName: string
+    projectName: string
+    requestBody: CommentResolvePatch
   }
   DeletePublicationComment: {
     commentId: string
@@ -1392,6 +1412,60 @@ export class MiscService {
       },
     })
   }
+
+  /**
+   * Get Notifications
+   * @returns Notification Successful Response
+   * @throws ApiError
+   */
+  public static getNotifications(
+    data: MiscData["GetNotifications"] = {},
+  ): CancelablePromise<Array<Notification>> {
+    const { unreadOnly = false } = data
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/notifications",
+      query: {
+        unread_only: unreadOnly,
+      },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Mark Notification Read
+   * @returns Notification Successful Response
+   * @throws ApiError
+   */
+  public static markNotificationRead(
+    data: MiscData["MarkNotificationRead"],
+  ): CancelablePromise<Notification> {
+    const { notificationId } = data
+    return __request(OpenAPI, {
+      method: "PATCH",
+      url: "/notifications/{notification_id}/read",
+      path: {
+        notification_id: notificationId,
+      },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Mark All Notifications Read
+   * @returns void Successful Response
+   * @throws ApiError
+   */
+  public static markAllNotificationsRead(): CancelablePromise<void> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/notifications/read-all",
+    })
+  }
 }
 
 export class ProjectsService {
@@ -2107,6 +2181,31 @@ export class ProjectsService {
   }
 
   /**
+   * Patch Figure Comment
+   * @returns FigureComment Successful Response
+   * @throws ApiError
+   */
+  public static patchFigureComment(
+    data: ProjectsData["PatchFigureComment"],
+  ): CancelablePromise<FigureComment> {
+    const { ownerName, projectName, commentId, requestBody } = data
+    return __request(OpenAPI, {
+      method: "PATCH",
+      url: "/projects/{owner_name}/{project_name}/figure-comments/{comment_id}",
+      path: {
+        owner_name: ownerName,
+        project_name: projectName,
+        comment_id: commentId,
+      },
+      body: requestBody,
+      mediaType: "application/json",
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
    * Get Publication Comments
    * @returns PublicationComment Successful Response
    * @throws ApiError
@@ -2146,6 +2245,31 @@ export class ProjectsService {
       path: {
         owner_name: ownerName,
         project_name: projectName,
+      },
+      body: requestBody,
+      mediaType: "application/json",
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Patch Publication Comment
+   * @returns PublicationComment Successful Response
+   * @throws ApiError
+   */
+  public static patchPublicationComment(
+    data: ProjectsData["PatchPublicationComment"],
+  ): CancelablePromise<PublicationComment> {
+    const { ownerName, projectName, commentId, requestBody } = data
+    return __request(OpenAPI, {
+      method: "PATCH",
+      url: "/projects/{owner_name}/{project_name}/publication-comments/{comment_id}",
+      path: {
+        owner_name: ownerName,
+        project_name: projectName,
+        comment_id: commentId,
       },
       body: requestBody,
       mediaType: "application/json",

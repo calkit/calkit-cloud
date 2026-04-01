@@ -624,7 +624,8 @@ class FigureComment(SQLModel, table=True):
     created: datetime = Field(default_factory=utcnow)
     updated: datetime = Field(default_factory=utcnow)
     external_url: str | None = Field(default=None, max_length=2048)
-    resolved: bool = Field(default=False)
+    # None = unresolved; set to the timestamp when the comment is resolved
+    resolved: datetime | None = Field(default=None)
     comment: str
     # Relationships
     user: User = Relationship(back_populates="figure_comments")
@@ -682,8 +683,8 @@ class PublicationComment(SQLModel, table=True):
     git_ref: str | None = Field(default=None, max_length=255)
     # URL of the linked external tracker item (e.g. GitHub issue)
     external_url: str | None = Field(default=None, max_length=2048)
-    # True once the linked issue is closed / comment is addressed
-    resolved: bool = Field(default=False)
+    # None = unresolved; set to the timestamp when the comment is resolved
+    resolved: datetime | None = Field(default=None)
     # Relationships
     user: User = Relationship(back_populates="publication_comments")
     project: Project = Relationship(back_populates="publication_comments")
@@ -727,7 +728,8 @@ class Notification(SQLModel, table=True):
     message: str = Field(max_length=500)
     # Frontend deep-link, e.g. "/owner/project/publications?path=pub.pdf"
     link: str = Field(max_length=2048)
-    read: bool = Field(default=False)
+    # None = unread; set to the timestamp when the user reads it
+    read: datetime | None = Field(default=None)
     created: datetime = Field(default_factory=utcnow)
     # Relationships
     user: User = Relationship(back_populates="notifications")

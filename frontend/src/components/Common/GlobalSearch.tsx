@@ -2,24 +2,27 @@ import {
   Box,
   Flex,
   Icon,
+  IconButton,
   Input,
   InputGroup,
   InputLeftElement,
+  InputRightElement,
   Spinner,
   Text,
   useColorModeValue,
 } from "@chakra-ui/react"
+import { CloseIcon } from "@chakra-ui/icons"
 import { useQuery } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
 import { useEffect, useRef, useState } from "react"
-import { FaSearch, FaProjectDiagram, FaUsers, FaDatabase } from "react-icons/fa"
+import { FaSearch, FaFlask, FaUsers, FaDatabase } from "react-icons/fa"
 
 import { MiscService, type SearchResults } from "../../client"
 
 type SearchResultItem = SearchResults["results"][number]
 
 const KIND_ICON = {
-  project: FaProjectDiagram,
+  project: FaFlask,
   org: FaUsers,
   dataset: FaDatabase,
 }
@@ -121,7 +124,22 @@ export default function GlobalSearch() {
             setIsOpen(true)
           }}
           onFocus={() => setIsOpen(true)}
+          pr={query ? 8 : undefined}
         />
+        {query && (
+          <InputRightElement>
+            <IconButton
+              aria-label="Clear"
+              icon={<CloseIcon boxSize="8px" />}
+              size="xs"
+              variant="ghost"
+              onClick={() => {
+                setQuery("")
+                setIsOpen(false)
+              }}
+            />
+          </InputRightElement>
+        )}
       </InputGroup>
 
       {showDropdown && (

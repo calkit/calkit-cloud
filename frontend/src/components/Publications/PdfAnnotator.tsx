@@ -11,17 +11,26 @@ import {
   Avatar,
   Box,
   Button,
+  Checkbox,
   Flex,
   Heading,
   IconButton,
+  Link,
   Spinner,
+  Switch,
   Text,
   Textarea,
   useColorModeValue,
   VStack,
 } from "@chakra-ui/react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { useRef, useState, useCallback, type MutableRefObject } from "react"
+import {
+  useRef,
+  useState,
+  useCallback,
+  useMemo,
+  type MutableRefObject,
+} from "react"
 import {
   AreaHighlight,
   Highlight,
@@ -32,7 +41,7 @@ import {
   type NewHighlight,
 } from "react-pdf-highlighter"
 import "react-pdf-highlighter/dist/style.css"
-import { FaTrash } from "react-icons/fa"
+import { FaCheck, FaUndo, FaLink } from "react-icons/fa"
 
 import { ProjectsService, type PublicationComment } from "../../client"
 import useAuth from "../../hooks/useAuth"
@@ -45,6 +54,7 @@ export interface AnnotationHighlight extends IHighlight {
   commentBody: string
   authorName: string | null
   createdAt: string
+  resolved: boolean
 }
 
 export function commentToHighlight(
@@ -65,6 +75,7 @@ export function commentToHighlight(
     commentBody: c.comment,
     authorName: c.user_full_name ?? c.user_github_username ?? null,
     createdAt: c.created ?? "",
+    resolved: !!c.resolved,
   }
 }
 
@@ -75,10 +86,11 @@ function AddCommentTip({
   onConfirm,
   onCancel,
 }: {
-  onConfirm: (text: string) => void
+  onConfirm: (text: string, createIssue: boolean) => void
   onCancel: () => void
 }) {
   const [text, setText] = useState("")
+  const [createIssue, setCreateIssue] = useState(true)
   const bg = useColorModeValue("white", "gray.800")
   const borderColor = useColorModeValue("gray.200", "gray.600")
 
@@ -101,12 +113,20 @@ function AddCommentTip({
         onChange={(e) => setText(e.target.value)}
         mb={2}
       />
+      <Checkbox
+        size="sm"
+        mb={2}
+        isChecked={createIssue}
+        onChange={(e) => setCreateIssue(e.target.checked)}
+      >
+        Create GitHub issue
+      </Checkbox>
       <Flex gap={2}>
         <Button
           size="xs"
           variant="primary"
           isDisabled={!text.trim()}
-          onClick={() => onConfirm(text.trim())}
+          onClick={() => onConfirm(text.trim(), createIssue)}
         >
           Save
         </Button>
@@ -123,12 +143,14 @@ function AddCommentTip({
 // ---------------------------------------------------------------------------
 function HighlightPopup({
   highlight,
-  canDelete,
-  onDelete,
+  canResolve,
+  isResolved,
+  onResolve,
 }: {
   highlight: AnnotationHighlight
-  canDelete: boolean
-  onDelete: () => void
+  canResolve: boolean
+  isResolved: boolean
+  onResolve: (resolved: boolean) => void
 }) {
   const bg = useColorModeValue("white", "gray.800")
   const borderColor = useColorModeValue("gray.200", "gray.600")
@@ -155,14 +177,14 @@ function HighlightPopup({
               : ""}
           </Text>
         </Box>
-        {canDelete && (
+        {canResolve && (
           <IconButton
-            aria-label="Delete comment"
-            icon={<FaTrash />}
+            aria-label={isResolved ? "Unresolve" : "Resolve"}
+            icon={isResolved ? <FaUndo /> : <FaCheck />}
             size="xs"
             variant="ghost"
-            colorScheme="red"
-            onClick={onDelete}
+            colorScheme={isResolved ? "gray" : "green"}
+            onClick={() => onResolve(!isResolved)}
           />
         )}
       </Flex>
@@ -195,29 +217,34 @@ export function CommentList({
   highlights,
   scrollToHighlight,
   currentUserId,
-  onDelete,
+  onResolve,
 }: {
   comments: PublicationComment[]
   highlights: AnnotationHighlight[]
   scrollToHighlight: (h: AnnotationHighlight) => void
   currentUserId: string | undefined
-  onDelete: (id: string) => void
+  onResolve: (id: string, resolved: boolean) => void
 }) {
   const bg = useColorModeValue("ui.secondary", "ui.darkSlate")
   const borderColor = useColorModeValue("gray.200", "gray.600")
+  const [showResolved, setShowResolved] = useState(false)
 
-  const withHighlight = comments.filter((c) => c.highlight)
-  const withoutHighlight = comments.filter((c) => !c.highlight)
+  const filtered = showResolved ? comments : comments.filter((c) => !c.resolved)
+
+  const withHighlight = filtered.filter((c) => c.highlight)
+  const withoutHighlight = filtered.filter((c) => !c.highlight)
 
   const renderComment = (c: PublicationComment) => {
     const hl = highlights.find((h) => h.dbId === c.id)
+    const isResolved = !!c.resolved
     return (
       <Box
         key={c.id}
         p={3}
         borderWidth={1}
-        borderColor={borderColor}
+        borderColor={isResolved ? "green.200" : borderColor}
         borderRadius="md"
+        opacity={isResolved ? 0.7 : 1}
         cursor={hl ? "pointer" : "default"}
         _hover={hl ? { borderColor: "yellow.400" } : undefined}
         onClick={() => hl && scrollToHighlight(hl)}
@@ -233,16 +260,25 @@ export function CommentList({
           <Text fontSize="xs" color="gray.500" ml="auto">
             {c.created ? new Date(c.created).toLocaleDateString() : ""}
           </Text>
+          {c.external_url && (
+            <Link
+              href={c.external_url}
+              isExternal
+              onClick={(e) => e.stopPropagation()}
+            >
+              <FaLink size={10} />
+            </Link>
+          )}
           {!!currentUserId && (
             <IconButton
-              aria-label="Delete"
-              icon={<FaTrash />}
+              aria-label={isResolved ? "Unresolve" : "Resolve"}
+              icon={isResolved ? <FaUndo /> : <FaCheck />}
               size="xs"
               variant="ghost"
-              colorScheme="red"
+              colorScheme={isResolved ? "gray" : "green"}
               onClick={(e) => {
                 e.stopPropagation()
-                if (c.id) onDelete(c.id)
+                if (c.id) onResolve(c.id, !isResolved)
               }}
             />
           )}
@@ -269,33 +305,40 @@ export function CommentList({
     )
   }
 
-  if (comments.length === 0) {
-    return (
-      <Box bg={bg} borderRadius="lg" p={3} h="fit-content">
-        <Heading size="sm" mb={2}>
-          Comments
-        </Heading>
-        <Text fontSize="sm" color="gray.500">
-          Select text in the PDF to add a comment.
-        </Text>
-      </Box>
-    )
-  }
-
   return (
     <Box bg={bg} borderRadius="lg" p={3}>
-      <Heading size="sm" mb={3}>
-        Comments ({comments.length})
-      </Heading>
-      <VStack align="stretch" spacing={2}>
-        {withHighlight.map(renderComment)}
-        {withoutHighlight.length > 0 && withHighlight.length > 0 && (
-          <Text fontSize="xs" color="gray.500" pt={1}>
-            General comments
+      <Flex align="center" justify="space-between" mb={3}>
+        <Heading size="sm">
+          Comments ({comments.filter((c) => !c.resolved).length} open)
+        </Heading>
+        <Flex align="center" gap={1}>
+          <Text fontSize="xs" color="gray.500">
+            Resolved
           </Text>
-        )}
-        {withoutHighlight.map(renderComment)}
-      </VStack>
+          <Switch
+            size="sm"
+            isChecked={showResolved}
+            onChange={(e) => setShowResolved(e.target.checked)}
+          />
+        </Flex>
+      </Flex>
+      {filtered.length === 0 ? (
+        <Text fontSize="sm" color="gray.500">
+          {comments.length === 0
+            ? "Select text in the PDF to add a comment."
+            : "No open comments."}
+        </Text>
+      ) : (
+        <VStack align="stretch" spacing={2}>
+          {withHighlight.map(renderComment)}
+          {withoutHighlight.length > 0 && withHighlight.length > 0 && (
+            <Text fontSize="xs" color="gray.500" pt={1}>
+              General comments
+            </Text>
+          )}
+          {withoutHighlight.map(renderComment)}
+        </VStack>
+      )}
     </Box>
   )
 }
@@ -321,6 +364,13 @@ export default function PdfAnnotator({
 }: PdfAnnotatorProps) {
   const { user } = useAuth()
   const queryClient = useQueryClient()
+  // Unique key per PdfAnnotator mount. Combined with url, this ensures
+  // PdfHighlighter (a class component) always gets a fresh instance when
+  // either the URL changes or this component remounts — preventing React
+  // StrictMode's double-invoke of componentDidMount from reusing the same
+  // PDFViewer instance and causing duplicate page renders.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const mountKey = useMemo(() => Math.random().toString(36).slice(2), [])
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const scrollRef = useRef<(h: any) => void>(() => {})
 
@@ -344,6 +394,7 @@ export default function PdfAnnotator({
     mutationFn: (data: {
       comment: string
       highlight: Record<string, unknown> | null
+      create_github_issue: boolean
     }) =>
       ProjectsService.postPublicationComment({
         ownerName,
@@ -352,6 +403,7 @@ export default function PdfAnnotator({
           publication_path: publicationPath,
           comment: data.comment,
           highlight: data.highlight,
+          create_github_issue: data.create_github_issue,
         },
       }),
     onSuccess: () => {
@@ -367,12 +419,16 @@ export default function PdfAnnotator({
     },
   })
 
-  const deleteMutation = useMutation({
-    mutationFn: (commentId: string) =>
-      ProjectsService.deletePublicationComment({
+  const resolveMutation = useMutation({
+    mutationFn: ({
+      commentId,
+      resolved,
+    }: { commentId: string; resolved: boolean }) =>
+      ProjectsService.patchPublicationComment({
         ownerName,
         projectName,
         commentId,
+        requestBody: { resolved },
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({
@@ -397,23 +453,25 @@ export default function PdfAnnotator({
   }, [])
 
   const handleAddHighlight = useCallback(
-    (newHighlight: NewHighlight, commentText: string) => {
+    (newHighlight: NewHighlight, commentText: string, createIssue: boolean) => {
       postMutation.mutate({
         comment: commentText,
         highlight: {
           position: newHighlight.position as unknown as Record<string, unknown>,
           content: newHighlight.content as unknown as Record<string, unknown>,
         },
+        create_github_issue: createIssue,
       })
     },
     [postMutation],
   )
 
   return (
-    <Box position="relative" overflow="hidden" borderRadius="lg" height="100%">
+    <Box position="relative" height="100%" overflow="hidden">
       <PdfLoader url={url} beforeLoad={<Spinner color="ui.main" />}>
         {(pdfDocument) => (
           <PdfHighlighter
+            key={`${mountKey}-${url}`}
             pdfDocument={pdfDocument}
             enableAreaSelection={(e) => e.altKey}
             onScrollChange={() => {}}
@@ -424,10 +482,11 @@ export default function PdfAnnotator({
             onSelectionFinished={(position, content, hideTip) =>
               user ? (
                 <AddCommentTip
-                  onConfirm={(text) => {
+                  onConfirm={(text, createIssue) => {
                     handleAddHighlight(
                       { position, content, comment: { text, emoji: "" } },
                       text,
+                      createIssue,
                     )
                     hideTip()
                   }}
@@ -464,9 +523,13 @@ export default function PdfAnnotator({
                   popupContent={
                     <HighlightPopup
                       highlight={annotHL}
-                      canDelete={!!user}
-                      onDelete={() => {
-                        deleteMutation.mutate(annotHL.dbId)
+                      canResolve={!!user}
+                      isResolved={annotHL.resolved}
+                      onResolve={(resolved) => {
+                        resolveMutation.mutate({
+                          commentId: annotHL.dbId,
+                          resolved,
+                        })
                         hideTip()
                       }}
                     />

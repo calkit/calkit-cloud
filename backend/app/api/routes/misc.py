@@ -19,6 +19,7 @@ from app.models import (
     DiscountCode,
     DiscountCodePost,
     Message,
+    Notification,
     Org,
     Project,
     User,
@@ -356,3 +357,51 @@ def global_search(
         )
 
     return SearchResults(results=results)
+
+
+@router.get("/notifications")
+def get_notifications(
+    current_user: CurrentUser,
+    session: SessionDep,
+    unread_only: bool = False,
+) -> list[Notification]:
+    query = select(Notification).where(Notification.user_id == current_user.id)
+    if unread_only:
+        query = query.where(Notification.read.is_(None))  # type: ignore
+    query = query.order_by(Notification.created.desc()).limit(50)  # type: ignore
+    return session.exec(query).fetchall()
+
+
+@router.patch("/notifications/{notification_id}/read")
+def mark_notification_read(
+    notification_id: uuid.UUID,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> Notification:
+    notification = session.get(Notification, notification_id)
+    if notification is None or notification.user_id != current_user.id:
+        raise HTTPException(404)
+    if notification.read is None:
+        notification.read = utcnow()
+        session.add(notification)
+        session.commit()
+        session.refresh(notification)
+    return notification
+
+
+@router.post("/notifications/read-all", status_code=204)
+def mark_all_notifications_read(
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> None:
+    notifications = session.exec(
+        select(Notification).where(
+            Notification.user_id == current_user.id,
+            Notification.read.is_(None),  # type: ignore
+        )
+    ).fetchall()
+    now = utcnow()
+    for n in notifications:
+        n.read = now
+        session.add(n)
+    session.commit()

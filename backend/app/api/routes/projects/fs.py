@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 
 import app
 import app.projects
-from app import storage
+from app import mixpanel, storage
 from app.api.deps import CurrentUserOptional, SessionDep
 from app.config import settings
 from app.storage import get_object_url
@@ -373,6 +373,10 @@ def post_project_fs_op(
             url=url,
             http_method="PUT",
             headers=put_headers,
+        )
+    if current_user is not None:
+        mixpanel.user_performed_fs_op(
+            current_user, owner_name, project_name, operation
         )
     return FsOpResponse(backend=backend, access=access)
 
