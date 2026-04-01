@@ -12,7 +12,6 @@ import {
   MenuList,
   MenuItem,
   useDisclosure,
-  Spinner,
   Badge,
   Code,
   HStack,
@@ -212,16 +211,18 @@ function Publications() {
       "projects",
       accountName,
       projectName,
-      "publication-comments",
+      "comments",
+      "publication",
       selectedPub?.path ?? "",
     ],
     queryFn: () =>
-      ProjectsService.getPublicationComments({
+      ProjectsService.getProjectComments({
         ownerName: accountName,
         projectName,
-        publicationPath: selectedPub!.path,
+        artifactType: "publication",
+        artifactPath: selectedPub!.path,
       }),
-    enabled: isPdf && !!selectedPub,
+    enabled: !!selectedPub,
   })
 
   const resolvePubCommentMutation = useMutation({
@@ -232,7 +233,7 @@ function Publications() {
       commentId: string
       resolved: boolean
     }) =>
-      ProjectsService.patchPublicationComment({
+      ProjectsService.patchProjectComment({
         ownerName: accountName,
         projectName,
         commentId,
@@ -244,7 +245,8 @@ function Publications() {
           "projects",
           accountName,
           projectName,
-          "publication-comments",
+          "comments",
+          "publication",
           selectedPub?.path,
         ],
       })
@@ -389,7 +391,7 @@ function Publications() {
                   projectName={projectName}
                   userHasWriteAccess={userHasWriteAccess}
                 />
-                {isPdf && (
+                {selectedPub && (
                   <CommentList
                     comments={pdfComments}
                     highlights={pdfHighlights}
@@ -398,6 +400,7 @@ function Publications() {
                     ownerName={accountName}
                     projectName={projectName}
                     publicationPath={selectedPub.path}
+                    isLoading={commentsQuery.isPending}
                     resolvingId={
                       resolvePubCommentMutation.isPending
                         ? resolvePubCommentMutation.variables?.commentId

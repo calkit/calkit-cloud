@@ -274,7 +274,7 @@ function FigureComments({
           ? await OpenAPI.TOKEN({} as never)
           : OpenAPI.TOKEN
       return axios.post(
-        `${OpenAPI.BASE}/projects/${ownerName}/${projectName}/figure-comments/${commentId}/replies`,
+        `${OpenAPI.BASE}/projects/${ownerName}/${projectName}/comments/${commentId}/replies`,
         { body },
         { headers: { Authorization: `Bearer ${token}` } },
       )
@@ -283,18 +283,26 @@ function FigureComments({
       setReplyingToId(null)
       setReplyDraft("")
       queryClient.invalidateQueries({
-        queryKey: ["projects", ownerName, projectName, "figure-comments", path],
+        queryKey: [
+          "projects",
+          ownerName,
+          projectName,
+          "comments",
+          "figure",
+          path,
+        ],
       })
     },
   })
 
   const commentsQuery = useQuery({
-    queryKey: ["projects", ownerName, projectName, "figure-comments", path],
+    queryKey: ["projects", ownerName, projectName, "comments", "figure", path],
     queryFn: () =>
-      ProjectsService.getFigureComments({
+      ProjectsService.getProjectComments({
         ownerName,
         projectName,
-        figurePath: path,
+        artifactType: "figure",
+        artifactPath: path,
       }),
   })
 
@@ -302,11 +310,12 @@ function FigureComments({
 
   const postMutation = useMutation({
     mutationFn: () =>
-      ProjectsService.postFigureComment({
+      ProjectsService.postProjectComment({
         ownerName,
         projectName,
         requestBody: {
-          figure_path: path,
+          artifact_path: path,
+          artifact_type: "figure",
           comment: draft,
           create_github_issue: createIssue,
         },
@@ -314,7 +323,14 @@ function FigureComments({
     onSuccess: () => {
       setDraft("")
       queryClient.invalidateQueries({
-        queryKey: ["projects", ownerName, projectName, "figure-comments", path],
+        queryKey: [
+          "projects",
+          ownerName,
+          projectName,
+          "comments",
+          "figure",
+          path,
+        ],
       })
       queryClient.invalidateQueries({
         queryKey: ["projects", ownerName, projectName, "figures"],
@@ -330,7 +346,7 @@ function FigureComments({
       commentId: string
       resolved: boolean
     }) =>
-      ProjectsService.patchFigureComment({
+      ProjectsService.patchProjectComment({
         ownerName,
         projectName,
         commentId,
@@ -338,7 +354,14 @@ function FigureComments({
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: ["projects", ownerName, projectName, "figure-comments", path],
+        queryKey: [
+          "projects",
+          ownerName,
+          projectName,
+          "comments",
+          "figure",
+          path,
+        ],
       })
     },
   })

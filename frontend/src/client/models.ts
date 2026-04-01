@@ -80,8 +80,8 @@ export type Collaborator = {
   access_level: string
 }
 
-export type CommentResolvePatch = {
-  resolved: boolean
+export type CommentReply = {
+  body: string
 }
 
 export type ConnectedAccounts = {
@@ -260,29 +260,6 @@ export type Figure = {
   content?: string | null
   url?: string | null
   comment_count?: number
-}
-
-export type FigureComment = {
-  id?: string
-  project_id: string
-  figure_path: string
-  user_id: string
-  created?: string
-  updated?: string
-  external_url?: string | null
-  resolved?: string | null
-  comment: string
-  parent_id?: string | null
-  readonly user_github_username: string
-  readonly user_full_name: string | null
-  readonly user_email: string
-}
-
-export type FigureCommentPost = {
-  figure_path: string
-  comment: string
-  create_github_issue?: boolean
-  parent_id?: string | null
 }
 
 export type FileLock = {
@@ -491,6 +468,7 @@ export type Notification = {
   id?: string
   user_id: string
   project_id: string
+  project_comment_id?: string | null
   message: string
   link: string
   read?: string | null
@@ -627,6 +605,51 @@ export type ProjectApp = {
   description?: string | null
 }
 
+/**
+ * A unified comment on any project artifact or on the project itself.
+ *
+ * ``artifact_type`` is one of 'figure', 'publication', 'notebook', 'file',
+ * or None for a project-level comment. ``artifact_path`` is the repo-relative
+ * path of the artifact (None for project-level comments).
+ *
+ * ``highlight`` carries a portable PDF annotation position (react-pdf-highlighter
+ * format) and is only populated for publication comments.
+ *
+ * ``parent_id`` enables flat one-level threading: replies point to the
+ * top-level comment. No nested replies are stored beyond one level in the UI,
+ * though the schema permits it for future use.
+ */
+export type ProjectComment = {
+  id?: string
+  project_id: string
+  user_id: string
+  created?: string
+  updated?: string
+  comment: string
+  artifact_path?: string | null
+  artifact_type?: string | null
+  highlight?: Record<string, unknown> | null
+  parent_id?: string | null
+  external_url?: string | null
+  resolved?: string | null
+  readonly user_github_username: string
+  readonly user_full_name: string | null
+  readonly user_email: string
+}
+
+export type ProjectCommentPatch = {
+  resolved: boolean
+}
+
+export type ProjectCommentPost = {
+  comment: string
+  artifact_path?: string | null
+  artifact_type?: string | null
+  highlight?: Record<string, unknown> | null
+  create_github_issue?: boolean
+  parent_id?: string | null
+}
+
 export type ProjectOptionalExtended = {
   name: string
   title: string
@@ -722,44 +745,6 @@ export type Publication = {
   stage_info?: DvcPipelineStage | null
   url?: string | null
   overleaf?: PublicationOverleaf | null
-}
-
-/**
- * A comment (optionally with a PDF highlight) on a publication.
- *
- * The ``highlight`` field stores a portable JSON object compatible with the
- * react-pdf-highlighter position format so the data can be synced to git
- * objects (e.g. via a git-bug-style process) without schema changes.
- *
- * ``git_ref`` is reserved for a future sync process that writes comment
- * threads into the git object store so they travel with the repo.
- * ``external_url`` is reserved for linking to a GitHub issue or PR created
- * from this comment.
- */
-export type PublicationComment = {
-  id?: string
-  project_id: string
-  publication_path: string
-  user_id: string
-  created?: string
-  updated?: string
-  comment: string
-  highlight?: Record<string, unknown> | null
-  git_ref?: string | null
-  external_url?: string | null
-  resolved?: string | null
-  parent_id?: string | null
-  readonly user_github_username: string
-  readonly user_full_name: string | null
-  readonly user_email: string
-}
-
-export type PublicationCommentPost = {
-  publication_path: string
-  comment: string
-  highlight?: Record<string, unknown> | null
-  create_github_issue?: boolean
-  parent_id?: string | null
 }
 
 export type PublicationOverleaf = {

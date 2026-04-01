@@ -77,11 +77,10 @@ from app.models import (
     Dataset,
     DatasetForImport,
     Figure,
-    FigureComment,
-    FigureCommentPost,
     Notification,
-    PublicationComment,
-    PublicationCommentPost,
+    ProjectComment,
+    ProjectCommentPatch,
+    ProjectCommentPost,
     FileLock,
     Message,
     Notebook,
@@ -1490,9 +1489,15 @@ def get_project_figures(
 
     comment_counts = dict(
         session.exec(
-            select(FigureComment.figure_path, sqlfunc.count(FigureComment.id))
-            .where(FigureComment.project_id == project.id)
-            .group_by(FigureComment.figure_path)
+            select(
+                ProjectComment.artifact_path, sqlfunc.count(ProjectComment.id)
+            )
+            .where(
+                ProjectComment.project_id == project.id,
+                ProjectComment.artifact_type == "figure",
+                ProjectComment.parent_id == None,  # noqa: E711
+            )
+            .group_by(ProjectComment.artifact_path)
         ).all()
     )
     # Get the figure content and base64 encode it
@@ -1669,48 +1674,19 @@ def post_project_figure(
     )
 
 
-@router.get("/projects/{owner_name}/{project_name}/figure-comments")
-def get_figure_comments(
-    owner_name: str,
-    project_name: str,
-    current_user: CurrentUserOptional,
-    session: SessionDep,
-    figure_path: str | None = None,
-) -> list[FigureComment]:
-    project = app.projects.get_project(
-        session=session,
-        owner_name=owner_name,
-        project_name=project_name,
-        current_user=current_user,
-        min_access_level="read",
-    )
-    query = select(FigureComment).where(FigureComment.project_id == project.id)
-    if figure_path is not None:
-        query = query.where(FigureComment.figure_path == figure_path)
-    comments = list(session.exec(query).fetchall())
-    _sync_github_issue_resolutions(session, comments, current_user)
-    return comments
-
-
-class CommentResolvePatch(BaseModel):
-    resolved: bool
-
-
 class CommentReply(BaseModel):
     body: str
 
 
-@router.patch(
-    "/projects/{owner_name}/{project_name}/figure-comments/{comment_id}"
-)
-def patch_figure_comment(
+@router.get("/projects/{owner_name}/{project_name}/comments")
+def get_project_comments(
     owner_name: str,
     project_name: str,
-    comment_id: uuid.UUID,
-    patch: CommentResolvePatch,
-    current_user: CurrentUser,
+    current_user: CurrentUserOptional,
     session: SessionDep,
-) -> FigureComment:
+    artifact_type: str | None = None,
+    artifact_path: str | None = None,
+) -> list[ProjectComment]:
     project = app.projects.get_project(
         session=session,
         owner_name=owner_name,
@@ -1718,7 +1694,140 @@ def patch_figure_comment(
         current_user=current_user,
         min_access_level="read",
     )
-    comment = session.get(FigureComment, comment_id)
+    query = select(ProjectComment).where(
+        ProjectComment.project_id == project.id
+    )
+    if artifact_type is not None:
+        query = query.where(ProjectComment.artifact_type == artifact_type)
+    if artifact_path is not None:
+        query = query.where(ProjectComment.artifact_path == artifact_path)
+    comments = session.exec(query).all()
+    _sync_github_issue_resolutions(session, comments, current_user)
+    return comments
+
+
+@router.post("/projects/{owner_name}/{project_name}/comments")
+def post_project_comment(
+    owner_name: str,
+    project_name: str,
+    comment_in: ProjectCommentPost,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> ProjectComment:
+    project = app.projects.get_project(
+        session=session,
+        owner_name=owner_name,
+        project_name=project_name,
+        current_user=current_user,
+        min_access_level="write",
+    )
+    # For figure comments, verify the path exists in the repo
+    if comment_in.artifact_type == "figure" and comment_in.artifact_path:
+        repo = get_repo(
+            project=project,
+            user=current_user,
+            session=session,
+            ttl=DEFAULT_REPO_TTL,
+        )
+        ck_info = get_ck_info_from_repo(repo)
+        fig_paths = {fig["path"] for fig in ck_info.get("figures", [])}
+        if comment_in.artifact_path not in fig_paths:
+            try:
+                repo.head.commit.tree[comment_in.artifact_path]
+            except KeyError:
+                raise HTTPException(404)
+    comment = ProjectComment(
+        project_id=project.id,
+        artifact_path=comment_in.artifact_path,
+        artifact_type=comment_in.artifact_type,
+        comment=comment_in.comment,
+        highlight=comment_in.highlight,
+        user_id=current_user.id,
+        parent_id=comment_in.parent_id,
+    )
+    session.add(comment)
+    session.flush()
+    if comment_in.create_github_issue and comment_in.artifact_path:
+        app_base = settings.frontend_host.rstrip("/")
+        route_map = {
+            "figure": "figures",
+            "publication": "publications",
+            "notebook": "notebooks",
+            "file": "files",
+        }
+        route = route_map.get(comment_in.artifact_type or "", "files")
+        artifact_link = (
+            f"{app_base}/{owner_name}/{project_name}/{route}"
+            f"?path={comment_in.artifact_path}"
+        )
+        body_lines = [
+            f"Comment on [{comment_in.artifact_path}]({artifact_link}):",
+            "",
+            comment_in.comment,
+        ]
+        if comment_in.highlight:
+            highlighted_text = comment_in.highlight.get("content", {}).get(
+                "text", ""
+            )
+            if highlighted_text:
+                body_lines += ["", f"> {highlighted_text}"]
+        issue_url = _try_create_github_issue(
+            session=session,
+            current_user=current_user,
+            project=project,
+            title=f"Comment on {comment_in.artifact_type or 'project'}: {comment_in.artifact_path}",
+            body="\n".join(body_lines),
+        )
+        if issue_url:
+            comment.external_url = issue_url
+    commenter_name = current_user.full_name or current_user.account.github_name
+    if comment_in.artifact_path:
+        route_map = {
+            "figure": "figures",
+            "publication": "publications",
+            "notebook": "notebooks",
+            "file": "files",
+        }
+        route = route_map.get(comment_in.artifact_type or "", "files")
+        _fan_out_notifications(
+            session=session,
+            project=project,
+            commenter_id=current_user.id,
+            message=f"{commenter_name} commented on {comment_in.artifact_path}",
+            link=f"/{owner_name}/{project_name}/{route}?path={comment_in.artifact_path}",
+        )
+    session.commit()
+    session.refresh(comment)
+    mixpanel.track(
+        current_user,
+        "Posted project comment",
+        {
+            "owner_name": owner_name,
+            "project_name": project_name,
+            "artifact_type": comment_in.artifact_type,
+            "has_highlight": bool(comment_in.highlight),
+        },
+    )
+    return comment
+
+
+@router.patch("/projects/{owner_name}/{project_name}/comments/{comment_id}")
+def patch_project_comment(
+    owner_name: str,
+    project_name: str,
+    comment_id: uuid.UUID,
+    patch: ProjectCommentPatch,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> ProjectComment:
+    project = app.projects.get_project(
+        session=session,
+        owner_name=owner_name,
+        project_name=project_name,
+        current_user=current_user,
+        min_access_level="read",
+    )
+    comment = session.get(ProjectComment, comment_id)
     if comment is None or comment.project_id != project.id:
         raise HTTPException(404)
     comment.resolved = utcnow() if patch.resolved else None
@@ -1728,22 +1837,23 @@ def patch_figure_comment(
     if patch.resolved:
         _try_close_github_issue(session, current_user, comment.external_url)
     mixpanel.user_resolved_comment(
-        current_user, owner_name, project_name, "figure", patch.resolved
+        current_user,
+        owner_name,
+        project_name,
+        comment.artifact_type or "project",
+        patch.resolved,
     )
     return comment
 
 
-@router.post(
-    "/projects/{owner_name}/{project_name}/figure-comments/{comment_id}/replies"
-)
-def post_figure_comment_reply(
+@router.delete("/projects/{owner_name}/{project_name}/comments/{comment_id}")
+def delete_project_comment(
     owner_name: str,
     project_name: str,
     comment_id: uuid.UUID,
-    reply: CommentReply,
     current_user: CurrentUser,
     session: SessionDep,
-) -> dict:
+) -> None:
     project = app.projects.get_project(
         session=session,
         owner_name=owner_name,
@@ -1751,21 +1861,44 @@ def post_figure_comment_reply(
         current_user=current_user,
         min_access_level="read",
     )
-    comment = session.get(FigureComment, comment_id)
+    comment = session.get(ProjectComment, comment_id)
+    if comment is None or comment.project_id != project.id:
+        raise HTTPException(404)
+    if comment.user_id != current_user.id:
+        raise HTTPException(403)
+    session.delete(comment)
+    session.commit()
+
+
+@router.post(
+    "/projects/{owner_name}/{project_name}/comments/{comment_id}/replies"
+)
+def post_project_comment_reply(
+    owner_name: str,
+    project_name: str,
+    comment_id: uuid.UUID,
+    reply: CommentReply,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> ProjectComment:
+    project = app.projects.get_project(
+        session=session,
+        owner_name=owner_name,
+        project_name=project_name,
+        current_user=current_user,
+        min_access_level="read",
+    )
+    comment = session.get(ProjectComment, comment_id)
     if comment is None or comment.project_id != project.id:
         raise HTTPException(404)
     if comment.external_url:
-        url = _try_post_github_issue_comment(
+        _try_post_github_issue_comment(
             session, current_user, comment.external_url, reply.body
         )
-        if url is None:
-            raise HTTPException(
-                502, detail="Failed to post comment to GitHub issue"
-            )
-    # Always store a local reply comment for display
-    reply_comment = FigureComment(
+    reply_comment = ProjectComment(
         project_id=project.id,
-        figure_path=comment.figure_path,
+        artifact_path=comment.artifact_path,
+        artifact_type=comment.artifact_type,
         comment=reply.body,
         user_id=current_user.id,
         parent_id=comment_id,
@@ -1985,292 +2118,6 @@ def _fan_out_notifications(
                 link=link,
             )
         )
-
-
-@router.post("/projects/{owner_name}/{project_name}/figure-comments")
-def post_figure_comment(
-    owner_name: str,
-    project_name: str,
-    comment_in: FigureCommentPost,
-    current_user: CurrentUser,
-    session: SessionDep,
-) -> FigureComment:
-    logger.info(
-        f"Received request to post comment to {owner_name}/{project_name}/"
-        f"{comment_in.figure_path}: {comment_in.comment}"
-    )
-    # Does this user have permission to comment on this project?
-    project = app.projects.get_project(
-        session=session,
-        owner_name=owner_name,
-        project_name=project_name,
-        current_user=current_user,
-        min_access_level="write",
-    )
-    # Verify the figure path exists in the project (declared or auto-detected)
-    repo = get_repo(
-        project=project,
-        user=current_user,
-        session=session,
-        ttl=DEFAULT_REPO_TTL,
-    )
-    ck_info = get_ck_info_from_repo(repo)
-    figures = ck_info.get("figures", [])
-    fig_paths = {fig["path"] for fig in figures}
-    if comment_in.figure_path not in fig_paths:
-        # Also accept paths that exist as files in the repo tree
-        try:
-            repo.head.commit.tree[comment_in.figure_path]
-        except KeyError:
-            raise HTTPException(404)
-    comment = FigureComment(
-        project_id=project.id,
-        figure_path=comment_in.figure_path,
-        comment=comment_in.comment,
-        user_id=current_user.id,
-        parent_id=comment_in.parent_id,
-    )
-    session.add(comment)
-    session.flush()  # get comment.id before creating the issue
-    issue_url = None
-    if comment_in.create_github_issue:
-        app_base = settings.frontend_host.rstrip("/")
-        figure_link = (
-            f"{app_base}/{owner_name}/{project_name}/figures"
-            f"?path={comment_in.figure_path}"
-        )
-        issue_url = _try_create_github_issue(
-            session=session,
-            current_user=current_user,
-            project=project,
-            title=f"Comment on figure: {comment_in.figure_path}",
-            body=(
-                f"Comment on [{comment_in.figure_path}]({figure_link}):\n\n"
-                f"{comment_in.comment}"
-            ),
-        )
-        if issue_url:
-            comment.external_url = issue_url
-    commenter_name = current_user.full_name or current_user.account.github_name
-    _fan_out_notifications(
-        session=session,
-        project=project,
-        commenter_id=current_user.id,
-        message=f"{commenter_name} commented on figure {comment_in.figure_path}",
-        link=f"/{owner_name}/{project_name}/figures?path={comment_in.figure_path}",
-    )
-    session.commit()
-    session.refresh(comment)
-    mixpanel.user_posted_figure_comment(
-        current_user, owner_name, project_name, comment_in.figure_path
-    )
-    return comment
-
-
-@router.get("/projects/{owner_name}/{project_name}/publication-comments")
-def get_publication_comments(
-    owner_name: str,
-    project_name: str,
-    current_user: CurrentUserOptional,
-    session: SessionDep,
-    publication_path: str | None = None,
-) -> list[PublicationComment]:
-    project = app.projects.get_project(
-        session=session,
-        owner_name=owner_name,
-        project_name=project_name,
-        current_user=current_user,
-        min_access_level="read",
-    )
-    query = select(PublicationComment).where(
-        PublicationComment.project_id == project.id
-    )
-    if publication_path is not None:
-        query = query.where(
-            PublicationComment.publication_path == publication_path
-        )
-    comments = list(session.exec(query).fetchall())
-    _sync_github_issue_resolutions(session, comments, current_user)
-    return comments
-
-
-@router.patch(
-    "/projects/{owner_name}/{project_name}/publication-comments/{comment_id}"
-)
-def patch_publication_comment(
-    owner_name: str,
-    project_name: str,
-    comment_id: uuid.UUID,
-    patch: CommentResolvePatch,
-    current_user: CurrentUser,
-    session: SessionDep,
-) -> PublicationComment:
-    project = app.projects.get_project(
-        session=session,
-        owner_name=owner_name,
-        project_name=project_name,
-        current_user=current_user,
-        min_access_level="read",
-    )
-    comment = session.get(PublicationComment, comment_id)
-    if comment is None or comment.project_id != project.id:
-        raise HTTPException(404)
-    comment.resolved = utcnow() if patch.resolved else None
-    session.add(comment)
-    session.commit()
-    session.refresh(comment)
-    if patch.resolved:
-        _try_close_github_issue(session, current_user, comment.external_url)
-    mixpanel.user_resolved_comment(
-        current_user, owner_name, project_name, "publication", patch.resolved
-    )
-    return comment
-
-
-@router.post(
-    "/projects/{owner_name}/{project_name}/publication-comments/{comment_id}/replies"
-)
-def post_publication_comment_reply(
-    owner_name: str,
-    project_name: str,
-    comment_id: uuid.UUID,
-    reply: CommentReply,
-    current_user: CurrentUser,
-    session: SessionDep,
-) -> dict:
-    project = app.projects.get_project(
-        session=session,
-        owner_name=owner_name,
-        project_name=project_name,
-        current_user=current_user,
-        min_access_level="read",
-    )
-    comment = session.get(PublicationComment, comment_id)
-    if comment is None or comment.project_id != project.id:
-        raise HTTPException(404)
-    if comment.external_url:
-        url = _try_post_github_issue_comment(
-            session, current_user, comment.external_url, reply.body
-        )
-        if url is None:
-            raise HTTPException(
-                502, detail="Failed to post comment to GitHub issue"
-            )
-    # Always store a local reply comment for display
-    reply_comment = PublicationComment(
-        project_id=project.id,
-        publication_path=comment.publication_path,
-        comment=reply.body,
-        user_id=current_user.id,
-        parent_id=comment_id,
-    )
-    session.add(reply_comment)
-    session.commit()
-    session.refresh(reply_comment)
-    return reply_comment
-
-
-@router.post("/projects/{owner_name}/{project_name}/publication-comments")
-def post_publication_comment(
-    owner_name: str,
-    project_name: str,
-    comment_in: PublicationCommentPost,
-    current_user: CurrentUser,
-    session: SessionDep,
-) -> PublicationComment:
-    project = app.projects.get_project(
-        session=session,
-        owner_name=owner_name,
-        project_name=project_name,
-        current_user=current_user,
-        min_access_level="write",
-    )
-    comment = PublicationComment(
-        project_id=project.id,
-        publication_path=comment_in.publication_path,
-        comment=comment_in.comment,
-        highlight=comment_in.highlight,
-        user_id=current_user.id,
-        parent_id=comment_in.parent_id,
-    )
-    session.add(comment)
-    session.flush()
-    if comment_in.create_github_issue:
-        app_base = settings.frontend_host.rstrip("/")
-        pub_link = (
-            f"{app_base}/{owner_name}/{project_name}/publications"
-            f"?path={comment_in.publication_path}"
-        )
-        highlighted_text = (
-            comment_in.highlight.get("content", {}).get("text", "")
-            if comment_in.highlight
-            else ""
-        )
-        body_lines = [
-            f"Comment on [{comment_in.publication_path}]({pub_link}):",
-            "",
-            comment_in.comment,
-        ]
-        if highlighted_text:
-            body_lines += ["", f"> {highlighted_text}"]
-        issue_url = _try_create_github_issue(
-            session=session,
-            current_user=current_user,
-            project=project,
-            title=f"Comment on publication: {comment_in.publication_path}",
-            body="\n".join(body_lines),
-        )
-        if issue_url:
-            comment.external_url = issue_url
-    commenter_name = current_user.full_name or current_user.account.github_name
-    _fan_out_notifications(
-        session=session,
-        project=project,
-        commenter_id=current_user.id,
-        message=(
-            f"{commenter_name} commented on {comment_in.publication_path}"
-        ),
-        link=(
-            f"/{owner_name}/{project_name}/publications"
-            f"?path={comment_in.publication_path}"
-        ),
-    )
-    session.commit()
-    session.refresh(comment)
-    mixpanel.user_posted_publication_comment(
-        current_user,
-        owner_name,
-        project_name,
-        comment_in.publication_path,
-        has_highlight=bool(comment_in.highlight),
-    )
-    return comment
-
-
-@router.delete(
-    "/projects/{owner_name}/{project_name}/publication-comments/{comment_id}"
-)
-def delete_publication_comment(
-    owner_name: str,
-    project_name: str,
-    comment_id: uuid.UUID,
-    current_user: CurrentUser,
-    session: SessionDep,
-) -> None:
-    project = app.projects.get_project(
-        session=session,
-        owner_name=owner_name,
-        project_name=project_name,
-        current_user=current_user,
-        min_access_level="read",
-    )
-    comment = session.get(PublicationComment, comment_id)
-    if comment is None or comment.project_id != project.id:
-        raise HTTPException(404)
-    if comment.user_id != current_user.id:
-        raise HTTPException(403)
-    session.delete(comment)
-    session.commit()
 
 
 def _sync_datasets_with_db(

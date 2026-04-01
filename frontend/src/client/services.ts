@@ -39,15 +39,13 @@ import type {
   Body_projects_post_project_publication,
   Body_projects_put_project_contents,
   Collaborator,
-  CommentResolvePatch,
+  CommentReply,
   ContentPatch,
   ContentsItem,
   Dataset,
   DatasetForImport,
   Environment,
   Figure,
-  FigureComment,
-  FigureCommentPost,
   FileLock,
   FileLockPost,
   FsOpBatchRequest,
@@ -67,6 +65,9 @@ import type {
   OverleafSyncResponse,
   Pipeline,
   ProjectApp,
+  ProjectComment,
+  ProjectCommentPatch,
+  ProjectCommentPost,
   ProjectOptionalExtended,
   ProjectPatch,
   ProjectPost,
@@ -75,8 +76,6 @@ import type {
   ProjectStatus,
   ProjectStatusPost,
   Publication,
-  PublicationComment,
-  PublicationCommentPost,
   Question,
   QuestionPost,
   References,
@@ -367,42 +366,33 @@ export type ProjectsData = {
     ref?: string | null
     ttl?: number | null
   }
-  GetFigureComments: {
-    figurePath?: string | null
+  GetProjectComments: {
+    artifactPath?: string | null
+    artifactType?: string | null
     ownerName: string
     projectName: string
   }
-  PostFigureComment: {
+  PostProjectComment: {
     ownerName: string
     projectName: string
-    requestBody: FigureCommentPost
+    requestBody: ProjectCommentPost
   }
-  PatchFigureComment: {
+  PatchProjectComment: {
     commentId: string
     ownerName: string
     projectName: string
-    requestBody: CommentResolvePatch
+    requestBody: ProjectCommentPatch
   }
-  GetPublicationComments: {
-    ownerName: string
-    projectName: string
-    publicationPath?: string | null
-  }
-  PostPublicationComment: {
-    ownerName: string
-    projectName: string
-    requestBody: PublicationCommentPost
-  }
-  PatchPublicationComment: {
+  DeleteProjectComment: {
     commentId: string
     ownerName: string
     projectName: string
-    requestBody: CommentResolvePatch
   }
-  DeletePublicationComment: {
+  PostProjectCommentReply: {
     commentId: string
     ownerName: string
     projectName: string
+    requestBody: CommentReply
   }
   GetProjectDatasets: {
     ownerName: string
@@ -2132,23 +2122,24 @@ export class ProjectsService {
   }
 
   /**
-   * Get Figure Comments
-   * @returns FigureComment Successful Response
+   * Get Project Comments
+   * @returns ProjectComment Successful Response
    * @throws ApiError
    */
-  public static getFigureComments(
-    data: ProjectsData["GetFigureComments"],
-  ): CancelablePromise<Array<FigureComment>> {
-    const { ownerName, projectName, figurePath } = data
+  public static getProjectComments(
+    data: ProjectsData["GetProjectComments"],
+  ): CancelablePromise<Array<ProjectComment>> {
+    const { ownerName, projectName, artifactType, artifactPath } = data
     return __request(OpenAPI, {
       method: "GET",
-      url: "/projects/{owner_name}/{project_name}/figure-comments",
+      url: "/projects/{owner_name}/{project_name}/comments",
       path: {
         owner_name: ownerName,
         project_name: projectName,
       },
       query: {
-        figure_path: figurePath,
+        artifact_type: artifactType,
+        artifact_path: artifactPath,
       },
       errors: {
         422: `Validation Error`,
@@ -2157,17 +2148,17 @@ export class ProjectsService {
   }
 
   /**
-   * Post Figure Comment
-   * @returns FigureComment Successful Response
+   * Post Project Comment
+   * @returns ProjectComment Successful Response
    * @throws ApiError
    */
-  public static postFigureComment(
-    data: ProjectsData["PostFigureComment"],
-  ): CancelablePromise<FigureComment> {
+  public static postProjectComment(
+    data: ProjectsData["PostProjectComment"],
+  ): CancelablePromise<ProjectComment> {
     const { ownerName, projectName, requestBody } = data
     return __request(OpenAPI, {
       method: "POST",
-      url: "/projects/{owner_name}/{project_name}/figure-comments",
+      url: "/projects/{owner_name}/{project_name}/comments",
       path: {
         owner_name: ownerName,
         project_name: projectName,
@@ -2181,17 +2172,17 @@ export class ProjectsService {
   }
 
   /**
-   * Patch Figure Comment
-   * @returns FigureComment Successful Response
+   * Patch Project Comment
+   * @returns ProjectComment Successful Response
    * @throws ApiError
    */
-  public static patchFigureComment(
-    data: ProjectsData["PatchFigureComment"],
-  ): CancelablePromise<FigureComment> {
+  public static patchProjectComment(
+    data: ProjectsData["PatchProjectComment"],
+  ): CancelablePromise<ProjectComment> {
     const { ownerName, projectName, commentId, requestBody } = data
     return __request(OpenAPI, {
       method: "PATCH",
-      url: "/projects/{owner_name}/{project_name}/figure-comments/{comment_id}",
+      url: "/projects/{owner_name}/{project_name}/comments/{comment_id}",
       path: {
         owner_name: ownerName,
         project_name: projectName,
@@ -2206,96 +2197,47 @@ export class ProjectsService {
   }
 
   /**
-   * Get Publication Comments
-   * @returns PublicationComment Successful Response
-   * @throws ApiError
-   */
-  public static getPublicationComments(
-    data: ProjectsData["GetPublicationComments"],
-  ): CancelablePromise<Array<PublicationComment>> {
-    const { ownerName, projectName, publicationPath } = data
-    return __request(OpenAPI, {
-      method: "GET",
-      url: "/projects/{owner_name}/{project_name}/publication-comments",
-      path: {
-        owner_name: ownerName,
-        project_name: projectName,
-      },
-      query: {
-        publication_path: publicationPath,
-      },
-      errors: {
-        422: `Validation Error`,
-      },
-    })
-  }
-
-  /**
-   * Post Publication Comment
-   * @returns PublicationComment Successful Response
-   * @throws ApiError
-   */
-  public static postPublicationComment(
-    data: ProjectsData["PostPublicationComment"],
-  ): CancelablePromise<PublicationComment> {
-    const { ownerName, projectName, requestBody } = data
-    return __request(OpenAPI, {
-      method: "POST",
-      url: "/projects/{owner_name}/{project_name}/publication-comments",
-      path: {
-        owner_name: ownerName,
-        project_name: projectName,
-      },
-      body: requestBody,
-      mediaType: "application/json",
-      errors: {
-        422: `Validation Error`,
-      },
-    })
-  }
-
-  /**
-   * Patch Publication Comment
-   * @returns PublicationComment Successful Response
-   * @throws ApiError
-   */
-  public static patchPublicationComment(
-    data: ProjectsData["PatchPublicationComment"],
-  ): CancelablePromise<PublicationComment> {
-    const { ownerName, projectName, commentId, requestBody } = data
-    return __request(OpenAPI, {
-      method: "PATCH",
-      url: "/projects/{owner_name}/{project_name}/publication-comments/{comment_id}",
-      path: {
-        owner_name: ownerName,
-        project_name: projectName,
-        comment_id: commentId,
-      },
-      body: requestBody,
-      mediaType: "application/json",
-      errors: {
-        422: `Validation Error`,
-      },
-    })
-  }
-
-  /**
-   * Delete Publication Comment
+   * Delete Project Comment
    * @returns unknown Successful Response
    * @throws ApiError
    */
-  public static deletePublicationComment(
-    data: ProjectsData["DeletePublicationComment"],
+  public static deleteProjectComment(
+    data: ProjectsData["DeleteProjectComment"],
   ): CancelablePromise<unknown> {
     const { ownerName, projectName, commentId } = data
     return __request(OpenAPI, {
       method: "DELETE",
-      url: "/projects/{owner_name}/{project_name}/publication-comments/{comment_id}",
+      url: "/projects/{owner_name}/{project_name}/comments/{comment_id}",
       path: {
         owner_name: ownerName,
         project_name: projectName,
         comment_id: commentId,
       },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Post Project Comment Reply
+   * @returns ProjectComment Successful Response
+   * @throws ApiError
+   */
+  public static postProjectCommentReply(
+    data: ProjectsData["PostProjectCommentReply"],
+  ): CancelablePromise<ProjectComment> {
+    const { ownerName, projectName, commentId, requestBody } = data
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/projects/{owner_name}/{project_name}/comments/{comment_id}/replies",
+      path: {
+        owner_name: ownerName,
+        project_name: projectName,
+        comment_id: commentId,
+      },
+      body: requestBody,
+      mediaType: "application/json",
       errors: {
         422: `Validation Error`,
       },

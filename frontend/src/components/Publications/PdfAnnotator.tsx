@@ -45,7 +45,7 @@ import "react-pdf-highlighter/dist/style.css"
 import { FaCheck, FaUndo, FaGithub } from "react-icons/fa"
 import { ExternalLinkIcon } from "@chakra-ui/icons"
 
-import { ProjectsService, type PublicationComment, OpenAPI } from "../../client"
+import { ProjectsService, type ProjectComment, OpenAPI } from "../../client"
 import useAuth from "../../hooks/useAuth"
 import axios from "axios"
 
@@ -61,7 +61,7 @@ export interface AnnotationHighlight extends IHighlight {
 }
 
 export function commentToHighlight(
-  c: PublicationComment,
+  c: ProjectComment,
 ): AnnotationHighlight | null {
   if (!c.highlight || !c.id) return null
   const h = c.highlight as {
@@ -230,8 +230,9 @@ export function CommentList({
   ownerName,
   projectName,
   publicationPath,
+  isLoading,
 }: {
-  comments: PublicationComment[]
+  comments: ProjectComment[]
   highlights: AnnotationHighlight[]
   scrollToHighlight: (h: AnnotationHighlight) => void
   currentUserId: string | undefined
@@ -240,6 +241,7 @@ export function CommentList({
   ownerName: string
   projectName: string
   publicationPath?: string
+  isLoading?: boolean
 }) {
   const bg = useColorModeValue("ui.secondary", "ui.darkSlate")
   const borderColor = useColorModeValue("gray.200", "gray.600")
@@ -256,11 +258,12 @@ export function CommentList({
       body,
       createIssue,
     }: { body: string; createIssue: boolean }) =>
-      ProjectsService.postPublicationComment({
+      ProjectsService.postProjectComment({
         ownerName,
         projectName,
         requestBody: {
-          publication_path: publicationPath ?? "",
+          artifact_path: publicationPath ?? "",
+          artifact_type: "publication",
           comment: body,
           create_github_issue: createIssue,
         },
@@ -274,7 +277,8 @@ export function CommentList({
           "projects",
           ownerName,
           projectName,
-          "publication-comments",
+          "comments",
+          "publication",
           publicationPath,
         ],
       })
@@ -294,7 +298,7 @@ export function CommentList({
           ? await OpenAPI.TOKEN({} as never)
           : OpenAPI.TOKEN
       return axios.post(
-        `${OpenAPI.BASE}/projects/${ownerName}/${projectName}/publication-comments/${commentId}/replies`,
+        `${OpenAPI.BASE}/projects/${ownerName}/${projectName}/comments/${commentId}/replies`,
         { body },
         { headers: { Authorization: `Bearer ${token}` } },
       )
@@ -307,7 +311,8 @@ export function CommentList({
           "projects",
           ownerName,
           projectName,
-          "publication-comments",
+          "comments",
+          "publication",
           publicationPath,
         ],
       })
@@ -324,7 +329,7 @@ export function CommentList({
   const withHighlight = filtered.filter((c) => c.highlight)
   const withoutHighlight = filtered.filter((c) => !c.highlight)
 
-  const renderComment = (c: PublicationComment, isReply = false) => {
+  const renderComment = (c: ProjectComment, isReply = false) => {
     const hl = highlights.find((h) => h.dbId === c.id)
     const isResolved = !!c.resolved
     const replies = c.id ? repliesFor(c.id) : []
@@ -476,7 +481,11 @@ export function CommentList({
           />
         </Flex>
       </Flex>
-      {filtered.length === 0 ? (
+      {isLoading ? (
+        <Flex justify="center" py={2}>
+          <Spinner size="sm" color="ui.main" />
+        </Flex>
+      ) : filtered.length === 0 ? (
         <Text fontSize="sm" color="gray.500">
           {comments.length === 0
             ? "Select text in the PDF or use the button below to add a comment."
@@ -595,14 +604,16 @@ export default function PdfAnnotator({
       "projects",
       ownerName,
       projectName,
-      "publication-comments",
+      "comments",
+      "publication",
       publicationPath,
     ],
     queryFn: () =>
-      ProjectsService.getPublicationComments({
+      ProjectsService.getProjectComments({
         ownerName,
         projectName,
-        publicationPath,
+        artifactType: "publication",
+        artifactPath: publicationPath,
       }),
   })
 
@@ -612,11 +623,12 @@ export default function PdfAnnotator({
       highlight: Record<string, unknown> | null
       create_github_issue: boolean
     }) =>
-      ProjectsService.postPublicationComment({
+      ProjectsService.postProjectComment({
         ownerName,
         projectName,
         requestBody: {
-          publication_path: publicationPath,
+          artifact_path: publicationPath,
+          artifact_type: "publication",
           comment: data.comment,
           highlight: data.highlight,
           create_github_issue: data.create_github_issue,
@@ -628,7 +640,8 @@ export default function PdfAnnotator({
           "projects",
           ownerName,
           projectName,
-          "publication-comments",
+          "comments",
+          "publication",
           publicationPath,
         ],
       })
@@ -640,7 +653,7 @@ export default function PdfAnnotator({
       commentId,
       resolved,
     }: { commentId: string; resolved: boolean }) =>
-      ProjectsService.patchPublicationComment({
+      ProjectsService.patchProjectComment({
         ownerName,
         projectName,
         commentId,
@@ -652,14 +665,15 @@ export default function PdfAnnotator({
           "projects",
           ownerName,
           projectName,
-          "publication-comments",
+          "comments",
+          "publication",
           publicationPath,
         ],
       })
     },
   })
 
-  const comments = commentsQuery.data ?? []
+  const comments: ProjectComment[] = commentsQuery.data ?? []
   const highlights: AnnotationHighlight[] = comments
     .map(commentToHighlight)
     .filter((h): h is AnnotationHighlight => h !== null)

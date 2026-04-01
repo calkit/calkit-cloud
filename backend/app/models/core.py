@@ -196,11 +196,7 @@ class User(UserBase, table=True):
         back_populates="user",
         cascade_delete=True,
     )
-    figure_comments: list["FigureComment"] = Relationship(
-        back_populates="user",
-        cascade_delete=True,
-    )
-    publication_comments: list["PublicationComment"] = Relationship(
+    project_comments: list["ProjectComment"] = Relationship(
         back_populates="user",
         cascade_delete=True,
     )
@@ -476,10 +472,7 @@ class Project(ProjectBase, table=True):
     file_locks: list["FileLock"] = Relationship(
         back_populates="project", cascade_delete=True
     )
-    figure_comments: list["FigureComment"] = Relationship(
-        back_populates="project", cascade_delete=True
-    )
-    publication_comments: list["PublicationComment"] = Relationship(
+    project_comments: list["ProjectComment"] = Relationship(
         back_populates="project", cascade_delete=True
     )
     notifications: list["Notification"] = Relationship(
@@ -616,89 +609,46 @@ class Figure(SQLModel):
     # TODO: Add content, or maybe we can just get from Git contents via path?
 
 
-class FigureComment(SQLModel, table=True):
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    project_id: uuid.UUID = Field(foreign_key="project.id")
-    figure_path: str = Field(max_length=255)
-    user_id: uuid.UUID = Field(foreign_key="user.id")
-    created: datetime = Field(default_factory=utcnow)
-    updated: datetime = Field(default_factory=utcnow)
-    external_url: str | None = Field(default=None, max_length=2048)
-    # None = unresolved; set to the timestamp when the comment is resolved
-    resolved: datetime | None = Field(default=None)
-    comment: str
-    # Parent comment ID for threaded replies
-    parent_id: uuid.UUID | None = Field(
-        default=None,
-        foreign_key="figurecomment.id",
-    )
-    # Relationships
-    user: User = Relationship(back_populates="figure_comments")
-    project: Project = Relationship(back_populates="figure_comments")
+class ProjectComment(SQLModel, table=True):
+    """A unified comment on any project artifact or on the project itself.
 
-    @computed_field
-    @property
-    def user_github_username(self) -> str:
-        return self.user.github_username
+    ``artifact_type`` is one of 'figure', 'publication', 'notebook', 'file',
+    or None for a project-level comment. ``artifact_path`` is the repo-relative
+    path of the artifact (None for project-level comments).
 
-    @computed_field
-    @property
-    def user_full_name(self) -> str | None:
-        return self.user.full_name
+    ``highlight`` carries a portable PDF annotation position (react-pdf-highlighter
+    format) and is only populated for publication comments.
 
-    @computed_field
-    @property
-    def user_email(self) -> str:
-        return self.user.email
-
-
-class FigureCommentPost(SQLModel):
-    figure_path: str
-    comment: str
-    create_github_issue: bool = True
-    parent_id: uuid.UUID | None = None
-
-
-class PublicationComment(SQLModel, table=True):
-    """A comment (optionally with a PDF highlight) on a publication.
-
-    The ``highlight`` field stores a portable JSON object compatible with the
-    react-pdf-highlighter position format so the data can be synced to git
-    objects (e.g. via a git-bug-style process) without schema changes.
-
-    ``git_ref`` is reserved for a future sync process that writes comment
-    threads into the git object store so they travel with the repo.
-    ``external_url`` is reserved for linking to a GitHub issue or PR created
-    from this comment.
+    ``parent_id`` enables flat one-level threading: replies point to the
+    top-level comment. No nested replies are stored beyond one level in the UI,
+    though the schema permits it for future use.
     """
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     project_id: uuid.UUID = Field(foreign_key="project.id")
-    publication_path: str = Field(max_length=255)
     user_id: uuid.UUID = Field(foreign_key="user.id")
     created: datetime = Field(default_factory=utcnow)
     updated: datetime = Field(default_factory=utcnow)
-    comment: str
-    # Portable highlight position — stored as-is from react-pdf-highlighter.
-    # Shape: {position: {boundingRect, rects, pageNumber}, content: {text?}}
+    comment: str = Field(
+        sa_column=sqlalchemy.Column(sqlalchemy.Text, nullable=False)
+    )
+    artifact_path: str | None = Field(default=None, max_length=512)
+    artifact_type: str | None = Field(default=None, max_length=50)
+    # Portable PDF highlight — only used for publication comments
     highlight: dict | None = Field(
         default=None,
         sa_column=sqlalchemy.Column(sqlalchemy.JSON, nullable=True),
     )
-    # Reserved for future git-object sync (e.g. git-bug-style refs/calkit/…)
-    git_ref: str | None = Field(default=None, max_length=255)
-    # URL of the linked external tracker item (e.g. GitHub issue)
-    external_url: str | None = Field(default=None, max_length=2048)
-    # None = unresolved; set to the timestamp when the comment is resolved
-    resolved: datetime | None = Field(default=None)
-    # Parent comment ID for threaded replies
+    # Parent comment ID for threaded replies (one level deep in the UI)
     parent_id: uuid.UUID | None = Field(
         default=None,
-        foreign_key="publicationcomment.id",
+        foreign_key="projectcomment.id",
     )
+    external_url: str | None = Field(default=None, max_length=2048)
+    resolved: datetime | None = Field(default=None)
     # Relationships
-    user: User = Relationship(back_populates="publication_comments")
-    project: Project = Relationship(back_populates="publication_comments")
+    user: User = Relationship(back_populates="project_comments")
+    project: Project = Relationship(back_populates="project_comments")
 
     @computed_field
     @property
@@ -716,12 +666,17 @@ class PublicationComment(SQLModel, table=True):
         return self.user.email
 
 
-class PublicationCommentPost(SQLModel):
-    publication_path: str
+class ProjectCommentPost(SQLModel):
     comment: str
+    artifact_path: str | None = None
+    artifact_type: str | None = None
     highlight: dict | None = None
     create_github_issue: bool = True
     parent_id: uuid.UUID | None = None
+
+
+class ProjectCommentPatch(SQLModel):
+    resolved: bool
 
 
 class Notification(SQLModel, table=True):
@@ -736,6 +691,9 @@ class Notification(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(foreign_key="user.id")
     project_id: uuid.UUID = Field(foreign_key="project.id")
+    project_comment_id: uuid.UUID | None = Field(
+        default=None, foreign_key="projectcomment.id"
+    )
     # Human-readable message, e.g. "Alice commented on pub.pdf"
     message: str = Field(max_length=500)
     # Frontend deep-link, e.g. "/owner/project/publications?path=pub.pdf"

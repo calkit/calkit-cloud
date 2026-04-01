@@ -2,13 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import LoadingSpinner from "../../../../../components/Common/LoadingSpinner"
 import {
   Box,
-  Button,
   Flex,
-  Popover,
-  PopoverTrigger,
-  PopoverContent,
-  PopoverBody,
-  Spinner,
   Text,
   Icon,
   Heading,
@@ -43,7 +37,6 @@ import FileContent from "../../../../../components/Files/FileContent"
 import SelectedItemInfo from "../../../../../components/Files/SelectedItemInfo"
 import useProject from "../../../../../hooks/useProject"
 import { getProjectContentsAtRef } from "../../../../../lib/projectRefApi"
-import { RefPicker } from "../../../../../components/Common/RefPicker"
 
 const fileSearchSchema = z.object({
   path: z.string().catch(""),
@@ -239,9 +232,6 @@ function Files() {
   const { path, ref, compare_ref, compare_ref2 } = Route.useSearch()
   const navigate = useNavigate({ from: Route.fullPath })
   const { userHasWriteAccess } = useProject(accountName, projectName)
-  const [refInput, setRefInput] = useState(ref ?? "")
-  const versionPopover = useDisclosure()
-
   const {
     isPending: filesPending,
     data: files,
@@ -284,16 +274,7 @@ function Files() {
     selectedItemQuery.refetch()
   }
 
-  const applyRef = (value: string) => {
-    setRefInput(value)
-    navigate({
-      search: (prev) => ({ ...prev, ref: value || undefined }),
-    })
-    versionPopover.onClose()
-  }
-
   const clearRef = () => {
-    setRefInput("")
     navigate({ search: (prev) => ({ ...prev, ref: undefined }) })
   }
 
@@ -324,9 +305,9 @@ function Files() {
               />
             </Flex>
 
-            {/* Version selector — compact badge when a ref is active, icon button otherwise */}
-            <Box mb={3}>
-              {ref ? (
+            {/* Version badge when a ref is active */}
+            {ref && (
+              <Box mb={3}>
                 <Tag size="sm" colorScheme="blue" borderRadius="full">
                   <Icon as={FaHistory} mr={1} fontSize="10px" />
                   <TagLabel fontSize="xs" maxW="120px" isTruncated>
@@ -334,45 +315,8 @@ function Files() {
                   </TagLabel>
                   <TagCloseButton onClick={clearRef} />
                 </Tag>
-              ) : (
-                <Popover
-                  isOpen={versionPopover.isOpen}
-                  onClose={versionPopover.onClose}
-                  placement="bottom-start"
-                >
-                  <PopoverTrigger>
-                    <Button
-                      size="xs"
-                      variant="ghost"
-                      leftIcon={<Icon as={FaHistory} />}
-                      onClick={versionPopover.onOpen}
-                      color="gray.500"
-                    >
-                      Browse a version
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent
-                    w="300px"
-                    zIndex={10}
-                    bg={useColorModeValue("white", "gray.800")}
-                    borderColor={useColorModeValue("gray.200", "gray.600")}
-                  >
-                    <PopoverBody p={2}>
-                      <Text fontSize="xs" color="gray.500" mb={2}>
-                        View files at a branch, tag, or commit
-                      </Text>
-                      <RefPicker
-                        ownerName={accountName}
-                        projectName={projectName}
-                        value={refInput}
-                        onChange={applyRef}
-                        placeholder="Search branches, tags, commits…"
-                      />
-                    </PopoverBody>
-                  </PopoverContent>
-                </Popover>
-              )}
-            </Box>
+              </Box>
+            )}
             <UploadFile
               isOpen={fileUploadModal.isOpen}
               onClose={fileUploadModal.onClose}

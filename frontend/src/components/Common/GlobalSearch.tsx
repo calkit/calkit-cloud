@@ -48,6 +48,25 @@ export default function GlobalSearch() {
   const debouncedQuery = useDebounce(query, 300)
   const navigate = useNavigate()
   const containerRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  // Focus on "/" keypress (like GitHub), unless already in an input
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key !== "/") return
+      const tag = (e.target as HTMLElement).tagName
+      if (
+        tag === "INPUT" ||
+        tag === "TEXTAREA" ||
+        (e.target as HTMLElement).isContentEditable
+      )
+        return
+      e.preventDefault()
+      inputRef.current?.focus()
+    }
+    document.addEventListener("keydown", handler)
+    return () => document.removeEventListener("keydown", handler)
+  }, [])
 
   const bg = useColorModeValue("white", "gray.800")
   const borderColor = useColorModeValue("gray.200", "gray.600")
@@ -115,6 +134,7 @@ export default function GlobalSearch() {
           )}
         </InputLeftElement>
         <Input
+          ref={inputRef}
           placeholder="Search…"
           value={query}
           bg={inputBg}

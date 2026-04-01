@@ -399,10 +399,10 @@ export const $Collaborator = {
   },
 } as const
 
-export const $CommentResolvePatch = {
+export const $CommentReply = {
   properties: {
-    resolved: {
-      type: "boolean",
+    body: {
+      type: "string",
       isRequired: true,
     },
   },
@@ -1356,114 +1356,6 @@ export const $Figure = {
   },
 } as const
 
-export const $FigureComment = {
-  properties: {
-    id: {
-      type: "string",
-      format: "uuid",
-    },
-    project_id: {
-      type: "string",
-      isRequired: true,
-      format: "uuid",
-    },
-    figure_path: {
-      type: "string",
-      isRequired: true,
-      maxLength: 255,
-    },
-    user_id: {
-      type: "string",
-      isRequired: true,
-      format: "uuid",
-    },
-    created: {
-      type: "string",
-      format: "date-time",
-    },
-    updated: {
-      type: "string",
-      format: "date-time",
-    },
-    external_url: {
-      type: "any-of",
-      contains: [
-        {
-          type: "string",
-          maxLength: 2048,
-        },
-        {
-          type: "null",
-        },
-      ],
-    },
-    resolved: {
-      type: "any-of",
-      contains: [
-        {
-          type: "string",
-          format: "date-time",
-        },
-        {
-          type: "null",
-        },
-      ],
-    },
-    comment: {
-      type: "string",
-      isRequired: true,
-    },
-    parent_id: {
-      type: "any-of",
-      contains: [{ type: "string", format: "uuid" }, { type: "null" }],
-    },
-    user_github_username: {
-      type: "string",
-      isReadOnly: true,
-      isRequired: true,
-    },
-    user_full_name: {
-      type: "any-of",
-      contains: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
-      isReadOnly: true,
-      isRequired: true,
-    },
-    user_email: {
-      type: "string",
-      isReadOnly: true,
-      isRequired: true,
-    },
-  },
-} as const
-
-export const $FigureCommentPost = {
-  properties: {
-    figure_path: {
-      type: "string",
-      isRequired: true,
-    },
-    comment: {
-      type: "string",
-      isRequired: true,
-    },
-    create_github_issue: {
-      type: "boolean",
-      default: true,
-    },
-    parent_id: {
-      type: "any-of",
-      contains: [{ type: "string", format: "uuid" }, { type: "null" }],
-    },
-  },
-} as const
-
 export const $FileLock = {
   properties: {
     project_id: {
@@ -2328,6 +2220,18 @@ so the notification can deep-link directly to the relevant item.`,
       isRequired: true,
       format: "uuid",
     },
+    project_comment_id: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          format: "uuid",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
     message: {
       type: "string",
       isRequired: true,
@@ -2942,6 +2846,216 @@ export const $ProjectApp = {
       contains: [
         {
           type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+  },
+} as const
+
+export const $ProjectComment = {
+  description: `A unified comment on any project artifact or on the project itself.
+
+\`\`artifact_type\`\` is one of 'figure', 'publication', 'notebook', 'file',
+or None for a project-level comment. \`\`artifact_path\`\` is the repo-relative
+path of the artifact (None for project-level comments).
+
+\`\`highlight\`\` carries a portable PDF annotation position (react-pdf-highlighter
+format) and is only populated for publication comments.
+
+\`\`parent_id\`\` enables flat one-level threading: replies point to the
+top-level comment. No nested replies are stored beyond one level in the UI,
+though the schema permits it for future use.`,
+  properties: {
+    id: {
+      type: "string",
+      format: "uuid",
+    },
+    project_id: {
+      type: "string",
+      isRequired: true,
+      format: "uuid",
+    },
+    user_id: {
+      type: "string",
+      isRequired: true,
+      format: "uuid",
+    },
+    created: {
+      type: "string",
+      format: "date-time",
+    },
+    updated: {
+      type: "string",
+      format: "date-time",
+    },
+    comment: {
+      type: "string",
+      isRequired: true,
+    },
+    artifact_path: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          maxLength: 512,
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    artifact_type: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          maxLength: 50,
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    highlight: {
+      type: "any-of",
+      contains: [
+        {
+          type: "dictionary",
+          contains: {
+            properties: {},
+          },
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    parent_id: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          format: "uuid",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    external_url: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          maxLength: 2048,
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    resolved: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    user_github_username: {
+      type: "string",
+      isReadOnly: true,
+      isRequired: true,
+    },
+    user_full_name: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      isReadOnly: true,
+      isRequired: true,
+    },
+    user_email: {
+      type: "string",
+      isReadOnly: true,
+      isRequired: true,
+    },
+  },
+} as const
+
+export const $ProjectCommentPatch = {
+  properties: {
+    resolved: {
+      type: "boolean",
+      isRequired: true,
+    },
+  },
+} as const
+
+export const $ProjectCommentPost = {
+  properties: {
+    comment: {
+      type: "string",
+      isRequired: true,
+    },
+    artifact_path: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    artifact_type: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    highlight: {
+      type: "any-of",
+      contains: [
+        {
+          type: "dictionary",
+          contains: {
+            properties: {},
+          },
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    create_github_issue: {
+      type: "boolean",
+      default: true,
+    },
+    parent_id: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          format: "uuid",
         },
         {
           type: "null",
@@ -3596,164 +3710,6 @@ export const $Publication = {
           type: "null",
         },
       ],
-    },
-  },
-} as const
-
-export const $PublicationComment = {
-  description: `A comment (optionally with a PDF highlight) on a publication.
-
-The \`\`highlight\`\` field stores a portable JSON object compatible with the
-react-pdf-highlighter position format so the data can be synced to git
-objects (e.g. via a git-bug-style process) without schema changes.
-
-\`\`git_ref\`\` is reserved for a future sync process that writes comment
-threads into the git object store so they travel with the repo.
-\`\`external_url\`\` is reserved for linking to a GitHub issue or PR created
-from this comment.`,
-  properties: {
-    id: {
-      type: "string",
-      format: "uuid",
-    },
-    project_id: {
-      type: "string",
-      isRequired: true,
-      format: "uuid",
-    },
-    publication_path: {
-      type: "string",
-      isRequired: true,
-      maxLength: 255,
-    },
-    user_id: {
-      type: "string",
-      isRequired: true,
-      format: "uuid",
-    },
-    created: {
-      type: "string",
-      format: "date-time",
-    },
-    updated: {
-      type: "string",
-      format: "date-time",
-    },
-    comment: {
-      type: "string",
-      isRequired: true,
-    },
-    highlight: {
-      type: "any-of",
-      contains: [
-        {
-          type: "dictionary",
-          contains: {
-            properties: {},
-          },
-        },
-        {
-          type: "null",
-        },
-      ],
-    },
-    git_ref: {
-      type: "any-of",
-      contains: [
-        {
-          type: "string",
-          maxLength: 255,
-        },
-        {
-          type: "null",
-        },
-      ],
-    },
-    external_url: {
-      type: "any-of",
-      contains: [
-        {
-          type: "string",
-          maxLength: 2048,
-        },
-        {
-          type: "null",
-        },
-      ],
-    },
-    resolved: {
-      type: "any-of",
-      contains: [
-        {
-          type: "string",
-          format: "date-time",
-        },
-        {
-          type: "null",
-        },
-      ],
-    },
-    parent_id: {
-      type: "any-of",
-      contains: [{ type: "string", format: "uuid" }, { type: "null" }],
-    },
-    user_github_username: {
-      type: "string",
-      isReadOnly: true,
-      isRequired: true,
-    },
-    user_full_name: {
-      type: "any-of",
-      contains: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
-      isReadOnly: true,
-      isRequired: true,
-    },
-    user_email: {
-      type: "string",
-      isReadOnly: true,
-      isRequired: true,
-    },
-  },
-} as const
-
-export const $PublicationCommentPost = {
-  properties: {
-    publication_path: {
-      type: "string",
-      isRequired: true,
-    },
-    comment: {
-      type: "string",
-      isRequired: true,
-    },
-    highlight: {
-      type: "any-of",
-      contains: [
-        {
-          type: "dictionary",
-          contains: {
-            properties: {},
-          },
-        },
-        {
-          type: "null",
-        },
-      ],
-    },
-    create_github_issue: {
-      type: "boolean",
-      default: true,
-    },
-    parent_id: {
-      type: "any-of",
-      contains: [{ type: "string", format: "uuid" }, { type: "null" }],
     },
   },
 } as const
