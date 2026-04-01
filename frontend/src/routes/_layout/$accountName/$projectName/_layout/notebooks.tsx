@@ -30,6 +30,8 @@ import { ArtifactCompareModal } from "../../../../../components/Common/ArtifactC
 const notebookSearchSchema = z.object({
   ref: z.string().optional(),
   path: z.string().optional(),
+  compare_ref: z.string().optional(),
+  compare_ref2: z.string().optional(),
 })
 
 export const Route = createFileRoute(
@@ -102,15 +104,12 @@ function NotebookView({ notebook }: { notebook: Notebook }) {
 
 function NotebookInfo({
   notebook,
-  ownerName,
-  projectName,
+  onOpenCompare,
 }: {
   notebook: Notebook
-  ownerName: string
-  projectName: string
+  onOpenCompare: () => void
 }) {
   const bg = useColorModeValue("ui.secondary", "ui.darkSlate")
-  const compareModal = useDisclosure()
 
   return (
     <Box bg={bg} borderRadius="lg" p={3} h="fit-content">
@@ -125,28 +124,28 @@ function NotebookInfo({
           Pipeline stage: <Code fontSize="xs">{notebook.stage}</Code>
         </Text>
       )}
-      <Button mt={2} size="sm" onClick={compareModal.onOpen}>
+      <Button mt={2} size="sm" onClick={onOpenCompare}>
         <Icon as={FaCodeBranch} mr={1} />
         Browse history
       </Button>
-      <ArtifactCompareModal
-        isOpen={compareModal.isOpen}
-        onClose={compareModal.onClose}
-        ownerName={ownerName}
-        projectName={projectName}
-        path={notebook.path}
-        kind="notebook"
-      />
     </Box>
   )
 }
 
 function Notebooks() {
   const { accountName, projectName } = Route.useParams()
-  const { ref, path: selectedPath } = Route.useSearch()
+  const {
+    ref,
+    path: selectedPath,
+    compare_ref,
+    compare_ref2,
+  } = Route.useSearch()
   const navigate = useNavigate({ from: Route.fullPath })
   const setSelectedPath = (p: string) =>
     navigate({ search: (prev) => ({ ...prev, path: p }) })
+  const compareModal = useDisclosure({
+    defaultIsOpen: Boolean(compare_ref),
+  })
 
   const { isPending, data: notebooks } = useQuery({
     queryKey: ["projects", accountName, projectName, "notebooks", ref],
@@ -202,7 +201,7 @@ function Notebooks() {
           </PageMenu>
 
           {/* Center: viewer */}
-          <Box flex={1} minW={0} mr={4}>
+          <Box flex={1} minW={0} mr={6}>
             {selectedNotebook ? (
               <>
                 <Heading size="md" mb={1}>
@@ -237,8 +236,17 @@ function Notebooks() {
             <Box w="240px" flexShrink={0}>
               <NotebookInfo
                 notebook={selectedNotebook}
+                onOpenCompare={compareModal.onOpen}
+              />
+              <ArtifactCompareModal
+                isOpen={compareModal.isOpen}
+                onClose={compareModal.onClose}
                 ownerName={accountName}
                 projectName={projectName}
+                path={selectedNotebook.path ?? ""}
+                kind="notebook"
+                initialRef={compare_ref}
+                initialRef2={compare_ref2}
               />
             </Box>
           )}

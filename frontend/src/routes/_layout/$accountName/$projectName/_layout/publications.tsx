@@ -340,7 +340,7 @@ function Publications() {
           </PageMenu>
 
           {/* Center: publication viewer */}
-          <Box flex={1} minW={0} mr={4} minH={0}>
+          <Box flex={1} minW={0} mr={6} minH={0}>
             {selectedPub ? (
               <>
                 <Heading size="md" mb={1}>
@@ -395,6 +395,14 @@ function Publications() {
                     highlights={pdfHighlights}
                     scrollToHighlight={(h) => pdfScrollRef.current(h)}
                     currentUserId={user?.id}
+                    ownerName={accountName}
+                    projectName={projectName}
+                    publicationPath={selectedPub.path}
+                    resolvingId={
+                      resolvePubCommentMutation.isPending
+                        ? resolvePubCommentMutation.variables?.commentId
+                        : undefined
+                    }
                     onResolve={(id, resolved) =>
                       resolvePubCommentMutation.mutate({
                         commentId: id,

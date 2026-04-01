@@ -36,11 +36,20 @@ import {
   Checkbox,
   Switch,
 } from "@chakra-ui/react"
-import { FaCheck, FaCodeBranch, FaLink, FaUndo } from "react-icons/fa"
+import {
+  FaCheck,
+  FaCodeBranch,
+  FaGithub,
+  FaLink,
+  FaUndo,
+  FaReply,
+} from "react-icons/fa"
+import { ExternalLinkIcon } from "@chakra-ui/icons"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useState, useEffect } from "react"
 import ReactDiffViewer, { DiffMethod } from "react-diff-viewer-continued"
 
+import axios from "axios"
 import {
   getProjectFileHistory,
   getProjectFiguresAtRef,
@@ -51,6 +60,7 @@ import {
   type CommitHistory,
   type Ref,
 } from "../../lib/projectRefApi"
+import { OpenAPI } from "../../client"
 import FigureView from "../Figures/FigureView"
 import FileContent from "../Files/FileContent"
 import {
@@ -248,6 +258,35 @@ function FigureComments({
   const borderColor = useColorModeValue("gray.200", "gray.600")
   const [draft, setDraft] = useState("")
   const [createIssue, setCreateIssue] = useState(true)
+  const [replyingToId, setReplyingToId] = useState<string | null>(null)
+  const [replyDraft, setReplyDraft] = useState("")
+
+  const replyMutation = useMutation({
+    mutationFn: async ({
+      commentId,
+      body,
+    }: {
+      commentId: string
+      body: string
+    }) => {
+      const token =
+        typeof OpenAPI.TOKEN === "function"
+          ? await OpenAPI.TOKEN({} as never)
+          : OpenAPI.TOKEN
+      return axios.post(
+        `${OpenAPI.BASE}/projects/${ownerName}/${projectName}/figure-comments/${commentId}/replies`,
+        { body },
+        { headers: { Authorization: `Bearer ${token}` } },
+      )
+    },
+    onSuccess: () => {
+      setReplyingToId(null)
+      setReplyDraft("")
+      queryClient.invalidateQueries({
+        queryKey: ["projects", ownerName, projectName, "figure-comments", path],
+      })
+    },
+  })
 
   const commentsQuery = useQuery({
     queryKey: ["projects", ownerName, projectName, "figure-comments", path],
@@ -305,15 +344,151 @@ function FigureComments({
   })
 
   const allComments = commentsQuery.data ?? []
-  const displayedComments = showResolved
-    ? allComments
-    : allComments.filter((c) => !c.resolved)
+  const topLevel = allComments.filter((c) => !(c as any).parent_id)
+  const repliesFor = (parentId: string) =>
+    allComments.filter((c) => (c as any).parent_id === parentId)
+  const displayedTopLevel = showResolved
+    ? topLevel
+    : topLevel.filter((c) => !c.resolved)
+
+  const renderComment = (c: (typeof allComments)[0], isReply = false) => {
+    const isResolved = !!c.resolved
+    const replies = c.id ? repliesFor(c.id) : []
+    return (
+      <Box key={c.id} ml={isReply ? 4 : 0}>
+        <Flex gap={2}>
+          <Avatar
+            name={c.user_github_username}
+            size="xs"
+            mt={0.5}
+            flexShrink={0}
+          />
+          <Box
+            flex={1}
+            borderWidth={1}
+            borderColor={isResolved ? "green.200" : borderColor}
+            borderRadius="md"
+            p={2}
+            opacity={isResolved ? 0.7 : 1}
+          >
+            <Flex align="center" gap={1} mb={1} wrap="wrap">
+              <Text fontSize="xs" fontWeight="bold" mr={1}>
+                {c.user_github_username}
+              </Text>
+              <Text fontSize="xs" color="gray.500" mr="auto">
+                {c.created ? new Date(c.created).toLocaleDateString() : ""}
+              </Text>
+              {c.external_url && (
+                <Flex align="center" gap={1}>
+                  <Icon as={FaGithub} boxSize={3} color="gray.500" />
+                  <Link
+                    href={c.external_url}
+                    isExternal
+                    fontSize="xs"
+                    color="blue.400"
+                  >
+                    <ExternalLinkIcon />
+                  </Link>
+                </Flex>
+              )}
+              {user &&
+                !isReply &&
+                (resolveMutation.isPending &&
+                resolveMutation.variables?.commentId === c.id ? (
+                  <Spinner size="xs" color="ui.main" />
+                ) : (
+                  <IconButton
+                    aria-label={isResolved ? "Unresolve" : "Resolve"}
+                    icon={
+                      isResolved ? <Icon as={FaUndo} /> : <Icon as={FaCheck} />
+                    }
+                    size="xs"
+                    variant="ghost"
+                    colorScheme={isResolved ? "gray" : "green"}
+                    onClick={() =>
+                      c.id &&
+                      resolveMutation.mutate({
+                        commentId: c.id,
+                        resolved: !isResolved,
+                      })
+                    }
+                  />
+                ))}
+            </Flex>
+            <Text fontSize="sm" whiteSpace="pre-wrap">
+              {c.comment}
+            </Text>
+            {user && (
+              <Box mt={1}>
+                {replyingToId !== c.id ? (
+                  <Button
+                    size="xs"
+                    variant="ghost"
+                    leftIcon={<Icon as={FaReply} />}
+                    onClick={() => {
+                      setReplyingToId(c.id ?? null)
+                      setReplyDraft("")
+                    }}
+                  >
+                    Reply
+                  </Button>
+                ) : (
+                  <Box mt={1}>
+                    <Textarea
+                      size="xs"
+                      placeholder="Add a reply…"
+                      value={replyDraft}
+                      onChange={(e) => setReplyDraft(e.target.value)}
+                      rows={2}
+                      mb={1}
+                      autoFocus
+                    />
+                    <Flex gap={2}>
+                      <Button
+                        size="xs"
+                        isDisabled={!replyDraft.trim()}
+                        isLoading={
+                          replyMutation.isPending &&
+                          replyMutation.variables?.commentId === c.id
+                        }
+                        onClick={() =>
+                          c.id &&
+                          replyMutation.mutate({
+                            commentId: c.id,
+                            body: replyDraft.trim(),
+                          })
+                        }
+                      >
+                        Send
+                      </Button>
+                      <Button
+                        size="xs"
+                        variant="ghost"
+                        onClick={() => setReplyingToId(null)}
+                      >
+                        Cancel
+                      </Button>
+                    </Flex>
+                  </Box>
+                )}
+              </Box>
+            )}
+          </Box>
+        </Flex>
+        {replies.length > 0 && (
+          <VStack align="stretch" spacing={1} mt={1}>
+            {replies.map((r) => renderComment(r, true))}
+          </VStack>
+        )}
+      </Box>
+    )
+  }
 
   return (
     <Box>
       <Flex align="center" justify="space-between" mb={3}>
         <Heading size="xs">
-          Comments ({allComments.filter((c) => !c.resolved).length} open)
+          Comments ({topLevel.filter((c) => !c.resolved).length} open)
         </Heading>
         <Flex align="center" gap={1}>
           <Text fontSize="xs" color="gray.500">
@@ -327,74 +502,16 @@ function FigureComments({
         </Flex>
       </Flex>
       {commentsQuery.isPending ? (
-        <Spinner size="sm" color="ui.main" />
-      ) : displayedComments.length === 0 ? (
+        <Flex justify="center" py={2}>
+          <Spinner size="sm" color="ui.main" />
+        </Flex>
+      ) : displayedTopLevel.length === 0 ? (
         <Text fontSize="xs" color="gray.500" mb={3}>
           {allComments.length === 0 ? "No comments yet." : "No open comments."}
         </Text>
       ) : (
         <VStack align="stretch" spacing={3} mb={4}>
-          {displayedComments.map((c) => {
-            const isResolved = !!c.resolved
-            return (
-              <Flex key={c.id} gap={2}>
-                <Avatar name={c.user_github_username} size="xs" mt={0.5} />
-                <Box
-                  flex={1}
-                  borderWidth={1}
-                  borderColor={isResolved ? "green.200" : borderColor}
-                  borderRadius="md"
-                  p={2}
-                  opacity={isResolved ? 0.7 : 1}
-                >
-                  <Flex align="center" gap={1} mb={1} wrap="wrap">
-                    <Text fontSize="xs" fontWeight="bold" mr={1}>
-                      {c.user_github_username}
-                    </Text>
-                    <Text fontSize="xs" color="gray.500" mr="auto">
-                      {new Date(c.created ?? "").toLocaleDateString()}
-                    </Text>
-                    {c.external_url && (
-                      <Link
-                        href={c.external_url}
-                        isExternal
-                        fontSize="xs"
-                        color="blue.400"
-                      >
-                        <Icon as={FaLink} />
-                      </Link>
-                    )}
-                    {user && (
-                      <IconButton
-                        aria-label={isResolved ? "Unresolve" : "Resolve"}
-                        icon={
-                          isResolved ? (
-                            <Icon as={FaUndo} />
-                          ) : (
-                            <Icon as={FaCheck} />
-                          )
-                        }
-                        size="xs"
-                        variant="ghost"
-                        colorScheme={isResolved ? "gray" : "green"}
-                        isLoading={resolveMutation.isPending}
-                        onClick={() =>
-                          c.id &&
-                          resolveMutation.mutate({
-                            commentId: c.id,
-                            resolved: !isResolved,
-                          })
-                        }
-                      />
-                    )}
-                  </Flex>
-                  <Text fontSize="sm" whiteSpace="pre-wrap">
-                    {c.comment}
-                  </Text>
-                </Box>
-              </Flex>
-            )
-          })}
+          {displayedTopLevel.map((c) => renderComment(c))}
         </VStack>
       )}
       {user && (

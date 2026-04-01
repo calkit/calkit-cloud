@@ -1696,6 +1696,10 @@ class CommentResolvePatch(BaseModel):
     resolved: bool
 
 
+class CommentReply(BaseModel):
+    body: str
+
+
 @router.patch(
     "/projects/{owner_name}/{project_name}/figure-comments/{comment_id}"
 )
@@ -1721,10 +1725,55 @@ def patch_figure_comment(
     session.add(comment)
     session.commit()
     session.refresh(comment)
+    if patch.resolved:
+        _try_close_github_issue(session, current_user, comment.external_url)
     mixpanel.user_resolved_comment(
         current_user, owner_name, project_name, "figure", patch.resolved
     )
     return comment
+
+
+@router.post(
+    "/projects/{owner_name}/{project_name}/figure-comments/{comment_id}/replies"
+)
+def post_figure_comment_reply(
+    owner_name: str,
+    project_name: str,
+    comment_id: uuid.UUID,
+    reply: CommentReply,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> dict:
+    project = app.projects.get_project(
+        session=session,
+        owner_name=owner_name,
+        project_name=project_name,
+        current_user=current_user,
+        min_access_level="read",
+    )
+    comment = session.get(FigureComment, comment_id)
+    if comment is None or comment.project_id != project.id:
+        raise HTTPException(404)
+    if comment.external_url:
+        url = _try_post_github_issue_comment(
+            session, current_user, comment.external_url, reply.body
+        )
+        if url is None:
+            raise HTTPException(
+                502, detail="Failed to post comment to GitHub issue"
+            )
+    # Always store a local reply comment for display
+    reply_comment = FigureComment(
+        project_id=project.id,
+        figure_path=comment.figure_path,
+        comment=reply.body,
+        user_id=current_user.id,
+        parent_id=comment_id,
+    )
+    session.add(reply_comment)
+    session.commit()
+    session.refresh(reply_comment)
+    return reply_comment
 
 
 def _sync_github_issue_resolutions(
@@ -1824,6 +1873,88 @@ def _try_create_github_issue(
     return resp.json().get("html_url")
 
 
+def _try_post_github_issue_comment(
+    session: Session,
+    current_user: User,
+    external_url: str,
+    body: str,
+) -> str | None:
+    """Post a comment to the linked GitHub issue. Returns the comment URL or None."""
+    try:
+        parts = external_url.rstrip("/").split("/")
+        issue_number = int(parts[-1])
+        repo = f"{parts[-4]}/{parts[-3]}"
+    except Exception:
+        return None
+    try:
+        token = users.get_github_token(session, current_user)
+    except Exception:
+        logger.debug("Skipping GitHub issue comment: no token")
+        return None
+    try:
+        resp = requests.post(
+            f"https://api.github.com/repos/{repo}/issues/{issue_number}/comments",
+            json={"body": body},
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Accept": "application/vnd.github+json",
+            },
+            timeout=10,
+        )
+        if not resp.ok:
+            logger.warning(
+                f"GitHub issue comment failed for {external_url}: "
+                f"{resp.status_code} {resp.text}"
+            )
+            return None
+        return resp.json().get("html_url")
+    except Exception as exc:
+        logger.debug(f"GitHub issue comment failed for {external_url}: {exc}")
+        return None
+
+
+def _try_close_github_issue(
+    session: Session,
+    current_user: User,
+    external_url: str | None,
+) -> None:
+    """Close the linked GitHub issue if one exists.
+
+    Silently ignores any errors so a missing token or unexpected URL never
+    prevents the comment from being resolved.
+    """
+    if not external_url:
+        return
+    try:
+        parts = external_url.rstrip("/").split("/")
+        issue_number = int(parts[-1])
+        repo = f"{parts[-4]}/{parts[-3]}"
+    except Exception:
+        return
+    try:
+        token = users.get_github_token(session, current_user)
+    except Exception:
+        logger.debug("Skipping GitHub issue close: no token")
+        return
+    try:
+        resp = requests.patch(
+            f"https://api.github.com/repos/{repo}/issues/{issue_number}",
+            json={"state": "closed"},
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Accept": "application/vnd.github+json",
+            },
+            timeout=10,
+        )
+        if not resp.ok:
+            logger.warning(
+                f"GitHub issue close failed for {external_url}: "
+                f"{resp.status_code} {resp.text}"
+            )
+    except Exception as exc:
+        logger.debug(f"GitHub issue close failed for {external_url}: {exc}")
+
+
 def _fan_out_notifications(
     session: Session,
     project: Project,
@@ -1897,6 +2028,7 @@ def post_figure_comment(
         figure_path=comment_in.figure_path,
         comment=comment_in.comment,
         user_id=current_user.id,
+        parent_id=comment_in.parent_id,
     )
     session.add(comment)
     session.flush()  # get comment.id before creating the issue
@@ -1987,10 +2119,55 @@ def patch_publication_comment(
     session.add(comment)
     session.commit()
     session.refresh(comment)
+    if patch.resolved:
+        _try_close_github_issue(session, current_user, comment.external_url)
     mixpanel.user_resolved_comment(
         current_user, owner_name, project_name, "publication", patch.resolved
     )
     return comment
+
+
+@router.post(
+    "/projects/{owner_name}/{project_name}/publication-comments/{comment_id}/replies"
+)
+def post_publication_comment_reply(
+    owner_name: str,
+    project_name: str,
+    comment_id: uuid.UUID,
+    reply: CommentReply,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> dict:
+    project = app.projects.get_project(
+        session=session,
+        owner_name=owner_name,
+        project_name=project_name,
+        current_user=current_user,
+        min_access_level="read",
+    )
+    comment = session.get(PublicationComment, comment_id)
+    if comment is None or comment.project_id != project.id:
+        raise HTTPException(404)
+    if comment.external_url:
+        url = _try_post_github_issue_comment(
+            session, current_user, comment.external_url, reply.body
+        )
+        if url is None:
+            raise HTTPException(
+                502, detail="Failed to post comment to GitHub issue"
+            )
+    # Always store a local reply comment for display
+    reply_comment = PublicationComment(
+        project_id=project.id,
+        publication_path=comment.publication_path,
+        comment=reply.body,
+        user_id=current_user.id,
+        parent_id=comment_id,
+    )
+    session.add(reply_comment)
+    session.commit()
+    session.refresh(reply_comment)
+    return reply_comment
 
 
 @router.post("/projects/{owner_name}/{project_name}/publication-comments")
@@ -2014,6 +2191,7 @@ def post_publication_comment(
         comment=comment_in.comment,
         highlight=comment_in.highlight,
         user_id=current_user.id,
+        parent_id=comment_in.parent_id,
     )
     session.add(comment)
     session.flush()

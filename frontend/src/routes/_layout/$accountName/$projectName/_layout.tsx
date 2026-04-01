@@ -19,10 +19,28 @@ import {
   MenuButton,
   MenuList,
   MenuItem,
+  MenuDivider,
   Box,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalCloseButton,
+  ModalBody,
+  Input,
+  VStack,
+  Code,
 } from "@chakra-ui/react"
-import { createFileRoute, Outlet, notFound } from "@tanstack/react-router"
+import {
+  createFileRoute,
+  Outlet,
+  notFound,
+  useNavigate,
+} from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
+import { z } from "zod"
+import { useState } from "react"
+import { FaCodeBranch } from "react-icons/fa"
 import { ExternalLinkIcon } from "@chakra-ui/icons"
 import { FaGithub, FaQuestion, FaRegClone } from "react-icons/fa"
 import { LuCopyPlus } from "react-icons/lu"
@@ -36,6 +54,12 @@ import Sidebar from "../../../../components/Common/Sidebar"
 import { ProjectPublic } from "../../../../client"
 import EditProject from "../../../../components/Projects/EditProject"
 import useProject from "../../../../hooks/useProject"
+import {
+  searchProjectRefs,
+  getProjectHistory,
+  type Ref,
+  type CommitHistory,
+} from "../../../../lib/projectRefApi"
 import NewProject from "../../../../components/Projects/NewProject"
 import useAuth from "../../../../hooks/useAuth"
 import HelpContent from "../../../../components/Projects/HelpContent"
@@ -43,22 +67,205 @@ import CloneProject from "../../../../components/Projects/CloneProject"
 import ProjectStatus from "../../../../components/Projects/ProjectStatus"
 import MakeProjectPublic from "../../../../components/Projects/MakeProjectPublic"
 
+const layoutSearchSchema = z.object({
+  ref: z.string().optional(),
+})
+
 export const Route = createFileRoute(
   "/_layout/$accountName/$projectName/_layout",
 )({
   component: ProjectLayout,
+  validateSearch: (search) => layoutSearchSchema.parse(search),
 })
+
+function SwitchVersionModal({
+  isOpen,
+  onClose,
+  branches,
+  currentRef,
+  defaultBranchName,
+  onSetRef,
+  accountName,
+  projectName,
+}: {
+  isOpen: boolean
+  onClose: () => void
+  branches: Ref[]
+  currentRef: string | undefined
+  defaultBranchName: string | undefined
+  onSetRef: (ref: string | undefined) => void
+  accountName: string
+  projectName: string
+}) {
+  const [query, setQuery] = useState("")
+
+  const commitsQuery = useQuery({
+    queryKey: ["projects", accountName, projectName, "git-history-all"],
+    queryFn: () =>
+      getProjectHistory({ ownerName: accountName, projectName, limit: 100 }),
+    enabled: isOpen,
+  })
+
+  const filteredBranches = branches.filter((r) =>
+    r.name.toLowerCase().includes(query.toLowerCase()),
+  )
+  const filteredCommits = (commitsQuery.data ?? []).filter(
+    (c: CommitHistory) =>
+      c.summary.toLowerCase().includes(query.toLowerCase()) ||
+      c.short_hash.toLowerCase().includes(query.toLowerCase()),
+  )
+
+  const handleSelect = (ref: string, isDefault?: boolean) => {
+    onSetRef(isDefault ? undefined : ref)
+    onClose()
+    setQuery("")
+  }
+
+  return (
+    <Modal
+      isOpen={isOpen}
+      onClose={() => {
+        onClose()
+        setQuery("")
+      }}
+      size="md"
+    >
+      <ModalOverlay />
+      <ModalContent>
+        <ModalHeader>Switch version</ModalHeader>
+        <ModalCloseButton />
+        <ModalBody pb={4}>
+          <Input
+            placeholder="Search branches or commits…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            mb={3}
+            autoFocus
+          />
+          <VStack align="stretch" spacing={1} maxH="60vh" overflowY="auto">
+            {filteredBranches.length > 0 && (
+              <>
+                <Text
+                  fontSize="xs"
+                  color="gray.500"
+                  fontWeight="semibold"
+                  px={2}
+                  pt={1}
+                >
+                  Branches
+                </Text>
+                {filteredBranches.map((r) => (
+                  <Box
+                    key={r.name}
+                    px={2}
+                    py={1}
+                    borderRadius="md"
+                    cursor="pointer"
+                    fontWeight={
+                      (currentRef ?? defaultBranchName) === r.name
+                        ? "semibold"
+                        : "normal"
+                    }
+                    _hover={{ bg: "gray.100", _dark: { bg: "gray.700" } }}
+                    onClick={() => handleSelect(r.name, r.is_default)}
+                  >
+                    <Flex align="center" gap={2}>
+                      <Icon as={FaCodeBranch} fontSize="xs" color="gray.400" />
+                      <Text fontSize="sm">{r.name}</Text>
+                      {r.is_default && (
+                        <Badge colorScheme="green" fontSize="xs">
+                          default
+                        </Badge>
+                      )}
+                    </Flex>
+                  </Box>
+                ))}
+              </>
+            )}
+            {filteredCommits.length > 0 && (
+              <>
+                <Text
+                  fontSize="xs"
+                  color="gray.500"
+                  fontWeight="semibold"
+                  px={2}
+                  pt={2}
+                >
+                  Commits
+                </Text>
+                {filteredCommits.map((c: CommitHistory) => (
+                  <Box
+                    key={c.hash}
+                    px={2}
+                    py={1}
+                    borderRadius="md"
+                    cursor="pointer"
+                    fontWeight={
+                      currentRef === c.short_hash ? "semibold" : "normal"
+                    }
+                    _hover={{ bg: "gray.100", _dark: { bg: "gray.700" } }}
+                    onClick={() => handleSelect(c.short_hash)}
+                  >
+                    <Flex align="center" gap={2}>
+                      <Code fontSize="xs" flexShrink={0}>
+                        {c.short_hash}
+                      </Code>
+                      <Text fontSize="sm" noOfLines={1}>
+                        {c.summary}
+                      </Text>
+                    </Flex>
+                    <Text fontSize="xs" color="gray.500" pl={7}>
+                      {new Date(c.timestamp).toLocaleDateString()}
+                    </Text>
+                  </Box>
+                ))}
+                {commitsQuery.isPending && (
+                  <Flex justify="center" py={2}>
+                    <Spinner size="sm" color="ui.main" />
+                  </Flex>
+                )}
+              </>
+            )}
+            {filteredBranches.length === 0 &&
+              filteredCommits.length === 0 &&
+              !commitsQuery.isPending && (
+                <Text fontSize="sm" color="gray.500" px={2}>
+                  No results
+                </Text>
+              )}
+          </VStack>
+        </ModalBody>
+      </ModalContent>
+    </Modal>
+  )
+}
 
 interface ProjectMenuProps {
   project: ProjectPublic
   userHasWriteAccess: boolean
+  branches: Ref[]
+  currentRef: string | undefined
+  defaultBranchName: string | undefined
+  onSetRef: (ref: string | undefined) => void
+  accountName: string
+  projectName: string
 }
 
-function ProjectMenu({ project, userHasWriteAccess }: ProjectMenuProps) {
+function ProjectMenu({
+  project,
+  userHasWriteAccess,
+  branches,
+  currentRef,
+  defaultBranchName,
+  onSetRef,
+  accountName,
+  projectName,
+}: ProjectMenuProps) {
   const { user } = useAuth()
   const editProjectModal = useDisclosure()
   const newProjectModal = useDisclosure()
   const cloneProjectModal = useDisclosure()
+  const switchVersionModal = useDisclosure()
 
   return (
     <>
@@ -90,6 +297,13 @@ function ProjectMenu({ project, userHasWriteAccess }: ProjectMenuProps) {
           >
             Clone to local machine
           </MenuItem>
+          <MenuDivider />
+          <MenuItem
+            icon={<FaCodeBranch fontSize={16} />}
+            onClick={switchVersionModal.onOpen}
+          >
+            Switch version
+          </MenuItem>
         </MenuList>
       </Menu>
       <EditProject
@@ -107,12 +321,24 @@ function ProjectMenu({ project, userHasWriteAccess }: ProjectMenuProps) {
         isOpen={cloneProjectModal.isOpen}
         onClose={cloneProjectModal.onClose}
       />
+      <SwitchVersionModal
+        isOpen={switchVersionModal.isOpen}
+        onClose={switchVersionModal.onClose}
+        branches={branches}
+        currentRef={currentRef}
+        defaultBranchName={defaultBranchName}
+        onSetRef={onSetRef}
+        accountName={accountName}
+        projectName={projectName}
+      />
     </>
   )
 }
 
 function ProjectLayout() {
   const { accountName, projectName } = Route.useParams()
+  const { ref: currentRef } = Route.useSearch()
+  const navigate = useNavigate({ from: Route.fullPath })
   const { projectRequest, userHasWriteAccess } = useProject(
     accountName,
     projectName,
@@ -130,6 +356,20 @@ function ProjectLayout() {
       axios.get(`http://localhost:8866/projects/${accountName}/${projectName}`),
     retry: false,
   })
+  const refsQuery = useQuery({
+    queryKey: ["projects", accountName, projectName, "refs"],
+    queryFn: () => searchProjectRefs({ ownerName: accountName, projectName }),
+    enabled: !isPending,
+  })
+  const branches = (refsQuery.data ?? []).filter(
+    (r: Ref) => r.type === "branch",
+  )
+  const defaultBranch = branches.find((r: Ref) => r.is_default)
+
+  const setRef = (newRef: string | undefined) => {
+    navigate({ search: (prev) => ({ ...prev, ref: newRef }) })
+  }
+
   const titleSize = "lg"
   const onClickHelp = () => {
     mixpanel.track("Clicked project help button")
@@ -168,6 +408,22 @@ function ProjectLayout() {
               <Box maxW="100%" mr={2}>
                 <Heading size={titleSize}>{project?.title}</Heading>
               </Box>
+              {currentRef && currentRef !== defaultBranch?.name && (
+                <Box mr={2} pb={0.5} alignSelf="center">
+                  <Code
+                    fontSize="xs"
+                    cursor="pointer"
+                    title="Click to reset to default branch"
+                    onClick={() => setRef(undefined)}
+                    px={2}
+                    py={0.5}
+                    borderRadius="md"
+                    colorScheme="orange"
+                  >
+                    {currentRef} ✕
+                  </Code>
+                </Box>
+              )}
               {/* Public/private badge */}
               <Box mr={2} pb={0.5}>
                 <Badge
@@ -236,6 +492,12 @@ function ProjectLayout() {
                     <ProjectMenu
                       project={project}
                       userHasWriteAccess={userHasWriteAccess}
+                      branches={branches}
+                      currentRef={currentRef}
+                      defaultBranchName={defaultBranch?.name}
+                      onSetRef={setRef}
+                      accountName={accountName}
+                      projectName={projectName}
                     />
                   ) : (
                     ""

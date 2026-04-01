@@ -503,7 +503,7 @@ function History() {
           )}
         </Flex>
 
-        {isLoadingHistory && allCommits.length === 0 ? (
+        {(isLoadingHistory || isFetching) && allCommits.length === 0 ? (
           <LoadingSpinner height="400px" />
         ) : allCommits.length === 0 ? (
           <Text color="gray.500">No commits found</Text>

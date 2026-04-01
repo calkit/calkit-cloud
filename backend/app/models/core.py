@@ -627,6 +627,11 @@ class FigureComment(SQLModel, table=True):
     # None = unresolved; set to the timestamp when the comment is resolved
     resolved: datetime | None = Field(default=None)
     comment: str
+    # Parent comment ID for threaded replies
+    parent_id: uuid.UUID | None = Field(
+        default=None,
+        foreign_key="figurecomment.id",
+    )
     # Relationships
     user: User = Relationship(back_populates="figure_comments")
     project: Project = Relationship(back_populates="figure_comments")
@@ -651,6 +656,7 @@ class FigureCommentPost(SQLModel):
     figure_path: str
     comment: str
     create_github_issue: bool = True
+    parent_id: uuid.UUID | None = None
 
 
 class PublicationComment(SQLModel, table=True):
@@ -685,6 +691,11 @@ class PublicationComment(SQLModel, table=True):
     external_url: str | None = Field(default=None, max_length=2048)
     # None = unresolved; set to the timestamp when the comment is resolved
     resolved: datetime | None = Field(default=None)
+    # Parent comment ID for threaded replies
+    parent_id: uuid.UUID | None = Field(
+        default=None,
+        foreign_key="publicationcomment.id",
+    )
     # Relationships
     user: User = Relationship(back_populates="publication_comments")
     project: Project = Relationship(back_populates="publication_comments")
@@ -710,6 +721,7 @@ class PublicationCommentPost(SQLModel):
     comment: str
     highlight: dict | None = None
     create_github_issue: bool = True
+    parent_id: uuid.UUID | None = None
 
 
 class Notification(SQLModel, table=True):

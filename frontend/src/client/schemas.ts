@@ -1413,6 +1413,10 @@ export const $FigureComment = {
       type: "string",
       isRequired: true,
     },
+    parent_id: {
+      type: "any-of",
+      contains: [{ type: "string", format: "uuid" }, { type: "null" }],
+    },
     user_github_username: {
       type: "string",
       isReadOnly: true,
@@ -1452,6 +1456,10 @@ export const $FigureCommentPost = {
     create_github_issue: {
       type: "boolean",
       default: true,
+    },
+    parent_id: {
+      type: "any-of",
+      contains: [{ type: "string", format: "uuid" }, { type: "null" }],
     },
   },
 } as const
@@ -3685,6 +3693,10 @@ from this comment.`,
         },
       ],
     },
+    parent_id: {
+      type: "any-of",
+      contains: [{ type: "string", format: "uuid" }, { type: "null" }],
+    },
     user_github_username: {
       type: "string",
       isReadOnly: true,
@@ -3738,6 +3750,10 @@ export const $PublicationCommentPost = {
     create_github_issue: {
       type: "boolean",
       default: true,
+    },
+    parent_id: {
+      type: "any-of",
+      contains: [{ type: "string", format: "uuid" }, { type: "null" }],
     },
   },
 } as const

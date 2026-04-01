@@ -1,5 +1,5 @@
 import { Box, Flex, Icon, Text, useColorModeValue } from "@chakra-ui/react"
-import { Link, getRouteApi } from "@tanstack/react-router"
+import { Link, getRouteApi, useSearch } from "@tanstack/react-router"
 import {
   FiHome,
   FiUsers,
@@ -50,6 +50,12 @@ const SidebarItems = ({ onClose, basePath }: SidebarItemsProps) => {
   const { user } = useAuth()
   const routeApi = getRouteApi("/_layout/$accountName/$projectName")
   const { accountName, projectName } = routeApi.useParams()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const layoutSearch = useSearch({
+    from: "/_layout/$accountName/$projectName/_layout" as any,
+    strict: false,
+  }) as any
+  const currentRef: string | undefined = layoutSearch?.ref
   const {
     isPending: localServerPending,
     error: localServerError,
@@ -75,6 +81,8 @@ const SidebarItems = ({ onClose, basePath }: SidebarItemsProps) => {
         key={title}
         as={Link}
         to={basePath + path}
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        search={currentRef ? ({ ref: currentRef } as any) : undefined}
         w="100%"
         p={2}
         activeOptions={{ exact: true, includeSearch: false }}

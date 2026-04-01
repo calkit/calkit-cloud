@@ -60,7 +60,7 @@ function PublicDatasetsTable() {
   const navigate = useNavigate({ from: Route.fullPath })
   const setPage = (page: number) =>
     navigate({ search: (prev) => ({ ...prev, page }) })
-  const [searchForText, setSearchForText] = useState()
+  const [searchForText, setSearchForText] = useState("")
   const [searchFor] = useDebounce(searchForText, 400)
 
   const {

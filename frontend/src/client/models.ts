@@ -272,6 +272,7 @@ export type FigureComment = {
   external_url?: string | null
   resolved?: string | null
   comment: string
+  parent_id?: string | null
   readonly user_github_username: string
   readonly user_full_name: string | null
   readonly user_email: string
@@ -281,6 +282,7 @@ export type FigureCommentPost = {
   figure_path: string
   comment: string
   create_github_issue?: boolean
+  parent_id?: string | null
 }
 
 export type FileLock = {
@@ -746,6 +748,7 @@ export type PublicationComment = {
   git_ref?: string | null
   external_url?: string | null
   resolved?: string | null
+  parent_id?: string | null
   readonly user_github_username: string
   readonly user_full_name: string | null
   readonly user_email: string
@@ -756,6 +759,7 @@ export type PublicationCommentPost = {
   comment: string
   highlight?: Record<string, unknown> | null
   create_github_issue?: boolean
+  parent_id?: string | null
 }
 
 export type PublicationOverleaf = {
