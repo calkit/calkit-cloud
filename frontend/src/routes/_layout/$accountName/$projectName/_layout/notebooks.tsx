@@ -21,9 +21,8 @@ import { z } from "zod"
 import { IpynbRenderer } from "react-ipynb-renderer"
 import "react-ipynb-renderer/dist/styles/monokai.css"
 
-import { type Notebook } from "../../../../../client"
+import { ProjectsService, type Notebook } from "../../../../../client"
 import PageMenu from "../../../../../components/Common/PageMenu"
-import { getProjectNotebooksAtRef } from "../../../../../lib/projectRefApi"
 import { ArtifactCompareModal } from "../../../../../components/Common/ArtifactCompareModal"
 
 const notebookSearchSchema = z.object({
@@ -149,7 +148,7 @@ function Notebooks() {
   const { isPending, data: notebooks } = useQuery({
     queryKey: ["projects", accountName, projectName, "notebooks", ref],
     queryFn: () =>
-      getProjectNotebooksAtRef({
+      ProjectsService.getProjectNotebooks({
         ownerName: accountName,
         projectName: projectName,
         ref,

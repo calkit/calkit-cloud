@@ -26,9 +26,8 @@ import { z } from "zod"
 
 import UploadFigure from "../../../../../components/Figures/UploadFigure"
 import LabelAsFigure from "../../../../../components/Figures/FigureFromExisting"
-import { type Figure } from "../../../../../client"
+import { ProjectsService, type Figure } from "../../../../../client"
 import useProject from "../../../../../hooks/useProject"
-import { getProjectFiguresAtRef } from "../../../../../lib/projectRefApi"
 import { ArtifactCompareModal } from "../../../../../components/Common/ArtifactCompareModal"
 
 const figuresSearchSchema = z.object({
@@ -160,7 +159,7 @@ function ProjectFigures() {
   const { isPending: figuresPending, data: figures } = useQuery({
     queryKey: ["projects", accountName, projectName, "figures", ref],
     queryFn: () =>
-      getProjectFiguresAtRef({
+      ProjectsService.getProjectFigures({
         ownerName: accountName,
         projectName: projectName,
         ref,

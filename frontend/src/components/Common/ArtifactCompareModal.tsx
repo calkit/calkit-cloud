@@ -50,21 +50,12 @@ import { useState, useEffect } from "react"
 import ReactDiffViewer, { DiffMethod } from "react-diff-viewer-continued"
 
 import axios from "axios"
-import {
-  getProjectFileHistory,
-  getProjectFiguresAtRef,
-  getProjectPublicationsAtRef,
-  getProjectNotebooksAtRef,
-  getProjectContentsAtRef,
-  searchProjectRefs,
-  type CommitHistory,
-  type Ref,
-} from "../../lib/projectRefApi"
 import { OpenAPI } from "../../client"
 import FigureView from "../Figures/FigureView"
 import FileContent from "../Files/FileContent"
 import {
   type Figure,
+  type GitRef,
   type Publication,
   type Notebook,
   type ContentsItem,
@@ -76,6 +67,18 @@ import "react-ipynb-renderer/dist/styles/monokai.css"
 
 /** "file" covers auto-detected types not explicitly declared in calkit.yaml. */
 export type ArtifactKind = "figure" | "publication" | "notebook" | "file"
+
+interface CommitHistory {
+  hash: string
+  short_hash: string
+  message: string
+  author: string
+  author_email: string
+  timestamp: string
+  committed_date: number
+  parent_hashes: string[]
+  summary: string
+}
 
 interface ArtifactCompareModalProps {
   isOpen: boolean
@@ -205,10 +208,15 @@ function useArtifactAtRef(
     ],
     queryFn: async () => {
       if (kind === "file") {
-        return getProjectContentsAtRef({ ownerName, projectName, path, ref })
+        return ProjectsService.getProjectContents({
+          ownerName,
+          projectName,
+          path,
+          ref,
+        })
       }
       if (kind === "figure") {
-        const figs = await getProjectFiguresAtRef({
+        const figs = await ProjectsService.getProjectFigures({
           ownerName,
           projectName,
           ref,
@@ -216,27 +224,42 @@ function useArtifactAtRef(
         // Fall back to contents API if not declared in calkit.yaml
         const found = figs.find((f) => f.path === path)
         if (found) return found
-        return getProjectContentsAtRef({ ownerName, projectName, path, ref })
+        return ProjectsService.getProjectContents({
+          ownerName,
+          projectName,
+          path,
+          ref,
+        })
       }
       if (kind === "publication") {
-        const pubs = await getProjectPublicationsAtRef({
+        const pubs = await ProjectsService.getProjectPublications({
           ownerName,
           projectName,
           ref,
         })
         const found = pubs.find((p) => p.path === path)
         if (found) return found
-        return getProjectContentsAtRef({ ownerName, projectName, path, ref })
+        return ProjectsService.getProjectContents({
+          ownerName,
+          projectName,
+          path,
+          ref,
+        })
       }
       if (kind === "notebook") {
-        const nbs = await getProjectNotebooksAtRef({
+        const nbs = await ProjectsService.getProjectNotebooks({
           ownerName,
           projectName,
           ref,
         })
         const found = nbs.find((n) => n.path === path)
         if (found) return found
-        return getProjectContentsAtRef({ ownerName, projectName, path, ref })
+        return ProjectsService.getProjectContents({
+          ownerName,
+          projectName,
+          path,
+          ref,
+        })
       }
     },
     enabled,
@@ -594,18 +617,24 @@ export function ArtifactCompareModal({
 
   const historyQuery = useQuery({
     queryKey: ["projects", ownerName, projectName, "file-history", path],
-    queryFn: () =>
-      getProjectFileHistory({ ownerName, projectName, path, limit: 50 }),
+    queryFn: async () =>
+      (await ProjectsService.getProjectFileHistory({
+        ownerName,
+        projectName,
+        path,
+        limit: 50,
+      })) as unknown as CommitHistory[],
     enabled: isOpen,
   })
 
   const refsQuery = useQuery({
     queryKey: ["projects", ownerName, projectName, "refs"],
-    queryFn: () => searchProjectRefs({ ownerName, projectName }),
+    queryFn: () =>
+      ProjectsService.searchProjectRefs({ ownerName, projectName }),
     enabled: isOpen,
   })
   const branches = (refsQuery.data ?? []).filter(
-    (r: Ref) => r.type === "branch",
+    (r: GitRef) => r.type === "branch",
   )
 
   const artifact1Query = useArtifactAtRef(
@@ -777,7 +806,7 @@ export function ArtifactCompareModal({
                       </Text>
                     ) : (
                       <VStack align="stretch" spacing={1}>
-                        {branches.map((branch: Ref) => {
+                        {branches.map((branch: GitRef) => {
                           const isRef1 = branch.name === ref1
                           const isRef2 = branch.name === ref2
                           return (

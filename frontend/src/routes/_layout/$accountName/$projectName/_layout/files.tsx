@@ -30,13 +30,12 @@ import {
 import { BsFiletypeYml } from "react-icons/bs"
 import { z } from "zod"
 
-import { type ContentsItem } from "../../../../../client"
+import { ProjectsService, type ContentsItem } from "../../../../../client"
 import UploadFile from "../../../../../components/Files/UploadFile"
 import PageMenu from "../../../../../components/Common/PageMenu"
 import FileContent from "../../../../../components/Files/FileContent"
 import SelectedItemInfo from "../../../../../components/Files/SelectedItemInfo"
 import useProject from "../../../../../hooks/useProject"
-import { getProjectContentsAtRef } from "../../../../../lib/projectRefApi"
 
 const fileSearchSchema = z.object({
   path: z.string().catch(""),
@@ -89,7 +88,7 @@ function Item({ item, level, selectedPath, setSelectedPath }: ItemProps) {
   const { data } = useQuery({
     queryKey: ["projects", accountName, projectName, "files", item.path, ref],
     queryFn: () =>
-      getProjectContentsAtRef({
+      ProjectsService.getProjectContents({
         ownerName: accountName,
         projectName: projectName,
         path: item.path,
@@ -240,7 +239,7 @@ function Files() {
   } = useQuery({
     queryKey: ["projects", accountName, projectName, "files", ref],
     queryFn: () =>
-      getProjectContentsAtRef({
+      ProjectsService.getProjectContents({
         ownerName: accountName,
         projectName: projectName,
         ref,
@@ -257,7 +256,7 @@ function Files() {
       ref,
     ],
     queryFn: () =>
-      getProjectContentsAtRef({
+      ProjectsService.getProjectContents({
         ownerName: accountName,
         projectName: projectName,
         path: selectedPath,

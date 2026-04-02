@@ -56,6 +56,7 @@ import type {
   GitHubReleasePost,
   GitItem,
   GitItemWithContents,
+  GitRef,
   Issue,
   IssuePatch,
   IssuePost,
@@ -1646,20 +1647,27 @@ export class ProjectsService {
    * Search Project Refs
    * Get git refs (branches, tags, commits) in a project.
    *
-   * Args:
-   * owner_name: Owner of the project
-   * project_name: Name of the project
-   * q: Optional search query to filter refs by branch name, tag name,
-   * commit message, or author
+   * Parameters
+   * ----------
+   * owner_name:
+   * Owner of the project.
+   * project_name:
+   * Name of the project.
+   * q:
+   * Optional search query to filter refs by branch name, tag name,
+   * commit message, or author.
    *
-   * Returns:
-   * List of matching Ref objects with name, type, message, author, timestamp
-   * @returns unknown Successful Response
+   * Returns
+   * -------
+   * list[GitRef]
+   * List of matching GitRef objects with name, type, message, author,
+   * timestamp.
+   * @returns GitRef Successful Response
    * @throws ApiError
    */
   public static searchProjectRefs(
     data: ProjectsData["SearchProjectRefs"],
-  ): CancelablePromise<unknown> {
+  ): CancelablePromise<Array<GitRef>> {
     const { ownerName, projectName, q } = data
     return __request(OpenAPI, {
       method: "GET",
@@ -1685,7 +1693,7 @@ export class ProjectsService {
    */
   public static getProjectHistory(
     data: ProjectsData["GetProjectHistory"],
-  ): CancelablePromise<unknown> {
+  ): CancelablePromise<Array<Record<string, unknown>>> {
     const { ownerName, projectName, limit = 50, offset = 0, ref } = data
     return __request(OpenAPI, {
       method: "GET",
@@ -1713,7 +1721,7 @@ export class ProjectsService {
    */
   public static getProjectCommit(
     data: ProjectsData["GetProjectCommit"],
-  ): CancelablePromise<unknown> {
+  ): CancelablePromise<Record<string, unknown>> {
     const { ownerName, projectName, commitHash } = data
     return __request(OpenAPI, {
       method: "GET",
@@ -1740,7 +1748,7 @@ export class ProjectsService {
    */
   public static getProjectFileHistory(
     data: ProjectsData["GetProjectFileHistory"],
-  ): CancelablePromise<unknown> {
+  ): CancelablePromise<Array<Record<string, unknown>>> {
     const { ownerName, projectName, path, limit = 100 } = data
     return __request(OpenAPI, {
       method: "GET",

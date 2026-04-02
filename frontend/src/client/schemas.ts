@@ -1815,6 +1815,77 @@ export const $GitItemWithContents = {
   },
 } as const
 
+export const $GitRef = {
+  description: `Represents a Git reference (commit, tag, or branch).`,
+  properties: {
+    name: {
+      type: "string",
+      isRequired: true,
+    },
+    type: {
+      type: "Enum",
+      enum: ["branch", "tag", "commit"],
+      isRequired: true,
+    },
+    message: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    author: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    timestamp: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    short_hash: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    is_default: {
+      type: "boolean",
+      default: false,
+    },
+    ahead: {
+      type: "number",
+      default: 0,
+    },
+    behind: {
+      type: "number",
+      default: 0,
+    },
+  },
+} as const
+
 export const $HTTPValidationError = {
   properties: {
     detail: {

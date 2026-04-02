@@ -375,6 +375,21 @@ export type GitItemWithContents = {
   content: string
 }
 
+/**
+ * Represents a Git reference (commit, tag, or branch).
+ */
+export type GitRef = {
+  name: string
+  type: "branch" | "tag" | "commit"
+  message?: string | null
+  author?: string | null
+  timestamp?: string | null
+  short_hash?: string | null
+  is_default?: boolean
+  ahead?: number
+  behind?: number
+}
+
 export type HTTPValidationError = {
   detail?: Array<ValidationError>
 }

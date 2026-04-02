@@ -51,21 +51,27 @@ import mixpanel from "mixpanel-browser"
 
 import LoadingSpinner from "../../../../components/Common/LoadingSpinner"
 import Sidebar from "../../../../components/Common/Sidebar"
-import { ProjectPublic } from "../../../../client"
+import { ProjectPublic, ProjectsService, type GitRef } from "../../../../client"
 import EditProject from "../../../../components/Projects/EditProject"
 import useProject from "../../../../hooks/useProject"
-import {
-  searchProjectRefs,
-  getProjectHistory,
-  type Ref,
-  type CommitHistory,
-} from "../../../../lib/projectRefApi"
 import NewProject from "../../../../components/Projects/NewProject"
 import useAuth from "../../../../hooks/useAuth"
 import HelpContent from "../../../../components/Projects/HelpContent"
 import CloneProject from "../../../../components/Projects/CloneProject"
 import ProjectStatus from "../../../../components/Projects/ProjectStatus"
 import MakeProjectPublic from "../../../../components/Projects/MakeProjectPublic"
+
+interface CommitHistory {
+  hash: string
+  short_hash: string
+  message: string
+  author: string
+  author_email: string
+  timestamp: string
+  committed_date: number
+  parent_hashes: string[]
+  summary: string
+}
 
 const layoutSearchSchema = z.object({
   ref: z.string().optional(),
@@ -90,7 +96,7 @@ function SwitchVersionModal({
 }: {
   isOpen: boolean
   onClose: () => void
-  branches: Ref[]
+  branches: GitRef[]
   currentRef: string | undefined
   defaultBranchName: string | undefined
   onSetRef: (ref: string | undefined) => void
@@ -101,8 +107,12 @@ function SwitchVersionModal({
 
   const commitsQuery = useQuery({
     queryKey: ["projects", accountName, projectName, "git-history-all"],
-    queryFn: () =>
-      getProjectHistory({ ownerName: accountName, projectName, limit: 100 }),
+    queryFn: async () =>
+      (await ProjectsService.getProjectHistory({
+        ownerName: accountName,
+        projectName,
+        limit: 100,
+      })) as unknown as CommitHistory[],
     enabled: isOpen,
   })
 
@@ -243,7 +253,7 @@ function SwitchVersionModal({
 interface ProjectMenuProps {
   project: ProjectPublic
   userHasWriteAccess: boolean
-  branches: Ref[]
+  branches: GitRef[]
   currentRef: string | undefined
   defaultBranchName: string | undefined
   onSetRef: (ref: string | undefined) => void
@@ -358,13 +368,17 @@ function ProjectLayout() {
   })
   const refsQuery = useQuery({
     queryKey: ["projects", accountName, projectName, "refs"],
-    queryFn: () => searchProjectRefs({ ownerName: accountName, projectName }),
+    queryFn: () =>
+      ProjectsService.searchProjectRefs({
+        ownerName: accountName,
+        projectName,
+      }),
     enabled: !isPending,
   })
   const branches = (refsQuery.data ?? []).filter(
-    (r: Ref) => r.type === "branch",
+    (r: GitRef) => r.type === "branch",
   )
-  const defaultBranch = branches.find((r: Ref) => r.is_default)
+  const defaultBranch = branches.find((r: GitRef) => r.is_default)
 
   const setRef = (newRef: string | undefined) => {
     navigate({ search: (prev) => ({ ...prev, ref: newRef }) })

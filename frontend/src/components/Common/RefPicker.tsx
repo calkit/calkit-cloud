@@ -12,7 +12,7 @@ import {
 } from "@chakra-ui/react"
 import { useQuery } from "@tanstack/react-query"
 import { useEffect, useRef, useState } from "react"
-import { searchProjectRefs, type Ref } from "../../lib/projectRefApi"
+import { ProjectsService, type GitRef } from "../../client"
 
 interface RefPickerProps {
   ownerName: string
@@ -43,7 +43,7 @@ export function RefPicker({
   const { data: refs = [], isPending } = useQuery({
     queryKey: ["search_refs", ownerName, projectName, searchInput],
     queryFn: () =>
-      searchProjectRefs({
+      ProjectsService.searchProjectRefs({
         ownerName,
         projectName,
         q: searchInput || undefined,
@@ -68,7 +68,7 @@ export function RefPicker({
     }
   }, [])
 
-  const handleSelectRef = (ref: Ref) => {
+  const handleSelectRef = (ref: GitRef) => {
     onChange(ref.name)
     setSearchInput("")
     setIsOpen(false)

@@ -38,12 +38,30 @@ import { atomOneDark } from "react-syntax-highlighter/dist/esm/styles/hljs"
 
 import LoadingSpinner from "../../../../../components/Common/LoadingSpinner"
 import PageMenu from "../../../../../components/Common/PageMenu"
-import {
-  getProjectHistory,
-  getProjectCommit,
-  searchProjectRefs,
-  type CommitHistory,
-} from "../../../../../lib/projectRefApi"
+import { ProjectsService, type GitRef } from "../../../../../client"
+
+interface CommitHistory {
+  hash: string
+  short_hash: string
+  message: string
+  author: string
+  author_email: string
+  timestamp: string
+  committed_date: number
+  parent_hashes: string[]
+  summary: string
+}
+
+interface CommitDetail extends CommitHistory {
+  changed_files: {
+    path: string
+    old_path: string | null
+    change_type: string
+    insertions: number | null
+    deletions: number | null
+    patch: string | null
+  }[]
+}
 
 const historySearchSchema = z.object({
   ref: z.string().optional(),
@@ -176,12 +194,12 @@ function CommitDetailModal({
   const borderColor = useColorModeValue("gray.200", "gray.600")
   const detailQuery = useQuery({
     queryKey: ["projects", ownerName, projectName, "commit", commit?.hash],
-    queryFn: () =>
-      getProjectCommit({
+    queryFn: async () =>
+      (await ProjectsService.getProjectCommit({
         ownerName,
         projectName,
         commitHash: commit!.hash,
-      }),
+      })) as unknown as CommitDetail,
     enabled: isOpen && Boolean(commit),
   })
 
@@ -281,13 +299,13 @@ function History() {
       page,
     ],
     queryFn: async () => {
-      const results = await getProjectHistory({
+      const results = (await ProjectsService.getProjectHistory({
         ownerName: accountName,
         projectName: projectName,
         limit: PAGE_SIZE,
         offset: page * PAGE_SIZE,
         ref: selectedRef,
-      })
+      })) as unknown as CommitHistory[]
       setAllCommits((prev) => {
         if (page === 0) return results
         const existing = new Set(prev.map((c) => c.hash))
@@ -301,18 +319,20 @@ function History() {
   const refsQuery = useQuery({
     queryKey: ["projects", accountName, projectName, "refs", "all"],
     queryFn: () =>
-      searchProjectRefs({
+      ProjectsService.searchProjectRefs({
         ownerName: accountName,
         projectName: projectName,
         q: undefined,
       }),
   })
 
-  const branches = (refsQuery.data ?? [])
-    .filter((r) => r.type === "branch")
+  const branches = ((refsQuery.data ?? []) as GitRef[])
+    .filter((r: GitRef) => r.type === "branch")
     .sort((a, b) => (b.is_default ? 1 : 0) - (a.is_default ? 1 : 0))
 
-  const tags = (refsQuery.data ?? []).filter((r) => r.type === "tag")
+  const tags = ((refsQuery.data ?? []) as GitRef[]).filter(
+    (r: GitRef) => r.type === "tag",
+  )
 
   const selectRef = (name: string) => {
     navigate({ search: (prev) => ({ ...prev, ref: name }) })
