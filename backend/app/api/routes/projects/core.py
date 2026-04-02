@@ -1405,8 +1405,7 @@ def post_project_question(
     repo = get_repo(
         project=project, user=current_user, session=session, ttl=None
     )
-    ck_info = app.projects.get_ck_info_for_ref(
-        project=project,
+    ck_info = app.projects.get_ck_info_from_repo(
         repo=repo,
         ref=ref,
         process_includes=True,
