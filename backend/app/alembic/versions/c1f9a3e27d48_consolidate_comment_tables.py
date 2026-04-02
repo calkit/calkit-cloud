@@ -1,12 +1,12 @@
-"""Consolidate figure and publication comment tables into unified projectcomment
+"""Consolidate comments into unified projectcomment
 
 Revision ID: c1f9a3e27d48
-Revises: 4fd2570919f9
+Revises: e1b0fa2a6d34
 Create Date: 2026-04-01 00:00:00.000000
 
 Migrates all existing figurecomment rows into the new unified projectcomment
-table (artifact_type='figure'). publicationcomment never reached production so
-no data migration is needed for it. Both old tables are dropped.
+table (artifact_type='figure'), and introduces the notification table used by
+comment fan-out.
 """
 from alembic import op
 import sqlalchemy as sa
@@ -14,12 +14,27 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = 'c1f9a3e27d48'
-down_revision = '4fd2570919f9'
+down_revision = 'e1b0fa2a6d34'
 branch_labels = None
 depends_on = None
 
 
 def upgrade():
+    op.create_table(
+        'notification',
+        sa.Column('id', sa.Uuid(), nullable=False),
+        sa.Column('user_id', sa.Uuid(), nullable=False),
+        sa.Column('project_id', sa.Uuid(), nullable=False),
+        sa.Column('message', sa.String(length=500), nullable=False),
+        sa.Column('link', sa.String(length=2048), nullable=False),
+        sa.Column('read', sa.DateTime(), nullable=True),
+        sa.Column('created', sa.DateTime(), nullable=False),
+        sa.ForeignKeyConstraint(['project_id'], ['project.id']),
+        sa.ForeignKeyConstraint(['user_id'], ['user.id']),
+        sa.PrimaryKeyConstraint('id'),
+    )
+    op.add_column('figurecomment', sa.Column('resolved', sa.DateTime(), nullable=True))
+
     # Add parent_id to figurecomment so it can be migrated with thread info
     op.add_column(
         'figurecomment',
@@ -60,7 +75,6 @@ def upgrade():
     """)
 
     op.drop_table('figurecomment')
-    op.drop_table('publicationcomment')
 
     # Allow notifications to reference a specific comment
     op.add_column(
@@ -70,7 +84,7 @@ def upgrade():
 
 
 def downgrade():
-    # Recreate figurecomment as it was after 4fd2570919f9 (with resolved, no parent_id)
+    # Recreate figurecomment as it existed before this migration chain.
     op.create_table(
         'figurecomment',
         sa.Column('id', sa.Uuid(), nullable=False),
@@ -80,40 +94,23 @@ def downgrade():
         sa.Column('created', sa.DateTime(), nullable=False),
         sa.Column('updated', sa.DateTime(), nullable=False),
         sa.Column('external_url', sa.String(length=2048), nullable=True),
-        sa.Column('resolved', sa.DateTime(), nullable=True),
         sa.Column('comment', sa.String(), nullable=False),
-        sa.ForeignKeyConstraint(['project_id'], ['project.id']),
-        sa.ForeignKeyConstraint(['user_id'], ['user.id']),
-        sa.PrimaryKeyConstraint('id'),
-    )
-    op.create_table(
-        'publicationcomment',
-        sa.Column('id', sa.Uuid(), nullable=False),
-        sa.Column('project_id', sa.Uuid(), nullable=False),
-        sa.Column('publication_path', sa.String(length=255), nullable=False),
-        sa.Column('user_id', sa.Uuid(), nullable=False),
-        sa.Column('created', sa.DateTime(), nullable=False),
-        sa.Column('updated', sa.DateTime(), nullable=False),
-        sa.Column('comment', sa.String(), nullable=False),
-        sa.Column('highlight', sa.JSON(), nullable=True),
-        sa.Column('git_ref', sa.String(length=255), nullable=True),
-        sa.Column('external_url', sa.String(length=2048), nullable=True),
-        sa.Column('resolved', sa.DateTime(), nullable=True),
         sa.ForeignKeyConstraint(['project_id'], ['project.id']),
         sa.ForeignKeyConstraint(['user_id'], ['user.id']),
         sa.PrimaryKeyConstraint('id'),
     )
 
-    # Restore figure comments (drop thread info since figurecomment has no parent_id here)
+    # Restore figure comments (drop thread info since figurecomment has no parent_id).
     op.execute("""
         INSERT INTO figurecomment
             (id, project_id, user_id, created, updated, comment,
-             figure_path, external_url, resolved)
+             figure_path, external_url)
         SELECT
             id, project_id, user_id, created, updated, comment,
-            artifact_path, external_url, resolved
+            artifact_path, external_url
         FROM projectcomment WHERE artifact_type = 'figure'
     """)
 
     op.drop_column('notification', 'project_comment_id')
     op.drop_table('projectcomment')
+    op.drop_table('notification')

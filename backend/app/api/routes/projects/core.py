@@ -748,7 +748,7 @@ def get_project_git_repo(
     project_name: str,
     session: SessionDep,
     current_user: CurrentUser,
-):
+) -> dict:
     token = users.get_github_token(session=session, user=current_user)
     project = get_project(
         owner_name=owner_name,
@@ -819,7 +819,17 @@ def get_project_history(
         None, description="Branch, tag, or commit to read history from"
     ),
 ) -> list[dict]:
-    """Get paginated git commit history for a project."""
+    """Get paginated git commit history for a project.
+
+    Parameters
+    ----------
+    limit:
+        Maximum number of commits to return.
+    offset:
+        Number of commits to skip from the newest commit.
+    ref:
+        Optional branch, tag, or commit to read history from.
+    """
     project = app.projects.get_project(
         session=session,
         owner_name=owner_name,
@@ -845,7 +855,13 @@ def get_project_commit(
     session: SessionDep,
     current_user: CurrentUserOptional,
 ) -> dict:
-    """Get details for a specific commit including changed files."""
+    """Get details for a specific commit including changed files.
+
+    Parameters
+    ----------
+    commit_hash:
+        Full or short commit hash to inspect.
+    """
     project = app.projects.get_project(
         session=session,
         owner_name=owner_name,

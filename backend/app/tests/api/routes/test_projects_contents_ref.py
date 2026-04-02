@@ -51,6 +51,7 @@ def test_get_project_contents_forwards_ref(client: TestClient) -> None:
         min_access_level="read",
     )
 
+    # The API route must forward the selected ref to repo/content helpers.
     assert mock_get_repo.call_count == 1
     repo_call = mock_get_repo.call_args.kwargs
     assert repo_call["project"] is fake_project
@@ -94,9 +95,7 @@ def test_get_project_file_history_endpoint(client: TestClient) -> None:
             return_value=fake_repo,
         ),
         patch(
-            "app.api.routes.projects.core.app.git.get_file_history"
-            if False
-            else "app.git.get_file_history",
+            "app.git.get_file_history",
             return_value=fake_history,
         ),
     ):
@@ -106,6 +105,7 @@ def test_get_project_file_history_endpoint(client: TestClient) -> None:
         )
 
     assert response.status_code == 200
+    # Endpoint should proxy through the git history payload unchanged.
     data = response.json()
     assert isinstance(data, list)
     assert len(data) == 1

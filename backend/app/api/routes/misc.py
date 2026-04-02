@@ -251,6 +251,16 @@ def global_search(
     current_user: CurrentUserOptional,
     limit: int = 5,
 ) -> SearchResults:
+    """Search projects, orgs, and datasets visible to the current user.
+
+    Parameters
+    ----------
+    q:
+        Query string matched case-insensitively against names, titles,
+        and descriptions. Short queries (<2 chars) return no results.
+    limit:
+        Maximum number of results returned per category.
+    """
     if not q or len(q) < 2:
         return SearchResults(results=[])
     pattern = f"%{q}%"
