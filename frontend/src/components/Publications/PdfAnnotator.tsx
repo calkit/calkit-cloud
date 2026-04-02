@@ -29,6 +29,7 @@ import {
   useRef,
   useState,
   useCallback,
+  useEffect,
   useLayoutEffect,
   type MutableRefObject,
 } from "react"
@@ -224,6 +225,8 @@ export function CommentList({
   comments,
   highlights,
   scrollToHighlight,
+  showResolved,
+  onShowResolvedChange,
   currentUserId,
   onResolve,
   resolvingId,
@@ -235,6 +238,8 @@ export function CommentList({
   comments: ProjectComment[]
   highlights: AnnotationHighlight[]
   scrollToHighlight: (h: AnnotationHighlight) => void
+  showResolved: boolean
+  onShowResolvedChange: (showResolved: boolean) => void
   currentUserId: string | undefined
   onResolve: (id: string, resolved: boolean) => void
   resolvingId?: string
@@ -245,7 +250,6 @@ export function CommentList({
 }) {
   const bg = useColorModeValue("ui.secondary", "ui.darkSlate")
   const borderColor = useColorModeValue("gray.200", "gray.600")
-  const [showResolved, setShowResolved] = useState(false)
   const [replyingToId, setReplyingToId] = useState<string | null>(null)
   const [replyDraft, setReplyDraft] = useState("")
   const [addingComment, setAddingComment] = useState(false)
@@ -477,7 +481,7 @@ export function CommentList({
           <Switch
             size="sm"
             isChecked={showResolved}
-            onChange={(e) => setShowResolved(e.target.checked)}
+            onChange={(e) => onShowResolvedChange(e.target.checked)}
           />
         </Flex>
       </Flex>
@@ -573,6 +577,7 @@ interface PdfAnnotatorProps {
   ownerName: string
   projectName: string
   publicationPath: string
+  showResolved?: boolean
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   externalScrollRef?: MutableRefObject<(h: any) => void>
 }
@@ -582,20 +587,57 @@ export default function PdfAnnotator({
   ownerName,
   projectName,
   publicationPath,
+  showResolved = false,
   externalScrollRef,
 }: PdfAnnotatorProps) {
   const { user } = useAuth()
   const queryClient = useQueryClient()
-  // Gate rendering until after the real layout effect fires. React 18 StrictMode
-  // calls componentDidMount twice on the SAME class component instance (fiber
-  // reuse), so PdfHighlighter's async init() runs twice → double setDocument →
-  // duplicate page DOM nodes. By only mounting PdfLoader after useLayoutEffect,
-  // we skip the StrictMode test-mount phase entirely.
+  const containerRef = useRef<HTMLDivElement>(null)
+  // Gate rendering until the next animation frame. In React StrictMode dev,
+  // the throwaway mount is torn down before RAF, so PdfLoader/PdfHighlighter
+  // initialize only once on the real mount and avoid duplicate page nodes.
   const [pdfReady, setPdfReady] = useState(false)
   useLayoutEffect(() => {
-    setPdfReady(true)
-    return () => setPdfReady(false)
-  }, [])
+    let rafId: number | null = requestAnimationFrame(() => {
+      setPdfReady(true)
+    })
+    return () => {
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId)
+      }
+      setPdfReady(false)
+    }
+  }, [url])
+
+  // Remove duplicate rendered PDF pages (same page number appearing twice).
+  // This guards against occasional double-init behavior in the viewer stack.
+  useEffect(() => {
+    if (!pdfReady || !containerRef.current) return
+    const root = containerRef.current
+
+    const dedupePages = () => {
+      const pages = Array.from(
+        root.querySelectorAll<HTMLElement>(
+          ".pdfViewer .page[data-page-number]",
+        ),
+      )
+      const seen = new Set<string>()
+      for (const page of pages) {
+        const pageNumber = page.dataset.pageNumber
+        if (!pageNumber) continue
+        if (seen.has(pageNumber)) {
+          page.remove()
+        } else {
+          seen.add(pageNumber)
+        }
+      }
+    }
+
+    dedupePages()
+    const observer = new MutationObserver(dedupePages)
+    observer.observe(root, { childList: true, subtree: true })
+    return () => observer.disconnect()
+  }, [pdfReady, url])
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const scrollRef = useRef<(h: any) => void>(() => {})
 
@@ -674,7 +716,8 @@ export default function PdfAnnotator({
   })
 
   const comments: ProjectComment[] = commentsQuery.data ?? []
-  const highlights: AnnotationHighlight[] = comments
+  const visibleComments = comments.filter((c) => showResolved || !c.resolved)
+  const highlights: AnnotationHighlight[] = visibleComments
     .map(commentToHighlight)
     .filter((h): h is AnnotationHighlight => h !== null)
 
@@ -693,7 +736,18 @@ export default function PdfAnnotator({
   )
 
   return (
-    <Box position="relative" height="100%" overflow="hidden">
+    <Box
+      ref={containerRef}
+      position="relative"
+      height="100%"
+      overflow="hidden"
+      sx={{
+        ".Highlight__part": {
+          opacity: 0.45,
+          background: "rgba(246, 224, 94, 0.85)",
+        },
+      }}
+    >
       {pdfReady && (
         <PdfLoader url={url} beforeLoad={<Spinner color="ui.main" />}>
           {(pdfDocument) => (

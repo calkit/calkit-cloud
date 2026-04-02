@@ -28,7 +28,7 @@ import { FaPlus, FaSync, FaCodeBranch } from "react-icons/fa"
 import { SiOverleaf } from "react-icons/si"
 import { ExternalLinkIcon } from "@chakra-ui/icons"
 import { z } from "zod"
-import { useRef } from "react"
+import { useRef, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import LoadingSpinner from "../../../../../components/Common/LoadingSpinner"
@@ -204,6 +204,7 @@ function Publications() {
     navigate({ search: (prev) => ({ ...prev, path: p }) })
   const { user } = useAuth()
   const queryClient = useQueryClient()
+  const [showResolved, setShowResolved] = useState(false)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const pdfScrollRef = useRef<(h: any) => void>(() => {})
 
@@ -367,6 +368,7 @@ function Publications() {
                       ownerName={accountName}
                       projectName={projectName}
                       publicationPath={selectedPub.path}
+                      showResolved={showResolved}
                       externalScrollRef={pdfScrollRef}
                     />
                   </Box>
@@ -403,6 +405,8 @@ function Publications() {
                     comments={pdfComments}
                     highlights={pdfHighlights}
                     scrollToHighlight={(h) => pdfScrollRef.current(h)}
+                    showResolved={showResolved}
+                    onShowResolvedChange={setShowResolved}
                     currentUserId={user?.id}
                     ownerName={accountName}
                     projectName={projectName}
