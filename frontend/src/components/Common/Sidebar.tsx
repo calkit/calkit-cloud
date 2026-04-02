@@ -72,7 +72,7 @@ const Sidebar = ({ basePath }: SidebarProps) => {
       {/* Desktop */}
       <Box
         bg={bgColor}
-        h="calc(100vh - 65px)"
+        h="calc(100vh - 64px)"
         position="sticky"
         left="0"
         top={16}

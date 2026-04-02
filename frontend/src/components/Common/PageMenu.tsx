@@ -9,7 +9,7 @@ const PageMenu = ({ children }: PageMenuProps) => {
   return (
     <Box
       position="sticky"
-      top={16} // Height of Topbar
+      top={0}
       maxW="300px"
       minW="200px"
       h="fit-content"
