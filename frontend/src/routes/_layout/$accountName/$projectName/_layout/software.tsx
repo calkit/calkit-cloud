@@ -9,7 +9,7 @@ import {
   Text,
 } from "@chakra-ui/react"
 import { useQuery } from "@tanstack/react-query"
-import { createFileRoute } from "@tanstack/react-router"
+import { createFileRoute, useSearch } from "@tanstack/react-router"
 
 import LoadingSpinner from "../../../../../components/Common/LoadingSpinner"
 import { ProjectsService } from "../../../../../client"
@@ -41,12 +41,18 @@ function SoftwareCard({ item }: { item: SoftwareItem }) {
 
 function ProjectSoftware() {
   const { accountName, projectName } = Route.useParams()
+  const layoutSearch = useSearch({
+    from: "/_layout/$accountName/$projectName/_layout" as any,
+    strict: false,
+  }) as any
+  const ref: string | undefined = layoutSearch?.ref
   const softwareQuery = useQuery({
-    queryKey: ["projects", accountName, projectName, "software"],
+    queryKey: ["projects", accountName, projectName, "software", ref],
     queryFn: () =>
       ProjectsService.getProjectSoftware({
         ownerName: accountName,
         projectName,
+        ref,
       }),
   })
 

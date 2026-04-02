@@ -1830,8 +1830,16 @@ def patch_project_comment(
     comment = session.get(ProjectComment, comment_id)
     if comment is None or comment.project_id != project.id:
         raise HTTPException(404)
-    comment.resolved = utcnow() if patch.resolved else None
+    now = utcnow() if patch.resolved else None
+    comment.resolved = now
     session.add(comment)
+    # Cascade resolve/unresolve to replies
+    children = session.exec(
+        select(ProjectComment).where(ProjectComment.parent_id == comment_id)
+    ).all()
+    for child in children:
+        child.resolved = now
+        session.add(child)
     session.commit()
     session.refresh(comment)
     if patch.resolved:

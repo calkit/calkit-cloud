@@ -21,6 +21,7 @@ import {
   createFileRoute,
   Link as RouterLink,
   useNavigate,
+  useSearch,
 } from "@tanstack/react-router"
 import { FiFile } from "react-icons/fi"
 import { FaPlus, FaSync, FaCodeBranch } from "react-icons/fa"
@@ -186,10 +187,16 @@ function Publications() {
   const newPubTemplateModal = useDisclosure()
   const overleafImportModal = useDisclosure()
   const { accountName, projectName } = Route.useParams()
+  const layoutSearch = useSearch({
+    from: "/_layout/$accountName/$projectName/_layout" as any,
+    strict: false,
+  }) as any
+  const ref: string | undefined = layoutSearch?.ref
   const { userHasWriteAccess } = useProject(accountName, projectName)
   const { publicationsRequest } = useProjectPublications(
     accountName,
     projectName,
+    ref,
   )
   const { path: selectedPath } = Route.useSearch()
   const navigate = useNavigate({ from: Route.fullPath })

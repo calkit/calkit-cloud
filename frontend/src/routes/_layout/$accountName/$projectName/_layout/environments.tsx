@@ -16,7 +16,11 @@ import {
   Alert,
   AlertIcon,
 } from "@chakra-ui/react"
-import { createFileRoute, Link as RouterLink } from "@tanstack/react-router"
+import {
+  createFileRoute,
+  Link as RouterLink,
+  useSearch,
+} from "@tanstack/react-router"
 import { FaCube, FaDocker } from "react-icons/fa"
 import { AiOutlinePython } from "react-icons/ai"
 import { SiAnaconda } from "react-icons/si"
@@ -133,9 +137,15 @@ const EnvCard = ({ environment }: EnvCardProps) => {
 
 function ProjectEnvsView() {
   const { accountName, projectName } = Route.useParams()
+  const layoutSearch = useSearch({
+    from: "/_layout/$accountName/$projectName/_layout" as any,
+    strict: false,
+  }) as any
+  const ref: string | undefined = layoutSearch?.ref
   const { environmentsRequest } = useProjectEnvironments(
     accountName,
     projectName,
+    ref,
   )
   const { isPending: environmentsPending, data: environments } =
     environmentsRequest

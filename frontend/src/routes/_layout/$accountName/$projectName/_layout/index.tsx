@@ -18,7 +18,11 @@ import {
   Link,
   Icon,
 } from "@chakra-ui/react"
-import { createFileRoute, Link as RouterLink } from "@tanstack/react-router"
+import {
+  createFileRoute,
+  Link as RouterLink,
+  useSearch,
+} from "@tanstack/react-router"
 import { useState } from "react"
 import { FaPlus } from "react-icons/fa"
 import { MdEdit } from "react-icons/md"
@@ -45,6 +49,11 @@ export const Route = createFileRoute(
 function ProjectView() {
   const secBgColor = useColorModeValue("ui.secondary", "ui.darkSlate")
   const { accountName, projectName } = Route.useParams()
+  const layoutSearch = useSearch({
+    from: "/_layout/$accountName/$projectName/_layout" as any,
+    strict: false,
+  }) as any
+  const ref: string | undefined = layoutSearch?.ref
   const [showClosedTodos, setShowClosedTodos] = useState(false)
   const { projectRequest, userHasWriteAccess } = useProject(
     accountName,
@@ -55,8 +64,12 @@ function ProjectView() {
     projectName,
     showClosedTodos,
   )
-  const { readmeRequest } = useProjectReadme(accountName, projectName)
-  const { questionsRequest } = useProjectQuestions(accountName, projectName)
+  const { readmeRequest } = useProjectReadme(accountName, projectName, ref)
+  const { questionsRequest } = useProjectQuestions(
+    accountName,
+    projectName,
+    ref,
+  )
   const gitRepoUrl = projectRequest.data?.git_repo_url
   const codespacesUrl =
     String(gitRepoUrl).replace("://github.com/", "://codespaces.new/") +

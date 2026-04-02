@@ -1,4 +1,8 @@
-import { createFileRoute, Link as RouterLink } from "@tanstack/react-router"
+import {
+  createFileRoute,
+  Link as RouterLink,
+  useSearch,
+} from "@tanstack/react-router"
 import { Box, Flex, Heading, Alert, AlertIcon, Link } from "@chakra-ui/react"
 import { useQuery } from "@tanstack/react-query"
 import { useState, useMemo, type ReactNode } from "react"
@@ -168,12 +172,18 @@ export const Route = createFileRoute(
 
 function ProjectPipeline() {
   const { accountName, projectName } = Route.useParams()
+  const layoutSearch = useSearch({
+    from: "/_layout/$accountName/$projectName/_layout" as any,
+    strict: false,
+  }) as any
+  const ref: string | undefined = layoutSearch?.ref
   const pipelineQuery = useQuery({
-    queryKey: [accountName, projectName, "pipeline"],
+    queryKey: ["projects", accountName, projectName, "pipeline", ref],
     queryFn: () =>
       ProjectsService.getProjectPipeline({
         ownerName: accountName,
         projectName: projectName,
+        ref,
       }),
   })
   const [isDiagramExpanded, setIsDiagramExpanded] = useState(false)

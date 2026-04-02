@@ -76,8 +76,8 @@ function inferKindFromPath(path: string): ArtifactKind | undefined {
     return "publication"
   if (FIGURE_DIRS.has(parentDir) && FIGURE_EXTS.has(ext)) return "figure"
 
-  // Fall back to extension only (PDFs outside known dirs are figures by default)
-  if (FIGURE_EXTS.has(ext)) return "figure"
+  // Fall back to extension only; exclude .json since it's too ambiguous (configs, etc.)
+  if (FIGURE_EXTS.has(ext) && ext !== ".json") return "figure"
   if (ext === ".pdf") return "figure"
 
   return undefined

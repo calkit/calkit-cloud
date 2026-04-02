@@ -16,7 +16,7 @@ import {
   useDisclosure,
   Button,
 } from "@chakra-ui/react"
-import { createFileRoute } from "@tanstack/react-router"
+import { createFileRoute, useSearch } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
 import { IoLibraryOutline } from "react-icons/io5"
 import { FiFile } from "react-icons/fi"
@@ -65,16 +65,22 @@ function ReferenceEntryTable({ referenceEntry }: ReferenceEntryTableProps) {
 
 function References() {
   const { accountName, projectName } = Route.useParams()
+  const layoutSearch = useSearch({
+    from: "/_layout/$accountName/$projectName/_layout" as any,
+    strict: false,
+  }) as any
+  const ref: string | undefined = layoutSearch?.ref
   const {
     isPending,
     error,
     data: allReferences,
   } = useQuery({
-    queryKey: ["projects", accountName, projectName, "references"],
+    queryKey: ["projects", accountName, projectName, "references", ref],
     queryFn: () =>
       ProjectsService.getProjectReferences({
         ownerName: accountName,
         projectName: projectName,
+        ref,
       }),
   })
   const fileViewModal = useDisclosure()
