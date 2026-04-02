@@ -149,6 +149,8 @@ docker compose exec backend bash /app/tests-start.sh
 
 That `/app/tests-start.sh` script just calls `pytest` after making sure that the rest of the stack is running. If you need to pass extra arguments to `pytest`, you can pass them to that command and they will be forwarded.
 
+The script runs tests against an isolated Postgres database (`${POSTGRES_DB}_test` by default), recreating it on every run so local development data is not mutated. You can override the test DB name with `POSTGRES_DB_TEST`.
+
 For example, to stop on first error:
 
 ```bash

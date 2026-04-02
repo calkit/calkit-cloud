@@ -399,6 +399,15 @@ export const $Collaborator = {
   },
 } as const
 
+export const $CommentReply = {
+  properties: {
+    body: {
+      type: "string",
+      isRequired: true,
+    },
+  },
+} as const
+
 export const $ConnectedAccounts = {
   properties: {
     github: {
@@ -1340,89 +1349,9 @@ export const $Figure = {
         },
       ],
     },
-  },
-} as const
-
-export const $FigureComment = {
-  properties: {
-    id: {
-      type: "string",
-      format: "uuid",
-    },
-    project_id: {
-      type: "string",
-      isRequired: true,
-      format: "uuid",
-    },
-    figure_path: {
-      type: "string",
-      isRequired: true,
-      maxLength: 255,
-    },
-    user_id: {
-      type: "string",
-      isRequired: true,
-      format: "uuid",
-    },
-    created: {
-      type: "string",
-      format: "date-time",
-    },
-    updated: {
-      type: "string",
-      format: "date-time",
-    },
-    external_url: {
-      type: "any-of",
-      contains: [
-        {
-          type: "string",
-          maxLength: 2048,
-        },
-        {
-          type: "null",
-        },
-      ],
-    },
-    comment: {
-      type: "string",
-      isRequired: true,
-    },
-    user_github_username: {
-      type: "string",
-      isReadOnly: true,
-      isRequired: true,
-    },
-    user_full_name: {
-      type: "any-of",
-      contains: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
-      isReadOnly: true,
-      isRequired: true,
-    },
-    user_email: {
-      type: "string",
-      isReadOnly: true,
-      isRequired: true,
-    },
-  },
-} as const
-
-export const $FigureCommentPost = {
-  properties: {
-    figure_path: {
-      type: "string",
-      isRequired: true,
-    },
-    comment: {
-      type: "string",
-      isRequired: true,
+    comment_count: {
+      type: "number",
+      default: 0,
     },
   },
 } as const
@@ -1886,6 +1815,77 @@ export const $GitItemWithContents = {
   },
 } as const
 
+export const $GitRef = {
+  description: `Represents a Git reference (commit, tag, or branch).`,
+  properties: {
+    name: {
+      type: "string",
+      isRequired: true,
+    },
+    type: {
+      type: "Enum",
+      enum: ["branch", "tag", "commit"],
+      isRequired: true,
+    },
+    message: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    author: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    timestamp: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    short_hash: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    is_default: {
+      type: "boolean",
+      default: false,
+    },
+    ahead: {
+      type: "number",
+      default: 0,
+    },
+    behind: {
+      type: "number",
+      default: 0,
+    },
+  },
+} as const
+
 export const $HTTPValidationError = {
   properties: {
     detail: {
@@ -2200,8 +2200,15 @@ export const $Notebook = {
       isRequired: true,
     },
     title: {
-      type: "string",
-      isRequired: true,
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
     },
     description: {
       type: "any-of",
@@ -2258,6 +2265,69 @@ export const $Notebook = {
           type: "null",
         },
       ],
+    },
+  },
+} as const
+
+export const $Notification = {
+  description: `In-app notification delivered to a user when a comment is posted on
+their project (or a project they collaborate on).
+
+Designed to be lightweight: no fan-out to external services here.
+\`\`link\`\` stores a frontend URL (e.g. \`\`/owner/project/publications?path=…\`\`)
+so the notification can deep-link directly to the relevant item.`,
+  properties: {
+    id: {
+      type: "string",
+      format: "uuid",
+    },
+    user_id: {
+      type: "string",
+      isRequired: true,
+      format: "uuid",
+    },
+    project_id: {
+      type: "string",
+      isRequired: true,
+      format: "uuid",
+    },
+    project_comment_id: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          format: "uuid",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    message: {
+      type: "string",
+      isRequired: true,
+      maxLength: 500,
+    },
+    link: {
+      type: "string",
+      isRequired: true,
+      maxLength: 2048,
+    },
+    read: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    created: {
+      type: "string",
+      format: "date-time",
     },
   },
 } as const
@@ -2847,6 +2917,216 @@ export const $ProjectApp = {
       contains: [
         {
           type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+  },
+} as const
+
+export const $ProjectComment = {
+  description: `A unified comment on any project artifact or on the project itself.
+
+\`\`artifact_type\`\` is one of 'figure', 'publication', 'notebook', 'file',
+or None for a project-level comment. \`\`artifact_path\`\` is the repo-relative
+path of the artifact (None for project-level comments).
+
+\`\`highlight\`\` carries a portable PDF annotation position (react-pdf-highlighter
+format) and is only populated for publication comments.
+
+\`\`parent_id\`\` enables flat one-level threading: replies point to the
+top-level comment. No nested replies are stored beyond one level in the UI,
+though the schema permits it for future use.`,
+  properties: {
+    id: {
+      type: "string",
+      format: "uuid",
+    },
+    project_id: {
+      type: "string",
+      isRequired: true,
+      format: "uuid",
+    },
+    user_id: {
+      type: "string",
+      isRequired: true,
+      format: "uuid",
+    },
+    created: {
+      type: "string",
+      format: "date-time",
+    },
+    updated: {
+      type: "string",
+      format: "date-time",
+    },
+    comment: {
+      type: "string",
+      isRequired: true,
+    },
+    artifact_path: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          maxLength: 512,
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    artifact_type: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          maxLength: 50,
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    highlight: {
+      type: "any-of",
+      contains: [
+        {
+          type: "dictionary",
+          contains: {
+            properties: {},
+          },
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    parent_id: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          format: "uuid",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    external_url: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          maxLength: 2048,
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    resolved: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    user_github_username: {
+      type: "string",
+      isReadOnly: true,
+      isRequired: true,
+    },
+    user_full_name: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      isReadOnly: true,
+      isRequired: true,
+    },
+    user_email: {
+      type: "string",
+      isReadOnly: true,
+      isRequired: true,
+    },
+  },
+} as const
+
+export const $ProjectCommentPatch = {
+  properties: {
+    resolved: {
+      type: "boolean",
+      isRequired: true,
+    },
+  },
+} as const
+
+export const $ProjectCommentPost = {
+  properties: {
+    comment: {
+      type: "string",
+      isRequired: true,
+    },
+    artifact_path: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    artifact_type: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    highlight: {
+      type: "any-of",
+      contains: [
+        {
+          type: "dictionary",
+          contains: {
+            properties: {},
+          },
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    create_github_issue: {
+      type: "boolean",
+      default: true,
+    },
+    parent_id: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          format: "uuid",
         },
         {
           type: "null",
@@ -3829,6 +4109,76 @@ export const $ReproCheck = {
   },
 } as const
 
+export const $SearchResultItem = {
+  properties: {
+    kind: {
+      type: "Enum",
+      enum: ["project", "org", "dataset"],
+      isRequired: true,
+    },
+    name: {
+      type: "string",
+      isRequired: true,
+    },
+    title: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    description: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    owner_name: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    project_name: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+  },
+} as const
+
+export const $SearchResults = {
+  properties: {
+    results: {
+      type: "array",
+      contains: {
+        type: "SearchResultItem",
+      },
+      isRequired: true,
+    },
+  },
+} as const
+
 export const $SftpAccess = {
   properties: {
     kind: {
@@ -3975,12 +4325,36 @@ export const $ShowcaseYaml = {
 
 export const $Software = {
   properties: {
-    environments: {
+    items: {
       type: "array",
       contains: {
-        type: "Environment",
+        type: "SoftwareItem",
       },
       isRequired: true,
+    },
+  },
+} as const
+
+export const $SoftwareItem = {
+  properties: {
+    title: {
+      type: "string",
+      isRequired: true,
+    },
+    path: {
+      type: "string",
+      isRequired: true,
+    },
+    description: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
     },
   },
 } as const

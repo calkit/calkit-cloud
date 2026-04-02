@@ -1,11 +1,14 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
+import LoadingSpinner from "../../../../../components/Common/LoadingSpinner"
 import {
   Box,
   Flex,
-  Spinner,
   Text,
   Icon,
   Heading,
+  Tag,
+  TagLabel,
+  TagCloseButton,
   useDisclosure,
   IconButton,
   useColorModeValue,
@@ -22,6 +25,7 @@ import {
   FaRegFileImage,
   FaRegFolderOpen,
   FaSync,
+  FaHistory,
 } from "react-icons/fa"
 import { BsFiletypeYml } from "react-icons/bs"
 import { z } from "zod"
@@ -31,9 +35,14 @@ import UploadFile from "../../../../../components/Files/UploadFile"
 import PageMenu from "../../../../../components/Common/PageMenu"
 import FileContent from "../../../../../components/Files/FileContent"
 import SelectedItemInfo from "../../../../../components/Files/SelectedItemInfo"
-import useProject, { useProjectFiles } from "../../../../../hooks/useProject"
+import useProject from "../../../../../hooks/useProject"
 
-const fileSearchSchema = z.object({ path: z.string().catch("") })
+const fileSearchSchema = z.object({
+  path: z.string().catch(""),
+  ref: z.string().optional(),
+  compare_ref: z.string().optional(),
+  compare_ref2: z.string().optional(),
+})
 
 export const Route = createFileRoute(
   "/_layout/$accountName/$projectName/_layout/files",
@@ -75,13 +84,15 @@ function Item({ item, level, selectedPath, setSelectedPath }: ItemProps) {
     pathShouldBeExpanded(item.path, selectedPath),
   )
   const { accountName, projectName } = Route.useParams()
+  const { ref } = Route.useSearch()
   const { data } = useQuery({
-    queryKey: ["projects", accountName, projectName, "files", item.path],
+    queryKey: ["projects", accountName, projectName, "files", item.path, ref],
     queryFn: () =>
       ProjectsService.getProjectContents({
         ownerName: accountName,
         projectName: projectName,
         path: item.path,
+        ref,
       }),
     enabled: isExpanded,
   })
@@ -143,7 +154,12 @@ function Item({ item, level, selectedPath, setSelectedPath }: ItemProps) {
   const handleClick = () => {
     setIsExpanded(!isExpanded)
     setSelectedPath(item.path)
-    navigate({ search: { path: item.path } })
+    navigate({
+      search: (prev) => ({
+        ...prev,
+        path: item.path,
+      }),
+    })
   }
 
   if (Array.isArray(data)) {
@@ -212,23 +228,39 @@ function Item({ item, level, selectedPath, setSelectedPath }: ItemProps) {
 
 function Files() {
   const { accountName, projectName } = Route.useParams()
-  const { path } = Route.useSearch()
+  const { path, ref, compare_ref, compare_ref2 } = Route.useSearch()
+  const navigate = useNavigate({ from: Route.fullPath })
   const { userHasWriteAccess } = useProject(accountName, projectName)
-  const { filesRequest } = useProjectFiles(accountName, projectName)
   const {
     isPending: filesPending,
     data: files,
     refetch,
     isRefetching,
-  } = filesRequest
+  } = useQuery({
+    queryKey: ["projects", accountName, projectName, "files", ref],
+    queryFn: () =>
+      ProjectsService.getProjectContents({
+        ownerName: accountName,
+        projectName: projectName,
+        ref,
+      }),
+  })
   const [selectedPath, setSelectedPath] = useState<string>(path)
   const selectedItemQuery = useQuery({
-    queryKey: ["projects", accountName, projectName, "files", selectedPath],
+    queryKey: [
+      "projects",
+      accountName,
+      projectName,
+      "files",
+      selectedPath,
+      ref,
+    ],
     queryFn: () =>
       ProjectsService.getProjectContents({
         ownerName: accountName,
         projectName: projectName,
         path: selectedPath,
+        ref,
       }),
     enabled: selectedPath !== undefined,
   })
@@ -241,33 +273,29 @@ function Files() {
     selectedItemQuery.refetch()
   }
 
+  const clearRef = () => {
+    navigate({ search: (prev) => ({ ...prev, ref: undefined }) })
+  }
+
   return (
     <>
       {filesPending || isRefetching ? (
-        <Flex justify="center" align="center" height="full" width="full">
-          <Spinner size="xl" color="ui.main" />
-        </Flex>
+        <LoadingSpinner />
       ) : (
         <Flex height={"100%"}>
           <PageMenu>
-            <Flex gap={2}>
-              <Heading size="md" mb={1}>
-                All files
-              </Heading>
-              {userHasWriteAccess ? (
-                <>
-                  <IconButton
-                    variant="primary"
-                    height="25px"
-                    fontSize="sm"
-                    onClick={fileUploadModal.onOpen}
-                    icon={<FaPlus />}
-                    aria-label="upload"
-                  />
-                </>
-              ) : (
-                ""
-              )}
+            <Flex align="center" gap={1} mb={2} wrap="wrap">
+              <Heading size="md">All files</Heading>
+              {userHasWriteAccess && !ref ? (
+                <IconButton
+                  variant="primary"
+                  height="25px"
+                  fontSize="sm"
+                  onClick={fileUploadModal.onOpen}
+                  icon={<FaPlus />}
+                  aria-label="upload"
+                />
+              ) : null}
               <IconButton
                 aria-label="refresh"
                 height="25px"
@@ -275,6 +303,19 @@ function Files() {
                 onClick={refresh}
               />
             </Flex>
+
+            {/* Version badge when a ref is active */}
+            {ref && (
+              <Box mb={3}>
+                <Tag size="sm" colorScheme="blue" borderRadius="full">
+                  <Icon as={FaHistory} mr={1} fontSize="10px" />
+                  <TagLabel fontSize="xs" maxW="120px" isTruncated>
+                    {ref}
+                  </TagLabel>
+                  <TagCloseButton onClick={clearRef} />
+                </Tag>
+              </Box>
+            )}
             <UploadFile
               isOpen={fileUploadModal.isOpen}
               onClose={fileUploadModal.onClose}
@@ -290,43 +331,51 @@ function Files() {
                 ))
               : ""}
           </PageMenu>
-          <Box minW="685px" maxH="82vh">
-            {selectedPath !== undefined &&
-            (selectedItemQuery.isPending || selectedItemQuery.isRefetching) ? (
-              <Flex justify="center" align="center" height="full" width="full">
-                <Spinner size="xl" color="ui.main" />
-              </Flex>
-            ) : (
-              <>
-                {selectedItemQuery?.data?.content ||
+          <Flex flex={1} minW={0} gap={6} align="flex-start">
+            <Box flex={1} minW={0} minH={0} overflowY="auto" overflowX="auto">
+              {selectedPath !== undefined &&
+              (selectedItemQuery.isPending ||
+                selectedItemQuery.isRefetching) ? (
+                <LoadingSpinner />
+              ) : selectedItemQuery?.data?.content ||
                 selectedItemQuery?.data?.url ? (
-                  <FileContent item={selectedItemQuery?.data} />
-                ) : (
-                  ""
-                )}
-              </>
-            )}
-          </Box>
-          <Box mx={5}>
-            <Heading size="md">Info</Heading>
-            {selectedPath !== undefined &&
-            (selectedItemQuery.isPending || selectedItemQuery.isRefetching) ? (
-              ""
-            ) : (
-              <>
-                {selectedItemQuery?.data && selectedPath !== undefined ? (
-                  <SelectedItemInfo
-                    selectedItem={selectedItemQuery.data}
-                    ownerName={accountName}
-                    projectName={projectName}
-                    userHasWriteAccess={userHasWriteAccess}
-                  />
-                ) : (
-                  ""
-                )}
-              </>
-            )}
-          </Box>
+                <FileContent item={selectedItemQuery.data!} />
+              ) : null}
+            </Box>
+            <Box
+              w="280px"
+              flexShrink={0}
+              px={3}
+              py={2}
+              borderRadius="lg"
+              bg={useColorModeValue("ui.secondary", "ui.darkSlate")}
+              h="fit-content"
+            >
+              <Heading size="md" mb={2}>
+                Info
+              </Heading>
+              {selectedPath !== undefined &&
+              (selectedItemQuery.isPending ||
+                selectedItemQuery.isRefetching) ? (
+                ""
+              ) : (
+                <>
+                  {selectedItemQuery?.data && selectedPath !== undefined ? (
+                    <SelectedItemInfo
+                      selectedItem={selectedItemQuery.data}
+                      ownerName={accountName}
+                      projectName={projectName}
+                      userHasWriteAccess={userHasWriteAccess}
+                      compareRef={compare_ref}
+                      compareRef2={compare_ref2}
+                    />
+                  ) : (
+                    ""
+                  )}
+                </>
+              )}
+            </Box>
+          </Flex>
         </Flex>
       )}
     </>

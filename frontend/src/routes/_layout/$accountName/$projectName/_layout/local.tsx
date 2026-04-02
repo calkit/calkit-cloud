@@ -1,10 +1,10 @@
+import LoadingSpinner from "../../../../../components/Common/LoadingSpinner"
 import {
   Code,
   Box,
   Text,
   Heading,
   Button,
-  Spinner,
   Flex,
   Icon,
   Link,
@@ -234,9 +234,7 @@ function LocalServer() {
           Local machine
         </Heading>
         {localServerQuery.isPending ? (
-          <Flex justify="center" align="center" height="100vh" width="full">
-            <Spinner size="xl" color="ui.main" />
-          </Flex>
+          <LoadingSpinner height="100vh" />
         ) : (
           <Flex>
             {localServerRunning ? (
@@ -321,14 +319,7 @@ function LocalServer() {
                   statusQuery.isRefetching ||
                   pipelineQuery.isPending ||
                   pipelineQuery.isRefetching ? (
-                    <Flex
-                      justify="center"
-                      align="center"
-                      height="full"
-                      width="full"
-                    >
-                      <Spinner size="xl" color="ui.main" />
-                    </Flex>
+                    <LoadingSpinner />
                   ) : (
                     <>
                       {localWorkingDir ? (

@@ -2,8 +2,13 @@
 
 import base64
 import hashlib
+import io
 import logging
 import os
+import subprocess
+import tarfile
+import tempfile
+from contextlib import contextmanager
 from typing import Literal
 
 import git
@@ -17,6 +22,7 @@ import app.users
 from app.config import settings
 from app.core import CATEGORIES_PLURAL_TO_SINGULAR, params_from_url
 from app.dvc import expand_dvc_lock_outs
+from app.dvc import get_data_fpath_for_md5
 from app.git import get_ck_info_from_repo
 from app.models import (
     ContentsItem,
@@ -182,10 +188,51 @@ def get_contents_from_repo(
     project: Project,
     repo: git.Repo,
     path: str | None = None,
+    ref: str | None = None,
 ) -> ContentsItem:
     owner_name = project.owner_account_name
     project_name = project.name
-    repo_dir = repo.working_dir
+    with _repo_dir_for_ref(repo, ref) as repo_dir:
+        return _get_contents_from_repo_dir(
+            project=project,
+            repo=repo,
+            repo_dir=repo_dir,
+            path=path,
+        )
+
+
+@contextmanager
+def _repo_dir_for_ref(repo: git.Repo, ref: str | None):
+    if ref is None:
+        yield repo.working_dir
+        return
+    candidates = [ref, f"origin/{ref}"]
+    archive_bytes = None
+    for candidate in candidates:
+        try:
+            archive_bytes = subprocess.check_output(
+                ["git", "archive", candidate],
+                cwd=repo.working_dir,
+            )
+            break
+        except subprocess.CalledProcessError:
+            continue
+    if archive_bytes is None:
+        raise HTTPException(404, f"Git ref '{ref}' was not found")
+    with tempfile.TemporaryDirectory(prefix="calkit-ref-") as tmpdir:
+        with tarfile.open(fileobj=io.BytesIO(archive_bytes)) as tf:
+            tf.extractall(path=tmpdir, filter="data")
+        yield tmpdir
+
+
+def _get_contents_from_repo_dir(
+    project: Project,
+    repo: git.Repo,
+    repo_dir: str,
+    path: str | None = None,
+) -> ContentsItem:
+    owner_name = project.owner_account_name
+    project_name = project.name
     # Prevent path traversal attacks
     if path is not None:
         # Check for absolute paths
@@ -195,12 +242,8 @@ def get_contents_from_repo(
         if ".." in path.split(os.sep):
             raise HTTPException(400, "Path traversal is not allowed")
     # If the path is an unsafe symlink, raise a 404
-    if path is not None and os.path.islink(
-        os.path.join(repo.working_dir, path)
-    ):
-        if not _is_safe_symlink(
-            os.path.join(repo.working_dir, path), repo.working_dir
-        ):
+    if path is not None and os.path.islink(os.path.join(repo_dir, path)):
+        if not _is_safe_symlink(os.path.join(repo_dir, path), repo_dir):
             logger.warning(
                 f"Unsafe symlink detected in {owner_name}/{project_name} "
                 f"at {path}"
@@ -369,7 +412,7 @@ def get_contents_from_repo(
             size=sum([c.size if c.size is not None else 0 for c in contents]),
             dir_items=contents,
             calkit_object=ck_objects.get(path),
-            in_repo=os.path.isdir(os.path.join(repo.working_dir, dirname)),
+            in_repo=os.path.isdir(os.path.join(repo_dir, dirname)),
         )
     # We're looking for a file
     # Check if it exists in the repo
@@ -434,17 +477,21 @@ def get_contents_from_repo(
         url = None
         # Create presigned url
         if md5:
-            fp = make_data_fpath(
+            fp = get_data_fpath_for_md5(
                 owner_name=owner_name,
                 project_name=project_name,
-                idx=md5[:2],
-                md5=md5[2:],
+                md5=md5,
+                fs=fs,
             )
-            url = get_object_url(fp, fname=os.path.basename(dvc_fpath), fs=fs)
+            if fp is not None:
+                url = get_object_url(
+                    fp, fname=os.path.basename(dvc_fpath), fs=fs
+                )
             # Get content is the size is small enough
             if (
                 size is not None
                 and size <= RETURN_CONTENT_SIZE_LIMIT
+                and fp is not None
                 and fs.exists(fp)
                 and not path.endswith(".h5")
                 and not path.endswith(".parquet")
@@ -476,13 +523,15 @@ def get_contents_from_repo(
             else:
                 dvc_out = dvc_lock_outs[path]
             md5 = dvc_out["md5"]
-            fp = make_data_fpath(
+            fp = get_data_fpath_for_md5(
                 owner_name=owner_name,
                 project_name=project_name,
-                idx=md5[:2],
-                md5=md5[2:],
+                md5=md5,
+                fs=fs,
             )
-            url = get_object_url(fp, fname=os.path.basename(path), fs=fs)
+            url = None
+            if fp is not None:
+                url = get_object_url(fp, fname=os.path.basename(path), fs=fs)
             size = dvc_out.get("size")
             dvc_type = "dir" if md5.endswith(".dir") else "file"
             # TODO: If this is a directory, list dir_items
@@ -500,12 +549,39 @@ def get_contents_from_repo(
         raise HTTPException(404)
 
 
+def get_ck_info_for_ref(
+    project: Project,
+    repo: git.Repo,
+    ref: str | None = None,
+    process_includes: bool = False,
+) -> dict:
+    """Return Calkit metadata for the requested ref, if provided."""
+    if ref is None:
+        return get_ck_info_from_repo(
+            repo=repo,
+            process_includes=process_includes,
+        )
+    ck_item = get_contents_from_repo(
+        project=project,
+        repo=repo,
+        path="calkit.yaml",
+        ref=ref,
+    )
+    if ck_item.content is None:
+        return {}
+    ck_info = yaml.safe_load(base64.b64decode(ck_item.content))
+    if ck_info is None:
+        return {}
+    return ck_info
+
+
 def get_figure_from_repo(
     project: Project,
     repo: git.Repo,
     path: str,
+    ref: str | None = None,
 ) -> Figure:
-    ck_info = get_ck_info_from_repo(repo)
+    ck_info = get_ck_info_for_ref(project=project, repo=repo, ref=ref)
     figures = ck_info.get("figures", [])
     # Get the figure content (will be base64-encoded)
     for fig in figures:
@@ -514,6 +590,7 @@ def get_figure_from_repo(
                 project=project,
                 repo=repo,
                 path=fig["path"],
+                ref=ref,
             )
             fig["content"] = item.content
             fig["url"] = item.url
@@ -522,9 +599,12 @@ def get_figure_from_repo(
 
 
 def get_publication_from_repo(
-    project: Project, repo: git.Repo, path: str
+    project: Project,
+    repo: git.Repo,
+    path: str,
+    ref: str | None = None,
 ) -> Publication:
-    ck_info = get_ck_info_from_repo(repo)
+    ck_info = get_ck_info_for_ref(project=project, repo=repo, ref=ref)
     publications = ck_info.get("publications", [])
     # Get the figure content (will be base64-encoded)
     for pub in publications:
@@ -533,6 +613,7 @@ def get_publication_from_repo(
                 project=project,
                 repo=repo,
                 path=pub["path"],
+                ref=ref,
             )
             pub["content"] = item.content
             # Prioritize URL defined in the publication itself
@@ -543,12 +624,15 @@ def get_publication_from_repo(
 
 
 def get_notebook_from_repo(
-    project: Project, repo: git.Repo, path: str
+    project: Project,
+    repo: git.Repo,
+    path: str,
+    ref: str | None = None,
 ) -> Notebook:
     """Get a notebook from a project's repo, fetching its HTML export if it
     exists.
     """
-    ck_info = get_ck_info_from_repo(repo)
+    ck_info = get_ck_info_for_ref(project=project, repo=repo, ref=ref)
     notebooks = ck_info.get("notebooks", [])
     for notebook in notebooks:
         if notebook.get("path") == path:
@@ -556,6 +640,7 @@ def get_notebook_from_repo(
                 project=project,
                 repo=repo,
                 path=path,
+                ref=ref,
             )
             try:
                 # If the notebook has HTML output, return that
@@ -563,7 +648,10 @@ def get_notebook_from_repo(
                     notebook_path=path, to="html"
                 )
                 html_item = get_contents_from_repo(
-                    project=project, repo=repo, path=html_path
+                    project=project,
+                    repo=repo,
+                    path=html_path,
+                    ref=ref,
                 )
                 item = html_item
                 notebook["output_format"] = "html"

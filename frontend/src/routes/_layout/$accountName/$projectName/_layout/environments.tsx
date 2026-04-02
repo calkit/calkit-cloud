@@ -1,7 +1,7 @@
+import LoadingSpinner from "../../../../../components/Common/LoadingSpinner"
 import {
   Box,
   Heading,
-  Spinner,
   Flex,
   Text,
   Code,
@@ -15,7 +15,11 @@ import {
   Alert,
   AlertIcon,
 } from "@chakra-ui/react"
-import { createFileRoute, Link as RouterLink } from "@tanstack/react-router"
+import {
+  createFileRoute,
+  Link as RouterLink,
+  useSearch,
+} from "@tanstack/react-router"
 import { FaCube, FaDocker } from "react-icons/fa"
 import { AiOutlinePython } from "react-icons/ai"
 import { SiAnaconda } from "react-icons/si"
@@ -132,9 +136,15 @@ const EnvCard = ({ environment }: EnvCardProps) => {
 
 function ProjectEnvsView() {
   const { accountName, projectName } = Route.useParams()
+  const layoutSearch = useSearch({
+    from: "/_layout/$accountName/$projectName/_layout" as any,
+    strict: false,
+  }) as any
+  const ref: string | undefined = layoutSearch?.ref
   const { environmentsRequest } = useProjectEnvironments(
     accountName,
     projectName,
+    ref,
   )
   const { isPending: environmentsPending, data: environments } =
     environmentsRequest
@@ -145,9 +155,7 @@ function ProjectEnvsView() {
         <Heading size="md">Environments</Heading>
       </Flex>
       {environmentsPending ? (
-        <Flex justify="center" align="center" height={"100vh"} width="full">
-          <Spinner size="xl" color="ui.main" />
-        </Flex>
+        <LoadingSpinner height="100vh" />
       ) : environments?.length ? (
         <Box>
           <SimpleGrid columns={[2, null, 3]} gap={6}>

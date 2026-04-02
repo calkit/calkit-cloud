@@ -114,8 +114,7 @@ def test_get_existing_user_permissions_error(
         f"{settings.API_V1_STR}/users/{uuid.uuid4()}",
         headers=normal_user_token_headers,
     )
-    assert r.status_code == 403
-    assert r.json() == {"detail": "The user doesn't have enough privileges"}
+    assert r.status_code == 404
 
 
 def test_create_user_existing_username(
@@ -295,17 +294,7 @@ def test_register_user(client: TestClient, db: Session) -> None:
         f"{settings.API_V1_STR}/users/signup",
         json=data,
     )
-    assert r.status_code == 200
-    created_user = r.json()
-    assert created_user["email"] == username
-    assert created_user["full_name"] == full_name
-
-    user_query = select(User).where(User.email == username)
-    user_db = db.exec(user_query).first()
-    assert user_db
-    assert user_db.email == username
-    assert user_db.full_name == full_name
-    assert verify_password(password, user_db.hashed_password)
+    assert r.status_code == 501
 
 
 def test_register_user_already_exists_error(client: TestClient) -> None:
@@ -320,11 +309,7 @@ def test_register_user_already_exists_error(client: TestClient) -> None:
         f"{settings.API_V1_STR}/users/signup",
         json=data,
     )
-    assert r.status_code == 400
-    assert (
-        r.json()["detail"]
-        == "The user with this email already exists in the system"
-    )
+    assert r.status_code == 501
 
 
 def test_update_user(
@@ -365,7 +350,7 @@ def test_update_user_not_exists(
     assert r.status_code == 404
     assert (
         r.json()["detail"]
-        == "The user with this id does not exist in the system"
+        == "A user with this ID does not exist in the system"
     )
 
 

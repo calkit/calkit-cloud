@@ -63,19 +63,26 @@ function FigureView({ figure, width }: FigureViewProps) {
       </Box>
     )
   } else if (figure.path.endsWith(".json")) {
-    const figObject = JSON.parse(atob(String(figure.content)))
-    const layout = figObject.layout
-    figView = (
-      <Box width={boxWidth}>
-        <Plot
-          data={figObject.data}
-          layout={layout}
-          config={{ displayModeBar: false }}
-          style={{ width: "100%", height: "100%" }}
-          useResizeHandler={true}
-        />
-      </Box>
-    )
+    try {
+      const figObject = JSON.parse(atob(String(figure.content)))
+      if (figObject.data && figObject.layout) {
+        figView = (
+          <Box width={boxWidth}>
+            <Plot
+              data={figObject.data}
+              layout={figObject.layout}
+              config={{ displayModeBar: false }}
+              style={{ width: "100%", height: "100%" }}
+              useResizeHandler={true}
+            />
+          </Box>
+        )
+      } else {
+        figView = <Text>Cannot render this type of figure</Text>
+      }
+    } catch {
+      figView = <Text>Cannot render this type of figure</Text>
+    }
   } else if (figure.path.endsWith(".html")) {
     // Embed HTML figure in an iframe
     const { data, isPending } = useQuery({
@@ -86,6 +93,7 @@ function FigureView({ figure, width }: FigureViewProps) {
         projectName,
         "figure-content",
         figure.path,
+        figure.url,
       ],
       enabled: Boolean(!figure.content && figure.url),
     })

@@ -14,7 +14,6 @@ import {
   Thead,
   Tr,
   Text,
-  Input,
 } from "@chakra-ui/react"
 import { ExternalLinkIcon } from "@chakra-ui/icons"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
@@ -33,6 +32,7 @@ import Navbar from "../../components/Common/Navbar"
 import NewProject from "../../components/Projects/NewProject"
 import { pageWidthNoSidebar } from "../../lib/layout"
 import useAuth from "../../hooks/useAuth"
+import ClearableInput from "../../components/Common/ClearableInput"
 
 const projectsSearchSchema = z.object({
   page: z.number().catch(1),
@@ -65,7 +65,7 @@ function ProjectsTable() {
   const navigate = useNavigate({ from: Route.fullPath })
   const setPage = (page: number) =>
     navigate({ search: (prev) => ({ ...prev, page }) })
-  const [searchForText, setSearchForText] = useState()
+  const [searchForText, setSearchForText] = useState("")
   const [searchFor] = useDebounce(searchForText, 400)
 
   const {
@@ -88,17 +88,18 @@ function ProjectsTable() {
     }
   }, [page, queryClient, hasNextPage])
 
-  const onSearchChange = (e: any) => {
-    setSearchForText(e.target.value)
-  }
-
   return (
     <>
       <Flex alignItems="center">
         <Box mr={4}>
           <Navbar verb={"New"} type={"project"} addModalAs={NewProject} />
         </Box>
-        <Input placeholder="Search..." width="33%" onChange={onSearchChange} />
+        <ClearableInput
+          placeholder="Search..."
+          width="33%"
+          value={searchForText ?? ""}
+          onValueChange={setSearchForText}
+        />
       </Flex>
       <TableContainer>
         <Table size={{ base: "sm", md: "md" }}>

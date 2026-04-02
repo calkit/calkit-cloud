@@ -196,7 +196,11 @@ class User(UserBase, table=True):
         back_populates="user",
         cascade_delete=True,
     )
-    figure_comments: list["FigureComment"] = Relationship(
+    project_comments: list["ProjectComment"] = Relationship(
+        back_populates="user",
+        cascade_delete=True,
+    )
+    notifications: list["Notification"] = Relationship(
         back_populates="user",
         cascade_delete=True,
     )
@@ -468,7 +472,10 @@ class Project(ProjectBase, table=True):
     file_locks: list["FileLock"] = Relationship(
         back_populates="project", cascade_delete=True
     )
-    figure_comments: list["FigureComment"] = Relationship(
+    project_comments: list["ProjectComment"] = Relationship(
+        back_populates="project", cascade_delete=True
+    )
+    notifications: list["Notification"] = Relationship(
         back_populates="project", cascade_delete=True
     )
 
@@ -597,22 +604,51 @@ class Figure(SQLModel):
     dataset: str | None = None
     content: str | None = None  # Base64 encoded
     url: str | None = None
+    comment_count: int = 0
     # TODO: Link to a dataset, or does the pipeline do that?
     # TODO: Add content, or maybe we can just get from Git contents via path?
 
 
-class FigureComment(SQLModel, table=True):
+class ProjectComment(SQLModel, table=True):
+    """A unified comment on any project artifact or on the project itself.
+
+    ``artifact_type`` is one of 'figure', 'publication', 'notebook', 'file',
+    or None for a project-level comment. ``artifact_path`` is the repo-relative
+    path of the artifact (None for project-level comments).
+
+    ``highlight`` carries a portable PDF annotation position (react-pdf-highlighter
+    format) and is only populated for publication comments.
+
+    ``parent_id`` enables flat one-level threading: replies point to the
+    top-level comment. No nested replies are stored beyond one level in the UI,
+    though the schema permits it for future use.
+    """
+
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     project_id: uuid.UUID = Field(foreign_key="project.id")
-    figure_path: str = Field(max_length=255)
     user_id: uuid.UUID = Field(foreign_key="user.id")
     created: datetime = Field(default_factory=utcnow)
     updated: datetime = Field(default_factory=utcnow)
+    comment: str = Field(
+        sa_column=sqlalchemy.Column(sqlalchemy.Text, nullable=False)
+    )
+    artifact_path: str | None = Field(default=None, max_length=512)
+    artifact_type: str | None = Field(default=None, max_length=50)
+    # Portable PDF highlight — only used for publication comments
+    highlight: dict | None = Field(
+        default=None,
+        sa_column=sqlalchemy.Column(sqlalchemy.JSON, nullable=True),
+    )
+    # Parent comment ID for threaded replies (one level deep in the UI)
+    parent_id: uuid.UUID | None = Field(
+        default=None,
+        foreign_key="projectcomment.id",
+    )
     external_url: str | None = Field(default=None, max_length=2048)
-    comment: str
+    resolved: datetime | None = Field(default=None)
     # Relationships
-    user: User = Relationship(back_populates="figure_comments")
-    project: Project = Relationship(back_populates="figure_comments")
+    user: User = Relationship(back_populates="project_comments")
+    project: Project = Relationship(back_populates="project_comments")
 
     @computed_field
     @property
@@ -630,9 +666,44 @@ class FigureComment(SQLModel, table=True):
         return self.user.email
 
 
-class FigureCommentPost(SQLModel):
-    figure_path: str
+class ProjectCommentPost(SQLModel):
     comment: str
+    artifact_path: str | None = None
+    artifact_type: str | None = None
+    highlight: dict | None = None
+    create_github_issue: bool = True
+    parent_id: uuid.UUID | None = None
+
+
+class ProjectCommentPatch(SQLModel):
+    resolved: bool
+
+
+class Notification(SQLModel, table=True):
+    """In-app notification delivered to a user when a comment is posted on
+    their project (or a project they collaborate on).
+
+    Designed to be lightweight: no fan-out to external services here.
+    ``link`` stores a frontend URL (e.g. ``/owner/project/publications?path=…``)
+    so the notification can deep-link directly to the relevant item.
+    """
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="user.id")
+    project_id: uuid.UUID = Field(foreign_key="project.id")
+    project_comment_id: uuid.UUID | None = Field(
+        default=None, foreign_key="projectcomment.id"
+    )
+    # Human-readable message, e.g. "Alice commented on pub.pdf"
+    message: str = Field(max_length=500)
+    # Frontend deep-link, e.g., "/owner/project/publications?path=pub.pdf"
+    link: str = Field(max_length=2048)
+    # None = unread; set to the timestamp when the user reads it
+    read: datetime | None = Field(default=None)
+    created: datetime = Field(default_factory=utcnow)
+    # Relationships
+    user: User = Relationship(back_populates="notifications")
+    project: Project = Relationship(back_populates="notifications")
 
 
 class DatasetBase(SQLModel):
@@ -787,9 +858,23 @@ class Publication(BaseModel):
 
 class Notebook(BaseModel):
     path: str
-    title: str
+    title: str | None = None
     description: str | None = None
     stage: str | None = None
     output_format: Literal["html", "notebook"] | None = None
     url: str | None = None
     content: str | None = None
+
+
+class GitRef(BaseModel):
+    """Represents a Git reference (commit, tag, or branch)."""
+
+    name: str  # Full ref name (e.g., "main", "v1.0.0", "abc123def456...")
+    type: Literal["branch", "tag", "commit"]  # Type of ref
+    message: str | None = None  # Commit/tag message
+    author: str | None = None  # Commit author
+    timestamp: str | None = None  # ISO format datetime
+    short_hash: str | None = None  # Short commit hash (7 chars)
+    is_default: bool = False  # Whether this is the default branch
+    ahead: int = 0  # Commits ahead of default branch
+    behind: int = 0  # Commits behind default branch

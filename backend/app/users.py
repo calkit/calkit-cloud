@@ -118,6 +118,9 @@ def save_external_credential(
 
 def create_user(*, session: Session, user_create: UserCreate) -> User:
     account_name = user_create.account_name or user_create.github_username
+    if not account_name:
+        account_name = user_create.email.split("@")[0]
+    github_name = user_create.github_username or account_name
     if account_name in INVALID_ACCOUNT_NAMES:
         raise HTTPException(422, "Invalid account name")
     user = User.model_validate(
@@ -126,7 +129,7 @@ def create_user(*, session: Session, user_create: UserCreate) -> User:
             "hashed_password": get_password_hash(user_create.password),
             "account": Account(
                 name=account_name,
-                github_name=user_create.github_username,
+                github_name=github_name,
             ),  # type: ignore
         },
     )
