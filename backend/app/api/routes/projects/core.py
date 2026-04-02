@@ -1833,13 +1833,18 @@ def patch_project_comment(
     now = utcnow() if patch.resolved else None
     comment.resolved = now
     session.add(comment)
-    # Cascade resolve/unresolve to replies
-    children = session.exec(
-        select(ProjectComment).where(ProjectComment.parent_id == comment_id)
-    ).all()
-    for child in children:
-        child.resolved = now
-        session.add(child)
+    # Cascade resolve/unresolve to all descendants
+    queue = [comment_id]
+    while queue:
+        parent_id = queue.pop()
+        children = session.exec(
+            select(ProjectComment).where(ProjectComment.parent_id == parent_id)
+        ).all()
+        for child in children:
+            child.resolved = now
+            session.add(child)
+            if child.id:
+                queue.append(child.id)
     session.commit()
     session.refresh(comment)
     if patch.resolved:
