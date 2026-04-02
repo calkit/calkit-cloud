@@ -15,7 +15,7 @@ from datetime import datetime
 from fnmatch import fnmatch
 from io import StringIO
 from pathlib import Path
-from typing import Annotated, Literal, Optional
+from typing import Annotated, Literal, Optional, cast
 
 import bibtexparser
 import calkit
@@ -229,10 +229,10 @@ def get_owned_projects(
         where_clause = and_(
             where_clause,
             or_(
-                Project.name.ilike(search_for),
-                Project.title.ilike(search_for),
-                Project.description.ilike(search_for),
-                Project.git_repo_url.ilike(search_for),
+                Project.name.ilike(search_for),  # type: ignore
+                Project.title.ilike(search_for),  # type: ignore
+                Project.description.ilike(search_for),  # type: ignore
+                Project.git_repo_url.ilike(search_for),  # type: ignore
             ),
         )
     count_statement = (
@@ -242,12 +242,12 @@ def get_owned_projects(
     statement = (
         select(Project)
         .where(where_clause)
-        .order_by(sqlalchemy.desc(Project.created))
+        .order_by(sqlalchemy.desc(Project.created))  # type: ignore
         .offset(offset)
         .limit(limit)
     )
     projects = session.exec(statement).all()
-    return ProjectsPublic(data=projects, count=count)
+    return ProjectsPublic(data=projects, count=count)  # type: ignore
 
 
 @router.post("/projects")
@@ -804,7 +804,7 @@ def search_project_refs(
         full_history=True,
     )
     refs = search_refs(repo, query=q)
-    return refs
+    return cast(list[GitRef], refs)
 
 
 @router.get("/projects/{owner_name}/{project_name}/git/history")
@@ -887,7 +887,10 @@ def get_project_commit(
             change_type = d.change_type  # A, D, M, R, etc.
             patch_bytes = d.diff if d.diff else b""
             try:
-                patch = patch_bytes.decode("utf-8", errors="replace")
+                if isinstance(patch_bytes, bytes):
+                    patch = patch_bytes.decode("utf-8", errors="replace")
+                else:
+                    patch = str(patch_bytes)
             except Exception:
                 patch = ""
             insertions = sum(
@@ -924,11 +927,16 @@ def get_project_commit(
                         "patch": None,
                     }
                 )
+    message = (
+        commit.message
+        if isinstance(commit.message, str)
+        else bytes(commit.message).decode("utf-8", errors="replace")
+    )
     return {
         "hash": commit.hexsha,
         "short_hash": commit.hexsha[:7],
-        "message": commit.message,
-        "summary": commit.message.split("\n")[0],
+        "message": message,
+        "summary": message.split("\n")[0],
         "author": commit.author.name,
         "author_email": commit.author.email,
         "timestamp": commit.committed_datetime.isoformat(),
@@ -1000,7 +1008,10 @@ async def post_project_dvc_file(
     logger.info(f"{current_user.email} requesting to POST data")
     # Check if user has not exceeded their storage limit
     fs = get_object_fs()
-    storage_limit_gb = project.owner.subscription.storage_limit
+    owner = project.owner
+    if owner is None or owner.subscription is None:
+        raise HTTPException(400, "Project owner subscription not configured")
+    storage_limit_gb = owner.subscription.storage_limit
     session.close()
     # Create bucket if it doesn't exist -- only necessary with MinIO
     if settings.ENVIRONMENT == "local" and not fs.exists(get_data_prefix()):
@@ -1363,7 +1374,9 @@ def _sync_questions_with_db(
     for n, new in enumerate(questions):
         number = start_number + n
         logger.info(f"Appending new question with number: {number}")
-        project.questions.append(Question(number=number, question=new))
+        project.questions.append(
+            Question(project_id=project.id, number=number, question=new)
+        )
     # Delete extra questions in DB
     while len(project.questions) > len(questions_ck):
         q = project.questions.pop(-1)
@@ -1505,7 +1518,7 @@ def get_project_figures(
     # Build comment count map from DB
     comment_counts = dict(
         session.exec(
-            select(ProjectComment.artifact_path, func.count(ProjectComment.id))
+            select(ProjectComment.artifact_path, func.count())
             .where(
                 ProjectComment.project_id == project.id,
                 ProjectComment.artifact_type == "figure",
@@ -1572,6 +1585,8 @@ def post_project_figure(
     stage: Optional[Annotated[str, Form()]] = Form(None),
     file: Optional[Annotated[UploadFile, File()]] = Form(None),
 ) -> Figure:
+    file_data: bytes | None = None
+    full_fig_path: str | None = None
     if file is not None:
         logger.info(
             f"Received figure file {path} with content type: "
@@ -1659,6 +1674,8 @@ def post_project_figure(
     repo.git.push(["origin", repo.branches[0].name])
     url = None
     if file is not None:
+        if file_data is None or full_fig_path is None:
+            raise HTTPException(500, "Figure upload data missing")
         # If using the DVC remote, we can just put it in the expected location
         # since we'll have the md5 hash in the dvc file
         with open(os.path.join(repo.working_dir, path + ".dvc")) as f:
@@ -1672,7 +1689,7 @@ def post_project_figure(
             md5=md5[2:],
         )
         with fs.open(fpath, "wb") as f:
-            f.write(file_data)
+            f.write(file_data)  # type: ignore[arg-type]
         if settings.ENVIRONMENT != "local":
             remove_gcs_content_type(fpath)
         url = get_object_url(fpath=fpath, fname=os.path.basename(path))
@@ -1715,7 +1732,7 @@ def get_project_comments(
         query = query.where(ProjectComment.artifact_type == artifact_type)
     if artifact_path is not None:
         query = query.where(ProjectComment.artifact_path == artifact_path)
-    comments = session.exec(query).all()
+    comments = list(session.exec(query).all())
     _sync_github_issue_resolutions(session, comments, current_user)
     return comments
 
@@ -1940,8 +1957,8 @@ def post_project_comment_reply(
 
 def _sync_github_issue_resolutions(
     session: Session,
-    comments: list,
-    current_user,
+    comments: list[ProjectComment],
+    current_user: CurrentUserOptional,
 ) -> None:
     """Check GitHub issue status for unresolved comments with an external_url.
 
@@ -1966,7 +1983,7 @@ def _sync_github_issue_resolutions(
         headers["Authorization"] = f"Bearer {token}"
     changed = False
     for comment in unresolved_with_url:
-        url = comment.external_url
+        url = str(comment.external_url)
         # Parse owner/repo/number from
         # https://github.com/{owner}/{repo}/issues/{n}
         try:
@@ -2558,11 +2575,11 @@ def post_project_dataset_upload(
     if not os.path.isdir(os.path.join(repo.working_dir, ".dvc")):
         logger.info("Calling dvc init since .dvc directory is missing")
         subprocess.call(["dvc", "init"], cwd=repo.working_dir)
-    import dvc.repo as dvc_repo_mod
-
     logger.info(f"Running dvc add {path}")
-    with dvc_repo_mod.Repo(repo.working_dir) as dvc_repo:
-        dvc_repo.add(path)
+    subprocess.check_call(
+        [sys.executable, "-m", "dvc", "add", path],
+        cwd=str(repo.working_dir),
+    )
     files_to_stage = [path + ".dvc"]
     gitignore = os.path.join(os.path.dirname(path), ".gitignore")
     if os.path.isfile(os.path.join(repo.working_dir, gitignore)):
@@ -2592,7 +2609,7 @@ def post_project_dataset_upload(
         md5=md5[2:],
     )
     with fs.open(fpath, "wb") as f:
-        f.write(file_data)
+        f.write(file_data)  # type: ignore[arg-type]
     if settings.ENVIRONMENT != "local":
         remove_gcs_content_type(fpath)
     url = get_object_url(fpath=fpath, fname=os.path.basename(path))
@@ -3421,15 +3438,15 @@ def put_project_collaborator(
     )
     user = session.exec(
         select(User)
-        .join(User.account)
+        .join(Account, Account.user_id == User.id)  # type: ignore[arg-type]
         .where(Account.github_name == github_username)
     ).first()
+    if user is None:
+        raise HTTPException(404, "User not found")
     logger.info(
         f"Fetched user account {user.email} with GitHub username "
         f"{github_username}"
     )
-    if user is None:
-        raise HTTPException(404, "User not found")
     token = users.get_github_token(session=session, user=current_user)
     url = (
         f"https://api.github.com/repos/{project.github_repo}/"
@@ -3477,15 +3494,15 @@ def delete_project_collaborator(
     )
     user = session.exec(
         select(User)
-        .join(User.account)
+        .join(Account, Account.user_id == User.id)  # type: ignore[arg-type]
         .where(Account.github_name == github_username)
     ).first()
+    if user is None:
+        raise HTTPException(404, "User not found")
     logger.info(
         f"Fetched user account {user.email} with GitHub username "
         f"{github_username}"
     )
-    if user is None:
-        raise HTTPException(404, "User not found")
     token = users.get_github_token(session=session, user=current_user)
     url = (
         f"https://api.github.com/repos/{project.github_repo}/"
@@ -3814,6 +3831,7 @@ def post_project_environment(
     current_user: CurrentUser,
     session: SessionDep,
     req: Environment,
+    ref: str | None = None,
 ) -> Environment:
     project = app.projects.get_project(
         owner_name=owner_name,
@@ -4085,7 +4103,7 @@ def get_project_repro_check(
         ttl=DEFAULT_REPO_TTL,
         ref=ref,
     )
-    res = check_reproducibility(wdir=repo.working_dir)
+    res = check_reproducibility(wdir=str(repo.working_dir))
     return res
 
 
