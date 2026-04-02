@@ -9,6 +9,7 @@ import {
   Menu,
   MenuButton,
   Button,
+  Portal,
   MenuList,
   MenuItem,
   useDisclosure,
@@ -289,20 +290,22 @@ function Publications() {
                     >
                       <Icon as={FaPlus} fontSize="xs" />
                     </MenuButton>
-                    <MenuList zIndex="popover">
-                      <MenuItem onClick={newPubTemplateModal.onOpen}>
-                        Create new from template
-                      </MenuItem>
-                      <MenuItem onClick={overleafImportModal.onOpen}>
-                        Import from Overleaf
-                      </MenuItem>
-                      <MenuItem onClick={uploadPubModal.onOpen}>
-                        Upload
-                      </MenuItem>
-                      <MenuItem onClick={labelPubModal.onOpen}>
-                        Label existing file
-                      </MenuItem>
-                    </MenuList>
+                    <Portal>
+                      <MenuList zIndex="popover">
+                        <MenuItem onClick={newPubTemplateModal.onOpen}>
+                          Create new from template
+                        </MenuItem>
+                        <MenuItem onClick={overleafImportModal.onOpen}>
+                          Import from Overleaf
+                        </MenuItem>
+                        <MenuItem onClick={uploadPubModal.onOpen}>
+                          Upload
+                        </MenuItem>
+                        <MenuItem onClick={labelPubModal.onOpen}>
+                          Label existing file
+                        </MenuItem>
+                      </MenuList>
+                    </Portal>
                   </Menu>
                   <NewPublication
                     isOpen={newPubTemplateModal.isOpen}
