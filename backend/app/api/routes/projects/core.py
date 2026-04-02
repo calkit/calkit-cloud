@@ -1844,6 +1844,8 @@ def patch_project_comment(
     session.refresh(comment)
     if patch.resolved:
         _try_close_github_issue(session, current_user, comment.external_url)
+    else:
+        _try_reopen_github_issue(session, current_user, comment.external_url)
     mixpanel.user_resolved_comment(
         current_user,
         owner_name,
@@ -2052,6 +2054,48 @@ def _try_post_github_issue_comment(
     except Exception as exc:
         logger.debug(f"GitHub issue comment failed for {external_url}: {exc}")
         return None
+
+
+def _try_reopen_github_issue(
+    session: Session,
+    current_user: User,
+    external_url: str | None,
+) -> None:
+    """Reopen the linked GitHub issue if one exists.
+
+    Silently ignores any errors so a missing token or unexpected URL never
+    prevents the comment from being unresolved.
+    """
+    if not external_url:
+        return
+    try:
+        parts = external_url.rstrip("/").split("/")
+        issue_number = int(parts[-1])
+        repo = f"{parts[-4]}/{parts[-3]}"
+    except Exception:
+        return
+    try:
+        token = users.get_github_token(session, current_user)
+    except Exception:
+        logger.debug("Skipping GitHub issue reopen: no token")
+        return
+    try:
+        resp = requests.patch(
+            f"https://api.github.com/repos/{repo}/issues/{issue_number}",
+            json={"state": "open"},
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Accept": "application/vnd.github+json",
+            },
+            timeout=10,
+        )
+        if not resp.ok:
+            logger.warning(
+                f"GitHub issue reopen failed for {external_url}: "
+                f"{resp.status_code} {resp.text}"
+            )
+    except Exception as exc:
+        logger.debug(f"GitHub issue reopen failed for {external_url}: {exc}")
 
 
 def _try_close_github_issue(
