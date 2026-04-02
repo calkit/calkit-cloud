@@ -1,0 +1,22 @@
+name: Check style
+
+on: pull_request
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: frontend
+      - name: Check format
+        run: make format
+      - name: Fail if any files were reformatted
+        run: git diff --exit-code
