@@ -237,7 +237,7 @@ def post_project_fs_op(
         try:
             paths = fs.ls(full_path, detail=req.detail)
         except FileNotFoundError:
-            # Missing prefixes are normal in fresh projects; return empty list.
+            # Missing prefixes are normal in fresh projects; return empty list
             paths = []
         if req.detail:
             paths = [
@@ -260,8 +260,8 @@ def post_project_fs_op(
         try:
             paths = fs.find(full_path, detail=req.detail)
         except FileNotFoundError:
-            # For "find", a missing prefix should behave like no matches.
-            # This avoids noisy 404s for normal existence probes.
+            # For "find", a missing prefix should behave like no matches
+            # This avoids noisy 404s for normal existence probes
             paths = {} if req.detail else []
         if req.detail:
             if isinstance(paths, dict):

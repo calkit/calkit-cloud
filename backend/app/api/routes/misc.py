@@ -255,7 +255,6 @@ def global_search(
         return SearchResults(results=[])
     pattern = f"%{q}%"
     results: list[SearchResultItem] = []
-
     # Projects
     if current_user is None:
         proj_where = Project.is_public
@@ -300,7 +299,6 @@ def global_search(
                 owner_name=p.owner_account_name,
             )
         )
-
     # Orgs
     org_results = session.exec(
         select(Org)
@@ -321,7 +319,6 @@ def global_search(
                 title=o.display_name,
             )
         )
-
     # Datasets
     if current_user is None:
         ds_where = Project.is_public
@@ -355,7 +352,6 @@ def global_search(
                 project_name=d.project.name,
             )
         )
-
     return SearchResults(results=results)
 
 

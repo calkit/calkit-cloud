@@ -1,3 +1,5 @@
+"""Tests for project comment endpoints."""
+
 from types import SimpleNamespace
 from unittest.mock import patch
 

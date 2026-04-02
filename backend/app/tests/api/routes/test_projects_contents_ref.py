@@ -1,3 +1,5 @@
+"""Tests for fetching project contents at specific Git refs."""
+
 from types import SimpleNamespace
 from unittest.mock import ANY, patch
 

@@ -278,7 +278,7 @@ def search_refs(repo: git.Repo, query: str | None = None) -> list[dict]:
     Returns:
         List of dicts with ref information (name, type, message, author, timestamp)
     """
-    from app.models import Ref
+    from app.models import GitRef
 
     refs = []
     query_lower = query.lower() if query else None
@@ -463,7 +463,7 @@ def search_refs(repo: git.Repo, query: str | None = None) -> list[dict]:
         reverse=False,
     )
 
-    return [Ref(**r) for r in refs]
+    return [GitRef(**r) for r in refs]
 
 
 def get_file_history(

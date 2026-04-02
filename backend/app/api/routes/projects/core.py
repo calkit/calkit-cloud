@@ -67,9 +67,12 @@ from app.dvc import (
 from app.git import (
     get_ck_info,
     get_ck_info_from_repo,
+    get_commit_history,
     get_dvc_pipeline_from_repo,
+    get_file_history,
     get_overleaf_repo,
     get_repo,
+    search_refs,
 )
 from app.models import (
     Account,
@@ -93,7 +96,7 @@ from app.models import (
     ProjectsPublic,
     Publication,
     Question,
-    Ref,
+    GitRef,
     User,
     UserOrgMembership,
     UserProjectAccess,
@@ -768,20 +771,25 @@ def search_project_refs(
     session: SessionDep,
     current_user: CurrentUserOptional,
     q: Optional[str] = Query(None, description="Search query for refs"),
-):
+) -> list[GitRef]:
     """Get git refs (branches, tags, commits) in a project.
 
-    Args:
-        owner_name: Owner of the project
-        project_name: Name of the project
-        q: Optional search query to filter refs by branch name, tag name,
-           commit message, or author
+    Parameters
+    ----------
+    owner_name:
+        Owner of the project.
+    project_name:
+        Name of the project.
+    q:
+        Optional search query to filter refs by branch name, tag name,
+        commit message, or author.
 
-    Returns:
-        List of matching Ref objects with name, type, message, author, timestamp
+    Returns
+    -------
+    list[GitRef]
+        List of matching GitRef objects with name, type, message, author,
+        timestamp.
     """
-    from app.git import search_refs
-
     project = app.projects.get_project(
         session=session,
         owner_name=owner_name,
@@ -810,10 +818,8 @@ def get_project_history(
     ref: Optional[str] = Query(
         None, description="Branch, tag, or commit to read history from"
     ),
-):
+) -> list[dict]:
     """Get paginated git commit history for a project."""
-    from app.git import get_commit_history
-
     project = app.projects.get_project(
         session=session,
         owner_name=owner_name,
@@ -838,7 +844,7 @@ def get_project_commit(
     commit_hash: str,
     session: SessionDep,
     current_user: CurrentUserOptional,
-):
+) -> dict:
     """Get details for a specific commit including changed files."""
     project = app.projects.get_project(
         session=session,
@@ -923,14 +929,12 @@ def get_project_file_history(
     session: SessionDep,
     current_user: CurrentUserOptional,
     limit: int = Query(100, description="Max number of commits to return"),
-):
+) -> list[dict]:
     """Get git commit history for a specific file path.
 
     Returns commits that touched the file directly, its DVC pointer (.dvc),
     or dvc.lock (for pipeline outputs), so DVC-tracked artifacts are covered.
     """
-    from app.git import get_file_history
-
     # Prevent path traversal
     if os.path.isabs(path):
         raise HTTPException(400, "Absolute paths are not allowed")
@@ -1407,7 +1411,6 @@ def post_project_question(
     )
     ck_info = app.projects.get_ck_info_from_repo(
         repo=repo,
-        ref=ref,
         process_includes=True,
     )
     ck_questions = ck_info.get("questions", [])
@@ -1484,13 +1487,9 @@ def get_project_figures(
     if not figures:
         return []
     # Build comment count map from DB
-    from sqlmodel import func as sqlfunc
-
     comment_counts = dict(
         session.exec(
-            select(
-                ProjectComment.artifact_path, sqlfunc.count(ProjectComment.id)
-            )
+            select(ProjectComment.artifact_path, func.count(ProjectComment.id))
             .where(
                 ProjectComment.project_id == project.id,
                 ProjectComment.artifact_type == "figure",
@@ -1952,7 +1951,8 @@ def _sync_github_issue_resolutions(
     changed = False
     for comment in unresolved_with_url:
         url = comment.external_url
-        # Parse owner/repo/number from https://github.com/{owner}/{repo}/issues/{n}
+        # Parse owner/repo/number from
+        # https://github.com/{owner}/{repo}/issues/{n}
         try:
             parts = url.rstrip("/").split("/")
             issue_number = int(parts[-1])
@@ -2447,11 +2447,7 @@ def post_project_dataset_label(
     repo = get_repo(
         project=project, user=current_user, session=session, ttl=None
     )
-    ck_info = app.projects.get_ck_info_for_ref(
-        project=project,
-        repo=repo,
-        ref=ref,
-    )
+    ck_info = app.projects.get_ck_info_from_repo(repo=repo)
     datasets = ck_info.get("datasets", [])
     ds_paths = [ds.get("path") for ds in datasets]
     if req.path in ds_paths:
