@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { ProjectsService } from "../client"
 
-const useProject = (accountName: string, projectName: string) => {
+const useProject = (accountName: string, projectName: string, ref?: string) => {
   const queryClient = useQueryClient()
 
   const projectRequest = useQuery({
@@ -28,11 +28,12 @@ const useProject = (accountName: string, projectName: string) => {
   )
 
   const showcaseRequest = useQuery({
-    queryKey: ["projects", accountName, projectName, "showcase"],
+    queryKey: ["projects", accountName, projectName, "showcase", ref],
     queryFn: () =>
       ProjectsService.getProjectShowcase({
         ownerName: accountName,
         projectName: projectName,
+        ref,
       }),
     refetchOnWindowFocus: false,
     refetchOnMount: false,

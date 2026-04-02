@@ -93,6 +93,7 @@ function FigureView({ figure, width }: FigureViewProps) {
         projectName,
         "figure-content",
         figure.path,
+        figure.url,
       ],
       enabled: Boolean(!figure.content && figure.url),
     })

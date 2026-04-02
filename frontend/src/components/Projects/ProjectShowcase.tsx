@@ -10,10 +10,15 @@ import NotebookView from "../Notebooks/NotebookView"
 interface ProjectShowcaseProps {
   ownerName: string
   projectName: string
+  gitRef?: string
 }
 
-function ProjectShowcase({ ownerName, projectName }: ProjectShowcaseProps) {
-  const { showcaseRequest } = useProject(ownerName, projectName)
+function ProjectShowcase({
+  ownerName,
+  projectName,
+  gitRef,
+}: ProjectShowcaseProps) {
+  const { showcaseRequest } = useProject(ownerName, projectName, gitRef)
   return (
     <>
       {showcaseRequest.isPending ? (

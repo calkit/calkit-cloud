@@ -57,6 +57,7 @@ function ProjectView() {
   const { projectRequest, userHasWriteAccess } = useProject(
     accountName,
     projectName,
+    ref,
   )
   const { issuesRequest, issueStateMutation } = useProjectIssues(
     accountName,
@@ -127,6 +128,7 @@ function ProjectView() {
             <ProjectShowcase
               ownerName={accountName}
               projectName={projectName}
+              gitRef={ref}
             />
           </Box>
           {/* README */}

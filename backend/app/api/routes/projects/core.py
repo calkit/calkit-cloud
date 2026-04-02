@@ -4117,7 +4117,11 @@ def get_project_showcase(
         ttl=ttl,
         ref=ref,
     )
-    ck_info = get_ck_info_from_repo(repo)
+    ck_info = app.projects.get_ck_info_for_ref(
+        project=project,
+        repo=repo,
+        ref=ref,
+    )
     showcase = ck_info.get("showcase")
     if showcase is None:
         return
