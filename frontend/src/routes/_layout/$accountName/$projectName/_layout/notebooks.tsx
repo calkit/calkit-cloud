@@ -3,7 +3,6 @@ import {
   Text,
   Flex,
   Box,
-  Spinner,
   useColorModeValue,
   Heading,
   Icon,

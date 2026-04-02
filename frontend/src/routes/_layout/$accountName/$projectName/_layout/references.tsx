@@ -2,7 +2,6 @@ import {
   Box,
   Flex,
   Heading,
-  Spinner,
   Text,
   Icon,
   Table,

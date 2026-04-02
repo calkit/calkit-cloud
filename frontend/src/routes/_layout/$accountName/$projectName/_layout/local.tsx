@@ -5,7 +5,6 @@ import {
   Text,
   Heading,
   Button,
-  Spinner,
   Flex,
   Icon,
   Link,

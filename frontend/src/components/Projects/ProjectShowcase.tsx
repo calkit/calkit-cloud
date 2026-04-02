@@ -1,4 +1,4 @@
-import { Text, Flex, Spinner, Box, Code } from "@chakra-ui/react"
+import { Text, Box, Code } from "@chakra-ui/react"
 
 import LoadingSpinner from "../Common/LoadingSpinner"
 import useProject from "../../hooks/useProject"
