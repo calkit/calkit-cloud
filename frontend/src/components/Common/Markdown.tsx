@@ -6,6 +6,7 @@ import {
   Text,
   Code,
   Link,
+  useColorModeValue,
 } from "@chakra-ui/react"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
@@ -58,6 +59,70 @@ const code = ({ insidePre = false, ...props }: codeProps) => {
 }
 
 const Markdown = ({ children }: MarkdownProps) => {
+  const tableBorderColor = useColorModeValue("gray.200", "whiteAlpha.300")
+  const tableHeaderBg = useColorModeValue("gray.50", "whiteAlpha.100")
+  const tableHeaderText = useColorModeValue("gray.700", "gray.100")
+  const tableRowAltBg = useColorModeValue("blackAlpha.50", "whiteAlpha.50")
+
+  const table = ({ children, ...props }: any) => {
+    return (
+      <Box
+        my={4}
+        overflowX="auto"
+        borderWidth="1px"
+        borderColor={tableBorderColor}
+        borderRadius="md"
+      >
+        <Box
+          as="table"
+          width="full"
+          borderCollapse="separate"
+          borderSpacing={0}
+          {...props}
+        >
+          {children}
+        </Box>
+      </Box>
+    )
+  }
+
+  const tr = ({ ...props }: any) => {
+    return <Box as="tr" _even={{ bg: tableRowAltBg }} {...props} />
+  }
+
+  const th = ({ ...props }: any) => {
+    return (
+      <Box
+        as="th"
+        px={3}
+        py={2}
+        textAlign="left"
+        fontWeight="semibold"
+        bg={tableHeaderBg}
+        color={tableHeaderText}
+        borderBottomWidth="1px"
+        borderColor={tableBorderColor}
+        whiteSpace="normal"
+        {...props}
+      />
+    )
+  }
+
+  const td = ({ ...props }: any) => {
+    return (
+      <Box
+        as="td"
+        px={3}
+        py={2}
+        borderBottomWidth="1px"
+        borderColor={tableBorderColor}
+        verticalAlign="top"
+        whiteSpace="normal"
+        {...props}
+      />
+    )
+  }
+
   return (
     <Box
       /*
@@ -94,6 +159,10 @@ const Markdown = ({ children }: MarkdownProps) => {
           pre: pre,
           code: code,
           a: BlueLink,
+          table: table,
+          tr: tr,
+          th: th,
+          td: td,
         }}
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[rehypeRaw, rehypeSanitize]}
