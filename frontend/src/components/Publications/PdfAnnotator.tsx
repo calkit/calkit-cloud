@@ -31,6 +31,7 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
+  useMemo,
   type MutableRefObject,
 } from "react"
 import {
@@ -597,6 +598,7 @@ export default function PdfAnnotator({
   // the throwaway mount is torn down before RAF, so PdfLoader/PdfHighlighter
   // initialize only once on the real mount and avoid duplicate page nodes.
   const [pdfReady, setPdfReady] = useState(false)
+  const [highlightsKey, setHighlightsKey] = useState(0)
   useLayoutEffect(() => {
     let rafId: number | null = requestAnimationFrame(() => {
       setPdfReady(true)
@@ -621,16 +623,24 @@ export default function PdfAnnotator({
           ".pdfViewer .page[data-page-number]",
         ),
       )
-      const seen = new Set<string>()
+      // Keep the LAST occurrence of each page number. PDF.js renders into the
+      // most-recently created page divs (from the latest setDocument call), so
+      // removing the earlier duplicates is correct. Keeping the first set
+      // (previous behavior) left the viewer rendering into detached nodes.
+      const seen = new Map<string, HTMLElement>()
+      let removed = false
       for (const page of pages) {
         const pageNumber = page.dataset.pageNumber
         if (!pageNumber) continue
         if (seen.has(pageNumber)) {
-          page.remove()
-        } else {
-          seen.add(pageNumber)
+          seen.get(pageNumber)!.remove()
+          removed = true
         }
+        seen.set(pageNumber, page)
       }
+      // After removing stale pages, force PdfHighlighter.componentDidUpdate so
+      // it calls renderHighlightLayers() using the surviving page set.
+      if (removed) setHighlightsKey((k) => k + 1)
     }
 
     dedupePages()
@@ -717,9 +727,18 @@ export default function PdfAnnotator({
 
   const comments: ProjectComment[] = commentsQuery.data ?? []
   const visibleComments = comments.filter((c) => showResolved || !c.resolved)
-  const highlights: AnnotationHighlight[] = visibleComments
-    .map(commentToHighlight)
-    .filter((h): h is AnnotationHighlight => h !== null)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const highlights: AnnotationHighlight[] = useMemo(
+    () =>
+      visibleComments
+        .map(commentToHighlight)
+        .filter((h): h is AnnotationHighlight => h !== null),
+    // highlightsKey increments after deduplication removes stale page nodes,
+    // giving PdfHighlighter a new array reference so componentDidUpdate fires
+    // and calls renderHighlightLayers() against the surviving pages.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [visibleComments, highlightsKey],
+  )
 
   const handleAddHighlight = useCallback(
     (newHighlight: NewHighlight, commentText: string, createIssue: boolean) => {
@@ -748,7 +767,7 @@ export default function PdfAnnotator({
         },
       }}
     >
-      {pdfReady && (
+      {pdfReady && !commentsQuery.isPending && (
         <PdfLoader url={url} beforeLoad={<Spinner color="ui.main" />}>
           {(pdfDocument) => (
             <PdfHighlighter
