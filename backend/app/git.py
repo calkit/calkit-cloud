@@ -15,7 +15,7 @@ from sqlmodel import Session
 
 from app import users
 from app.core import logger, ryaml
-from app.models import Project, User
+from app.models import GitRef, Project, User
 
 
 def get_repo(
@@ -27,13 +27,10 @@ def get_repo(
     ref: str | None = None,
     full_history: bool = False,
 ) -> git.Repo:
-    """Ensure that the repo exists and is ready for operating upon for the
-    user.
+    """Ensure that the repo exists and is ready for operating upon for the user.
 
-    Note that we need to handle concurrency here in case multiple API calls
-    have been made at the same time that request the repo.
-
-    If TTL is None, we will always attempt to pull the latest version.
+    Handles concurrency in case multiple API calls request the repo
+    simultaneously. If TTL is None, the latest version is always fetched.
     """
     owner_name = project.owner_github_name
     project_name = project.name
@@ -268,19 +265,21 @@ def _ahead_behind(
         return 0, 0
 
 
-def search_refs(repo: git.Repo, query: str | None = None) -> list[dict]:
+def search_refs(repo: git.Repo, query: str | None = None) -> list["GitRef"]:
     """Search for refs (branches, tags, commits) in a repository.
 
-    Args:
-        repo: GitPython Repo object
-        query: Optional search query to filter by branch name, tag name,
-               commit message, or author name
+    Parameters
+    ----------
+    repo : git.Repo
+        GitPython Repo object.
+    query : str, optional
+        Filter by branch name, tag name, commit message, or author name.
 
-    Returns:
-        List of dicts with ref information (name, type, message, author, timestamp)
+    Returns
+    -------
+    list[GitRef]
+        Refs with name, type, message, author, timestamp.
     """
-    from app.models import GitRef
-
     refs = []
     query_lower = query.lower() if query else None
 
@@ -318,7 +317,7 @@ def search_refs(repo: git.Repo, query: str | None = None) -> list[dict]:
         seen_branches.add(name)
         if query_lower and query_lower not in name.lower():
             try:
-                commit = repo.commit(ref)
+                commit = ref.commit
                 msg = (
                     commit.message
                     if isinstance(commit.message, str)
@@ -332,11 +331,11 @@ def search_refs(repo: git.Repo, query: str | None = None) -> list[dict]:
             except Exception:
                 continue
         try:
-            commit = repo.commit(ref)
+            commit = ref.commit
             msg = (
                 commit.message
                 if isinstance(commit.message, str)
-                else commit.message.decode()
+                else bytes(commit.message).decode()
             )
             is_default = name == default_branch
             ahead, behind = (
@@ -383,12 +382,16 @@ def search_refs(repo: git.Repo, query: str | None = None) -> list[dict]:
                     pass
 
             try:
-                commit = repo.commit(tag)
+                commit = tag.commit
                 message = None
                 if tag.tag and tag.tag.message:
                     message = tag.tag.message.split("\n")[0]
                 elif commit.message:
-                    message = commit.message.split("\n")[0]
+                    raw = commit.message
+                    msg_str = (
+                        raw if isinstance(raw, str) else bytes(raw).decode()
+                    )
+                    message = msg_str.split("\n")[0]
 
                 refs.append(
                     {
@@ -422,7 +425,16 @@ def search_refs(repo: git.Repo, query: str | None = None) -> list[dict]:
         max_commits = 50
         for commit in repo.iter_commits("HEAD", max_count=max_commits):
             short_hash = commit.hexsha[:7]
-            message = commit.message.split("\n")[0] if commit.message else ""
+            raw_msg = commit.message
+            message = (
+                (
+                    raw_msg
+                    if isinstance(raw_msg, str)
+                    else bytes(raw_msg).decode()
+                ).split("\n")[0]
+                if raw_msg
+                else ""
+            )
 
             # Check if this commit matches the query
             if query_lower:
@@ -463,7 +475,6 @@ def search_refs(repo: git.Repo, query: str | None = None) -> list[dict]:
         key=lambda r: type_order.get(r.get("type", "commit"), 3),
         reverse=False,
     )
-
     return [GitRef(**r) for r in refs]
 
 
@@ -482,9 +493,25 @@ def get_file_history(
 ) -> list[dict]:
     """Get commit history for a specific file path.
 
-    Checks the file itself, the `<path>.dvc` pointer file, and `dvc.lock`
-    (for pipeline outputs) so that DVC-tracked artifacts are covered too.
+    Checks the file itself, the ``<path>.dvc`` pointer file, and ``dvc.lock``
+    (for pipeline outputs) so DVC-tracked artifacts are covered too.
     Deduplicates by commit hash and returns commits sorted newest-first.
+    Results are cached by HEAD SHA so repeated calls with an unchanged repo
+    are free.
+
+    Parameters
+    ----------
+    repo : git.Repo
+        GitPython Repo object.
+    path : str
+        Repo-relative file path to look up.
+    max_count : int
+        Maximum number of commits to return.
+
+    Returns
+    -------
+    list[dict]
+        Commit dicts sorted newest-first.
     """
     head_sha = repo.head.commit.hexsha
     cache_key = (repo.working_dir, path, max_count, head_sha)
@@ -546,9 +573,10 @@ def get_file_history(
                 for stage in stages.values():
                     for out in stage.get("outs", []):
                         if out.get("path") == path:
-                            return out.get("md5") or out.get("hash")
+                            return out.get("md5") or out.get("hash") or None
             except (KeyError, Exception):
                 return None
+            return None
 
         prev_hash: str | None = None
         for commit in repo.iter_commits(
@@ -561,7 +589,7 @@ def get_file_history(
                     msg = (
                         commit.message
                         if isinstance(commit.message, str)
-                        else commit.message.decode()
+                        else bytes(commit.message).decode()
                     )
                     commits.append(
                         {
@@ -605,13 +633,19 @@ def get_commit_history(
 ) -> list[dict]:
     """Get detailed commit history for a repository.
 
-    Args:
-        repo: GitPython Repo object
-        max_count: Maximum number of commits to return
-        ref: Branch, tag, or commit to start history from (defaults to HEAD)
+    Parameters
+    ----------
+    repo : git.Repo
+        GitPython Repo object.
+    max_count : int
+        Maximum number of commits to return.
+    ref : str, optional
+        Branch, tag, or commit to start from (defaults to HEAD).
 
-    Returns:
-        List of dicts with commit details (hash, message, author, date, etc.)
+    Returns
+    -------
+    list[dict]
+        Commit dicts with hash, message, author, date, etc.
     """
     commits = []
     start = ref if ref else "HEAD"

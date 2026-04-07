@@ -227,7 +227,7 @@ def repo_dir_for_ref(repo: git.Repo, ref: str | None):
 
 def get_ck_info_and_dvc_outs_from_repo_dir(
     project: Project,
-    repo_dir: str,
+    repo_dir: str | os.PathLike,
 ) -> tuple[dict, dict]:
     """Load calkit.yaml and expand dvc.lock outs once for a repo dir.
 
@@ -260,7 +260,7 @@ def get_ck_info_and_dvc_outs_from_repo_dir(
 def get_contents_from_repo_dir(
     project: Project,
     repo: git.Repo,
-    repo_dir: str,
+    repo_dir: str | os.PathLike,
     path: str | None = None,
     ck_info: dict | None = None,
     dvc_lock_outs: dict | None = None,
