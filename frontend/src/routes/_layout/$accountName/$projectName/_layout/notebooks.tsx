@@ -245,6 +245,7 @@ function Notebooks() {
                 kind="notebook"
                 initialRef={compare_ref}
                 initialRef2={compare_ref2}
+                initialArtifact={selectedNotebook}
               />
             </Box>
           )}

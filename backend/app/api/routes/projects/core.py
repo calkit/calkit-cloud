@@ -131,6 +131,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 DEFAULT_REPO_TTL = 60  # Seconds
+FULL_HISTORY_REPO_TTL = 10 * 60  # Seconds; history changes infrequently
 
 
 @router.get("/projects")
@@ -801,6 +802,7 @@ def search_project_refs(
         project=project,
         user=current_user,
         session=session,
+        ttl=FULL_HISTORY_REPO_TTL,
         full_history=True,
     )
     refs = search_refs(repo, query=q)
@@ -841,6 +843,7 @@ def get_project_history(
         project=project,
         user=current_user,
         session=session,
+        ttl=FULL_HISTORY_REPO_TTL,
         full_history=True,
     )
     history = get_commit_history(repo, max_count=limit + offset, ref=ref)
@@ -873,6 +876,7 @@ def get_project_commit(
         project=project,
         user=current_user,
         session=session,
+        ttl=FULL_HISTORY_REPO_TTL,
         full_history=True,
     )
     try:
@@ -975,6 +979,7 @@ def get_project_file_history(
         project=project,
         user=current_user,
         session=session,
+        ttl=FULL_HISTORY_REPO_TTL,
         full_history=True,
     )
     return get_file_history(repo, path=path, max_count=limit)

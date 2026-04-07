@@ -177,6 +177,7 @@ function PubInfo({
         projectName={projectName}
         path={publication.path}
         kind="publication"
+        initialArtifact={publication}
       />
     </Box>
   )

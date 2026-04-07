@@ -89,6 +89,7 @@ interface ArtifactCompareModalProps {
   kind: ArtifactKind
   initialRef?: string
   initialRef2?: string
+  initialArtifact?: Figure | Publication | Notebook | ContentsItem
 }
 
 /** Render the artifact content for a given kind/data. */
@@ -355,9 +356,6 @@ function FigureComments({
           path,
         ],
       })
-      queryClient.invalidateQueries({
-        queryKey: ["projects", ownerName, projectName, "figures"],
-      })
     },
   })
 
@@ -602,6 +600,7 @@ export function ArtifactCompareModal({
   kind,
   initialRef,
   initialRef2,
+  initialArtifact,
 }: ArtifactCompareModalProps) {
   const borderColor = useColorModeValue("gray.200", "gray.600")
   const hoverBg = useColorModeValue("gray.50", "gray.700")
@@ -609,6 +608,7 @@ export function ArtifactCompareModal({
 
   const [ref1, setRef1] = useState<string | undefined>(initialRef)
   const [ref2, setRef2] = useState<string | undefined>(initialRef2)
+  const [branchesEnabled, setBranchesEnabled] = useState(false)
 
   useEffect(() => {
     setRef1(initialRef)
@@ -625,25 +625,31 @@ export function ArtifactCompareModal({
         limit: 50,
       })) as unknown as CommitHistory[],
     enabled: isOpen,
+    staleTime: 5 * 60 * 1000,
   })
 
   const refsQuery = useQuery({
     queryKey: ["projects", ownerName, projectName, "refs"],
     queryFn: () =>
       ProjectsService.searchProjectRefs({ ownerName, projectName }),
-    enabled: isOpen,
+    enabled: isOpen && branchesEnabled,
+    staleTime: 5 * 60 * 1000,
   })
   const branches = (refsQuery.data ?? []).filter(
     (r: GitRef) => r.type === "branch",
   )
 
+  // For figure/publication/notebook, fetching without a ref loads ALL items just
+  // to find one — skip that when we already have initialArtifact. For "file", the
+  // fetch is a direct single-file call so it's cheap and always useful.
+  const artifact1Enabled = kind === "file" ? isOpen : isOpen && Boolean(ref1)
   const artifact1Query = useArtifactAtRef(
     ownerName,
     projectName,
     path,
     kind,
     ref1,
-    isOpen,
+    artifact1Enabled,
   )
   const artifact2Query = useArtifactAtRef(
     ownerName,
@@ -653,6 +659,13 @@ export function ArtifactCompareModal({
     ref2,
     isOpen && Boolean(ref2),
   )
+
+  // For figure/publication/notebook: when no ref is selected, use the pre-loaded
+  // artifact from the parent so we don't fetch all items. For file, artifact1Query
+  // always runs so use its data directly.
+  const displayData1 =
+    kind === "file" || ref1 ? artifact1Query.data : initialArtifact
+  const isPending1 = kind === "file" || ref1 ? artifact1Query.isPending : false
 
   const isComparing = Boolean(ref2)
 
@@ -734,7 +747,13 @@ export function ArtifactCompareModal({
                   Click another version to compare
                 </Text>
               )}
-              <Tabs size="sm" variant="enclosed">
+              <Tabs
+                size="sm"
+                variant="enclosed"
+                onChange={(i) => {
+                  if (i === 1) setBranchesEnabled(true)
+                }}
+              >
                 <TabList>
                   <Tab fontSize="xs">Commits</Tab>
                   <Tab fontSize="xs">Branches</Tab>
@@ -873,9 +892,7 @@ export function ArtifactCompareModal({
             <Box flex={1} overflowY="auto" minW={0}>
               {isComparing ? (
                 <>
-                  {kind === "file" &&
-                  artifact1Query.data &&
-                  artifact2Query.data ? (
+                  {kind === "file" && displayData1 && artifact2Query.data ? (
                     (() => {
                       const decode = (
                         d: Figure | Publication | Notebook | ContentsItem,
@@ -886,7 +903,7 @@ export function ArtifactCompareModal({
                       }
                       return (
                         <ReactDiffViewer
-                          oldValue={decode(artifact1Query.data)}
+                          oldValue={decode(displayData1!)}
                           newValue={decode(artifact2Query.data)}
                           leftTitle={
                             <Flex align="center" gap={1}>
@@ -917,13 +934,13 @@ export function ArtifactCompareModal({
                           <Badge colorScheme="blue">A</Badge>
                           <Code fontSize="sm">{ref1}</Code>
                         </Flex>
-                        {artifact1Query.isPending ? (
+                        {isPending1 ? (
                           <Spinner color="ui.main" />
                         ) : (
                           <ArtifactContent
                             kind={kind}
                             path={path}
-                            data={artifact1Query.data}
+                            data={displayData1}
                           />
                         )}
                       </Box>
@@ -957,7 +974,7 @@ export function ArtifactCompareModal({
                       </Text>
                     </Flex>
                   )}
-                  {artifact1Query.isPending ? (
+                  {isPending1 ? (
                     <Flex justify="center" align="center" height="200px">
                       <Spinner color="ui.main" />
                     </Flex>
@@ -965,7 +982,7 @@ export function ArtifactCompareModal({
                     <ArtifactContent
                       kind={kind}
                       path={path}
-                      data={artifact1Query.data}
+                      data={displayData1}
                     />
                   )}
                 </>

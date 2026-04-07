@@ -4,6 +4,7 @@ import os
 import shutil
 import subprocess
 import time
+from collections import OrderedDict
 
 import calkit
 import git
@@ -466,6 +467,14 @@ def search_refs(repo: git.Repo, query: str | None = None) -> list[dict]:
     return [GitRef(**r) for r in refs]
 
 
+# Cache for get_file_history results, keyed by (repo_dir, path, max_count,
+# head_sha)
+# Bounded to 256 entries; keyed by HEAD SHA so stale entries are never
+# returned
+_FILE_HISTORY_CACHE: OrderedDict[tuple, list[dict]] = OrderedDict()
+_FILE_HISTORY_CACHE_MAX = 256
+
+
 def get_file_history(
     repo: git.Repo,
     path: str,
@@ -477,6 +486,13 @@ def get_file_history(
     (for pipeline outputs) so that DVC-tracked artifacts are covered too.
     Deduplicates by commit hash and returns commits sorted newest-first.
     """
+    head_sha = repo.head.commit.hexsha
+    cache_key = (repo.working_dir, path, max_count, head_sha)
+    if cache_key in _FILE_HISTORY_CACHE:
+        logger.info(f"Cache hit for file history: {path}")
+        _FILE_HISTORY_CACHE.move_to_end(cache_key)
+        return _FILE_HISTORY_CACHE[cache_key]
+
     seen: set[str] = set()
     commits: list[dict] = []
 
@@ -577,7 +593,11 @@ def get_file_history(
         if c["hash"] not in seen2:
             seen2.add(c["hash"])
             result.append(c)
-    return result[:max_count]
+    result = result[:max_count]
+    _FILE_HISTORY_CACHE[cache_key] = result
+    if len(_FILE_HISTORY_CACHE) > _FILE_HISTORY_CACHE_MAX:
+        _FILE_HISTORY_CACHE.popitem(last=False)
+    return result
 
 
 def get_commit_history(

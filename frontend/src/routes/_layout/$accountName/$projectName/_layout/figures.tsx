@@ -298,6 +298,7 @@ function ProjectFigures() {
           path={selectedFigure.path}
           kind="figure"
           initialRef={ref}
+          initialArtifact={selectedFigure}
         />
       )}
     </>

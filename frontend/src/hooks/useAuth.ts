@@ -32,6 +32,7 @@ const useAuth = () => {
     queryKey: ["currentUser"],
     queryFn: UsersService.getCurrentUser,
     enabled: isLoggedIn(),
+    staleTime: Infinity,
     retry: (failureCount, error: any) => {
       const status = error?.status ?? error?.response?.status
       if (status >= 400 && status < 500) return false
