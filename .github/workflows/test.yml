@@ -42,7 +42,7 @@ jobs:
         with:
           name: coverage-html
           path: backend/htmlcov
-  frontend:
+  end-to-end:
     timeout-minutes: 60
     runs-on: ubuntu-latest
     steps:
@@ -58,7 +58,7 @@ jobs:
         run: npx playwright install --with-deps
         working-directory: frontend
       - run: cp .env.example .env
-      - run: docker compose build frontend
+      - run: docker compose build
       - run: docker compose down -v --remove-orphans
       - run: docker compose up -d
       - name: Wait for services
@@ -88,7 +88,7 @@ jobs:
     if: always()
     needs:
       - backend
-      - frontend
+      - end-to-end
     runs-on: ubuntu-latest
     steps:
       - name: Decide whether the needed jobs succeeded or failed
