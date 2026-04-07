@@ -13,12 +13,12 @@ import {
   IconButton,
   useColorModeValue,
 } from "@chakra-ui/react"
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { FiFolder, FiFile, FiDatabase } from "react-icons/fi"
 import { FaMarkdown, FaPlus, FaLock } from "react-icons/fa6"
 import { AiOutlinePython } from "react-icons/ai"
 import { SiAnaconda, SiJupyter } from "react-icons/si"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import {
   FaDocker,
   FaList,
@@ -264,6 +264,34 @@ function Files() {
       }),
     enabled: selectedPath !== undefined,
   })
+  // Pre-fetch all ancestor directories so tree expansion doesn't waterfall.
+  // Using prefetchQuery (fire-and-forget) avoids extra re-renders that
+  // useQueries subscriptions would cause.
+  const queryClient = useQueryClient()
+  useEffect(() => {
+    if (!selectedPath) return
+    const segments = selectedPath.split("/").slice(0, -1)
+    segments.forEach((_, i, arr) => {
+      const ancestorPath = arr.slice(0, i + 1).join("/")
+      queryClient.prefetchQuery({
+        queryKey: [
+          "projects",
+          accountName,
+          projectName,
+          "files",
+          ancestorPath,
+          ref,
+        ],
+        queryFn: () =>
+          ProjectsService.getProjectContents({
+            ownerName: accountName,
+            projectName: projectName,
+            path: ancestorPath,
+            ref,
+          }),
+      })
+    })
+  }, [selectedPath, accountName, projectName, ref])
   const fileUploadModal = useDisclosure()
   if (Array.isArray(files?.dir_items)) {
     files.dir_items.sort(sortByTypeAndName)
@@ -282,7 +310,7 @@ function Files() {
       {filesPending || isRefetching ? (
         <LoadingSpinner />
       ) : (
-        <Flex height={"100%"}>
+        <Flex height={"100%"} overflowX="hidden">
           <PageMenu>
             <Flex align="center" gap={1} mb={2} wrap="wrap">
               <Heading size="md">All files</Heading>
@@ -333,9 +361,7 @@ function Files() {
           </PageMenu>
           <Flex flex={1} minW={0} gap={6} align="flex-start">
             <Box flex={1} minW={0} minH={0} overflowY="auto" overflowX="auto">
-              {selectedPath !== undefined &&
-              (selectedItemQuery.isPending ||
-                selectedItemQuery.isRefetching) ? (
+              {selectedPath !== undefined && selectedItemQuery.isPending ? (
                 <LoadingSpinner />
               ) : selectedItemQuery?.data?.content ||
                 selectedItemQuery?.data?.url ? (
@@ -350,13 +376,12 @@ function Files() {
               borderRadius="lg"
               bg={useColorModeValue("ui.secondary", "ui.darkSlate")}
               h="fit-content"
+              overflow="hidden"
             >
               <Heading size="md" mb={2}>
                 Info
               </Heading>
-              {selectedPath !== undefined &&
-              (selectedItemQuery.isPending ||
-                selectedItemQuery.isRefetching) ? (
+              {selectedPath !== undefined && selectedItemQuery.isPending ? (
                 ""
               ) : (
                 <>

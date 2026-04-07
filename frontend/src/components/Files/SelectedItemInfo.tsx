@@ -192,7 +192,7 @@ function SelectedItemInfo({
       : undefined)
 
   return (
-    <Box minW="300px">
+    <Box w="100%" wordBreak="break-word">
       <Text>Name: {selectedItem.name}</Text>
       {selectedItem.type ? <Text>Type: {selectedItem.type}</Text> : ""}
       {selectedItem.size ? <Text>Size: {selectedItem.size}</Text> : ""}

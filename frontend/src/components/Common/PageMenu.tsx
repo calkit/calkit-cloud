@@ -12,8 +12,9 @@ const PageMenu = ({ children }: PageMenuProps) => {
       top={0}
       maxW="300px"
       minW="200px"
-      h="fit-content"
       maxH="100%"
+      overflowY="auto"
+      alignSelf="flex-start"
       px={3}
       py={2}
       mr={6}
