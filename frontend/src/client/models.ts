@@ -80,6 +80,19 @@ export type Collaborator = {
   access_level: string
 }
 
+/**
+ * Portable anchor for a highlighted region within an artifact.
+ *
+ * Currently used for PDF text highlights (react-pdf-highlighter format).
+ * ``position`` and ``content`` are kept as free-form dicts so the schema
+ * can accommodate future anchor types (image regions, notebook cells, etc.)
+ * without a migration.
+ */
+export type CommentHighlight = {
+  position: Record<string, unknown>
+  content?: Record<string, unknown>
+}
+
 export type CommentReply = {
   body: string
 }
@@ -380,7 +393,7 @@ export type GitItemWithContents = {
  */
 export type GitRef = {
   name: string
-  type: "branch" | "tag" | "commit"
+  kind: "branch" | "tag" | "commit"
   message?: string | null
   author?: string | null
   timestamp?: string | null
@@ -627,8 +640,9 @@ export type ProjectApp = {
  * or None for a project-level comment. ``artifact_path`` is the repo-relative
  * path of the artifact (None for project-level comments).
  *
- * ``highlight`` carries a portable PDF annotation position (react-pdf-highlighter
- * format) and is only populated for publication comments.
+ * ``highlight`` carries a portable anchor position and is only populated for
+ * comments tied to a specific region (e.g., a PDF text selection). See
+ * ``CommentHighlight`` for the schema.
  *
  * ``parent_id`` enables flat one-level threading: replies point to the
  * top-level comment. No nested replies are stored beyond one level in the UI,
@@ -660,7 +674,7 @@ export type ProjectCommentPost = {
   comment: string
   artifact_path?: string | null
   artifact_type?: string | null
-  highlight?: Record<string, unknown> | null
+  highlight?: CommentHighlight | null
   create_github_issue?: boolean
   parent_id?: string | null
 }

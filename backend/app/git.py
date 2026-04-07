@@ -344,7 +344,7 @@ def search_refs(repo: git.Repo, query: str | None = None) -> list["GitRef"]:
             refs.append(
                 {
                     "name": name,
-                    "type": "branch",
+                    "kind": "branch",
                     "message": msg.split("\n")[0],
                     "author": commit.author.name,
                     "timestamp": commit.committed_datetime.isoformat(),
@@ -359,7 +359,7 @@ def search_refs(repo: git.Repo, query: str | None = None) -> list["GitRef"]:
             refs.append(
                 {
                     "name": name,
-                    "type": "branch",
+                    "kind": "branch",
                     "is_default": name == default_branch,
                     "ahead": 0,
                     "behind": 0,
@@ -394,7 +394,7 @@ def search_refs(repo: git.Repo, query: str | None = None) -> list["GitRef"]:
                 refs.append(
                     {
                         "name": name,
-                        "type": "tag",
+                        "kind": "tag",
                         "message": message,
                         "author": commit.author.name
                         if commit.author
@@ -412,7 +412,7 @@ def search_refs(repo: git.Repo, query: str | None = None) -> list["GitRef"]:
                 refs.append(
                     {
                         "name": name,
-                        "type": "tag",
+                        "kind": "tag",
                     }
                 )
     except Exception as e:
@@ -448,7 +448,7 @@ def search_refs(repo: git.Repo, query: str | None = None) -> list["GitRef"]:
                 refs.append(
                     {
                         "name": short_hash,
-                        "type": "commit",
+                        "kind": "commit",
                         "message": message,
                         "author": commit.author.name,
                         "timestamp": commit.committed_datetime.isoformat(),
@@ -459,10 +459,10 @@ def search_refs(repo: git.Repo, query: str | None = None) -> list["GitRef"]:
         logger.warning(f"Failed to list commits: {e}")
 
     # Sort refs: branches first, then tags, then commits; newest first in each
-    type_order = {"branch": 0, "tag": 1, "commit": 2}
+    kind_order = {"branch": 0, "tag": 1, "commit": 2}
     refs.sort(
         key=lambda r: (
-            type_order.get(r.get("type", "commit"), 3),
+            kind_order.get(r.get("kind", "commit"), 3),
             r.get("timestamp") or "",
             r.get("name") or "",
         ),
@@ -470,7 +470,7 @@ def search_refs(repo: git.Repo, query: str | None = None) -> list["GitRef"]:
     )
     refs.sort(key=lambda r: r.get("timestamp") or "", reverse=True)
     refs.sort(
-        key=lambda r: type_order.get(r.get("type", "commit"), 3),
+        key=lambda r: kind_order.get(r.get("kind", "commit"), 3),
         reverse=False,
     )
     return [GitRef(**r) for r in refs]

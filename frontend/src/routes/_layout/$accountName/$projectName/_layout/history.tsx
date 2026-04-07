@@ -328,11 +328,11 @@ function History() {
   })
 
   const branches = ((refsQuery.data ?? []) as GitRef[])
-    .filter((r: GitRef) => r.type === "branch")
+    .filter((r: GitRef) => r.kind === "branch")
     .sort((a, b) => (b.is_default ? 1 : 0) - (a.is_default ? 1 : 0))
 
   const tags = ((refsQuery.data ?? []) as GitRef[]).filter(
-    (r: GitRef) => r.type === "tag",
+    (r: GitRef) => r.kind === "tag",
   )
 
   const selectRef = (name: string) => {

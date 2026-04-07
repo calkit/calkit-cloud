@@ -788,7 +788,7 @@ def search_project_refs(
     Returns
     -------
     list[GitRef]
-        List of matching GitRef objects with name, type, message, author,
+        List of matching GitRef objects with name, kind, message, author,
         timestamp.
     """
     project = app.projects.get_project(
@@ -1783,7 +1783,9 @@ def post_project_comment(
         artifact_path=comment_in.artifact_path,
         artifact_type=comment_in.artifact_type,
         comment=comment_in.comment,
-        highlight=comment_in.highlight,
+        highlight=comment_in.highlight.model_dump()
+        if comment_in.highlight
+        else None,
         user_id=current_user.id,
         parent_id=comment_in.parent_id,
     )
@@ -1808,9 +1810,7 @@ def post_project_comment(
             comment_in.comment,
         ]
         if comment_in.highlight:
-            highlighted_text = comment_in.highlight.get("content", {}).get(
-                "text", ""
-            )
+            highlighted_text = comment_in.highlight.content.get("text", "")
             if highlighted_text:
                 body_lines += ["", f"> {highlighted_text}"]
         issue_url = _try_create_github_issue(

@@ -492,6 +492,7 @@ export type ProjectsData = {
   PostProjectEnvironment: {
     ownerName: string
     projectName: string
+    ref?: string | null
     requestBody: Environment
   }
   GetProjectSoftware: {
@@ -1384,6 +1385,15 @@ export class MiscService {
 
   /**
    * Global Search
+   * Search projects, orgs, and datasets visible to the current user.
+   *
+   * Parameters
+   * ----------
+   * q:
+   * Query string matched case-insensitively against names, titles,
+   * and descriptions. Short queries (<2 chars) return no results.
+   * limit:
+   * Maximum number of results returned per category.
    * @returns SearchResults Successful Response
    * @throws ApiError
    */
@@ -1628,7 +1638,7 @@ export class ProjectsService {
    */
   public static getProjectGitRepo(
     data: ProjectsData["GetProjectGitRepo"],
-  ): CancelablePromise<unknown> {
+  ): CancelablePromise<Record<string, unknown>> {
     const { ownerName, projectName } = data
     return __request(OpenAPI, {
       method: "GET",
@@ -1660,7 +1670,7 @@ export class ProjectsService {
    * Returns
    * -------
    * list[GitRef]
-   * List of matching GitRef objects with name, type, message, author,
+   * List of matching GitRef objects with name, kind, message, author,
    * timestamp.
    * @returns GitRef Successful Response
    * @throws ApiError
@@ -1688,6 +1698,15 @@ export class ProjectsService {
   /**
    * Get Project History
    * Get paginated git commit history for a project.
+   *
+   * Parameters
+   * ----------
+   * limit:
+   * Maximum number of commits to return.
+   * offset:
+   * Number of commits to skip from the newest commit.
+   * ref:
+   * Optional branch, tag, or commit to read history from.
    * @returns unknown Successful Response
    * @throws ApiError
    */
@@ -1716,6 +1735,11 @@ export class ProjectsService {
   /**
    * Get Project Commit
    * Get details for a specific commit including changed files.
+   *
+   * Parameters
+   * ----------
+   * commit_hash:
+   * Full or short commit hash to inspect.
    * @returns unknown Successful Response
    * @throws ApiError
    */
@@ -2725,13 +2749,16 @@ export class ProjectsService {
   public static postProjectEnvironment(
     data: ProjectsData["PostProjectEnvironment"],
   ): CancelablePromise<Environment> {
-    const { ownerName, projectName, requestBody } = data
+    const { ownerName, projectName, requestBody, ref } = data
     return __request(OpenAPI, {
       method: "POST",
       url: "/projects/{owner_name}/{project_name}/environments",
       path: {
         owner_name: ownerName,
         project_name: projectName,
+      },
+      query: {
+        ref,
       },
       body: requestBody,
       mediaType: "application/json",

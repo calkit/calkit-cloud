@@ -127,7 +127,7 @@ export function RefPicker({
                 <VStack align="stretch" spacing={0}>
                   {refs.map((ref) => (
                     <Box
-                      key={`${ref.type}-${ref.name}`}
+                      key={`${ref.kind}-${ref.name}`}
                       p={2}
                       cursor="pointer"
                       _hover={{ bg: hoverBg }}
@@ -142,7 +142,7 @@ export function RefPicker({
                               {ref.name}
                             </Text>
                             <Tag size="sm" variant="subtle">
-                              <TagLabel>{ref.type}</TagLabel>
+                              <TagLabel>{ref.kind}</TagLabel>
                             </Tag>
                           </Flex>
                           {ref.message && (
@@ -186,7 +186,7 @@ export function RefPicker({
       {selectedRef && value && (
         <Box mt={2} p={2} bg={selectedBg} borderRadius="md" fontSize="xs">
           <Tag size="sm" mr={1}>
-            <TagLabel>{selectedRef.type}</TagLabel>
+            <TagLabel>{selectedRef.kind}</TagLabel>
           </Tag>
           {selectedRef.message && (
             <Text mt={1} color={messageColor} noOfLines={2}>

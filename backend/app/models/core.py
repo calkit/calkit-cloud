@@ -609,6 +609,19 @@ class Figure(SQLModel):
     # TODO: Add content, or maybe we can just get from Git contents via path?
 
 
+class CommentHighlight(BaseModel):
+    """Portable anchor for a highlighted region within an artifact.
+
+    Currently used for PDF text highlights (react-pdf-highlighter format).
+    ``position`` and ``content`` are kept as free-form dicts so the schema
+    can accommodate future anchor types (image regions, notebook cells, etc.)
+    without a migration.
+    """
+
+    position: dict
+    content: dict = Field(default_factory=dict)
+
+
 class ProjectComment(SQLModel, table=True):
     """A unified comment on any project artifact or on the project itself.
 
@@ -616,8 +629,9 @@ class ProjectComment(SQLModel, table=True):
     or None for a project-level comment. ``artifact_path`` is the repo-relative
     path of the artifact (None for project-level comments).
 
-    ``highlight`` carries a portable PDF annotation position (react-pdf-highlighter
-    format) and is only populated for publication comments.
+    ``highlight`` carries a portable anchor position and is only populated for
+    comments tied to a specific region (e.g., a PDF text selection). See
+    ``CommentHighlight`` for the schema.
 
     ``parent_id`` enables flat one-level threading: replies point to the
     top-level comment. No nested replies are stored beyond one level in the UI,
@@ -670,7 +684,7 @@ class ProjectCommentPost(SQLModel):
     comment: str
     artifact_path: str | None = None
     artifact_type: str | None = None
-    highlight: dict | None = None
+    highlight: CommentHighlight | None = None
     create_github_issue: bool = True
     parent_id: uuid.UUID | None = None
 
@@ -870,7 +884,7 @@ class GitRef(BaseModel):
     """Represents a Git reference (commit, tag, or branch)."""
 
     name: str  # Full ref name (e.g., "main", "v1.0.0", "abc123def456...")
-    type: Literal["branch", "tag", "commit"]  # Type of ref
+    kind: Literal["branch", "tag", "commit"]  # Kind of ref
     message: str | None = None  # Commit/tag message
     author: str | None = None  # Commit author
     timestamp: str | None = None  # ISO format datetime

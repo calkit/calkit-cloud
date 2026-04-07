@@ -376,7 +376,7 @@ function ProjectLayout() {
     enabled: !isPending,
   })
   const branches = (refsQuery.data ?? []).filter(
-    (r: GitRef) => r.type === "branch",
+    (r: GitRef) => r.kind === "branch",
   )
   const defaultBranch = branches.find((r: GitRef) => r.is_default)
 

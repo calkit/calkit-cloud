@@ -399,6 +399,30 @@ export const $Collaborator = {
   },
 } as const
 
+export const $CommentHighlight = {
+  description: `Portable anchor for a highlighted region within an artifact.
+
+Currently used for PDF text highlights (react-pdf-highlighter format).
+\`\`position\`\` and \`\`content\`\` are kept as free-form dicts so the schema
+can accommodate future anchor types (image regions, notebook cells, etc.)
+without a migration.`,
+  properties: {
+    position: {
+      type: "dictionary",
+      contains: {
+        properties: {},
+      },
+      isRequired: true,
+    },
+    content: {
+      type: "dictionary",
+      contains: {
+        properties: {},
+      },
+    },
+  },
+} as const
+
 export const $CommentReply = {
   properties: {
     body: {
@@ -1822,7 +1846,7 @@ export const $GitRef = {
       type: "string",
       isRequired: true,
     },
-    type: {
+    kind: {
       type: "Enum",
       enum: ["branch", "tag", "commit"],
       isRequired: true,
@@ -2933,8 +2957,9 @@ export const $ProjectComment = {
 or None for a project-level comment. \`\`artifact_path\`\` is the repo-relative
 path of the artifact (None for project-level comments).
 
-\`\`highlight\`\` carries a portable PDF annotation position (react-pdf-highlighter
-format) and is only populated for publication comments.
+\`\`highlight\`\` carries a portable anchor position and is only populated for
+comments tied to a specific region (e.g., a PDF text selection). See
+\`\`CommentHighlight\`\` for the schema.
 
 \`\`parent_id\`\` enables flat one-level threading: replies point to the
 top-level comment. No nested replies are stored beyond one level in the UI,
@@ -3107,10 +3132,7 @@ export const $ProjectCommentPost = {
       type: "any-of",
       contains: [
         {
-          type: "dictionary",
-          contains: {
-            properties: {},
-          },
+          type: "CommentHighlight",
         },
         {
           type: "null",

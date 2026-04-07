@@ -668,7 +668,7 @@ export function ArtifactCompareModal({
     staleTime: 5 * 60 * 1000,
   })
   const branches = (refsQuery.data ?? []).filter(
-    (r: GitRef) => r.type === "branch",
+    (r: GitRef) => r.kind === "branch",
   )
 
   // For figure/publication/notebook, fetching without a ref loads ALL items just
