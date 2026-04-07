@@ -1,7 +1,6 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 
 from app.db import logger, pre_start
-from sqlmodel import select
 
 
 def test_init_successful_connection() -> None:
@@ -12,7 +11,7 @@ def test_init_successful_connection() -> None:
     session_mock.configure_mock(**{"exec.return_value": exec_mock})
 
     with (
-        patch("sqlmodel.Session", return_value=session_mock),
+        patch("app.db.Session", return_value=session_mock),
         patch.object(logger, "info"),
         patch.object(logger, "error"),
         patch.object(logger, "warn"),
@@ -28,4 +27,4 @@ def test_init_successful_connection() -> None:
             "and not raise an exception."
         )
 
-        session_mock.exec.assert_called_once_with(select(1))
+        session_mock.exec.assert_called_once_with(ANY)

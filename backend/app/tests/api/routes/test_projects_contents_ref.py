@@ -95,7 +95,7 @@ def test_get_project_file_history_endpoint(client: TestClient) -> None:
             return_value=fake_repo,
         ),
         patch(
-            "app.git.get_file_history",
+            "app.api.routes.projects.core.get_file_history",
             return_value=fake_history,
         ),
     ):

@@ -17,9 +17,12 @@ test("Clicking sign-in navigates to GitHub OAuth", async ({ page }) => {
     page.getByRole("button", { name: "Sign in with GitHub" }).click(),
   ])
 
-  expect(nav?.url() || page.url()).toContain(
-    "https://github.com/login/oauth/authorize",
-  )
+  // GitHub may redirect to /login before /login/oauth/authorize if the browser
+  // isn't already signed into GitHub; just verify we landed on github.com with
+  // the OAuth path somewhere in the URL (possibly URL-encoded in return_to).
+  const url = decodeURIComponent(nav?.url() || page.url())
+  expect(url).toContain("github.com")
+  expect(url).toMatch(/login\/oauth\/authorize|oauth\/authorize/)
 })
 
 test("Already authenticated users are redirected off /login", async ({ page }) => {
@@ -29,5 +32,5 @@ test("Already authenticated users are redirected off /login", async ({ page }) =
   })
 
   await page.goto("/login")
-  await page.waitForURL("/")
+  await page.waitForURL((url) => url.pathname === "/")
 })

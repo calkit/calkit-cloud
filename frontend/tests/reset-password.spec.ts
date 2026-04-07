@@ -1,8 +1,10 @@
+// Password reset is not applicable — the app uses GitHub OAuth only.
 import { expect, test } from "@playwright/test"
 import { findLastEmail } from "./utils/mailcatcher"
 import { randomEmail, randomPassword } from "./utils/random"
 import { logInUser, signUpNewUser } from "./utils/user"
 
+test.skip(true, "Password reset not supported with GitHub-only auth")
 test.use({ storageState: { cookies: [], origins: [] } })
 
 test("Password Recovery title is visible", async ({ page }) => {
