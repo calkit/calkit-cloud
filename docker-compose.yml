@@ -85,6 +85,7 @@ services:
   backend:
     image: '${DOCKER_IMAGE_BACKEND?Variable not set}:${TAG-latest}'
     restart: always
+    pull_policy: never # We build locally on deploy
     networks:
       - traefik-public
       - default
@@ -151,6 +152,7 @@ services:
   frontend:
     image: '${DOCKER_IMAGE_FRONTEND?Variable not set}:${TAG-latest}'
     restart: always
+    pull_policy: never # We build locally on deploy
     networks:
       - traefik-public
       - default
