@@ -322,7 +322,7 @@ def search_refs(repo: git.Repo, query: str | None = None) -> list[dict]:
                 msg = (
                     commit.message
                     if isinstance(commit.message, str)
-                    else commit.message.decode()
+                    else bytes(commit.message).decode()
                 )
                 if (
                     query_lower not in msg.lower()
@@ -379,7 +379,7 @@ def search_refs(repo: git.Repo, query: str | None = None) -> list[dict]:
                     if tag.tag and tag.tag.message:
                         if query_lower not in tag.tag.message.lower():
                             continue
-                except:
+                except Exception:
                     pass
 
             try:
@@ -507,7 +507,7 @@ def get_file_history(
                 msg = (
                     commit.message
                     if isinstance(commit.message, str)
-                    else commit.message.decode()
+                    else bytes(commit.message).decode()
                 )
                 commits.append(
                     {
@@ -635,7 +635,11 @@ def get_commit_history(
                         "parent_hashes": [
                             p.hexsha[:7] for p in commit.parents
                         ],
-                        "summary": commit.message.split("\n")[0],
+                        "summary": (
+                            commit.message
+                            if isinstance(commit.message, str)
+                            else bytes(commit.message).decode()
+                        ).split("\n")[0],
                     }
                 )
             break
