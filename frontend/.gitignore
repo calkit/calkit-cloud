@@ -29,3 +29,4 @@ openapi.json
 /playwright/.cache/
 /.tanstack/
 .env
+playwright
