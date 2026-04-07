@@ -192,8 +192,8 @@ def get_contents_from_repo(
 ) -> ContentsItem:
     owner_name = project.owner_account_name
     project_name = project.name
-    with _repo_dir_for_ref(repo, ref) as repo_dir:
-        return _get_contents_from_repo_dir(
+    with repo_dir_for_ref(repo, ref) as repo_dir:
+        return get_contents_from_repo_dir(
             project=project,
             repo=repo,
             repo_dir=repo_dir,
@@ -202,7 +202,7 @@ def get_contents_from_repo(
 
 
 @contextmanager
-def _repo_dir_for_ref(repo: git.Repo, ref: str | None):
+def repo_dir_for_ref(repo: git.Repo, ref: str | None):
     if ref is None:
         yield repo.working_dir
         return
@@ -225,11 +225,45 @@ def _repo_dir_for_ref(repo: git.Repo, ref: str | None):
         yield tmpdir
 
 
-def _get_contents_from_repo_dir(
+def get_ck_info_and_dvc_outs_from_repo_dir(
+    project: Project,
+    repo_dir: str,
+) -> tuple[dict, dict]:
+    """Load calkit.yaml and expand dvc.lock outs once for a repo dir.
+
+    Returns (ck_info, dvc_lock_outs).  Callers that process multiple paths
+    in the same repo dir should call this once and pass the results to
+    get_contents_from_repo_dir to avoid redundant I/O.
+    """
+    owner_name = project.owner_account_name
+    project_name = project.name
+    if os.path.isfile(os.path.join(repo_dir, "calkit.yaml")):
+        logger.info("Loading calkit.yaml")
+        with open(os.path.join(repo_dir, "calkit.yaml")) as f:
+            ck_info = yaml.safe_load(f) or {}
+    else:
+        ck_info = {}
+    dvc_lock_fpath = os.path.join(repo_dir, "dvc.lock")
+    dvc_lock = {}
+    if os.path.isfile(dvc_lock_fpath):
+        logger.info("Reading dvc.lock")
+        with open(dvc_lock_fpath) as f:
+            dvc_lock = yaml.safe_load(f)
+    logger.info("Expanding DVC lock outs")
+    fs = get_object_fs()
+    dvc_lock_outs = expand_dvc_lock_outs(
+        dvc_lock, owner_name=owner_name, project_name=project_name, fs=fs
+    )
+    return ck_info, dvc_lock_outs
+
+
+def get_contents_from_repo_dir(
     project: Project,
     repo: git.Repo,
     repo_dir: str,
     path: str | None = None,
+    ck_info: dict | None = None,
+    dvc_lock_outs: dict | None = None,
 ) -> ContentsItem:
     owner_name = project.owner_account_name
     project_name = project.name
@@ -249,26 +283,12 @@ def _get_contents_from_repo_dir(
                 f"at {path}"
             )
             raise HTTPException(404)
-    # Load Calkit entities
-    if os.path.isfile(os.path.join(repo_dir, "calkit.yaml")):
-        logger.info("Loading calkit.yaml")
-        with open(os.path.join(repo_dir, "calkit.yaml")) as f:
-            ck_info = yaml.safe_load(f)
-    else:
-        ck_info = {}
-    # Load DVC pipeline and lock files if they exist
-    dvc_lock_fpath = os.path.join(repo_dir, "dvc.lock")
-    dvc_lock = {}
-    if os.path.isfile(dvc_lock_fpath):
-        logger.info("Reading dvc.lock")
-        with open(dvc_lock_fpath) as f:
-            dvc_lock = yaml.safe_load(f)
-    # Expand all DVC lock outs
-    logger.info("Expanding DVC lock outs")
+    # Load calkit.yaml and dvc.lock outs if not pre-computed by the caller
+    if ck_info is None or dvc_lock_outs is None:
+        ck_info, dvc_lock_outs = get_ck_info_and_dvc_outs_from_repo_dir(
+            project, repo_dir
+        )
     fs = get_object_fs()
-    dvc_lock_outs = expand_dvc_lock_outs(
-        dvc_lock, owner_name=owner_name, project_name=project_name, fs=fs
-    )
     dvc_lock_out_dirs = [
         p for p, obj in dvc_lock_outs.items() if obj["type"] == "dir"
     ]

@@ -1527,17 +1527,27 @@ def get_project_figures(
             .group_by(ProjectComment.artifact_path)
         ).all()
     )
-    # Get the figure content and base64 encode it
-    for fig in figures:
-        item = app.projects.get_contents_from_repo(
-            project=project,
-            repo=repo,
-            path=fig["path"],
-            ref=ref,
+    # Get the figure content and base64 encode it.
+    # Pre-compute calkit.yaml / dvc.lock metadata once for the repo dir so we
+    # don't re-read and re-expand on every iteration.
+    with app.projects.repo_dir_for_ref(repo, ref) as repo_dir:
+        ck_info_full, dvc_lock_outs = (
+            app.projects.get_ck_info_and_dvc_outs_from_repo_dir(
+                project, repo_dir
+            )
         )
-        fig["content"] = item.content
-        fig["url"] = item.url
-        fig["comment_count"] = comment_counts.get(fig["path"], 0)
+        for fig in figures:
+            item = app.projects.get_contents_from_repo_dir(
+                project=project,
+                repo=repo,
+                repo_dir=repo_dir,
+                path=fig["path"],
+                ck_info=ck_info_full,
+                dvc_lock_outs=dvc_lock_outs,
+            )
+            fig["content"] = item.content
+            fig["url"] = item.url
+            fig["comment_count"] = comment_counts.get(fig["path"], 0)
     return [Figure.model_validate(fig) for fig in figures]
 
 
@@ -2656,36 +2666,45 @@ def get_project_publications(
         wdir=repo.working_dir, ck_info=ck_info, fix_legacy=False
     )
     resp = []
-    for pub in publications:
-        if "stage" in pub:
-            pub["stage_info"] = pipeline.get("stages", {}).get(pub["stage"])
-        # See if we can fetch the content for this publication
-        if "path" in pub:
-            try:
-                item = app.projects.get_contents_from_repo(
-                    project=project,
-                    repo=repo,
-                    path=pub["path"],
-                    ref=ref,
+    with app.projects.repo_dir_for_ref(repo, ref) as repo_dir:
+        ck_info_full, dvc_lock_outs = (
+            app.projects.get_ck_info_and_dvc_outs_from_repo_dir(
+                project, repo_dir
+            )
+        )
+        for pub in publications:
+            if "stage" in pub:
+                pub["stage_info"] = pipeline.get("stages", {}).get(
+                    pub["stage"]
                 )
-                pub["content"] = item.content
-                # Prioritize URL if already defined
-                if "url" not in pub:
-                    pub["url"] = item.url
-                # Patch in Overleaf info if we have it
-                if "overleaf" not in pub:
-                    pubdir = Path(os.path.dirname(pub["path"])).as_posix()
-                    if pubdir in overleaf_info:
-                        pub["overleaf"] = overleaf_info[pubdir] | {
-                            "wdir": pubdir
-                        }
-            except HTTPException as e:
-                logger.warning(
-                    f"Failed to get publication at path {pub['path']}: {e}"
-                )
-                # Must be a 404
-                pass
-        resp.append(Publication.model_validate(pub))
+            # See if we can fetch the content for this publication
+            if "path" in pub:
+                try:
+                    item = app.projects.get_contents_from_repo_dir(
+                        project=project,
+                        repo=repo,
+                        repo_dir=repo_dir,
+                        path=pub["path"],
+                        ck_info=ck_info_full,
+                        dvc_lock_outs=dvc_lock_outs,
+                    )
+                    pub["content"] = item.content
+                    # Prioritize URL if already defined
+                    if "url" not in pub:
+                        pub["url"] = item.url
+                    # Patch in Overleaf info if we have it
+                    if "overleaf" not in pub:
+                        pubdir = Path(os.path.dirname(pub["path"])).as_posix()
+                        if pubdir in overleaf_info:
+                            pub["overleaf"] = overleaf_info[pubdir] | {
+                                "wdir": pubdir
+                            }
+                except HTTPException as e:
+                    logger.warning(
+                        f"Failed to get publication at path {pub['path']}: {e}"
+                    )
+                    pass
+            resp.append(Publication.model_validate(pub))
     return resp
 
 
@@ -4039,33 +4058,45 @@ def get_project_notebooks(
     if not notebooks:
         return notebooks
     # Get the notebook content and base64 encode it
-    for notebook in notebooks:
-        try:
-            item = app.projects.get_contents_from_repo(
-                project=project,
-                repo=repo,
-                path=notebook["path"],
-                ref=ref,
+    with app.projects.repo_dir_for_ref(repo, ref) as repo_dir:
+        ck_info_full, dvc_lock_outs = (
+            app.projects.get_ck_info_and_dvc_outs_from_repo_dir(
+                project, repo_dir
             )
-        except HTTPException:
-            continue
-        try:
-            # If the notebook has a pre-built HTML output, prefer that
-            html_path = get_executed_notebook_path(
-                notebook_path=notebook["path"], to="html"
-            )
-            html_item = app.projects.get_contents_from_repo(
-                project=project,
-                repo=repo,
-                path=html_path,
-                ref=ref,
-            )
-            item = html_item
-            notebook["output_format"] = "html"
-        except HTTPException as e:
-            logger.info(f"Notebook HTML does not exist at {html_path}: {e}")
-        notebook["url"] = item.url
-        notebook["content"] = item.content
+        )
+        for notebook in notebooks:
+            try:
+                item = app.projects.get_contents_from_repo_dir(
+                    project=project,
+                    repo=repo,
+                    repo_dir=repo_dir,
+                    path=notebook["path"],
+                    ck_info=ck_info_full,
+                    dvc_lock_outs=dvc_lock_outs,
+                )
+            except HTTPException:
+                continue
+            try:
+                # If the notebook has a pre-built HTML output, prefer that
+                html_path = get_executed_notebook_path(
+                    notebook_path=notebook["path"], to="html"
+                )
+                html_item = app.projects.get_contents_from_repo_dir(
+                    project=project,
+                    repo=repo,
+                    repo_dir=repo_dir,
+                    path=html_path,
+                    ck_info=ck_info_full,
+                    dvc_lock_outs=dvc_lock_outs,
+                )
+                item = html_item
+                notebook["output_format"] = "html"
+            except HTTPException as e:
+                logger.info(
+                    f"Notebook HTML does not exist at {html_path}: {e}"
+                )
+            notebook["url"] = item.url
+            notebook["content"] = item.content
         # Figure out the output format from the URL content disposition
         if item.url is not None:
             params = params_from_url(item.url)
