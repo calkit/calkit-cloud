@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query"
 import { getRouteApi } from "@tanstack/react-router"
 
 import { type Figure } from "../../client"
+import PdfCanvas from "../Common/PdfCanvas"
 
 interface FigureViewProps {
   figure: Figure
@@ -18,18 +19,14 @@ function FigureView({ figure, width }: FigureViewProps) {
   let figView = <>Not set</>
   if (figure.path.endsWith(".pdf")) {
     figView = (
-      <Box height="530px" width={boxWidth}>
-        <embed
-          height="100%"
-          width="100%"
-          type="application/pdf"
-          src={
-            figure.content
-              ? `data:application/pdf;base64,${figure.content}`
-              : String(figure.url)
-          }
-        />
-      </Box>
+      <PdfCanvas
+        src={
+          figure.content
+            ? `data:application/pdf;base64,${figure.content}`
+            : String(figure.url)
+        }
+        width={boxWidth}
+      />
     )
   } else if (
     figure.path.endsWith(".png") ||

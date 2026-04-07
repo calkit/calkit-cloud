@@ -26,6 +26,7 @@ import { z } from "zod"
 
 import UploadFigure from "../../../../../components/Figures/UploadFigure"
 import LabelAsFigure from "../../../../../components/Figures/FigureFromExisting"
+import PdfCanvas from "../../../../../components/Common/PdfCanvas"
 import { ProjectsService, type Figure } from "../../../../../client"
 import useProject from "../../../../../hooks/useProject"
 import { ArtifactCompareModal } from "../../../../../components/Common/ArtifactCompareModal"
@@ -93,6 +94,20 @@ function FigureThumbnail({
           width="100%"
           height="140px"
         />
+      )
+    }
+    if (figure.path.endsWith(".pdf") && (figure.content || figure.url)) {
+      return (
+        <Box height="140px" overflow="hidden">
+          <PdfCanvas
+            src={
+              figure.content
+                ? `data:application/pdf;base64,${figure.content}`
+                : String(figure.url)
+            }
+            maxPages={1}
+          />
+        </Box>
       )
     }
     return (

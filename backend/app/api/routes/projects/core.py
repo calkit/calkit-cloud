@@ -803,7 +803,6 @@ def search_project_refs(
         user=current_user,
         session=session,
         ttl=FULL_HISTORY_REPO_TTL,
-        full_history=True,
     )
     refs = search_refs(repo, query=q)
     return cast(list[GitRef], refs)
@@ -844,7 +843,6 @@ def get_project_history(
         user=current_user,
         session=session,
         ttl=FULL_HISTORY_REPO_TTL,
-        full_history=True,
     )
     history = get_commit_history(repo, max_count=limit + offset, ref=ref)
     return history[offset : offset + limit]
@@ -877,7 +875,6 @@ def get_project_commit(
         user=current_user,
         session=session,
         ttl=FULL_HISTORY_REPO_TTL,
-        full_history=True,
     )
     try:
         commit = repo.commit(commit_hash)
@@ -980,7 +977,6 @@ def get_project_file_history(
         user=current_user,
         session=session,
         ttl=FULL_HISTORY_REPO_TTL,
-        full_history=True,
     )
     return get_file_history(repo, path=path, max_count=limit)
 

@@ -25,7 +25,6 @@ def get_repo(
     ttl: int | None = None,
     fresh=False,
     ref: str | None = None,
-    full_history: bool = False,
 ) -> git.Repo:
     """Ensure that the repo exists and is ready for operating upon for the user.
 
@@ -67,12 +66,7 @@ def get_repo(
         try:
             with lock:
                 try:
-                    clone_cmd = ["git", "clone"]
-                    # Keep clones shallow by default for speed, but allow
-                    # full history for git history/ref browsing features.
-                    if not full_history:
-                        clone_cmd += ["--depth", "1"]
-                    clone_cmd += [git_clone_url, repo_dir]
+                    clone_cmd = ["git", "clone", git_clone_url, repo_dir]
                     subprocess.check_call(clone_cmd)
                 except subprocess.CalledProcessError:
                     logger.error("Failed to clone repo")
@@ -99,28 +93,32 @@ def get_repo(
         repo = git.Repo(repo_dir)
         try:
             with lock:
-                if ttl is None or ((time.time() - last_updated) > ttl):
+                # Unshallow any repo that was cloned with --depth before we
+                # switched to always doing full clones.
+                try:
+                    is_shallow = (
+                        repo.git.rev_parse("--is-shallow-repository").strip()
+                        == "true"
+                    )
+                except GitCommandError:
+                    is_shallow = os.path.isfile(
+                        os.path.join(repo.git_dir, "shallow")
+                    )
+                if is_shallow:
+                    logger.info("Unshallowing legacy shallow repo")
+                    repo.git.remote(["remove", "origin"])
+                    repo.git.remote(["add", "origin", git_clone_url])
+                    repo.git.fetch(["--unshallow", "--tags"])
+                    subprocess.call(["touch", updated_fpath])
+                ttl_expired = ttl is None or (
+                    (time.time() - last_updated) > ttl
+                )
+                if ttl_expired and not is_shallow:
                     logger.info("Updating remote in case token was refreshed")
                     repo.git.remote(["remove", "origin"])
                     repo.git.remote(["add", "origin", git_clone_url])
                     logger.info("Git fetching")
-                    if full_history:
-                        try:
-                            is_shallow = (
-                                repo.git.rev_parse(
-                                    "--is-shallow-repository"
-                                ).strip()
-                                == "true"
-                            )
-                        except GitCommandError:
-                            is_shallow = os.path.isfile(
-                                os.path.join(repo.git_dir, "shallow")
-                            )
-                        if is_shallow:
-                            repo.git.fetch(["--unshallow", "--tags"])
-                        else:
-                            repo.git.fetch(["--all", "--tags"])
-                    elif ref is None:
+                    if ref is None:
                         branch_name = repo.active_branch.name
                         repo.git.fetch(["origin", branch_name])
                         # If we had any failed previous transactions, reset

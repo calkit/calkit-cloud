@@ -1,3 +1,4 @@
+import { useRef } from "react"
 import {
   IconButton,
   Input,
@@ -17,6 +18,7 @@ export default function ClearableInput({
   onValueChange,
   ...rest
 }: ClearableInputProps) {
+  const inputRef = useRef<HTMLInputElement>(null)
   const { size, width, maxW, minW, w, flex, ...inputRest } = rest
   return (
     <InputGroup
@@ -29,8 +31,16 @@ export default function ClearableInput({
     >
       <Input
         {...inputRest}
+        ref={inputRef}
         value={value}
         onChange={(e) => onValueChange(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") {
+            onValueChange("")
+            inputRef.current?.blur()
+          }
+          inputRest.onKeyDown?.(e)
+        }}
       />
       {value && (
         <InputRightElement>

@@ -229,19 +229,20 @@ function CommitDetailModal({
               </Text>
             </Flex>
           )}
-          {commit?.message && commit.message.split("\n").length > 1 && (
-            <Box
-              mb={4}
-              p={3}
-              borderRadius="md"
-              borderWidth={1}
-              borderColor={borderColor}
-            >
-              <Text fontSize="sm" whiteSpace="pre-wrap" color="gray.600">
-                {commit.message.split("\n").slice(1).join("\n").trim()}
-              </Text>
-            </Box>
-          )}
+          {commit?.message &&
+            commit.message.split("\n").slice(1).join("\n").trim() && (
+              <Box
+                mb={4}
+                p={3}
+                borderRadius="md"
+                borderWidth={1}
+                borderColor={borderColor}
+              >
+                <Text fontSize="sm" whiteSpace="pre-wrap" color="gray.600">
+                  {commit.message.split("\n").slice(1).join("\n").trim()}
+                </Text>
+              </Box>
+            )}
           <Heading size="xs" mb={2}>
             Changed files
           </Heading>
@@ -571,7 +572,7 @@ function History() {
                     </VStack>
                   </Flex>
 
-                  {commit.message.split("\n").length > 1 && (
+                  {commit.message.split("\n").slice(1).join("\n").trim() && (
                     <Box
                       pl={12}
                       pt={1}
@@ -584,7 +585,7 @@ function History() {
                         whiteSpace="pre-wrap"
                         noOfLines={3}
                       >
-                        {commit.message.split("\n").slice(1).join("\n")}
+                        {commit.message.split("\n").slice(1).join("\n").trim()}
                       </Text>
                     </Box>
                   )}

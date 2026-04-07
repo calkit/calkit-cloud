@@ -136,6 +136,12 @@ export default function GlobalSearch() {
     isOpen && debouncedQuery.length >= 2 && (isFetching || isSuccess)
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Escape") {
+      setQuery("")
+      setIsOpen(false)
+      inputRef.current?.blur()
+      return
+    }
     if (!showDropdown) return
     if (e.key === "ArrowDown") {
       e.preventDefault()
@@ -151,8 +157,6 @@ export default function GlobalSearch() {
       e.preventDefault()
       const item = flatResults[highlightedIndex]
       if (item) handleSelect(item)
-    } else if (e.key === "Escape") {
-      setIsOpen(false)
     }
   }
 

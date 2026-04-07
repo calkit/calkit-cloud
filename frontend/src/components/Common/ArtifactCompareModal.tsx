@@ -90,6 +90,7 @@ interface ArtifactCompareModalProps {
   initialRef?: string
   initialRef2?: string
   initialArtifact?: Figure | Publication | Notebook | ContentsItem
+  onRefsChange?: (ref1: string | undefined, ref2: string | undefined) => void
 }
 
 /** Render the artifact content for a given kind/data. */
@@ -483,13 +484,28 @@ function FigureComments({
                       placeholder="Add a reply…"
                       value={replyDraft}
                       onChange={(e) => setReplyDraft(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (
+                          e.key === "Enter" &&
+                          (e.metaKey || e.ctrlKey) &&
+                          replyDraft.trim() &&
+                          c.id
+                        ) {
+                          e.preventDefault()
+                          replyMutation.mutate({
+                            commentId: c.id,
+                            body: replyDraft.trim(),
+                          })
+                        }
+                      }}
                       rows={2}
                       mb={1}
                       autoFocus
                     />
-                    <Flex gap={2}>
+                    <Flex align="center" gap={3} mb={2}>
                       <Button
                         size="xs"
+                        variant="primary"
                         isDisabled={!replyDraft.trim()}
                         isLoading={
                           replyMutation.isPending &&
@@ -503,7 +519,7 @@ function FigureComments({
                           })
                         }
                       >
-                        Send
+                        Post
                       </Button>
                       <Button
                         size="xs"
@@ -565,6 +581,16 @@ function FigureComments({
             size="sm"
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (
+                e.key === "Enter" &&
+                (e.metaKey || e.ctrlKey) &&
+                draft.trim()
+              ) {
+                e.preventDefault()
+                postMutation.mutate()
+              }
+            }}
             rows={3}
             mb={2}
           />
@@ -577,7 +603,8 @@ function FigureComments({
               Create GitHub issue
             </Checkbox>
             <Button
-              size="sm"
+              size="xs"
+              variant="primary"
               isDisabled={!draft.trim()}
               isLoading={postMutation.isPending}
               onClick={() => postMutation.mutate()}
@@ -601,6 +628,7 @@ export function ArtifactCompareModal({
   initialRef,
   initialRef2,
   initialArtifact,
+  onRefsChange,
 }: ArtifactCompareModalProps) {
   const borderColor = useColorModeValue("gray.200", "gray.600")
   const hoverBg = useColorModeValue("gray.50", "gray.700")
@@ -614,6 +642,10 @@ export function ArtifactCompareModal({
     setRef1(initialRef)
     setRef2(initialRef2)
   }, [initialRef, initialRef2])
+
+  useEffect(() => {
+    onRefsChange?.(ref1, ref2)
+  }, [ref1, ref2])
 
   const historyQuery = useQuery({
     queryKey: ["projects", ownerName, projectName, "file-history", path],

@@ -116,6 +116,12 @@ function AddCommentTip({
         rows={3}
         value={text}
         onChange={(e) => setText(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && text.trim()) {
+            e.preventDefault()
+            onConfirm(text.trim(), createIssue)
+          }
+        }}
         mb={2}
       />
       <Checkbox
@@ -426,12 +432,27 @@ export function CommentList({
                     placeholder="Add a reply…"
                     value={replyDraft}
                     onChange={(e) => setReplyDraft(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (
+                        e.key === "Enter" &&
+                        (e.metaKey || e.ctrlKey) &&
+                        replyDraft.trim() &&
+                        c.id
+                      ) {
+                        e.preventDefault()
+                        replyMutation.mutate({
+                          commentId: c.id,
+                          body: replyDraft.trim(),
+                        })
+                      }
+                    }}
                     rows={2}
                     mb={1}
                   />
-                  <Flex gap={2}>
+                  <Flex align="center" gap={3} mb={2}>
                     <Button
                       size="xs"
+                      variant="primary"
                       isDisabled={!replyDraft.trim()}
                       isLoading={
                         replyMutation.isPending &&
@@ -445,7 +466,7 @@ export function CommentList({
                         })
                       }
                     >
-                      Send
+                      Post
                     </Button>
                     <Button
                       size="xs"
@@ -525,6 +546,19 @@ export function CommentList({
                 placeholder="Add a comment…"
                 value={newCommentDraft}
                 onChange={(e) => setNewCommentDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (
+                    e.key === "Enter" &&
+                    (e.metaKey || e.ctrlKey) &&
+                    newCommentDraft.trim()
+                  ) {
+                    e.preventDefault()
+                    addCommentMutation.mutate({
+                      body: newCommentDraft.trim(),
+                      createIssue: newCommentCreateIssue,
+                    })
+                  }
+                }}
                 rows={3}
                 mb={2}
                 autoFocus

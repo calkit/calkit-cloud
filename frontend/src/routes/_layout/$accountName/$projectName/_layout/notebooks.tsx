@@ -250,6 +250,15 @@ function Notebooks() {
                 initialRef={compare_ref}
                 initialRef2={compare_ref2}
                 initialArtifact={selectedNotebook}
+                onRefsChange={(r1, r2) =>
+                  navigate({
+                    search: (prev) => ({
+                      ...prev,
+                      compare_ref: r1,
+                      compare_ref2: r2,
+                    }),
+                  })
+                }
               />
             </Box>
           )}
