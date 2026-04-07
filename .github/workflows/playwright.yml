@@ -9,6 +9,24 @@ on:
         required: false
         default: 'false'
 
+env:
+  POSTGRES_PASSWORD: test-password-for-ci
+  MINIO_ROOT_PASSWORD: test-password-for-ci
+  GH_CLIENT_ID: test-github-client-id-for-ci
+  GH_CLIENT_SECRET: test-github-client-secret-for-ci
+  STRIPE_PUBLISHABLE_KEY: test-stripe-publishable-key-for-ci
+  STRIPE_SECRET_KEY: test-stripe-secret-key-for-ci
+  MIXPANEL_TOKEN: test-mixpanel-token-for-ci
+  ZENODO_CLIENT_ID: test-zenodo-client-id-for-ci
+  ZENODO_CLIENT_SECRET: test-zenodo-client-secret-for-ci
+  GOOGLE_CLIENT_ID: test-google-client-id-for-ci
+  GOOGLE_CLIENT_SECRET: test-google-client-secret-for-ci
+  FIRST_SUPERUSER_GITHUB_USERNAME: test-user-for-ci
+  FIRST_SUPERUSER_PASSWORD: test-password-for-ci
+  SECRET_KEY: test-secret-key-for-ci
+  FERNET_KEY: test-fernet-key-for-ci
+  FERNET_KEYS: test-fernet-key-for-ci
+
 jobs:
   test:
     timeout-minutes: 60
