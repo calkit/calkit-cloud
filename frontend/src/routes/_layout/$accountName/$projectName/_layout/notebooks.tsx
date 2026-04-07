@@ -46,9 +46,8 @@ function NotebookView({ notebook }: { notebook: Notebook }) {
       return (
         <Box
           overflowY="auto"
-          height="100%"
+          overflowX="hidden"
           borderRadius="lg"
-          overflow="hidden"
           sx={{
             ".ipynb-renderer-root": { borderRadius: "var(--chakra-radii-lg)" },
             ".ipynb-renderer-root #notebook-container": {
@@ -210,7 +209,12 @@ function Notebooks() {
                     {selectedNotebook.description}
                   </Text>
                 )}
-                <Box height="80vh" borderRadius="lg" overflow="hidden">
+                <Box
+                  height="80vh"
+                  borderRadius="lg"
+                  overflowX="hidden"
+                  overflowY="auto"
+                >
                   <NotebookView notebook={selectedNotebook} />
                 </Box>
               </>
