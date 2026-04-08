@@ -15,6 +15,7 @@ env:
   ZENODO_CLIENT_SECRET: test-zenodo-client-secret-for-ci
   GOOGLE_CLIENT_ID: test-google-client-id-for-ci
   GOOGLE_CLIENT_SECRET: test-google-client-secret-for-ci
+  FIRST_SUPERUSER: test-user-for-ci@example.com
   FIRST_SUPERUSER_GITHUB_USERNAME: test-user-for-ci
   FIRST_SUPERUSER_PASSWORD: test-password-for-ci
   SECRET_KEY: test-secret-key-for-ci
