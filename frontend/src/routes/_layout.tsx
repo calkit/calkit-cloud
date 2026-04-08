@@ -28,7 +28,7 @@ function InstallGitHubApp() {
 }
 
 function Layout() {
-  const { isLoading, user, logout } = useAuth()
+  const { isLoading, user } = useAuth()
   if (user) {
     mixpanel.identify(user.id)
     mixpanel.people.set({
