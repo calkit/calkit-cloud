@@ -84,3 +84,10 @@ jobs:
           name: playwright-report
           path: frontend/playwright-report/
           retention-days: 30
+      - name: Store Playwright test results
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-test-results
+          path: frontend/test-results/
+          retention-days: 7
