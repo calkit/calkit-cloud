@@ -49,8 +49,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useState, useEffect } from "react"
 import ReactDiffViewer, { DiffMethod } from "react-diff-viewer-continued"
 
-import axios from "axios"
-import { OpenAPI } from "../../client"
 import FigureView from "../Figures/FigureView"
 import FileContent from "../Files/FileContent"
 import {
@@ -287,23 +285,13 @@ function FigureComments({
   const [replyDraft, setReplyDraft] = useState("")
 
   const replyMutation = useMutation({
-    mutationFn: async ({
-      commentId,
-      body,
-    }: {
-      commentId: string
-      body: string
-    }) => {
-      const token =
-        typeof OpenAPI.TOKEN === "function"
-          ? await OpenAPI.TOKEN({} as never)
-          : OpenAPI.TOKEN
-      return axios.post(
-        `${OpenAPI.BASE}/projects/${ownerName}/${projectName}/comments/${commentId}/replies`,
-        { body },
-        { headers: { Authorization: `Bearer ${token}` } },
-      )
-    },
+    mutationFn: ({ commentId, body }: { commentId: string; body: string }) =>
+      ProjectsService.postProjectCommentReply({
+        ownerName,
+        projectName,
+        commentId,
+        requestBody: { body },
+      }),
     onSuccess: () => {
       setReplyingToId(null)
       setReplyDraft("")

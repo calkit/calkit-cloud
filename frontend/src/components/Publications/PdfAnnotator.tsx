@@ -47,9 +47,12 @@ import "react-pdf-highlighter/dist/style.css"
 import { FaCheck, FaUndo, FaGithub } from "react-icons/fa"
 import { ExternalLinkIcon } from "@chakra-ui/icons"
 
-import { ProjectsService, type ProjectComment, OpenAPI } from "../../client"
+import {
+  ProjectsService,
+  type ProjectComment,
+  type CommentHighlight,
+} from "../../client"
 import useAuth from "../../hooks/useAuth"
-import axios from "axios"
 
 // ---------------------------------------------------------------------------
 // Highlight shape that extends IHighlight with our DB id / comment body
@@ -297,23 +300,13 @@ export function CommentList({
   })
 
   const replyMutation = useMutation({
-    mutationFn: async ({
-      commentId,
-      body,
-    }: {
-      commentId: string
-      body: string
-    }) => {
-      const token =
-        typeof OpenAPI.TOKEN === "function"
-          ? await OpenAPI.TOKEN({} as never)
-          : OpenAPI.TOKEN
-      return axios.post(
-        `${OpenAPI.BASE}/projects/${ownerName}/${projectName}/comments/${commentId}/replies`,
-        { body },
-        { headers: { Authorization: `Bearer ${token}` } },
-      )
-    },
+    mutationFn: ({ commentId, body }: { commentId: string; body: string }) =>
+      ProjectsService.postProjectCommentReply({
+        ownerName,
+        projectName,
+        commentId,
+        requestBody: { body },
+      }),
     onSuccess: () => {
       setReplyingToId(null)
       setReplyDraft("")
@@ -706,7 +699,7 @@ export default function PdfAnnotator({
   const postMutation = useMutation({
     mutationFn: (data: {
       comment: string
-      highlight: Record<string, unknown> | null
+      highlight: CommentHighlight | null
       create_github_issue: boolean
     }) =>
       ProjectsService.postProjectComment({
@@ -781,7 +774,7 @@ export default function PdfAnnotator({
         highlight: {
           position: newHighlight.position as unknown as Record<string, unknown>,
           content: newHighlight.content as unknown as Record<string, unknown>,
-        },
+        } as CommentHighlight,
         create_github_issue: createIssue,
       })
     },
