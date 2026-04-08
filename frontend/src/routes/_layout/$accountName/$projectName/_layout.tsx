@@ -20,6 +20,7 @@ import {
   MenuList,
   MenuItem,
   MenuDivider,
+  Portal,
   Box,
   Modal,
   ModalOverlay,
@@ -286,35 +287,37 @@ function ProjectMenu({
           size="xs"
           mr={1}
         ></MenuButton>
-        <MenuList>
-          <MenuItem
-            icon={<MdEdit fontSize={18} />}
-            onClick={editProjectModal.onOpen}
-            isDisabled={!userHasWriteAccess}
-          >
-            Edit title or description
-          </MenuItem>
-          <MenuItem
-            icon={<LuCopyPlus fontSize={18} />}
-            onClick={newProjectModal.onOpen}
-            isDisabled={!user}
-          >
-            Use this project as a template
-          </MenuItem>
-          <MenuItem
-            icon={<FaRegClone fontSize={18} />}
-            onClick={cloneProjectModal.onOpen}
-          >
-            Clone to local machine
-          </MenuItem>
-          <MenuDivider />
-          <MenuItem
-            icon={<FaCodeBranch fontSize={16} />}
-            onClick={switchVersionModal.onOpen}
-          >
-            Switch version
-          </MenuItem>
-        </MenuList>
+        <Portal>
+          <MenuList zIndex="popover">
+            <MenuItem
+              icon={<MdEdit fontSize={18} />}
+              onClick={editProjectModal.onOpen}
+              isDisabled={!userHasWriteAccess}
+            >
+              Edit title or description
+            </MenuItem>
+            <MenuItem
+              icon={<LuCopyPlus fontSize={18} />}
+              onClick={newProjectModal.onOpen}
+              isDisabled={!user}
+            >
+              Use this project as a template
+            </MenuItem>
+            <MenuItem
+              icon={<FaRegClone fontSize={18} />}
+              onClick={cloneProjectModal.onOpen}
+            >
+              Clone to local machine
+            </MenuItem>
+            <MenuDivider />
+            <MenuItem
+              icon={<FaCodeBranch fontSize={16} />}
+              onClick={switchVersionModal.onOpen}
+            >
+              Switch version
+            </MenuItem>
+          </MenuList>
+        </Portal>
       </Menu>
       <EditProject
         project={project}

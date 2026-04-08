@@ -34,14 +34,21 @@ import { ProjectsService, type ContentsItem } from "../../../../../client"
 import UploadFile from "../../../../../components/Files/UploadFile"
 import PageMenu from "../../../../../components/Common/PageMenu"
 import FileContent from "../../../../../components/Files/FileContent"
-import SelectedItemInfo from "../../../../../components/Files/SelectedItemInfo"
+import SelectedItemInfo, {
+  inferKindFromPath,
+} from "../../../../../components/Files/SelectedItemInfo"
 import useProject from "../../../../../hooks/useProject"
+import {
+  ArtifactCompareModal,
+  type ArtifactKind,
+} from "../../../../../components/Common/ArtifactCompareModal"
 
 const fileSearchSchema = z.object({
   path: z.string().catch(""),
   ref: z.string().optional(),
+  compare_open: z.boolean().optional(),
+  base_ref: z.string().optional(),
   compare_ref: z.string().optional(),
-  compare_ref2: z.string().optional(),
 })
 
 export const Route = createFileRoute(
@@ -228,7 +235,7 @@ function Item({ item, level, selectedPath, setSelectedPath }: ItemProps) {
 
 function Files() {
   const { accountName, projectName } = Route.useParams()
-  const { path, ref, compare_ref, compare_ref2 } = Route.useSearch()
+  const { path, ref, compare_open, base_ref, compare_ref } = Route.useSearch()
   const navigate = useNavigate({ from: Route.fullPath })
   const { userHasWriteAccess } = useProject(accountName, projectName)
   const {
@@ -304,6 +311,28 @@ function Files() {
   const clearRef = () => {
     navigate({ search: (prev) => ({ ...prev, ref: undefined }) })
   }
+
+  const openCompare = () =>
+    navigate({
+      search: (prev) => ({ ...prev, compare_open: true }),
+    })
+
+  const closeCompare = () =>
+    navigate({
+      search: (prev) => ({
+        ...prev,
+        compare_open: undefined,
+        base_ref: undefined,
+        compare_ref: undefined,
+      }),
+    })
+
+  const selectedItem = selectedItemQuery.data
+  const artifactKind: ArtifactKind | undefined =
+    selectedItem?.type === "file"
+      ? (selectedItem.calkit_object?.kind as ArtifactKind | undefined) ??
+        inferKindFromPath(selectedItem.path)
+      : undefined
 
   return (
     <>
@@ -391,8 +420,7 @@ function Files() {
                       ownerName={accountName}
                       projectName={projectName}
                       userHasWriteAccess={userHasWriteAccess}
-                      compareRef={compare_ref}
-                      compareRef2={compare_ref2}
+                      onOpenCompare={openCompare}
                     />
                   ) : (
                     ""
@@ -402,6 +430,28 @@ function Files() {
             </Box>
           </Flex>
         </Flex>
+      )}
+
+      {selectedItem?.type === "file" && (
+        <ArtifactCompareModal
+          isOpen={Boolean(compare_open)}
+          onClose={closeCompare}
+          ownerName={accountName}
+          projectName={projectName}
+          path={selectedItem.path}
+          kind={artifactKind ?? "file"}
+          initialRef={base_ref}
+          initialRef2={compare_ref}
+          onRefsChange={(r1, r2) =>
+            navigate({
+              search: (prev) => ({
+                ...prev,
+                base_ref: r1,
+                compare_ref: r2,
+              }),
+            })
+          }
+        />
       )}
     </>
   )

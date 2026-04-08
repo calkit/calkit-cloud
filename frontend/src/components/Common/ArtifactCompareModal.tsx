@@ -703,10 +703,10 @@ export function ArtifactCompareModal({
 
   const getShareUrl = () => {
     const url = new URL(window.location.href)
-    if (ref1) url.searchParams.set("compare_ref", ref1)
+    if (ref1) url.searchParams.set("base_ref", ref1)
+    else url.searchParams.delete("base_ref")
+    if (ref2) url.searchParams.set("compare_ref", ref2)
     else url.searchParams.delete("compare_ref")
-    if (ref2) url.searchParams.set("compare_ref2", ref2)
-    else url.searchParams.delete("compare_ref2")
     return url.toString()
   }
 

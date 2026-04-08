@@ -9,7 +9,6 @@ import {
   Code,
   HStack,
   Button,
-  useDisclosure,
 } from "@chakra-ui/react"
 import { useQuery } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
@@ -28,8 +27,9 @@ import { ArtifactCompareModal } from "../../../../../components/Common/ArtifactC
 const notebookSearchSchema = z.object({
   ref: z.string().optional(),
   path: z.string().optional(),
+  compare_open: z.boolean().optional(),
+  base_ref: z.string().optional(),
   compare_ref: z.string().optional(),
-  compare_ref2: z.string().optional(),
 })
 
 export const Route = createFileRoute(
@@ -134,15 +134,32 @@ function Notebooks() {
   const {
     ref,
     path: selectedPath,
+    compare_open,
+    base_ref,
     compare_ref,
-    compare_ref2,
   } = Route.useSearch()
   const navigate = useNavigate({ from: Route.fullPath })
   const setSelectedPath = (p: string) =>
     navigate({ search: (prev) => ({ ...prev, path: p }) })
-  const compareModal = useDisclosure({
-    defaultIsOpen: Boolean(compare_ref),
-  })
+
+  const openCompare = (notebookPath: string) =>
+    navigate({
+      search: (prev) => ({
+        ...prev,
+        path: notebookPath,
+        compare_open: true,
+      }),
+    })
+
+  const closeCompare = () =>
+    navigate({
+      search: (prev) => ({
+        ...prev,
+        compare_open: undefined,
+        base_ref: undefined,
+        compare_ref: undefined,
+      }),
+    })
 
   const { isPending, data: notebooks } = useQuery({
     queryKey: ["projects", accountName, projectName, "notebooks", ref],
@@ -238,24 +255,24 @@ function Notebooks() {
             <Box w="240px" flexShrink={0}>
               <NotebookInfo
                 notebook={selectedNotebook}
-                onOpenCompare={compareModal.onOpen}
+                onOpenCompare={() => openCompare(selectedNotebook.path ?? "")}
               />
               <ArtifactCompareModal
-                isOpen={compareModal.isOpen}
-                onClose={compareModal.onClose}
+                isOpen={Boolean(compare_open)}
+                onClose={closeCompare}
                 ownerName={accountName}
                 projectName={projectName}
                 path={selectedNotebook.path ?? ""}
                 kind="notebook"
-                initialRef={compare_ref}
-                initialRef2={compare_ref2}
+                initialRef={base_ref}
+                initialRef2={compare_ref}
                 initialArtifact={selectedNotebook}
                 onRefsChange={(r1, r2) =>
                   navigate({
                     search: (prev) => ({
                       ...prev,
-                      compare_ref: r1,
-                      compare_ref2: r2,
+                      base_ref: r1,
+                      compare_ref: r2,
                     }),
                   })
                 }

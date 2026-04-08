@@ -17,15 +17,11 @@ import { MdEdit } from "react-icons/md"
 import { ExternalLinkIcon } from "@chakra-ui/icons"
 import { type ContentsItem } from "../../client"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { useEffect } from "react"
 import EditFileInfo from "./EditFileInfo"
 import useAuth from "../../hooks/useAuth"
 import UploadFile from "./UploadFile"
 import { ProjectsService } from "../../client"
-import {
-  ArtifactCompareModal,
-  type ArtifactKind,
-} from "../Common/ArtifactCompareModal"
+import { type ArtifactKind } from "../Common/ArtifactCompareModal"
 
 const FIGURE_EXTS = new Set([
   ".png",
@@ -59,7 +55,7 @@ const PUBLICATION_DIRS = new Set([
   "article",
 ])
 
-function inferKindFromPath(path: string): ArtifactKind | undefined {
+export function inferKindFromPath(path: string): ArtifactKind | undefined {
   const lower = path.toLowerCase()
   const parts = lower.split("/")
   const ext = parts[parts.length - 1].includes(".")
@@ -165,8 +161,7 @@ interface SelectedItemProps {
   ownerName: string
   projectName: string
   userHasWriteAccess: boolean
-  compareRef?: string
-  compareRef2?: string
+  onOpenCompare?: () => void
 }
 
 function SelectedItemInfo({
@@ -174,16 +169,10 @@ function SelectedItemInfo({
   ownerName,
   projectName,
   userHasWriteAccess,
-  compareRef,
-  compareRef2,
+  onOpenCompare,
 }: SelectedItemProps) {
   const fileInfoModal = useDisclosure()
   const uploadNewVersionModal = useDisclosure()
-  const compareModal = useDisclosure()
-
-  useEffect(() => {
-    if (compareRef) compareModal.onOpen()
-  }, [compareRef])
 
   const artifactKind: ArtifactKind | undefined =
     (selectedItem.calkit_object?.kind as ArtifactKind | undefined) ??
@@ -228,22 +217,10 @@ function SelectedItemInfo({
         ""
       )}
       {selectedItem.type === "file" ? (
-        <>
-          <Button mt={2} onClick={compareModal.onOpen} size="sm">
-            <Icon as={FaCodeBranch} mr={1} />
-            Browse history
-          </Button>
-          <ArtifactCompareModal
-            isOpen={compareModal.isOpen}
-            onClose={compareModal.onClose}
-            ownerName={ownerName}
-            projectName={projectName}
-            path={selectedItem.path}
-            kind={artifactKind ?? "file"}
-            initialRef={compareRef}
-            initialRef2={compareRef2}
-          />
-        </>
+        <Button mt={2} onClick={onOpenCompare} size="sm">
+          <Icon as={FaCodeBranch} mr={1} />
+          Browse history
+        </Button>
       ) : null}
       {selectedItem.type === "file" &&
       selectedItem.in_repo &&

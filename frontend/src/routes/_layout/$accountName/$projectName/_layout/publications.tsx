@@ -55,6 +55,9 @@ import useAuth from "../../../../../hooks/useAuth"
 
 const pubSearchSchema = z.object({
   path: z.string().optional(),
+  compare_open: z.boolean().optional(),
+  base_ref: z.string().optional(),
+  compare_ref: z.string().optional(),
 })
 
 export const Route = createFileRoute(
@@ -69,6 +72,7 @@ interface PubInfoProps {
   ownerName: string
   projectName: string
   userHasWriteAccess: boolean
+  onOpenCompare: () => void
 }
 
 function PubInfo({
@@ -76,9 +80,9 @@ function PubInfo({
   ownerName,
   projectName,
   userHasWriteAccess,
+  onOpenCompare,
 }: PubInfoProps) {
   const secBgColor = useColorModeValue("ui.secondary", "ui.darkSlate")
-  const compareModal = useDisclosure()
   const showToast = useCustomToast()
   const queryClient = useQueryClient()
 
@@ -166,19 +170,10 @@ function PubInfo({
           </Flex>
         </Box>
       )}
-      <Button mt={3} size="sm" onClick={compareModal.onOpen}>
+      <Button mt={3} size="sm" onClick={onOpenCompare}>
         <Icon as={FaCodeBranch} mr={1} />
         Compare versions
       </Button>
-      <ArtifactCompareModal
-        isOpen={compareModal.isOpen}
-        onClose={compareModal.onClose}
-        ownerName={ownerName}
-        projectName={projectName}
-        path={publication.path}
-        kind="publication"
-        initialArtifact={publication}
-      />
     </Box>
   )
 }
@@ -200,10 +195,30 @@ function Publications() {
     projectName,
     ref,
   )
-  const { path: selectedPath } = Route.useSearch()
+  const {
+    path: selectedPath,
+    compare_open,
+    base_ref,
+    compare_ref,
+  } = Route.useSearch()
   const navigate = useNavigate({ from: Route.fullPath })
   const setSelectedPath = (p: string) =>
     navigate({ search: (prev) => ({ ...prev, path: p }) })
+
+  const openCompare = (pubPath: string) =>
+    navigate({
+      search: (prev) => ({ ...prev, path: pubPath, compare_open: true }),
+    })
+
+  const closeCompare = () =>
+    navigate({
+      search: (prev) => ({
+        ...prev,
+        compare_open: undefined,
+        base_ref: undefined,
+        compare_ref: undefined,
+      }),
+    })
   const { user } = useAuth()
   const queryClient = useQueryClient()
   const [showResolved, setShowResolved] = useState(false)
@@ -403,6 +418,27 @@ function Publications() {
                   ownerName={accountName}
                   projectName={projectName}
                   userHasWriteAccess={userHasWriteAccess}
+                  onOpenCompare={() => openCompare(selectedPub.path)}
+                />
+                <ArtifactCompareModal
+                  isOpen={Boolean(compare_open)}
+                  onClose={closeCompare}
+                  ownerName={accountName}
+                  projectName={projectName}
+                  path={selectedPub.path}
+                  kind="publication"
+                  initialRef={base_ref}
+                  initialRef2={compare_ref}
+                  initialArtifact={selectedPub}
+                  onRefsChange={(r1, r2) =>
+                    navigate({
+                      search: (prev) => ({
+                        ...prev,
+                        base_ref: r1,
+                        compare_ref: r2,
+                      }),
+                    })
+                  }
                 />
                 {selectedPub && (
                   <CommentList
