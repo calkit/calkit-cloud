@@ -42,6 +42,7 @@ jobs:
         with:
           name: coverage-html
           path: backend/htmlcov
+
   end-to-end:
     timeout-minutes: 60
     runs-on: ubuntu-latest
@@ -82,16 +83,3 @@ jobs:
           name: playwright-report
           path: frontend/playwright-report/
           retention-days: 30
-
-  # https://github.com/marketplace/actions/alls-green#why
-  alls-green: # This job does nothing and is only used for the branch protection
-    if: always()
-    needs:
-      - backend
-      - end-to-end
-    runs-on: ubuntu-latest
-    steps:
-      - name: Decide whether the needed jobs succeeded or failed
-        uses: re-actors/alls-green@release/v1
-        with:
-          jobs: ${{ toJSON(needs) }}
