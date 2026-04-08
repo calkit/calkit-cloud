@@ -67,7 +67,7 @@ function Layout() {
           ) : (
             <>
               {/* If the user doesn't have a subscription, they need to pick one */}
-              {!user || user?.subscription ? (
+              {!user || user?.subscription || user?.is_superuser ? (
                 <Box>
                   <Topbar />
                   <Container px={0} maxW="full">
