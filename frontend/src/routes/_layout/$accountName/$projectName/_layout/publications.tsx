@@ -172,7 +172,7 @@ function PubInfo({
       )}
       <Button mt={3} size="sm" onClick={onOpenCompare}>
         <Icon as={FaCodeBranch} mr={1} />
-        Compare versions
+        Browse history
       </Button>
     </Box>
   )

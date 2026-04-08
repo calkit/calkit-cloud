@@ -1524,6 +1524,7 @@ def get_project_figures(
                 ProjectComment.project_id == project.id,
                 ProjectComment.artifact_type == "figure",
                 ProjectComment.parent_id == None,  # noqa: E711
+                ProjectComment.resolved == None,  # noqa: E711
             )
             .group_by(ProjectComment.artifact_path)
         ).all()
