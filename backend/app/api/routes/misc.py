@@ -172,16 +172,13 @@ async def post_stripe_event(request: Request):
             # as the default payment method for that subscription
             subscription_id = data_object["subscription"]
             payment_intent_id = data_object["payment_intent"]
-
             # Retrieve the payment intent used to pay the subscription
             payment_intent = stripe.PaymentIntent.retrieve(payment_intent_id)
-
             # Set the default payment method
             stripe.Subscription.modify(
                 subscription_id,
                 default_payment_method=payment_intent.payment_method,
             )
-
             print(
                 "Default payment method set for subscription:"
                 + payment_intent.payment_method
