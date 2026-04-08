@@ -44,13 +44,11 @@ function Layout() {
     refetchOnWindowFocus: false,
     refetchOnMount: false,
     enabled: () => Boolean(user),
-    retry: 1,
+    retry: (failureCount, error: any) => {
+      if (isAuthenticationError(error)) return false
+      return failureCount < 1
+    },
   })
-  if (ghAppInstalledQuery.error) {
-    if (isAuthenticationError(ghAppInstalledQuery.error)) {
-      logout()
-    }
-  }
   // Check that the user has at least one installation
   const ghAppNotInstalled =
     user && ghAppInstalledQuery.data && !ghAppInstalledQuery.data.total_count
