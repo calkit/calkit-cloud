@@ -336,14 +336,10 @@ function FigureComments({
     onSuccess: () => {
       setDraft("")
       queryClient.invalidateQueries({
-        queryKey: [
-          "projects",
-          ownerName,
-          projectName,
-          "comments",
-          "figure",
-          path,
-        ],
+        queryKey: ["projects", ownerName, projectName, "comments", "figure", path],
+      })
+      queryClient.invalidateQueries({
+        queryKey: ["projects", ownerName, projectName, "figures"],
       })
     },
   })
@@ -364,14 +360,10 @@ function FigureComments({
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: [
-          "projects",
-          ownerName,
-          projectName,
-          "comments",
-          "figure",
-          path,
-        ],
+        queryKey: ["projects", ownerName, projectName, "comments", "figure", path],
+      })
+      queryClient.invalidateQueries({
+        queryKey: ["projects", ownerName, projectName, "figures"],
       })
     },
   })
