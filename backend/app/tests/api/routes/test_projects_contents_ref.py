@@ -10,7 +10,6 @@ from fastapi.testclient import TestClient
 def test_get_project_contents_forwards_ref(client: TestClient) -> None:
     fake_project = SimpleNamespace()
     fake_repo = SimpleNamespace()
-
     with (
         patch(
             "app.api.routes.projects.core.app.projects.get_project",
@@ -39,10 +38,8 @@ def test_get_project_contents_forwards_ref(client: TestClient) -> None:
                 "?path=README.md&ref=v1.2.3"
             )
         )
-
     assert response.status_code == 200
     assert response.json()["path"] == "README.md"
-
     mock_get_project.assert_called_once_with(
         owner_name="test-owner",
         project_name="test-project",
@@ -84,7 +81,6 @@ def test_get_project_file_history_endpoint(client: TestClient) -> None:
             "summary": "Update figure",
         }
     ]
-
     with (
         patch(
             "app.api.routes.projects.core.app.projects.get_project",
@@ -103,9 +99,8 @@ def test_get_project_file_history_endpoint(client: TestClient) -> None:
             f"{settings.API_V1_STR}/projects/test-owner/test-project"
             "/git/file-history?path=figures/my-figure.png"
         )
-
     assert response.status_code == 200
-    # Endpoint should proxy through the git history payload unchanged.
+    # Endpoint should proxy through the git history payload unchanged
     data = response.json()
     assert isinstance(data, list)
     assert len(data) == 1

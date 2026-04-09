@@ -2,7 +2,7 @@
 set -e
 set -x
 
-# Run tests against an isolated DB so local dev data is never mutated.
+# Run tests against an isolated DB so local dev data is never mutated
 TEST_POSTGRES_DB="${POSTGRES_DB_TEST:-${POSTGRES_DB}_test}"
 export POSTGRES_DB="$TEST_POSTGRES_DB"
 

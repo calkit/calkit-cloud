@@ -32,18 +32,15 @@ def _init_repo(repo_dir: Path) -> tuple[git.Repo, str]:
     repo = git.Repo.init(repo_dir)
     repo.git.config(["user.name", "CI Test"])
     repo.git.config(["user.email", "ci-test@example.com"])
-
     notes = repo_dir / "notes.txt"
     notes.write_text("version-one\n")
     repo.git.add(["notes.txt"])
     repo.git.commit(["-m", "Add v1 notes"])
     ref_v1 = repo.head.commit.hexsha
-
     notes.write_text("version-two\n")
     (repo_dir / "new-file.txt").write_text("new\n")
     repo.git.add(["notes.txt", "new-file.txt"])
     repo.git.commit(["-m", "Update notes and add new file"])
-
     return repo, ref_v1
 
 
@@ -52,10 +49,8 @@ def test_get_contents_from_repo_at_given_ref(tmp_path, monkeypatch):
     monkeypatch.setattr(
         app.projects, "expand_dvc_lock_outs", lambda *a, **k: {}
     )
-
     project = _make_project()
     repo, ref_v1 = _init_repo(tmp_path / "repo")
-
     item_latest = app.projects.get_contents_from_repo(
         project=project,
         repo=repo,
@@ -65,7 +60,6 @@ def test_get_contents_from_repo_at_given_ref(tmp_path, monkeypatch):
     assert (
         base64.b64decode(item_latest.content).decode().strip() == "version-two"
     )
-
     item_v1 = app.projects.get_contents_from_repo(
         project=project,
         repo=repo,
@@ -74,13 +68,11 @@ def test_get_contents_from_repo_at_given_ref(tmp_path, monkeypatch):
     )
     assert item_v1.content is not None
     assert base64.b64decode(item_v1.content).decode().strip() == "version-one"
-
     root_latest = app.projects.get_contents_from_repo(
         project=project, repo=repo
     )
     latest_names = {item.name for item in (root_latest.dir_items or [])}
     assert "new-file.txt" in latest_names
-
     root_v1 = app.projects.get_contents_from_repo(
         project=project, repo=repo, ref=ref_v1
     )
@@ -93,10 +85,8 @@ def test_get_file_history_git_tracked(tmp_path, monkeypatch):
     monkeypatch.setattr(
         app.projects, "expand_dvc_lock_outs", lambda *a, **k: {}
     )
-
     _, ref_v1 = _init_repo(tmp_path / "repo")
     repo = git.Repo(tmp_path / "repo")
-
     history = app.git.get_file_history(repo, path="notes.txt")
     # notes.txt was changed in both commits
     assert len(history) >= 2
@@ -111,9 +101,7 @@ def test_get_file_history_missing_file(tmp_path, monkeypatch):
     monkeypatch.setattr(
         app.projects, "expand_dvc_lock_outs", lambda *a, **k: {}
     )
-
     _init_repo(tmp_path / "repo")
     repo = git.Repo(tmp_path / "repo")
-
     history = app.git.get_file_history(repo, path="nonexistent.txt")
     assert history == []

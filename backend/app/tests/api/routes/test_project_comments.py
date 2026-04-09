@@ -26,7 +26,6 @@ def test_get_project_comments_uses_all_results() -> None:
             return self.exec_result
 
     session = FakeSession()
-
     with (
         patch(
             "app.api.routes.projects.core.app.projects.get_project",
@@ -44,7 +43,6 @@ def test_get_project_comments_uses_all_results() -> None:
             artifact_type="publication",
             artifact_path="paper/main.pdf",
         )
-
     assert session.exec_result.all_called is True
     assert comments == [fake_comment]
     mock_sync.assert_called_once_with(session, [fake_comment], None)
