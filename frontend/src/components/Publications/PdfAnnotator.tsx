@@ -2,7 +2,7 @@
  * PDF viewer with text-highlight annotation support.
  *
  * Highlights and comments are stored in the database via the
- * publication-comments API. The highlight JSON is kept in a portable format
+ * project comments API. The highlight JSON is kept in a portable format
  * (react-pdf-highlighter's ScaledPosition + content.text) so it can later be
  * serialised to git objects and synced to external trackers without a schema
  * change.

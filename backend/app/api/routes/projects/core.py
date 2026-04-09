@@ -133,6 +133,9 @@ router = APIRouter()
 DEFAULT_REPO_TTL = 60  # Seconds
 FULL_HISTORY_REPO_TTL = 10 * 60  # Seconds; history changes infrequently
 
+FIGURE_EXTS = {".png", ".jpg", ".jpeg", ".svg", ".gif"}
+FIGURE_DIRS = {"figures", "figure", "figs", "fig", "plots", "images"}
+
 
 @router.get("/projects")
 def get_projects(
@@ -1487,8 +1490,6 @@ def get_project_figures(
     figures = ck_info.get("figures", [])
     declared_paths = {fig["path"] for fig in figures}
     # Auto-detect figures from the repo tree
-    _FIGURE_EXTS = {".png", ".jpg", ".jpeg", ".svg", ".gif"}
-    _FIGURE_DIRS = {"figures", "figure", "figs", "fig", "plots", "images"}
     try:
         commit = repo.commit(ref) if ref else repo.head.commit
         for blob in commit.tree.traverse():
@@ -1502,7 +1503,7 @@ def get_project_figures(
                 "." + parts[-1].rsplit(".", 1)[-1] if "." in parts[-1] else ""
             )
             parent_dir = parts[-2].lower() if len(parts) > 1 else ""
-            if ext.lower() in _FIGURE_EXTS and parent_dir in _FIGURE_DIRS:
+            if ext.lower() in FIGURE_EXTS and parent_dir in FIGURE_DIRS:
                 if blob.path not in declared_paths:  # type: ignore[union-attr]
                     stem = (
                         parts[-1]

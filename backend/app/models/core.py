@@ -648,8 +648,8 @@ class ProjectComment(SQLModel, table=True):
     )
     artifact_path: str | None = Field(default=None, max_length=512)
     artifact_type: str | None = Field(default=None, max_length=50)
-    # Portable PDF highlight — only used for publication comments
-    highlight: dict | None = Field(
+    # Artifact highlight, e.g., for publication comments
+    highlight: CommentHighlight | None = Field(
         default=None,
         sa_column=sqlalchemy.Column(sqlalchemy.JSON, nullable=True),
     )
@@ -888,7 +888,10 @@ class GitRef(BaseModel):
     message: str | None = None  # Commit/tag message
     author: str | None = None  # Commit author
     timestamp: str | None = None  # ISO format datetime
-    short_hash: str | None = None  # Short commit hash (7 chars)
+    hash: str | None = None  # Full commit hash
+    short_hash: str | None = (
+        None  # Short commit hash (7 chars); consumer may truncate hash if needed
+    )
     is_default: bool = False  # Whether this is the default branch
     ahead: int = 0  # Commits ahead of default branch
     behind: int = 0  # Commits behind default branch

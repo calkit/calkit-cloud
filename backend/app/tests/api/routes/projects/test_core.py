@@ -58,6 +58,8 @@ def test_get_project_contents_forwards_ref(client: TestClient) -> None:
     assert repo_call["ttl"] is not None
     assert repo_call["ref"] == "v1.2.3"
 
+    # The ref must also be forwarded to get_contents_from_repo so it reads
+    # the file tree at the requested snapshot, not the current HEAD.
     assert mock_get_contents.call_count == 1
     contents_call = mock_get_contents.call_args.kwargs
     assert contents_call["project"] is fake_project

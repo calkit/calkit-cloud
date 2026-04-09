@@ -348,6 +348,7 @@ def search_refs(repo: git.Repo, query: str | None = None) -> list["GitRef"]:
                     "message": msg.split("\n")[0],
                     "author": commit.author.name,
                     "timestamp": commit.committed_datetime.isoformat(),
+                    "hash": commit.hexsha,
                     "short_hash": commit.hexsha[:7],
                     "is_default": is_default,
                     "ahead": ahead,
@@ -402,6 +403,7 @@ def search_refs(repo: git.Repo, query: str | None = None) -> list["GitRef"]:
                         "timestamp": commit.committed_datetime.isoformat()
                         if commit.committed_datetime
                         else None,
+                        "hash": commit.hexsha,
                         "short_hash": commit.hexsha[:7],
                     }
                 )
@@ -452,6 +454,7 @@ def search_refs(repo: git.Repo, query: str | None = None) -> list["GitRef"]:
                         "message": message,
                         "author": commit.author.name,
                         "timestamp": commit.committed_datetime.isoformat(),
+                        "hash": commit.hexsha,
                         "short_hash": short_hash,
                     }
                 )

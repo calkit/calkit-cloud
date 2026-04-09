@@ -1,3 +1,11 @@
+/**
+ * PdfCanvas — renders a PDF as a stack of canvas elements using pdfjs-dist.
+ *
+ * Each page is rasterized to an off-screen canvas and exposed as a blob URL.
+ * Use this component when you need a lightweight, annotation-free PDF preview
+ * (e.g., in file-browser thumbnails or figure previews). For interactive
+ * annotation (highlights, comments), use PdfAnnotator instead.
+ */
 import { useEffect, useState } from "react"
 import { Box, Text } from "@chakra-ui/react"
 import * as pdfjsLib from "pdfjs-dist"
