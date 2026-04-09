@@ -1,4 +1,4 @@
-// Password reset is not applicable — the app uses GitHub OAuth only.
+// Password reset is not applicable--the app uses GitHub OAuth only.
 import { expect, test } from "@playwright/test"
 import { findLastEmail } from "./utils/mailcatcher"
 import { randomEmail, randomPassword } from "./utils/random"

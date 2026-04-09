@@ -1,9 +1,11 @@
 """Functionality for working with Git."""
 
 import os
+import posixpath
 import shutil
 import subprocess
 import time
+from abc import ABC, abstractmethod
 from collections import OrderedDict
 
 import calkit
@@ -16,6 +18,8 @@ from sqlmodel import Session
 from app import users
 from app.core import logger, ryaml
 from app.models import GitRef, Project, User
+
+_SYMLINK_MODE = 0o120000
 
 
 def get_repo(
@@ -283,7 +287,7 @@ def search_refs(repo: git.Repo, query: str | None = None) -> list["GitRef"]:
 
     default_branch = get_default_branch(repo)
 
-    # Add branches — prefer remote refs so shallow clones see all branches
+    # Add branches--prefer remote refs so shallow clones see all branches
     seen_branches: set[str] = set()
     try:
         remote_refs = list(repo.remotes.origin.refs)
@@ -555,7 +559,8 @@ def get_file_history(
     _collect(path)
     # DVC pointer file
     _collect(f"{path}.dvc")
-    # DVC lock file: only include commits where this file's entry actually changed
+    # DVC lock file: only include commits where this file's entry actually
+    # changed
     try:
         import yaml as _yaml
 
@@ -678,3 +683,183 @@ def get_commit_history(
             )
 
     return commits
+
+
+class RepoTree(ABC):
+    """Read-only, path-based view over a set of files in a repository.
+
+    ``WorkingTree`` and ``GitTree`` are the two concrete implementations.
+    Adding a third (e.g., a bare-repo or remote-object-store backend) only
+    requires subclassing here--callers need not change.
+    """
+
+    @abstractmethod
+    def exists(self, path: str) -> bool: ...
+
+    @abstractmethod
+    def is_file(self, path: str) -> bool: ...
+
+    @abstractmethod
+    def is_dir(self, path: str | None) -> bool: ...
+
+    @abstractmethod
+    def is_symlink(self, path: str) -> bool: ...
+
+    @abstractmethod
+    def is_safe_symlink(self, path: str) -> bool:
+        """True if the symlink at *path* resolves within this tree."""
+        ...
+
+    @abstractmethod
+    def read_bytes(self, path: str) -> bytes: ...
+
+    def read_text(self, path: str, encoding: str = "utf-8") -> str:
+        return self.read_bytes(path).decode(encoding)
+
+    @abstractmethod
+    def size(self, path: str) -> int: ...
+
+    @abstractmethod
+    def listdir(self, path: str | None) -> list[str]:
+        """Immediate child names (not full paths) under *path*; None = root."""
+        ...
+
+
+class WorkingTree(RepoTree):
+    """RepoTree backed by a live filesystem checkout."""
+
+    def __init__(self, root: str) -> None:
+        self._root = root
+
+    def _abs(self, path: str | None) -> str:
+        return self._root if not path else os.path.join(self._root, path)
+
+    def exists(self, path: str) -> bool:
+        return os.path.exists(self._abs(path))
+
+    def is_file(self, path: str) -> bool:
+        return os.path.isfile(self._abs(path))
+
+    def is_dir(self, path: str | None) -> bool:
+        return os.path.isdir(self._abs(path))
+
+    def is_symlink(self, path: str) -> bool:
+        return os.path.islink(self._abs(path))
+
+    def is_safe_symlink(self, path: str) -> bool:
+        try:
+            resolved = os.path.realpath(self._abs(path))
+            root_real = os.path.realpath(self._root)
+            return (
+                resolved.startswith(root_real + os.sep)
+                or resolved == root_real
+            )
+        except (OSError, ValueError):
+            return False
+
+    def read_bytes(self, path: str) -> bytes:
+        with open(self._abs(path), "rb") as f:
+            return f.read()
+
+    def size(self, path: str) -> int:
+        return os.path.getsize(self._abs(path))
+
+    def listdir(self, path: str | None) -> list[str]:
+        return os.listdir(self._abs(path))
+
+
+class GitTree(RepoTree):
+    """RepoTree that reads directly from git's object database.
+
+    No working-tree checkout required--file content streams straight from
+    blob objects. Suitable for browsing any historical ref without touching
+    the filesystem beyond the git object store.
+    """
+
+    def __init__(self, repo: git.Repo, ref: str) -> None:
+        self._git_tree = _resolve_commit(repo, ref).tree
+
+    def _get(self, path: str) -> git.Blob | git.Tree:
+        try:
+            return self._git_tree[path]  # type: ignore[return-value]
+        except KeyError:
+            raise KeyError(path)
+
+    def exists(self, path: str) -> bool:
+        try:
+            self._get(path)
+            return True
+        except KeyError:
+            return False
+
+    def is_file(self, path: str) -> bool:
+        try:
+            e = self._get(path)
+            return isinstance(e, git.Blob) and e.mode != _SYMLINK_MODE
+        except KeyError:
+            return False
+
+    def is_dir(self, path: str | None) -> bool:
+        if not path:
+            return True  # root is always a tree
+        try:
+            return isinstance(self._get(path), git.Tree)
+        except KeyError:
+            return False
+
+    def is_symlink(self, path: str) -> bool:
+        try:
+            e = self._get(path)
+            return isinstance(e, git.Blob) and e.mode == _SYMLINK_MODE
+        except KeyError:
+            return False
+
+    def is_safe_symlink(self, path: str) -> bool:
+        try:
+            e = self._get(path)
+            if not isinstance(e, git.Blob) or e.mode != _SYMLINK_MODE:
+                return False
+            target = e.data_stream.read().decode()
+            parent = posixpath.dirname(path)
+            resolved = posixpath.normpath(posixpath.join(parent, target))
+            return not resolved.startswith("..") and not posixpath.isabs(
+                resolved
+            )
+        except Exception:
+            return False
+
+    def read_bytes(self, path: str) -> bytes:
+        return self._get(path).data_stream.read()
+
+    def size(self, path: str) -> int:
+        return self._get(path).size
+
+    def listdir(self, path: str | None) -> list[str]:
+        t = self._git_tree if not path else self._get(path)
+        if not isinstance(t, git.Tree):
+            raise NotADirectoryError(path)
+        return [item.name for item in t]
+
+
+def _resolve_commit(repo: git.Repo, ref: str) -> git.Commit:
+    """Resolve a branch, tag, or commit hash to a Commit object."""
+    for candidate in (ref, f"origin/{ref}"):
+        try:
+            return repo.commit(candidate)
+        except Exception:
+            continue
+    raise HTTPException(404, f"Git ref '{ref}' was not found")
+
+
+def tree_for_ref(repo: git.Repo, ref: str | None) -> RepoTree:
+    """Return a ``RepoTree`` for *ref*.
+
+    ``None`` returns a ``WorkingTree`` over the live checkout.  Any other
+    value returns a ``GitTree`` that reads straight from the object database
+    with no filesystem extraction.
+    """
+    if ref is None:
+        return WorkingTree(str(repo.working_dir))
+    if not ref or ref.startswith("-") or any(c in ref for c in " \t\n\r\x00"):
+        raise HTTPException(400, f"Invalid Git ref: {ref!r}")
+    return GitTree(repo, ref)

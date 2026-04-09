@@ -2,13 +2,8 @@
 
 import base64
 import hashlib
-import io
 import logging
 import os
-import subprocess
-import tarfile
-import tempfile
-from contextlib import contextmanager
 from typing import Literal
 
 import git
@@ -20,6 +15,7 @@ from sqlmodel import Session, select
 
 import app.users
 from app.config import settings
+from app.git import RepoTree, tree_for_ref
 from app.core import CATEGORIES_PLURAL_TO_SINGULAR, params_from_url
 from app.dvc import expand_dvc_lock_outs
 from app.dvc import get_data_fpath_for_md5
@@ -170,92 +166,40 @@ def get_project(
     return project
 
 
-def _is_safe_symlink(target_path: str, repo_dir: str | os.PathLike) -> bool:
-    """Check if a symlink resolves to a path within the repo directory."""
-    try:
-        resolved_path = os.path.realpath(target_path)
-        repo_realpath = os.path.realpath(repo_dir)
-        # Ensure the symlink target is within the repo
-        return (
-            resolved_path.startswith(repo_realpath + os.sep)
-            or resolved_path == repo_realpath
-        )
-    except (OSError, ValueError):
-        return False
-
-
 def get_contents_from_repo(
     project: Project,
     repo: git.Repo,
     path: str | None = None,
     ref: str | None = None,
 ) -> ContentsItem:
-    owner_name = project.owner_account_name
-    project_name = project.name
-    with repo_dir_for_ref(repo, ref) as repo_dir:
-        return get_contents_from_repo_dir(
-            project=project,
-            repo=repo,
-            repo_dir=repo_dir,
-            path=path,
-        )
+    return get_contents_from_tree(
+        project=project,
+        tree=tree_for_ref(repo, ref),
+        path=path,
+    )
 
 
-def _validate_git_ref(ref: str) -> None:
-    """Raise HTTPException 400 if ref is unsafe to pass to a subprocess."""
-    if not ref or ref.startswith("-") or any(c in ref for c in " \t\n\r\x00"):
-        raise HTTPException(400, f"Invalid Git ref: {ref!r}")
-
-
-@contextmanager
-def repo_dir_for_ref(repo: git.Repo, ref: str | None):
-    if ref is None:
-        yield repo.working_dir
-        return
-    _validate_git_ref(ref)
-    candidates = [ref, f"origin/{ref}"]
-    archive_bytes = None
-    for candidate in candidates:
-        try:
-            archive_bytes = subprocess.check_output(
-                ["git", "archive", candidate],
-                cwd=repo.working_dir,
-            )
-            break
-        except subprocess.CalledProcessError:
-            continue
-    if archive_bytes is None:
-        raise HTTPException(404, f"Git ref '{ref}' was not found")
-    with tempfile.TemporaryDirectory(prefix="calkit-ref-") as tmpdir:
-        with tarfile.open(fileobj=io.BytesIO(archive_bytes)) as tf:
-            tf.extractall(path=tmpdir, filter="data")
-        yield tmpdir
-
-
-def get_ck_info_and_dvc_outs_from_repo_dir(
+def get_ck_info_and_dvc_outs_from_tree(
     project: Project,
-    repo_dir: str | os.PathLike,
+    tree: RepoTree,
 ) -> tuple[dict, dict]:
-    """Load calkit.yaml and expand dvc.lock outs once for a repo dir.
+    """Load calkit.yaml and expand dvc.lock outs once for a tree.
 
-    Returns (ck_info, dvc_lock_outs).  Callers that process multiple paths
-    in the same repo dir should call this once and pass the results to
-    get_contents_from_repo_dir to avoid redundant I/O.
+    Returns (ck_info, dvc_lock_outs).  Callers that read multiple paths from
+    the same tree should call this once and pass the results to
+    get_contents_from_tree to avoid redundant I/O.
     """
     owner_name = project.owner_account_name
     project_name = project.name
-    if os.path.isfile(os.path.join(repo_dir, "calkit.yaml")):
+    if tree.is_file("calkit.yaml"):
         logger.info("Loading calkit.yaml")
-        with open(os.path.join(repo_dir, "calkit.yaml")) as f:
-            ck_info = yaml.safe_load(f) or {}
+        ck_info = yaml.safe_load(tree.read_text("calkit.yaml")) or {}
     else:
         ck_info = {}
-    dvc_lock_fpath = os.path.join(repo_dir, "dvc.lock")
     dvc_lock = {}
-    if os.path.isfile(dvc_lock_fpath):
+    if tree.is_file("dvc.lock"):
         logger.info("Reading dvc.lock")
-        with open(dvc_lock_fpath) as f:
-            dvc_lock = yaml.safe_load(f) or {}
+        dvc_lock = yaml.safe_load(tree.read_text("dvc.lock")) or {}
     logger.info("Expanding DVC lock outs")
     fs = get_object_fs()
     dvc_lock_outs = expand_dvc_lock_outs(
@@ -264,10 +208,9 @@ def get_ck_info_and_dvc_outs_from_repo_dir(
     return ck_info, dvc_lock_outs
 
 
-def get_contents_from_repo_dir(
+def get_contents_from_tree(
     project: Project,
-    repo: git.Repo,
-    repo_dir: str | os.PathLike,
+    tree: RepoTree,
     path: str | None = None,
     ck_info: dict | None = None,
     dvc_lock_outs: dict | None = None,
@@ -276,15 +219,13 @@ def get_contents_from_repo_dir(
     project_name = project.name
     # Prevent path traversal attacks
     if path is not None:
-        # Check for absolute paths
         if os.path.isabs(path):
             raise HTTPException(400, "Absolute paths are not allowed")
-        # Check for parent directory references
         if ".." in path.split(os.sep):
             raise HTTPException(400, "Path traversal is not allowed")
-    # If the path is an unsafe symlink, raise a 404
-    if path is not None and os.path.islink(os.path.join(repo_dir, path)):
-        if not _is_safe_symlink(os.path.join(repo_dir, path), repo_dir):
+    # Reject unsafe symlinks
+    if path is not None and tree.is_symlink(path):
+        if not tree.is_safe_symlink(path):
             logger.warning(
                 f"Unsafe symlink detected in {owner_name}/{project_name} "
                 f"at {path}"
@@ -292,8 +233,8 @@ def get_contents_from_repo_dir(
             raise HTTPException(404)
     # Load calkit.yaml and dvc.lock outs if not pre-computed by the caller
     if ck_info is None or dvc_lock_outs is None:
-        ck_info, dvc_lock_outs = get_ck_info_and_dvc_outs_from_repo_dir(
-            project, repo_dir
+        ck_info, dvc_lock_outs = get_ck_info_and_dvc_outs_from_tree(
+            project, tree
         )
     fs = get_object_fs()
     dvc_lock_out_dirs = [
@@ -341,14 +282,12 @@ def get_contents_from_repo_dir(
     # Find any DVC outs for Calkit objects
     ck_outs = {}
     for p, obj in ck_objects.items():
-        # First check if this object is in the DVC lock outputs
         if p in dvc_lock_outs:
             ck_outs[p] = dvc_lock_outs[p]
         else:
-            dvc_fp = os.path.join(repo_dir, p + ".dvc")
-            if os.path.isfile(dvc_fp):
-                with open(dvc_fp) as f:
-                    dvo = yaml.safe_load(f)["outs"][0]
+            dvc_fp = p + ".dvc"
+            if tree.is_file(dvc_fp):
+                dvo = yaml.safe_load(tree.read_text(dvc_fp))["outs"][0]
                 ck_outs[p] = dvo
             else:
                 ck_outs[p] = None
@@ -357,40 +296,26 @@ def get_contents_from_repo_dir(
         for lock in project.file_locks
     }
     # See if we're listing off a directory
-    if (
-        path is None
-        or os.path.isdir(os.path.join(repo_dir, path))
-        or path in dvc_lock_out_dirs
-    ):
-        # We're listing off the contents of a directory
+    if path is None or tree.is_dir(path) or path in dvc_lock_out_dirs:
         logger.info(f"Getting contents of directory: {path}")
         dirname = "" if path is None else path
         contents = []
         if path not in dvc_lock_out_dirs:
-            paths = sorted(
-                os.listdir(
-                    repo_dir if path is None else os.path.join(repo_dir, path)
-                )
-            )
-            paths = [os.path.join(dirname, p) for p in paths]
+            child_names = sorted(tree.listdir(path or None))
+            paths = [os.path.join(dirname, n) for n in child_names]
         else:
             paths = []
-        dvc_paths = []
-        for dvc_lock_out_path, dvc_lock_out_obj in dvc_lock_outs.items():
-            if dvc_lock_out_obj["dirname"] == dirname:
-                dvc_paths.append(dvc_lock_out_path)
+        dvc_paths = [
+            p for p, obj in dvc_lock_outs.items() if obj["dirname"] == dirname
+        ]
         all_paths = sorted(set(paths + dvc_paths))
         for p in all_paths:
             if p in ignore_paths:
                 continue
-            in_repo = os.path.exists(os.path.join(repo_dir, p))
+            in_repo = tree.exists(p)
             if in_repo:
-                size = os.path.getsize(os.path.join(repo_dir, p))
-                obj_type = (
-                    "file"
-                    if os.path.isfile(os.path.join(repo_dir, p))
-                    else "dir"
-                )
+                size = tree.size(p)
+                obj_type = "file" if tree.is_file(p) else "dir"
             elif p in dvc_lock_outs:
                 size = dvc_lock_outs[p].get("size")
                 obj_type = dvc_lock_outs[p]["type"]
@@ -401,58 +326,48 @@ def get_contents_from_repo_dir(
                 in_repo=in_repo,
                 lock=file_locks_by_path.get(p),
                 type=obj_type,
+                calkit_object=ck_objects.get(p),
             )
-            if p in ck_objects:
-                obj["calkit_object"] = ck_objects[p]
-            else:
-                obj["calkit_object"] = None
             contents.append(ContentsItem.model_validate(obj))
         for ck_path, ck_obj in ck_objects.items():
             if (
                 os.path.dirname(ck_path) == dirname
                 and ck_path not in all_paths
             ):
-                # Read DVC output for this path
-                dvc_out = ck_outs.get(ck_path)
-                if dvc_out is None:
-                    dvc_out = {}
-                obj = ContentsItem.model_validate(
-                    dict(
-                        name=os.path.basename(ck_path),
-                        path=ck_path,
-                        in_repo=False,
-                        size=dvc_out.get("size"),
-                        type=(
-                            "dir"
-                            if dvc_out.get("md5", "").endswith(".dir")
-                            else "file"
-                        ),
-                        calkit_object=ck_obj,
-                        lock=file_locks_by_path.get(ck_path),
+                dvc_out = ck_outs.get(ck_path) or {}
+                contents.append(
+                    ContentsItem.model_validate(
+                        dict(
+                            name=os.path.basename(ck_path),
+                            path=ck_path,
+                            in_repo=False,
+                            size=dvc_out.get("size"),
+                            type=(
+                                "dir"
+                                if dvc_out.get("md5", "").endswith(".dir")
+                                else "file"
+                            ),
+                            calkit_object=ck_obj,
+                            lock=file_locks_by_path.get(ck_path),
+                        )
                     )
                 )
-                contents.append(obj)
         return ContentsItem(
             name=os.path.basename(dirname),
             path=dirname,
             type="dir",
-            size=sum([c.size if c.size is not None else 0 for c in contents]),
+            size=sum(c.size or 0 for c in contents),
             dir_items=contents,
             calkit_object=ck_objects.get(path),
-            in_repo=os.path.isdir(os.path.join(repo_dir, dirname)),
+            in_repo=tree.is_dir(dirname or None),
         )
     # We're looking for a file
-    # Check if it exists in the repo
-    if os.path.isfile(os.path.join(repo_dir, path)):
-        # Only send content if it's small enough, else send URL
-        size = os.path.getsize(os.path.join(repo_dir, path))
+    if tree.is_file(path):
+        size = tree.size(path)
         url = None
-        with open(os.path.join(repo_dir, path), "rb") as f:
-            content = f.read()
+        content = tree.read_bytes(path)
         if size > RETURN_CONTENT_SIZE_LIMIT:
             logger.info(f"{path} is greater than return size limit")
-            # See if this lives in object storage, and if not, save there by
-            # md5 and create a presigned URL
             md5 = hashlib.md5(content).hexdigest()
             fp = make_data_fpath(
                 owner_name=owner_name,
@@ -460,23 +375,19 @@ def get_contents_from_repo_dir(
                 idx=md5[:2],
                 md5=md5[2:],
             )
-            # Does this file already exist in object storage?
             if not fs.isfile(fp):
                 logger.info(f"Writing {path} to object storage")
                 with fs.open(fp, "wb") as f:
                     f.write(content)
-                # If using Google Cloud Storage, we need to remove the content
-                # type metadata in order to set it for signed URLs
                 if settings.ENVIRONMENT != "local":
                     remove_gcs_content_type(fp)
             url = get_object_url(fp, fname=os.path.basename(path), fs=fs)
-            # Do not send content
             content = None
         return ContentsItem.model_validate(
             dict(
                 path=path,
                 name=os.path.basename(path),
-                size=os.path.getsize(os.path.join(repo_dir, path)),
+                size=size,
                 type="file",
                 in_repo=True,
                 content=(
@@ -489,20 +400,15 @@ def get_contents_from_repo_dir(
                 url=url,
             )
         )
-    # The file isn't in the repo, but maybe it's in the Calkit objects
     elif path in ck_objects:
         logger.info(f"Looking in CK objects for {path}")
-        dvc_out = ck_outs.get(path)
-        if dvc_out is None:
-            logger.info(f"No DVC out for CK out at {path}")
-            dvc_out = {}
+        dvc_out = ck_outs.get(path) or {}
         size = dvc_out.get("size")
         md5 = dvc_out.get("md5", "")
         dvc_fpath = dvc_out.get("path")
         dvc_type = "dir" if md5.endswith(".dir") else "file"
         content = None
         url = None
-        # Create presigned url
         if md5:
             fp = get_data_fpath_for_md5(
                 owner_name=owner_name,
@@ -514,7 +420,6 @@ def get_contents_from_repo_dir(
                 url = get_object_url(
                     fp, fname=os.path.basename(dvc_fpath), fs=fs
                 )
-            # Get content is the size is small enough
             if (
                 size is not None
                 and size <= RETURN_CONTENT_SIZE_LIMIT
@@ -540,13 +445,10 @@ def get_contents_from_repo_dir(
         )
     else:
         # Do we have a DVC file for this path?
-        dvc_fpath = os.path.join(repo_dir, path + ".dvc")
-        if path in dvc_lock_outs or os.path.isfile(dvc_fpath):
-            if os.path.isfile(dvc_fpath):
-                # Open the DVC file so we can get its MD5 hash
-                with open(dvc_fpath) as f:
-                    dvc_info = yaml.load(f)
-                dvc_out = dvc_info["outs"][0]
+        dvc_pointer = path + ".dvc"
+        if path in dvc_lock_outs or tree.is_file(dvc_pointer):
+            if tree.is_file(dvc_pointer):
+                dvc_out = yaml.load(tree.read_text(dvc_pointer))["outs"][0]
             else:
                 dvc_out = dvc_lock_outs[path]
             md5 = dvc_out["md5"]
@@ -556,9 +458,11 @@ def get_contents_from_repo_dir(
                 md5=md5,
                 fs=fs,
             )
-            url = None
-            if fp is not None:
-                url = get_object_url(fp, fname=os.path.basename(path), fs=fs)
+            url = (
+                get_object_url(fp, fname=os.path.basename(path), fs=fs)
+                if fp
+                else None
+            )
             size = dvc_out.get("size")
             dvc_type = "dir" if md5.endswith(".dir") else "file"
             # TODO: If this is a directory, list dir_items

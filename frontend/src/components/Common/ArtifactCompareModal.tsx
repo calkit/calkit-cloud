@@ -666,7 +666,7 @@ export function ArtifactCompareModal({
   )
 
   // For figure/publication/notebook, fetching without a ref loads ALL items just
-  // to find one — skip that when we already have initialArtifact. For "file", the
+  // to find one--skip that when we already have initialArtifact. For "file", the
   // fetch is a direct single-file call so it's cheap and always useful.
   const artifact1Enabled = kind === "file" ? isOpen : isOpen && Boolean(ref1)
   const artifact1Query = useArtifactAtRef(

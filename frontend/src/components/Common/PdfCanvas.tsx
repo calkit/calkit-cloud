@@ -1,5 +1,5 @@
 /**
- * PdfCanvas — renders a PDF as a stack of canvas elements using pdfjs-dist.
+ * PdfCanvas--renders a PDF as a stack of canvas elements using pdfjs-dist.
  *
  * Each page is rasterized to an off-screen canvas and exposed as a blob URL.
  * Use this component when you need a lightweight, annotation-free PDF preview
