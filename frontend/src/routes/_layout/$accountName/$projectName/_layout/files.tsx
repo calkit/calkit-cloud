@@ -253,6 +253,10 @@ function Files() {
       }),
   })
   const [selectedPath, setSelectedPath] = useState<string>(path)
+  // Keep selectedPath in sync when the URL `path` param changes (e.g., back/forward)
+  useEffect(() => {
+    setSelectedPath(path)
+  }, [path])
   const selectedItemQuery = useQuery({
     queryKey: [
       "projects",

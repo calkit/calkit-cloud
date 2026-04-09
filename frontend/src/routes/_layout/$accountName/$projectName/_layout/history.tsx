@@ -542,11 +542,7 @@ function History() {
                   onClick={() => openCommit(commit)}
                 >
                   <Flex align="flex-start" gap={3} mb={2}>
-                    <Avatar
-                      name={commit.author}
-                      size="sm"
-                      src={`https://www.gravatar.com/avatar/${commit.author_email}?s=32&d=identicon`}
-                    />
+                    <Avatar name={commit.author} size="sm" />
                     <VStack align="flex-start" spacing={0} flex={1}>
                       <Flex gap={2} align="center">
                         <Code fontSize="sm" colorScheme="gray">

@@ -11,6 +11,7 @@ import {
   useColorModeValue,
 } from "@chakra-ui/react"
 import { useQuery } from "@tanstack/react-query"
+import { useDebounce } from "use-debounce"
 import { useEffect, useRef, useState } from "react"
 import { ProjectsService, type GitRef } from "../../client"
 
@@ -18,7 +19,7 @@ interface RefPickerProps {
   ownerName: string
   projectName: string
   value: string | undefined
-  onChange: (ref: string) => void
+  onChange: (ref: string | undefined) => void
   placeholder?: string
   disabled?: boolean
 }
@@ -32,6 +33,7 @@ export function RefPicker({
   disabled = false,
 }: RefPickerProps) {
   const [searchInput, setSearchInput] = useState("")
+  const [debouncedSearch] = useDebounce(searchInput, 300)
   const [isOpen, setIsOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const dropdownBg = useColorModeValue("white", "gray.800")
@@ -41,12 +43,12 @@ export function RefPicker({
   const messageColor = useColorModeValue("gray.600", "gray.400")
 
   const { data: refs = [], isPending } = useQuery({
-    queryKey: ["search_refs", ownerName, projectName, searchInput],
+    queryKey: ["search_refs", ownerName, projectName, debouncedSearch],
     queryFn: () =>
       ProjectsService.searchProjectRefs({
         ownerName,
         projectName,
-        q: searchInput || undefined,
+        q: debouncedSearch || undefined,
       }),
     staleTime: 1000 * 60 * 5, // 5 minutes
   })
@@ -75,7 +77,7 @@ export function RefPicker({
   }
 
   const handleClear = () => {
-    onChange("")
+    onChange(undefined)
     setSearchInput("")
     setIsOpen(false)
   }

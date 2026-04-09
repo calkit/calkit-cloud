@@ -201,11 +201,18 @@ def get_contents_from_repo(
         )
 
 
+def _validate_git_ref(ref: str) -> None:
+    """Raise HTTPException 400 if ref is unsafe to pass to a subprocess."""
+    if not ref or ref.startswith("-") or any(c in ref for c in " \t\n\r\x00"):
+        raise HTTPException(400, f"Invalid Git ref: {ref!r}")
+
+
 @contextmanager
 def repo_dir_for_ref(repo: git.Repo, ref: str | None):
     if ref is None:
         yield repo.working_dir
         return
+    _validate_git_ref(ref)
     candidates = [ref, f"origin/{ref}"]
     archive_bytes = None
     for candidate in candidates:
@@ -248,7 +255,7 @@ def get_ck_info_and_dvc_outs_from_repo_dir(
     if os.path.isfile(dvc_lock_fpath):
         logger.info("Reading dvc.lock")
         with open(dvc_lock_fpath) as f:
-            dvc_lock = yaml.safe_load(f)
+            dvc_lock = yaml.safe_load(f) or {}
     logger.info("Expanding DVC lock outs")
     fs = get_object_fs()
     dvc_lock_outs = expand_dvc_lock_outs(
