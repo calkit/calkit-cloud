@@ -28,7 +28,7 @@ function InstallGitHubApp() {
 }
 
 function Layout() {
-  const { isLoading, user } = useAuth()
+  const { isLoading, user, logout } = useAuth()
   if (user) {
     mixpanel.identify(user.id)
     mixpanel.people.set({
@@ -43,12 +43,17 @@ function Layout() {
     queryFn: () => UsersService.getUserGithubAppInstallations(),
     refetchOnWindowFocus: false,
     refetchOnMount: false,
-    enabled: Boolean(user) && !user?.is_superuser,
+    enabled: Boolean(user),
     retry: (failureCount, error: any) => {
       if (isAuthenticationError(error)) return false
       return failureCount < 1
     },
   })
+  if (ghAppInstalledQuery.error) {
+    if (isAuthenticationError(ghAppInstalledQuery.error)) {
+      logout()
+    }
+  }
   // Check that the user has at least one installation
   const ghAppNotInstalled =
     user && ghAppInstalledQuery.data && !ghAppInstalledQuery.data.total_count
@@ -58,8 +63,7 @@ function Layout() {
 
   return (
     <Box>
-      {isLoading ||
-      (user && !user.is_superuser && ghAppInstalledQuery.isPending) ? (
+      {isLoading || (user && ghAppInstalledQuery.isPending) ? (
         <LoadingSpinner height="100vh" />
       ) : (
         <>
