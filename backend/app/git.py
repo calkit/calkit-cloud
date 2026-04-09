@@ -281,12 +281,6 @@ def search_refs(repo: git.Repo, query: str | None = None) -> list["GitRef"]:
     refs = []
     query_lower = query.lower() if query else None
 
-    try:
-        # Fetch all refs to ensure we have latest
-        repo.remotes.origin.fetch()
-    except Exception as e:
-        logger.warning(f"Failed to fetch refs: {e}")
-
     default_branch = get_default_branch(repo)
 
     # Add branches — prefer remote refs so shallow clones see all branches
