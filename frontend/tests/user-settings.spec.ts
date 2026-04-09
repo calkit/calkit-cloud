@@ -4,6 +4,55 @@ import { randomEmail, randomPassword } from "./utils/random"
 import { logInUser, logOutUser, signUpNewUser } from "./utils/user"
 
 const tabs = ["My profile", "Password", "Appearance"]
+const browserErrorsByPage = new WeakMap<object, string[]>()
+
+test.beforeEach(async ({ page }) => {
+  const errors: string[] = []
+  browserErrorsByPage.set(page, errors)
+
+  // Keep settings tests independent from live GitHub app auth state.
+  await page.route("**/user/github-app-installations", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ total_count: 1, installations: [] }),
+    })
+  })
+
+  page.on("console", (msg) => {
+    if (msg.type() === "error") {
+      errors.push(`[console.error] ${msg.text()}`)
+    }
+  })
+
+  page.on("pageerror", (err) => {
+    errors.push(`[pageerror] ${err.message}`)
+  })
+
+  page.on("requestfailed", (request) => {
+    const failureText = request.failure()?.errorText ?? "unknown error"
+    errors.push(
+      `[requestfailed] ${request.method()} ${request.url()} :: ${failureText}`,
+    )
+  })
+})
+
+test.afterEach(async ({ page }, testInfo) => {
+  if (testInfo.status === testInfo.expectedStatus) {
+    return
+  }
+
+  const errors = browserErrorsByPage.get(page) ?? []
+  const body =
+    errors.length > 0
+      ? errors.join("\n")
+      : "No browser console/page/request errors were captured."
+
+  await testInfo.attach("browser-errors", {
+    body,
+    contentType: "text/plain",
+  })
+})
 
 // User Information
 

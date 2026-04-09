@@ -43,7 +43,7 @@ function Layout() {
     queryFn: () => UsersService.getUserGithubAppInstallations(),
     refetchOnWindowFocus: false,
     refetchOnMount: false,
-    enabled: () => Boolean(user),
+    enabled: Boolean(user) && !user?.is_superuser,
     retry: (failureCount, error: any) => {
       if (isAuthenticationError(error)) return false
       return failureCount < 1
@@ -58,7 +58,8 @@ function Layout() {
 
   return (
     <Box>
-      {isLoading || (user && ghAppInstalledQuery.isPending) ? (
+      {isLoading ||
+      (user && !user.is_superuser && ghAppInstalledQuery.isPending) ? (
         <LoadingSpinner height="100vh" />
       ) : (
         <>
