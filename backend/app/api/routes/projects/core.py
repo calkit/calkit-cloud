@@ -1881,7 +1881,7 @@ def patch_project_comment(
         owner_name=owner_name,
         project_name=project_name,
         current_user=current_user,
-        min_access_level="read",
+        min_access_level="write",
     )
     comment = session.get(ProjectComment, comment_id)
     if comment is None or comment.project_id != project.id:
@@ -3029,7 +3029,17 @@ async def post_project_overleaf_publication(
         logger.info("Importing Overleaf ZIP archive; skipping linkage")
         # Unzip the whole archive into the requested path
         os.makedirs(overleaf_abs_path, exist_ok=True)
+        resolved_dest = os.path.realpath(overleaf_abs_path)
         with zipfile.ZipFile(io.BytesIO(await file.read()), "r") as zf:
+            for member in zf.namelist():
+                member_dest = os.path.realpath(
+                    os.path.join(resolved_dest, member)
+                )
+                if not member_dest.startswith(resolved_dest + os.sep):
+                    raise HTTPException(
+                        400,
+                        f"ZIP entry '{member}' would escape target directory",
+                    )
             zf.extractall(overleaf_abs_path)
     elif overleaf_project_url is not None:
         overleaf_project_id = overleaf_project_url.split("/")[-1]
