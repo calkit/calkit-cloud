@@ -544,8 +544,9 @@ def post_project(
             # This org must exist in Calkit and the user must have access to it
             # First check if this org exists in Calkit and try to create it
             # if it doesn't
-            query = select(Org).where(Org.account.has(github_name=owner_name))  # type: ignore
-            org = session.exec(query).first()
+            org = orgs.get_org_by_github_name(
+                session=session, github_name=owner_name
+            )
             if org is None:
                 logger.info(f"Org '{owner_name}' does not exist in DB")
                 # Try to create the org
@@ -554,7 +555,9 @@ def post_project(
                     session=session,
                     current_user=current_user,
                 )
-                org = session.exec(query).first()
+                org = orgs.get_org_by_github_name(
+                    session=session, github_name=owner_name
+                )
             assert isinstance(org, Org)
             account_id = org.account.id
             subscription = org.subscription

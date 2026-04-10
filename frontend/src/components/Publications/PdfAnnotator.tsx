@@ -243,6 +243,7 @@ export function CommentList({
   ownerName,
   projectName,
   publicationPath,
+  gitRef,
   isLoading,
 }: {
   comments: ProjectComment[]
@@ -256,6 +257,7 @@ export function CommentList({
   ownerName: string
   projectName: string
   publicationPath?: string
+  gitRef?: string | null
   isLoading?: boolean
 }) {
   const bg = useColorModeValue("ui.secondary", "ui.darkSlate")
@@ -399,7 +401,10 @@ export function CommentList({
                 fontStyle="italic"
                 noOfLines={2}
               >
-                {(c.highlight as { content: { text: string } }).content.text}
+                {
+                  (c.highlight as unknown as { content: { text: string } })
+                    .content.text
+                }
               </Box>
             )}
           <Text fontSize="sm" whiteSpace="pre-wrap">

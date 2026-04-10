@@ -452,6 +452,7 @@ function Publications() {
                     ownerName={accountName}
                     projectName={projectName}
                     publicationPath={selectedPub.path}
+                    gitRef={ref}
                     isLoading={commentsQuery.isPending}
                     resolvingId={
                       resolvePubCommentMutation.isPending
