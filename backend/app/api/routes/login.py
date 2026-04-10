@@ -192,6 +192,7 @@ def login_with_github(req: OAuthCodeExchange, session: SessionDep) -> Token:
             "https://api.github.com/user/emails",
             headers={"Authorization": f"Bearer {out['access_token']}"},
         ).json()[0]["email"]
+        logger.info(f"Found GitHub email: {github_email}")
     if settings.ENVIRONMENT == "staging" and github_username not in [
         "petebachant",
         "pbachant",
@@ -201,7 +202,10 @@ def login_with_github(req: OAuthCodeExchange, session: SessionDep) -> Token:
             f"GitHub user {github_username} attempting to log in on staging"
         )
         raise HTTPException(403, "Please log in at calkit.io")
-    user = users.get_user_by_email(session=session, email=github_email)
+    # First check to find user based on their GitHub username
+    user = users.get_user_by_github_username(
+        session=session, github_username=github_username
+    )
     if user is None:
         logger.info("Creating new user")
         user = users.create_user(
@@ -216,9 +220,11 @@ def login_with_github(req: OAuthCodeExchange, session: SessionDep) -> Token:
             ),
         )
         mixpanel.user_signed_up(user)
+    else:
+        logger.info(f"Found existing user with email: {user.email}")
     if user.github_username != github_username:
         logger.info("GitHub usernames do not match")
-        # Check that GitHub username matches, else fail?
+        # Check that GitHub username matches, else fail
         raise HTTPException(400, "GitHub usernames do not match")
     if not user.is_active:
         logger.info("User is not active")
