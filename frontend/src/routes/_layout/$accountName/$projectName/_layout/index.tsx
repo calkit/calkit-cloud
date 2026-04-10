@@ -252,28 +252,50 @@ function ProjectView() {
               <LoadingSpinner />
             ) : (
               <>
-                {issuesRequest?.data?.map((issue) => (
-                  <Flex
-                    key={issue.number}
-                    alignItems={"center"}
-                    alignContent={"center"}
-                  >
-                    <Checkbox
-                      isChecked={issue.state === "closed"}
-                      onChange={onTodoCheckbox}
-                      id={String(issue.number)}
-                      isDisabled={!userHasWriteAccess}
-                    />
-                    <Text ml={2}>
-                      {" "}
-                      {issue.title} (
-                      <Link isExternal href={issue.url}>
-                        #{issue.number}
-                      </Link>
-                      )
-                    </Text>
-                  </Flex>
-                ))}
+                {issuesRequest?.data?.map((issue) => {
+                  const routeMap: Record<string, string> = {
+                    figure: "figures",
+                    publication: "publications",
+                    notebook: "notebooks",
+                    file: "files",
+                  }
+                  const artifactRoute = issue.artifact_type
+                    ? routeMap[issue.artifact_type] ?? "files"
+                    : null
+                  const artifactHref =
+                    artifactRoute && issue.artifact_path
+                      ? `/${accountName}/${projectName}/${artifactRoute}?path=${encodeURIComponent(issue.artifact_path)}`
+                      : null
+                  return (
+                    <Flex
+                      key={issue.number}
+                      alignItems={"center"}
+                      alignContent={"center"}
+                    >
+                      <Checkbox
+                        isChecked={issue.state === "closed"}
+                        onChange={onTodoCheckbox}
+                        id={String(issue.number)}
+                        isDisabled={!userHasWriteAccess}
+                      />
+                      <Text ml={2}>
+                        {" "}
+                        {artifactHref ? (
+                          <Link as={RouterLink} to={artifactHref as any}>
+                            {issue.title}
+                          </Link>
+                        ) : (
+                          issue.title
+                        )}{" "}
+                        (
+                        <Link isExternal href={issue.url}>
+                          #{issue.number}
+                        </Link>
+                        )
+                      </Text>
+                    </Flex>
+                  )
+                })}
               </>
             )}
           </Box>

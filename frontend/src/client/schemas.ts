@@ -1884,6 +1884,17 @@ export const $GitRef = {
         },
       ],
     },
+    hash: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
     short_hash: {
       type: "any-of",
       contains: [
@@ -2072,6 +2083,28 @@ export const $Issue = {
         },
       ],
       isRequired: true,
+    },
+    artifact_type: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    artifact_path: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
     },
   },
 } as const
@@ -3019,10 +3052,7 @@ though the schema permits it for future use.`,
       type: "any-of",
       contains: [
         {
-          type: "dictionary",
-          contains: {
-            properties: {},
-          },
+          type: "CommentHighlight",
         },
         {
           type: "null",

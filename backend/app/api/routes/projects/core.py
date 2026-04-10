@@ -1816,7 +1816,7 @@ def post_project_comment(
             session=session,
             current_user=current_user,
             project=project,
-            title=f"Comment on {comment_in.artifact_type or 'project'}: {comment_in.artifact_path}",
+            title=_make_comment_title(comment_in.comment),
             body="\n".join(body_lines),
         )
         if issue_url:
@@ -2019,6 +2019,25 @@ def _sync_github_issue_resolutions(
             logger.debug(f"GitHub issue sync failed for {url}: {exc}")
     if changed:
         session.commit()
+
+
+def _make_comment_title(comment: str) -> str:
+    """Extract a GitHub issue title from the first sentence of a comment.
+
+    Strips trailing ``.`` and ``!`` but preserves ``?`` so questions read
+    naturally as titles.
+    """
+    import re
+
+    m = re.search(r"([.!?])\s", comment)
+    if m:
+        sentence = comment[: m.start() + 1]
+    else:
+        sentence = comment.split("\n")[0]
+    sentence = sentence.rstrip()
+    if sentence.endswith(".") or sentence.endswith("!"):
+        sentence = sentence[:-1]
+    return sentence[:256]
 
 
 def _try_create_github_issue(
@@ -3552,6 +3571,8 @@ class Issue(BaseModel):
     state: Literal["open", "closed"]
     title: str
     body: str | None
+    artifact_type: str | None = None
+    artifact_path: str | None = None
 
 
 @router.get("/projects/{owner_name}/{project_name}/issues")
@@ -3587,9 +3608,20 @@ def get_project_issues(
     if not resp.status_code == 200:
         raise HTTPException(resp.status_code, resp.json()["message"])
     resp_json = resp.json()
-    # Format these with a defined schema
+    # Build a map from GitHub issue URL → (artifact_type, artifact_path)
+    # for issues that were created from project comments
+    db_comments = session.exec(
+        select(ProjectComment).where(
+            ProjectComment.project_id == project.id,
+            ProjectComment.external_url.is_not(None),  # type: ignore[union-attr]
+        )
+    ).all()
+    comment_by_url: dict[str, ProjectComment] = {
+        c.external_url: c for c in db_comments if c.external_url
+    }
     resp_fmt = []
     for issue in resp_json:
+        linked = comment_by_url.get(issue["html_url"])
         resp_fmt.append(
             Issue(
                 id=issue["id"],
@@ -3599,6 +3631,8 @@ def get_project_issues(
                 state=issue["state"],
                 title=issue["title"],
                 body=issue["body"],
+                artifact_type=linked.artifact_type if linked else None,
+                artifact_path=linked.artifact_path if linked else None,
             )
         )
     return resp_fmt

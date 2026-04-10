@@ -397,6 +397,7 @@ export type GitRef = {
   message?: string | null
   author?: string | null
   timestamp?: string | null
+  hash?: string | null
   short_hash?: string | null
   is_default?: boolean
   ahead?: number
@@ -438,6 +439,8 @@ export type Issue = {
   state: "open" | "closed"
   title: string
   body: string | null
+  artifact_type?: string | null
+  artifact_path?: string | null
 }
 
 export type IssuePatch = {
@@ -657,7 +660,7 @@ export type ProjectComment = {
   comment: string
   artifact_path?: string | null
   artifact_type?: string | null
-  highlight?: Record<string, unknown> | null
+  highlight?: CommentHighlight | null
   parent_id?: string | null
   external_url?: string | null
   resolved?: string | null
