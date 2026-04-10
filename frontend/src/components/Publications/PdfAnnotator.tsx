@@ -69,7 +69,7 @@ export function commentToHighlight(
   c: ProjectComment,
 ): AnnotationHighlight | null {
   if (!c.highlight || !c.id) return null
-  const h = c.highlight as {
+  const h = c.highlight as unknown as {
     position: IHighlight["position"]
     content: IHighlight["content"]
   }
@@ -280,6 +280,7 @@ export function CommentList({
           artifact_type: "publication",
           comment: body,
           create_github_issue: createIssue,
+          git_ref: gitRef ?? null,
         },
       }),
     onSuccess: () => {
@@ -605,6 +606,7 @@ interface PdfAnnotatorProps {
   ownerName: string
   projectName: string
   publicationPath: string
+  gitRef?: string | null
   showResolved?: boolean
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   externalScrollRef?: MutableRefObject<(h: any) => void>
@@ -615,6 +617,7 @@ export default function PdfAnnotator({
   ownerName,
   projectName,
   publicationPath,
+  gitRef,
   showResolved = false,
   externalScrollRef,
 }: PdfAnnotatorProps) {
@@ -711,6 +714,7 @@ export default function PdfAnnotator({
           comment: data.comment,
           highlight: data.highlight,
           create_github_issue: data.create_github_issue,
+          git_ref: gitRef ?? null,
         },
       }),
     onSuccess: () => {

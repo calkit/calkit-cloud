@@ -6,7 +6,8 @@ Create Date: 2026-04-01 00:00:00.000000
 
 Migrates all existing figurecomment rows into the new unified projectcomment
 table (artifact_type='figure'), and introduces the notification table used by
-comment fan-out.
+comment fan-out. Also adds git_ref and git_rev to track the git context at
+the time each comment was posted.
 """
 from alembic import op
 import sqlalchemy as sa
@@ -55,6 +56,8 @@ def upgrade():
         sa.Column('parent_id', sa.Uuid(), nullable=True),
         sa.Column('external_url', sa.String(length=2048), nullable=True),
         sa.Column('resolved', sa.DateTime(), nullable=True),
+        sa.Column('git_ref', sa.String(length=256), nullable=True),
+        sa.Column('git_rev', sa.String(length=40), nullable=True),
         sa.ForeignKeyConstraint(['project_id'], ['project.id']),
         sa.ForeignKeyConstraint(['user_id'], ['user.id']),
         sa.ForeignKeyConstraint(['parent_id'], ['projectcomment.id']),

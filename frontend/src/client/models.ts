@@ -664,6 +664,8 @@ export type ProjectComment = {
   parent_id?: string | null
   external_url?: string | null
   resolved?: string | null
+  git_ref?: string | null
+  git_rev?: string | null
   readonly user_github_username: string
   readonly user_full_name: string | null
   readonly user_email: string
@@ -680,6 +682,7 @@ export type ProjectCommentPost = {
   highlight?: CommentHighlight | null
   create_github_issue?: boolean
   parent_id?: string | null
+  git_ref?: string | null
 }
 
 export type ProjectOptionalExtended = {

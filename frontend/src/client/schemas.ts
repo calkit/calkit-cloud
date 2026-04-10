@@ -3095,6 +3095,30 @@ though the schema permits it for future use.`,
         },
       ],
     },
+    git_ref: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          maxLength: 256,
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    git_rev: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
+          maxLength: 40,
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
     user_github_username: {
       type: "string",
       isReadOnly: true,
@@ -3179,6 +3203,17 @@ export const $ProjectCommentPost = {
         {
           type: "string",
           format: "uuid",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    git_ref: {
+      type: "any-of",
+      contains: [
+        {
+          type: "string",
         },
         {
           type: "null",

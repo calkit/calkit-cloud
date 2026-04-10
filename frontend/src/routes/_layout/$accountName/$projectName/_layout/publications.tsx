@@ -387,6 +387,7 @@ function Publications() {
                       ownerName={accountName}
                       projectName={projectName}
                       publicationPath={selectedPub.path}
+                      gitRef={ref}
                       showResolved={showResolved}
                       externalScrollRef={pdfScrollRef}
                     />

@@ -660,6 +660,9 @@ class ProjectComment(SQLModel, table=True):
     )
     external_url: str | None = Field(default=None, max_length=2048)
     resolved: datetime | None = Field(default=None)
+    # Git context at the time the comment was posted
+    git_ref: str | None = Field(default=None, max_length=256)
+    git_rev: str | None = Field(default=None, max_length=40)
     # Relationships
     user: User = Relationship(back_populates="project_comments")
     project: Project = Relationship(back_populates="project_comments")
@@ -687,6 +690,7 @@ class ProjectCommentPost(SQLModel):
     highlight: CommentHighlight | None = None
     create_github_issue: bool = True
     parent_id: uuid.UUID | None = None
+    git_ref: str | None = None
 
 
 class ProjectCommentPatch(SQLModel):

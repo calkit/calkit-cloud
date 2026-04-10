@@ -271,10 +271,12 @@ function FigureComments({
   ownerName,
   projectName,
   path,
+  gitRef,
 }: {
   ownerName: string
   projectName: string
   path: string
+  gitRef?: string | undefined
 }) {
   const { user } = useAuth()
   const queryClient = useQueryClient()
@@ -331,6 +333,7 @@ function FigureComments({
           artifact_type: "figure",
           comment: draft,
           create_github_issue: createIssue,
+          git_ref: gitRef ?? null,
         },
       }),
     onSuccess: () => {
@@ -1029,6 +1032,7 @@ export function ArtifactCompareModal({
                   ownerName={ownerName}
                   projectName={projectName}
                   path={path}
+                  gitRef={ref1}
                 />
               </Box>
             )}

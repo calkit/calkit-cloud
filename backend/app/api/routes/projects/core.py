@@ -1762,14 +1762,14 @@ def post_project_comment(
         current_user=current_user,
         min_access_level="write",
     )
+    repo = get_repo(
+        project=project,
+        user=current_user,
+        session=session,
+        ttl=DEFAULT_REPO_TTL,
+    )
     # For figure comments, verify the path exists in the repo
     if comment_in.artifact_type == "figure" and comment_in.artifact_path:
-        repo = get_repo(
-            project=project,
-            user=current_user,
-            session=session,
-            ttl=DEFAULT_REPO_TTL,
-        )
         ck_info = get_ck_info_from_repo(repo)
         fig_paths = {fig["path"] for fig in ck_info.get("figures", [])}
         if comment_in.artifact_path not in fig_paths:
@@ -1777,6 +1777,14 @@ def post_project_comment(
                 repo.head.commit.tree[comment_in.artifact_path]
             except KeyError:
                 raise HTTPException(404)
+    # Resolve the commit hash for the git context at comment time
+    try:
+        if comment_in.git_ref:
+            git_rev = repo.commit(comment_in.git_ref).hexsha
+        else:
+            git_rev = repo.head.commit.hexsha
+    except Exception:
+        git_rev = None
     comment = ProjectComment(
         project_id=project.id,
         artifact_path=comment_in.artifact_path,
@@ -1787,6 +1795,8 @@ def post_project_comment(
         else None,
         user_id=current_user.id,
         parent_id=comment_in.parent_id,
+        git_ref=comment_in.git_ref,
+        git_rev=git_rev,
     )
     session.add(comment)
     session.flush()
