@@ -125,6 +125,7 @@ export type ContentsItem = {
   url?: string | null
   calkit_object?: Record<string, unknown> | null
   lock?: ItemLock | null
+  storage?: "git" | "dvc" | "dvc-zip" | null
   dir_items?: Array<_ContentsItemBase> | null
 }
 
@@ -1076,4 +1077,5 @@ export type _ContentsItemBase = {
   url?: string | null
   calkit_object?: Record<string, unknown> | null
   lock?: ItemLock | null
+  storage?: "git" | "dvc" | "dvc-zip" | null
 }

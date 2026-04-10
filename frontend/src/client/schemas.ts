@@ -569,6 +569,18 @@ export const $ContentsItem = {
         },
       ],
     },
+    storage: {
+      type: "any-of",
+      contains: [
+        {
+          type: "Enum",
+          enum: ["git", "dvc", "dvc-zip"],
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
     dir_items: {
       type: "any-of",
       contains: [
@@ -5244,6 +5256,18 @@ export const $_ContentsItemBase = {
       contains: [
         {
           type: "ItemLock",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    storage: {
+      type: "any-of",
+      contains: [
+        {
+          type: "Enum",
+          enum: ["git", "dvc", "dvc-zip"],
         },
         {
           type: "null",

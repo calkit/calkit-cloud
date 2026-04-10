@@ -181,10 +181,11 @@ function SelectedItemInfo({
       : undefined)
 
   return (
-    <Box w="100%" wordBreak="break-word">
+    <Box w="100%" wordBreak="break-word" fontSize="sm">
       <Text>Name: {selectedItem.name}</Text>
       {selectedItem.type ? <Text>Type: {selectedItem.type}</Text> : ""}
       {selectedItem.size ? <Text>Size: {selectedItem.size}</Text> : ""}
+      {selectedItem.storage ? <Text>Storage: {selectedItem.storage}</Text> : ""}
       {userHasWriteAccess ? (
         <FileLock
           item={selectedItem}

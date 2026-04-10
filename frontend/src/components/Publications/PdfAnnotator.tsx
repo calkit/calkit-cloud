@@ -803,7 +803,7 @@ export default function PdfAnnotator({
         },
       }}
     >
-      {pdfReady && !commentsQuery.isPending && (
+      {pdfReady && (
         <PdfLoader url={url} beforeLoad={<Spinner color="ui.main" />}>
           {(pdfDocument) => (
             <PdfHighlighter

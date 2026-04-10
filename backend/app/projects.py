@@ -2,6 +2,7 @@
 
 import base64
 import hashlib
+import json
 import logging
 import os
 from typing import Literal
@@ -183,11 +184,13 @@ def get_contents_from_repo(
 def get_ck_info_and_dvc_outs_from_tree(
     project: Project,
     tree: RepoTree,
-) -> tuple[dict, dict]:
+) -> tuple[dict, dict, dict]:
     """Load calkit.yaml and expand dvc.lock outs once for a tree.
 
-    Returns (ck_info, dvc_lock_outs).  Callers that read multiple paths from
-    the same tree should call this once and pass the results to
+    Returns (ck_info, dvc_lock_outs, zip_path_map). zip_path_map maps
+    workspace paths to their zip file path (e.g. {"data/mydir":
+    ".calkit/zip/files/data/mydir.zip"}). Callers that read multiple paths
+    from the same tree should call this once and pass the results to
     get_contents_from_tree to avoid redundant I/O.
     """
     owner_name = project.owner_account_name
@@ -206,7 +209,15 @@ def get_ck_info_and_dvc_outs_from_tree(
     dvc_lock_outs = expand_dvc_lock_outs(
         dvc_lock, owner_name=owner_name, project_name=project_name, fs=fs
     )
-    return ck_info, dvc_lock_outs
+    zip_path_map: dict = {}
+    zip_paths_json = ".calkit/zip/paths.json"
+    if tree.is_file(zip_paths_json):
+        logger.info("Reading .calkit/zip/paths.json")
+        try:
+            zip_path_map = json.loads(tree.read_text(zip_paths_json)) or {}
+        except Exception:
+            logger.warning("Failed to parse .calkit/zip/paths.json")
+    return ck_info, dvc_lock_outs, zip_path_map
 
 
 def get_contents_from_tree(
@@ -215,6 +226,7 @@ def get_contents_from_tree(
     path: str | None = None,
     ck_info: dict | None = None,
     dvc_lock_outs: dict | None = None,
+    zip_path_map: dict | None = None,
 ) -> ContentsItem:
     owner_name = project.owner_account_name
     project_name = project.name
@@ -233,9 +245,9 @@ def get_contents_from_tree(
             )
             raise HTTPException(404)
     # Load calkit.yaml and dvc.lock outs if not pre-computed by the caller
-    if ck_info is None or dvc_lock_outs is None:
-        ck_info, dvc_lock_outs = get_ck_info_and_dvc_outs_from_tree(
-            project, tree
+    if ck_info is None or dvc_lock_outs is None or zip_path_map is None:
+        ck_info, dvc_lock_outs, zip_path_map = (
+            get_ck_info_and_dvc_outs_from_tree(project, tree)
         )
     fs = get_object_fs()
     dvc_lock_out_dirs = [
@@ -296,6 +308,8 @@ def get_contents_from_tree(
         lock.path: ItemLock.model_validate(lock.model_dump())
         for lock in project.file_locks
     }
+    # Build reverse map: zip_path -> workspace_path (for size lookup)
+    zip_workspace_paths = set(zip_path_map.keys())
     # See if we're listing off a directory
     if path is None or tree.is_dir(path) or path in dvc_lock_out_dirs:
         logger.info(f"Getting contents of directory: {path}")
@@ -317,9 +331,13 @@ def get_contents_from_tree(
             if in_repo:
                 size = tree.size(p)
                 obj_type = "file" if tree.is_file(p) else "dir"
+                storage: str | None = "git"
             elif p in dvc_lock_outs:
                 size = dvc_lock_outs[p].get("size")
                 obj_type = dvc_lock_outs[p]["type"]
+                storage = "dvc"
+            else:
+                storage = None
             obj = dict(
                 name=os.path.basename(p),
                 path=p,
@@ -328,6 +346,7 @@ def get_contents_from_tree(
                 lock=file_locks_by_path.get(p),
                 type=obj_type,
                 calkit_object=ck_objects.get(p),
+                storage=storage,
             )
             contents.append(ContentsItem.model_validate(obj))
         for ck_path, ck_obj in ck_objects.items():
@@ -350,9 +369,45 @@ def get_contents_from_tree(
                             ),
                             calkit_object=ck_obj,
                             lock=file_locks_by_path.get(ck_path),
+                            storage="dvc",
                         )
                     )
                 )
+        # Add virtual entries for dvc-zip mapped workspace paths
+        existing_paths = {c.path for c in contents}
+        for ws_path, zip_path in zip_path_map.items():
+            if os.path.dirname(ws_path) != dirname:
+                continue
+            if ws_path in existing_paths:
+                # Already present (e.g. unzipped in working tree); update storage
+                for c in contents:
+                    if c.path == ws_path:
+                        c.storage = "dvc-zip"
+                continue
+            # Get size from the zip's .dvc pointer file
+            size = None
+            dvc_pointer = zip_path + ".dvc"
+            if tree.is_file(dvc_pointer):
+                try:
+                    dvc_out = yaml.safe_load(tree.read_text(dvc_pointer))
+                    size = dvc_out.get("outs", [{}])[0].get("size")
+                except Exception:
+                    pass
+            contents.append(
+                ContentsItem.model_validate(
+                    dict(
+                        name=os.path.basename(ws_path),
+                        path=ws_path,
+                        in_repo=False,
+                        size=size,
+                        type="dir",
+                        calkit_object=ck_objects.get(ws_path),
+                        lock=file_locks_by_path.get(ws_path),
+                        storage="dvc-zip",
+                    )
+                )
+            )
+        contents.sort(key=lambda c: c.path)
         return ContentsItem(
             name=os.path.basename(dirname),
             path=dirname,
@@ -399,6 +454,7 @@ def get_contents_from_tree(
                 calkit_object=ck_objects.get(path),
                 lock=file_locks_by_path.get(path),
                 url=url,
+                storage="git",
             )
         )
     elif path in ck_objects:
@@ -442,6 +498,30 @@ def get_contents_from_tree(
                 url=url,
                 calkit_object=ck_objects[path],
                 lock=file_locks_by_path.get(path),
+                storage="dvc",
+            )
+        )
+    elif path in zip_workspace_paths:
+        # dvc-zip mapped directory
+        zip_path = zip_path_map[path]
+        dvc_pointer = zip_path + ".dvc"
+        size = None
+        if tree.is_file(dvc_pointer):
+            try:
+                dvc_out_data = yaml.safe_load(tree.read_text(dvc_pointer))
+                size = dvc_out_data.get("outs", [{}])[0].get("size")
+            except Exception:
+                pass
+        return ContentsItem.model_validate(
+            dict(
+                path=path,
+                name=os.path.basename(path),
+                size=size,
+                type="dir",
+                in_repo=False,
+                calkit_object=ck_objects.get(path),
+                lock=file_locks_by_path.get(path),
+                storage="dvc-zip",
             )
         )
     else:
@@ -476,6 +556,7 @@ def get_contents_from_tree(
                     in_repo=False,
                     url=url,
                     lock=file_locks_by_path.get(path),
+                    storage="dvc",
                 )
             )
         raise HTTPException(404)

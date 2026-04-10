@@ -1538,7 +1538,7 @@ def get_project_figures(
     # Pre-compute calkit.yaml / dvc.lock metadata once for the tree so we
     # don't re-read and re-expand on every iteration.
     tree = app.projects.tree_for_ref(repo, ref)
-    ck_info_full, dvc_lock_outs = (
+    ck_info_full, dvc_lock_outs, zip_path_map = (
         app.projects.get_ck_info_and_dvc_outs_from_tree(project, tree)
     )
     for fig in figures:
@@ -1548,6 +1548,7 @@ def get_project_figures(
             path=fig["path"],
             ck_info=ck_info_full,
             dvc_lock_outs=dvc_lock_outs,
+            zip_path_map=zip_path_map,
         )
         fig["content"] = item.content
         fig["url"] = item.url
@@ -2700,7 +2701,7 @@ def get_project_publications(
     )
     resp = []
     tree = app.projects.tree_for_ref(repo, ref)
-    ck_info_full, dvc_lock_outs = (
+    ck_info_full, dvc_lock_outs, zip_path_map = (
         app.projects.get_ck_info_and_dvc_outs_from_tree(project, tree)
     )
     for pub in publications:
@@ -2715,6 +2716,7 @@ def get_project_publications(
                     path=pub["path"],
                     ck_info=ck_info_full,
                     dvc_lock_outs=dvc_lock_outs,
+                    zip_path_map=zip_path_map,
                 )
                 pub["content"] = item.content
                 # Prioritize URL if already defined
@@ -4101,7 +4103,7 @@ def get_project_notebooks(
         return notebooks
     # Get the notebook content and base64 encode it
     tree = app.projects.tree_for_ref(repo, ref)
-    ck_info_full, dvc_lock_outs = (
+    ck_info_full, dvc_lock_outs, zip_path_map = (
         app.projects.get_ck_info_and_dvc_outs_from_tree(project, tree)
     )
     for notebook in notebooks:
@@ -4112,6 +4114,7 @@ def get_project_notebooks(
                 path=notebook["path"],
                 ck_info=ck_info_full,
                 dvc_lock_outs=dvc_lock_outs,
+                zip_path_map=zip_path_map,
             )
         except HTTPException:
             continue

@@ -841,6 +841,7 @@ class _ContentsItemBase(BaseModel):
     url: str | None = None
     calkit_object: dict | None = None
     lock: ItemLock | None = None
+    storage: Literal["git", "dvc", "dvc-zip"] | None = None
 
 
 class ContentsItem(_ContentsItemBase):
