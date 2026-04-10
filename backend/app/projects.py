@@ -8,6 +8,7 @@ from typing import Literal
 
 import git
 import requests
+import sqlalchemy
 import yaml
 from calkit.notebooks import get_executed_notebook_path
 from fastapi import HTTPException
@@ -62,8 +63,8 @@ def get_project(
     )
     query = (
         select(Project)
-        .where(Project.owner_account.has(name=owner_name))
-        .where(Project.name == project_name)
+        .where(Project.owner_account.has(name=owner_name.lower()))
+        .where(sqlalchemy.func.lower(Project.name) == project_name.lower())
     )
     project = session.exec(query).first()
     if project is None and if_not_exists == "error":

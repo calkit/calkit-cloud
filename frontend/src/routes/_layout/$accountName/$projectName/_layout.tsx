@@ -40,7 +40,7 @@ import {
 } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
 import { z } from "zod"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { FaCodeBranch } from "react-icons/fa"
 import { ExternalLinkIcon } from "@chakra-ui/icons"
 import { FaGithub, FaQuestion, FaRegClone } from "react-icons/fa"
@@ -362,6 +362,19 @@ function ProjectLayout() {
   if (error?.message === "Not Found" || error?.message === "Forbidden") {
     throw notFound()
   }
+  // Redirect to canonical casing if URL doesn't match the stored names
+  useEffect(() => {
+    if (!project) return
+    const canonicalOwner = project.owner_account_name
+    const canonicalProject = project.name
+    if (accountName !== canonicalOwner || projectName !== canonicalProject) {
+      navigate({
+        params: { accountName: canonicalOwner, projectName: canonicalProject },
+        search: (s: any) => s,
+        replace: true,
+      })
+    }
+  }, [project, accountName, projectName, navigate])
   const helpDrawer = useDisclosure()
   const localServerQuery = useQuery({
     queryKey: ["local-server", accountName, projectName],

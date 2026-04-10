@@ -5,6 +5,8 @@ import uuid
 from pathlib import Path
 
 import git
+import pytest
+from sqlmodel import Session
 
 import app.projects
 from app.models import Account, Project
@@ -43,7 +45,42 @@ def _init_repo(repo_dir: Path) -> tuple[git.Repo, str]:
     return repo, ref_v1
 
 
-def test_get_contents_from_repo_at_given_ref(tmp_path, monkeypatch):
+def test_get_project_case_insensitive(db: Session) -> None:
+    account = Account(
+        id=uuid.uuid4(),
+        name="casetest-owner",
+        github_name="CaseTest-Owner",
+    )
+    project = Project(
+        id=uuid.uuid4(),
+        name="my-project",
+        title="My Project",
+        git_repo_url="https://github.com/CaseTest-Owner/my-project",
+        owner_account_id=account.id,
+        owner_account=account,
+    )
+    db.add(account)
+    db.add(project)
+    db.commit()
+    # Exact match works
+    found = app.projects.get_project(
+        session=db, owner_name="casetest-owner", project_name="my-project"
+    )
+    assert found.id == project.id
+    # Mixed-case owner and project name both resolve correctly
+    found_mixed = app.projects.get_project(
+        session=db, owner_name="CASETEST-OWNER", project_name="My-Project"
+    )
+    assert found_mixed.id == project.id
+    # Clean up
+    db.delete(project)
+    db.delete(account)
+    db.commit()
+
+
+def test_get_contents_from_repo_at_given_ref(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     # Keep this test focused on Git ref behavior, not DVC/object storage.
     monkeypatch.setattr(
         app.projects, "expand_dvc_lock_outs", lambda *a, **k: {}

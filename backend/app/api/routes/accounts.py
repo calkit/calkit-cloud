@@ -29,7 +29,7 @@ def get_account(
     session: SessionDep,
     current_user: CurrentUserOptional,
 ) -> AccountPublic:
-    account_query = select(Account).where(Account.name == account_name)
+    account_query = select(Account).where(Account.name == account_name.lower())
     account = session.exec(account_query).first()
     if account is None:
         raise HTTPException(

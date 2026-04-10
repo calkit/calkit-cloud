@@ -48,8 +48,7 @@ def test_get_project_contents_forwards_ref(client: TestClient) -> None:
         current_user=None,
         min_access_level="read",
     )
-
-    # The API route must forward the selected ref to repo/content helpers.
+    # The API route must forward the selected ref to repo/content helpers
     assert mock_get_repo.call_count == 1
     repo_call = mock_get_repo.call_args.kwargs
     assert repo_call["project"] is fake_project
@@ -57,9 +56,8 @@ def test_get_project_contents_forwards_ref(client: TestClient) -> None:
     assert repo_call["session"] is not None
     assert repo_call["ttl"] is not None
     assert repo_call["ref"] == "v1.2.3"
-
     # The ref must also be forwarded to get_contents_from_repo so it reads
-    # the file tree at the requested snapshot, not the current HEAD.
+    # the file tree at the requested snapshot, not the current HEAD
     assert mock_get_contents.call_count == 1
     contents_call = mock_get_contents.call_args.kwargs
     assert contents_call["project"] is fake_project
@@ -130,6 +128,45 @@ def test_get_project_file_history_rejects_traversal(
     assert response.status_code == 400
 
 
+def test_project_routes_are_case_insensitive(client: TestClient) -> None:
+    fake_project = SimpleNamespace(is_public=True)
+    fake_repo = SimpleNamespace()
+    with (
+        patch(
+            "app.api.routes.projects.core.app.projects.get_project",
+            return_value=fake_project,
+        ) as mock_get_project,
+        patch(
+            "app.api.routes.projects.core.get_repo",
+            return_value=fake_repo,
+        ),
+        patch(
+            "app.api.routes.projects.core.app.projects.get_contents_from_repo",
+            return_value={
+                "name": "README.md",
+                "path": "README.md",
+                "type": "file",
+                "size": 12,
+                "in_repo": True,
+                "content": "hello world\n",
+                "dir_items": None,
+            },
+        ),
+    ):
+        response = client.get(
+            f"{settings.API_V1_STR}/projects/MyOrg/My-Project/contents"
+            "?path=README.md"
+        )
+    assert response.status_code == 200
+    mock_get_project.assert_called_once_with(
+        owner_name="MyOrg",
+        project_name="My-Project",
+        session=ANY,
+        current_user=None,
+        min_access_level="read",
+    )
+
+
 def test_get_project_comments_uses_all_results() -> None:
     fake_project = SimpleNamespace(id="project-id")
     fake_comment = SimpleNamespace(id="comment-id")
@@ -163,7 +200,7 @@ def test_get_project_comments_uses_all_results() -> None:
             owner_name="test-owner",
             project_name="test-project",
             current_user=None,
-            session=session,
+            session=session,  # type: ignore
             artifact_type="publication",
             artifact_path="paper/main.pdf",
         )
