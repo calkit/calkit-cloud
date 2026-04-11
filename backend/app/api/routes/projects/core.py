@@ -2530,8 +2530,12 @@ def post_project_dataset_label(
     if req.path in ds_paths:
         raise HTTPException(400, "Dataset already exists")
     local_path = os.path.join(repo.working_dir, req.path)
+    zip_path_map = app.projects.get_zip_path_map_from_repo(repo=repo)
     if not req.imported_from and not (
-        os.path.isfile(local_path) or os.path.isfile(local_path + ".dvc")
+        os.path.isfile(local_path)
+        or os.path.isdir(local_path)
+        or os.path.isfile(local_path + ".dvc")
+        or req.path in zip_path_map
     ):
         raise HTTPException(400, "Path does not exist in the repo")
     ds = dict(path=req.path)

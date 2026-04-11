@@ -21,7 +21,7 @@ from app.git import RepoTree, tree_for_ref
 from app.core import CATEGORIES_PLURAL_TO_SINGULAR, params_from_url
 from app.dvc import expand_dvc_lock_outs
 from app.dvc import get_data_fpath_for_md5
-from app.git import get_ck_info_from_repo
+from app.git import get_ck_info_from_repo, get_zip_path_map_from_repo
 from app.models import (
     ContentsItem,
     Figure,

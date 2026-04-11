@@ -1,5 +1,6 @@
 """Functionality for working with Git."""
 
+import json
 import os
 import posixpath
 import shutil
@@ -143,6 +144,18 @@ def get_repo(
     if repo is None:
         repo = git.Repo(repo_dir)
     return repo
+
+
+def get_zip_path_map_from_repo(repo: git.Repo) -> dict:
+    """Return the dvc-zip workspace→zip path map from .calkit/zip/paths.json."""
+    paths_json = os.path.join(repo.working_dir, ".calkit", "zip", "paths.json")
+    if not os.path.isfile(paths_json):
+        return {}
+    try:
+        with open(paths_json) as f:
+            return json.load(f) or {}
+    except Exception:
+        return {}
 
 
 def get_ck_info_from_repo(repo: git.Repo, process_includes=False) -> dict:
