@@ -1789,15 +1789,17 @@ def post_project_comment(
         else:
             git_rev = repo.head.commit.hexsha
     except Exception:
+        logger.info(
+            f"Failed to resolve Git ref {comment_in.git_ref} for comment; "
+            "storing without Git rev"
+        )
         git_rev = None
     comment = ProjectComment(
         project_id=project.id,
         artifact_path=comment_in.artifact_path,
         artifact_type=comment_in.artifact_type,
         comment=comment_in.comment,
-        highlight=comment_in.highlight.model_dump()
-        if comment_in.highlight
-        else None,
+        highlight=comment_in.highlight,
         user_id=current_user.id,
         parent_id=comment_in.parent_id,
         git_ref=comment_in.git_ref,
@@ -1850,7 +1852,10 @@ def post_project_comment(
             project=project,
             commenter_id=current_user.id,
             message=f"{commenter_name} commented on {comment_in.artifact_path}",
-            link=f"/{owner_name}/{project_name}/{route}?path={comment_in.artifact_path}",
+            link=(
+                f"/{owner_name}/{project_name}/{route}"
+                f"?path={comment_in.artifact_path}"
+            ),
         )
     session.commit()
     session.refresh(comment)
