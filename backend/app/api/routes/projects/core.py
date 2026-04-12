@@ -16,6 +16,7 @@ from fnmatch import fnmatch
 from io import StringIO
 from pathlib import Path
 from typing import Annotated, Literal, Optional, cast
+from urllib.parse import urlparse
 
 import bibtexparser
 import calkit
@@ -283,6 +284,10 @@ def post_project(
             current_user=current_user,
             min_access_level="read",
         )
+    # Validate the git repo URL is on github.com to prevent SSRF
+    parsed_git_url = urlparse(project_in.git_repo_url)
+    if parsed_git_url.hostname not in ("github.com", "www.github.com"):
+        raise HTTPException(400, "Git repo URL must be on github.com")
     # Detect owner and repo name from Git repo URL
     # TODO: This should be generalized to not depend on GitHub?
     owner_name, repo_name = project_in.git_repo_url.split("/")[-2:]
