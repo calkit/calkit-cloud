@@ -1,3 +1,7 @@
+"""Main FastAPI application and entry point for the Calkit Cloud backend."""
+
+import logging
+
 import sentry_sdk
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -7,6 +11,8 @@ from starlette.middleware.cors import CORSMiddleware
 
 from app.api.main import api_router
 from app.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 def custom_generate_unique_id(route: APIRoute) -> str:
@@ -39,6 +45,7 @@ if settings.BACKEND_CORS_ORIGINS:
 async def git_command_error_handler(
     request: Request, exc: GitCommandError
 ) -> JSONResponse:
+    logger.error("Git command error: %s", exc.stderr or str(exc))
     stderr = (exc.stderr or "").lower()
     if "403" in stderr or "permission" in stderr or "denied" in stderr:
         return JSONResponse(
@@ -47,13 +54,16 @@ async def git_command_error_handler(
                 "detail": (
                     "Git remote denied permission. Possible causes: "
                     "you do not have write access to this repository, "
-                    "or the Calkit GitHub app has not been granted access to it."
+                    "or the Calkit GitHub app has not been granted access "
+                    "to it."
                 )
             },
         )
     return JSONResponse(
         status_code=500,
-        content={"detail": f"Git command failed: {exc.stderr or str(exc)}"},
+        content={
+            "detail": "A Git operation failed; check server logs for details."
+        },
     )
 
 
