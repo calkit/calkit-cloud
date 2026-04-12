@@ -26,13 +26,20 @@ export const Route = createFileRoute("/login")({
   validateSearch: (search) => githubAuthParamsSchema.parse(search),
 })
 
+const OAUTH_STATE_KEY = "gh_oauth_state"
+
+function generateOAuthState(): string {
+  const bytes = new Uint8Array(16)
+  crypto.getRandomValues(bytes)
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("")
+}
+
 function Login() {
   const { loginGitHubMutation } = useAuth()
   const { code: ghAuthCode, state: ghAuthStateRecv } = Route.useSearch()
   const isMounted = useRef(false)
 
   const clientId = import.meta.env.VITE_GH_CLIENT_ID
-  const ghAuthStateParam = "sdkjh4e0934t" // TODO: Generate randomly
   const getGitHubRedirectUri = () => {
     const baseUrl =
       import.meta.env.VITE_API_URL?.replace("/api", "") ||
@@ -43,26 +50,30 @@ function Login() {
   useEffect(() => {
     if (!isMounted.current) {
       isMounted.current = true
-      if (ghAuthCode && ghAuthStateRecv === ghAuthStateParam) {
-        try {
-          loginGitHubMutation.mutate({
-            code: ghAuthCode,
-            redirectUri: getGitHubRedirectUri(),
-          })
-        } catch {
-          // Error should be handled in the mutation
+      if (ghAuthCode) {
+        const storedState = sessionStorage.getItem(OAUTH_STATE_KEY)
+        sessionStorage.removeItem(OAUTH_STATE_KEY)
+        if (ghAuthStateRecv && storedState && ghAuthStateRecv === storedState) {
+          try {
+            loginGitHubMutation.mutate({
+              code: ghAuthCode,
+              redirectUri: getGitHubRedirectUri(),
+            })
+          } catch {
+            // Error should be handled in the mutation
+          }
+        } else {
+          console.error("OAuth state mismatch — possible CSRF attempt")
         }
-      } else if (ghAuthCode && ghAuthStateRecv != ghAuthStateParam) {
-        console.error(
-          `Received state parameter does not match sent (${ghAuthStateParam})`,
-        )
       }
     }
   }, [])
 
   const handleLoginClicked = () => {
     mixpanel.track("Clicked login")
-    location.href = `https://github.com/login/oauth/authorize?client_id=${clientId}&state=${ghAuthStateParam}`
+    const state = generateOAuthState()
+    sessionStorage.setItem(OAUTH_STATE_KEY, state)
+    location.href = `https://github.com/login/oauth/authorize?client_id=${clientId}&state=${state}`
   }
 
   return (
