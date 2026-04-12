@@ -651,6 +651,7 @@ export default function PdfAnnotator({
   useEffect(() => {
     if (!pdfReady || !containerRef.current) return
     const root = containerRef.current
+    let initialBumpDone = false
 
     const dedupePages = () => {
       const pages = Array.from(
@@ -658,6 +659,7 @@ export default function PdfAnnotator({
           ".pdfViewer .page[data-page-number]",
         ),
       )
+      if (pages.length === 0) return
       // Keep the LAST occurrence of each page number. PDF.js renders into the
       // most-recently created page divs (from the latest setDocument call), so
       // removing the earlier duplicates is correct. Keeping the first set
@@ -673,9 +675,15 @@ export default function PdfAnnotator({
         }
         seen.set(pageNumber, page)
       }
-      // After removing stale pages, force PdfHighlighter.componentDidUpdate so
-      // it calls renderHighlightLayers() using the surviving page set.
-      if (removed) setHighlightsKey((k) => k + 1)
+      // Force PdfHighlighter.componentDidUpdate so it calls
+      // renderHighlightLayers() using the surviving page set. Bump on the
+      // first detection of pages (catches the case where highlights were
+      // passed before PDF.js finished creating page nodes) and again whenever
+      // duplicate pages are removed.
+      if (!initialBumpDone || removed) {
+        initialBumpDone = true
+        setHighlightsKey((k) => k + 1)
+      }
     }
 
     dedupePages()

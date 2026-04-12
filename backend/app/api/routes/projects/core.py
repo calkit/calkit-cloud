@@ -1799,7 +1799,9 @@ def post_project_comment(
         artifact_path=comment_in.artifact_path,
         artifact_type=comment_in.artifact_type,
         comment=comment_in.comment,
-        highlight=comment_in.highlight,
+        highlight=comment_in.highlight.model_dump()
+        if comment_in.highlight
+        else None,
         user_id=current_user.id,
         parent_id=comment_in.parent_id,
         git_ref=comment_in.git_ref,

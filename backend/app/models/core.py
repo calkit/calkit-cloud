@@ -652,8 +652,12 @@ class ProjectComment(SQLModel, table=True):
     )
     artifact_path: str | None = Field(default=None, max_length=512)
     artifact_type: str | None = Field(default=None, max_length=50)
-    # Artifact highlight, e.g., for publication comments
-    highlight: CommentHighlight | None = Field(
+    # Artifact highlight, e.g., for publication comments.
+    # Stored as a plain dict (JSON column); CommentHighlight is used only for
+    # input validation in ProjectCommentPost. sa_column bypasses SQLModel's
+    # Pydantic coercion layer so the Python type must match what psycopg
+    # serializes — i.e. dict, not a Pydantic model.
+    highlight: dict | None = Field(
         default=None,
         sa_column=sqlalchemy.Column(sqlalchemy.JSON, nullable=True),
     )
