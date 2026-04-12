@@ -1969,7 +1969,19 @@ def post_project_comment_reply(
     comment = session.get(ProjectComment, comment_id)
     if comment is None or comment.project_id != project.id:
         raise HTTPException(404)
-    if comment.external_url:
+    # Enforce one-level threading: if the target comment is itself a reply,
+    # attach the new reply to its parent so the thread stays flat.
+    thread_root_id = comment.parent_id if comment.parent_id else comment_id
+    thread_root = (
+        session.get(ProjectComment, thread_root_id)
+        if thread_root_id != comment_id
+        else comment
+    )
+    if thread_root and thread_root.external_url:
+        _try_post_github_issue_comment(
+            session, current_user, thread_root.external_url, reply.body
+        )
+    elif comment.external_url:
         _try_post_github_issue_comment(
             session, current_user, comment.external_url, reply.body
         )
@@ -1979,7 +1991,7 @@ def post_project_comment_reply(
         artifact_type=comment.artifact_type,
         comment=reply.body,
         user_id=current_user.id,
-        parent_id=comment_id,
+        parent_id=thread_root_id,
     )
     session.add(reply_comment)
     session.commit()

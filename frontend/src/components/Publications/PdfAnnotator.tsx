@@ -336,154 +336,167 @@ export function CommentList({
   const withHighlight = filtered.filter((c) => c.highlight)
   const withoutHighlight = filtered.filter((c) => !c.highlight)
 
-  const renderComment = (c: ProjectComment, isReply = false) => {
+  // Renders a single comment card (no reply UI — that lives at the thread level).
+  const renderCommentCard = (c: ProjectComment, isReply = false) => {
     const hl = highlights.find((h) => h.dbId === c.id)
     const isResolved = !!c.resolved
-    const replies = c.id ? repliesFor(c.id) : []
     return (
-      <Box key={c.id} ml={isReply ? 4 : 0}>
-        <Box
-          p={isReply ? 2 : 3}
-          borderWidth={1}
-          borderColor={isResolved ? "green.200" : borderColor}
-          borderRadius="md"
-          opacity={isResolved ? 0.7 : 1}
-          cursor={hl ? "pointer" : "default"}
-          _hover={hl ? { borderColor: "yellow.400" } : undefined}
-          onClick={() => hl && scrollToHighlight(hl)}
-        >
-          <Flex align="center" gap={2} mb={1}>
-            <Avatar
-              name={c.user_full_name ?? c.user_github_username ?? undefined}
-              size="xs"
-            />
-            <Text fontSize="xs" fontWeight="bold">
-              {c.user_full_name ?? c.user_github_username}
-            </Text>
-            <Text fontSize="xs" color="gray.500" ml="auto">
-              {c.created ? new Date(c.created).toLocaleDateString() : ""}
-            </Text>
-            {c.external_url && (
-              <Flex align="center" gap={1} onClick={(e) => e.stopPropagation()}>
-                <Icon as={FaGithub} boxSize={3} color="gray.500" />
-                <Link href={c.external_url} isExternal>
-                  <ExternalLinkIcon boxSize={3} />
-                </Link>
-              </Flex>
-            )}
-            {!!currentUserId &&
-              !isReply &&
-              (resolvingId === c.id ? (
-                <Spinner size="xs" color="ui.main" />
-              ) : (
-                <IconButton
-                  aria-label={isResolved ? "Unresolve" : "Resolve"}
-                  icon={isResolved ? <FaUndo /> : <FaCheck />}
-                  size="xs"
-                  variant="ghost"
-                  colorScheme={isResolved ? "gray" : "green"}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    if (c.id) onResolve(c.id, !isResolved)
-                  }}
-                />
-              ))}
-          </Flex>
-          {c.highlight &&
-            (c.highlight as { content?: { text?: string } }).content?.text && (
-              <Box
-                mb={1}
-                pl={2}
-                borderLeftWidth={2}
-                borderColor="yellow.400"
-                fontSize="xs"
-                color="gray.500"
-                fontStyle="italic"
-                noOfLines={2}
-              >
-                {
-                  (c.highlight as unknown as { content: { text: string } })
-                    .content.text
-                }
-              </Box>
-            )}
-          <Text fontSize="sm" whiteSpace="pre-wrap">
-            {c.comment}
+      <Box
+        key={c.id}
+        p={isReply ? 2 : 3}
+        borderWidth={1}
+        borderColor={isResolved ? "green.200" : borderColor}
+        borderRadius="md"
+        opacity={isResolved ? 0.7 : 1}
+        cursor={hl ? "pointer" : "default"}
+        _hover={hl ? { borderColor: "yellow.400" } : undefined}
+        onClick={() => hl && scrollToHighlight(hl)}
+      >
+        <Flex align="center" gap={2} mb={1}>
+          <Avatar
+            name={c.user_full_name ?? c.user_github_username ?? undefined}
+            size="xs"
+          />
+          <Text fontSize="xs" fontWeight="bold">
+            {c.user_full_name ?? c.user_github_username}
           </Text>
-          {!!currentUserId && (
-            <Box mt={1}>
-              {replyingToId !== c.id ? (
-                <Button
-                  size="xs"
-                  variant="ghost"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setReplyingToId(c.id ?? null)
-                    setReplyDraft("")
-                  }}
-                >
-                  Reply
-                </Button>
-              ) : (
-                <Box mt={1} onClick={(e) => e.stopPropagation()}>
-                  <Textarea
-                    size="xs"
-                    placeholder="Add a reply…"
-                    value={replyDraft}
-                    onChange={(e) => setReplyDraft(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (
-                        e.key === "Enter" &&
-                        (e.metaKey || e.ctrlKey) &&
-                        replyDraft.trim() &&
-                        c.id
-                      ) {
-                        e.preventDefault()
-                        replyMutation.mutate({
-                          commentId: c.id,
-                          body: replyDraft.trim(),
-                        })
-                      }
-                    }}
-                    rows={2}
-                    mb={1}
-                  />
-                  <Flex align="center" gap={3} mb={2}>
-                    <Button
-                      size="xs"
-                      variant="primary"
-                      isDisabled={!replyDraft.trim()}
-                      isLoading={
-                        replyMutation.isPending &&
-                        replyMutation.variables?.commentId === c.id
-                      }
-                      onClick={() =>
-                        c.id &&
-                        replyMutation.mutate({
-                          commentId: c.id,
-                          body: replyDraft.trim(),
-                        })
-                      }
-                    >
-                      Post
-                    </Button>
-                    <Button
-                      size="xs"
-                      variant="ghost"
-                      onClick={() => setReplyingToId(null)}
-                    >
-                      Cancel
-                    </Button>
-                  </Flex>
-                </Box>
-              )}
+          <Text fontSize="xs" color="gray.500" ml="auto">
+            {c.created ? new Date(c.created).toLocaleDateString() : ""}
+          </Text>
+          {c.external_url && (
+            <Flex align="center" gap={1} onClick={(e) => e.stopPropagation()}>
+              <Icon as={FaGithub} boxSize={3} color="gray.500" />
+              <Link href={c.external_url} isExternal>
+                <ExternalLinkIcon boxSize={3} />
+              </Link>
+            </Flex>
+          )}
+          {!!currentUserId &&
+            !isReply &&
+            (resolvingId === c.id ? (
+              <Spinner size="xs" color="ui.main" />
+            ) : (
+              <IconButton
+                aria-label={isResolved ? "Unresolve" : "Resolve"}
+                icon={isResolved ? <FaUndo /> : <FaCheck />}
+                size="xs"
+                variant="ghost"
+                colorScheme={isResolved ? "gray" : "green"}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  if (c.id) onResolve(c.id, !isResolved)
+                }}
+              />
+            ))}
+        </Flex>
+        {c.highlight &&
+          (c.highlight as { content?: { text?: string } }).content?.text && (
+            <Box
+              mb={1}
+              pl={2}
+              borderLeftWidth={2}
+              borderColor="yellow.400"
+              fontSize="xs"
+              color="gray.500"
+              fontStyle="italic"
+              noOfLines={2}
+            >
+              {
+                (c.highlight as unknown as { content: { text: string } })
+                  .content.text
+              }
             </Box>
           )}
-        </Box>
+        <Text fontSize="sm" whiteSpace="pre-wrap">
+          {c.comment}
+        </Text>
+      </Box>
+    )
+  }
+
+  // Renders a top-level comment together with its flat reply thread.
+  // Replies are one level deep only — the reply input always targets the
+  // top-level comment, matching Google Docs threading style.
+  const renderComment = (c: ProjectComment) => {
+    const replies = c.id ? repliesFor(c.id) : []
+    const threadId = c.id ?? null
+    return (
+      <Box key={c.id}>
+        {renderCommentCard(c, false)}
         {replies.length > 0 && (
-          <VStack align="stretch" spacing={1} mt={1}>
-            {replies.map((r) => renderComment(r, true))}
+          <VStack align="stretch" spacing={1} mt={1} ml={4}>
+            {replies.map((r) => renderCommentCard(r, true))}
           </VStack>
+        )}
+        {!!currentUserId && (
+          <Box mt={1} ml={4}>
+            {replyingToId !== threadId ? (
+              <Button
+                size="xs"
+                variant="ghost"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setReplyingToId(threadId)
+                  setReplyDraft("")
+                }}
+              >
+                Reply
+              </Button>
+            ) : (
+              <Box onClick={(e) => e.stopPropagation()}>
+                <Textarea
+                  size="xs"
+                  placeholder="Add a reply…"
+                  value={replyDraft}
+                  autoFocus
+                  onChange={(e) => setReplyDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (
+                      e.key === "Enter" &&
+                      (e.metaKey || e.ctrlKey) &&
+                      replyDraft.trim() &&
+                      threadId
+                    ) {
+                      e.preventDefault()
+                      replyMutation.mutate({
+                        commentId: threadId,
+                        body: replyDraft.trim(),
+                      })
+                    }
+                  }}
+                  rows={2}
+                  mb={1}
+                />
+                <Flex align="center" gap={3} mb={2}>
+                  <Button
+                    size="xs"
+                    variant="primary"
+                    isDisabled={!replyDraft.trim()}
+                    isLoading={
+                      replyMutation.isPending &&
+                      replyMutation.variables?.commentId === threadId
+                    }
+                    onClick={() =>
+                      threadId &&
+                      replyMutation.mutate({
+                        commentId: threadId,
+                        body: replyDraft.trim(),
+                      })
+                    }
+                  >
+                    Post
+                  </Button>
+                  <Button
+                    size="xs"
+                    variant="ghost"
+                    onClick={() => setReplyingToId(null)}
+                  >
+                    Cancel
+                  </Button>
+                </Flex>
+              </Box>
+            )}
+          </Box>
         )}
       </Box>
     )
