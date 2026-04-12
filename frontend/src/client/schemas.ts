@@ -3064,7 +3064,10 @@ though the schema permits it for future use.`,
       type: "any-of",
       contains: [
         {
-          type: "CommentHighlight",
+          type: "dictionary",
+          contains: {
+            properties: {},
+          },
         },
         {
           type: "null",

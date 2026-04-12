@@ -661,7 +661,7 @@ export type ProjectComment = {
   comment: string
   artifact_path?: string | null
   artifact_type?: string | null
-  highlight?: CommentHighlight | null
+  highlight?: Record<string, unknown> | null
   parent_id?: string | null
   external_url?: string | null
   resolved?: string | null

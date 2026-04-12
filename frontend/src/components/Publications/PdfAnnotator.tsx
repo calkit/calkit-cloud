@@ -646,24 +646,31 @@ export default function PdfAnnotator({
     }
   }, [url])
 
-  // Remove duplicate rendered PDF pages (same page number appearing twice).
-  // This guards against occasional double-init behavior in the viewer stack.
+  // Remove duplicate rendered PDF pages and re-trigger highlight rendering
+  // once pages are actually ready.
   useEffect(() => {
     if (!pdfReady || !containerRef.current) return
     const root = containerRef.current
-    let initialBumpDone = false
+    let textLayerBumpDone = false
+    // Track the first page's rendered height. PdfHighlighter's internal
+    // ResizeObserver fires handleScaleValue (debounced 500 ms) which corrects
+    // the PDF.js viewport scale, causing pages to re-render at a different
+    // height. We detect that change and re-bump highlightsKey so
+    // renderHighlightLayers() uses the corrected viewport — otherwise
+    // scaledToViewport produces wrong pixel positions until the first click.
+    let lastPageHeight = 0
 
-    const dedupePages = () => {
+    const dedupeAndSync = () => {
       const pages = Array.from(
         root.querySelectorAll<HTMLElement>(
           ".pdfViewer .page[data-page-number]",
         ),
       )
       if (pages.length === 0) return
+
       // Keep the LAST occurrence of each page number. PDF.js renders into the
       // most-recently created page divs (from the latest setDocument call), so
-      // removing the earlier duplicates is correct. Keeping the first set
-      // (previous behavior) left the viewer rendering into detached nodes.
+      // removing the earlier duplicates is correct.
       const seen = new Map<string, HTMLElement>()
       let removed = false
       for (const page of pages) {
@@ -675,19 +682,34 @@ export default function PdfAnnotator({
         }
         seen.set(pageNumber, page)
       }
-      // Force PdfHighlighter.componentDidUpdate so it calls
-      // renderHighlightLayers() using the surviving page set. Bump on the
-      // first detection of pages (catches the case where highlights were
-      // passed before PDF.js finished creating page nodes) and again whenever
-      // duplicate pages are removed.
-      if (!initialBumpDone || removed) {
-        initialBumpDone = true
+      // Re-bump after deduplication so renderHighlightLayers() uses the
+      // surviving page set.
+      if (removed) setHighlightsKey((k) => k + 1)
+
+      // Only proceed with highlight sync once text layers exist — that is when
+      // renderHighlightLayers() has real DOM targets to work with.
+      if (!root.querySelector(".pdfViewer .page .textLayer")) return
+
+      const firstPage = root.querySelector<HTMLElement>(
+        ".pdfViewer .page[data-page-number]",
+      )
+      const currentHeight = firstPage?.clientHeight ?? 0
+
+      if (!textLayerBumpDone) {
+        // Initial bump: text layers just appeared.
+        textLayerBumpDone = true
+        lastPageHeight = currentHeight
+        setHighlightsKey((k) => k + 1)
+      } else if (currentHeight > 0 && currentHeight !== lastPageHeight) {
+        // Page height changed — PDF.js re-rendered at a corrected scale.
+        // Re-bump so renderHighlightLayers() uses the updated viewport.
+        lastPageHeight = currentHeight
         setHighlightsKey((k) => k + 1)
       }
     }
 
-    dedupePages()
-    const observer = new MutationObserver(dedupePages)
+    dedupeAndSync()
+    const observer = new MutationObserver(dedupeAndSync)
     observer.observe(root, { childList: true, subtree: true })
     return () => observer.disconnect()
   }, [pdfReady, url])
