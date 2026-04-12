@@ -3074,7 +3074,9 @@ async def post_project_overleaf_publication(
                 token=overleaf_token,
                 expires=None,
             )
-        if current_user.overleaf_token is None:
+        try:
+            users.get_overleaf_token(session=session, user=current_user)
+        except HTTPException:
             raise HTTPException(400, "No Overleaf token found")
         try:
             overleaf_repo = get_overleaf_repo(
@@ -3278,7 +3280,9 @@ def post_project_overleaf_sync(
     current_user: CurrentUser,
     session: SessionDep,
 ) -> OverleafSyncResponse:
-    if current_user.overleaf_token is None:
+    try:
+        users.get_overleaf_token(session=session, user=current_user)
+    except HTTPException:
         raise HTTPException(401, "Overleaf token not found")
     project = app.projects.get_project(
         owner_name=owner_name,

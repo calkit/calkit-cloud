@@ -271,9 +271,6 @@ def get_overleaf_repo(
     project: Project, user: User, session: Session, overleaf_project_id: str
 ) -> git.Repo:
     """Get a freshly pulled Overleaf repository for a user/project."""
-    if user.overleaf_token is None:
-        # This should never happen, since it would be checked in the caller
-        raise RuntimeError("User has no Overleaf token")
     owner_name, project_name = project.owner_github_name, project.name
     base_dir = (
         f"/tmp/{user.github_username}/{owner_name}/"
