@@ -33,21 +33,26 @@ function FigureView({ figure, width }: FigureViewProps) {
     figure.path.endsWith(".jpg") ||
     figure.path.endsWith(".jpeg")
   ) {
+    const mime = figure.path.endsWith(".png") ? "image/png" : "image/jpeg"
     figView = (
-      <Box width={boxWidth}>
+      <Box width="100%" height="100%">
         <Image
           alt={figure.title}
           src={
             figure.content
-              ? `data:image/png;base64,${figure.content}`
+              ? `data:${mime};base64,${figure.content}`
               : String(figure.url)
           }
+          width="100%"
+          height="100%"
+          objectFit="contain"
+          display="block"
         />
       </Box>
     )
   } else if (figure.path.endsWith(".svg")) {
     figView = (
-      <Box width={boxWidth}>
+      <Box width="100%" height="100%">
         <Image
           alt={figure.title}
           src={
@@ -56,6 +61,9 @@ function FigureView({ figure, width }: FigureViewProps) {
               : String(figure.url)
           }
           width="100%"
+          height="100%"
+          objectFit="contain"
+          display="block"
         />
       </Box>
     )

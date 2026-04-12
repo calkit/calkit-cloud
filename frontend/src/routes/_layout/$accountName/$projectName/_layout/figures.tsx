@@ -208,6 +208,19 @@ function ProjectFigures() {
     )
   })
 
+  const selectedIndex =
+    filteredFigures?.findIndex((f) => f.path === selectedPath) ?? -1
+
+  const openPrev =
+    selectedIndex > 0
+      ? () => openFigure(filteredFigures![selectedIndex - 1])
+      : undefined
+
+  const openNext =
+    selectedIndex < (filteredFigures?.length ?? 0) - 1
+      ? () => openFigure(filteredFigures![selectedIndex + 1])
+      : undefined
+
   return (
     <>
       <Box>
@@ -319,6 +332,8 @@ function ProjectFigures() {
               }),
             })
           }
+          onPrev={openPrev}
+          onNext={openNext}
         />
       )}
     </>

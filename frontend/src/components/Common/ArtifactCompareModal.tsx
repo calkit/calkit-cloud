@@ -38,6 +38,8 @@ import {
 } from "@chakra-ui/react"
 import {
   FaCheck,
+  FaChevronLeft,
+  FaChevronRight,
   FaCodeBranch,
   FaGithub,
   FaLink,
@@ -89,6 +91,8 @@ interface ArtifactCompareModalProps {
   initialRef2?: string
   initialArtifact?: Figure | Publication | Notebook | ContentsItem
   onRefsChange?: (ref1: string | undefined, ref2: string | undefined) => void
+  onPrev?: () => void
+  onNext?: () => void
 }
 
 /** Render the artifact content for a given kind/data. */
@@ -115,7 +119,15 @@ function ArtifactContent({
     if (!fig.content && !fig.url) {
       return <Text color="gray.500">No content found for this version.</Text>
     }
-    return <FigureView figure={fig} />
+    // PDFs scroll naturally; raster images fill the container via objectFit
+    if (path.endsWith(".pdf")) {
+      return <FigureView figure={fig} />
+    }
+    return (
+      <Box height="100%" width="100%">
+        <FigureView figure={fig} />
+      </Box>
+    )
   }
 
   if (kind === "publication") {
@@ -631,6 +643,8 @@ export function ArtifactCompareModal({
   initialRef2,
   initialArtifact,
   onRefsChange,
+  onPrev,
+  onNext,
 }: ArtifactCompareModalProps) {
   const borderColor = useColorModeValue("gray.200", "gray.600")
   const hoverBg = useColorModeValue("gray.50", "gray.700")
@@ -648,6 +662,16 @@ export function ArtifactCompareModal({
   useEffect(() => {
     onRefsChange?.(ref1, ref2)
   }, [ref1, ref2])
+
+  useEffect(() => {
+    if (!isOpen) return
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "ArrowLeft") onPrev?.()
+      else if (e.key === "ArrowRight") onNext?.()
+    }
+    window.addEventListener("keydown", handleKey)
+    return () => window.removeEventListener("keydown", handleKey)
+  }, [isOpen, onPrev, onNext])
 
   const historyQuery = useQuery({
     queryKey: ["projects", ownerName, projectName, "file-history", path],
@@ -703,6 +727,8 @@ export function ArtifactCompareModal({
 
   const isComparing = Boolean(ref2)
 
+  const isImageFigure = kind === "figure" && !path.endsWith(".pdf")
+
   const getShareUrl = () => {
     const url = new URL(window.location.href)
     if (ref1) url.searchParams.set("base_ref", ref1)
@@ -740,7 +766,9 @@ export function ArtifactCompareModal({
       <ModalContent maxW="95vw" maxH="95vh">
         <ModalHeader pr={12}>
           <Flex align="center" gap={2}>
-            <Text noOfLines={1}>{path}</Text>
+            <Text noOfLines={1} flex={1}>
+              {path}
+            </Text>
             {isComparing && (
               <Tooltip label="Copy shareable link">
                 <IconButton
@@ -923,9 +951,19 @@ export function ArtifactCompareModal({
             </Box>
 
             {/* Artifact content area */}
-            <Box flex={1} overflowY="auto" minW={0}>
+            <Box
+              flex={1}
+              minW={0}
+              minH={0}
+              display="flex"
+              flexDirection="column"
+            >
               {isComparing ? (
-                <>
+                <Box
+                  flex={1}
+                  minH={0}
+                  overflow={isImageFigure ? "hidden" : "auto"}
+                >
                   {kind === "file" && displayData1 && artifact2Query.data ? (
                     (() => {
                       const decode = (
@@ -963,7 +1001,7 @@ export function ArtifactCompareModal({
                     })()
                   ) : (
                     <Flex gap={4} align="flex-start" height="100%">
-                      <Box flex={1}>
+                      <Box flex={1} minH={0}>
                         <Flex align="center" gap={2} mb={2}>
                           <Badge colorScheme="blue">A</Badge>
                           <Code fontSize="sm">{ref1}</Code>
@@ -979,7 +1017,7 @@ export function ArtifactCompareModal({
                         )}
                       </Box>
                       <Divider orientation="vertical" />
-                      <Box flex={1}>
+                      <Box flex={1} minH={0}>
                         <Flex align="center" gap={2} mb={2}>
                           <Badge colorScheme="purple">B</Badge>
                           <Code fontSize="sm">{ref2}</Code>
@@ -996,11 +1034,11 @@ export function ArtifactCompareModal({
                       </Box>
                     </Flex>
                   )}
-                </>
+                </Box>
               ) : (
                 <>
                   {ref1 && (
-                    <Flex align="center" gap={2} mb={2}>
+                    <Flex align="center" gap={2} mb={2} flexShrink={0}>
                       <Badge colorScheme="blue">A</Badge>
                       <Code fontSize="sm">{ref1}</Code>
                       <Text fontSize="xs" color="gray.500">
@@ -1008,17 +1046,62 @@ export function ArtifactCompareModal({
                       </Text>
                     </Flex>
                   )}
-                  {isPending1 ? (
-                    <Flex justify="center" align="center" height="200px">
-                      <Spinner color="ui.main" />
+                  <Flex flex={1} minH={0} align="stretch" gap={1}>
+                    {/* Left arrow */}
+                    <Flex
+                      w="28px"
+                      flexShrink={0}
+                      align="center"
+                      justify="center"
+                      ml={-2}
+                    >
+                      {onPrev && (
+                        <IconButton
+                          aria-label="Previous"
+                          icon={<FaChevronLeft />}
+                          size="sm"
+                          variant="ghost"
+                          onClick={onPrev}
+                        />
+                      )}
                     </Flex>
-                  ) : (
-                    <ArtifactContent
-                      kind={kind}
-                      path={path}
-                      data={displayData1}
-                    />
-                  )}
+                    {/* Content */}
+                    <Box
+                      flex={1}
+                      minH={0}
+                      overflow={isImageFigure ? "hidden" : "auto"}
+                    >
+                      {isPending1 ? (
+                        <Flex justify="center" align="center" height="200px">
+                          <Spinner color="ui.main" />
+                        </Flex>
+                      ) : (
+                        <ArtifactContent
+                          kind={kind}
+                          path={path}
+                          data={displayData1}
+                        />
+                      )}
+                    </Box>
+                    {/* Right arrow */}
+                    <Flex
+                      w="28px"
+                      flexShrink={0}
+                      align="center"
+                      justify="center"
+                      mr={-2}
+                    >
+                      {onNext && (
+                        <IconButton
+                          aria-label="Next"
+                          icon={<FaChevronRight />}
+                          size="sm"
+                          variant="ghost"
+                          onClick={onNext}
+                        />
+                      )}
+                    </Flex>
+                  </Flex>
                 </>
               )}
             </Box>
