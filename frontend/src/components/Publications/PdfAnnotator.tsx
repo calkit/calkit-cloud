@@ -63,6 +63,7 @@ export interface AnnotationHighlight extends IHighlight {
   authorName: string | null
   createdAt: string
   resolved: boolean
+  externalUrl: string | null
 }
 
 export function commentToHighlight(
@@ -84,6 +85,7 @@ export function commentToHighlight(
     authorName: c.user_full_name ?? c.user_github_username ?? null,
     createdAt: c.created ?? "",
     resolved: !!c.resolved,
+    externalUrl: c.external_url ?? null,
   }
 }
 
@@ -111,6 +113,7 @@ function AddCommentTip({
       p={3}
       boxShadow="lg"
       w="260px"
+      onPointerDown={(e) => e.stopPropagation()}
     >
       <Textarea
         autoFocus
@@ -184,14 +187,24 @@ function HighlightPopup({
       <Flex align="flex-start" gap={2} mb={1}>
         <Avatar name={highlight.authorName ?? undefined} size="xs" mt={0.5} />
         <Box flex={1}>
-          <Text fontSize="xs" fontWeight="bold">
-            {highlight.authorName ?? "Unknown"}
-          </Text>
-          <Text fontSize="xs" color="gray.500">
-            {highlight.createdAt
-              ? new Date(highlight.createdAt).toLocaleDateString()
-              : ""}
-          </Text>
+          <Flex align="center" gap={1} wrap="wrap">
+            <Text fontSize="xs" fontWeight="bold" mr={1}>
+              {highlight.authorName ?? "Unknown"}
+            </Text>
+            <Text fontSize="xs" color="gray.500" mr="auto">
+              {highlight.createdAt
+                ? new Date(highlight.createdAt).toLocaleDateString()
+                : ""}
+            </Text>
+            {highlight.externalUrl && (
+              <Link href={highlight.externalUrl} isExternal color="gray.500">
+                <Flex align="center" gap={0.5}>
+                  <Icon as={FaGithub} boxSize={3} />
+                  <ExternalLinkIcon boxSize={2.5} />
+                </Flex>
+              </Link>
+            )}
+          </Flex>
         </Box>
         {canResolve &&
           (isResolving ? (
@@ -869,8 +882,18 @@ export default function PdfAnnotator({
                 scrollRef.current = fn
                 if (externalScrollRef) externalScrollRef.current = fn
               }}
-              onSelectionFinished={(position, content, hideTip) =>
-                user ? (
+              onSelectionFinished={(
+                position,
+                content,
+                hideTip,
+                transformSelection,
+              ) => {
+                // transformSelection sets ghostHighlight on PdfHighlighter so
+                // the yellow selection remains visible while the user types in
+                // the comment box (typing clears document.getSelection(), which
+                // otherwise makes isCollapsed=true and drops the visual selection).
+                transformSelection()
+                return user ? (
                   <AddCommentTip
                     onConfirm={(text, createIssue) => {
                       handleAddHighlight(
@@ -883,7 +906,7 @@ export default function PdfAnnotator({
                     onCancel={hideTip}
                   />
                 ) : null
-              }
+              }}
               highlightTransform={(
                 highlight,
                 _index,
@@ -894,7 +917,7 @@ export default function PdfAnnotator({
                 isScrolledTo,
               ) => {
                 const annotHL = highlight as unknown as AnnotationHighlight
-                const isArea = Boolean(highlight.content.image)
+                const isArea = Boolean(highlight.content?.image)
                 const component = isArea ? (
                   <AreaHighlight
                     isScrolledTo={isScrolledTo}
