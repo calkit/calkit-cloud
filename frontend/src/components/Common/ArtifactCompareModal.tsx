@@ -52,6 +52,7 @@ import { useState, useEffect } from "react"
 import ReactDiffViewer, { DiffMethod } from "react-diff-viewer-continued"
 
 import FigureView from "../Figures/FigureView"
+import PdfCanvas from "./PdfCanvas"
 import FileContent from "../Files/FileContent"
 import {
   type Figure,
@@ -119,9 +120,11 @@ function ArtifactContent({
     if (!fig.content && !fig.url) {
       return <Text color="gray.500">No content found for this version.</Text>
     }
-    // PDFs scroll naturally; raster images fill the container via objectFit
     if (path.endsWith(".pdf")) {
-      return <FigureView figure={fig} />
+      const src = fig.content
+        ? `data:application/pdf;base64,${fig.content}`
+        : String(fig.url)
+      return <PdfCanvas src={src} height="100%" />
     }
     return (
       <Box height="100%" width="100%">
@@ -727,8 +730,6 @@ export function ArtifactCompareModal({
 
   const isComparing = Boolean(ref2)
 
-  const isImageFigure = kind === "figure" && !path.endsWith(".pdf")
-
   const getShareUrl = () => {
     const url = new URL(window.location.href)
     if (ref1) url.searchParams.set("base_ref", ref1)
@@ -962,7 +963,7 @@ export function ArtifactCompareModal({
                 <Box
                   flex={1}
                   minH={0}
-                  overflow={isImageFigure ? "hidden" : "auto"}
+                  overflow={kind === "figure" ? "hidden" : "auto"}
                 >
                   {kind === "file" && displayData1 && artifact2Query.data ? (
                     (() => {
@@ -1069,7 +1070,7 @@ export function ArtifactCompareModal({
                     <Box
                       flex={1}
                       minH={0}
-                      overflow={isImageFigure ? "hidden" : "auto"}
+                      overflow={kind === "figure" ? "hidden" : "auto"}
                     >
                       {isPending1 ? (
                         <Flex justify="center" align="center" height="200px">

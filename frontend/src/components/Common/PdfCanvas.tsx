@@ -19,11 +19,13 @@ interface PdfCanvasProps {
   /** A URL or base64 data URI for the PDF. */
   src: string
   width?: string
+  /** Constrain by height instead of width. Pages scale to this height with auto width. */
+  height?: string
   /** Maximum number of pages to render. Defaults to all pages. */
   maxPages?: number
 }
 
-function PdfCanvas({ src, width = "100%", maxPages }: PdfCanvasProps) {
+function PdfCanvas({ src, width = "100%", height, maxPages }: PdfCanvasProps) {
   const [pageUrls, setPageUrls] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
@@ -71,6 +73,27 @@ function PdfCanvas({ src, width = "100%", maxPages }: PdfCanvasProps) {
 
   if (loading) return <Text color="gray.500">Loading…</Text>
   if (error) return <Text color="gray.500">Could not render PDF.</Text>
+
+  if (height) {
+    return (
+      <Box
+        height={height}
+        display="flex"
+        alignItems="center"
+        justifyContent="center"
+        overflow="hidden"
+      >
+        {pageUrls.map((url, i) => (
+          <img
+            key={i}
+            src={url}
+            alt={`Page ${i + 1}`}
+            style={{ maxHeight: "100%", width: "auto", display: "block" }}
+          />
+        ))}
+      </Box>
+    )
+  }
 
   return (
     <Box width={width}>
