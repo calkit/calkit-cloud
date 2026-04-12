@@ -44,7 +44,7 @@ import {
   type NewHighlight,
 } from "react-pdf-highlighter"
 import "react-pdf-highlighter/dist/style.css"
-import { FaCheck, FaUndo, FaGithub } from "react-icons/fa"
+import { FaCheck, FaUndo, FaGithub, FaReply } from "react-icons/fa"
 import { ExternalLinkIcon } from "@chakra-ui/icons"
 
 import {
@@ -337,80 +337,90 @@ export function CommentList({
   const withoutHighlight = filtered.filter((c) => !c.highlight)
 
   // Renders a single comment card (no reply UI — that lives at the thread level).
+  // Uses avatar-outside-bubble layout: avatar floated left, content in a bordered box.
   const renderCommentCard = (c: ProjectComment, isReply = false) => {
     const hl = highlights.find((h) => h.dbId === c.id)
     const isResolved = !!c.resolved
     return (
-      <Box
-        key={c.id}
-        p={isReply ? 2 : 3}
-        borderWidth={1}
-        borderColor={isResolved ? "green.200" : borderColor}
-        borderRadius="md"
-        opacity={isResolved ? 0.7 : 1}
-        cursor={hl ? "pointer" : "default"}
-        _hover={hl ? { borderColor: "yellow.400" } : undefined}
-        onClick={() => hl && scrollToHighlight(hl)}
-      >
-        <Flex align="center" gap={2} mb={1}>
-          <Avatar
-            name={c.user_full_name ?? c.user_github_username ?? undefined}
-            size="xs"
-          />
-          <Text fontSize="xs" fontWeight="bold">
-            {c.user_full_name ?? c.user_github_username}
-          </Text>
-          <Text fontSize="xs" color="gray.500" ml="auto">
-            {c.created ? new Date(c.created).toLocaleDateString() : ""}
-          </Text>
-          {c.external_url && (
-            <Flex align="center" gap={1} onClick={(e) => e.stopPropagation()}>
-              <Icon as={FaGithub} boxSize={3} color="gray.500" />
-              <Link href={c.external_url} isExternal>
-                <ExternalLinkIcon boxSize={3} />
+      <Flex key={c.id} gap={2}>
+        <Avatar
+          name={c.user_full_name ?? c.user_github_username ?? undefined}
+          size="xs"
+          mt={0.5}
+          flexShrink={0}
+        />
+        <Box
+          flex={1}
+          borderWidth={1}
+          borderColor={isResolved ? "green.200" : borderColor}
+          borderRadius="md"
+          p={isReply ? 2 : 3}
+          opacity={isResolved ? 0.7 : 1}
+          cursor={hl ? "pointer" : "default"}
+          _hover={hl ? { borderColor: "yellow.400" } : undefined}
+          onClick={() => hl && scrollToHighlight(hl)}
+        >
+          <Flex align="center" gap={1} mb={1} wrap="wrap">
+            <Text fontSize="xs" fontWeight="bold" mr={1}>
+              {c.user_full_name ?? c.user_github_username}
+            </Text>
+            <Text fontSize="xs" color="gray.500" mr="auto">
+              {c.created ? new Date(c.created).toLocaleDateString() : ""}
+            </Text>
+            {c.external_url && (
+              <Link
+                href={c.external_url}
+                isExternal
+                color="gray.500"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <Flex align="center" gap={0.5}>
+                  <Icon as={FaGithub} boxSize={3} />
+                  <ExternalLinkIcon boxSize={2.5} />
+                </Flex>
               </Link>
-            </Flex>
-          )}
-          {!!currentUserId &&
-            !isReply &&
-            (resolvingId === c.id ? (
-              <Spinner size="xs" color="ui.main" />
-            ) : (
-              <IconButton
-                aria-label={isResolved ? "Unresolve" : "Resolve"}
-                icon={isResolved ? <FaUndo /> : <FaCheck />}
-                size="xs"
-                variant="ghost"
-                colorScheme={isResolved ? "gray" : "green"}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  if (c.id) onResolve(c.id, !isResolved)
-                }}
-              />
-            ))}
-        </Flex>
-        {c.highlight &&
-          (c.highlight as { content?: { text?: string } }).content?.text && (
-            <Box
-              mb={1}
-              pl={2}
-              borderLeftWidth={2}
-              borderColor="yellow.400"
-              fontSize="xs"
-              color="gray.500"
-              fontStyle="italic"
-              noOfLines={2}
-            >
-              {
-                (c.highlight as unknown as { content: { text: string } })
-                  .content.text
-              }
-            </Box>
-          )}
-        <Text fontSize="sm" whiteSpace="pre-wrap">
-          {c.comment}
-        </Text>
-      </Box>
+            )}
+            {!!currentUserId &&
+              !isReply &&
+              (resolvingId === c.id ? (
+                <Spinner size="xs" color="ui.main" />
+              ) : (
+                <IconButton
+                  aria-label={isResolved ? "Unresolve" : "Resolve"}
+                  icon={isResolved ? <FaUndo /> : <FaCheck />}
+                  size="xs"
+                  variant="ghost"
+                  colorScheme={isResolved ? "gray" : "green"}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    if (c.id) onResolve(c.id, !isResolved)
+                  }}
+                />
+              ))}
+          </Flex>
+          {c.highlight &&
+            (c.highlight as { content?: { text?: string } }).content?.text && (
+              <Box
+                mb={1}
+                pl={2}
+                borderLeftWidth={2}
+                borderColor="yellow.400"
+                fontSize="xs"
+                color="gray.500"
+                fontStyle="italic"
+                noOfLines={2}
+              >
+                {
+                  (c.highlight as unknown as { content: { text: string } })
+                    .content.text
+                }
+              </Box>
+            )}
+          <Text fontSize="sm" whiteSpace="pre-wrap">
+            {c.comment}
+          </Text>
+        </Box>
+      </Flex>
     )
   }
 
@@ -434,6 +444,7 @@ export function CommentList({
               <Button
                 size="xs"
                 variant="ghost"
+                leftIcon={<Icon as={FaReply} />}
                 onClick={(e) => {
                   e.stopPropagation()
                   setReplyingToId(threadId)
