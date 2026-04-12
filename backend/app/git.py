@@ -1,10 +1,13 @@
 """Functionality for working with Git."""
 
+import atexit
 import json
 import os
 import posixpath
 import shutil
+import stat
 import subprocess
+import tempfile
 import time
 from abc import ABC, abstractmethod
 from collections import OrderedDict
@@ -21,6 +24,49 @@ from app.core import logger, ryaml
 from app.models import GitRef, Project, User
 
 _SYMLINK_MODE = 0o120000
+
+# Path to a persistent GIT_ASKPASS helper script created at first use.
+# The script reads the token from the GIT_TOKEN environment variable so the
+# token never appears in URLs, command-line arguments, or .git/config.
+_ASKPASS_SCRIPT_PATH: str | None = None
+
+
+def _get_askpass_script() -> str:
+    """Return the path to the GIT_ASKPASS helper, creating it if needed."""
+    global _ASKPASS_SCRIPT_PATH
+    if _ASKPASS_SCRIPT_PATH and os.path.isfile(_ASKPASS_SCRIPT_PATH):
+        return _ASKPASS_SCRIPT_PATH
+    script = (
+        "#!/bin/sh\n"
+        'case "$1" in\n'
+        '  *Username*) echo "${GIT_USER:-x-access-token}" ;;\n'
+        '  *) echo "$GIT_TOKEN" ;;\n'
+        "esac\n"
+    )
+    fd, path = tempfile.mkstemp(prefix="ck_askpass_", suffix=".sh")
+    os.write(fd, script.encode())
+    os.close(fd)
+    os.chmod(path, stat.S_IRWXU)  # owner-only: rwx------
+    atexit.register(lambda: os.path.isfile(path) and os.unlink(path))
+    _ASKPASS_SCRIPT_PATH = path
+    return path
+
+
+def _make_git_env(token: str, username: str | None = None) -> dict[str, str]:
+    """Build an environment dict that authenticates git via GIT_ASKPASS.
+
+    ``username`` overrides the default ``x-access-token`` git username
+    (e.g. pass ``"git"`` for Overleaf).
+    """
+    env: dict[str, str] = {
+        **os.environ,
+        "GIT_ASKPASS": _get_askpass_script(),
+        "GIT_TOKEN": token,
+        "GIT_TERMINAL_PROMPT": "0",
+    }
+    if username is not None:
+        env["GIT_USER"] = username
+    return env
 
 
 def get_repo(
@@ -53,16 +99,18 @@ def get_repo(
         logger.info("Deleting repo directory to clone a fresh copy")
         shutil.rmtree(repo_dir, ignore_errors=True)
     # Clone the repo if it doesn't exist -- it will be in a "repo" dir
+    access_token: str | None = None
     if user is not None:
-        logger.info(f"Getting {user.email}'s access token for Git repo URL")
+        logger.info(f"Getting {user.email}'s access token for Git operations")
         access_token = users.get_github_token(session=session, user=user)
-        git_clone_url = (
-            f"https://x-access-token:{access_token}@"
-            f"{project.git_repo_url.removeprefix('https://')}.git"
-        )
-    else:
-        logger.info("Using public Git repo URL")
-        git_clone_url = project.git_repo_url
+    # Plain URL with no embedded token -- credentials supplied via GIT_ASKPASS
+    git_plain_url = (
+        project.git_repo_url
+        if not project.git_repo_url.endswith(".git")
+        else project.git_repo_url
+    )
+    if not git_plain_url.endswith(".git"):
+        git_plain_url = git_plain_url + ".git"
     newly_cloned = False
     repo = None
     if not os.path.isdir(repo_dir):
@@ -71,8 +119,9 @@ def get_repo(
         try:
             with lock:
                 try:
-                    clone_cmd = ["git", "clone", git_clone_url, repo_dir]
-                    subprocess.check_call(clone_cmd)
+                    clone_cmd = ["git", "clone", git_plain_url, repo_dir]
+                    env = _make_git_env(access_token) if access_token else None
+                    subprocess.check_call(clone_cmd, env=env)
                 except subprocess.CalledProcessError:
                     logger.error("Failed to clone repo")
                     # It's possible another process cloned this repo just as
@@ -98,6 +147,13 @@ def get_repo(
         repo = git.Repo(repo_dir)
         try:
             with lock:
+                # Set credentials on the git object before any network ops
+                if access_token:
+                    repo.git.update_environment(
+                        GIT_ASKPASS=_get_askpass_script(),
+                        GIT_TOKEN=access_token,
+                        GIT_TERMINAL_PROMPT="0",
+                    )
                 # Unshallow any repo that was cloned with --depth before we
                 # switched to always doing full clones.
                 try:
@@ -111,17 +167,12 @@ def get_repo(
                     )
                 if is_shallow:
                     logger.info("Unshallowing legacy shallow repo")
-                    repo.git.remote(["remove", "origin"])
-                    repo.git.remote(["add", "origin", git_clone_url])
                     repo.git.fetch(["--unshallow", "--tags"])
                     subprocess.call(["touch", updated_fpath])
                 ttl_expired = ttl is None or (
                     (time.time() - last_updated) > ttl
                 )
                 if ttl_expired and not is_shallow:
-                    logger.info("Updating remote in case token was refreshed")
-                    repo.git.remote(["remove", "origin"])
-                    repo.git.remote(["add", "origin", git_clone_url])
                     logger.info("Git fetching")
                     if ref is None:
                         branch_name = repo.active_branch.name
@@ -143,6 +194,15 @@ def get_repo(
             logger.error(f"Failed to refresh repo: {e}")
     if repo is None:
         repo = git.Repo(repo_dir)
+    # Attach credentials to the repo's git runner so every subsequent
+    # push/fetch/pull in callers (routes/core.py etc.) is authenticated
+    # without embedding the token in any URL or argument
+    if access_token:
+        repo.git.update_environment(
+            GIT_ASKPASS=_get_askpass_script(),
+            GIT_TOKEN=access_token,
+            GIT_TERMINAL_PROMPT="0",
+        )
     return repo
 
 
@@ -222,15 +282,29 @@ def get_overleaf_repo(
     repo_dir = os.path.join(base_dir, "repo")
     os.makedirs(base_dir, exist_ok=True)
     overleaf_token = users.get_overleaf_token(session=session, user=user)
-    git_clone_url = (
-        f"https://git:{overleaf_token}@git.overleaf.com/{overleaf_project_id}"
-    )
+    # Plain URL — credentials supplied via GIT_ASKPASS (username "git" for Overleaf).
+    git_plain_url = f"https://git.overleaf.com/{overleaf_project_id}"
+    env = _make_git_env(overleaf_token, username="git")
     if os.path.isdir(repo_dir):
-        # We should be able to simply go in here and pull
         repo = git.Repo(repo_dir)
+        repo.git.update_environment(
+            GIT_ASKPASS=_get_askpass_script(),
+            GIT_TOKEN=overleaf_token,
+            GIT_USER="git",
+            GIT_TERMINAL_PROMPT="0",
+        )
         repo.git.pull()
     else:
-        repo = git.Repo.clone_from(git_clone_url, repo_dir)
+        subprocess.check_call(
+            ["git", "clone", git_plain_url, repo_dir], env=env
+        )
+        repo = git.Repo(repo_dir)
+        repo.git.update_environment(
+            GIT_ASKPASS=_get_askpass_script(),
+            GIT_TOKEN=overleaf_token,
+            GIT_USER="git",
+            GIT_TERMINAL_PROMPT="0",
+        )
     # Run git config so we make commits as this user
     repo.git.config(["user.name", user.full_name])
     repo.git.config(["user.email", user.email])
@@ -864,7 +938,7 @@ def _resolve_commit(repo: git.Repo, ref: str) -> git.Commit:
     raise HTTPException(404, f"Git ref '{ref}' was not found")
 
 
-def tree_for_ref(repo: git.Repo, ref: str | None) -> RepoTree:
+def get_repo_tree_for_ref(repo: git.Repo, ref: str | None) -> RepoTree:
     """Return a ``RepoTree`` for *ref*.
 
     ``None`` returns a ``WorkingTree`` over the live checkout.  Any other

@@ -1537,7 +1537,7 @@ def get_project_figures(
     # Get the figure content and base64 encode it.
     # Pre-compute calkit.yaml / dvc.lock metadata once for the tree so we
     # don't re-read and re-expand on every iteration.
-    tree = app.projects.tree_for_ref(repo, ref)
+    tree = app.projects.get_repo_tree_for_ref(repo, ref)
     ck_info_full, dvc_lock_outs, zip_path_map = (
         app.projects.get_ck_info_and_dvc_outs_from_tree(project, tree)
     )
@@ -2723,7 +2723,7 @@ def get_project_publications(
         wdir=repo.working_dir, ck_info=ck_info, fix_legacy=False
     )
     resp = []
-    tree = app.projects.tree_for_ref(repo, ref)
+    tree = app.projects.get_repo_tree_for_ref(repo, ref)
     ck_info_full, dvc_lock_outs, zip_path_map = (
         app.projects.get_ck_info_and_dvc_outs_from_tree(project, tree)
     )
@@ -4135,7 +4135,7 @@ def get_project_notebooks(
     if not notebooks:
         return notebooks
     # Get the notebook content and base64 encode it
-    tree = app.projects.tree_for_ref(repo, ref)
+    tree = app.projects.get_repo_tree_for_ref(repo, ref)
     ck_info_full, dvc_lock_outs, zip_path_map = (
         app.projects.get_ck_info_and_dvc_outs_from_tree(project, tree)
     )

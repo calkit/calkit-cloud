@@ -17,7 +17,7 @@ from sqlmodel import Session, select
 
 import app.users
 from app.config import settings
-from app.git import RepoTree, tree_for_ref
+from app.git import RepoTree, get_repo_tree_for_ref
 from app.core import CATEGORIES_PLURAL_TO_SINGULAR, params_from_url
 from app.dvc import expand_dvc_lock_outs
 from app.dvc import get_data_fpath_for_md5
@@ -176,7 +176,7 @@ def get_contents_from_repo(
 ) -> ContentsItem:
     return get_contents_from_tree(
         project=project,
-        tree=tree_for_ref(repo, ref),
+        tree=get_repo_tree_for_ref(repo, ref),
         path=path,
     )
 
