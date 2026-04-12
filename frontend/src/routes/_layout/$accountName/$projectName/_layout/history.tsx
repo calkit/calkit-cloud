@@ -204,7 +204,13 @@ function CommitDetailModal({
   })
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="4xl" scrollBehavior="inside">
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      size="4xl"
+      scrollBehavior="inside"
+      isCentered
+    >
       <ModalOverlay />
       <ModalContent>
         <ModalHeader pr={12}>

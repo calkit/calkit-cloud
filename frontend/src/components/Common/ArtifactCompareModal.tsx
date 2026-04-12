@@ -762,7 +762,13 @@ export function ArtifactCompareModal({
   }
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="6xl" scrollBehavior="inside">
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      size="6xl"
+      scrollBehavior="inside"
+      isCentered
+    >
       <ModalOverlay />
       <ModalContent maxW="95vw" maxH="95vh">
         <ModalHeader pr={12}>
