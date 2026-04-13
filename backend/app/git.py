@@ -121,13 +121,9 @@ def get_repo(
         logger.info(f"Getting {user.email}'s access token for Git operations")
         access_token = users.get_github_token(session=session, user=user)
     # Plain URL with no embedded token -- credentials handled in helper
-    git_plain_url = (
-        project.git_repo_url
-        if not project.git_repo_url.endswith(".git")
-        else project.git_repo_url
-    )
+    git_plain_url = project.git_repo_url
     if not git_plain_url.endswith(".git"):
-        git_plain_url = git_plain_url + ".git"
+        git_plain_url += ".git"
     newly_cloned = False
     repo = None
     if not os.path.isdir(repo_dir):
@@ -168,15 +164,18 @@ def get_repo(
         repo = git.Repo(repo_dir)
         try:
             with lock:
-                # Migrate repos cloned with an embedded token in the remote URL
-                # to the plain URL so our credential helper is used instead
+                # Migrate repos cloned with an embedded token in the remote
+                # URL to the plain URL so our credential helper is used
+                # instead. Plain https URLs from GitHub never contain "@", so
+                # this heuristic is safe for our inputs.
                 try:
                     current_url = repo.remotes.origin.url
                     if "@" in current_url:
                         logger.info("Stripping token from remote URL")
                         repo.remotes.origin.set_url(git_plain_url)
-                except Exception:
-                    pass
+                except (GitCommandError, AttributeError) as e:
+                    # Best-effort migration; log but continue
+                    logger.warning(f"Could not migrate remote URL: {e}")
                 # Set credentials on the git object before any network ops
                 if access_token:
                     repo.git.update_environment(
