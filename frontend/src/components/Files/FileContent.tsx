@@ -68,7 +68,13 @@ function FileContent({ item }: FileContentProps) {
   }
   if (name.endsWith(".md") && content) {
     return (
-      <Box py={2} px={4} maxW={"750px"}>
+      <Box
+        height="calc(100vh - 160px)"
+        width="100%"
+        overflowY="auto"
+        py={2}
+        px={4}
+      >
         <Markdown>{atob(content)}</Markdown>
       </Box>
     )
