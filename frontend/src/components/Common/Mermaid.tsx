@@ -1,5 +1,4 @@
 import { useEffect, useRef } from "react"
-import mermaid from "mermaid"
 import { zoom, zoomIdentity, ZoomBehavior, D3ZoomEvent } from "d3-zoom"
 import { select } from "d3-selection"
 import { Box, IconButton, Flex } from "@chakra-ui/react"
@@ -32,6 +31,7 @@ const Mermaid = ({
   useEffect(() => {
     const renderDiagram = async () => {
       try {
+        const { default: mermaid } = await import("mermaid")
         mermaid.initialize({
           startOnLoad: false,
           theme: "dark",

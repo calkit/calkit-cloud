@@ -48,7 +48,7 @@ import {
 } from "react-icons/fa"
 import { ExternalLinkIcon } from "@chakra-ui/icons"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { useState, useEffect } from "react"
+import { useState, useEffect, lazy, Suspense } from "react"
 import ReactDiffViewer, { DiffMethod } from "react-diff-viewer-continued"
 
 import FigureView from "../Figures/FigureView"
@@ -63,8 +63,12 @@ import {
   ProjectsService,
 } from "../../client"
 import useAuth from "../../hooks/useAuth"
-import { IpynbRenderer } from "react-ipynb-renderer"
-import "react-ipynb-renderer/dist/styles/monokai.css"
+const IpynbRenderer = lazy(() =>
+  import("react-ipynb-renderer").then(async (m) => {
+    await import("react-ipynb-renderer/dist/styles/monokai.css")
+    return { default: m.IpynbRenderer }
+  }),
+)
 
 /** "file" covers auto-detected types not explicitly declared in calkit.yaml. */
 export type ArtifactKind = "figure" | "publication" | "notebook" | "file"
@@ -165,7 +169,9 @@ function ArtifactContent({
         const json = JSON.parse(atob(nb.content))
         return (
           <Box height="75vh" overflowY="auto">
-            <IpynbRenderer ipynb={json} syntaxTheme="atomDark" />
+            <Suspense fallback={<Spinner />}>
+              <IpynbRenderer ipynb={json} syntaxTheme="atomDark" />
+            </Suspense>
           </Box>
         )
       } catch {

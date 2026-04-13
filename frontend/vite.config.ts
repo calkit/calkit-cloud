@@ -55,6 +55,43 @@ export default defineConfig({
             return "vendor-routing"
           }
 
+          if (
+            id.includes("pdfjs-dist") ||
+            id.includes("react-pdf-highlighter")
+          ) {
+            return "vendor-pdf"
+          }
+
+          if (
+            id.includes("react-syntax-highlighter") ||
+            id.includes("highlight.js") ||
+            id.includes("lowlight") ||
+            id.includes("refractor")
+          ) {
+            return "vendor-syntax"
+          }
+
+          if (
+            id.includes("react-markdown") ||
+            id.includes("remark-") ||
+            id.includes("rehype-") ||
+            id.includes("micromark") ||
+            id.includes("mdast-") ||
+            id.includes("hast-") ||
+            id.includes("unified") ||
+            id.includes("unist-")
+          ) {
+            return "vendor-markdown"
+          }
+
+          if (id.includes("react-diff-viewer")) {
+            return "vendor-diff"
+          }
+
+          if (id.includes("d3-")) {
+            return "vendor-d3"
+          }
+
           return "vendor"
         },
       },

@@ -1,6 +1,8 @@
 import { Box, Image, Text } from "@chakra-ui/react"
-import Plot from "react-plotly.js"
+import { lazy, Suspense } from "react"
 import axios from "axios"
+
+const Plot = lazy(() => import("react-plotly.js"))
 import { useQuery } from "@tanstack/react-query"
 import { getRouteApi } from "@tanstack/react-router"
 
@@ -73,13 +75,15 @@ function FigureView({ figure, width }: FigureViewProps) {
       if (figObject.data && figObject.layout) {
         figView = (
           <Box width={boxWidth}>
-            <Plot
-              data={figObject.data}
-              layout={figObject.layout}
-              config={{ displayModeBar: false }}
-              style={{ width: "100%", height: "100%" }}
-              useResizeHandler={true}
-            />
+            <Suspense fallback={<Text>Loading...</Text>}>
+              <Plot
+                data={figObject.data}
+                layout={figObject.layout}
+                config={{ displayModeBar: false }}
+                style={{ width: "100%", height: "100%" }}
+                useResizeHandler={true}
+              />
+            </Suspense>
           </Box>
         )
       } else {

@@ -13,12 +13,17 @@ import {
 import { useQuery } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 import { useNavigate } from "@tanstack/react-router"
+import { lazy, Suspense } from "react"
 import { SiJupyter } from "react-icons/si"
 import { FaCodeBranch } from "react-icons/fa"
 import { z } from "zod"
 
-import { IpynbRenderer } from "react-ipynb-renderer"
-import "react-ipynb-renderer/dist/styles/monokai.css"
+const IpynbRenderer = lazy(() =>
+  import("react-ipynb-renderer").then(async (m) => {
+    await import("react-ipynb-renderer/dist/styles/monokai.css")
+    return { default: m.IpynbRenderer }
+  }),
+)
 
 import { ProjectsService, type Notebook } from "../../../../../client"
 import PageMenu from "../../../../../components/Common/PageMenu"
@@ -61,7 +66,9 @@ function NotebookView({ notebook }: { notebook: Notebook }) {
             },
           }}
         >
-          <IpynbRenderer ipynb={json} syntaxTheme="atomDark" />
+          <Suspense fallback={<LoadingSpinner />}>
+            <IpynbRenderer ipynb={json} syntaxTheme="atomDark" />
+          </Suspense>
         </Box>
       )
     } catch {
