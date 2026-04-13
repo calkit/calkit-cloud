@@ -16,7 +16,7 @@ from app.config import settings
 # Multipart/chunked upload configuration
 MULTIPART_THRESHOLD_BYTES = 64 * 1024 * 1024  # 64 MB
 MULTIPART_PART_SIZE_BYTES = 16 * 1024 * 1024  # 16 MB
-CHUNKED_CHUNK_SIZE_BYTES = 8 * 1024 * 1024  # 8 MB
+CHUNKED_CHUNK_SIZE_BYTES = 16 * 1024 * 1024  # 16 MB
 S3_MAX_PARTS = 10000  # S3 multipart upload limit
 
 
