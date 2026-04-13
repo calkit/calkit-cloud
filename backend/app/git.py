@@ -154,10 +154,20 @@ def get_repo(
         last_updated = os.path.getmtime(updated_fpath)
     else:
         last_updated = 0
+    did_refresh = newly_cloned
     if not newly_cloned:
         # TODO: Only pull if we know we need to, perhaps with a call to GitHub
         # for the latest rev
         repo = git.Repo(repo_dir)
+        ttl_expired = ttl is None or ((time.time() - last_updated) > ttl)
+        # Fast path: if the cache is still warm we skip the lock and the
+        # subprocesses that would otherwise run on every read (committer
+        # config, shallow check, URL migration). These are only relevant
+        # when we plan to hit the network or mutate the tree.
+        if not ttl_expired:
+            if access_token:
+                repo.git.update_environment(**_make_git_auth_env(access_token))
+            return repo
         try:
             with lock:
                 # Migrate repos cloned with an embedded token in the remote
@@ -179,23 +189,14 @@ def get_repo(
                     )
                 # Unshallow any repo that was cloned with --depth before we
                 # switched to always doing full clones.
-                try:
-                    is_shallow = (
-                        repo.git.rev_parse("--is-shallow-repository").strip()
-                        == "true"
-                    )
-                except GitCommandError:
-                    is_shallow = os.path.isfile(
-                        os.path.join(repo.git_dir, "shallow")
-                    )
+                is_shallow = os.path.isfile(
+                    os.path.join(repo.git_dir, "shallow")
+                )
                 if is_shallow:
                     logger.info("Unshallowing legacy shallow repo")
                     repo.git.fetch(["--unshallow", "--tags"])
                     subprocess.call(["touch", updated_fpath])
-                ttl_expired = ttl is None or (
-                    (time.time() - last_updated) > ttl
-                )
-                if ttl_expired and not is_shallow:
+                if not is_shallow:
                     logger.info("Git fetching")
                     if ref is None:
                         branch_name = repo.active_branch.name
@@ -211,6 +212,7 @@ def get_repo(
                     else:
                         repo.git.fetch(["--all", "--tags"])
                     subprocess.call(["touch", updated_fpath])
+                did_refresh = True
         except Timeout:
             logger.warning("Git repo lock timed out")
         except GitCommandError as e:
@@ -222,11 +224,13 @@ def get_repo(
     # without embedding the token in any URL or argument
     if access_token:
         repo.git.update_environment(**_make_git_auth_env(access_token))
-    # Always (re)configure committer identity. Do this on every call because
-    # `user.full_name` may have been None at the time of the initial clone
-    # (GitHub users without a display name), which would have stored the
-    # literal string "None" as the committer
-    if user is not None:
+    # (Re)configure committer identity only when we just refreshed or
+    # cloned. `user.full_name` may have been None at the time of the
+    # initial clone (GitHub users without a display name), which would
+    # have stored the literal string "None" as the committer, so we
+    # re-run on every refresh to repair that -- but not on every cached
+    # read, which would be pure overhead.
+    if user is not None and did_refresh:
         _configure_committer(repo, user, session=session)
     return repo
 
