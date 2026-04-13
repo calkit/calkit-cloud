@@ -25,42 +25,59 @@ from app.models import GitRef, Project, User
 
 _SYMLINK_MODE = 0o120000
 
-# Path to a persistent GIT_ASKPASS helper script created at first use.
-# The script reads the token from the GIT_TOKEN environment variable so the
-# token never appears in URLs, command-line arguments, or .git/config.
-_ASKPASS_SCRIPT_PATH: str | None = None
+# Path to a persistent git credential helper script created at first use
+# The script reads credentials from GIT_TOKEN / GIT_USER env vars so the
+# token never appears in URLs, command-line arguments, or .git/config
+_CREDENTIAL_HELPER_PATH: str | None = None
 
 
-def _get_askpass_script() -> str:
-    """Return the path to the GIT_ASKPASS helper, creating it if needed."""
-    global _ASKPASS_SCRIPT_PATH
-    if _ASKPASS_SCRIPT_PATH and os.path.isfile(_ASKPASS_SCRIPT_PATH):
-        return _ASKPASS_SCRIPT_PATH
+def _get_credential_helper() -> str:
+    """Return the path to the git credential helper, creating it if needed."""
+    global _CREDENTIAL_HELPER_PATH
+    if _CREDENTIAL_HELPER_PATH and os.path.isfile(_CREDENTIAL_HELPER_PATH):
+        return _CREDENTIAL_HELPER_PATH
+    # Git calls the helper with "get", "store", or "erase" as $1
+    # For "get" we read and discard stdin then emit credentials
+    # For everything else we drain stdin and do nothing
     script = (
         "#!/bin/sh\n"
         'case "$1" in\n'
-        '  *Username*) echo "${GIT_USER:-x-access-token}" ;;\n'
-        '  *) echo "$GIT_TOKEN" ;;\n'
+        "    get)\n"
+        '        while IFS= read -r line; do [ -z "$line" ] && break; done\n'
+        '        echo "username=${GIT_USER:-x-access-token}"\n'
+        '        echo "password=$GIT_TOKEN"\n'
+        "        ;;\n"
+        "    *) cat > /dev/null ;;\n"
         "esac\n"
     )
-    fd, path = tempfile.mkstemp(prefix="ck_askpass_", suffix=".sh")
+    fd, path = tempfile.mkstemp(prefix="ck_credhelper_", suffix=".sh")
     os.write(fd, script.encode())
     os.close(fd)
     os.chmod(path, stat.S_IRWXU)  # owner-only: rwx------
     atexit.register(lambda: os.path.isfile(path) and os.unlink(path))
-    _ASKPASS_SCRIPT_PATH = path
+    _CREDENTIAL_HELPER_PATH = path
     return path
 
 
-def _make_git_env(token: str, username: str | None = None) -> dict[str, str]:
-    """Build an environment dict that authenticates git via GIT_ASKPASS.
+def _make_git_auth_env(
+    token: str, username: str | None = None
+) -> dict[str, str]:
+    """Return env vars that authenticate any git HTTPS operation.
 
-    ``username`` overrides the default ``x-access-token`` git username
-    (e.g. pass ``"git"`` for Overleaf).
+    Installs a transient credential helper via GIT_CONFIG_COUNT that reads
+    from GIT_TOKEN (and optionally GIT_USER). The first config entry clears
+    any pre-existing credential helpers so ours is the only one invoked.
+    The token never appears in the remote URL, .git/config, or process args.
+
+    Pass ``username`` for hosts that use a fixed git username (e.g. ``"git"``
+    for Overleaf); omit it for GitHub where ``x-access-token`` is the default.
     """
     env: dict[str, str] = {
-        **os.environ,
-        "GIT_ASKPASS": _get_askpass_script(),
+        "GIT_CONFIG_COUNT": "2",
+        "GIT_CONFIG_KEY_0": "credential.helper",
+        "GIT_CONFIG_VALUE_0": "",  # Clear any existing helpers
+        "GIT_CONFIG_KEY_1": "credential.helper",
+        "GIT_CONFIG_VALUE_1": f"!{_get_credential_helper()}",
         "GIT_TOKEN": token,
         "GIT_TERMINAL_PROMPT": "0",
     }
@@ -103,7 +120,7 @@ def get_repo(
     if user is not None:
         logger.info(f"Getting {user.email}'s access token for Git operations")
         access_token = users.get_github_token(session=session, user=user)
-    # Plain URL with no embedded token -- credentials supplied via GIT_ASKPASS
+    # Plain URL with no embedded token -- credentials handled in helper
     git_plain_url = (
         project.git_repo_url
         if not project.git_repo_url.endswith(".git")
@@ -120,7 +137,11 @@ def get_repo(
             with lock:
                 try:
                     clone_cmd = ["git", "clone", git_plain_url, repo_dir]
-                    env = _make_git_env(access_token) if access_token else None
+                    env = (
+                        {**os.environ, **_make_git_auth_env(access_token)}
+                        if access_token
+                        else None
+                    )
                     subprocess.check_call(clone_cmd, env=env)
                 except subprocess.CalledProcessError:
                     logger.error("Failed to clone repo")
@@ -147,12 +168,19 @@ def get_repo(
         repo = git.Repo(repo_dir)
         try:
             with lock:
+                # Migrate repos cloned with an embedded token in the remote URL
+                # to the plain URL so our credential helper is used instead
+                try:
+                    current_url = repo.remotes.origin.url
+                    if "@" in current_url:
+                        logger.info("Stripping token from remote URL")
+                        repo.remotes.origin.set_url(git_plain_url)
+                except Exception:
+                    pass
                 # Set credentials on the git object before any network ops
                 if access_token:
                     repo.git.update_environment(
-                        GIT_ASKPASS=_get_askpass_script(),
-                        GIT_TOKEN=access_token,
-                        GIT_TERMINAL_PROMPT="0",
+                        **_make_git_auth_env(access_token)
                     )
                 # Unshallow any repo that was cloned with --depth before we
                 # switched to always doing full clones.
@@ -198,11 +226,7 @@ def get_repo(
     # push/fetch/pull in callers (routes/core.py etc.) is authenticated
     # without embedding the token in any URL or argument
     if access_token:
-        repo.git.update_environment(
-            GIT_ASKPASS=_get_askpass_script(),
-            GIT_TOKEN=access_token,
-            GIT_TERMINAL_PROMPT="0",
-        )
+        repo.git.update_environment(**_make_git_auth_env(access_token))
     return repo
 
 
@@ -279,29 +303,21 @@ def get_overleaf_repo(
     repo_dir = os.path.join(base_dir, "repo")
     os.makedirs(base_dir, exist_ok=True)
     overleaf_token = users.get_overleaf_token(session=session, user=user)
-    # Plain URL — credentials supplied via GIT_ASKPASS (username "git" for Overleaf).
+    # Plain URL — credentials supplied via credential helper
+    # (username "git" for Overleaf)
     git_plain_url = f"https://git.overleaf.com/{overleaf_project_id}"
-    env = _make_git_env(overleaf_token, username="git")
+    overleaf_auth = _make_git_auth_env(overleaf_token, username="git")
     if os.path.isdir(repo_dir):
         repo = git.Repo(repo_dir)
-        repo.git.update_environment(
-            GIT_ASKPASS=_get_askpass_script(),
-            GIT_TOKEN=overleaf_token,
-            GIT_USER="git",
-            GIT_TERMINAL_PROMPT="0",
-        )
+        repo.git.update_environment(**overleaf_auth)
         repo.git.pull()
     else:
         subprocess.check_call(
-            ["git", "clone", git_plain_url, repo_dir], env=env
+            ["git", "clone", git_plain_url, repo_dir],
+            env={**os.environ, **overleaf_auth},
         )
         repo = git.Repo(repo_dir)
-        repo.git.update_environment(
-            GIT_ASKPASS=_get_askpass_script(),
-            GIT_TOKEN=overleaf_token,
-            GIT_USER="git",
-            GIT_TERMINAL_PROMPT="0",
-        )
+        repo.git.update_environment(**overleaf_auth)
     # Run git config so we make commits as this user
     repo.git.config(["user.name", user.full_name])
     repo.git.config(["user.email", user.email])
