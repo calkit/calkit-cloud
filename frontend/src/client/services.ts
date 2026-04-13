@@ -280,6 +280,10 @@ export type ProjectsData = {
     ownerName: string
     path: string
     projectName: string
+    /**
+     * Artifact storage class; when supplied, limits the lookup to relevant sources (e.g., skips the dvc.lock scan for git files).
+     */
+    storage?: "git" | "dvc" | "dvc-zip" | null
   }
   PostProjectDvcFile: {
     idx: string
@@ -1767,13 +1771,15 @@ export class ProjectsService {
    *
    * Returns commits that touched the file directly, its DVC pointer (.dvc),
    * or dvc.lock (for pipeline outputs), so DVC-tracked artifacts are covered.
+   * Pass ``storage`` when the caller knows the artifact's storage class so
+   * irrelevant lookups are skipped.
    * @returns unknown Successful Response
    * @throws ApiError
    */
   public static getProjectFileHistory(
     data: ProjectsData["GetProjectFileHistory"],
   ): CancelablePromise<Array<Record<string, unknown>>> {
-    const { ownerName, projectName, path, limit = 100 } = data
+    const { ownerName, projectName, path, limit = 100, storage } = data
     return __request(OpenAPI, {
       method: "GET",
       url: "/projects/{owner_name}/{project_name}/git/file-history",
@@ -1784,6 +1790,7 @@ export class ProjectsService {
       query: {
         path,
         limit,
+        storage,
       },
       errors: {
         422: `Validation Error`,

@@ -633,19 +633,83 @@ def search_refs(repo: git.Repo, query: str | None = None) -> list["GitRef"]:
 _FILE_HISTORY_CACHE: OrderedDict[tuple, list[dict]] = OrderedDict()
 _FILE_HISTORY_CACHE_MAX = 256
 
+# Cache of parsed dvc.lock blobs: {blob_sha: {out_path: md5}}.
+# Shared across all file-history requests in the process so the YAML parse
+# for any given dvc.lock revision only happens once.
+_DVC_LOCK_PARSE_CACHE: OrderedDict[str, dict[str, str]] = OrderedDict()
+_DVC_LOCK_PARSE_CACHE_MAX = 512
+
+
+def _dvc_lock_outs_at(commit: git.Commit) -> dict[str, str] | None:
+    """Return the {out_path: md5} map parsed from dvc.lock at ``commit``.
+
+    Caches by dvc.lock blob SHA so the same revision is never parsed twice,
+    even across different file-history requests.
+    """
+    try:
+        blob = commit.tree / "dvc.lock"
+    except KeyError:
+        return None
+    sha = blob.hexsha
+    cached = _DVC_LOCK_PARSE_CACHE.get(sha)
+    if cached is not None:
+        _DVC_LOCK_PARSE_CACHE.move_to_end(sha)
+        return cached
+    try:
+        data = ryaml.load(blob.data_stream.read()) or {}
+    except Exception:
+        data = {}
+    outs: dict[str, str] = {}
+    for stage in (data.get("stages") or {}).values():
+        for out in stage.get("outs") or []:
+            p = out.get("path")
+            if not p:
+                continue
+            outs[p] = out.get("md5") or out.get("hash") or ""
+    _DVC_LOCK_PARSE_CACHE[sha] = outs
+    if len(_DVC_LOCK_PARSE_CACHE) > _DVC_LOCK_PARSE_CACHE_MAX:
+        _DVC_LOCK_PARSE_CACHE.popitem(last=False)
+    return outs
+
+
+def _commit_to_dict(commit: git.Commit) -> dict:
+    msg = (
+        commit.message
+        if isinstance(commit.message, str)
+        else bytes(commit.message).decode()
+    )
+    return {
+        "hash": commit.hexsha,
+        "short_hash": commit.hexsha[:7],
+        "message": msg,
+        "author": commit.author.name,
+        "author_email": commit.author.email,
+        "timestamp": commit.committed_datetime.isoformat(),
+        "committed_date": commit.committed_date,
+        "parent_hashes": [p.hexsha[:7] for p in commit.parents],
+        "summary": msg.split("\n")[0],
+    }
+
 
 def get_file_history(
     repo: git.Repo,
     path: str,
     max_count: int = 100,
+    storage: str | None = None,
 ) -> list[dict]:
     """Get commit history for a specific file path.
 
-    Checks the file itself, the ``<path>.dvc`` pointer file, and ``dvc.lock``
-    (for pipeline outputs) so DVC-tracked artifacts are covered too.
-    Deduplicates by commit hash and returns commits sorted newest-first.
-    Results are cached by HEAD SHA so repeated calls with an unchanged repo
-    are free.
+    Checks only the sources relevant to the artifact's ``storage`` class:
+
+    - ``git``: only commits that touched the file itself.
+    - ``dvc``: the file (legacy/pre-DVC history), the ``<path>.dvc`` pointer,
+      and ``dvc.lock`` transitions for pipeline outputs.
+    - ``dvc-zip``: the ``<path>.dvc`` pointer and ``dvc.lock``.
+    - ``None`` (unknown): check everything — preserves the legacy behaviour.
+
+    The ``dvc.lock`` scan only counts commits where *this* path's md5
+    actually changed, and YAML parses are cached by blob SHA across all
+    file-history requests.
 
     Parameters
     ----------
@@ -655,6 +719,9 @@ def get_file_history(
         Repo-relative file path to look up.
     max_count : int
         Maximum number of commits to return.
+    storage : str, optional
+        One of ``"git"``, ``"dvc"``, ``"dvc-zip"``. Used to skip lookups
+        that can't possibly produce results for this artifact.
 
     Returns
     -------
@@ -662,11 +729,15 @@ def get_file_history(
         Commit dicts sorted newest-first.
     """
     head_sha = repo.head.commit.hexsha
-    cache_key = (repo.working_dir, path, max_count, head_sha)
+    cache_key = (repo.working_dir, path, max_count, storage, head_sha)
     if cache_key in _FILE_HISTORY_CACHE:
         logger.info(f"Cache hit for file history: {path}")
         _FILE_HISTORY_CACHE.move_to_end(cache_key)
         return _FILE_HISTORY_CACHE[cache_key]
+
+    check_file = storage in (None, "git", "dvc")
+    check_dvc_pointer = storage in (None, "dvc", "dvc-zip")
+    check_dvc_lock = storage in (None, "dvc", "dvc-zip")
 
     seen: set[str] = set()
     commits: list[dict] = []
@@ -679,98 +750,37 @@ def get_file_history(
                 if commit.hexsha in seen:
                     continue
                 seen.add(commit.hexsha)
-                msg = (
-                    commit.message
-                    if isinstance(commit.message, str)
-                    else bytes(commit.message).decode()
-                )
-                commits.append(
-                    {
-                        "hash": commit.hexsha,
-                        "short_hash": commit.hexsha[:7],
-                        "message": msg,
-                        "author": commit.author.name,
-                        "author_email": commit.author.email,
-                        "timestamp": commit.committed_datetime.isoformat(),
-                        "committed_date": commit.committed_date,
-                        "parent_hashes": [
-                            p.hexsha[:7] for p in commit.parents
-                        ],
-                        "summary": msg.split("\n")[0],
-                    }
-                )
+                commits.append(_commit_to_dict(commit))
         except Exception as exc:
             logger.warning(
                 f"Failed to get file history for {git_path!r}: {exc}"
             )
 
-    # Direct git-tracked file
-    _collect(path)
-    # DVC pointer file
-    _collect(f"{path}.dvc")
-    # DVC lock file: only include commits where this file's entry actually
-    # changed
-    try:
-        import yaml as _yaml
+    if check_file:
+        _collect(path)
+    if check_dvc_pointer:
+        _collect(f"{path}.dvc")
+    if check_dvc_lock:
+        try:
+            prev_hash: str | None = None
+            for commit in repo.iter_commits(
+                "HEAD", paths="dvc.lock", max_count=max_count * 4
+            ):
+                outs = _dvc_lock_outs_at(commit)
+                current_hash = outs.get(path) if outs else None
+                if current_hash and current_hash != prev_hash:
+                    if commit.hexsha not in seen:
+                        seen.add(commit.hexsha)
+                        commits.append(_commit_to_dict(commit))
+                if current_hash:
+                    prev_hash = current_hash
+        except Exception as exc:
+            logger.warning(
+                f"Failed to get dvc.lock history for {path!r}: {exc}"
+            )
 
-        def _get_dvc_lock_hash(commit: git.Commit) -> str | None:
-            """Return the md5/hash for `path` in dvc.lock at this commit."""
-            try:
-                blob = commit.tree["dvc.lock"]
-                lock_data = _yaml.safe_load(blob.data_stream.read())
-                stages = lock_data.get("stages", {})
-                for stage in stages.values():
-                    for out in stage.get("outs", []):
-                        if out.get("path") == path:
-                            return out.get("md5") or out.get("hash") or None
-            except (KeyError, Exception):
-                return None
-            return None
-
-        prev_hash: str | None = None
-        for commit in repo.iter_commits(
-            "HEAD", paths="dvc.lock", max_count=max_count * 4
-        ):
-            current_hash = _get_dvc_lock_hash(commit)
-            if current_hash is not None and current_hash != prev_hash:
-                if commit.hexsha not in seen:
-                    seen.add(commit.hexsha)
-                    msg = (
-                        commit.message
-                        if isinstance(commit.message, str)
-                        else bytes(commit.message).decode()
-                    )
-                    commits.append(
-                        {
-                            "hash": commit.hexsha,
-                            "short_hash": commit.hexsha[:7],
-                            "message": msg,
-                            "author": commit.author.name,
-                            "author_email": commit.author.email,
-                            "timestamp": commit.committed_datetime.isoformat(),
-                            "committed_date": commit.committed_date,
-                            "parent_hashes": [
-                                p.hexsha[:7] for p in commit.parents
-                            ],
-                            "summary": msg.split("\n")[0],
-                        }
-                    )
-            if current_hash is not None:
-                prev_hash = current_hash
-    except Exception as exc:
-        logger.warning(f"Failed to get dvc.lock history for {path!r}: {exc}")
-
-    # Sort newest-first
     commits.sort(key=lambda c: c["committed_date"], reverse=True)
-    # Re-deduplicate after merge (committed_date tie-break is irrelevant here
-    # but the set already handles correctness).
-    seen2: set[str] = set()
-    result = []
-    for c in commits:
-        if c["hash"] not in seen2:
-            seen2.add(c["hash"])
-            result.append(c)
-    result = result[:max_count]
+    result = commits[:max_count]
     _FILE_HISTORY_CACHE[cache_key] = result
     if len(_FILE_HISTORY_CACHE) > _FILE_HISTORY_CACHE_MAX:
         _FILE_HISTORY_CACHE.popitem(last=False)

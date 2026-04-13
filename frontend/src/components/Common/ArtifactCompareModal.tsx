@@ -676,14 +676,24 @@ export function ArtifactCompareModal({
     return () => window.removeEventListener("keydown", handleKey)
   }, [isOpen, onPrev, onNext])
 
+  const artifactStorage = (initialArtifact as { storage?: string } | undefined)
+    ?.storage as "git" | "dvc" | "dvc-zip" | undefined
   const historyQuery = useQuery({
-    queryKey: ["projects", ownerName, projectName, "file-history", path],
+    queryKey: [
+      "projects",
+      ownerName,
+      projectName,
+      "file-history",
+      path,
+      artifactStorage,
+    ],
     queryFn: async () =>
       (await ProjectsService.getProjectFileHistory({
         ownerName,
         projectName,
         path,
         limit: 50,
+        storage: artifactStorage ?? null,
       })) as unknown as CommitHistory[],
     enabled: isOpen,
     staleTime: 5 * 60 * 1000,

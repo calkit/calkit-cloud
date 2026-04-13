@@ -993,11 +993,20 @@ def get_project_file_history(
     session: SessionDep,
     current_user: CurrentUserOptional,
     limit: int = Query(100, description="Max number of commits to return"),
+    storage: Optional[Literal["git", "dvc", "dvc-zip"]] = Query(
+        None,
+        description=(
+            "Artifact storage class; when supplied, limits the lookup to "
+            "relevant sources (e.g., skips the dvc.lock scan for git files)."
+        ),
+    ),
 ) -> list[dict]:
     """Get git commit history for a specific file path.
 
     Returns commits that touched the file directly, its DVC pointer (.dvc),
     or dvc.lock (for pipeline outputs), so DVC-tracked artifacts are covered.
+    Pass ``storage`` when the caller knows the artifact's storage class so
+    irrelevant lookups are skipped.
     """
     # Prevent path traversal
     if os.path.isabs(path):
@@ -1017,7 +1026,7 @@ def get_project_file_history(
         session=session,
         ttl=FULL_HISTORY_REPO_TTL,
     )
-    return get_file_history(repo, path=path, max_count=limit)
+    return get_file_history(repo, path=path, max_count=limit, storage=storage)
 
 
 @router.post("/projects/{owner_name}/{project_name}/dvc/files/md5/{idx}/{md5}")
