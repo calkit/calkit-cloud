@@ -457,6 +457,32 @@ def get_contents_from_tree(
                 storage="git",
             )
         )
+    elif path in zip_workspace_paths:
+        # dvc-zip mapped directory. Must take precedence over the
+        # ck_objects branch below, since a dvc-zip workspace path may
+        # also be registered as a dataset/publication artifact and
+        # should still be labeled with its dvc-zip storage.
+        zip_path = zip_path_map[path]
+        dvc_pointer = zip_path + ".dvc"
+        size = None
+        if tree.is_file(dvc_pointer):
+            try:
+                dvc_out_data = yaml.safe_load(tree.read_text(dvc_pointer))
+                size = dvc_out_data.get("outs", [{}])[0].get("size")
+            except Exception:
+                pass
+        return ContentsItem.model_validate(
+            dict(
+                path=path,
+                name=os.path.basename(path),
+                size=size,
+                type="dir",
+                in_repo=False,
+                calkit_object=ck_objects.get(path),
+                lock=file_locks_by_path.get(path),
+                storage="dvc-zip",
+            )
+        )
     elif path in ck_objects:
         logger.info(f"Looking in CK objects for {path}")
         dvc_out = ck_outs.get(path) or {}
@@ -499,29 +525,6 @@ def get_contents_from_tree(
                 calkit_object=ck_objects[path],
                 lock=file_locks_by_path.get(path),
                 storage="dvc",
-            )
-        )
-    elif path in zip_workspace_paths:
-        # dvc-zip mapped directory
-        zip_path = zip_path_map[path]
-        dvc_pointer = zip_path + ".dvc"
-        size = None
-        if tree.is_file(dvc_pointer):
-            try:
-                dvc_out_data = yaml.safe_load(tree.read_text(dvc_pointer))
-                size = dvc_out_data.get("outs", [{}])[0].get("size")
-            except Exception:
-                pass
-        return ContentsItem.model_validate(
-            dict(
-                path=path,
-                name=os.path.basename(path),
-                size=size,
-                type="dir",
-                in_repo=False,
-                calkit_object=ck_objects.get(path),
-                lock=file_locks_by_path.get(path),
-                storage="dvc-zip",
             )
         )
     else:
