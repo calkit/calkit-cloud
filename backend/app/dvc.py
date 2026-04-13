@@ -188,51 +188,67 @@ def expand_dvc_lock_outs(
         fs = get_object_fs()
     stages = dvc_lock.get("stages", {})
     dvc_lock_outs = {}
-    # Collect all .dir paths upfront
-    dir_outs_to_process = []
+    # Collect all unique .dir md5s upfront, along with the "modern" (non-
+    # legacy) object-storage path candidate for each. We read these in
+    # parallel; a separate parallel pass falls back to legacy paths only
+    # for md5s whose modern path is missing, so we never pay the serial
+    # 2x-fs.exists cost per directory that `get_data_fpath_for_md5` used to.
+    dir_md5s: set[str] = set()
     for stage_name, stage in stages.items():
         for out in stage.get("outs", []):
-            outpath = out["path"]
             md5 = out.get("md5", "")
             if md5 and md5.endswith(".dir"):
-                dvc_dir_path = make_data_fpath(
-                    owner_name=owner_name,
-                    project_name=project_name,
-                    idx=md5[:2],
-                    md5=md5[2:],
-                )
-                dir_outs_to_process.append(
-                    (stage_name, out, outpath, dvc_dir_path)
-                )
-    # Batch-read all .dir files in parallel
-    # This replaces serial fs.exists() + fs.open() with parallel reads
-    dir_contents_map = {}
-    if dir_outs_to_process:
+                dir_md5s.add(md5)
+    md5_to_candidate: dict[str, str] = {
+        md5: make_data_fpath(
+            owner_name=owner_name,
+            project_name=project_name,
+            idx=md5[:2],
+            md5=md5[2:],
+            legacy=False,
+        )
+        for md5 in dir_md5s
+    }
+    md5_to_legacy: dict[str, str] = {
+        md5: make_data_fpath(
+            owner_name=owner_name,
+            project_name=project_name,
+            idx=md5[:2],
+            md5=md5[2:],
+            legacy=True,
+        )
+        for md5 in dir_md5s
+    }
+
+    def _try_read(path: str) -> list[dict] | None:
+        try:
+            return _read_dvc_dir_cached(path)
+        except Exception as e:
+            logger.warning(f"Failed to read {path}: {e}")
+            return None
+
+    md5_to_contents: dict[str, list[dict]] = {}
+    if dir_md5s:
         with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
-            future_to_path = {
-                executor.submit(_read_dvc_dir_cached, dvc_dir_path): (
-                    stage_name,
-                    out,
-                    outpath,
-                    dvc_dir_path,
+            results = list(executor.map(_try_read, md5_to_candidate.values()))
+        for md5, contents in zip(md5_to_candidate.keys(), results):
+            if contents is not None:
+                md5_to_contents[md5] = contents
+        missing = [md5 for md5 in dir_md5s if md5 not in md5_to_contents]
+        if missing:
+            with concurrent.futures.ThreadPoolExecutor(
+                max_workers=10
+            ) as executor:
+                legacy_results = list(
+                    executor.map(
+                        _try_read, (md5_to_legacy[md5] for md5 in missing)
+                    )
                 )
-                for (
-                    stage_name,
-                    out,
-                    outpath,
-                    dvc_dir_path,
-                ) in dir_outs_to_process
-            }
-            for future in concurrent.futures.as_completed(future_to_path):
-                stage_name, out, outpath, dvc_dir_path = future_to_path[future]
-                try:
-                    contents = future.result()
-                    if contents is not None:
-                        dir_contents_map[dvc_dir_path] = contents
-                except Exception as e:
-                    logger.warning(f"Failed to read {dvc_dir_path}: {e}")
-    dvc_md5_sizes = {}
-    md5_to_data_fpath = {}
+            for md5, contents in zip(missing, legacy_results):
+                if contents is not None:
+                    md5_to_contents[md5] = contents
+    dvc_md5_sizes: dict[str, int | None] = {}
+    md5_to_data_fpath: dict[str, str | None] = {}
 
     def _resolve_data_fpath(md5: str) -> str | None:
         if md5 in md5_to_data_fpath:
@@ -253,11 +269,8 @@ def expand_dvc_lock_outs(
             # If this is a directory, try to fetch its file from cloud storage
             # so we can read off all of the sub-outs
             if md5 and md5.endswith(".dir"):
-                dvc_dir_path = _resolve_data_fpath(md5)
-                if dvc_dir_path is None:
-                    continue
-                if dvc_dir_path in dir_contents_map:
-                    dvc_dir_contents = dir_contents_map[dvc_dir_path]
+                if md5 in md5_to_contents:
+                    dvc_dir_contents = md5_to_contents[md5]
                     dvc_lock_outs[outpath] = out
                     dvc_lock_outs[outpath]["dirname"] = os.path.dirname(
                         outpath

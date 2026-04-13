@@ -19,6 +19,15 @@ from sqlmodel import Session, select
 
 import app.users
 from app.config import settings
+
+
+# libyaml's C loader is ~10x faster than the pure-Python SafeLoader on
+# large dvc.lock files. The Dockerfile asserts `yaml.__with_libyaml__`, so
+# we can rely on CSafeLoader being present in all deployed environments.
+def _yaml_load(data: bytes | str):
+    return yaml.load(data, Loader=yaml.CSafeLoader)
+
+
 from app.git import RepoTree, get_repo_tree_for_ref
 from app.core import CATEGORIES_PLURAL_TO_SINGULAR, params_from_url
 from app.dvc import expand_dvc_lock_outs
@@ -258,8 +267,8 @@ def get_ck_info_and_dvc_outs_from_tree(
         f"(read {t_read * 1000:.0f}ms)"
     )
     t1 = time.perf_counter()
-    ck_info = (yaml.safe_load(ck_bytes) or {}) if ck_bytes else {}
-    dvc_lock = (yaml.safe_load(dvc_bytes) or {}) if dvc_bytes else {}
+    ck_info = (_yaml_load(ck_bytes) or {}) if ck_bytes else {}
+    dvc_lock = (_yaml_load(dvc_bytes) or {}) if dvc_bytes else {}
     t_parse = time.perf_counter() - t1
     logger.info(f"Parsed calkit.yaml and dvc.lock in {t_parse * 1000:.0f}ms")
     t2 = time.perf_counter()
