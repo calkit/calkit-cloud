@@ -2,13 +2,11 @@
 
 import json
 import logging
-import os
 from datetime import datetime, timedelta
 from typing import Any
 
 import requests
 from fastapi import HTTPException
-from filelock import FileLock
 from requests.exceptions import JSONDecodeError
 from sqlmodel import Session, select
 
@@ -242,64 +240,43 @@ def get_github_token(session: Session, user: User) -> str:
             expires=legacy_token.expires,
             refresh_token_expires=legacy_token.refresh_token_expires,
         )
-
-    def _needs_refresh(cred: UserExternalCredential) -> bool:
-        return (
-            cred.expires is not None
-            and (utcnow() + timedelta(minutes=30)) >= cred.expires
+    # Check if refresh needed
+    needs_refresh = (
+        credential.expires is not None
+        and (utcnow() + timedelta(minutes=30)) >= credential.expires
+    )
+    if needs_refresh:
+        logger.info(f"Refreshing GitHub token for {user.email}")
+        tokens = json.loads(decrypt_secret(credential.secret_payload))
+        resp = requests.post(
+            "https://github.com/login/oauth/access_token",
+            json=dict(
+                client_id=settings.GH_CLIENT_ID,
+                client_secret=settings.GH_CLIENT_SECRET,
+                grant_type="refresh_token",
+                refresh_token=tokens["refresh_token"],
+            ),
         )
-
-    if _needs_refresh(credential):
-        # Acquire a per-user lock to prevent concurrent refreshes for the
-        # same user from hitting GitHub's token endpoint simultaneously
-        # GitHub refresh tokens are single-use; a thundering herd would
-        # cause all but the first request to get bad_refresh_token errors
-        lock_path = f"/tmp/gh_token_refresh_{user.id}.lock"
-        os.makedirs("/tmp", exist_ok=True)
-        with FileLock(lock_path, timeout=10):
-            # Re-read the credential inside the lock
-            # Another worker may have already refreshed it while we were
-            # waiting
-            session.refresh(credential)
-            if _needs_refresh(credential):
-                logger.info(f"Refreshing GitHub token for {user.email}")
-                tokens = json.loads(decrypt_secret(credential.secret_payload))
-                resp = requests.post(
-                    "https://github.com/login/oauth/access_token",
-                    json=dict(
-                        client_id=settings.GH_CLIENT_ID,
-                        client_secret=settings.GH_CLIENT_SECRET,
-                        grant_type="refresh_token",
-                        refresh_token=tokens["refresh_token"],
-                    ),
-                )
-                logger.info(
-                    f"GitHub token refresh status code: {resp.status_code}"
-                )
-                gh_resp = token_resp_text_to_dict(resp.text)
-                logger.info(
-                    "GitHub token refresh response keys: "
-                    f"{list(gh_resp.keys())}"
-                )
-                # Handle failure
-                if "error" in gh_resp:
-                    msg = (
-                        f"{gh_resp['error']}: "
-                        f"{gh_resp['error_description'].replace('+', ' ')}"
-                    )
-                    logger.error(msg)
-                    if gh_resp["error"] == "bad_refresh_token":
-                        logger.info(f"Bad refresh token for {user.email}")
-                        logger.info(
-                            f"Deleting bad GitHub credential for {user.email}"
-                        )
-                        session.delete(credential)
-                        session.commit()
-                    raise HTTPException(401, "GitHub token refresh failed")
-                # Save refreshed token
-                save_github_token(
-                    session=session, user=user, github_resp=gh_resp
-                )
+        logger.info(f"GitHub token refresh status code: {resp.status_code}")
+        gh_resp = token_resp_text_to_dict(resp.text)
+        logger.info(
+            f"GitHub token refresh response keys: {list(gh_resp.keys())}"
+        )
+        # Handle failure
+        if "error" in gh_resp:
+            msg = (
+                f"{gh_resp['error']}: "
+                f"{gh_resp['error_description'].replace('+', ' ')}"
+            )
+            logger.error(msg)
+            if gh_resp["error"] == "bad_refresh_token":
+                logger.info(f"Bad refresh token for {user.email}")
+                logger.info(f"Deleting bad GitHub credential for {user.email}")
+                session.delete(credential)
+                session.commit()
+            raise HTTPException(401, "GitHub token refresh failed")
+        # Save refreshed token
+        save_github_token(session=session, user=user, github_resp=gh_resp)
     tokens = json.loads(decrypt_secret(credential.secret_payload))
     return tokens["access_token"]
 
