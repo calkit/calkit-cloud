@@ -2343,7 +2343,7 @@ export const $Notification = {
 their project (or a project they collaborate on).
 
 Designed to be lightweight: no fan-out to external services here.
-\`\`link\`\` stores a frontend URL (e.g. \`\`/owner/project/publications?path=…\`\`)
+\`\`link\`\` stores a frontend URL (e.g., \`\`/owner/project/publications?path=…\`\`)
 so the notification can deep-link directly to the relevant item.`,
   properties: {
     id: {

@@ -52,15 +52,20 @@ interface CommitHistory {
   summary: string
 }
 
+interface ChangedFile {
+  path: string
+  old_path: string | null
+  change_type: string
+  insertions: number | null
+  deletions: number | null
+  patch: string | null
+  is_binary?: boolean
+  patch_truncated?: boolean
+}
+
 interface CommitDetail extends CommitHistory {
-  changed_files: {
-    path: string
-    old_path: string | null
-    change_type: string
-    insertions: number | null
-    deletions: number | null
-    patch: string | null
-  }[]
+  changed_files: ChangedFile[]
+  files_truncated?: boolean
 }
 
 const historySearchSchema = z.object({
@@ -92,18 +97,7 @@ const CHANGE_LABELS: Record<string, string> = {
   C: "Copied",
 }
 
-function FileDiffEntry({
-  file,
-}: {
-  file: {
-    path: string
-    old_path: string | null
-    change_type: string
-    insertions: number | null
-    deletions: number | null
-    patch: string | null
-  }
-}) {
+function FileDiffEntry({ file }: { file: ChangedFile }) {
   const [expanded, setExpanded] = useState(false)
   const borderColor = useColorModeValue("gray.200", "gray.600")
   const hoverBg = useColorModeValue("gray.50", "gray.700")
@@ -171,8 +165,18 @@ function FileDiffEntry({
             >
               {file.patch!}
             </SyntaxHighlighter>
+            {file.patch_truncated && (
+              <Text px={3} py={2} fontSize="xs" color="orange.400">
+                Diff truncated for display.
+              </Text>
+            )}
           </Box>
         </Collapse>
+      )}
+      {!hasDiff && file.is_binary && (
+        <Text px={3} py={2} fontSize="xs" color="gray.500">
+          Binary file not shown.
+        </Text>
       )}
     </Box>
   )
@@ -265,6 +269,12 @@ function CommitDetailModal({
               {detailQuery.data?.changed_files?.map((f, i) => (
                 <FileDiffEntry key={i} file={f} />
               ))}
+              {detailQuery.data?.files_truncated && (
+                <Text fontSize="xs" color="orange.400">
+                  File list truncated; this commit changed more files than are
+                  shown.
+                </Text>
+              )}
             </VStack>
           )}
         </ModalBody>

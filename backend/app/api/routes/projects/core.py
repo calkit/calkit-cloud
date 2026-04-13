@@ -892,30 +892,49 @@ def get_project_commit(
         commit = repo.commit(commit_hash)
     except Exception:
         raise HTTPException(404, "Commit not found")
-    changed_files = []
+    # Cap response size so a single giant commit (e.g., a large generated
+    # file or a wide merge) can't balloon memory or the JSON payload.
+    MAX_FILES = 500
+    MAX_PATCH_BYTES = 100_000
+    changed_files: list[dict] = []
+    files_truncated = False
     if commit.parents:
         parent = commit.parents[0]
         diff = parent.diff(commit, create_patch=True)
         for d in diff:
+            if len(changed_files) >= MAX_FILES:
+                files_truncated = True
+                break
             change_type = d.change_type  # A, D, M, R, etc.
             patch_bytes = d.diff if d.diff else b""
-            try:
-                if isinstance(patch_bytes, bytes):
-                    patch = patch_bytes.decode("utf-8", errors="replace")
-                else:
-                    patch = str(patch_bytes)
-            except Exception:
-                patch = ""
-            insertions = sum(
-                1
-                for line in patch.splitlines()
-                if line.startswith("+") and not line.startswith("+++")
-            )
-            deletions = sum(
-                1
-                for line in patch.splitlines()
-                if line.startswith("-") and not line.startswith("---")
-            )
+            if not isinstance(patch_bytes, bytes):
+                patch_bytes = str(patch_bytes).encode(
+                    "utf-8", errors="replace"
+                )
+            # Binary files: skip decoding the patch entirely.
+            is_binary = b"\x00" in patch_bytes[:8192]
+            patch_truncated = False
+            if is_binary:
+                patch = None
+            else:
+                if len(patch_bytes) > MAX_PATCH_BYTES:
+                    patch_bytes = patch_bytes[:MAX_PATCH_BYTES]
+                    patch_truncated = True
+                patch = patch_bytes.decode("utf-8", errors="replace")
+            if patch is None:
+                insertions = None
+                deletions = None
+            else:
+                insertions = sum(
+                    1
+                    for line in patch.splitlines()
+                    if line.startswith("+") and not line.startswith("+++")
+                )
+                deletions = sum(
+                    1
+                    for line in patch.splitlines()
+                    if line.startswith("-") and not line.startswith("---")
+                )
             changed_files.append(
                 {
                     "path": d.b_path or d.a_path,
@@ -924,11 +943,16 @@ def get_project_commit(
                     "insertions": insertions,
                     "deletions": deletions,
                     "patch": patch,
+                    "is_binary": is_binary,
+                    "patch_truncated": patch_truncated,
                 }
             )
     else:
         # Initial commit--list all files
         for item in commit.tree.traverse():
+            if len(changed_files) >= MAX_FILES:
+                files_truncated = True
+                break
             if item.type == "blob":  # type: ignore[union-attr]
                 changed_files.append(
                     {
@@ -938,6 +962,8 @@ def get_project_commit(
                         "insertions": None,
                         "deletions": None,
                         "patch": None,
+                        "is_binary": False,
+                        "patch_truncated": False,
                     }
                 )
     message = (
@@ -955,6 +981,7 @@ def get_project_commit(
         "timestamp": commit.committed_datetime.isoformat(),
         "parent_hashes": [p.hexsha[:7] for p in commit.parents],
         "changed_files": changed_files,
+        "files_truncated": files_truncated,
     }
 
 
