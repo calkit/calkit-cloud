@@ -720,7 +720,7 @@ class Notification(SQLModel, table=True):
     project_comment_id: uuid.UUID | None = Field(
         default=None, foreign_key="projectcomment.id"
     )
-    # Human-readable message, e.g. "Alice commented on pub.pdf"
+    # Human-readable message, e.g., "Alice commented on pub.pdf"
     message: str = Field(max_length=500)
     # Frontend deep-link, e.g., "/owner/project/publications?path=pub.pdf"
     link: str = Field(max_length=2048)

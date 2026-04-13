@@ -532,7 +532,6 @@ def search_refs(repo: git.Repo, query: str | None = None) -> list["GitRef"]:
                 if raw_msg
                 else ""
             )
-
             # Check if this commit matches the query
             if query_lower:
                 if not (
@@ -541,7 +540,6 @@ def search_refs(repo: git.Repo, query: str | None = None) -> list["GitRef"]:
                     or query_lower in (commit.author.name or "").lower()
                 ):
                     continue
-
             # Avoid duplicates with branches/tags
             if short_hash not in [r.get("short_hash", "") for r in refs]:
                 refs.append(
@@ -557,7 +555,6 @@ def search_refs(repo: git.Repo, query: str | None = None) -> list["GitRef"]:
                 )
     except Exception as e:
         logger.warning(f"Failed to list commits: {e}")
-
     # Sort refs: branches first, then tags, then commits; newest first in each
     kind_order = {"branch": 0, "tag": 1, "commit": 2}
     refs.sort(
