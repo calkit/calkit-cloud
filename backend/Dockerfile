@@ -49,4 +49,8 @@ COPY ./app /app/app
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen
 
+# Fail the build if PyYAML wasn't linked against libyaml. The C loader is
+# ~10x faster for large dvc.lock parses and we rely on it in the hot path.
+RUN python -c "import yaml; assert yaml.__with_libyaml__, 'PyYAML built without libyaml'"
+
 CMD ["fastapi", "run", "--workers", "4", "app/main.py"]
