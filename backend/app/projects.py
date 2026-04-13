@@ -5,6 +5,8 @@ import hashlib
 import json
 import logging
 import os
+import time
+from collections import OrderedDict
 from typing import Literal
 
 import git
@@ -44,6 +46,23 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 RETURN_CONTENT_SIZE_LIMIT = 1_000_000
+
+# Cache for the (ck_info, dvc_lock_outs, zip_path_map) triple returned by
+# get_ck_info_and_dvc_outs_from_tree, keyed by a hash of the raw bytes of
+# calkit.yaml, dvc.lock, and .calkit/zip/paths.json plus the owner/project
+# (owner/project influence DVC object-storage paths resolved during
+# expansion). Invalidates automatically whenever any of those source files
+# change. Hot-path cost of expanding an 8k-line dvc.lock dominates
+# get_contents_from_tree; caching it removes that work from repeat reads.
+_CK_DVC_CACHE_MAX = 64
+# 10 minute TTL caps staleness in the rare case where dvc.lock is unchanged
+# but new DVC objects (e.g., a .dir blob) have since been uploaded to object
+# storage; cache_key is derived from dvc.lock bytes so normal edits already
+# invalidate immediately.
+_CK_DVC_CACHE_TTL_S = 600
+_ck_dvc_cache: OrderedDict[str, tuple[float, tuple[dict, dict, dict]]] = (
+    OrderedDict()
+)
 
 
 def get_project(
@@ -195,29 +214,72 @@ def get_ck_info_and_dvc_outs_from_tree(
     """
     owner_name = project.owner_account_name
     project_name = project.name
-    if tree.is_file("calkit.yaml"):
-        logger.info("Loading calkit.yaml")
-        ck_info = yaml.safe_load(tree.read_text("calkit.yaml")) or {}
-    else:
-        ck_info = {}
-    dvc_lock = {}
-    if tree.is_file("dvc.lock"):
-        logger.info("Reading dvc.lock")
-        dvc_lock = yaml.safe_load(tree.read_text("dvc.lock")) or {}
-    logger.info("Expanding DVC lock outs")
+    # Read raw bytes first so we can key a cross-request cache on their
+    # content hash. For the common case of repeated reads against the same
+    # tree, this short-circuits the 8k-line dvc.lock YAML parse (~200ms) and
+    # the DVC lock-outs expansion (~400ms for large lockfiles).
+    t0 = time.perf_counter()
+    ck_bytes = (
+        tree.read_bytes("calkit.yaml") if tree.is_file("calkit.yaml") else b""
+    )
+    dvc_bytes = (
+        tree.read_bytes("dvc.lock") if tree.is_file("dvc.lock") else b""
+    )
+    zip_paths_json = ".calkit/zip/paths.json"
+    zip_bytes = (
+        tree.read_bytes(zip_paths_json)
+        if tree.is_file(zip_paths_json)
+        else b""
+    )
+    t_read = time.perf_counter() - t0
+    h = hashlib.sha1()
+    h.update(owner_name.encode())
+    h.update(b"\0")
+    h.update(project_name.encode())
+    h.update(b"\0")
+    h.update(hashlib.sha1(ck_bytes).digest())
+    h.update(hashlib.sha1(dvc_bytes).digest())
+    h.update(hashlib.sha1(zip_bytes).digest())
+    cache_key = h.hexdigest()
+    now = time.monotonic()
+    cached = _ck_dvc_cache.get(cache_key)
+    if cached is not None:
+        cached_at, value = cached
+        if now - cached_at <= _CK_DVC_CACHE_TTL_S:
+            _ck_dvc_cache.move_to_end(cache_key)
+            logger.info(
+                f"ck/dvc cache hit for {owner_name}/{project_name} "
+                f"(read {t_read * 1000:.0f}ms)"
+            )
+            return value
+        del _ck_dvc_cache[cache_key]
+    logger.info(
+        f"ck/dvc cache miss for {owner_name}/{project_name} "
+        f"(read {t_read * 1000:.0f}ms)"
+    )
+    t1 = time.perf_counter()
+    ck_info = (yaml.safe_load(ck_bytes) or {}) if ck_bytes else {}
+    dvc_lock = (yaml.safe_load(dvc_bytes) or {}) if dvc_bytes else {}
+    t_parse = time.perf_counter() - t1
+    logger.info(f"Parsed calkit.yaml and dvc.lock in {t_parse * 1000:.0f}ms")
+    t2 = time.perf_counter()
     fs = get_object_fs()
     dvc_lock_outs = expand_dvc_lock_outs(
         dvc_lock, owner_name=owner_name, project_name=project_name, fs=fs
     )
+    t_expand = time.perf_counter() - t2
+    logger.info(f"Expanded DVC lock outs in {t_expand * 1000:.0f}ms")
     zip_path_map: dict = {}
-    zip_paths_json = ".calkit/zip/paths.json"
-    if tree.is_file(zip_paths_json):
-        logger.info("Reading .calkit/zip/paths.json")
+    if zip_bytes:
         try:
-            zip_path_map = json.loads(tree.read_text(zip_paths_json)) or {}
+            zip_path_map = json.loads(zip_bytes) or {}
         except Exception:
             logger.warning("Failed to parse .calkit/zip/paths.json")
-    return ck_info, dvc_lock_outs, zip_path_map
+    result = (ck_info, dvc_lock_outs, zip_path_map)
+    _ck_dvc_cache[cache_key] = (now, result)
+    if len(_ck_dvc_cache) > _CK_DVC_CACHE_MAX:
+        _ck_dvc_cache.popitem(last=False)
+    return result
 
 
 def get_contents_from_tree(
