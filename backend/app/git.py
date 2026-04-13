@@ -148,10 +148,6 @@ def get_repo(
                 # Touch a file so we can compute a TTL
                 subprocess.check_call(["touch", updated_fpath])
                 repo = git.Repo(repo_dir)
-                if user is not None:
-                    # Run git config so we make commits as this user
-                    repo.git.config(["user.name", user.full_name])
-                    repo.git.config(["user.email", user.email])
         except Timeout:
             logger.warning("Git repo lock timed out")
     if os.path.isfile(updated_fpath):
@@ -226,7 +222,65 @@ def get_repo(
     # without embedding the token in any URL or argument
     if access_token:
         repo.git.update_environment(**_make_git_auth_env(access_token))
+    # Always (re)configure committer identity. Do this on every call because
+    # `user.full_name` may have been None at the time of the initial clone
+    # (GitHub users without a display name), which would have stored the
+    # literal string "None" as the committer
+    if user is not None:
+        _configure_committer(repo, user, session=session)
     return repo
+
+
+def _detect_full_name_from_history(repo: git.Repo, email: str) -> str | None:
+    """Look for a prior commit by ``email`` with a usable author name.
+
+    Returns the first non-empty name that isn't the literal "None" (which is
+    what a ``None`` ``user.full_name`` got stringified to in earlier commits).
+    """
+    if not email:
+        return None
+    try:
+        out = repo.git.log(
+            "--all",
+            f"--author={email}",
+            "--pretty=%an",
+            "-n",
+            "50",
+        )
+    except GitCommandError:
+        return None
+    for line in out.splitlines():
+        candidate = line.strip()
+        if candidate and candidate.lower() != "none":
+            return candidate
+    return None
+
+
+def _configure_committer(
+    repo: git.Repo, user: User, session: Session | None = None
+) -> None:
+    """Set the repo's user.name/user.email so commits are authored correctly.
+
+    If ``user.full_name`` is missing, tries to recover a real name from the
+    repo's own history (prior commits by the same email) and persists it back
+    to the User row. Falls back through ``full_name`` -> ``github_username``
+    -> ``email`` so we never pass ``None`` (which GitPython would stringify
+    to "None").
+    """
+    email = user.email or f"{user.github_username}@users.noreply.github.com"
+    if not user.full_name and session is not None:
+        detected = _detect_full_name_from_history(repo, email)
+        if detected:
+            logger.info(
+                f"Recovered full_name '{detected}' for {user.email} "
+                "from repo history"
+            )
+            user.full_name = detected
+            session.add(user)
+            session.commit()
+    name = user.full_name or user.github_username or user.email
+    repo.git.config(["user.name", name])
+    repo.git.config(["user.email", email])
 
 
 def get_zip_path_map_from_repo(repo: git.Repo) -> dict:
@@ -317,9 +371,8 @@ def get_overleaf_repo(
         )
         repo = git.Repo(repo_dir)
         repo.git.update_environment(**overleaf_auth)
-    # Run git config so we make commits as this user
-    repo.git.config(["user.name", user.full_name])
-    repo.git.config(["user.email", user.email])
+    # Run git config so we make commits as this user (with safe fallbacks)
+    _configure_committer(repo, user, session=session)
     return repo
 
 
