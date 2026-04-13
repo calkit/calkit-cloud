@@ -1,203 +1,285 @@
+import LoadingSpinner from "../../../../../components/Common/LoadingSpinner"
 import {
   Text,
   Flex,
   Box,
-  Spinner,
   useColorModeValue,
   Heading,
-  Link,
   Icon,
-  Tooltip,
+  Code,
+  HStack,
+  Button,
 } from "@chakra-ui/react"
 import { useQuery } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
-import { useState } from "react"
+import { useNavigate } from "@tanstack/react-router"
 import { SiJupyter } from "react-icons/si"
+import { FaCodeBranch } from "react-icons/fa"
+import { z } from "zod"
+
 import { IpynbRenderer } from "react-ipynb-renderer"
-import axios from "axios"
+import "react-ipynb-renderer/dist/styles/monokai.css"
 
 import { ProjectsService, type Notebook } from "../../../../../client"
 import PageMenu from "../../../../../components/Common/PageMenu"
+import { ArtifactCompareModal } from "../../../../../components/Common/ArtifactCompareModal"
+
+const notebookSearchSchema = z.object({
+  ref: z.string().optional(),
+  path: z.string().optional(),
+  compare_open: z.boolean().optional(),
+  base_ref: z.string().optional(),
+  compare_ref: z.string().optional(),
+})
 
 export const Route = createFileRoute(
   "/_layout/$accountName/$projectName/_layout/notebooks",
 )({
   component: Notebooks,
+  validateSearch: (search) => notebookSearchSchema.parse(search),
 })
 
-interface NotebookContentProps {
-  notebook: Notebook
-}
-
-function NotebookContent({ notebook }: NotebookContentProps) {
-  const borderRadius = "5px"
-  const height = "81vh"
-  const width = "1000px"
-  const { accountName, projectName } = Route.useParams()
-  const { data, isPending } = useQuery({
-    queryFn: () => axios.get(String(notebook.url)),
-    queryKey: [
-      "projects",
-      accountName,
-      projectName,
-      "notebook-content",
-      notebook.path,
-    ],
-    enabled: Boolean(notebook.url),
-  })
-  const getOutput = (data: any) => {
-    if (notebook.output_format === "html" && notebook.url) {
+function NotebookView({ notebook }: { notebook: Notebook }) {
+  if (notebook.output_format === "notebook" && notebook.content) {
+    try {
+      const json = JSON.parse(atob(notebook.content))
       return (
-        <>
-          <Box height={height} width={width}>
-            <iframe
-              width="100%"
-              height="100%"
-              title="notebook"
-              srcDoc={data}
-              style={{ borderRadius }}
-            />
-          </Box>
-        </>
+        <Box
+          overflowY="auto"
+          overflowX="hidden"
+          borderRadius="lg"
+          sx={{
+            ".ipynb-renderer-root": { borderRadius: "var(--chakra-radii-lg)" },
+            ".ipynb-renderer-root #notebook-container": {
+              width: "100%",
+              marginLeft: 0,
+              marginRight: 0,
+            },
+            ".ipynb-renderer-root pre, .ipynb-renderer-root .CodeMirror": {
+              fontSize: "13px !important",
+              lineHeight: "1.5 !important",
+            },
+          }}
+        >
+          <IpynbRenderer ipynb={json} syntaxTheme="atomDark" />
+        </Box>
       )
+    } catch {
+      // fall through to other renderers
     }
-    if (notebook.output_format === "notebook") {
-      return <IpynbRenderer ipynb={data} />
-    }
-    return "Cannot render notebook output"
+  }
+  if (notebook.output_format === "html" && notebook.content) {
+    return (
+      <embed
+        height="100%"
+        width="100%"
+        type="text/html"
+        src={`data:text/html;base64,${notebook.content}`}
+      />
+    )
+  }
+  if (notebook.url) {
+    return (
+      <iframe
+        height="100%"
+        width="100%"
+        title="notebook"
+        src={notebook.url}
+        style={{ border: "none" }}
+      />
+    )
   }
   return (
-    <>
-      {/* If we have content, just show that instead of downloading */}
-      {notebook.content && notebook.output_format === "html" ? (
-        <Box height={height} width={width}>
-          <embed
-            height="100%"
-            width="100%"
-            title="notebook"
-            type="text/html"
-            style={{ borderRadius }}
-            src={`data:text/html;base64,${notebook.content}`}
-          />
-        </Box>
-      ) : (
-        ""
+    <Flex align="center" justify="center" height="300px" color="gray.500">
+      <Text>
+        No rendered output found. Run the notebook and commit the HTML output to
+        view it here.
+      </Text>
+    </Flex>
+  )
+}
+
+function NotebookInfo({
+  notebook,
+  onOpenCompare,
+}: {
+  notebook: Notebook
+  onOpenCompare: () => void
+}) {
+  const bg = useColorModeValue("ui.secondary", "ui.darkSlate")
+
+  return (
+    <Box bg={bg} borderRadius="lg" p={3} h="fit-content">
+      <Heading size="sm" mb={2}>
+        Info
+      </Heading>
+      <Text fontSize="sm" mb={1}>
+        Path: <Code fontSize="xs">{notebook.path}</Code>
+      </Text>
+      {notebook.stage && (
+        <Text fontSize="sm" mb={1}>
+          Pipeline stage: <Code fontSize="xs">{notebook.stage}</Code>
+        </Text>
       )}
-      {/* If we have a URL, fetch and cache it */}
-      {notebook.url && isPending ? (
-        <Flex justify="center" align="center" height="full" width="full">
-          <Spinner size="xl" color="ui.main" />
-        </Flex>
-      ) : notebook.url ? (
-        <>
-          {data?.data ? (
-            <Box>{getOutput(data.data)}</Box>
-          ) : (
-            "Notebook content could not be loaded."
-          )}
-        </>
-      ) : (
-        ""
-      )}
-    </>
+      <Button mt={2} size="sm" onClick={onOpenCompare}>
+        <Icon as={FaCodeBranch} mr={1} />
+        Browse history
+      </Button>
+    </Box>
   )
 }
 
 function Notebooks() {
-  const bgActive = useColorModeValue("#E2E8F0", "#4A5568")
   const { accountName, projectName } = Route.useParams()
-  const [selectedTitle, setSelectedTitle] = useState<string>()
   const {
-    isPending,
-    error,
-    data: allNotebooks,
-  } = useQuery({
-    queryKey: ["projects", accountName, projectName, "notebooks"],
+    ref,
+    path: selectedPath,
+    compare_open,
+    base_ref,
+    compare_ref,
+  } = Route.useSearch()
+  const navigate = useNavigate({ from: Route.fullPath })
+  const setSelectedPath = (p: string) =>
+    navigate({ search: (prev) => ({ ...prev, path: p }) })
+
+  const openCompare = (notebookPath: string) =>
+    navigate({
+      search: (prev) => ({
+        ...prev,
+        path: notebookPath,
+        compare_open: true,
+      }),
+    })
+
+  const closeCompare = () =>
+    navigate({
+      search: (prev) => ({
+        ...prev,
+        compare_open: undefined,
+        base_ref: undefined,
+        compare_ref: undefined,
+      }),
+    })
+
+  const { isPending, data: notebooks } = useQuery({
+    queryKey: ["projects", accountName, projectName, "notebooks", ref],
     queryFn: () =>
       ProjectsService.getProjectNotebooks({
         ownerName: accountName,
         projectName: projectName,
+        ref,
       }),
   })
-  if (allNotebooks && !selectedTitle && allNotebooks[0]) {
-    setSelectedTitle(allNotebooks[0].title)
-  }
+
+  const selectedNotebook =
+    notebooks?.find((n) => n.path === selectedPath) ?? notebooks?.[0]
 
   return (
     <>
       {isPending ? (
-        <Flex justify="center" align="center" height="full" width="full">
-          <Spinner size="xl" color="ui.main" />
-        </Flex>
+        <LoadingSpinner />
       ) : (
-        <>
-          {error ? (
-            <Box>
-              <Text>Could not read notebooks</Text>
-            </Box>
-          ) : (
-            <>
-              <Flex width="full" my={0} py={0}>
-                {/* Notebooks table of contents */}
-                <PageMenu>
-                  <Heading size="md" mb={1}>
-                    Notebooks
-                  </Heading>
-                  {allNotebooks?.map((notebook) => (
-                    <Box
-                      px={1}
-                      py={0.5}
-                      w="fit-content"
-                      maxW="100%"
-                      borderRadius="lg"
-                      key={notebook.path}
-                      bg={selectedTitle === notebook.title ? bgActive : "none"}
-                    >
-                      <Link
-                        id={notebook.title}
-                        onClick={() => {
-                          setSelectedTitle(notebook.title)
-                        }}
-                      >
-                        <Flex alignItems="center">
-                          <Icon mr={1} as={SiJupyter} />
-                          <Tooltip
-                            label={`${notebook.title}: ${notebook.description}`}
-                            openDelay={600}
-                          >
-                            <Text
-                              isTruncated
-                              noOfLines={1}
-                              whiteSpace="nowrap"
-                              overflow="hidden"
-                              textOverflow="ellipsis"
-                              display="inline-block"
-                              maxW="100%"
-                            >
-                              {notebook.path}
-                            </Text>
-                          </Tooltip>
-                        </Flex>
-                      </Link>
-                    </Box>
-                  ))}
-                </PageMenu>
-                <Box>
-                  {allNotebooks?.map((notebook) => (
-                    <Box key={notebook.path}>
-                      {notebook.title === selectedTitle &&
-                      (notebook.url || notebook.content) ? (
-                        <NotebookContent notebook={notebook} />
-                      ) : (
-                        ""
-                      )}
-                    </Box>
-                  ))}
+        <Flex height="100%" gap={0}>
+          {/* Left: list */}
+          <PageMenu>
+            <Heading size="md" mb={2}>
+              Notebooks
+            </Heading>
+            {!notebooks || notebooks.length === 0 ? (
+              <Text fontSize="sm" color="gray.500">
+                No notebooks found
+              </Text>
+            ) : (
+              notebooks.map((nb) => {
+                const isSelected = nb.path === selectedNotebook?.path
+                return (
+                  <HStack
+                    key={nb.path}
+                    px={1}
+                    py={0.5}
+                    borderRadius="md"
+                    cursor="pointer"
+                    fontWeight={isSelected ? "semibold" : "normal"}
+                    _hover={{ color: "blue.500" }}
+                    onClick={() => setSelectedPath(nb.path ?? "")}
+                    spacing={1}
+                  >
+                    <Icon as={SiJupyter} flexShrink={0} color="orange.400" />
+                    <Text fontSize="sm" noOfLines={1}>
+                      {nb.title ?? nb.path}
+                    </Text>
+                  </HStack>
+                )
+              })
+            )}
+          </PageMenu>
+
+          {/* Center: viewer */}
+          <Box flex={1} minW={0} mr={6}>
+            {selectedNotebook ? (
+              <>
+                <Heading size="md" mb={1}>
+                  {selectedNotebook.title ?? selectedNotebook.path}
+                </Heading>
+                {selectedNotebook.description && (
+                  <Text fontSize="sm" color="gray.500" mb={2}>
+                    {selectedNotebook.description}
+                  </Text>
+                )}
+                <Box
+                  height="80vh"
+                  borderRadius="lg"
+                  overflowX="hidden"
+                  overflowY="auto"
+                >
+                  <NotebookView notebook={selectedNotebook} />
                 </Box>
+              </>
+            ) : (
+              <Flex
+                align="center"
+                justify="center"
+                height="300px"
+                color="gray.500"
+                direction="column"
+                gap={3}
+              >
+                <Icon as={SiJupyter} fontSize="4xl" color="orange.300" />
+                <Text>No notebooks found</Text>
               </Flex>
-            </>
+            )}
+          </Box>
+
+          {/* Right: info */}
+          {selectedNotebook && (
+            <Box w="240px" flexShrink={0}>
+              <NotebookInfo
+                notebook={selectedNotebook}
+                onOpenCompare={() => openCompare(selectedNotebook.path ?? "")}
+              />
+              <ArtifactCompareModal
+                isOpen={Boolean(compare_open)}
+                onClose={closeCompare}
+                ownerName={accountName}
+                projectName={projectName}
+                path={selectedNotebook.path ?? ""}
+                kind="notebook"
+                initialRef={base_ref}
+                initialRef2={compare_ref}
+                initialArtifact={selectedNotebook}
+                onRefsChange={(r1, r2) =>
+                  navigate({
+                    search: (prev) => ({
+                      ...prev,
+                      base_ref: r1,
+                      compare_ref: r2,
+                    }),
+                  })
+                }
+              />
+            </Box>
           )}
-        </>
+        </Flex>
       )}
     </>
   )

@@ -1,6 +1,6 @@
+import LoadingSpinner from "../../../../../components/Common/LoadingSpinner"
 import {
   Box,
-  Spinner,
   Flex,
   Heading,
   Text,
@@ -17,7 +17,11 @@ import {
   Link,
   Icon,
 } from "@chakra-ui/react"
-import { createFileRoute, Link as RouterLink } from "@tanstack/react-router"
+import {
+  createFileRoute,
+  Link as RouterLink,
+  useSearch,
+} from "@tanstack/react-router"
 import { useState } from "react"
 import { FaPlus } from "react-icons/fa"
 import { MdEdit } from "react-icons/md"
@@ -44,18 +48,28 @@ export const Route = createFileRoute(
 function ProjectView() {
   const secBgColor = useColorModeValue("ui.secondary", "ui.darkSlate")
   const { accountName, projectName } = Route.useParams()
+  const layoutSearch = useSearch({
+    from: "/_layout/$accountName/$projectName/_layout" as any,
+    strict: false,
+  }) as any
+  const ref: string | undefined = layoutSearch?.ref
   const [showClosedTodos, setShowClosedTodos] = useState(false)
   const { projectRequest, userHasWriteAccess } = useProject(
     accountName,
     projectName,
+    ref,
   )
   const { issuesRequest, issueStateMutation } = useProjectIssues(
     accountName,
     projectName,
     showClosedTodos,
   )
-  const { readmeRequest } = useProjectReadme(accountName, projectName)
-  const { questionsRequest } = useProjectQuestions(accountName, projectName)
+  const { readmeRequest } = useProjectReadme(accountName, projectName, ref)
+  const { questionsRequest } = useProjectQuestions(
+    accountName,
+    projectName,
+    ref,
+  )
   const gitRepoUrl = projectRequest.data?.git_repo_url
   const codespacesUrl =
     String(gitRepoUrl).replace("://github.com/", "://codespaces.new/") +
@@ -114,6 +128,7 @@ function ProjectView() {
             <ProjectShowcase
               ownerName={accountName}
               projectName={projectName}
+              gitRef={ref}
             />
           </Box>
           {/* README */}
@@ -141,9 +156,7 @@ function ProjectView() {
               )}
             </Flex>
             {readmeRequest.isPending ? (
-              <Flex justify="center" align="center" height="100vh" width="full">
-                <Spinner size="xl" color="ui.main" />
-              </Flex>
+              <LoadingSpinner height="100vh" />
             ) : readmeRequest.data ? (
               <Markdown>
                 {removeFirstLine(atob(String(readmeRequest?.data?.content)))}
@@ -181,9 +194,7 @@ function ProjectView() {
               )}
             </Flex>
             {questionsRequest.isPending ? (
-              <Flex justify="center" align="center" height="100px" width="full">
-                <Spinner size="xl" color="ui.main" />
-              </Flex>
+              <LoadingSpinner height="100px" />
             ) : (
               <OrderedList>
                 {questionsRequest.data?.map((question) => (
@@ -238,33 +249,53 @@ function ProjectView() {
             {issuesRequest.isPending ||
             issuesRequest.isRefetching ||
             issueStateMutation.isPending ? (
-              <Flex justify="center" align="center" height="100%" width="100%">
-                <Spinner size="xl" color="ui.main" />
-              </Flex>
+              <LoadingSpinner />
             ) : (
               <>
-                {issuesRequest?.data?.map((issue) => (
-                  <Flex
-                    key={issue.number}
-                    alignItems={"center"}
-                    alignContent={"center"}
-                  >
-                    <Checkbox
-                      isChecked={issue.state === "closed"}
-                      onChange={onTodoCheckbox}
-                      id={String(issue.number)}
-                      isDisabled={!userHasWriteAccess}
-                    />
-                    <Text ml={2}>
-                      {" "}
-                      {issue.title} (
-                      <Link isExternal href={issue.url}>
-                        #{issue.number}
-                      </Link>
-                      )
-                    </Text>
-                  </Flex>
-                ))}
+                {issuesRequest?.data?.map((issue) => {
+                  const routeMap: Record<string, string> = {
+                    figure: "figures",
+                    publication: "publications",
+                    notebook: "notebooks",
+                    file: "files",
+                  }
+                  const artifactRoute = issue.artifact_type
+                    ? routeMap[issue.artifact_type] ?? "files"
+                    : null
+                  const artifactHref =
+                    artifactRoute && issue.artifact_path
+                      ? `/${accountName}/${projectName}/${artifactRoute}?path=${encodeURIComponent(issue.artifact_path)}`
+                      : null
+                  return (
+                    <Flex
+                      key={issue.number}
+                      alignItems={"center"}
+                      alignContent={"center"}
+                    >
+                      <Checkbox
+                        isChecked={issue.state === "closed"}
+                        onChange={onTodoCheckbox}
+                        id={String(issue.number)}
+                        isDisabled={!userHasWriteAccess}
+                      />
+                      <Text ml={2}>
+                        {" "}
+                        {artifactHref ? (
+                          <Link as={RouterLink} to={artifactHref as any}>
+                            {issue.title}
+                          </Link>
+                        ) : (
+                          issue.title
+                        )}{" "}
+                        (
+                        <Link isExternal href={issue.url}>
+                          #{issue.number}
+                        </Link>
+                        )
+                      </Text>
+                    </Flex>
+                  )
+                })}
               </>
             )}
           </Box>

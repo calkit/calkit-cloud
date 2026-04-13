@@ -80,6 +80,23 @@ export type Collaborator = {
   access_level: string
 }
 
+/**
+ * Portable anchor for a highlighted region within an artifact.
+ *
+ * Currently used for PDF text highlights (react-pdf-highlighter format).
+ * ``position`` and ``content`` are kept as free-form dicts so the schema
+ * can accommodate future anchor types (image regions, notebook cells, etc.)
+ * without a migration.
+ */
+export type CommentHighlight = {
+  position: Record<string, unknown>
+  content?: Record<string, unknown>
+}
+
+export type CommentReply = {
+  body: string
+}
+
 export type ConnectedAccounts = {
   github: boolean
   zenodo: boolean
@@ -108,6 +125,7 @@ export type ContentsItem = {
   url?: string | null
   calkit_object?: Record<string, unknown> | null
   lock?: ItemLock | null
+  storage?: "git" | "dvc" | "dvc-zip" | null
   dir_items?: Array<_ContentsItemBase> | null
 }
 
@@ -255,25 +273,7 @@ export type Figure = {
   dataset?: string | null
   content?: string | null
   url?: string | null
-}
-
-export type FigureComment = {
-  id?: string
-  project_id: string
-  figure_path: string
-  user_id: string
-  created?: string
-  updated?: string
-  external_url?: string | null
-  comment: string
-  readonly user_github_username: string
-  readonly user_full_name: string | null
-  readonly user_email: string
-}
-
-export type FigureCommentPost = {
-  figure_path: string
-  comment: string
+  comment_count?: number
 }
 
 export type FileLock = {
@@ -389,6 +389,22 @@ export type GitItemWithContents = {
   content: string
 }
 
+/**
+ * Represents a Git reference (commit, tag, or branch).
+ */
+export type GitRef = {
+  name: string
+  kind: "branch" | "tag" | "commit"
+  message?: string | null
+  author?: string | null
+  timestamp?: string | null
+  hash?: string | null
+  short_hash?: string | null
+  is_default?: boolean
+  ahead?: number
+  behind?: number
+}
+
 export type HTTPValidationError = {
   detail?: Array<ValidationError>
 }
@@ -424,6 +440,8 @@ export type Issue = {
   state: "open" | "closed"
   title: string
   body: string | null
+  artifact_type?: string | null
+  artifact_path?: string | null
 }
 
 export type IssuePatch = {
@@ -462,12 +480,31 @@ export type NewPassword = {
 
 export type Notebook = {
   path: string
-  title: string
+  title?: string | null
   description?: string | null
   stage?: string | null
   output_format?: "html" | "notebook" | null
   url?: string | null
   content?: string | null
+}
+
+/**
+ * In-app notification delivered to a user when a comment is posted on
+ * their project (or a project they collaborate on).
+ *
+ * Designed to be lightweight: no fan-out to external services here.
+ * ``link`` stores a frontend URL (e.g., ``/owner/project/publications?path=…``)
+ * so the notification can deep-link directly to the relevant item.
+ */
+export type Notification = {
+  id?: string
+  user_id: string
+  project_id: string
+  project_comment_id?: string | null
+  message: string
+  link: string
+  read?: string | null
+  created?: string
 }
 
 export type OAuthCodeExchange = {
@@ -598,6 +635,55 @@ export type ProjectApp = {
   url?: string | null
   title?: string | null
   description?: string | null
+}
+
+/**
+ * A unified comment on any project artifact or on the project itself.
+ *
+ * ``artifact_type`` is one of 'figure', 'publication', 'notebook', 'file',
+ * or None for a project-level comment. ``artifact_path`` is the repo-relative
+ * path of the artifact (None for project-level comments).
+ *
+ * ``highlight`` carries a portable anchor position and is only populated for
+ * comments tied to a specific region (e.g., a PDF text selection). See
+ * ``CommentHighlight`` for the schema.
+ *
+ * ``parent_id`` enables flat one-level threading: replies point to the
+ * top-level comment. No nested replies are stored beyond one level in the UI,
+ * though the schema permits it for future use.
+ */
+export type ProjectComment = {
+  id?: string
+  project_id: string
+  user_id: string
+  created?: string
+  updated?: string
+  comment: string
+  artifact_path?: string | null
+  artifact_type?: string | null
+  highlight?: Record<string, unknown> | null
+  parent_id?: string | null
+  external_url?: string | null
+  resolved?: string | null
+  git_ref?: string | null
+  git_rev?: string | null
+  readonly user_github_username: string
+  readonly user_full_name: string | null
+  readonly user_email: string
+}
+
+export type ProjectCommentPatch = {
+  resolved: boolean
+}
+
+export type ProjectCommentPost = {
+  comment: string
+  artifact_path?: string | null
+  artifact_type?: string | null
+  highlight?: CommentHighlight | null
+  create_github_issue?: boolean
+  parent_id?: string | null
+  git_ref?: string | null
 }
 
 export type ProjectOptionalExtended = {
@@ -768,6 +854,19 @@ export type ReproCheck = {
   readonly n_stages_with_env: number
 }
 
+export type SearchResultItem = {
+  kind: "project" | "org" | "dataset"
+  name: string
+  title?: string | null
+  description?: string | null
+  owner_name?: string | null
+  project_name?: string | null
+}
+
+export type SearchResults = {
+  results: Array<SearchResultItem>
+}
+
 export type SftpAccess = {
   kind?: "sftp"
   host: string
@@ -815,7 +914,13 @@ export type ShowcaseYaml = {
 }
 
 export type Software = {
-  environments: Array<Environment>
+  items: Array<SoftwareItem>
+}
+
+export type SoftwareItem = {
+  title: string
+  path: string
+  description?: string | null
 }
 
 export type StorageUsage = {
@@ -972,4 +1077,5 @@ export type _ContentsItemBase = {
   url?: string | null
   calkit_object?: Record<string, unknown> | null
   lock?: ItemLock | null
+  storage?: "git" | "dvc" | "dvc-zip" | null
 }

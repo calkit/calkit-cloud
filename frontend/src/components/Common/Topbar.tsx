@@ -20,6 +20,8 @@ import useAuth from "../../hooks/useAuth"
 import NewOrg from "../Orgs/NewOrg"
 import NewProject from "../Projects/NewProject"
 import UserMenu from "./UserMenu"
+import GlobalSearch from "./GlobalSearch"
+import NotificationBell from "./NotificationBell"
 
 interface Props {
   children: React.ReactNode
@@ -106,11 +108,11 @@ export default function Topbar() {
               ))}
             </HStack>
           </HStack>
-          <Flex alignItems={"center"}>
+          <Flex alignItems={"center"} gap={2}>
+            <GlobalSearch />
             <Button
               aria-label="new-org"
               size="sm"
-              mr={2}
               onClick={user ? newOrgModal.onOpen : goToLoginWithRedirect}
             >
               <Icon as={FaPlus} mr={1} />
@@ -120,7 +122,6 @@ export default function Topbar() {
             <Button
               aria-label="new-project"
               size="sm"
-              mr={6}
               onClick={user ? newProjectModal.onOpen : goToLoginWithRedirect}
             >
               <Icon as={FaPlus} mr={1} />
@@ -133,7 +134,6 @@ export default function Topbar() {
             <Link
               isExternal
               href="https://github.com/calkit/calkit-cloud"
-              mr={8}
               aria-label="View GitHub repo."
             >
               <Flex alignItems={"center"} pt={0.5} pb={0.5}>
@@ -143,6 +143,7 @@ export default function Topbar() {
                 <Text fontSize="xs">calkit/calkit-cloud</Text>
               </Flex>
             </Link>
+            {user && <NotificationBell />}
             {user ? (
               <UserMenu />
             ) : (

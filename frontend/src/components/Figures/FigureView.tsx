@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query"
 import { getRouteApi } from "@tanstack/react-router"
 
 import { type Figure } from "../../client"
+import PdfCanvas from "../Common/PdfCanvas"
 
 interface FigureViewProps {
   figure: Figure
@@ -18,39 +19,40 @@ function FigureView({ figure, width }: FigureViewProps) {
   let figView = <>Not set</>
   if (figure.path.endsWith(".pdf")) {
     figView = (
-      <Box height="530px" width={boxWidth}>
-        <embed
-          height="100%"
-          width="100%"
-          type="application/pdf"
-          src={
-            figure.content
-              ? `data:application/pdf;base64,${figure.content}`
-              : String(figure.url)
-          }
-        />
-      </Box>
+      <PdfCanvas
+        src={
+          figure.content
+            ? `data:application/pdf;base64,${figure.content}`
+            : String(figure.url)
+        }
+        width={boxWidth}
+      />
     )
   } else if (
     figure.path.endsWith(".png") ||
     figure.path.endsWith(".jpg") ||
     figure.path.endsWith(".jpeg")
   ) {
+    const mime = figure.path.endsWith(".png") ? "image/png" : "image/jpeg"
     figView = (
-      <Box width={boxWidth}>
+      <Box width="100%" height="100%">
         <Image
           alt={figure.title}
           src={
             figure.content
-              ? `data:image/png;base64,${figure.content}`
+              ? `data:${mime};base64,${figure.content}`
               : String(figure.url)
           }
+          width="100%"
+          height="100%"
+          objectFit="contain"
+          display="block"
         />
       </Box>
     )
   } else if (figure.path.endsWith(".svg")) {
     figView = (
-      <Box width={boxWidth}>
+      <Box width="100%" height="100%">
         <Image
           alt={figure.title}
           src={
@@ -59,23 +61,33 @@ function FigureView({ figure, width }: FigureViewProps) {
               : String(figure.url)
           }
           width="100%"
+          height="100%"
+          objectFit="contain"
+          display="block"
         />
       </Box>
     )
   } else if (figure.path.endsWith(".json")) {
-    const figObject = JSON.parse(atob(String(figure.content)))
-    const layout = figObject.layout
-    figView = (
-      <Box width={boxWidth}>
-        <Plot
-          data={figObject.data}
-          layout={layout}
-          config={{ displayModeBar: false }}
-          style={{ width: "100%", height: "100%" }}
-          useResizeHandler={true}
-        />
-      </Box>
-    )
+    try {
+      const figObject = JSON.parse(atob(String(figure.content)))
+      if (figObject.data && figObject.layout) {
+        figView = (
+          <Box width={boxWidth}>
+            <Plot
+              data={figObject.data}
+              layout={figObject.layout}
+              config={{ displayModeBar: false }}
+              style={{ width: "100%", height: "100%" }}
+              useResizeHandler={true}
+            />
+          </Box>
+        )
+      } else {
+        figView = <Text>Cannot render this type of figure</Text>
+      }
+    } catch {
+      figView = <Text>Cannot render this type of figure</Text>
+    }
   } else if (figure.path.endsWith(".html")) {
     // Embed HTML figure in an iframe
     const { data, isPending } = useQuery({
@@ -86,6 +98,7 @@ function FigureView({ figure, width }: FigureViewProps) {
         projectName,
         "figure-content",
         figure.path,
+        figure.url,
       ],
       enabled: Boolean(!figure.content && figure.url),
     })

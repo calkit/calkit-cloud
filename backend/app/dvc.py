@@ -92,6 +92,46 @@ def output_from_pipeline(
         return outs[0]
 
 
+def get_data_fpath_for_md5(
+    owner_name: str,
+    project_name: str,
+    md5: str,
+    fs=None,
+) -> str | None:
+    """Return the first existing object-storage path for a DVC MD5.
+
+    Supports both the current `files/md5` layout and the legacy layout.
+    """
+    if not md5 or len(md5) < 3:
+        return None
+    if fs is None:
+        fs = get_object_fs()
+    idx = md5[:2]
+    candidates = [
+        make_data_fpath(
+            owner_name=owner_name,
+            project_name=project_name,
+            idx=idx,
+            md5=md5[2:],
+            legacy=False,
+        ),
+        make_data_fpath(
+            owner_name=owner_name,
+            project_name=project_name,
+            idx=idx,
+            md5=md5[2:],
+            legacy=True,
+        ),
+    ]
+    for candidate in candidates:
+        try:
+            if fs.exists(candidate):
+                return candidate
+        except Exception as e:
+            logger.warning(f"Failed existence check for {candidate}: {e}")
+    return None
+
+
 def find_dvc_files(start: str, max_depth=5) -> list[str]:
     """Find all DVC files in the repo."""
     res = []
@@ -192,6 +232,20 @@ def expand_dvc_lock_outs(
                 except Exception as e:
                     logger.warning(f"Failed to read {dvc_dir_path}: {e}")
     dvc_md5_sizes = {}
+    md5_to_data_fpath = {}
+
+    def _resolve_data_fpath(md5: str) -> str | None:
+        if md5 in md5_to_data_fpath:
+            return md5_to_data_fpath[md5]
+        resolved = get_data_fpath_for_md5(
+            owner_name=owner_name,
+            project_name=project_name,
+            md5=md5,
+            fs=fs,
+        )
+        md5_to_data_fpath[md5] = resolved
+        return resolved
+
     for stage_name, stage in stages.items():
         for out in stage.get("outs", []):
             outpath = out["path"]
@@ -199,12 +253,9 @@ def expand_dvc_lock_outs(
             # If this is a directory, try to fetch its file from cloud storage
             # so we can read off all of the sub-outs
             if md5 and md5.endswith(".dir"):
-                dvc_dir_path = make_data_fpath(
-                    owner_name=owner_name,
-                    project_name=project_name,
-                    idx=md5[:2],
-                    md5=md5[2:],
-                )
+                dvc_dir_path = _resolve_data_fpath(md5)
+                if dvc_dir_path is None:
+                    continue
                 if dvc_dir_path in dir_contents_map:
                     dvc_dir_contents = dir_contents_map[dvc_dir_path]
                     dvc_lock_outs[outpath] = out
@@ -225,12 +276,10 @@ def expand_dvc_lock_outs(
                         subdir = os.path.dirname(relpath)
                         md5 = dvc_obj.get("md5")
                         if get_sizes and md5 not in dvc_md5_sizes:
-                            fpath_i = make_data_fpath(
-                                owner_name=owner_name,
-                                project_name=project_name,
-                                idx=md5[:2],
-                                md5=md5[2:],
-                            )
+                            fpath_i = _resolve_data_fpath(md5)
+                            if fpath_i is None:
+                                dvc_md5_sizes[md5] = None
+                                continue
                             try:
                                 size = fs.size(fpath_i)
                             except Exception as e:

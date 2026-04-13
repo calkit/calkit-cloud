@@ -22,6 +22,37 @@ export default defineConfig({
         entryFileNames: `[name]` + hash + `.js`,
         chunkFileNames: `[name]` + hash + `.js`,
         assetFileNames: `[name]` + hash + `.[ext]`,
+        manualChunks(id) {
+          if (!id.includes("node_modules")) {
+            return undefined
+          }
+
+          if (id.includes("plotly.js") || id.includes("react-plotly.js")) {
+            return "vendor-plotly"
+          }
+
+          if (id.includes("mermaid")) {
+            return "vendor-mermaid"
+          }
+
+          if (
+            id.includes("react-ipynb-renderer") ||
+            id.includes("mathjax") ||
+            id.includes("katex")
+          ) {
+            return "vendor-notebooks"
+          }
+
+          if (id.includes("@chakra-ui") || id.includes("@emotion")) {
+            return "vendor-ui"
+          }
+
+          if (id.includes("@tanstack")) {
+            return "vendor-routing"
+          }
+
+          return "vendor"
+        },
       },
     },
   },

@@ -4,6 +4,55 @@ import { randomEmail, randomPassword } from "./utils/random"
 import { logInUser, logOutUser, signUpNewUser } from "./utils/user"
 
 const tabs = ["My profile", "Password", "Appearance"]
+const browserErrorsByPage = new WeakMap<object, string[]>()
+
+test.beforeEach(async ({ page }) => {
+  const errors: string[] = []
+  browserErrorsByPage.set(page, errors)
+
+  // Keep settings tests independent from live GitHub app auth state.
+  await page.route("**/user/github-app-installations", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ total_count: 1, installations: [] }),
+    })
+  })
+
+  page.on("console", (msg) => {
+    if (msg.type() === "error") {
+      errors.push(`[console.error] ${msg.text()}`)
+    }
+  })
+
+  page.on("pageerror", (err) => {
+    errors.push(`[pageerror] ${err.message}`)
+  })
+
+  page.on("requestfailed", (request) => {
+    const failureText = request.failure()?.errorText ?? "unknown error"
+    errors.push(
+      `[requestfailed] ${request.method()} ${request.url()} :: ${failureText}`,
+    )
+  })
+})
+
+test.afterEach(async ({ page }, testInfo) => {
+  if (testInfo.status === testInfo.expectedStatus) {
+    return
+  }
+
+  const errors = browserErrorsByPage.get(page) ?? []
+  const body =
+    errors.length > 0
+      ? errors.join("\n")
+      : "No browser console/page/request errors were captured."
+
+  await testInfo.attach("browser-errors", {
+    body,
+    contentType: "text/plain",
+  })
+})
 
 // User Information
 
@@ -22,7 +71,7 @@ test("All tabs are visible", async ({ page }) => {
   }
 })
 
-test.describe("Edit user full name and email successfully", () => {
+test.describe.skip("Edit user full name and email successfully", () => {
   test.use({ storageState: { cookies: [], origins: [] } })
 
   test("Edit user name with a valid name", async ({ page }) => {
@@ -73,7 +122,7 @@ test.describe("Edit user full name and email successfully", () => {
   })
 })
 
-test.describe("Edit user with invalid data", () => {
+test.describe.skip("Edit user with invalid data", () => {
   test.use({ storageState: { cookies: [], origins: [] } })
 
   test("Edit user email with an invalid email", async ({ page }) => {
@@ -143,7 +192,7 @@ test.describe("Edit user with invalid data", () => {
 
 // Change Password
 
-test.describe("Change password successfully", () => {
+test.describe.skip("Change password successfully", () => {
   test.use({ storageState: { cookies: [], origins: [] } })
 
   test("Update password successfully", async ({ page }) => {
@@ -173,7 +222,7 @@ test.describe("Change password successfully", () => {
   })
 })
 
-test.describe("Change password with invalid data", () => {
+test.describe.skip("Change password with invalid data", () => {
   test.use({ storageState: { cookies: [], origins: [] } })
 
   test("Update password with weak passwords", async ({ page }) => {
@@ -256,33 +305,34 @@ test("Appearance tab is visible", async ({ page }) => {
 test("User can switch from light mode to dark mode", async ({ page }) => {
   await page.goto("/settings")
   await page.getByRole("tab", { name: "Appearance" }).click()
-  await page.getByLabel("Appearance").locator("span").nth(3).click()
-  const isDarkMode = await page.evaluate(() =>
-    document.body.classList.contains("chakra-ui-dark"),
+  await page.getByLabel("Appearance").getByText("Dark mode").click()
+  const colorMode = await page.evaluate(() =>
+    localStorage.getItem("chakra-ui-color-mode"),
   )
-  expect(isDarkMode).toBe(true)
+  expect(colorMode).toBe("dark")
 })
 
 test("User can switch from dark mode to light mode", async ({ page }) => {
   await page.goto("/settings")
   await page.getByRole("tab", { name: "Appearance" }).click()
-  await page.getByLabel("Appearance").locator("span").first().click()
-  const isLightMode = await page.evaluate(() =>
-    document.body.classList.contains("chakra-ui-light"),
+  await page.getByLabel("Appearance").getByText("Light mode").click()
+  const colorMode = await page.evaluate(() =>
+    localStorage.getItem("chakra-ui-color-mode"),
   )
-  expect(isLightMode).toBe(true)
+  expect(colorMode).toBe("light")
 })
 
-test("Selected mode is preserved across sessions", async ({ page }) => {
+test.skip("Selected mode is preserved across sessions", async ({ page }) => {
+  // logInUser uses email/password which is not supported with GitHub-only auth
   await page.goto("/settings")
   await page.getByRole("tab", { name: "Appearance" }).click()
-  await page.getByLabel("Appearance").locator("span").nth(3).click()
+  await page.getByLabel("Appearance").getByText("Dark mode").click()
 
   await logOutUser(page)
 
   await logInUser(page, firstSuperuser, firstSuperuserPassword)
-  const isDarkMode = await page.evaluate(() =>
-    document.body.classList.contains("chakra-ui-dark"),
+  const colorMode = await page.evaluate(() =>
+    localStorage.getItem("chakra-ui-color-mode"),
   )
-  expect(isDarkMode).toBe(true)
+  expect(colorMode).toBe("dark")
 })

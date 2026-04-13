@@ -1,5 +1,5 @@
 import { Box, Flex, Icon, Text, useColorModeValue } from "@chakra-ui/react"
-import { Link, getRouteApi } from "@tanstack/react-router"
+import { Link, getRouteApi, useSearch } from "@tanstack/react-router"
 import {
   FiHome,
   FiUsers,
@@ -8,6 +8,7 @@ import {
   FiDatabase,
   FiImage,
   FiFolder,
+  FiGitBranch,
 } from "react-icons/fi"
 import { FaLaptop } from "react-icons/fa"
 import { IoLibraryOutline } from "react-icons/io5"
@@ -28,6 +29,7 @@ const items = [
   { icon: FiImage, title: "Figures", path: "/figures" },
   { icon: FiBookOpen, title: "Publications", path: "/publications" },
   { icon: SiJupyter, title: "Notebooks", path: "/notebooks" },
+  { icon: FiGitBranch, title: "History", path: "/history" },
   { icon: FiHardDrive, title: "Software", path: "/software" },
   { icon: FiUsers, title: "Collaborators", path: "/collaborators" },
   { icon: IoLibraryOutline, title: "References", path: "/references" },
@@ -48,6 +50,12 @@ const SidebarItems = ({ onClose, basePath }: SidebarItemsProps) => {
   const { user } = useAuth()
   const routeApi = getRouteApi("/_layout/$accountName/$projectName")
   const { accountName, projectName } = routeApi.useParams()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const layoutSearch = useSearch({
+    from: "/_layout/$accountName/$projectName/_layout" as any,
+    strict: false,
+  }) as any
+  const currentRef: string | undefined = layoutSearch?.ref
   const {
     isPending: localServerPending,
     error: localServerError,
@@ -73,6 +81,8 @@ const SidebarItems = ({ onClose, basePath }: SidebarItemsProps) => {
         key={title}
         as={Link}
         to={basePath + path}
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        search={currentRef ? ({ ref: currentRef } as any) : undefined}
         w="100%"
         p={2}
         activeOptions={{ exact: true, includeSearch: false }}

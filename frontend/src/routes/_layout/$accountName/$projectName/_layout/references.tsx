@@ -2,7 +2,6 @@ import {
   Box,
   Flex,
   Heading,
-  Spinner,
   Text,
   Icon,
   Table,
@@ -14,13 +13,15 @@ import {
   TableContainer,
   Link,
   useDisclosure,
+  Button,
 } from "@chakra-ui/react"
-import { createFileRoute } from "@tanstack/react-router"
+import { createFileRoute, useSearch } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
 import { IoLibraryOutline } from "react-icons/io5"
 import { FiFile } from "react-icons/fi"
 import { useState } from "react"
 
+import LoadingSpinner from "../../../../../components/Common/LoadingSpinner"
 import { ProjectsService, type ReferenceEntry } from "../../../../../client"
 import FileViewModal from "../../../../../components/References/FileViewModal"
 import { BsFilePdf } from "react-icons/bs"
@@ -63,20 +64,27 @@ function ReferenceEntryTable({ referenceEntry }: ReferenceEntryTableProps) {
 
 function References() {
   const { accountName, projectName } = Route.useParams()
+  const layoutSearch = useSearch({
+    from: "/_layout/$accountName/$projectName/_layout" as any,
+    strict: false,
+  }) as any
+  const ref: string | undefined = layoutSearch?.ref
   const {
     isPending,
     error,
     data: allReferences,
   } = useQuery({
-    queryKey: ["projects", accountName, projectName, "references"],
+    queryKey: ["projects", accountName, projectName, "references", ref],
     queryFn: () =>
       ProjectsService.getProjectReferences({
         ownerName: accountName,
         projectName: projectName,
+        ref,
       }),
   })
   const fileViewModal = useDisclosure()
   const [selectedEntry, setSelectedEntry] = useState<ReferenceEntry>()
+  const [visibleCount, setVisibleCount] = useState(25)
   const handleLinkClick = (entry: ReferenceEntry) => {
     if (!entry.url) {
       return
@@ -85,12 +93,18 @@ function References() {
     fileViewModal.onOpen()
   }
 
+  // Flatten all entries for pagination
+  const allEntries =
+    allReferences?.flatMap((refs) =>
+      (refs.entries ?? []).map((e) => ({ ...e, _refPath: refs.path })),
+    ) ?? []
+  const totalEntries = allEntries.length
+  const visibleEntries = allEntries.slice(0, visibleCount)
+
   return (
     <>
       {isPending ? (
-        <Flex justify="center" align="center" height="full" width="full">
-          <Spinner size="xl" color="ui.main" />
-        </Flex>
+        <LoadingSpinner />
       ) : (
         <>
           {error ? (
@@ -162,45 +176,44 @@ function References() {
                 ))}
               </PageMenu>
               {/* A view for all the reference items' content */}
-              <Box pr={4}>
-                {allReferences?.map((references) => (
-                  <Box key={references.path} mb={4}>
-                    <Heading size="md" id={references.path} mb={2}>
-                      {references.path}
-                    </Heading>
-                    {references.entries?.map((entry) => (
-                      <Box
-                        key={entry.key}
-                        borderRadius="lg"
-                        borderWidth={1}
-                        mb={2}
-                        p={2}
-                        boxSizing="border-box"
-                      >
-                        <Flex alignItems="center">
-                          <Heading size="sm" id={references.path + entry.key}>
-                            {entry.key}
-                          </Heading>
-
-                          <Text ml={1} fontSize="sm">
-                            {entry.file_path ? (
-                              <Link
-                                onClick={() => {
-                                  handleLinkClick(entry)
-                                }}
-                              >
-                                {`(${entry.file_path})`}
-                              </Link>
-                            ) : (
-                              ""
-                            )}
-                          </Text>
-                        </Flex>
-                        <ReferenceEntryTable referenceEntry={entry} />
-                      </Box>
-                    ))}
+              <Box pr={4} flex={1}>
+                {visibleEntries.map((entry) => (
+                  <Box
+                    key={`${entry._refPath}-${entry.key}`}
+                    borderRadius="lg"
+                    borderWidth={1}
+                    mb={2}
+                    p={2}
+                    boxSizing="border-box"
+                  >
+                    <Flex alignItems="center">
+                      <Heading size="sm" id={entry._refPath + entry.key}>
+                        {entry.key}
+                      </Heading>
+                      <Text ml={1} fontSize="sm">
+                        {entry.file_path ? (
+                          <Link onClick={() => handleLinkClick(entry)}>
+                            {`(${entry.file_path})`}
+                          </Link>
+                        ) : (
+                          ""
+                        )}
+                      </Text>
+                    </Flex>
+                    <ReferenceEntryTable referenceEntry={entry} />
                   </Box>
                 ))}
+                {visibleCount < totalEntries && (
+                  <Flex justify="center" mt={2} mb={4}>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setVisibleCount((n) => n + 25)}
+                    >
+                      Show more ({totalEntries - visibleCount} remaining)
+                    </Button>
+                  </Flex>
+                )}
               </Box>
             </Flex>
           )}

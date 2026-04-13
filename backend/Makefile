@@ -1,6 +1,6 @@
 .PHONY: test
 test:
-	docker compose exec backend bash ./scripts/test.sh
+	docker compose exec backend bash ./tests-start.sh
 
 .PHONY: format
 format:

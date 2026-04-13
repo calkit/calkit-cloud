@@ -10,5 +10,4 @@ def get_org_from_db(org_name: str, session: Session) -> Org | None:
 
 
 def get_org_by_github_name(session: Session, github_name: str) -> Org | None:
-    query = select(Org).where(Org.account.has(github_name=github_name))  # type: ignore
-    return session.exec(query).first()
+    return get_org_from_db(org_name=github_name.lower(), session=session)

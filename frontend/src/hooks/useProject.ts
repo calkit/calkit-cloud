@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { ProjectsService } from "../client"
 
-const useProject = (accountName: string, projectName: string) => {
+const useProject = (accountName: string, projectName: string, ref?: string) => {
   const queryClient = useQueryClient()
 
   const projectRequest = useQuery({
@@ -28,11 +28,12 @@ const useProject = (accountName: string, projectName: string) => {
   )
 
   const showcaseRequest = useQuery({
-    queryKey: ["projects", accountName, projectName, "showcase"],
+    queryKey: ["projects", accountName, projectName, "showcase", ref],
     queryFn: () =>
       ProjectsService.getProjectShowcase({
         ownerName: accountName,
         projectName: projectName,
+        ref,
       }),
     refetchOnWindowFocus: false,
     refetchOnMount: false,
@@ -58,26 +59,36 @@ const useProject = (accountName: string, projectName: string) => {
   }
 }
 
-const useProjectReadme = (accountName: string, projectName: string) => {
+const useProjectReadme = (
+  accountName: string,
+  projectName: string,
+  ref?: string,
+) => {
   const readmeRequest = useQuery({
-    queryKey: ["projects", accountName, projectName, "readme"],
+    queryKey: ["projects", accountName, projectName, "readme", ref],
     queryFn: () =>
       ProjectsService.getProjectContents({
         ownerName: accountName,
         projectName: projectName,
         path: "README.md",
+        ref,
       }),
   })
   return { readmeRequest }
 }
 
-const useProjectQuestions = (accountName: string, projectName: string) => {
+const useProjectQuestions = (
+  accountName: string,
+  projectName: string,
+  ref?: string,
+) => {
   const questionsRequest = useQuery({
-    queryKey: ["projects", accountName, projectName, "questions"],
+    queryKey: ["projects", accountName, projectName, "questions", ref],
     queryFn: () =>
       ProjectsService.getProjectQuestions({
         ownerName: accountName,
         projectName: projectName,
+        ref,
       }),
   })
   return { questionsRequest }
@@ -107,39 +118,54 @@ const useProjectFiles = (accountName: string, projectName: string) => {
   return { filesRequest }
 }
 
-const useProjectDatasets = (accountName: string, projectName: string) => {
+const useProjectDatasets = (
+  accountName: string,
+  projectName: string,
+  ref?: string,
+) => {
   const datasetsRequest = useQuery({
-    queryKey: ["projects", accountName, projectName, "datasets"],
+    queryKey: ["projects", accountName, projectName, "datasets", ref],
     queryFn: () =>
       ProjectsService.getProjectDatasets({
         ownerName: accountName,
         projectName: projectName,
+        ref,
       }),
   })
 
   return { datasetsRequest }
 }
 
-const useProjectEnvironments = (accountName: string, projectName: string) => {
+const useProjectEnvironments = (
+  accountName: string,
+  projectName: string,
+  ref?: string,
+) => {
   const environmentsRequest = useQuery({
-    queryKey: ["projects", accountName, projectName, "environments"],
+    queryKey: ["projects", accountName, projectName, "environments", ref],
     queryFn: () =>
       ProjectsService.getProjectEnvironments({
         ownerName: accountName,
         projectName: projectName,
+        ref,
       }),
   })
 
   return { environmentsRequest }
 }
 
-const useProjectPublications = (accountName: string, projectName: string) => {
+const useProjectPublications = (
+  accountName: string,
+  projectName: string,
+  ref?: string,
+) => {
   const publicationsRequest = useQuery({
-    queryKey: ["projects", accountName, projectName, "publications"],
+    queryKey: ["projects", accountName, projectName, "publications", ref],
     queryFn: () =>
       ProjectsService.getProjectPublications({
         ownerName: accountName,
         projectName: projectName,
+        ref,
       }),
   })
   return { publicationsRequest }

@@ -41,3 +41,7 @@ frontend: ## Build the frontend.
 .PHONY: test-frontend
 test-frontend: ## Run frontend tests.
 	@cd frontend && make test
+
+.PHONY: test-backend
+test-backend: ## Run backend tests.
+	@cd backend && make test

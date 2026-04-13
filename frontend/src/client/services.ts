@@ -30,6 +30,8 @@ import type {
   DiscountCode,
   DiscountCodePost,
   DiscountCodePublic,
+  Notification,
+  SearchResults,
   SubscriptionPlan,
   Body_projects_post_project_dataset_upload,
   Body_projects_post_project_figure,
@@ -37,14 +39,13 @@ import type {
   Body_projects_post_project_publication,
   Body_projects_put_project_contents,
   Collaborator,
+  CommentReply,
   ContentPatch,
   ContentsItem,
   Dataset,
   DatasetForImport,
   Environment,
   Figure,
-  FigureComment,
-  FigureCommentPost,
   FileLock,
   FileLockPost,
   FsOpBatchRequest,
@@ -55,6 +56,7 @@ import type {
   GitHubReleasePost,
   GitItem,
   GitItemWithContents,
+  GitRef,
   Issue,
   IssuePatch,
   IssuePost,
@@ -64,6 +66,9 @@ import type {
   OverleafSyncResponse,
   Pipeline,
   ProjectApp,
+  ProjectComment,
+  ProjectCommentPatch,
+  ProjectCommentPost,
   ProjectOptionalExtended,
   ProjectPatch,
   ProjectPost,
@@ -189,6 +194,16 @@ export type MiscData = {
   PostDiscountCode: {
     requestBody: DiscountCodePost
   }
+  GlobalSearch: {
+    limit?: number
+    q: string
+  }
+  GetNotifications: {
+    unreadOnly?: boolean
+  }
+  MarkNotificationRead: {
+    notificationId: string
+  }
 }
 
 export type ProjectsData = {
@@ -210,6 +225,7 @@ export type ProjectsData = {
     getExtendedInfo?: boolean
     ownerName: string
     projectName: string
+    ref?: string | null
   }
   PatchProject: {
     ownerName: string
@@ -226,6 +242,48 @@ export type ProjectsData = {
   GetProjectGitRepo: {
     ownerName: string
     projectName: string
+  }
+  SearchProjectRefs: {
+    ownerName: string
+    projectName: string
+    /**
+     * Search query for refs
+     */
+    q?: string | null
+  }
+  GetProjectHistory: {
+    /**
+     * Max number of commits to return
+     */
+    limit?: number
+    /**
+     * Number of commits to skip
+     */
+    offset?: number
+    ownerName: string
+    projectName: string
+    /**
+     * Branch, tag, or commit to read history from
+     */
+    ref?: string | null
+  }
+  GetProjectCommit: {
+    commitHash: string
+    ownerName: string
+    projectName: string
+  }
+  GetProjectFileHistory: {
+    /**
+     * Max number of commits to return
+     */
+    limit?: number
+    ownerName: string
+    path: string
+    projectName: string
+    /**
+     * Artifact storage class; when supplied, limits the lookup to relevant sources (e.g., skips the dvc.lock scan for git files).
+     */
+    storage?: "git" | "dvc" | "dvc-zip" | null
   }
   PostProjectDvcFile: {
     idx: string
@@ -250,23 +308,27 @@ export type ProjectsData = {
     ownerName: string
     path?: string | null
     projectName: string
+    ref?: string | null
   }
   GetProjectGitContents1: {
     astype?: "" | ".raw" | ".html" | ".object"
     ownerName: string
     path: string | null
     projectName: string
+    ref?: string | null
   }
   GetProjectContents: {
     ownerName: string
     path?: string | null
     projectName: string
+    ref?: string | null
     ttl?: number | null
   }
   GetProjectContents1: {
     ownerName: string
     path: string | null
     projectName: string
+    ref?: string | null
     ttl?: number | null
   }
   PutProjectContents: {
@@ -285,6 +347,7 @@ export type ProjectsData = {
   GetProjectQuestions: {
     ownerName: string
     projectName: string
+    ref?: string | null
   }
   PostProjectQuestion: {
     ownerName: string
@@ -294,6 +357,7 @@ export type ProjectsData = {
   GetProjectFigures: {
     ownerName: string
     projectName: string
+    ref?: string | null
   }
   PostProjectFigure: {
     formData: Body_projects_post_project_figure
@@ -304,27 +368,48 @@ export type ProjectsData = {
     figurePath: string
     ownerName: string
     projectName: string
+    ref?: string | null
     ttl?: number | null
   }
-  GetFigureComments: {
-    figurePath?: string | null
+  GetProjectComments: {
+    artifactPath?: string | null
+    artifactType?: string | null
     ownerName: string
     projectName: string
   }
-  PostFigureComment: {
+  PostProjectComment: {
     ownerName: string
     projectName: string
-    requestBody: FigureCommentPost
+    requestBody: ProjectCommentPost
+  }
+  PatchProjectComment: {
+    commentId: string
+    ownerName: string
+    projectName: string
+    requestBody: ProjectCommentPatch
+  }
+  DeleteProjectComment: {
+    commentId: string
+    ownerName: string
+    projectName: string
+  }
+  PostProjectCommentReply: {
+    commentId: string
+    ownerName: string
+    projectName: string
+    requestBody: CommentReply
   }
   GetProjectDatasets: {
     ownerName: string
     projectName: string
+    ref?: string | null
   }
   GetProjectDataset: {
     filterPaths?: Array<string> | null
     ownerName: string
     path: string
     projectName: string
+    ref?: string | null
   }
   PostProjectDatasetLabel: {
     ownerName: string
@@ -340,6 +425,7 @@ export type ProjectsData = {
   GetProjectPublications: {
     ownerName: string
     projectName: string
+    ref?: string | null
   }
   PostProjectPublication: {
     formData: Body_projects_post_project_publication
@@ -363,6 +449,7 @@ export type ProjectsData = {
   GetProjectPipeline: {
     ownerName: string
     projectName: string
+    ref?: string | null
   }
   GetProjectCollaborators: {
     ownerName: string
@@ -399,19 +486,23 @@ export type ProjectsData = {
   GetProjectReferences: {
     ownerName: string
     projectName: string
+    ref?: string | null
   }
   GetProjectEnvironments: {
     ownerName: string
     projectName: string
+    ref?: string | null
   }
   PostProjectEnvironment: {
     ownerName: string
     projectName: string
+    ref?: string | null
     requestBody: Environment
   }
   GetProjectSoftware: {
     ownerName: string
     projectName: string
+    ref?: string | null
   }
   GetProjectFileLocks: {
     ownerName: string
@@ -430,10 +521,12 @@ export type ProjectsData = {
   GetProjectNotebooks: {
     ownerName: string
     projectName: string
+    ref?: string | null
   }
   GetProjectReproCheck: {
     ownerName: string
     projectName: string
+    ref?: string | null
   }
   PutProjectDevContainer: {
     ownerName: string
@@ -442,10 +535,12 @@ export type ProjectsData = {
   GetProjectApp: {
     ownerName: string
     projectName: string
+    ref?: string | null
   }
   GetProjectShowcase: {
     ownerName: string
     projectName: string
+    ref?: string | null
     ttl?: number | null
   }
   GetProjectGithubReleases: {
@@ -1291,6 +1386,91 @@ export class MiscService {
       url: "/subscription-plans",
     })
   }
+
+  /**
+   * Global Search
+   * Search projects, orgs, and datasets visible to the current user.
+   *
+   * Parameters
+   * ----------
+   * q:
+   * Query string matched case-insensitively against names, titles,
+   * and descriptions. Short queries (<2 chars) return no results.
+   * limit:
+   * Maximum number of results returned per category.
+   * @returns SearchResults Successful Response
+   * @throws ApiError
+   */
+  public static globalSearch(
+    data: MiscData["GlobalSearch"],
+  ): CancelablePromise<SearchResults> {
+    const { q, limit = 5 } = data
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/search",
+      query: {
+        q,
+        limit,
+      },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Get Notifications
+   * @returns Notification Successful Response
+   * @throws ApiError
+   */
+  public static getNotifications(
+    data: MiscData["GetNotifications"] = {},
+  ): CancelablePromise<Array<Notification>> {
+    const { unreadOnly = false } = data
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/notifications",
+      query: {
+        unread_only: unreadOnly,
+      },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Mark Notification Read
+   * @returns Notification Successful Response
+   * @throws ApiError
+   */
+  public static markNotificationRead(
+    data: MiscData["MarkNotificationRead"],
+  ): CancelablePromise<Notification> {
+    const { notificationId } = data
+    return __request(OpenAPI, {
+      method: "PATCH",
+      url: "/notifications/{notification_id}/read",
+      path: {
+        notification_id: notificationId,
+      },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Mark All Notifications Read
+   * @returns void Successful Response
+   * @throws ApiError
+   */
+  public static markAllNotificationsRead(): CancelablePromise<void> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/notifications/read-all",
+    })
+  }
 }
 
 export class ProjectsService {
@@ -1370,7 +1550,7 @@ export class ProjectsService {
   public static getProject(
     data: ProjectsData["GetProject"],
   ): CancelablePromise<ProjectOptionalExtended> {
-    const { ownerName, projectName, getExtendedInfo = false } = data
+    const { ownerName, projectName, getExtendedInfo = false, ref } = data
     return __request(OpenAPI, {
       method: "GET",
       url: "/projects/{owner_name}/{project_name}",
@@ -1380,6 +1560,7 @@ export class ProjectsService {
       },
       query: {
         get_extended_info: getExtendedInfo,
+        ref,
       },
       errors: {
         422: `Validation Error`,
@@ -1461,7 +1642,7 @@ export class ProjectsService {
    */
   public static getProjectGitRepo(
     data: ProjectsData["GetProjectGitRepo"],
-  ): CancelablePromise<unknown> {
+  ): CancelablePromise<Record<string, unknown>> {
     const { ownerName, projectName } = data
     return __request(OpenAPI, {
       method: "GET",
@@ -1469,6 +1650,147 @@ export class ProjectsService {
       path: {
         owner_name: ownerName,
         project_name: projectName,
+      },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Search Project Refs
+   * Get git refs (branches, tags, commits) in a project.
+   *
+   * Parameters
+   * ----------
+   * owner_name:
+   * Owner of the project.
+   * project_name:
+   * Name of the project.
+   * q:
+   * Optional search query to filter refs by branch name, tag name,
+   * commit message, or author.
+   *
+   * Returns
+   * -------
+   * list[GitRef]
+   * List of matching GitRef objects with name, kind, message, author,
+   * timestamp.
+   * @returns GitRef Successful Response
+   * @throws ApiError
+   */
+  public static searchProjectRefs(
+    data: ProjectsData["SearchProjectRefs"],
+  ): CancelablePromise<Array<GitRef>> {
+    const { ownerName, projectName, q } = data
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/projects/{owner_name}/{project_name}/git/refs",
+      path: {
+        owner_name: ownerName,
+        project_name: projectName,
+      },
+      query: {
+        q,
+      },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Get Project History
+   * Get paginated git commit history for a project.
+   *
+   * Parameters
+   * ----------
+   * limit:
+   * Maximum number of commits to return.
+   * offset:
+   * Number of commits to skip from the newest commit.
+   * ref:
+   * Optional branch, tag, or commit to read history from.
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static getProjectHistory(
+    data: ProjectsData["GetProjectHistory"],
+  ): CancelablePromise<Array<Record<string, unknown>>> {
+    const { ownerName, projectName, limit = 50, offset = 0, ref } = data
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/projects/{owner_name}/{project_name}/git/history",
+      path: {
+        owner_name: ownerName,
+        project_name: projectName,
+      },
+      query: {
+        limit,
+        offset,
+        ref,
+      },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Get Project Commit
+   * Get details for a specific commit including changed files.
+   *
+   * Parameters
+   * ----------
+   * commit_hash:
+   * Full or short commit hash to inspect.
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static getProjectCommit(
+    data: ProjectsData["GetProjectCommit"],
+  ): CancelablePromise<Record<string, unknown>> {
+    const { ownerName, projectName, commitHash } = data
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/projects/{owner_name}/{project_name}/git/commits/{commit_hash}",
+      path: {
+        owner_name: ownerName,
+        project_name: projectName,
+        commit_hash: commitHash,
+      },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Get Project File History
+   * Get git commit history for a specific file path.
+   *
+   * Returns commits that touched the file directly, its DVC pointer (.dvc),
+   * or dvc.lock (for pipeline outputs), so DVC-tracked artifacts are covered.
+   * Pass ``storage`` when the caller knows the artifact's storage class so
+   * irrelevant lookups are skipped.
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static getProjectFileHistory(
+    data: ProjectsData["GetProjectFileHistory"],
+  ): CancelablePromise<Array<Record<string, unknown>>> {
+    const { ownerName, projectName, path, limit = 100, storage } = data
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/projects/{owner_name}/{project_name}/git/file-history",
+      path: {
+        owner_name: ownerName,
+        project_name: projectName,
+      },
+      query: {
+        path,
+        limit,
+        storage,
       },
       errors: {
         422: `Validation Error`,
@@ -1560,7 +1882,7 @@ export class ProjectsService {
   public static getProjectGitContents(
     data: ProjectsData["GetProjectGitContents"],
   ): CancelablePromise<Array<GitItem> | GitItemWithContents | string> {
-    const { ownerName, projectName, path, astype = "" } = data
+    const { ownerName, projectName, path, astype = "", ref } = data
     return __request(OpenAPI, {
       method: "GET",
       url: "/projects/{owner_name}/{project_name}/git/contents",
@@ -1571,6 +1893,7 @@ export class ProjectsService {
       query: {
         path,
         astype,
+        ref,
       },
       errors: {
         422: `Validation Error`,
@@ -1586,7 +1909,7 @@ export class ProjectsService {
   public static getProjectGitContents1(
     data: ProjectsData["GetProjectGitContents1"],
   ): CancelablePromise<Array<GitItem> | GitItemWithContents | string> {
-    const { ownerName, projectName, path, astype = "" } = data
+    const { ownerName, projectName, path, astype = "", ref } = data
     return __request(OpenAPI, {
       method: "GET",
       url: "/projects/{owner_name}/{project_name}/git/contents/{path}",
@@ -1597,6 +1920,7 @@ export class ProjectsService {
       },
       query: {
         astype,
+        ref,
       },
       errors: {
         422: `Validation Error`,
@@ -1612,7 +1936,7 @@ export class ProjectsService {
   public static getProjectContents(
     data: ProjectsData["GetProjectContents"],
   ): CancelablePromise<ContentsItem> {
-    const { ownerName, projectName, path, ttl } = data
+    const { ownerName, projectName, path, ttl, ref } = data
     return __request(OpenAPI, {
       method: "GET",
       url: "/projects/{owner_name}/{project_name}/contents",
@@ -1623,6 +1947,7 @@ export class ProjectsService {
       query: {
         path,
         ttl,
+        ref,
       },
       errors: {
         422: `Validation Error`,
@@ -1638,7 +1963,7 @@ export class ProjectsService {
   public static getProjectContents1(
     data: ProjectsData["GetProjectContents1"],
   ): CancelablePromise<ContentsItem> {
-    const { ownerName, projectName, path, ttl } = data
+    const { ownerName, projectName, path, ttl, ref } = data
     return __request(OpenAPI, {
       method: "GET",
       url: "/projects/{owner_name}/{project_name}/contents/{path}",
@@ -1649,6 +1974,7 @@ export class ProjectsService {
       },
       query: {
         ttl,
+        ref,
       },
       errors: {
         422: `Validation Error`,
@@ -1717,13 +2043,16 @@ export class ProjectsService {
   public static getProjectQuestions(
     data: ProjectsData["GetProjectQuestions"],
   ): CancelablePromise<Array<Question>> {
-    const { ownerName, projectName } = data
+    const { ownerName, projectName, ref } = data
     return __request(OpenAPI, {
       method: "GET",
       url: "/projects/{owner_name}/{project_name}/questions",
       path: {
         owner_name: ownerName,
         project_name: projectName,
+      },
+      query: {
+        ref,
       },
       errors: {
         422: `Validation Error`,
@@ -1763,13 +2092,16 @@ export class ProjectsService {
   public static getProjectFigures(
     data: ProjectsData["GetProjectFigures"],
   ): CancelablePromise<Array<Figure>> {
-    const { ownerName, projectName } = data
+    const { ownerName, projectName, ref } = data
     return __request(OpenAPI, {
       method: "GET",
       url: "/projects/{owner_name}/{project_name}/figures",
       path: {
         owner_name: ownerName,
         project_name: projectName,
+      },
+      query: {
+        ref,
       },
       errors: {
         422: `Validation Error`,
@@ -1809,7 +2141,7 @@ export class ProjectsService {
   public static getProjectFigure(
     data: ProjectsData["GetProjectFigure"],
   ): CancelablePromise<Figure> {
-    const { ownerName, projectName, figurePath, ttl } = data
+    const { ownerName, projectName, figurePath, ttl, ref } = data
     return __request(OpenAPI, {
       method: "GET",
       url: "/projects/{owner_name}/{project_name}/figures/{figure_path}",
@@ -1820,6 +2152,7 @@ export class ProjectsService {
       },
       query: {
         ttl,
+        ref,
       },
       errors: {
         422: `Validation Error`,
@@ -1828,23 +2161,24 @@ export class ProjectsService {
   }
 
   /**
-   * Get Figure Comments
-   * @returns FigureComment Successful Response
+   * Get Project Comments
+   * @returns ProjectComment Successful Response
    * @throws ApiError
    */
-  public static getFigureComments(
-    data: ProjectsData["GetFigureComments"],
-  ): CancelablePromise<Array<FigureComment>> {
-    const { ownerName, projectName, figurePath } = data
+  public static getProjectComments(
+    data: ProjectsData["GetProjectComments"],
+  ): CancelablePromise<Array<ProjectComment>> {
+    const { ownerName, projectName, artifactType, artifactPath } = data
     return __request(OpenAPI, {
       method: "GET",
-      url: "/projects/{owner_name}/{project_name}/figure-comments",
+      url: "/projects/{owner_name}/{project_name}/comments",
       path: {
         owner_name: ownerName,
         project_name: projectName,
       },
       query: {
-        figure_path: figurePath,
+        artifact_type: artifactType,
+        artifact_path: artifactPath,
       },
       errors: {
         422: `Validation Error`,
@@ -1853,20 +2187,93 @@ export class ProjectsService {
   }
 
   /**
-   * Post Figure Comment
-   * @returns FigureComment Successful Response
+   * Post Project Comment
+   * @returns ProjectComment Successful Response
    * @throws ApiError
    */
-  public static postFigureComment(
-    data: ProjectsData["PostFigureComment"],
-  ): CancelablePromise<FigureComment> {
+  public static postProjectComment(
+    data: ProjectsData["PostProjectComment"],
+  ): CancelablePromise<ProjectComment> {
     const { ownerName, projectName, requestBody } = data
     return __request(OpenAPI, {
       method: "POST",
-      url: "/projects/{owner_name}/{project_name}/figure-comments",
+      url: "/projects/{owner_name}/{project_name}/comments",
       path: {
         owner_name: ownerName,
         project_name: projectName,
+      },
+      body: requestBody,
+      mediaType: "application/json",
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Patch Project Comment
+   * @returns ProjectComment Successful Response
+   * @throws ApiError
+   */
+  public static patchProjectComment(
+    data: ProjectsData["PatchProjectComment"],
+  ): CancelablePromise<ProjectComment> {
+    const { ownerName, projectName, commentId, requestBody } = data
+    return __request(OpenAPI, {
+      method: "PATCH",
+      url: "/projects/{owner_name}/{project_name}/comments/{comment_id}",
+      path: {
+        owner_name: ownerName,
+        project_name: projectName,
+        comment_id: commentId,
+      },
+      body: requestBody,
+      mediaType: "application/json",
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Delete Project Comment
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static deleteProjectComment(
+    data: ProjectsData["DeleteProjectComment"],
+  ): CancelablePromise<unknown> {
+    const { ownerName, projectName, commentId } = data
+    return __request(OpenAPI, {
+      method: "DELETE",
+      url: "/projects/{owner_name}/{project_name}/comments/{comment_id}",
+      path: {
+        owner_name: ownerName,
+        project_name: projectName,
+        comment_id: commentId,
+      },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Post Project Comment Reply
+   * @returns ProjectComment Successful Response
+   * @throws ApiError
+   */
+  public static postProjectCommentReply(
+    data: ProjectsData["PostProjectCommentReply"],
+  ): CancelablePromise<ProjectComment> {
+    const { ownerName, projectName, commentId, requestBody } = data
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/projects/{owner_name}/{project_name}/comments/{comment_id}/replies",
+      path: {
+        owner_name: ownerName,
+        project_name: projectName,
+        comment_id: commentId,
       },
       body: requestBody,
       mediaType: "application/json",
@@ -1884,13 +2291,16 @@ export class ProjectsService {
   public static getProjectDatasets(
     data: ProjectsData["GetProjectDatasets"],
   ): CancelablePromise<Array<Dataset>> {
-    const { ownerName, projectName } = data
+    const { ownerName, projectName, ref } = data
     return __request(OpenAPI, {
       method: "GET",
       url: "/projects/{owner_name}/{project_name}/datasets",
       path: {
         owner_name: ownerName,
         project_name: projectName,
+      },
+      query: {
+        ref,
       },
       errors: {
         422: `Validation Error`,
@@ -1906,7 +2316,7 @@ export class ProjectsService {
   public static getProjectDataset(
     data: ProjectsData["GetProjectDataset"],
   ): CancelablePromise<DatasetForImport> {
-    const { path, ownerName, projectName, filterPaths } = data
+    const { path, ownerName, projectName, filterPaths, ref } = data
     return __request(OpenAPI, {
       method: "GET",
       url: "/projects/{owner_name}/{project_name}/datasets/{path}",
@@ -1917,6 +2327,7 @@ export class ProjectsService {
       },
       query: {
         filter_paths: filterPaths,
+        ref,
       },
       errors: {
         422: `Validation Error`,
@@ -1983,13 +2394,16 @@ export class ProjectsService {
   public static getProjectPublications(
     data: ProjectsData["GetProjectPublications"],
   ): CancelablePromise<Array<Publication>> {
-    const { ownerName, projectName } = data
+    const { ownerName, projectName, ref } = data
     return __request(OpenAPI, {
       method: "GET",
       url: "/projects/{owner_name}/{project_name}/publications",
       path: {
         owner_name: ownerName,
         project_name: projectName,
+      },
+      query: {
+        ref,
       },
       errors: {
         422: `Validation Error`,
@@ -2117,13 +2531,16 @@ export class ProjectsService {
   public static getProjectPipeline(
     data: ProjectsData["GetProjectPipeline"],
   ): CancelablePromise<Pipeline | null> {
-    const { ownerName, projectName } = data
+    const { ownerName, projectName, ref } = data
     return __request(OpenAPI, {
       method: "GET",
       url: "/projects/{owner_name}/{project_name}/pipeline",
       path: {
         owner_name: ownerName,
         project_name: projectName,
+      },
+      query: {
+        ref,
       },
       errors: {
         422: `Validation Error`,
@@ -2289,13 +2706,16 @@ export class ProjectsService {
   public static getProjectReferences(
     data: ProjectsData["GetProjectReferences"],
   ): CancelablePromise<Array<References>> {
-    const { ownerName, projectName } = data
+    const { ownerName, projectName, ref } = data
     return __request(OpenAPI, {
       method: "GET",
       url: "/projects/{owner_name}/{project_name}/references",
       path: {
         owner_name: ownerName,
         project_name: projectName,
+      },
+      query: {
+        ref,
       },
       errors: {
         422: `Validation Error`,
@@ -2311,13 +2731,16 @@ export class ProjectsService {
   public static getProjectEnvironments(
     data: ProjectsData["GetProjectEnvironments"],
   ): CancelablePromise<Array<Environment>> {
-    const { ownerName, projectName } = data
+    const { ownerName, projectName, ref } = data
     return __request(OpenAPI, {
       method: "GET",
       url: "/projects/{owner_name}/{project_name}/environments",
       path: {
         owner_name: ownerName,
         project_name: projectName,
+      },
+      query: {
+        ref,
       },
       errors: {
         422: `Validation Error`,
@@ -2333,13 +2756,16 @@ export class ProjectsService {
   public static postProjectEnvironment(
     data: ProjectsData["PostProjectEnvironment"],
   ): CancelablePromise<Environment> {
-    const { ownerName, projectName, requestBody } = data
+    const { ownerName, projectName, requestBody, ref } = data
     return __request(OpenAPI, {
       method: "POST",
       url: "/projects/{owner_name}/{project_name}/environments",
       path: {
         owner_name: ownerName,
         project_name: projectName,
+      },
+      query: {
+        ref,
       },
       body: requestBody,
       mediaType: "application/json",
@@ -2357,13 +2783,16 @@ export class ProjectsService {
   public static getProjectSoftware(
     data: ProjectsData["GetProjectSoftware"],
   ): CancelablePromise<Software> {
-    const { ownerName, projectName } = data
+    const { ownerName, projectName, ref } = data
     return __request(OpenAPI, {
       method: "GET",
       url: "/projects/{owner_name}/{project_name}/software",
       path: {
         owner_name: ownerName,
         project_name: projectName,
+      },
+      query: {
+        ref,
       },
       errors: {
         422: `Validation Error`,
@@ -2449,13 +2878,16 @@ export class ProjectsService {
   public static getProjectNotebooks(
     data: ProjectsData["GetProjectNotebooks"],
   ): CancelablePromise<Array<Notebook>> {
-    const { ownerName, projectName } = data
+    const { ownerName, projectName, ref } = data
     return __request(OpenAPI, {
       method: "GET",
       url: "/projects/{owner_name}/{project_name}/notebooks",
       path: {
         owner_name: ownerName,
         project_name: projectName,
+      },
+      query: {
+        ref,
       },
       errors: {
         422: `Validation Error`,
@@ -2471,13 +2903,16 @@ export class ProjectsService {
   public static getProjectReproCheck(
     data: ProjectsData["GetProjectReproCheck"],
   ): CancelablePromise<ReproCheck> {
-    const { ownerName, projectName } = data
+    const { ownerName, projectName, ref } = data
     return __request(OpenAPI, {
       method: "GET",
       url: "/projects/{owner_name}/{project_name}/repro-check",
       path: {
         owner_name: ownerName,
         project_name: projectName,
+      },
+      query: {
+        ref,
       },
       errors: {
         422: `Validation Error`,
@@ -2515,13 +2950,16 @@ export class ProjectsService {
   public static getProjectApp(
     data: ProjectsData["GetProjectApp"],
   ): CancelablePromise<ProjectApp | null> {
-    const { ownerName, projectName } = data
+    const { ownerName, projectName, ref } = data
     return __request(OpenAPI, {
       method: "GET",
       url: "/projects/{owner_name}/{project_name}/app",
       path: {
         owner_name: ownerName,
         project_name: projectName,
+      },
+      query: {
+        ref,
       },
       errors: {
         422: `Validation Error`,
@@ -2537,7 +2975,7 @@ export class ProjectsService {
   public static getProjectShowcase(
     data: ProjectsData["GetProjectShowcase"],
   ): CancelablePromise<Showcase | null> {
-    const { ownerName, projectName, ttl } = data
+    const { ownerName, projectName, ttl, ref } = data
     return __request(OpenAPI, {
       method: "GET",
       url: "/projects/{owner_name}/{project_name}/showcase",
@@ -2547,6 +2985,7 @@ export class ProjectsService {
       },
       query: {
         ttl,
+        ref,
       },
       errors: {
         422: `Validation Error`,

@@ -1,27 +1,31 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
+import LoadingSpinner from "../../../../../components/Common/LoadingSpinner"
 import {
   Box,
   Flex,
-  Spinner,
   Text,
   Icon,
   Heading,
+  Tag,
+  TagLabel,
+  TagCloseButton,
   useDisclosure,
   IconButton,
   useColorModeValue,
 } from "@chakra-ui/react"
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { FiFolder, FiFile, FiDatabase } from "react-icons/fi"
 import { FaMarkdown, FaPlus, FaLock } from "react-icons/fa6"
 import { AiOutlinePython } from "react-icons/ai"
 import { SiAnaconda, SiJupyter } from "react-icons/si"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import {
   FaDocker,
   FaList,
   FaRegFileImage,
   FaRegFolderOpen,
   FaSync,
+  FaHistory,
 } from "react-icons/fa"
 import { BsFiletypeYml } from "react-icons/bs"
 import { z } from "zod"
@@ -30,10 +34,22 @@ import { ProjectsService, type ContentsItem } from "../../../../../client"
 import UploadFile from "../../../../../components/Files/UploadFile"
 import PageMenu from "../../../../../components/Common/PageMenu"
 import FileContent from "../../../../../components/Files/FileContent"
-import SelectedItemInfo from "../../../../../components/Files/SelectedItemInfo"
-import useProject, { useProjectFiles } from "../../../../../hooks/useProject"
+import SelectedItemInfo, {
+  inferKindFromPath,
+} from "../../../../../components/Files/SelectedItemInfo"
+import useProject from "../../../../../hooks/useProject"
+import {
+  ArtifactCompareModal,
+  type ArtifactKind,
+} from "../../../../../components/Common/ArtifactCompareModal"
 
-const fileSearchSchema = z.object({ path: z.string().catch("") })
+const fileSearchSchema = z.object({
+  path: z.string().catch(""),
+  ref: z.string().optional(),
+  compare_open: z.boolean().optional(),
+  base_ref: z.string().optional(),
+  compare_ref: z.string().optional(),
+})
 
 export const Route = createFileRoute(
   "/_layout/$accountName/$projectName/_layout/files",
@@ -75,13 +91,15 @@ function Item({ item, level, selectedPath, setSelectedPath }: ItemProps) {
     pathShouldBeExpanded(item.path, selectedPath),
   )
   const { accountName, projectName } = Route.useParams()
+  const { ref } = Route.useSearch()
   const { data } = useQuery({
-    queryKey: ["projects", accountName, projectName, "files", item.path],
+    queryKey: ["projects", accountName, projectName, "files", item.path, ref],
     queryFn: () =>
       ProjectsService.getProjectContents({
         ownerName: accountName,
         projectName: projectName,
         path: item.path,
+        ref,
       }),
     enabled: isExpanded,
   })
@@ -143,7 +161,12 @@ function Item({ item, level, selectedPath, setSelectedPath }: ItemProps) {
   const handleClick = () => {
     setIsExpanded(!isExpanded)
     setSelectedPath(item.path)
-    navigate({ search: { path: item.path } })
+    navigate({
+      search: (prev) => ({
+        ...prev,
+        path: item.path,
+      }),
+    })
   }
 
   if (Array.isArray(data)) {
@@ -212,26 +235,74 @@ function Item({ item, level, selectedPath, setSelectedPath }: ItemProps) {
 
 function Files() {
   const { accountName, projectName } = Route.useParams()
-  const { path } = Route.useSearch()
+  const { path, ref, compare_open, base_ref, compare_ref } = Route.useSearch()
+  const navigate = useNavigate({ from: Route.fullPath })
   const { userHasWriteAccess } = useProject(accountName, projectName)
-  const { filesRequest } = useProjectFiles(accountName, projectName)
   const {
     isPending: filesPending,
     data: files,
     refetch,
     isRefetching,
-  } = filesRequest
+  } = useQuery({
+    queryKey: ["projects", accountName, projectName, "files", ref],
+    queryFn: () =>
+      ProjectsService.getProjectContents({
+        ownerName: accountName,
+        projectName: projectName,
+        ref,
+      }),
+  })
   const [selectedPath, setSelectedPath] = useState<string>(path)
+  // Keep selectedPath in sync when the URL `path` param changes (e.g., back/forward)
+  useEffect(() => {
+    setSelectedPath(path)
+  }, [path])
   const selectedItemQuery = useQuery({
-    queryKey: ["projects", accountName, projectName, "files", selectedPath],
+    queryKey: [
+      "projects",
+      accountName,
+      projectName,
+      "files",
+      selectedPath,
+      ref,
+    ],
     queryFn: () =>
       ProjectsService.getProjectContents({
         ownerName: accountName,
         projectName: projectName,
         path: selectedPath,
+        ref,
       }),
     enabled: selectedPath !== undefined,
   })
+  // Pre-fetch all ancestor directories so tree expansion doesn't waterfall.
+  // Using prefetchQuery (fire-and-forget) avoids extra re-renders that
+  // useQueries subscriptions would cause.
+  const queryClient = useQueryClient()
+  useEffect(() => {
+    if (!selectedPath) return
+    const segments = selectedPath.split("/").slice(0, -1)
+    segments.forEach((_, i, arr) => {
+      const ancestorPath = arr.slice(0, i + 1).join("/")
+      queryClient.prefetchQuery({
+        queryKey: [
+          "projects",
+          accountName,
+          projectName,
+          "files",
+          ancestorPath,
+          ref,
+        ],
+        queryFn: () =>
+          ProjectsService.getProjectContents({
+            ownerName: accountName,
+            projectName: projectName,
+            path: ancestorPath,
+            ref,
+          }),
+      })
+    })
+  }, [selectedPath, accountName, projectName, ref])
   const fileUploadModal = useDisclosure()
   if (Array.isArray(files?.dir_items)) {
     files.dir_items.sort(sortByTypeAndName)
@@ -241,33 +312,51 @@ function Files() {
     selectedItemQuery.refetch()
   }
 
+  const clearRef = () => {
+    navigate({ search: (prev) => ({ ...prev, ref: undefined }) })
+  }
+
+  const openCompare = () =>
+    navigate({
+      search: (prev) => ({ ...prev, compare_open: true }),
+    })
+
+  const closeCompare = () =>
+    navigate({
+      search: (prev) => ({
+        ...prev,
+        compare_open: undefined,
+        base_ref: undefined,
+        compare_ref: undefined,
+      }),
+    })
+
+  const selectedItem = selectedItemQuery.data
+  const artifactKind: ArtifactKind | undefined =
+    selectedItem?.type === "file"
+      ? (selectedItem.calkit_object?.kind as ArtifactKind | undefined) ??
+        inferKindFromPath(selectedItem.path)
+      : undefined
+
   return (
     <>
       {filesPending || isRefetching ? (
-        <Flex justify="center" align="center" height="full" width="full">
-          <Spinner size="xl" color="ui.main" />
-        </Flex>
+        <LoadingSpinner />
       ) : (
-        <Flex height={"100%"}>
+        <Flex height={"100%"} overflowX="hidden">
           <PageMenu>
-            <Flex gap={2}>
-              <Heading size="md" mb={1}>
-                All files
-              </Heading>
-              {userHasWriteAccess ? (
-                <>
-                  <IconButton
-                    variant="primary"
-                    height="25px"
-                    fontSize="sm"
-                    onClick={fileUploadModal.onOpen}
-                    icon={<FaPlus />}
-                    aria-label="upload"
-                  />
-                </>
-              ) : (
-                ""
-              )}
+            <Flex align="center" gap={1} mb={2} wrap="wrap">
+              <Heading size="md">All files</Heading>
+              {userHasWriteAccess && !ref ? (
+                <IconButton
+                  variant="primary"
+                  height="25px"
+                  fontSize="sm"
+                  onClick={fileUploadModal.onOpen}
+                  icon={<FaPlus />}
+                  aria-label="upload"
+                />
+              ) : null}
               <IconButton
                 aria-label="refresh"
                 height="25px"
@@ -275,6 +364,19 @@ function Files() {
                 onClick={refresh}
               />
             </Flex>
+
+            {/* Version badge when a ref is active */}
+            {ref && (
+              <Box mb={3}>
+                <Tag size="sm" colorScheme="blue" borderRadius="full">
+                  <Icon as={FaHistory} mr={1} fontSize="10px" />
+                  <TagLabel fontSize="xs" maxW="120px" isTruncated>
+                    {ref}
+                  </TagLabel>
+                  <TagCloseButton onClick={clearRef} />
+                </Tag>
+              </Box>
+            )}
             <UploadFile
               isOpen={fileUploadModal.isOpen}
               onClose={fileUploadModal.onClose}
@@ -290,44 +392,70 @@ function Files() {
                 ))
               : ""}
           </PageMenu>
-          <Box minW="685px" maxH="82vh">
-            {selectedPath !== undefined &&
-            (selectedItemQuery.isPending || selectedItemQuery.isRefetching) ? (
-              <Flex justify="center" align="center" height="full" width="full">
-                <Spinner size="xl" color="ui.main" />
-              </Flex>
-            ) : (
-              <>
-                {selectedItemQuery?.data?.content ||
+          <Flex flex={1} minW={0} gap={6} align="flex-start">
+            <Box flex={1} minW={0} minH={0} overflowY="auto" overflowX="auto">
+              {selectedPath !== undefined && selectedItemQuery.isPending ? (
+                <LoadingSpinner />
+              ) : selectedItemQuery?.data?.content ||
                 selectedItemQuery?.data?.url ? (
-                  <FileContent item={selectedItemQuery?.data} />
-                ) : (
-                  ""
-                )}
-              </>
-            )}
-          </Box>
-          <Box mx={5}>
-            <Heading size="md">Info</Heading>
-            {selectedPath !== undefined &&
-            (selectedItemQuery.isPending || selectedItemQuery.isRefetching) ? (
-              ""
-            ) : (
-              <>
-                {selectedItemQuery?.data && selectedPath !== undefined ? (
-                  <SelectedItemInfo
-                    selectedItem={selectedItemQuery.data}
-                    ownerName={accountName}
-                    projectName={projectName}
-                    userHasWriteAccess={userHasWriteAccess}
-                  />
-                ) : (
-                  ""
-                )}
-              </>
-            )}
-          </Box>
+                <FileContent item={selectedItemQuery.data!} />
+              ) : null}
+            </Box>
+            <Box
+              w="280px"
+              flexShrink={0}
+              px={3}
+              py={2}
+              borderRadius="lg"
+              bg={useColorModeValue("ui.secondary", "ui.darkSlate")}
+              h="fit-content"
+              overflow="hidden"
+            >
+              <Heading size="md" mb={2}>
+                Info
+              </Heading>
+              {selectedPath !== undefined && selectedItemQuery.isPending ? (
+                ""
+              ) : (
+                <>
+                  {selectedItemQuery?.data && selectedPath !== undefined ? (
+                    <SelectedItemInfo
+                      selectedItem={selectedItemQuery.data}
+                      ownerName={accountName}
+                      projectName={projectName}
+                      userHasWriteAccess={userHasWriteAccess}
+                      onOpenCompare={openCompare}
+                    />
+                  ) : (
+                    ""
+                  )}
+                </>
+              )}
+            </Box>
+          </Flex>
         </Flex>
+      )}
+
+      {selectedItem?.type === "file" && (
+        <ArtifactCompareModal
+          isOpen={Boolean(compare_open)}
+          onClose={closeCompare}
+          ownerName={accountName}
+          projectName={projectName}
+          path={selectedItem.path}
+          kind={artifactKind ?? "file"}
+          initialRef={base_ref}
+          initialRef2={compare_ref}
+          onRefsChange={(r1, r2) =>
+            navigate({
+              search: (prev) => ({
+                ...prev,
+                base_ref: r1,
+                compare_ref: r2,
+              }),
+            })
+          }
+        />
       )}
     </>
   )

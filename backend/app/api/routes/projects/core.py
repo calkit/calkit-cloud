@@ -7,6 +7,7 @@ import logging
 import os
 import shutil
 import subprocess
+import sys
 import uuid
 import zipfile
 from copy import deepcopy
@@ -14,7 +15,8 @@ from datetime import datetime
 from fnmatch import fnmatch
 from io import StringIO
 from pathlib import Path
-from typing import Annotated, Literal, Optional
+from typing import Annotated, Literal, Optional, cast
+from urllib.parse import urlparse
 
 import bibtexparser
 import calkit
@@ -56,6 +58,7 @@ from app.core import (
     CATEGORIES_SINGULAR_TO_PLURAL,
     params_from_url,
     ryaml,
+    utcnow,
 )
 from app.dvc import (
     expand_dvc_lock_outs,
@@ -65,9 +68,12 @@ from app.dvc import (
 from app.git import (
     get_ck_info,
     get_ck_info_from_repo,
+    get_commit_history,
     get_dvc_pipeline_from_repo,
+    get_file_history,
     get_overleaf_repo,
     get_repo,
+    search_refs,
 )
 from app.models import (
     Account,
@@ -75,8 +81,10 @@ from app.models import (
     Dataset,
     DatasetForImport,
     Figure,
-    FigureComment,
-    FigureCommentPost,
+    Notification,
+    ProjectComment,
+    ProjectCommentPatch,
+    ProjectCommentPost,
     FileLock,
     Message,
     Notebook,
@@ -89,6 +97,7 @@ from app.models import (
     ProjectsPublic,
     Publication,
     Question,
+    GitRef,
     User,
     UserOrgMembership,
     UserProjectAccess,
@@ -123,6 +132,10 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 DEFAULT_REPO_TTL = 60  # Seconds
+FULL_HISTORY_REPO_TTL = 10 * 60  # Seconds; history changes infrequently
+
+FIGURE_EXTS = {".png", ".jpg", ".jpeg", ".svg", ".gif"}
+FIGURE_DIRS = {"figures", "figure", "figs", "fig", "plots", "images"}
 
 
 @router.get("/projects")
@@ -221,10 +234,10 @@ def get_owned_projects(
         where_clause = and_(
             where_clause,
             or_(
-                Project.name.ilike(search_for),
-                Project.title.ilike(search_for),
-                Project.description.ilike(search_for),
-                Project.git_repo_url.ilike(search_for),
+                Project.name.ilike(search_for),  # type: ignore
+                Project.title.ilike(search_for),  # type: ignore
+                Project.description.ilike(search_for),  # type: ignore
+                Project.git_repo_url.ilike(search_for),  # type: ignore
             ),
         )
     count_statement = (
@@ -234,12 +247,12 @@ def get_owned_projects(
     statement = (
         select(Project)
         .where(where_clause)
-        .order_by(sqlalchemy.desc(Project.created))
+        .order_by(sqlalchemy.desc(Project.created))  # type: ignore
         .offset(offset)
         .limit(limit)
     )
     projects = session.exec(statement).all()
-    return ProjectsPublic(data=projects, count=count)
+    return ProjectsPublic(data=projects, count=count)  # type: ignore
 
 
 @router.post("/projects")
@@ -250,6 +263,7 @@ def post_project(
     project_in: ProjectPost,
 ) -> ProjectPublic:
     """Create new project."""
+    project_in.name = project_in.name.lower()
     if project_in.git_repo_exists and project_in.git_repo_url is None:
         raise HTTPException(
             400, "Git repo URL must be specified if Git repo exists"
@@ -270,6 +284,10 @@ def post_project(
             current_user=current_user,
             min_access_level="read",
         )
+    # Validate the git repo URL is on github.com to prevent SSRF
+    parsed_git_url = urlparse(project_in.git_repo_url)
+    if parsed_git_url.hostname not in ("github.com", "www.github.com"):
+        raise HTTPException(400, "Git repo URL must be on github.com")
     # Detect owner and repo name from Git repo URL
     # TODO: This should be generalized to not depend on GitHub?
     owner_name, repo_name = project_in.git_repo_url.split("/")[-2:]
@@ -532,8 +550,9 @@ def post_project(
             # This org must exist in Calkit and the user must have access to it
             # First check if this org exists in Calkit and try to create it
             # if it doesn't
-            query = select(Org).where(Org.account.has(github_name=owner_name))  # type: ignore
-            org = session.exec(query).first()
+            org = orgs.get_org_by_github_name(
+                session=session, github_name=owner_name
+            )
             if org is None:
                 logger.info(f"Org '{owner_name}' does not exist in DB")
                 # Try to create the org
@@ -542,7 +561,9 @@ def post_project(
                     session=session,
                     current_user=current_user,
                 )
-                org = session.exec(query).first()
+                org = orgs.get_org_by_github_name(
+                    session=session, github_name=owner_name
+                )
             assert isinstance(org, Org)
             account_id = org.account.id
             subscription = org.subscription
@@ -605,6 +626,7 @@ def get_project(
     session: SessionDep,
     current_user: CurrentUserOptional,
     get_extended_info: bool = False,
+    ref: str | None = None,
 ) -> ProjectOptionalExtended:
     project = app.projects.get_project(
         session=session,
@@ -624,6 +646,7 @@ def get_project(
             user=current_user,
             session=session,
             ttl=DEFAULT_REPO_TTL,
+            ref=ref,
         )
         ck_info = get_ck_info_from_repo(repo=repo)
         resp.calkit_info_keys = list(ck_info.keys())
@@ -738,7 +761,7 @@ def get_project_git_repo(
     project_name: str,
     session: SessionDep,
     current_user: CurrentUser,
-):
+) -> dict:
     token = users.get_github_token(session=session, user=current_user)
     project = get_project(
         owner_name=owner_name,
@@ -752,6 +775,258 @@ def get_project_git_repo(
         headers={"Authorization": f"Bearer {token}"},
     )
     return resp.json()
+
+
+@router.get("/projects/{owner_name}/{project_name}/git/refs")
+def search_project_refs(
+    owner_name: str,
+    project_name: str,
+    session: SessionDep,
+    current_user: CurrentUserOptional,
+    q: Optional[str] = Query(None, description="Search query for refs"),
+) -> list[GitRef]:
+    """Get git refs (branches, tags, commits) in a project.
+
+    Parameters
+    ----------
+    owner_name:
+        Owner of the project.
+    project_name:
+        Name of the project.
+    q:
+        Optional search query to filter refs by branch name, tag name,
+        commit message, or author.
+
+    Returns
+    -------
+    list[GitRef]
+        List of matching GitRef objects with name, kind, message, author,
+        timestamp.
+    """
+    project = app.projects.get_project(
+        session=session,
+        owner_name=owner_name,
+        project_name=project_name,
+        current_user=current_user,
+        min_access_level="read",
+    )
+    repo = get_repo(
+        project=project,
+        user=current_user,
+        session=session,
+        ttl=FULL_HISTORY_REPO_TTL,
+    )
+    refs = search_refs(repo, query=q)
+    return cast(list[GitRef], refs)
+
+
+@router.get("/projects/{owner_name}/{project_name}/git/history")
+def get_project_history(
+    owner_name: str,
+    project_name: str,
+    session: SessionDep,
+    current_user: CurrentUserOptional,
+    limit: int = Query(50, description="Max number of commits to return"),
+    offset: int = Query(0, description="Number of commits to skip"),
+    ref: Optional[str] = Query(
+        None, description="Branch, tag, or commit to read history from"
+    ),
+) -> list[dict]:
+    """Get paginated git commit history for a project.
+
+    Parameters
+    ----------
+    limit:
+        Maximum number of commits to return.
+    offset:
+        Number of commits to skip from the newest commit.
+    ref:
+        Optional branch, tag, or commit to read history from.
+    """
+    project = app.projects.get_project(
+        session=session,
+        owner_name=owner_name,
+        project_name=project_name,
+        current_user=current_user,
+        min_access_level="read",
+    )
+    repo = get_repo(
+        project=project,
+        user=current_user,
+        session=session,
+        ttl=FULL_HISTORY_REPO_TTL,
+    )
+    history = get_commit_history(repo, max_count=limit + offset, ref=ref)
+    return history[offset : offset + limit]
+
+
+@router.get("/projects/{owner_name}/{project_name}/git/commits/{commit_hash}")
+def get_project_commit(
+    owner_name: str,
+    project_name: str,
+    commit_hash: str,
+    session: SessionDep,
+    current_user: CurrentUserOptional,
+) -> dict:
+    """Get details for a specific commit including changed files.
+
+    Parameters
+    ----------
+    commit_hash:
+        Full or short commit hash to inspect.
+    """
+    project = app.projects.get_project(
+        session=session,
+        owner_name=owner_name,
+        project_name=project_name,
+        current_user=current_user,
+        min_access_level="read",
+    )
+    repo = get_repo(
+        project=project,
+        user=current_user,
+        session=session,
+        ttl=FULL_HISTORY_REPO_TTL,
+    )
+    try:
+        commit = repo.commit(commit_hash)
+    except Exception:
+        raise HTTPException(404, "Commit not found")
+    # Cap response size so a single giant commit (e.g., a large generated
+    # file or a wide merge) can't balloon memory or the JSON payload.
+    MAX_FILES = 500
+    MAX_PATCH_BYTES = 100_000
+    changed_files: list[dict] = []
+    files_truncated = False
+    if commit.parents:
+        parent = commit.parents[0]
+        diff = parent.diff(commit, create_patch=True)
+        for d in diff:
+            if len(changed_files) >= MAX_FILES:
+                files_truncated = True
+                break
+            change_type = d.change_type  # A, D, M, R, etc.
+            patch_bytes = d.diff if d.diff else b""
+            if not isinstance(patch_bytes, bytes):
+                patch_bytes = str(patch_bytes).encode(
+                    "utf-8", errors="replace"
+                )
+            # Binary files: skip decoding the patch entirely.
+            is_binary = b"\x00" in patch_bytes[:8192]
+            patch_truncated = False
+            if is_binary:
+                patch = None
+            else:
+                if len(patch_bytes) > MAX_PATCH_BYTES:
+                    patch_bytes = patch_bytes[:MAX_PATCH_BYTES]
+                    patch_truncated = True
+                patch = patch_bytes.decode("utf-8", errors="replace")
+            if patch is None:
+                insertions = None
+                deletions = None
+            else:
+                insertions = sum(
+                    1
+                    for line in patch.splitlines()
+                    if line.startswith("+") and not line.startswith("+++")
+                )
+                deletions = sum(
+                    1
+                    for line in patch.splitlines()
+                    if line.startswith("-") and not line.startswith("---")
+                )
+            changed_files.append(
+                {
+                    "path": d.b_path or d.a_path,
+                    "old_path": d.a_path if change_type == "R" else None,
+                    "change_type": change_type,
+                    "insertions": insertions,
+                    "deletions": deletions,
+                    "patch": patch,
+                    "is_binary": is_binary,
+                    "patch_truncated": patch_truncated,
+                }
+            )
+    else:
+        # Initial commit--list all files
+        for item in commit.tree.traverse():
+            if len(changed_files) >= MAX_FILES:
+                files_truncated = True
+                break
+            if item.type == "blob":  # type: ignore[union-attr]
+                changed_files.append(
+                    {
+                        "path": item.path,  # type: ignore[union-attr]
+                        "old_path": None,
+                        "change_type": "A",
+                        "insertions": None,
+                        "deletions": None,
+                        "patch": None,
+                        "is_binary": False,
+                        "patch_truncated": False,
+                    }
+                )
+    message = (
+        commit.message
+        if isinstance(commit.message, str)
+        else bytes(commit.message).decode("utf-8", errors="replace")
+    )
+    return {
+        "hash": commit.hexsha,
+        "short_hash": commit.hexsha[:7],
+        "message": message,
+        "summary": message.split("\n")[0],
+        "author": commit.author.name,
+        "author_email": commit.author.email,
+        "timestamp": commit.committed_datetime.isoformat(),
+        "parent_hashes": [p.hexsha[:7] for p in commit.parents],
+        "changed_files": changed_files,
+        "files_truncated": files_truncated,
+    }
+
+
+@router.get("/projects/{owner_name}/{project_name}/git/file-history")
+def get_project_file_history(
+    owner_name: str,
+    project_name: str,
+    path: str,
+    session: SessionDep,
+    current_user: CurrentUserOptional,
+    limit: int = Query(100, description="Max number of commits to return"),
+    storage: Optional[Literal["git", "dvc", "dvc-zip"]] = Query(
+        None,
+        description=(
+            "Artifact storage class; when supplied, limits the lookup to "
+            "relevant sources (e.g., skips the dvc.lock scan for git files)."
+        ),
+    ),
+) -> list[dict]:
+    """Get git commit history for a specific file path.
+
+    Returns commits that touched the file directly, its DVC pointer (.dvc),
+    or dvc.lock (for pipeline outputs), so DVC-tracked artifacts are covered.
+    Pass ``storage`` when the caller knows the artifact's storage class so
+    irrelevant lookups are skipped.
+    """
+    # Prevent path traversal
+    if os.path.isabs(path):
+        raise HTTPException(400, "Absolute paths are not allowed")
+    if ".." in path.split(os.sep):
+        raise HTTPException(400, "Path traversal is not allowed")
+    project = app.projects.get_project(
+        session=session,
+        owner_name=owner_name,
+        project_name=project_name,
+        current_user=current_user,
+        min_access_level="read",
+    )
+    repo = get_repo(
+        project=project,
+        user=current_user,
+        session=session,
+        ttl=FULL_HISTORY_REPO_TTL,
+    )
+    return get_file_history(repo, path=path, max_count=limit, storage=storage)
 
 
 @router.post("/projects/{owner_name}/{project_name}/dvc/files/md5/{idx}/{md5}")
@@ -782,7 +1057,10 @@ async def post_project_dvc_file(
     logger.info(f"{current_user.email} requesting to POST data")
     # Check if user has not exceeded their storage limit
     fs = get_object_fs()
-    storage_limit_gb = project.owner.subscription.storage_limit
+    owner = project.owner
+    if owner is None or owner.subscription is None:
+        raise HTTPException(400, "Project owner subscription not configured")
+    storage_limit_gb = owner.subscription.storage_limit
     session.close()
     # Create bucket if it doesn't exist -- only necessary with MinIO
     if settings.ENVIRONMENT == "local" and not fs.exists(get_data_prefix()):
@@ -908,6 +1186,7 @@ def get_project_git_contents(
     current_user: CurrentUser,
     path: str | None = None,
     astype: Literal["", ".raw", ".html", ".object"] = "",
+    ref: str | None = None,
 ) -> list[GitItem] | GitItemWithContents | str:
     app.projects.get_project(
         session=session,
@@ -925,7 +1204,8 @@ def get_project_git_contents(
         "Authorization": f"Bearer {token}",
         "Accept": f"application/vnd.github{astype}+json",
     }
-    resp = requests.get(url, headers=headers)
+    params = {"ref": ref} if ref is not None else None
+    resp = requests.get(url, headers=headers, params=params)
     logger.info(f"Response status code from GitHub: {resp.status_code}")
     if resp.status_code >= 400:
         logger.info(f"GitHub API call failed: {resp.text}")
@@ -946,6 +1226,7 @@ def get_project_contents(
     current_user: CurrentUserOptional,
     path: str | None = None,
     ttl: int | None = DEFAULT_REPO_TTL,
+    ref: str | None = None,
 ) -> ContentsItem:
     project = app.projects.get_project(
         owner_name=owner_name,
@@ -957,10 +1238,17 @@ def get_project_contents(
     # Get the repo
     # TODO: Stop using a TTL and rely on latest commit hash
     repo = get_repo(
-        project=project, user=current_user, session=session, ttl=ttl
+        project=project,
+        user=current_user,
+        session=session,
+        ttl=ttl,
+        ref=ref,
     )
     return app.projects.get_contents_from_repo(
-        project=project, repo=repo, path=path
+        project=project,
+        repo=repo,
+        path=path,
+        ref=ref,
     )
 
 
@@ -1135,7 +1423,9 @@ def _sync_questions_with_db(
     for n, new in enumerate(questions):
         number = start_number + n
         logger.info(f"Appending new question with number: {number}")
-        project.questions.append(Question(number=number, question=new))
+        project.questions.append(
+            Question(project_id=project.id, number=number, question=new)
+        )
     # Delete extra questions in DB
     while len(project.questions) > len(questions_ck):
         q = project.questions.pop(-1)
@@ -1152,6 +1442,7 @@ def get_project_questions(
     project_name: str,
     current_user: CurrentUserOptional,
     session: SessionDep,
+    ref: str | None = None,
 ) -> list[Question]:
     project = app.projects.get_project(
         owner_name=owner_name,
@@ -1165,6 +1456,7 @@ def get_project_questions(
         user=current_user,
         session=session,
         ttl=DEFAULT_REPO_TTL,
+        ref=ref,
     )
     project = _sync_questions_with_db(
         ck_info=ck_info, project=project, session=session
@@ -1195,7 +1487,10 @@ def post_project_question(
     repo = get_repo(
         project=project, user=current_user, session=session, ttl=None
     )
-    ck_info = get_ck_info_from_repo(repo)
+    ck_info = app.projects.get_ck_info_from_repo(
+        repo=repo,
+        process_includes=True,
+    )
     ck_questions = ck_info.get("questions", [])
     ck_questions.append(req.question)
     ck_info["questions"] = ck_questions
@@ -1216,6 +1511,7 @@ def get_project_figures(
     project_name: str,
     current_user: CurrentUserOptional,
     session: SessionDep,
+    ref: str | None = None,
 ) -> list[Figure]:
     project = app.projects.get_project(
         session=session,
@@ -1229,20 +1525,75 @@ def get_project_figures(
         user=current_user,
         session=session,
         ttl=DEFAULT_REPO_TTL,
+        ref=ref,
     )
-    ck_info = get_ck_info_from_repo(repo)
+    ck_info = app.projects.get_ck_info_for_ref(
+        project=project,
+        repo=repo,
+        ref=ref,
+    )
     figures = ck_info.get("figures", [])
+    declared_paths = {fig["path"] for fig in figures}
+    # Auto-detect figures from the repo tree
+    try:
+        commit = repo.commit(ref) if ref else repo.head.commit
+        for blob in commit.tree.traverse():
+            if blob.type != "blob":  # type: ignore[union-attr]
+                continue
+            parts = blob.path.split("/")  # type: ignore[union-attr]
+            # Skip hidden folders like .calkit
+            if any(p.startswith(".") for p in parts):
+                continue
+            ext = (
+                "." + parts[-1].rsplit(".", 1)[-1] if "." in parts[-1] else ""
+            )
+            parent_dir = parts[-2].lower() if len(parts) > 1 else ""
+            if ext.lower() in FIGURE_EXTS and parent_dir in FIGURE_DIRS:
+                if blob.path not in declared_paths:  # type: ignore[union-attr]
+                    stem = (
+                        parts[-1]
+                        .rsplit(".", 1)[0]
+                        .replace("_", " ")
+                        .replace("-", " ")
+                        .title()
+                    )
+                    figures.append({"path": blob.path, "title": stem})  # type: ignore[union-attr]
+    except Exception:
+        pass
     if not figures:
-        return figures
-    # Get the figure content and base64 encode it
+        return []
+    # Build comment count map from DB
+    comment_counts = dict(
+        session.exec(
+            select(ProjectComment.artifact_path, func.count())
+            .where(
+                ProjectComment.project_id == project.id,
+                ProjectComment.artifact_type == "figure",
+                ProjectComment.parent_id == None,  # noqa: E711
+                ProjectComment.resolved == None,  # noqa: E711
+            )
+            .group_by(ProjectComment.artifact_path)
+        ).all()
+    )
+    # Get the figure content and base64 encode it.
+    # Pre-compute calkit.yaml / dvc.lock metadata once for the tree so we
+    # don't re-read and re-expand on every iteration.
+    tree = app.projects.get_repo_tree_for_ref(repo, ref)
+    ck_info_full, dvc_lock_outs, zip_path_map = (
+        app.projects.get_ck_info_and_dvc_outs_from_tree(project, tree)
+    )
     for fig in figures:
-        item = app.projects.get_contents_from_repo(
+        item = app.projects.get_contents_from_tree(
             project=project,
-            repo=repo,
+            tree=tree,
             path=fig["path"],
+            ck_info=ck_info_full,
+            dvc_lock_outs=dvc_lock_outs,
+            zip_path_map=zip_path_map,
         )
         fig["content"] = item.content
         fig["url"] = item.url
+        fig["comment_count"] = comment_counts.get(fig["path"], 0)
     return [Figure.model_validate(fig) for fig in figures]
 
 
@@ -1254,6 +1605,7 @@ def get_project_figure(
     current_user: CurrentUserOptional,
     session: SessionDep,
     ttl: int | None = DEFAULT_REPO_TTL,
+    ref: str | None = None,
 ) -> Figure:
     project = app.projects.get_project(
         session=session,
@@ -1263,10 +1615,17 @@ def get_project_figure(
         min_access_level="read",
     )
     repo = get_repo(
-        project=project, user=current_user, session=session, ttl=ttl
+        project=project,
+        user=current_user,
+        session=session,
+        ttl=ttl,
+        ref=ref,
     )
     return app.projects.get_figure_from_repo(
-        project=project, repo=repo, path=figure_path
+        project=project,
+        repo=repo,
+        path=figure_path,
+        ref=ref,
     )
 
 
@@ -1282,6 +1641,8 @@ def post_project_figure(
     stage: Optional[Annotated[str, Form()]] = Form(None),
     file: Optional[Annotated[UploadFile, File()]] = Form(None),
 ) -> Figure:
+    file_data: bytes | None = None
+    full_fig_path: str | None = None
     if file is not None:
         logger.info(
             f"Received figure file {path} with content type: "
@@ -1337,15 +1698,20 @@ def post_project_figure(
         # Initialize DVC if it's never been
         if not os.path.isdir(os.path.join(repo.working_dir, ".dvc")):
             logger.info("Calling dvc init since .dvc directory is missing")
-            subprocess.call(["dvc", "init"], cwd=repo.working_dir)
-        dvc_out = subprocess.check_output(
-            ["dvc", "add", path], cwd=repo.working_dir
-        ).decode()
-        for line in dvc_out.split("\n"):
-            if line.strip().startswith("git add"):
-                cmd = line.strip().split()
-                logger.info(f"Calling {cmd}")
-                repo.git.add(cmd[2:])
+            subprocess.call(
+                [sys.executable, "-m", "dvc", "init"], cwd=repo.working_dir
+            )
+        logger.info(f"Running dvc add {path}")
+        subprocess.check_call(
+            [sys.executable, "-m", "dvc", "add", path],
+            cwd=repo.working_dir,
+        )
+        files_to_stage = [path + ".dvc"]
+        gitignore = os.path.join(os.path.dirname(path), ".gitignore")
+        if os.path.isfile(os.path.join(repo.working_dir, gitignore)):
+            files_to_stage.append(gitignore)
+        logger.info(f"Git-adding {files_to_stage}")
+        repo.git.add(files_to_stage)
     elif not os.path.isfile(os.path.join(repo.working_dir, path)):
         raise HTTPException(
             400, "File must exist in repo if not being uploaded"
@@ -1364,6 +1730,8 @@ def post_project_figure(
     repo.git.push(["origin", repo.branches[0].name])
     url = None
     if file is not None:
+        if file_data is None or full_fig_path is None:
+            raise HTTPException(500, "Figure upload data missing")
         # If using the DVC remote, we can just put it in the expected location
         # since we'll have the md5 hash in the dvc file
         with open(os.path.join(repo.working_dir, path + ".dvc")) as f:
@@ -1377,7 +1745,7 @@ def post_project_figure(
             md5=md5[2:],
         )
         with fs.open(fpath, "wb") as f:
-            f.write(file_data)
+            f.write(file_data)  # type: ignore[arg-type]
         if settings.ENVIRONMENT != "local":
             remove_gcs_content_type(fpath)
         url = get_object_url(fpath=fpath, fname=os.path.basename(path))
@@ -1393,14 +1761,19 @@ def post_project_figure(
     )
 
 
-@router.get("/projects/{owner_name}/{project_name}/figure-comments")
-def get_figure_comments(
+class CommentReply(BaseModel):
+    body: str
+
+
+@router.get("/projects/{owner_name}/{project_name}/comments")
+def get_project_comments(
     owner_name: str,
     project_name: str,
     current_user: CurrentUserOptional,
     session: SessionDep,
-    figure_path: str | None = None,
-) -> list[FigureComment]:
+    artifact_type: str | None = None,
+    artifact_path: str | None = None,
+) -> list[ProjectComment]:
     project = app.projects.get_project(
         session=session,
         owner_name=owner_name,
@@ -1408,26 +1781,26 @@ def get_figure_comments(
         current_user=current_user,
         min_access_level="read",
     )
-    query = select(FigureComment).where(FigureComment.project_id == project.id)
-    if figure_path is not None:
-        query = query.where(FigureComment.figure_path == figure_path)
-    comments = session.exec(query).fetchall()
+    query = select(ProjectComment).where(
+        ProjectComment.project_id == project.id
+    )
+    if artifact_type is not None:
+        query = query.where(ProjectComment.artifact_type == artifact_type)
+    if artifact_path is not None:
+        query = query.where(ProjectComment.artifact_path == artifact_path)
+    comments = list(session.exec(query).all())
+    _sync_github_issue_resolutions(session, comments, current_user)
     return comments
 
 
-@router.post("/projects/{owner_name}/{project_name}/figure-comments")
-def post_figure_comment(
+@router.post("/projects/{owner_name}/{project_name}/comments")
+def post_project_comment(
     owner_name: str,
     project_name: str,
-    comment_in: FigureCommentPost,
+    comment_in: ProjectCommentPost,
     current_user: CurrentUser,
     session: SessionDep,
-) -> FigureComment:
-    logger.info(
-        f"Received request to post comment to {owner_name}/{project_name}/"
-        f"{comment_in.figure_path}: {comment_in.comment}"
-    )
-    # Does this user have permission to comment on this project?
+) -> ProjectComment:
     project = app.projects.get_project(
         session=session,
         owner_name=owner_name,
@@ -1435,27 +1808,509 @@ def post_figure_comment(
         current_user=current_user,
         min_access_level="write",
     )
-    # First we need to make this this figure path exists in this project
-    ck_info = get_ck_info(
+    repo = get_repo(
         project=project,
         user=current_user,
         session=session,
         ttl=DEFAULT_REPO_TTL,
     )
-    figures = ck_info.get("figures", [])
-    fig_paths = [fig["path"] for fig in figures]
-    if comment_in.figure_path not in fig_paths:
-        raise HTTPException(404)
-    comment = FigureComment(
+    # For figure comments, verify the path exists in the repo
+    if comment_in.artifact_type == "figure" and comment_in.artifact_path:
+        ck_info = get_ck_info_from_repo(repo)
+        fig_paths = {fig["path"] for fig in ck_info.get("figures", [])}
+        if comment_in.artifact_path not in fig_paths:
+            try:
+                repo.head.commit.tree[comment_in.artifact_path]
+            except KeyError:
+                raise HTTPException(404)
+    # Resolve the commit hash for the git context at comment time
+    try:
+        if comment_in.git_ref:
+            git_rev = repo.commit(comment_in.git_ref).hexsha
+        else:
+            git_rev = repo.head.commit.hexsha
+    except Exception:
+        logger.info(
+            f"Failed to resolve Git ref {comment_in.git_ref} for comment; "
+            "storing without Git rev"
+        )
+        git_rev = None
+    comment = ProjectComment(
         project_id=project.id,
-        figure_path=comment_in.figure_path,
+        artifact_path=comment_in.artifact_path,
+        artifact_type=comment_in.artifact_type,
         comment=comment_in.comment,
+        highlight=comment_in.highlight.model_dump()
+        if comment_in.highlight
+        else None,
         user_id=current_user.id,
+        parent_id=comment_in.parent_id,
+        git_ref=comment_in.git_ref,
+        git_rev=git_rev,
     )
     session.add(comment)
+    session.flush()
+    if comment_in.create_github_issue and comment_in.artifact_path:
+        app_base = settings.frontend_host.rstrip("/")
+        route_map = {
+            "figure": "figures",
+            "publication": "publications",
+            "notebook": "notebooks",
+            "file": "files",
+        }
+        route = route_map.get(comment_in.artifact_type or "", "files")
+        artifact_link = (
+            f"{app_base}/{owner_name}/{project_name}/{route}"
+            f"?path={comment_in.artifact_path}"
+        )
+        body_lines = [
+            f"Comment on [{comment_in.artifact_path}]({artifact_link}):",
+            "",
+            comment_in.comment,
+        ]
+        if comment_in.highlight:
+            highlighted_text = comment_in.highlight.content.get("text", "")
+            if highlighted_text:
+                body_lines += ["", f"> {highlighted_text}"]
+        issue_url = _try_create_github_issue(
+            session=session,
+            current_user=current_user,
+            project=project,
+            title=_make_comment_title(comment_in.comment),
+            body="\n".join(body_lines),
+        )
+        if issue_url:
+            comment.external_url = issue_url
+    commenter_name = current_user.full_name or current_user.account.github_name
+    if comment_in.artifact_path:
+        route_map = {
+            "figure": "figures",
+            "publication": "publications",
+            "notebook": "notebooks",
+            "file": "files",
+        }
+        route = route_map.get(comment_in.artifact_type or "", "files")
+        _fan_out_notifications(
+            session=session,
+            project=project,
+            commenter_id=current_user.id,
+            message=f"{commenter_name} commented on {comment_in.artifact_path}",
+            link=(
+                f"/{owner_name}/{project_name}/{route}"
+                f"?path={comment_in.artifact_path}"
+            ),
+        )
     session.commit()
     session.refresh(comment)
+    mixpanel.track(
+        current_user,
+        "Posted project comment",
+        {
+            "owner_name": owner_name,
+            "project_name": project_name,
+            "artifact_type": comment_in.artifact_type,
+            "has_highlight": bool(comment_in.highlight),
+        },
+    )
     return comment
+
+
+@router.patch("/projects/{owner_name}/{project_name}/comments/{comment_id}")
+def patch_project_comment(
+    owner_name: str,
+    project_name: str,
+    comment_id: uuid.UUID,
+    patch: ProjectCommentPatch,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> ProjectComment:
+    project = app.projects.get_project(
+        session=session,
+        owner_name=owner_name,
+        project_name=project_name,
+        current_user=current_user,
+        min_access_level="write",
+    )
+    comment = session.get(ProjectComment, comment_id)
+    if comment is None or comment.project_id != project.id:
+        raise HTTPException(404)
+    now = utcnow() if patch.resolved else None
+    comment.resolved = now
+    session.add(comment)
+    # Cascade resolve/unresolve to all descendants
+    queue = [comment_id]
+    while queue:
+        parent_id = queue.pop()
+        children = session.exec(
+            select(ProjectComment).where(ProjectComment.parent_id == parent_id)
+        ).all()
+        for child in children:
+            child.resolved = now
+            session.add(child)
+            if child.id:
+                queue.append(child.id)
+    session.commit()
+    session.refresh(comment)
+    if patch.resolved:
+        _try_close_github_issue(session, current_user, comment.external_url)
+    else:
+        _try_reopen_github_issue(session, current_user, comment.external_url)
+    mixpanel.user_resolved_comment(
+        current_user,
+        owner_name,
+        project_name,
+        comment.artifact_type or "project",
+        patch.resolved,
+    )
+    return comment
+
+
+@router.delete("/projects/{owner_name}/{project_name}/comments/{comment_id}")
+def delete_project_comment(
+    owner_name: str,
+    project_name: str,
+    comment_id: uuid.UUID,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> None:
+    project = app.projects.get_project(
+        session=session,
+        owner_name=owner_name,
+        project_name=project_name,
+        current_user=current_user,
+        min_access_level="read",
+    )
+    comment = session.get(ProjectComment, comment_id)
+    if comment is None or comment.project_id != project.id:
+        raise HTTPException(404)
+    if comment.user_id != current_user.id:
+        raise HTTPException(403)
+    session.delete(comment)
+    session.commit()
+
+
+@router.post(
+    "/projects/{owner_name}/{project_name}/comments/{comment_id}/replies"
+)
+def post_project_comment_reply(
+    owner_name: str,
+    project_name: str,
+    comment_id: uuid.UUID,
+    reply: CommentReply,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> ProjectComment:
+    project = app.projects.get_project(
+        session=session,
+        owner_name=owner_name,
+        project_name=project_name,
+        current_user=current_user,
+        min_access_level="read",
+    )
+    comment = session.get(ProjectComment, comment_id)
+    if comment is None or comment.project_id != project.id:
+        raise HTTPException(404)
+    # Enforce one-level threading: if the target comment is itself a reply,
+    # attach the new reply to its parent so the thread stays flat.
+    thread_root_id = comment.parent_id if comment.parent_id else comment_id
+    thread_root = (
+        session.get(ProjectComment, thread_root_id)
+        if thread_root_id != comment_id
+        else comment
+    )
+    if thread_root and thread_root.external_url:
+        _try_post_github_issue_comment(
+            session, current_user, thread_root.external_url, reply.body
+        )
+    elif comment.external_url:
+        _try_post_github_issue_comment(
+            session, current_user, comment.external_url, reply.body
+        )
+    reply_comment = ProjectComment(
+        project_id=project.id,
+        artifact_path=comment.artifact_path,
+        artifact_type=comment.artifact_type,
+        comment=reply.body,
+        user_id=current_user.id,
+        parent_id=thread_root_id,
+    )
+    session.add(reply_comment)
+    session.commit()
+    session.refresh(reply_comment)
+    return reply_comment
+
+
+def _sync_github_issue_resolutions(
+    session: Session,
+    comments: list[ProjectComment],
+    current_user: CurrentUserOptional,
+) -> None:
+    """Check GitHub issue status for unresolved comments with an external_url.
+
+    If the linked issue is closed, mark the comment resolved. Silently ignores
+    any errors (rate limits, missing token, unexpected URL shape, etc.) so this
+    never breaks a read request.
+    """
+    unresolved_with_url = [
+        c for c in comments if c.external_url and c.resolved is None
+    ]
+    if not unresolved_with_url:
+        return
+    # Try to get a GitHub token; fall back to unauthenticated (60 req/hr)
+    token: str | None = None
+    if current_user is not None:
+        try:
+            token = users.get_github_token(session, current_user)
+        except Exception:
+            pass
+    headers = {"Accept": "application/vnd.github+json"}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    changed = False
+    for comment in unresolved_with_url:
+        url = str(comment.external_url)
+        # Parse owner/repo/number from
+        # https://github.com/{owner}/{repo}/issues/{n}
+        try:
+            parts = url.rstrip("/").split("/")
+            issue_number = int(parts[-1])
+            repo = f"{parts[-4]}/{parts[-3]}"
+        except Exception:
+            continue
+        try:
+            resp = requests.get(
+                f"https://api.github.com/repos/{repo}/issues/{issue_number}",
+                headers=headers,
+                timeout=5,
+            )
+            if (
+                resp.status_code == 200
+                and resp.json().get("state") == "closed"
+            ):
+                comment.resolved = utcnow()
+                session.add(comment)
+                changed = True
+        except Exception as exc:
+            logger.debug(f"GitHub issue sync failed for {url}: {exc}")
+    if changed:
+        session.commit()
+
+
+def _make_comment_title(comment: str) -> str:
+    """Extract a GitHub issue title from the first sentence of a comment.
+
+    Strips trailing ``.`` and ``!`` but preserves ``?`` so questions read
+    naturally as titles.
+    """
+    import re
+
+    m = re.search(r"([.!?])\s", comment)
+    if m:
+        sentence = comment[: m.start() + 1]
+    else:
+        sentence = comment.split("\n")[0]
+    sentence = sentence.rstrip()
+    if sentence.endswith(".") or sentence.endswith("!"):
+        sentence = sentence[:-1]
+    return sentence[:256]
+
+
+def _try_create_github_issue(
+    session: Session,
+    current_user: User,
+    project: Project,
+    title: str,
+    body: str,
+) -> str | None:
+    """Create a GitHub issue on the project repo and return its URL.
+
+    Returns None if the project has no GitHub repo or the user has no token.
+    Never raises--failures are logged and silently swallowed so a missing
+    token doesn't prevent the comment from being saved.
+    """
+    github_repo = project.github_repo
+    if not github_repo:
+        return None
+    try:
+        token = users.get_github_token(session, current_user)
+    except HTTPException:
+        logger.info(
+            f"Skipping GitHub issue creation for {current_user.email}: "
+            "no GitHub token"
+        )
+        return None
+    resp = requests.post(
+        f"https://api.github.com/repos/{github_repo}/issues",
+        json={"title": title, "body": body},
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/vnd.github+json",
+        },
+        timeout=10,
+    )
+    if not resp.ok:
+        logger.warning(
+            f"GitHub issue creation failed for {github_repo}: "
+            f"{resp.status_code} {resp.text}"
+        )
+        return None
+    return resp.json().get("html_url")
+
+
+def _try_post_github_issue_comment(
+    session: Session,
+    current_user: User,
+    external_url: str,
+    body: str,
+) -> str | None:
+    """Post a comment to the linked GitHub issue. Returns the comment URL or None."""
+    try:
+        parts = external_url.rstrip("/").split("/")
+        issue_number = int(parts[-1])
+        repo = f"{parts[-4]}/{parts[-3]}"
+    except Exception:
+        return None
+    try:
+        token = users.get_github_token(session, current_user)
+    except Exception:
+        logger.debug("Skipping GitHub issue comment: no token")
+        return None
+    try:
+        resp = requests.post(
+            f"https://api.github.com/repos/{repo}/issues/{issue_number}/comments",
+            json={"body": body},
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Accept": "application/vnd.github+json",
+            },
+            timeout=10,
+        )
+        if not resp.ok:
+            logger.warning(
+                f"GitHub issue comment failed for {external_url}: "
+                f"{resp.status_code} {resp.text}"
+            )
+            return None
+        return resp.json().get("html_url")
+    except Exception as exc:
+        logger.debug(f"GitHub issue comment failed for {external_url}: {exc}")
+        return None
+
+
+def _try_reopen_github_issue(
+    session: Session,
+    current_user: User,
+    external_url: str | None,
+) -> None:
+    """Reopen the linked GitHub issue if one exists.
+
+    Silently ignores any errors so a missing token or unexpected URL never
+    prevents the comment from being unresolved.
+    """
+    if not external_url:
+        return
+    try:
+        parts = external_url.rstrip("/").split("/")
+        issue_number = int(parts[-1])
+        repo = f"{parts[-4]}/{parts[-3]}"
+    except Exception:
+        return
+    try:
+        token = users.get_github_token(session, current_user)
+    except Exception:
+        logger.debug("Skipping GitHub issue reopen: no token")
+        return
+    try:
+        resp = requests.patch(
+            f"https://api.github.com/repos/{repo}/issues/{issue_number}",
+            json={"state": "open"},
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Accept": "application/vnd.github+json",
+            },
+            timeout=10,
+        )
+        if not resp.ok:
+            logger.warning(
+                f"GitHub issue reopen failed for {external_url}: "
+                f"{resp.status_code} {resp.text}"
+            )
+    except Exception as exc:
+        logger.debug(f"GitHub issue reopen failed for {external_url}: {exc}")
+
+
+def _try_close_github_issue(
+    session: Session,
+    current_user: User,
+    external_url: str | None,
+) -> None:
+    """Close the linked GitHub issue if one exists.
+
+    Silently ignores any errors so a missing token or unexpected URL never
+    prevents the comment from being resolved.
+    """
+    if not external_url:
+        return
+    try:
+        parts = external_url.rstrip("/").split("/")
+        issue_number = int(parts[-1])
+        repo = f"{parts[-4]}/{parts[-3]}"
+    except Exception:
+        return
+    try:
+        token = users.get_github_token(session, current_user)
+    except Exception:
+        logger.debug("Skipping GitHub issue close: no token")
+        return
+    try:
+        resp = requests.patch(
+            f"https://api.github.com/repos/{repo}/issues/{issue_number}",
+            json={"state": "closed"},
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Accept": "application/vnd.github+json",
+            },
+            timeout=10,
+        )
+        if not resp.ok:
+            logger.warning(
+                f"GitHub issue close failed for {external_url}: "
+                f"{resp.status_code} {resp.text}"
+            )
+    except Exception as exc:
+        logger.debug(f"GitHub issue close failed for {external_url}: {exc}")
+
+
+def _fan_out_notifications(
+    session: Session,
+    project: Project,
+    commenter_id: uuid.UUID,
+    message: str,
+    link: str,
+) -> None:
+    """Create Notification rows for all project members except the commenter."""
+    # Collect user IDs: project owner + anyone with explicit access
+    recipient_ids: set[uuid.UUID] = set()
+    owner_account = session.get(Account, project.owner_account_id)
+    if owner_account and owner_account.user_id:
+        recipient_ids.add(owner_account.user_id)
+    access_rows = session.exec(
+        select(UserProjectAccess).where(
+            UserProjectAccess.project_id == project.id
+        )
+    ).fetchall()
+    for row in access_rows:
+        recipient_ids.add(row.user_id)
+    recipient_ids.discard(commenter_id)
+    for uid in recipient_ids:
+        session.add(
+            Notification(
+                user_id=uid,
+                project_id=project.id,
+                message=message,
+                link=link,
+            )
+        )
 
 
 def _sync_datasets_with_db(
@@ -1508,6 +2363,7 @@ def get_project_datasets(
     project_name: str,
     current_user: CurrentUserOptional,
     session: SessionDep,
+    ref: str | None = None,
 ) -> list[Dataset]:
     project = app.projects.get_project(
         session=session,
@@ -1522,6 +2378,7 @@ def get_project_datasets(
         user=current_user,
         session=session,
         ttl=DEFAULT_REPO_TTL,
+        ref=ref,
     )
     project = _sync_datasets_with_db(
         ck_info=ck_info, project=project, session=session
@@ -1537,6 +2394,7 @@ def get_project_dataset(
     current_user: CurrentUserOptional,
     session: SessionDep,
     filter_paths: list[str] | None = Query(default=None),
+    ref: str | None = None,
 ) -> DatasetForImport:
     logger.info(f"Received request to get dataset with path: {path}")
     project = app.projects.get_project(
@@ -1552,10 +2410,15 @@ def get_project_dataset(
         user=current_user,
         session=session,
         ttl=DEFAULT_REPO_TTL,
+        ref=ref,
     )
     git_rev = repo.git.rev_parse(["HEAD"])
     repo_dir = repo.working_dir
-    ck_info = get_ck_info_from_repo(repo)
+    ck_info = app.projects.get_ck_info_for_ref(
+        project=project,
+        repo=repo,
+        ref=ref,
+    )
     datasets = ck_info.get("datasets", [])
     # First check if this path is even a dataset
     ds = None
@@ -1721,14 +2584,18 @@ def post_project_dataset_label(
     repo = get_repo(
         project=project, user=current_user, session=session, ttl=None
     )
-    ck_info = get_ck_info_from_repo(repo)
+    ck_info = app.projects.get_ck_info_from_repo(repo=repo)
     datasets = ck_info.get("datasets", [])
     ds_paths = [ds.get("path") for ds in datasets]
     if req.path in ds_paths:
         raise HTTPException(400, "Dataset already exists")
     local_path = os.path.join(repo.working_dir, req.path)
+    zip_path_map = app.projects.get_zip_path_map_from_repo(repo=repo)
     if not req.imported_from and not (
-        os.path.isfile(local_path) or os.path.isfile(local_path + ".dvc")
+        os.path.isfile(local_path)
+        or os.path.isdir(local_path)
+        or os.path.isfile(local_path + ".dvc")
+        or req.path in zip_path_map
     ):
         raise HTTPException(400, "Path does not exist in the repo")
     ds = dict(path=req.path)
@@ -1816,14 +2683,17 @@ def post_project_dataset_upload(
     if not os.path.isdir(os.path.join(repo.working_dir, ".dvc")):
         logger.info("Calling dvc init since .dvc directory is missing")
         subprocess.call(["dvc", "init"], cwd=repo.working_dir)
-    dvc_out = subprocess.check_output(
-        ["dvc", "add", path], cwd=repo.working_dir
-    ).decode()
-    for line in dvc_out.split("\n"):
-        if line.strip().startswith("git add"):
-            cmd = line.strip().split()
-            logger.info(f"Calling {cmd}")
-            repo.git.add(cmd[2:])
+    logger.info(f"Running dvc add {path}")
+    subprocess.check_call(
+        [sys.executable, "-m", "dvc", "add", path],
+        cwd=str(repo.working_dir),
+    )
+    files_to_stage = [path + ".dvc"]
+    gitignore = os.path.join(os.path.dirname(path), ".gitignore")
+    if os.path.isfile(os.path.join(repo.working_dir, gitignore)):
+        files_to_stage.append(gitignore)
+    logger.info(f"Git-adding {files_to_stage}")
+    repo.git.add(files_to_stage)
     # Update figures
     datasets.append(dict(path=path, title=title, description=description))
     ck_info["datasets"] = datasets
@@ -1847,7 +2717,7 @@ def post_project_dataset_upload(
         md5=md5[2:],
     )
     with fs.open(fpath, "wb") as f:
-        f.write(file_data)
+        f.write(file_data)  # type: ignore[arg-type]
     if settings.ENVIRONMENT != "local":
         remove_gcs_content_type(fpath)
     url = get_object_url(fpath=fpath, fname=os.path.basename(path))
@@ -1871,6 +2741,7 @@ def get_project_publications(
     project_name: str,
     current_user: CurrentUserOptional,
     session: SessionDep,
+    ref: str | None = None,
 ) -> list[Publication]:
     project = app.projects.get_project(
         owner_name=owner_name,
@@ -1884,6 +2755,7 @@ def get_project_publications(
         user=current_user,
         session=session,
         ttl=DEFAULT_REPO_TTL,
+        ref=ref,
     )
     ck_info = get_ck_info_from_repo(repo)
     pipeline = get_dvc_pipeline_from_repo(repo)
@@ -1892,14 +2764,23 @@ def get_project_publications(
         wdir=repo.working_dir, ck_info=ck_info, fix_legacy=False
     )
     resp = []
+    tree = app.projects.get_repo_tree_for_ref(repo, ref)
+    ck_info_full, dvc_lock_outs, zip_path_map = (
+        app.projects.get_ck_info_and_dvc_outs_from_tree(project, tree)
+    )
     for pub in publications:
         if "stage" in pub:
             pub["stage_info"] = pipeline.get("stages", {}).get(pub["stage"])
         # See if we can fetch the content for this publication
         if "path" in pub:
             try:
-                item = app.projects.get_contents_from_repo(
-                    project=project, repo=repo, path=pub["path"]
+                item = app.projects.get_contents_from_tree(
+                    project=project,
+                    tree=tree,
+                    path=pub["path"],
+                    ck_info=ck_info_full,
+                    dvc_lock_outs=dvc_lock_outs,
+                    zip_path_map=zip_path_map,
                 )
                 pub["content"] = item.content
                 # Prioritize URL if already defined
@@ -1916,8 +2797,6 @@ def get_project_publications(
                 logger.warning(
                     f"Failed to get publication at path {pub['path']}: {e}"
                 )
-                # Must be a 404
-                pass
         resp.append(Publication.model_validate(pub))
     return resp
 
@@ -1998,15 +2877,20 @@ def post_project_publication(
         # Initialize DVC if it's never been
         if not os.path.isdir(os.path.join(repo.working_dir, ".dvc")):
             logger.info("Calling dvc init since .dvc directory is missing")
-            subprocess.call(["dvc", "init"], cwd=repo.working_dir)
-        dvc_out = subprocess.check_output(
-            ["dvc", "add", path], cwd=repo.working_dir
-        ).decode()
-        for line in dvc_out.split("\n"):
-            if line.strip().startswith("git add"):
-                cmd = line.strip().split()
-                logger.info(f"Calling {cmd}")
-                repo.git.add(cmd[2:])
+            subprocess.call(
+                [sys.executable, "-m", "dvc", "init"], cwd=repo.working_dir
+            )
+        logger.info(f"Running dvc add {path}")
+        subprocess.check_call(
+            [sys.executable, "-m", "dvc", "add", path],
+            cwd=repo.working_dir,
+        )
+        files_to_stage = [path + ".dvc"]
+        gitignore = os.path.join(os.path.dirname(path), ".gitignore")
+        if os.path.isfile(os.path.join(repo.working_dir, gitignore)):
+            files_to_stage.append(gitignore)
+        logger.info(f"Git-adding {files_to_stage}")
+        repo.git.add(files_to_stage)
     elif template is not None:
         # TODO: Centralize template names
         if template not in ["latex/article", "latex/jfm"]:
@@ -2209,7 +3093,17 @@ async def post_project_overleaf_publication(
         logger.info("Importing Overleaf ZIP archive; skipping linkage")
         # Unzip the whole archive into the requested path
         os.makedirs(overleaf_abs_path, exist_ok=True)
+        resolved_dest = os.path.realpath(overleaf_abs_path)
         with zipfile.ZipFile(io.BytesIO(await file.read()), "r") as zf:
+            for member in zf.namelist():
+                member_dest = os.path.realpath(
+                    os.path.join(resolved_dest, member)
+                )
+                if not member_dest.startswith(resolved_dest + os.sep):
+                    raise HTTPException(
+                        400,
+                        f"ZIP entry '{member}' would escape target directory",
+                    )
             zf.extractall(overleaf_abs_path)
     elif overleaf_project_url is not None:
         overleaf_project_id = overleaf_project_url.split("/")[-1]
@@ -2221,7 +3115,9 @@ async def post_project_overleaf_publication(
                 token=overleaf_token,
                 expires=None,
             )
-        if current_user.overleaf_token is None:
+        try:
+            users.get_overleaf_token(session=session, user=current_user)
+        except HTTPException:
             raise HTTPException(400, "No Overleaf token found")
         try:
             overleaf_repo = get_overleaf_repo(
@@ -2425,7 +3321,9 @@ def post_project_overleaf_sync(
     current_user: CurrentUser,
     session: SessionDep,
 ) -> OverleafSyncResponse:
-    if current_user.overleaf_token is None:
+    try:
+        users.get_overleaf_token(session=session, user=current_user)
+    except HTTPException:
         raise HTTPException(401, "Overleaf token not found")
     project = app.projects.get_project(
         owner_name=owner_name,
@@ -2539,6 +3437,7 @@ def get_project_pipeline(
     project_name: str,
     current_user: CurrentUserOptional,
     session: SessionDep,
+    ref: str | None = None,
 ) -> Pipeline | None:
     project = app.projects.get_project(
         owner_name=owner_name,
@@ -2552,6 +3451,7 @@ def get_project_pipeline(
         user=current_user,
         session=session,
         ttl=DEFAULT_REPO_TTL,
+        ref=ref,
     )
     fpath = os.path.join(repo.working_dir, "dvc.yaml")
     if not os.path.isfile(fpath):
@@ -2664,15 +3564,15 @@ def put_project_collaborator(
     )
     user = session.exec(
         select(User)
-        .join(User.account)
+        .join(Account, Account.user_id == User.id)  # type: ignore[arg-type]
         .where(Account.github_name == github_username)
     ).first()
+    if user is None:
+        raise HTTPException(404, "User not found")
     logger.info(
         f"Fetched user account {user.email} with GitHub username "
         f"{github_username}"
     )
-    if user is None:
-        raise HTTPException(404, "User not found")
     token = users.get_github_token(session=session, user=current_user)
     url = (
         f"https://api.github.com/repos/{project.github_repo}/"
@@ -2720,15 +3620,15 @@ def delete_project_collaborator(
     )
     user = session.exec(
         select(User)
-        .join(User.account)
+        .join(Account, Account.user_id == User.id)  # type: ignore[arg-type]
         .where(Account.github_name == github_username)
     ).first()
+    if user is None:
+        raise HTTPException(404, "User not found")
     logger.info(
         f"Fetched user account {user.email} with GitHub username "
         f"{github_username}"
     )
-    if user is None:
-        raise HTTPException(404, "User not found")
     token = users.get_github_token(session=session, user=current_user)
     url = (
         f"https://api.github.com/repos/{project.github_repo}/"
@@ -2765,6 +3665,8 @@ class Issue(BaseModel):
     state: Literal["open", "closed"]
     title: str
     body: str | None
+    artifact_type: str | None = None
+    artifact_path: str | None = None
 
 
 @router.get("/projects/{owner_name}/{project_name}/issues")
@@ -2800,9 +3702,20 @@ def get_project_issues(
     if not resp.status_code == 200:
         raise HTTPException(resp.status_code, resp.json()["message"])
     resp_json = resp.json()
-    # Format these with a defined schema
+    # Build a map from GitHub issue URL → (artifact_type, artifact_path)
+    # for issues that were created from project comments
+    db_comments = session.exec(
+        select(ProjectComment).where(
+            ProjectComment.project_id == project.id,
+            ProjectComment.external_url.is_not(None),  # type: ignore[union-attr]
+        )
+    ).all()
+    comment_by_url: dict[str, ProjectComment] = {
+        c.external_url: c for c in db_comments if c.external_url
+    }
     resp_fmt = []
     for issue in resp_json:
+        linked = comment_by_url.get(issue["html_url"])
         resp_fmt.append(
             Issue(
                 id=issue["id"],
@@ -2812,6 +3725,8 @@ def get_project_issues(
                 state=issue["state"],
                 title=issue["title"],
                 body=issue["body"],
+                artifact_type=linked.artifact_type if linked else None,
+                artifact_path=linked.artifact_path if linked else None,
             )
         )
     return resp_fmt
@@ -2927,6 +3842,7 @@ def get_project_references(
     project_name: str,
     current_user: CurrentUserOptional,
     session: SessionDep,
+    ref: str | None = None,
 ) -> list[References]:
     project = app.projects.get_project(
         owner_name=owner_name,
@@ -2940,6 +3856,7 @@ def get_project_references(
         user=current_user,
         session=session,
         ttl=DEFAULT_REPO_TTL,
+        ref=ref,
     )
     ck_info = get_ck_info_from_repo(repo)
     ref_collections = ck_info.get("references", [])
@@ -2970,6 +3887,7 @@ def get_project_references(
                             project=project,
                             repo=repo,
                             path=file_path,
+                            ref=ref,
                         )
                         url = contents_item.url
                     except HTTPException as e:
@@ -3008,6 +3926,7 @@ def get_project_environments(
     project_name: str,
     current_user: CurrentUserOptional,
     session: SessionDep,
+    ref: str | None = None,
 ) -> list[Environment]:
     project = app.projects.get_project(
         owner_name=owner_name,
@@ -3021,8 +3940,13 @@ def get_project_environments(
         user=current_user,
         session=session,
         ttl=DEFAULT_REPO_TTL,
+        ref=ref,
     )
-    ck_info = get_ck_info_from_repo(repo, process_includes=True)
+    ck_info = app.projects.get_ck_info_for_ref(
+        project=project,
+        repo=repo,
+        ref=ref,
+    )
     envs = ck_info.get("environments", {})
     resp = []
     for env_name, env in envs.items():
@@ -3048,6 +3972,7 @@ def post_project_environment(
     current_user: CurrentUser,
     session: SessionDep,
     req: Environment,
+    ref: str | None = None,
 ) -> Environment:
     project = app.projects.get_project(
         owner_name=owner_name,
@@ -3059,7 +3984,11 @@ def post_project_environment(
     repo = get_repo(
         project=project, user=current_user, session=session, ttl=None
     )
-    ck_info = get_ck_info_from_repo(repo)
+    ck_info = app.projects.get_ck_info_for_ref(
+        project=project,
+        repo=repo,
+        ref=ref,
+    )
     envs = ck_info.get("environments", {})
     if req.name in envs:
         raise HTTPException(400, "Environment with same name already exists")
@@ -3083,9 +4012,14 @@ def post_project_environment(
     return Environment.model_validate(new_env | {"all_attrs": new_env})
 
 
+class SoftwareItem(BaseModel):
+    title: str
+    path: str
+    description: str | None = None
+
+
 class Software(BaseModel):
-    environments: list[Environment]
-    # TODO: Add scripts, packages, apps?
+    items: list[SoftwareItem]
 
 
 @router.get("/projects/{owner_name}/{project_name}/software")
@@ -3094,6 +4028,7 @@ def get_project_software(
     project_name: str,
     current_user: CurrentUserOptional,
     session: SessionDep,
+    ref: str | None = None,
 ) -> Software:
     project = app.projects.get_project(
         owner_name=owner_name,
@@ -3107,16 +4042,21 @@ def get_project_software(
         user=current_user,
         session=session,
         ttl=DEFAULT_REPO_TTL,
+        ref=ref,
     )
-    ck_info = get_ck_info_from_repo(repo)
-    envs = ck_info.get("environments", [])
-    resp = []
-    for env in envs:
-        fpath = os.path.join(repo.working_dir, env["path"])
-        with open(fpath) as f:
-            env["file_content"] = f.read()
-        resp.append(Environment.model_validate(env))
-    return Software(environments=resp)
+    ck_info = app.projects.get_ck_info_for_ref(
+        project=project,
+        repo=repo,
+        ref=ref,
+    )
+    raw = ck_info.get("software", [])
+    items = []
+    for entry in raw:
+        try:
+            items.append(SoftwareItem.model_validate(entry))
+        except ValidationError as e:
+            logger.warning(f"Invalid software entry: {e}")
+    return Software(items=items)
 
 
 @router.get("/projects/{owner_name}/{project_name}/file-locks")
@@ -3200,6 +4140,7 @@ def get_project_notebooks(
     project_name: str,
     current_user: CurrentUserOptional,
     session: SessionDep,
+    ref: str | None = None,
 ) -> list[Notebook]:
     project = app.projects.get_project(
         session=session,
@@ -3213,25 +4154,59 @@ def get_project_notebooks(
         user=current_user,
         session=session,
         ttl=DEFAULT_REPO_TTL,
+        ref=ref,
     )
-    ck_info = get_ck_info_from_repo(repo)
+    ck_info = app.projects.get_ck_info_for_ref(
+        project=project,
+        repo=repo,
+        ref=ref,
+    )
     notebooks = ck_info.get("notebooks", [])
+    # Also detect undeclared .ipynb files not under hidden directories
+    declared_paths = {nb["path"] for nb in notebooks}
+    try:
+        for root, dirs, files in os.walk(repo.working_dir):
+            dirs[:] = [d for d in dirs if not d.startswith(".")]
+            for fname in files:
+                if fname.endswith(".ipynb"):
+                    rel = os.path.relpath(
+                        os.path.join(root, fname), repo.working_dir
+                    )
+                    if rel not in declared_paths:
+                        notebooks.append({"path": rel})
+                        declared_paths.add(rel)
+    except Exception as e:
+        logger.warning(f"Failed to scan for undeclared notebooks: {e}")
     if not notebooks:
         return notebooks
     # Get the notebook content and base64 encode it
+    tree = app.projects.get_repo_tree_for_ref(repo, ref)
+    ck_info_full, dvc_lock_outs, zip_path_map = (
+        app.projects.get_ck_info_and_dvc_outs_from_tree(project, tree)
+    )
     for notebook in notebooks:
-        item = app.projects.get_contents_from_repo(
-            project=project,
-            repo=repo,
-            path=notebook["path"],
-        )
         try:
-            # If the notebook has HTML output, return that
+            item = app.projects.get_contents_from_tree(
+                project=project,
+                tree=tree,
+                path=notebook["path"],
+                ck_info=ck_info_full,
+                dvc_lock_outs=dvc_lock_outs,
+                zip_path_map=zip_path_map,
+            )
+        except HTTPException:
+            continue
+        try:
+            # If the notebook has a pre-built HTML output, prefer that
             html_path = get_executed_notebook_path(
                 notebook_path=notebook["path"], to="html"
             )
-            html_item = app.projects.get_contents_from_repo(
-                project=project, repo=repo, path=html_path
+            html_item = app.projects.get_contents_from_tree(
+                project=project,
+                tree=tree,
+                path=html_path,
+                ck_info=ck_info_full,
+                dvc_lock_outs=dvc_lock_outs,
             )
             item = html_item
             notebook["output_format"] = "html"
@@ -3248,6 +4223,9 @@ def get_project_notebooks(
                     notebook["output_format"] = "notebook"
                 elif rcd[0].endswith(".html"):
                     notebook["output_format"] = "html"
+        # Default: raw .ipynb content (no HTML version available)
+        if not notebook.get("output_format") and item.content and not item.url:
+            notebook["output_format"] = "notebook"
     return [Notebook.model_validate(nb) for nb in notebooks]
 
 
@@ -3257,6 +4235,7 @@ def get_project_repro_check(
     project_name: str,
     current_user: CurrentUserOptional,
     session: SessionDep,
+    ref: str | None = None,
 ) -> ReproCheck:
     project = app.projects.get_project(
         session=session,
@@ -3270,8 +4249,9 @@ def get_project_repro_check(
         user=current_user,
         session=session,
         ttl=DEFAULT_REPO_TTL,
+        ref=ref,
     )
-    res = check_reproducibility(wdir=repo.working_dir)
+    res = check_reproducibility(wdir=str(repo.working_dir))
     return res
 
 
@@ -3315,6 +4295,7 @@ def get_project_app(
     project_name: str,
     current_user: CurrentUserOptional,
     session: SessionDep,
+    ref: str | None = None,
 ) -> ProjectApp | None:
     project = app.projects.get_project(
         owner_name=owner_name,
@@ -3328,6 +4309,7 @@ def get_project_app(
         user=current_user,
         session=session,
         ttl=DEFAULT_REPO_TTL,
+        ref=ref,
     )
     project_app = ck_info.get("app")
     if project_app is None:
@@ -3342,6 +4324,7 @@ def get_project_showcase(
     current_user: CurrentUserOptional,
     session: SessionDep,
     ttl: int | None = DEFAULT_REPO_TTL,
+    ref: str | None = None,
 ) -> Showcase | None:
     project = app.projects.get_project(
         owner_name=owner_name,
@@ -3354,9 +4337,17 @@ def get_project_showcase(
         elements=[ShowcaseText(text="Showcase is not correctly defined.")]
     )
     repo = get_repo(
-        project=project, user=current_user, session=session, ttl=ttl
+        project=project,
+        user=current_user,
+        session=session,
+        ttl=ttl,
+        ref=ref,
     )
-    ck_info = get_ck_info_from_repo(repo)
+    ck_info = app.projects.get_ck_info_for_ref(
+        project=project,
+        repo=repo,
+        ref=ref,
+    )
     showcase = ck_info.get("showcase")
     if showcase is None:
         return
@@ -3379,6 +4370,7 @@ def get_project_showcase(
                         project=project,
                         repo=repo,
                         path=element_in.figure,
+                        ref=ref,
                     )
                 )
             except Exception as e:
@@ -3395,6 +4387,7 @@ def get_project_showcase(
                         project=project,
                         repo=repo,
                         path=element_in.publication,
+                        ref=ref,
                     )
                 )
             except Exception as e:
@@ -3453,6 +4446,7 @@ def get_project_showcase(
                         project=project,
                         repo=repo,
                         path=element_in.notebook,
+                        ref=ref,
                     )
                 )
             except Exception as e:

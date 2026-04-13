@@ -1,3 +1,4 @@
+import LoadingSpinner from "../../../components/Common/LoadingSpinner"
 import {
   Box,
   Container,
@@ -6,7 +7,6 @@ import {
   IconButton,
   Link,
   SkeletonText,
-  Spinner,
   Table,
   TableContainer,
   Tbody,
@@ -16,7 +16,8 @@ import {
   Tr,
   useDisclosure,
 } from "@chakra-ui/react"
-import { createFileRoute } from "@tanstack/react-router"
+import { createFileRoute, useNavigate } from "@tanstack/react-router"
+import { useEffect } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Link as RouterLink } from "@tanstack/react-router"
 
@@ -149,8 +150,8 @@ function ProjectsTable() {
 }
 
 function AccountPage() {
-  // Fetch account information
   const { accountName } = Route.useParams()
+  const navigate = useNavigate({ from: Route.fullPath })
   const { isPending, data: account } = useQuery({
     queryKey: ["accounts", accountName],
     queryFn: () => AccountsService.getAccount({ accountName }),
@@ -162,14 +163,21 @@ function AccountPage() {
       return failureCount < 3
     },
   })
+  useEffect(() => {
+    if (!account?.name) return
+    if (accountName !== account.name) {
+      navigate({
+        params: { accountName: account.name },
+        replace: true,
+      })
+    }
+  }, [account, accountName, navigate])
   const { isOpen, onOpen, onClose } = useDisclosure()
 
   return (
     <Box>
       {isPending ? (
-        <Flex justify="center" align="center" height="100vh" width="full">
-          <Spinner size="xl" color="ui.main" />
-        </Flex>
+        <LoadingSpinner height="100vh" />
       ) : !account?.name ? (
         <>
           <NotFound />

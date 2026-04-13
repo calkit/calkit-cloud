@@ -25,8 +25,12 @@ class Account(SQLModel, table=True):
             server_default=sqlalchemy.func.current_timestamp()
         ),
     )
-    user_id: uuid.UUID = Field(foreign_key="user.id", nullable=True)
-    org_id: uuid.UUID = Field(foreign_key="org.id", nullable=True)
+    user_id: uuid.UUID | None = Field(
+        default=None, foreign_key="user.id", nullable=True
+    )
+    org_id: uuid.UUID | None = Field(
+        default=None, foreign_key="org.id", nullable=True
+    )
     github_name: str
     # Relationships
     owned_projects: list["Project"] = Relationship(
@@ -196,7 +200,11 @@ class User(UserBase, table=True):
         back_populates="user",
         cascade_delete=True,
     )
-    figure_comments: list["FigureComment"] = Relationship(
+    project_comments: list["ProjectComment"] = Relationship(
+        back_populates="user",
+        cascade_delete=True,
+    )
+    notifications: list["Notification"] = Relationship(
         back_populates="user",
         cascade_delete=True,
     )
@@ -468,7 +476,10 @@ class Project(ProjectBase, table=True):
     file_locks: list["FileLock"] = Relationship(
         back_populates="project", cascade_delete=True
     )
-    figure_comments: list["FigureComment"] = Relationship(
+    project_comments: list["ProjectComment"] = Relationship(
+        back_populates="project", cascade_delete=True
+    )
+    notifications: list["Notification"] = Relationship(
         back_populates="project", cascade_delete=True
     )
 
@@ -597,22 +608,72 @@ class Figure(SQLModel):
     dataset: str | None = None
     content: str | None = None  # Base64 encoded
     url: str | None = None
+    comment_count: int = 0
     # TODO: Link to a dataset, or does the pipeline do that?
     # TODO: Add content, or maybe we can just get from Git contents via path?
 
 
-class FigureComment(SQLModel, table=True):
+class CommentHighlight(BaseModel):
+    """Portable anchor for a highlighted region within an artifact.
+
+    Currently used for PDF text highlights (react-pdf-highlighter format).
+    ``position`` and ``content`` are kept as free-form dicts so the schema
+    can accommodate future anchor types (image regions, notebook cells, etc.)
+    without a migration.
+    """
+
+    position: dict
+    content: dict = Field(default_factory=dict)
+
+
+class ProjectComment(SQLModel, table=True):
+    """A unified comment on any project artifact or on the project itself.
+
+    ``artifact_type`` is one of 'figure', 'publication', 'notebook', 'file',
+    or None for a project-level comment. ``artifact_path`` is the repo-relative
+    path of the artifact (None for project-level comments).
+
+    ``highlight`` carries a portable anchor position and is only populated for
+    comments tied to a specific region (e.g., a PDF text selection). See
+    ``CommentHighlight`` for the schema.
+
+    ``parent_id`` enables flat one-level threading: replies point to the
+    top-level comment. No nested replies are stored beyond one level in the UI,
+    though the schema permits it for future use.
+    """
+
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     project_id: uuid.UUID = Field(foreign_key="project.id")
-    figure_path: str = Field(max_length=255)
     user_id: uuid.UUID = Field(foreign_key="user.id")
     created: datetime = Field(default_factory=utcnow)
     updated: datetime = Field(default_factory=utcnow)
+    comment: str = Field(
+        sa_column=sqlalchemy.Column(sqlalchemy.Text, nullable=False)
+    )
+    artifact_path: str | None = Field(default=None, max_length=512)
+    artifact_type: str | None = Field(default=None, max_length=50)
+    # Artifact highlight, e.g., for publication comments.
+    # Stored as a plain dict (JSON column); CommentHighlight is used only for
+    # input validation in ProjectCommentPost. sa_column bypasses SQLModel's
+    # Pydantic coercion layer so the Python type must match what psycopg
+    # serializes — i.e. dict, not a Pydantic model.
+    highlight: dict | None = Field(
+        default=None,
+        sa_column=sqlalchemy.Column(sqlalchemy.JSON, nullable=True),
+    )
+    # Parent comment ID for threaded replies (one level deep in the UI)
+    parent_id: uuid.UUID | None = Field(
+        default=None,
+        foreign_key="projectcomment.id",
+    )
     external_url: str | None = Field(default=None, max_length=2048)
-    comment: str
+    resolved: datetime | None = Field(default=None)
+    # Git context at the time the comment was posted
+    git_ref: str | None = Field(default=None, max_length=256)
+    git_rev: str | None = Field(default=None, max_length=40)
     # Relationships
-    user: User = Relationship(back_populates="figure_comments")
-    project: Project = Relationship(back_populates="figure_comments")
+    user: User = Relationship(back_populates="project_comments")
+    project: Project = Relationship(back_populates="project_comments")
 
     @computed_field
     @property
@@ -630,9 +691,45 @@ class FigureComment(SQLModel, table=True):
         return self.user.email
 
 
-class FigureCommentPost(SQLModel):
-    figure_path: str
+class ProjectCommentPost(SQLModel):
     comment: str
+    artifact_path: str | None = None
+    artifact_type: str | None = None
+    highlight: CommentHighlight | None = None
+    create_github_issue: bool = True
+    parent_id: uuid.UUID | None = None
+    git_ref: str | None = None
+
+
+class ProjectCommentPatch(SQLModel):
+    resolved: bool
+
+
+class Notification(SQLModel, table=True):
+    """In-app notification delivered to a user when a comment is posted on
+    their project (or a project they collaborate on).
+
+    Designed to be lightweight: no fan-out to external services here.
+    ``link`` stores a frontend URL (e.g., ``/owner/project/publications?path=…``)
+    so the notification can deep-link directly to the relevant item.
+    """
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="user.id")
+    project_id: uuid.UUID = Field(foreign_key="project.id")
+    project_comment_id: uuid.UUID | None = Field(
+        default=None, foreign_key="projectcomment.id"
+    )
+    # Human-readable message, e.g., "Alice commented on pub.pdf"
+    message: str = Field(max_length=500)
+    # Frontend deep-link, e.g., "/owner/project/publications?path=pub.pdf"
+    link: str = Field(max_length=2048)
+    # None = unread; set to the timestamp when the user reads it
+    read: datetime | None = Field(default=None)
+    created: datetime = Field(default_factory=utcnow)
+    # Relationships
+    user: User = Relationship(back_populates="notifications")
+    project: Project = Relationship(back_populates="notifications")
 
 
 class DatasetBase(SQLModel):
@@ -748,6 +845,7 @@ class _ContentsItemBase(BaseModel):
     url: str | None = None
     calkit_object: dict | None = None
     lock: ItemLock | None = None
+    storage: Literal["git", "dvc", "dvc-zip"] | None = None
 
 
 class ContentsItem(_ContentsItemBase):
@@ -787,9 +885,26 @@ class Publication(BaseModel):
 
 class Notebook(BaseModel):
     path: str
-    title: str
+    title: str | None = None
     description: str | None = None
     stage: str | None = None
     output_format: Literal["html", "notebook"] | None = None
     url: str | None = None
     content: str | None = None
+
+
+class GitRef(BaseModel):
+    """Represents a Git reference (commit, tag, or branch)."""
+
+    name: str  # Full ref name (e.g., "main", "v1.0.0", "abc123def456...")
+    kind: Literal["branch", "tag", "commit"]  # Kind of ref
+    message: str | None = None  # Commit/tag message
+    author: str | None = None  # Commit author
+    timestamp: str | None = None  # ISO format datetime
+    hash: str | None = None  # Full commit hash
+    short_hash: str | None = (
+        None  # Short commit hash (7 chars); consumer may truncate hash if needed
+    )
+    is_default: bool = False  # Whether this is the default branch
+    ahead: int = 0  # Commits ahead of default branch
+    behind: int = 0  # Commits behind default branch

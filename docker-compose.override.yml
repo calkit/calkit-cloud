@@ -89,6 +89,8 @@ services:
     restart: "no"
     env_file:
       - .env
+    environment:
+      - VITE_API_URL=http://api.localhost
     build:
       context: ./frontend
       args:
@@ -101,9 +103,9 @@ services:
       # Do not mount node_modules from host, use container's node_modules
       - /app/node_modules
     command:
-      - npm
-      - run
-      - dev
+      - sh
+      - -c
+      - "npm install && npm run dev"
 
 networks:
   traefik-public:

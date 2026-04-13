@@ -1,4 +1,5 @@
-import { Flex, Spinner, Box, Container, Link, Button } from "@chakra-ui/react"
+import { Flex, Box, Container, Link, Button } from "@chakra-ui/react"
+import LoadingSpinner from "../components/Common/LoadingSpinner"
 import { Outlet, createFileRoute } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
 import mixpanel from "mixpanel-browser"
@@ -42,8 +43,11 @@ function Layout() {
     queryFn: () => UsersService.getUserGithubAppInstallations(),
     refetchOnWindowFocus: false,
     refetchOnMount: false,
-    enabled: () => Boolean(user),
-    retry: 1,
+    enabled: Boolean(user),
+    retry: (failureCount, error: any) => {
+      if (isAuthenticationError(error)) return false
+      return failureCount < 1
+    },
   })
   if (ghAppInstalledQuery.error) {
     if (isAuthenticationError(ghAppInstalledQuery.error)) {
@@ -60,9 +64,7 @@ function Layout() {
   return (
     <Box>
       {isLoading || (user && ghAppInstalledQuery.isPending) ? (
-        <Flex justify="center" align="center" height="100vh" width="full">
-          <Spinner size="xl" color="ui.main" />
-        </Flex>
+        <LoadingSpinner height="100vh" />
       ) : (
         <>
           {ghAppNotInstalled ? (

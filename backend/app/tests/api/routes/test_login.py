@@ -1,5 +1,6 @@
 from unittest.mock import patch
 
+import pytest
 from app.config import settings
 from app.models import User
 from app.security import generate_password_reset_token, verify_password
@@ -44,6 +45,7 @@ def test_use_access_token(
     assert "email" in result
 
 
+@pytest.mark.skip(reason="Password reset not supported with GitHub-only auth")
 def test_recovery_password(
     client: TestClient, normal_user_token_headers: dict[str, str]
 ) -> None:
@@ -60,6 +62,7 @@ def test_recovery_password(
         assert r.json() == {"message": "Password recovery email sent"}
 
 
+@pytest.mark.skip(reason="Password reset not supported with GitHub-only auth")
 def test_recovery_password_user_not_exits(
     client: TestClient, normal_user_token_headers: dict[str, str]
 ) -> None:
@@ -71,6 +74,7 @@ def test_recovery_password_user_not_exits(
     assert r.status_code == 404
 
 
+@pytest.mark.skip(reason="Password reset not supported with GitHub-only auth")
 def test_reset_password(
     client: TestClient, superuser_token_headers: dict[str, str], db: Session
 ) -> None:
@@ -90,6 +94,7 @@ def test_reset_password(
     assert verify_password(data["new_password"], user.hashed_password)
 
 
+@pytest.mark.skip(reason="Password reset not supported with GitHub-only auth")
 def test_reset_password_invalid_token(
     client: TestClient, superuser_token_headers: dict[str, str]
 ) -> None:

@@ -12,7 +12,7 @@ import {
   Link,
   Code,
 } from "@chakra-ui/react"
-import { FaTimesCircle, FaUpload, FaLock } from "react-icons/fa"
+import { FaTimesCircle, FaUpload, FaLock, FaCodeBranch } from "react-icons/fa"
 import { MdEdit } from "react-icons/md"
 import { ExternalLinkIcon } from "@chakra-ui/icons"
 import { type ContentsItem } from "../../client"
@@ -21,6 +21,63 @@ import EditFileInfo from "./EditFileInfo"
 import useAuth from "../../hooks/useAuth"
 import UploadFile from "./UploadFile"
 import { ProjectsService } from "../../client"
+import { type ArtifactKind } from "../Common/ArtifactCompareModal"
+
+const FIGURE_EXTS = new Set([
+  ".png",
+  ".jpg",
+  ".jpeg",
+  ".svg",
+  ".gif",
+  ".json",
+  ".html",
+])
+const PUBLICATION_EXTS = new Set([".pdf", ".html"])
+const NOTEBOOK_EXTS = new Set([".ipynb"])
+
+// Path segments that hint at figure or publication directories
+const FIGURE_DIRS = new Set([
+  "figures",
+  "figure",
+  "figs",
+  "fig",
+  "plots",
+  "images",
+])
+const PUBLICATION_DIRS = new Set([
+  "paper",
+  "papers",
+  "publications",
+  "publication",
+  "pub",
+  "pubs",
+  "manuscript",
+  "article",
+])
+
+export function inferKindFromPath(path: string): ArtifactKind | undefined {
+  const lower = path.toLowerCase()
+  const parts = lower.split("/")
+  const ext = parts[parts.length - 1].includes(".")
+    ? "." + parts[parts.length - 1].split(".").pop()!
+    : ""
+
+  // Notebooks: always by extension, never in hidden folders
+  if (NOTEBOOK_EXTS.has(ext) && !parts.some((p) => p.startsWith(".")))
+    return "notebook"
+
+  // Check parent directory name for figures/publications first
+  const parentDir = parts.length > 1 ? parts[parts.length - 2] : ""
+  if (PUBLICATION_DIRS.has(parentDir) && PUBLICATION_EXTS.has(ext))
+    return "publication"
+  if (FIGURE_DIRS.has(parentDir) && FIGURE_EXTS.has(ext)) return "figure"
+
+  // Fall back to extension only; exclude .json since it's too ambiguous (configs, etc.)
+  if (FIGURE_EXTS.has(ext) && ext !== ".json") return "figure"
+  if (ext === ".pdf") return "figure"
+
+  return undefined
+}
 
 interface FileLockProps {
   item: ContentsItem
@@ -61,6 +118,7 @@ function FileLock({ item, ownerName, projectName }: FileLockProps) {
       return (
         <Flex mt={2}>
           <Button
+            size="sm"
             aria-label="Lock file"
             onClick={() => createLockMutation.mutate()}
             isLoading={createLockMutation.isPending}
@@ -103,6 +161,7 @@ interface SelectedItemProps {
   ownerName: string
   projectName: string
   userHasWriteAccess: boolean
+  onOpenCompare?: () => void
 }
 
 function SelectedItemInfo({
@@ -110,15 +169,23 @@ function SelectedItemInfo({
   ownerName,
   projectName,
   userHasWriteAccess,
+  onOpenCompare,
 }: SelectedItemProps) {
   const fileInfoModal = useDisclosure()
   const uploadNewVersionModal = useDisclosure()
 
+  const artifactKind: ArtifactKind | undefined =
+    (selectedItem.calkit_object?.kind as ArtifactKind | undefined) ??
+    (selectedItem.type === "file"
+      ? inferKindFromPath(selectedItem.path)
+      : undefined)
+
   return (
-    <Box minW="300px">
+    <Box w="100%" wordBreak="break-word" fontSize="sm">
       <Text>Name: {selectedItem.name}</Text>
       {selectedItem.type ? <Text>Type: {selectedItem.type}</Text> : ""}
       {selectedItem.size ? <Text>Size: {selectedItem.size}</Text> : ""}
+      {selectedItem.storage ? <Text>Storage: {selectedItem.storage}</Text> : ""}
       {userHasWriteAccess ? (
         <FileLock
           item={selectedItem}
@@ -133,6 +200,7 @@ function SelectedItemInfo({
       userHasWriteAccess ? (
         <>
           <Button
+            size="sm"
             mt={2}
             onClick={uploadNewVersionModal.onOpen}
             isDisabled={Boolean(selectedItem.lock)}
@@ -146,6 +214,27 @@ function SelectedItemInfo({
             path={selectedItem.path}
           />
         </>
+      ) : (
+        ""
+      )}
+      {selectedItem.type === "file" ? (
+        <Button mt={2} onClick={onOpenCompare} size="sm">
+          <Icon as={FaCodeBranch} mr={1} />
+          Browse history
+        </Button>
+      ) : null}
+      {selectedItem.type === "file" &&
+      selectedItem.in_repo &&
+      userHasWriteAccess ? (
+        <Link
+          href={`https://github.dev/${ownerName}/${projectName}/blob/main/${selectedItem.path}`}
+          isExternal
+        >
+          <Button size="sm" mt={2}>
+            <Icon mr={1} as={MdEdit} />
+            Edit on GitHub.dev <Icon ml={1} as={ExternalLinkIcon} />
+          </Button>
+        </Link>
       ) : (
         ""
       )}
@@ -175,12 +264,18 @@ function SelectedItemInfo({
       </HStack>
       <Text>
         Type:
-        {selectedItem.calkit_object?.kind ? (
-          <>
-            <Badge ml={1} bgColor="green.500">
-              {String(selectedItem.calkit_object.kind)}
-            </Badge>
-          </>
+        {artifactKind ? (
+          <Badge
+            ml={1}
+            bgColor={
+              selectedItem.calkit_object?.kind ? "green.500" : "gray.400"
+            }
+            title={
+              selectedItem.calkit_object?.kind ? undefined : "Auto-detected"
+            }
+          >
+            {artifactKind}
+          </Badge>
         ) : (
           <Badge ml={1} bgColor="gray">
             None
@@ -209,20 +304,6 @@ function SelectedItemInfo({
           Pipeline stage:{" "}
           <Code>{String(selectedItem.calkit_object.stage)}</Code>
         </Text>
-      ) : (
-        ""
-      )}
-      {selectedItem.type === "file" &&
-      selectedItem.in_repo &&
-      userHasWriteAccess ? (
-        <Link
-          href={`https://github.dev/${ownerName}/${projectName}/blob/main/${selectedItem.path}`}
-          isExternal
-        >
-          <Button mt={3}>
-            Edit on GitHub.dev <Icon ml={1} as={ExternalLinkIcon} />
-          </Button>
-        </Link>
       ) : (
         ""
       )}
