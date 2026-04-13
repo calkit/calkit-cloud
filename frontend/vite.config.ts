@@ -43,7 +43,11 @@ export default defineConfig({
             return "vendor-notebooks"
           }
 
-          if (id.includes("@chakra-ui") || id.includes("@emotion")) {
+          if (
+            id.includes("@chakra-ui") ||
+            id.includes("@emotion") ||
+            id.includes("framer-motion")
+          ) {
             return "vendor-ui"
           }
 
