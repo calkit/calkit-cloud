@@ -18,6 +18,23 @@ function FigureView({ figure, width }: FigureViewProps) {
   const routeApi = getRouteApi("/_layout/$accountName/$projectName")
   const { accountName, projectName } = routeApi.useParams()
   const boxWidth = width ? width : "100%"
+  // Hooks must run in the same order on every render, so fetch HTML-figure
+  // content unconditionally and gate it with `enabled`; otherwise paging
+  // between a non-HTML and an HTML figure changes the hook count and
+  // triggers React error #310.
+  const isHtml = figure.path.endsWith(".html")
+  const { data: htmlData, isPending: htmlIsPending } = useQuery({
+    queryFn: () => axios.get(String(figure.url)),
+    queryKey: [
+      "projects",
+      accountName,
+      projectName,
+      "figure-content",
+      figure.path,
+      figure.url,
+    ],
+    enabled: isHtml && Boolean(!figure.content && figure.url),
+  })
   let figView = <>Not set</>
   if (figure.path.endsWith(".pdf")) {
     figView = (
@@ -92,23 +109,10 @@ function FigureView({ figure, width }: FigureViewProps) {
     } catch {
       figView = <Text>Cannot render this type of figure</Text>
     }
-  } else if (figure.path.endsWith(".html")) {
-    // Embed HTML figure in an iframe
-    const { data, isPending } = useQuery({
-      queryFn: () => axios.get(String(figure.url)),
-      queryKey: [
-        "projects",
-        accountName,
-        projectName,
-        "figure-content",
-        figure.path,
-        figure.url,
-      ],
-      enabled: Boolean(!figure.content && figure.url),
-    })
+  } else if (isHtml) {
     let figContent = figure.content
     if (!figure.content && figure.url) {
-      figContent = data?.data
+      figContent = htmlData?.data
     } else {
       figContent = "No content found"
     }
@@ -121,7 +125,7 @@ function FigureView({ figure, width }: FigureViewProps) {
             title="figure"
             srcDoc={figContent}
           />
-        ) : isPending ? (
+        ) : htmlIsPending ? (
           "Loading..."
         ) : (
           ""
