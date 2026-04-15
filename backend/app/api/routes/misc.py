@@ -312,12 +312,7 @@ def global_search(
     org_results = session.exec(
         select(Org)
         .join(Account, Account.org_id == Org.id)  # type: ignore
-        .where(
-            or_(
-                Account.name.ilike(pattern),  # type: ignore
-                Account.display_name.ilike(pattern),  # type: ignore
-            )
-        )
+        .where(Account.name.ilike(pattern))  # type: ignore
         .limit(limit)
     ).all()
     for o in org_results:
