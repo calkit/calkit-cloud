@@ -78,6 +78,49 @@ def test_get_project_case_insensitive(db: Session) -> None:
     db.commit()
 
 
+def test_get_project_with_caps_in_account_name(db: Session) -> None:
+    from app import users
+    from app.models import UserCreate
+
+    suffix = uuid.uuid4().hex[:8]
+    account_name = f"CapsUser-{suffix}"
+    caps_user = users.create_user(
+        session=db,
+        user_create=UserCreate(
+            email=f"{account_name}@example.com",
+            password="CapsPassword123",
+            account_name=account_name,
+            github_username=account_name,
+        ),
+    )
+    project = Project(
+        name="caps-project",
+        title="Caps Project",
+        git_repo_url=f"https://github.com/{account_name}/caps-project",
+        owner_account_id=caps_user.account.id,
+    )
+    db.add(project)
+    db.commit()
+    try:
+        # The stored name is lowercased; display_name preserves original casing.
+        assert caps_user.account.name == account_name.lower()
+        assert caps_user.account.display_name == account_name
+        found = app.projects.get_project(
+            session=db, owner_name=account_name, project_name="caps-project"
+        )
+        assert found.owner_account.display_name == account_name
+        found_lower = app.projects.get_project(
+            session=db,
+            owner_name=account_name.lower(),
+            project_name="caps-project",
+        )
+        assert found_lower.id == found.id
+    finally:
+        db.delete(project)
+        db.delete(caps_user)
+        db.commit()
+
+
 def test_get_contents_from_repo_at_given_ref(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

@@ -172,7 +172,7 @@ def get_projects(
     if owner_name is not None:
         where_clause = and_(
             where_clause,
-            Project.owner_account.has(Account.name == owner_name),  # type: ignore
+            Project.owner_account.has(Account.name == owner_name.lower()),  # type: ignore
         )
     if search_for is not None:
         search_for = f"%{search_for}%"
@@ -315,7 +315,7 @@ def post_project(
     # is private
     if not project_in.git_repo_exists and not project_in.is_public:
         logger.info(f"Checking private project count for {owner_name}")
-        if current_user.account.name == owner_name:
+        if current_user.account.name == owner_name.lower():
             # Count private projects for user
             account_id = current_user.account.id
             subscription = current_user.subscription

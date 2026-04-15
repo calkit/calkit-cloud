@@ -119,7 +119,9 @@ def post_discount_code(
     created_for_account_id = None
     if req.created_for_account_name is not None:
         account = session.exec(
-            select(Account).where(Account.name == req.created_for_account_name)
+            select(Account).where(
+                Account.name == req.created_for_account_name.lower()
+            )
         ).first()
         if account is None:
             raise HTTPException(400, "Account does not exist")
@@ -313,7 +315,7 @@ def global_search(
         .where(
             or_(
                 Account.name.ilike(pattern),  # type: ignore
-                Org.display_name.ilike(pattern),  # type: ignore
+                Account.display_name.ilike(pattern),  # type: ignore
             )
         )
         .limit(limit)
