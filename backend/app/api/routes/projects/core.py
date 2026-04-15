@@ -3860,6 +3860,24 @@ def get_project_references(
     )
     ck_info = get_ck_info_from_repo(repo)
     ref_collections = ck_info.get("references", [])
+    declared_paths = {rc["path"] for rc in ref_collections}
+    # Auto-detect undeclared .bib files in the repo tree
+    try:
+        commit = repo.commit(ref) if ref else repo.head.commit
+        for blob in commit.tree.traverse():
+            if blob.type != "blob":  # type: ignore[union-attr]
+                continue
+            path: str = blob.path  # type: ignore[union-attr]
+            parts = path.split("/")
+            if any(p.startswith(".") for p in parts):
+                continue
+            if not path.lower().endswith(".bib"):
+                continue
+            if path in declared_paths:
+                continue
+            ref_collections.append({"path": path})
+    except Exception as e:
+        logger.warning(f"Failed to scan for undeclared references: {e}")
     resp = []
     for ref_collection in ref_collections:
         # Read entries
@@ -3868,8 +3886,12 @@ def get_project_references(
             with open(os.path.join(repo.working_dir, path)) as f:
                 raw_text = f.read()
             ref_collection["raw_text"] = raw_text
-            refs = bibtexparser.loads(raw_text)
-            entries = refs.entries
+            try:
+                refs = bibtexparser.loads(raw_text)
+                entries = refs.entries
+            except Exception as e:
+                logger.warning(f"Failed to parse BibTeX file {path}: {e}")
+                entries = []
             final_entries = []
             file_paths = {
                 f["key"]: f["path"] for f in ref_collection.get("files", [])
