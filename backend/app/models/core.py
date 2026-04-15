@@ -584,11 +584,21 @@ class DvcForeachStage(SQLModel):
     do: DvcPipelineStage
 
 
+class StageStatus(SQLModel):
+    status: Literal["up-to-date", "stale", "not-run", "unknown"]
+    modified_command: bool = False
+    modified_inputs: list[str] = Field(default_factory=list)
+    modified_outputs: list[str] = Field(default_factory=list)
+    missing_outputs: list[str] = Field(default_factory=list)
+
+
 class Pipeline(SQLModel):
     mermaid: str
     dvc_stages: dict[str, DvcPipelineStage | DvcForeachStage]
     dvc_yaml: str
     calkit_yaml: str | None
+    stage_statuses: dict[str, StageStatus] = Field(default_factory=dict)
+    status: Literal["up-to-date", "stale", "unknown"] = "unknown"
 
 
 class Question(SQLModel, table=True):
@@ -605,6 +615,7 @@ class Figure(SQLModel):
     title: str
     description: str | None = None
     stage: str | None = None
+    stage_status: "StageStatus | None" = None
     dataset: str | None = None
     content: str | None = None  # Base64 encoded
     url: str | None = None
@@ -877,6 +888,7 @@ class Publication(BaseModel):
         | None
     ) = None
     stage: str | None = None
+    stage_status: "StageStatus | None" = None
     content: str | None = None
     stage_info: DvcPipelineStage | None = None
     url: str | None = None
