@@ -160,11 +160,14 @@ def get_repo(
         # for the latest rev
         repo = git.Repo(repo_dir)
         ttl_expired = ttl is None or ((time.time() - last_updated) > ttl)
+        # Legacy shallow repos must be unshallowed regardless of TTL, so
+        # force the slow path when we detect one.
+        is_shallow = os.path.isfile(os.path.join(repo.git_dir, "shallow"))
         # Fast path: if the cache is still warm we skip the lock and the
         # subprocesses that would otherwise run on every read (committer
-        # config, shallow check, URL migration). These are only relevant
-        # when we plan to hit the network or mutate the tree.
-        if not ttl_expired:
+        # config, URL migration). These are only relevant when we plan to
+        # hit the network or mutate the tree.
+        if not ttl_expired and not is_shallow:
             if access_token:
                 repo.git.update_environment(**_make_git_auth_env(access_token))
             return repo
@@ -189,9 +192,6 @@ def get_repo(
                     )
                 # Unshallow any repo that was cloned with --depth before we
                 # switched to always doing full clones.
-                is_shallow = os.path.isfile(
-                    os.path.join(repo.git_dir, "shallow")
-                )
                 if is_shallow:
                     logger.info("Unshallowing legacy shallow repo")
                     repo.git.fetch(["--unshallow", "--tags"])
@@ -1001,7 +1001,7 @@ class GitTree(RepoTree):
         t = self._git_tree if not path else self._get(path)
         if not isinstance(t, git.Tree):
             raise NotADirectoryError(path)
-        return [item.name for item in t]
+        return [posixpath.basename(item.path) for item in t]
 
 
 def _resolve_commit(repo: git.Repo, ref: str) -> git.Commit:
