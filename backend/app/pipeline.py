@@ -289,9 +289,9 @@ def overall_pipeline_status(
 _MERMAID_NODE_RE = re.compile(r'^\s*(node\d+)\["([^"]+)"\]\s*$')
 
 _MERMAID_STYLES = {
-    "stale": "fill:#fff0b3,stroke:#c18a00,color:#7a5200",
-    "not-run": "fill:#e8e8e8,stroke:#888,color:#555",
-    "up-to-date": "fill:#d6f5d6,stroke:#3a8a3a,color:#1f5a1f",
+    "stale": "fill:#8a6a00,stroke:#c9a227,color:#fff5cc",
+    "not-run": "fill:#3a3a3a,stroke:#888,color:#ddd",
+    "up-to-date": "fill:#1f5a1f,stroke:#3a8a3a,color:#d6f5d6",
 }
 
 
