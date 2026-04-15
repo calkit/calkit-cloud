@@ -1001,7 +1001,7 @@ class GitTree(RepoTree):
         t = self._git_tree if not path else self._get(path)
         if not isinstance(t, git.Tree):
             raise NotADirectoryError(path)
-        return [item.name for item in t]
+        return [posixpath.basename(item.path) for item in t]
 
 
 def _resolve_commit(repo: git.Repo, ref: str) -> git.Commit:
