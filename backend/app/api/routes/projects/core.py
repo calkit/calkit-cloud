@@ -66,6 +66,7 @@ from app.dvc import (
     output_from_pipeline,
 )
 from app.pipeline import (
+    color_mermaid_by_status,
     compute_stage_statuses,
     find_stage_for_path,
     overall_pipeline_status,
@@ -3554,6 +3555,7 @@ def get_project_pipeline(
             fs=fs,
         )
         overall_status = overall_pipeline_status(stage_statuses)
+        mermaid = color_mermaid_by_status(mermaid, stage_statuses)
     except Exception as e:
         logger.warning(f"Failed to compute pipeline status: {e}")
     return Pipeline(

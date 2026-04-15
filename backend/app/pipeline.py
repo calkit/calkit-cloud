@@ -16,6 +16,7 @@ from __future__ import annotations
 import hashlib
 import io
 import logging
+import re
 from typing import Literal
 
 import ruamel.yaml
@@ -283,6 +284,56 @@ def overall_pipeline_status(
     if statuses == {"up-to-date"}:
         return "up-to-date"
     return "unknown"
+
+
+_MERMAID_NODE_RE = re.compile(r'^\s*(node\d+)\["([^"]+)"\]\s*$')
+
+_MERMAID_STYLES = {
+    "stale": "fill:#fff0b3,stroke:#c18a00,color:#7a5200",
+    "not-run": "fill:#e8e8e8,stroke:#888,color:#555",
+    "up-to-date": "fill:#d6f5d6,stroke:#3a8a3a,color:#1f5a1f",
+}
+
+
+def color_mermaid_by_status(
+    mermaid: str, stage_statuses: dict[str, StageStatus]
+) -> str:
+    """Append classDef/class lines to a Mermaid diagram that color each
+    stage node by its status. Stages with ``unknown`` status are left
+    uncolored.
+    """
+    if not mermaid or not stage_statuses:
+        return mermaid
+    rank = {"up-to-date": 0, "unknown": 1, "not-run": 2, "stale": 3}
+    # Collapse @-expanded matrix stages to their base, worst-status wins
+    base_status: dict[str, str] = {}
+    for name, info in stage_statuses.items():
+        base = name.split("@")[0]
+        prev = base_status.get(base)
+        if prev is None or rank.get(info.status, 0) > rank.get(prev, 0):
+            base_status[base] = info.status
+    buckets: dict[str, list[str]] = {
+        "stale": [],
+        "not-run": [],
+        "up-to-date": [],
+    }
+    for line in mermaid.splitlines():
+        m = _MERMAID_NODE_RE.match(line)
+        if not m:
+            continue
+        node_id, label = m.group(1), m.group(2)
+        status = base_status.get(label.split("@")[0])
+        if status in buckets:
+            buckets[status].append(node_id)
+    extra: list[str] = []
+    for status, nodes in buckets.items():
+        if not nodes:
+            continue
+        extra.append(f"\tclassDef {status} {_MERMAID_STYLES[status]}")
+        extra.append(f"\tclass {','.join(nodes)} {status}")
+    if not extra:
+        return mermaid
+    return mermaid.rstrip() + "\n" + "\n".join(extra) + "\n"
 
 
 def find_stage_for_path(path: str, dvc_lock: dict) -> str | None:
