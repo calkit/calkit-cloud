@@ -28,6 +28,7 @@ import { MdEdit } from "react-icons/md"
 import { ExternalLinkIcon } from "@chakra-ui/icons"
 
 import Markdown from "../../../../../components/Common/Markdown"
+import { decodeBase64Utf8 } from "../../../../../lib/strings"
 import CreateIssue from "../../../../../components/Projects/CreateIssue"
 import CreateQuestion from "../../../../../components/Projects/CreateQuestion"
 import NewPublication from "../../../../../components/Publications/NewPublication"
@@ -159,7 +160,9 @@ function ProjectView() {
               <LoadingSpinner height="100vh" />
             ) : readmeRequest.data ? (
               <Markdown>
-                {removeFirstLine(atob(String(readmeRequest?.data?.content)))}
+                {removeFirstLine(
+                  decodeBase64Utf8(String(readmeRequest?.data?.content)),
+                )}
               </Markdown>
             ) : (
               ""

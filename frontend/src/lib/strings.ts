@@ -1,5 +1,15 @@
 // Functionality for string manipulation and formatting
 
+// Decode a base64 string as UTF-8 text. Plain `atob` returns a binary string
+// where each char is one byte, which mangles any non-ASCII content (e.g.
+// box-drawing characters) into Latin-1 mojibake.
+export const decodeBase64Utf8 = (b64: string): string => {
+  const bin = atob(b64)
+  const bytes = new Uint8Array(bin.length)
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
+  return new TextDecoder("utf-8").decode(bytes)
+}
+
 export const capitalizeFirstLetter = (val: string) => {
   return val.charAt(0).toUpperCase() + val.slice(1)
 }

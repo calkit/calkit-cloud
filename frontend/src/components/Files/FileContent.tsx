@@ -4,6 +4,7 @@ import { atomOneDark } from "react-syntax-highlighter/dist/esm/styles/hljs"
 
 import Markdown from "../Common/Markdown"
 import { type ContentsItem } from "../../client"
+import { decodeBase64Utf8 } from "../../lib/strings"
 
 interface FileContentProps {
   item: ContentsItem
@@ -75,7 +76,7 @@ function FileContent({ item }: FileContentProps) {
         py={2}
         px={4}
       >
-        <Markdown>{atob(content)}</Markdown>
+        <Markdown>{decodeBase64Utf8(content)}</Markdown>
       </Box>
     )
   }
@@ -97,7 +98,7 @@ function FileContent({ item }: FileContentProps) {
           overflowY: "auto",
         }}
       >
-        {content ? String(atob(content)) : ""}
+        {content ? decodeBase64Utf8(content) : ""}
       </SyntaxHighlighter>
     </Box>
   )
