@@ -3361,6 +3361,10 @@ export const $ProjectOptionalExtended = {
       type: "string",
       isRequired: true,
     },
+    owner_account_display_name: {
+      type: "string",
+      isRequired: true,
+    },
     owner_account_type: {
       type: "string",
       isRequired: true,
@@ -3704,6 +3708,10 @@ export const $ProjectPublic = {
       format: "uuid",
     },
     owner_account_name: {
+      type: "string",
+      isRequired: true,
+    },
+    owner_account_display_name: {
       type: "string",
       isRequired: true,
     },

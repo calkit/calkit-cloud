@@ -118,7 +118,7 @@ function PublicDatasetsTable() {
               {datasets?.data.map((dataset, index) => (
                 <Tr key={index} opacity={isPlaceholderData ? 0.5 : 1}>
                   <Td isTruncated maxWidth="80px">
-                    {dataset.project.owner_account_name}
+                    {dataset.project.owner_account_display_name}
                   </Td>
                   <Td isTruncated maxWidth="150px">
                     <Link
