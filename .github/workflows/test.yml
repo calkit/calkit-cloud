@@ -29,9 +29,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
       - run: cp .env.example .env
-      - run: docker compose build backend
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build backend image with cache
+        run: |
+          docker buildx build \
+            --cache-from type=gha,scope=calkit-backend \
+            --cache-to type=gha,mode=max,scope=calkit-backend \
+            --tag backend:latest \
+            --build-arg INSTALL_DEV=false \
+            --load \
+            ./backend
       - run: docker compose down -v --remove-orphans
-      - run: docker compose up -d
+      - run: docker compose up -d --no-build
       - name: Run tests
         run: docker compose exec -T backend bash /app/tests-start.sh
       - name: Tear down
@@ -50,6 +60,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
       - uses: actions/setup-node@v6
         with:
           node-version: "20.19.5"
@@ -67,9 +79,32 @@ jobs:
         run: npx playwright install --with-deps chromium
         working-directory: frontend
       - run: cp .env.example .env
-      - run: docker compose build
+      - name: Build backend image with cache
+        run: |
+          docker buildx build \
+            --cache-from type=gha,scope=calkit-backend \
+            --cache-to type=gha,mode=max,scope=calkit-backend \
+            --tag backend:latest \
+            --build-arg INSTALL_DEV=false \
+            --load \
+            ./backend
+      - name: Build frontend image with cache
+        run: |
+          docker buildx build \
+            --cache-from type=gha,scope=calkit-frontend \
+            --cache-to type=gha,mode=max,scope=calkit-frontend \
+            --tag frontend:latest \
+            --build-arg VITE_API_URL=https://api.localhost \
+            --build-arg VITE_STRIPE_PUBLISHABLE_KEY=$STRIPE_PUBLISHABLE_KEY \
+            --build-arg VITE_MIXPANEL_TOKEN=$MIXPANEL_TOKEN \
+            --build-arg VITE_GH_CLIENT_ID=$GH_CLIENT_ID \
+            --build-arg VITE_ZENODO_CLIENT_ID=$ZENODO_CLIENT_ID \
+            --build-arg VITE_GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID \
+            --build-arg NODE_ENV=production \
+            --load \
+            ./frontend
       - run: docker compose down -v --remove-orphans
-      - run: docker compose up -d
+      - run: docker compose up -d --no-build
       - name: Wait for services
         run: |
           echo "127.0.0.1 api.localhost" | sudo tee -a /etc/hosts
