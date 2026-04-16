@@ -620,6 +620,7 @@ class Figure(SQLModel):
     content: str | None = None  # Base64 encoded
     url: str | None = None
     comment_count: int = 0
+    storage: Literal["git", "dvc", "dvc-zip"] | None = None
     # TODO: Link to a dataset, or does the pipeline do that?
     # TODO: Add content, or maybe we can just get from Git contents via path?
 
@@ -892,6 +893,7 @@ class Publication(BaseModel):
     stage_info: DvcPipelineStage | None = None
     url: str | None = None
     overleaf: PublicationOverleaf | None = None
+    storage: Literal["git", "dvc", "dvc-zip"] | None = None
 
 
 class Notebook(BaseModel):
@@ -902,6 +904,7 @@ class Notebook(BaseModel):
     output_format: Literal["html", "notebook"] | None = None
     url: str | None = None
     content: str | None = None
+    storage: Literal["git", "dvc", "dvc-zip"] | None = None
 
 
 class GitRef(BaseModel):

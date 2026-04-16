@@ -1594,6 +1594,7 @@ def get_project_figures(
         fig["content"] = item.content
         fig["url"] = item.url
         fig["comment_count"] = comment_counts.get(fig["path"], 0)
+        fig["storage"] = item.storage
     return [Figure.model_validate(fig) for fig in figures]
 
 
@@ -2783,6 +2784,7 @@ def get_project_publications(
                     zip_path_map=zip_path_map,
                 )
                 pub["content"] = item.content
+                pub["storage"] = item.storage
                 # Prioritize URL if already defined
                 if "url" not in pub:
                     pub["url"] = item.url
@@ -4236,6 +4238,7 @@ def get_project_notebooks(
             logger.info(f"Notebook HTML does not exist at {html_path}: {e}")
         notebook["url"] = item.url
         notebook["content"] = item.content
+        notebook["storage"] = item.storage
         # Figure out the output format from the URL content disposition
         if item.url is not None:
             params = params_from_url(item.url)
