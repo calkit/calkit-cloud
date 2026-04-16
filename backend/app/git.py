@@ -695,6 +695,7 @@ _LOG_FMT = (
 
 
 def _parse_log_records(out: str) -> list[dict]:
+    """Parse the output of ``git log --format=<_LOG_FMT>`` into commit dicts."""
     commits: list[dict] = []
     for rec in out.split(_LOG_RS):
         rec = rec.lstrip("\n")
@@ -720,7 +721,7 @@ def _parse_log_records(out: str) -> list[dict]:
     return commits
 
 
-def _git_log_paths(
+def _get_commits_for_paths(
     repo: git.Repo, max_count: int, paths: list[str]
 ) -> list[dict]:
     """Return commits touching any of ``paths`` via a single ``git log``
@@ -780,7 +781,13 @@ def _batch_read_blobs(
         logger.warning(f"git cat-file --batch failed to start: {exc}")
         return results
     payload = ("\n".join(specs) + "\n").encode()
-    stdout, _ = proc.communicate(payload)
+    stdout, stderr = proc.communicate(payload)
+    if proc.returncode != 0:
+        logger.warning(
+            f"git cat-file --batch failed (exit {proc.returncode}): "
+            f"{stderr.decode('utf-8', errors='replace').strip()}"
+        )
+        return results
     idx = 0
     for spec in specs:
         nl = stdout.find(b"\n", idx)
@@ -869,12 +876,11 @@ def get_file_history(
         Commit dicts sorted newest-first.
     """
     if storage is None:
-        wdir = repo.working_dir or ""
         # Check git index cheaply before touching dvc.lock
         try:
             if repo.git.ls_files(path):
                 storage = "git"
-            elif os.path.exists(os.path.join(wdir, f"{path}.dvc")):
+            elif repo.git.ls_files(f"{path}.dvc"):
                 storage = "dvc"
         except Exception:
             pass  # leave storage=None, fall back to full search
@@ -894,12 +900,15 @@ def get_file_history(
         direct_paths.append(path)
     if check_dvc_pointer:
         direct_paths.append(f"{path}.dvc")
-    for c in _git_log_paths(repo, max_count, direct_paths):
-        if c["hash"] not in seen:
-            seen.add(c["hash"])
-            commits.append(c)
+    for direct_path in direct_paths:
+        for c in _get_commits_for_paths(repo, max_count, [direct_path]):
+            if c["hash"] not in seen:
+                seen.add(c["hash"])
+                commits.append(c)
     if check_dvc_lock:
-        lock_commits = _git_log_paths(repo, max_count * 4, ["dvc.lock"])
+        lock_commits = _get_commits_for_paths(
+            repo, max_count * 4, ["dvc.lock"]
+        )
         specs = [f"{c['hash']}:dvc.lock" for c in lock_commits]
         blobs = _batch_read_blobs(repo, specs)
         # Walk oldest -> newest to detect md5 transitions for ``path``.
