@@ -274,6 +274,7 @@ export type Figure = {
   content?: string | null
   url?: string | null
   comment_count?: number
+  storage?: "git" | "dvc" | "dvc-zip" | null
 }
 
 export type FileLock = {
@@ -486,6 +487,7 @@ export type Notebook = {
   output_format?: "html" | "notebook" | null
   url?: string | null
   content?: string | null
+  storage?: "git" | "dvc" | "dvc-zip" | null
 }
 
 /**
@@ -783,6 +785,7 @@ export type Publication = {
   stage_info?: DvcPipelineStage | null
   url?: string | null
   overleaf?: PublicationOverleaf | null
+  storage?: "git" | "dvc" | "dvc-zip" | null
 }
 
 export type PublicationOverleaf = {

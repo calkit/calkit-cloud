@@ -719,7 +719,10 @@ export function ArtifactCompareModal({
   // For figure/publication/notebook, fetching without a ref loads ALL items just
   // to find one--skip that when we already have initialArtifact. For "file", the
   // fetch is a direct single-file call so it's cheap and always useful.
-  const artifact1Enabled = kind === "file" ? isOpen : isOpen && Boolean(ref1)
+  // When there is no initialArtifact (e.g. opened from the files page), also
+  // enable the query without a ref so the current version is shown on open.
+  const artifact1Enabled =
+    kind === "file" || !initialArtifact ? isOpen : isOpen && Boolean(ref1)
   const artifact1Query = useArtifactAtRef(
     ownerName,
     projectName,
@@ -739,10 +742,17 @@ export function ArtifactCompareModal({
 
   // For figure/publication/notebook: when no ref is selected, use the pre-loaded
   // artifact from the parent so we don't fetch all items. For file, artifact1Query
-  // always runs so use its data directly.
+  // always runs so use its data directly. When there is no initialArtifact (e.g.
+  // opened from the files page), fall through to artifact1Query so the current
+  // version is displayed.
   const displayData1 =
-    kind === "file" || ref1 ? artifact1Query.data : initialArtifact
-  const isPending1 = kind === "file" || ref1 ? artifact1Query.isPending : false
+    kind === "file" || ref1 || !initialArtifact
+      ? artifact1Query.data
+      : initialArtifact
+  const isPending1 =
+    kind === "file" || ref1 || !initialArtifact
+      ? artifact1Query.isPending
+      : false
 
   const isComparing = Boolean(ref2)
 

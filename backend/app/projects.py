@@ -682,6 +682,7 @@ def get_figure_from_repo(
             )
             fig["content"] = item.content
             fig["url"] = item.url
+            fig["storage"] = item.storage
             return Figure.model_validate(fig)
     raise HTTPException(404, "Figure not found")
 
@@ -704,6 +705,7 @@ def get_publication_from_repo(
                 ref=ref,
             )
             pub["content"] = item.content
+            pub["storage"] = item.storage
             # Prioritize URL defined in the publication itself
             if "url" not in pub:
                 pub["url"] = item.url
@@ -749,6 +751,7 @@ def get_notebook_from_repo(
                 )
             notebook["url"] = item.url
             notebook["content"] = item.content
+            notebook["storage"] = item.storage
             # Figure out the output format from the URL content disposition
             if item.url is not None:
                 params = params_from_url(item.url)

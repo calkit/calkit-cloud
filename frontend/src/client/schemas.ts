@@ -1389,6 +1389,18 @@ export const $Figure = {
       type: "number",
       default: 0,
     },
+    storage: {
+      type: "any-of",
+      contains: [
+        {
+          type: "Enum",
+          enum: ["git", "dvc", "dvc-zip"],
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
   },
 } as const
 
@@ -2329,6 +2341,18 @@ export const $Notebook = {
       contains: [
         {
           type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    storage: {
+      type: "any-of",
+      contains: [
+        {
+          type: "Enum",
+          enum: ["git", "dvc", "dvc-zip"],
         },
         {
           type: "null",
@@ -3886,6 +3910,18 @@ export const $Publication = {
       contains: [
         {
           type: "PublicationOverleaf",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    storage: {
+      type: "any-of",
+      contains: [
+        {
+          type: "Enum",
+          enum: ["git", "dvc", "dvc-zip"],
         },
         {
           type: "null",

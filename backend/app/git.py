@@ -654,13 +654,21 @@ def _dvc_lock_outs_at(commit: git.Commit) -> dict[str, str] | None:
         blob = commit.tree / "dvc.lock"
     except KeyError:
         return None
-    sha = blob.hexsha
-    cached = _DVC_LOCK_PARSE_CACHE.get(sha)
+    return _parse_dvc_lock_outs(blob.hexsha, blob.data_stream.read)
+
+
+def _parse_dvc_lock_outs(blob_sha: str, read_bytes) -> dict[str, str]:
+    """Return {out_path: md5} for a dvc.lock blob, caching by blob SHA.
+
+    ``read_bytes`` is a zero-arg callable returning the blob contents, only
+    invoked on cache miss so batched callers don't pay the cost twice.
+    """
+    cached = _DVC_LOCK_PARSE_CACHE.get(blob_sha)
     if cached is not None:
-        _DVC_LOCK_PARSE_CACHE.move_to_end(sha)
+        _DVC_LOCK_PARSE_CACHE.move_to_end(blob_sha)
         return cached
     try:
-        data = ryaml.load(blob.data_stream.read()) or {}
+        data = ryaml.load(read_bytes()) or {}
     except Exception:
         data = {}
     outs: dict[str, str] = {}
@@ -670,10 +678,138 @@ def _dvc_lock_outs_at(commit: git.Commit) -> dict[str, str] | None:
             if not p:
                 continue
             outs[p] = out.get("md5") or out.get("hash") or ""
-    _DVC_LOCK_PARSE_CACHE[sha] = outs
+    _DVC_LOCK_PARSE_CACHE[blob_sha] = outs
     if len(_DVC_LOCK_PARSE_CACHE) > _DVC_LOCK_PARSE_CACHE_MAX:
         _DVC_LOCK_PARSE_CACHE.popitem(last=False)
     return outs
+
+
+# ASCII separators used in `git log --format` output so commit bodies can
+# include newlines without breaking our parser.
+_LOG_US = "\x1f"  # unit separator (between fields)
+_LOG_RS = "\x1e"  # record separator (between commits)
+_LOG_FMT = (
+    f"%H{_LOG_US}%ct{_LOG_US}%cI{_LOG_US}%an{_LOG_US}%ae"
+    f"{_LOG_US}%P{_LOG_US}%s{_LOG_US}%B{_LOG_RS}"
+)
+
+
+def _parse_log_records(out: str) -> list[dict]:
+    """Parse the output of ``git log --format=<_LOG_FMT>`` into commit dicts."""
+    commits: list[dict] = []
+    for rec in out.split(_LOG_RS):
+        rec = rec.lstrip("\n")
+        if not rec:
+            continue
+        parts = rec.split(_LOG_US)
+        if len(parts) < 8:
+            continue
+        h, ct, ci, an, ae, parents, subject, body = parts[:8]
+        commits.append(
+            {
+                "hash": h,
+                "short_hash": h[:7],
+                "message": body.rstrip("\n"),
+                "author": an,
+                "author_email": ae,
+                "timestamp": ci,
+                "committed_date": int(ct),
+                "parent_hashes": [p[:7] for p in parents.split() if p],
+                "summary": subject,
+            }
+        )
+    return commits
+
+
+def _get_commits_for_paths(
+    repo: git.Repo, max_count: int, paths: list[str]
+) -> list[dict]:
+    """Return commits touching any of ``paths`` via a single ``git log``
+    call.
+    """
+    if not paths:
+        return []
+    args = [
+        "git",
+        "log",
+        f"--max-count={max_count}",
+        f"--format={_LOG_FMT}",
+        "HEAD",
+        "--",
+        *paths,
+    ]
+    try:
+        proc = subprocess.run(
+            args,
+            cwd=repo.working_dir,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+        )
+    except OSError as exc:
+        logger.warning(f"git log failed to start for {paths!r}: {exc}")
+        return []
+    if proc.returncode != 0:
+        logger.warning(
+            f"git log failed for {paths!r}: "
+            f"{proc.stderr.decode('utf-8', errors='replace').strip()}"
+        )
+        return []
+    return _parse_log_records(proc.stdout.decode("utf-8", errors="replace"))
+
+
+def _batch_read_blobs(
+    repo: git.Repo, specs: list[str]
+) -> dict[str, tuple[str, bytes] | None]:
+    """Return ``{spec: (blob_sha, content)}`` via ``git cat-file --batch``.
+
+    Missing/ambiguous specs map to ``None``. A single subprocess handles all
+    specs, so we avoid per-commit tree walks through GitPython.
+    """
+    results: dict[str, tuple[str, bytes] | None] = {s: None for s in specs}
+    if not specs:
+        return results
+    try:
+        proc = subprocess.Popen(
+            ["git", "cat-file", "--batch"],
+            cwd=repo.working_dir,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+    except OSError as exc:
+        logger.warning(f"git cat-file --batch failed to start: {exc}")
+        return results
+    payload = ("\n".join(specs) + "\n").encode()
+    stdout, stderr = proc.communicate(payload)
+    if proc.returncode != 0:
+        logger.warning(
+            f"git cat-file --batch failed (exit {proc.returncode}): "
+            f"{stderr.decode('utf-8', errors='replace').strip()}"
+        )
+        return results
+    idx = 0
+    for spec in specs:
+        nl = stdout.find(b"\n", idx)
+        if nl < 0:
+            break
+        header = stdout[idx:nl].decode("utf-8", errors="replace")
+        idx = nl + 1
+        parts = header.split(" ")
+        # "<name> missing" or "<name> ambiguous"
+        if len(parts) == 2 and parts[1] in ("missing", "ambiguous"):
+            continue
+        if len(parts) < 3:
+            continue
+        sha = parts[0]
+        try:
+            size = int(parts[2])
+        except ValueError:
+            continue
+        content = stdout[idx : idx + size]
+        idx += size + 1  # trailing newline after content
+        results[spec] = (sha, content)
+    return results
 
 
 def _commit_to_dict(commit: git.Commit) -> dict:
@@ -715,6 +851,13 @@ def get_file_history(
     actually changed, and YAML parses are cached by blob SHA across all
     file-history requests.
 
+    When ``storage`` is ``None`` the function infers it cheaply from the
+    working tree before falling back to the full search:
+
+    1. ``git ls-files <path>`` — file is git-tracked → ``"git"``
+    2. ``<path>.dvc`` pointer file exists in the index → ``"dvc"``
+    3. Neither → scan everything (legacy/unknown).
+
     Parameters
     ----------
     repo : git.Repo
@@ -732,57 +875,57 @@ def get_file_history(
     list[dict]
         Commit dicts sorted newest-first.
     """
+    if storage is None:
+        # Check git index cheaply before touching dvc.lock
+        try:
+            if repo.git.ls_files(path):
+                storage = "git"
+            elif repo.git.ls_files(f"{path}.dvc"):
+                storage = "dvc"
+        except Exception:
+            pass  # leave storage=None, fall back to full search
     head_sha = repo.head.commit.hexsha
     cache_key = (repo.working_dir, path, max_count, storage, head_sha)
     if cache_key in _FILE_HISTORY_CACHE:
         logger.info(f"Cache hit for file history: {path}")
         _FILE_HISTORY_CACHE.move_to_end(cache_key)
         return _FILE_HISTORY_CACHE[cache_key]
-
     check_file = storage in (None, "git", "dvc")
     check_dvc_pointer = storage in (None, "dvc", "dvc-zip")
     check_dvc_lock = storage in (None, "dvc", "dvc-zip")
-
     seen: set[str] = set()
     commits: list[dict] = []
-
-    def _collect(git_path: str) -> None:
-        try:
-            for commit in repo.iter_commits(
-                "HEAD", paths=git_path, max_count=max_count
-            ):
-                if commit.hexsha in seen:
-                    continue
-                seen.add(commit.hexsha)
-                commits.append(_commit_to_dict(commit))
-        except Exception as exc:
-            logger.warning(
-                f"Failed to get file history for {git_path!r}: {exc}"
-            )
-
+    direct_paths: list[str] = []
     if check_file:
-        _collect(path)
+        direct_paths.append(path)
     if check_dvc_pointer:
-        _collect(f"{path}.dvc")
+        direct_paths.append(f"{path}.dvc")
+    for direct_path in direct_paths:
+        for c in _get_commits_for_paths(repo, max_count, [direct_path]):
+            if c["hash"] not in seen:
+                seen.add(c["hash"])
+                commits.append(c)
     if check_dvc_lock:
-        try:
-            prev_hash: str | None = None
-            for commit in repo.iter_commits(
-                "HEAD", paths="dvc.lock", max_count=max_count * 4
-            ):
-                outs = _dvc_lock_outs_at(commit)
-                current_hash = outs.get(path) if outs else None
-                if current_hash and current_hash != prev_hash:
-                    if commit.hexsha not in seen:
-                        seen.add(commit.hexsha)
-                        commits.append(_commit_to_dict(commit))
-                if current_hash:
-                    prev_hash = current_hash
-        except Exception as exc:
-            logger.warning(
-                f"Failed to get dvc.lock history for {path!r}: {exc}"
-            )
-
+        lock_commits = _get_commits_for_paths(
+            repo, max_count * 4, ["dvc.lock"]
+        )
+        specs = [f"{c['hash']}:dvc.lock" for c in lock_commits]
+        blobs = _batch_read_blobs(repo, specs)
+        # Walk oldest -> newest to detect md5 transitions for ``path``.
+        prev_hash: str | None = None
+        for c in reversed(lock_commits):
+            entry = blobs.get(f"{c['hash']}:dvc.lock")
+            if entry is None:
+                continue
+            blob_sha, content = entry
+            outs = _parse_dvc_lock_outs(blob_sha, lambda b=content: b)
+            current_hash = outs.get(path) if outs else None
+            if current_hash and current_hash != prev_hash:
+                if c["hash"] not in seen:
+                    seen.add(c["hash"])
+                    commits.append(c)
+            if current_hash:
+                prev_hash = current_hash
     commits.sort(key=lambda c: c["committed_date"], reverse=True)
     result = commits[:max_count]
     _FILE_HISTORY_CACHE[cache_key] = result
@@ -812,7 +955,6 @@ def get_commit_history(
     """
     commits = []
     start = ref if ref else "HEAD"
-
     # If the ref doesn't exist locally, try the remote tracking branch
     candidates = [start]
     if ref:
@@ -844,7 +986,6 @@ def get_commit_history(
             logger.warning(
                 f"Failed to get commit history for {candidate}: {e}"
             )
-
     return commits
 
 
