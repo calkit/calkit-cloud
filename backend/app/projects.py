@@ -34,6 +34,7 @@ from app.dvc import expand_dvc_lock_outs
 from app.dvc import get_data_fpath_for_md5
 from app.git import get_ck_info_from_repo, get_zip_path_map_from_repo
 from app.models import (
+    Account,
     ContentsItem,
     Figure,
     ItemLock,

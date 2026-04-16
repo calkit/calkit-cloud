@@ -701,6 +701,7 @@ export type ProjectOptionalExtended = {
   id: string
   owner_account_id: string
   owner_account_name: string
+  owner_account_display_name: string
   owner_account_type: string
   current_user_access?: "read" | "write" | "admin" | "owner" | null
   calkit_info_keys?: Array<string> | null
@@ -744,6 +745,7 @@ export type ProjectPublic = {
   id: string
   owner_account_id: string
   owner_account_name: string
+  owner_account_display_name: string
   owner_account_type: string
   current_user_access?: "read" | "write" | "admin" | "owner" | null
 }

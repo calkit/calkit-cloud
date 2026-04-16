@@ -84,14 +84,27 @@ def get_orgs(
     search_for: str | None = None,
 ) -> OrgsResponse:
     """Get a list of orgs."""
-    query = select(Org).offset(offset).limit(limit).order_by(Org.display_name)
+    query = (
+        select(Org)
+        .join(Account, Account.org_id == Org.id)  # type: ignore
+        .offset(offset)
+        .limit(limit)
+        .order_by(Account.display_name)
+    )
     if search_for is not None:
         search_for = f"%{search_for}%"
-        query = query.where(Org.display_name.ilike(search_for))
+        query = query.where(Account.display_name.ilike(search_for))
     orgs = session.exec(query).all()
-    count_query = select(func.count()).select_from(Org)
+    count_query = (
+        select(func.count())
+        .select_from(Org)
+        .join(
+            Account,
+            Account.org_id == Org.id,  # type: ignore
+        )
+    )
     if search_for is not None:
-        count_query = count_query.where(Org.display_name.ilike(search_for))
+        count_query = count_query.where(Account.display_name.ilike(search_for))
     count = session.exec(count_query).one()
     resp = []
     for org in orgs:
@@ -176,8 +189,11 @@ def post_org(
             400, "Cannot detect display name; one must be provided"
         )
     org = Org(
-        display_name=display_name,
-        account=Account(name=org_name, github_name=req.github_name),
+        account=Account(
+            name=org_name,
+            display_name=display_name,
+            github_name=req.github_name,
+        ),
         user_memberships=[
             UserOrgMembership(user=current_user, role_id=ROLE_IDS["owner"])
         ],
