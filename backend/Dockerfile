@@ -53,4 +53,4 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # ~10x faster for large dvc.lock parses and we rely on it in the hot path.
 RUN python -c "import yaml; assert yaml.__with_libyaml__, 'PyYAML built without libyaml'"
 
-CMD ["fastapi", "run", "--workers", "4", "app/main.py"]
+CMD ["fastapi", "run", "--workers", "8", "app/main.py"]
