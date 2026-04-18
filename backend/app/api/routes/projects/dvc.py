@@ -55,6 +55,8 @@ async def post_project_dvc_file(
     req: Request,
     _dvc_concurrency: DvcConcurrencyDep,
 ) -> Message:
+    owner_name = owner_name.lower()
+    project_name = project_name.lower()
     mixpanel.user_dvc_pushed(
         user=current_user, owner_name=owner_name, project_name=project_name
     )
@@ -128,6 +130,8 @@ async def get_project_dvc_file(
     current_user: CurrentUserDvcScope,
     _dvc_concurrency: DvcConcurrencyDep,
 ) -> StreamingResponse:
+    owner_name = owner_name.lower()
+    project_name = project_name.lower()
     mixpanel.user_dvc_pulled(
         user=current_user, owner_name=owner_name, project_name=project_name
     )
@@ -167,6 +171,8 @@ async def get_project_dvc_files(
     current_user: CurrentUser,
     _dvc_concurrency: DvcConcurrencyDep,
 ):
+    owner_name = owner_name.lower()
+    project_name = project_name.lower()
     app.projects.get_project(
         session=session,
         owner_name=owner_name,
