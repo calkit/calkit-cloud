@@ -4065,6 +4065,19 @@ def get_project_notebooks(
         logger.warning(f"Failed to scan for undeclared notebooks: {e}")
     if not notebooks:
         return notebooks
+    # Detect stages from jupyter-notebook ``notebook_path`` items
+    pipeline = ck_info.get("pipeline", {})
+    stages = pipeline.get("stages", {})
+    nb_path_to_stage_name = {}
+    for stage_name, stage in stages.items():
+        if stage.get("kind") == "jupyter-notebook":
+            nb_path = stage.get("notebook_path")
+            if nb_path:
+                nb_path_to_stage_name[nb_path] = stage_name
+    for nb in notebooks:
+        nb_path = nb.get("path")
+        if nb_path in nb_path_to_stage_name:
+            nb["stage"] = nb_path_to_stage_name[nb_path]
     # Get the notebook content and base64 encode it
     tree = app.projects.get_repo_tree_for_ref(repo, ref)
     ck_info_full, dvc_lock_outs, zip_path_map = (
