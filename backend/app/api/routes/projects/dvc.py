@@ -11,7 +11,7 @@ from fastapi.responses import StreamingResponse
 
 import app.projects
 from app import mixpanel
-from app.api.deps import CurrentUser, CurrentUserDvcScope, SessionDep
+from app.api.deps import CurrentUserDvcScope, SessionDep
 from app.config import settings
 from app.models import Message
 from app.storage import (
@@ -175,23 +175,3 @@ async def get_project_dvc_file(
                 yield chunk
 
     return StreamingResponse(iterfile())
-
-
-@router.get("/projects/{owner_name}/{project_name}/dvc/files/md5")
-async def get_project_dvc_files(
-    owner_name: str,
-    project_name: str,
-    session: SessionDep,
-    current_user: CurrentUser,
-    _dvc_concurrency: DvcConcurrencyDep,
-):
-    owner_name = owner_name.lower()
-    project_name = project_name.lower()
-    app.projects.get_project(
-        session=session,
-        owner_name=owner_name,
-        project_name=project_name,
-        current_user=current_user,
-        min_access_level="read",
-    )
-    # TODO: Return what we're supposed to return
