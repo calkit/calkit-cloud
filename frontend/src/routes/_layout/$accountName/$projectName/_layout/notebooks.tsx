@@ -9,6 +9,7 @@ import {
   Code,
   HStack,
   Button,
+  Tooltip,
 } from "@chakra-ui/react"
 import { useQuery } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
@@ -217,22 +218,28 @@ function Notebooks() {
               notebooks.map((nb) => {
                 const isSelected = nb.path === selectedNotebook?.path
                 return (
-                  <HStack
+                  <Tooltip
                     key={nb.path}
-                    px={1}
-                    py={0.5}
-                    borderRadius="md"
-                    cursor="pointer"
-                    fontWeight={isSelected ? "semibold" : "normal"}
-                    _hover={{ color: "blue.500" }}
-                    onClick={() => setSelectedPath(nb.path ?? "")}
-                    spacing={1}
+                    label={nb.title ?? nb.path}
+                    openDelay={600}
+                    placement="right"
                   >
-                    <Icon as={SiJupyter} flexShrink={0} color="orange.400" />
-                    <Text fontSize="sm" noOfLines={1}>
-                      {nb.title ?? nb.path}
-                    </Text>
-                  </HStack>
+                    <HStack
+                      px={1}
+                      py={0.5}
+                      borderRadius="md"
+                      cursor="pointer"
+                      fontWeight={isSelected ? "semibold" : "normal"}
+                      _hover={{ color: "blue.500" }}
+                      onClick={() => setSelectedPath(nb.path ?? "")}
+                      spacing={1}
+                    >
+                      <Icon as={SiJupyter} flexShrink={0} color="orange.400" />
+                      <Text fontSize="sm" noOfLines={1}>
+                        {nb.title ?? nb.path}
+                      </Text>
+                    </HStack>
+                  </Tooltip>
                 )
               })
             )}
@@ -264,7 +271,6 @@ function Notebooks() {
               </Flex>
             )}
           </Box>
-
           {/* Right: info */}
           {selectedNotebook && (
             <Box w="240px" flexShrink={0}>

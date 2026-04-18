@@ -17,6 +17,7 @@ import {
   Code,
   HStack,
   VStack,
+  Tooltip,
 } from "@chakra-ui/react"
 import {
   createFileRoute,
@@ -376,22 +377,28 @@ function Publications() {
             {publicationsRequest.data?.map((pub) => {
               const isSelected = pub.path === selectedPub?.path
               return (
-                <HStack
+                <Tooltip
                   key={pub.path}
-                  px={1}
-                  py={0.5}
-                  borderRadius="md"
-                  cursor="pointer"
-                  fontWeight={isSelected ? "semibold" : "normal"}
-                  _hover={{ color: "blue.500" }}
-                  onClick={() => setSelectedPath(pub.path)}
-                  spacing={1}
+                  label={pub.title}
+                  openDelay={600}
+                  placement="right"
                 >
-                  <Icon as={FiFile} flexShrink={0} />
-                  <Text fontSize="sm" noOfLines={1}>
-                    {pub.title}
-                  </Text>
-                </HStack>
+                  <HStack
+                    px={1}
+                    py={0.5}
+                    borderRadius="md"
+                    cursor="pointer"
+                    fontWeight={isSelected ? "semibold" : "normal"}
+                    _hover={{ color: "blue.500" }}
+                    onClick={() => setSelectedPath(pub.path)}
+                    spacing={1}
+                  >
+                    <Icon as={FiFile} flexShrink={0} />
+                    <Text fontSize="sm" noOfLines={1}>
+                      {pub.title}
+                    </Text>
+                  </HStack>
+                </Tooltip>
               )
             })}
           </PageMenu>
