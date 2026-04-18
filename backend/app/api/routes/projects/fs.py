@@ -161,6 +161,9 @@ def post_project_fs_op(
     - API credentials for indirect API access
     - Request delegation info for non-presigned flows
     """
+    # Ensure owner and project name are lowercase
+    owner_name = owner_name.lower()
+    project_name = project_name.lower()
     operation = req.operation
     path = req.path
     content_length = req.content_length
@@ -409,6 +412,8 @@ def post_project_fs_batch_op(
     current_user: CurrentUserOptional,
 ) -> FsOpBatchResponse:
     """Endpoint for batch file system operations for multiple paths."""
+    owner_name = owner_name.lower()
+    project_name = project_name.lower()
     operation = req.operation
     paths = req.paths
     include = req.include or []
