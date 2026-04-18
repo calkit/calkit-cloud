@@ -121,13 +121,39 @@ function NotebookInfo({
         Info
       </Heading>
       <Text fontSize="sm" mb={1}>
-        Path: <Code fontSize="xs">{notebook.path}</Code>
-      </Text>
-      {notebook.stage && (
-        <Text fontSize="sm" mb={1}>
-          Pipeline stage: <Code fontSize="xs">{notebook.stage}</Code>
+        <Text as="span" fontWeight="semibold">
+          Title:
+        </Text>{" "}
+        <Text as="span" color="gray.500">
+          {notebook.title ?? ""}
         </Text>
-      )}
+      </Text>
+      <Text fontSize="sm" mb={1}>
+        <Text as="span" fontWeight="semibold">
+          Description:
+        </Text>{" "}
+        <Text as="span" color="gray.500">
+          {notebook.description ?? ""}
+        </Text>
+      </Text>
+      <Text fontSize="sm" mb={1}>
+        <Text as="span" fontWeight="semibold">
+          Path:
+        </Text>{" "}
+        <Code fontSize="xs">{notebook.path}</Code>
+      </Text>
+      <Text fontSize="sm" mb={1}>
+        <Text as="span" fontWeight="semibold">
+          Pipeline stage:
+        </Text>{" "}
+        {notebook.stage ? (
+          <Code fontSize="xs">{notebook.stage}</Code>
+        ) : (
+          <Text as="span" color="red.500" fontWeight="semibold">
+            Not in pipeline
+          </Text>
+        )}
+      </Text>
       <Button mt={2} size="sm" onClick={onOpenCompare}>
         <Icon as={FaCodeBranch} mr={1} />
         Browse history
@@ -220,21 +246,12 @@ function Notebooks() {
               })
             )}
           </PageMenu>
-
           {/* Center: viewer */}
           <Box flex={1} minW={0} mr={6}>
             {selectedNotebook ? (
               <>
-                <Heading size="md" mb={1}>
-                  {selectedNotebook.title ?? selectedNotebook.path}
-                </Heading>
-                {selectedNotebook.description && (
-                  <Text fontSize="sm" color="gray.500" mb={2}>
-                    {selectedNotebook.description}
-                  </Text>
-                )}
                 <Box
-                  height="80vh"
+                  height="82vh"
                   borderRadius="lg"
                   overflowX="hidden"
                   overflowY="auto"
