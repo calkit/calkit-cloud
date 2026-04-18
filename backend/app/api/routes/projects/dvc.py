@@ -18,6 +18,7 @@ from app.storage import (
     get_data_prefix,
     get_object_fs,
     get_storage_usage,
+    invalidate_storage_usage_cache,
     make_data_fpath,
     remove_gcs_content_type,
 )
@@ -27,7 +28,7 @@ router = APIRouter()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Cap in-process concurrent DVC remote requests so they wait for a slot.
+# Cap in-process concurrent DVC remote requests so they wait for a slot
 DVC_MAX_CONCURRENT_REQUESTS = 12
 dvc_request_semaphore = asyncio.Semaphore(DVC_MAX_CONCURRENT_REQUESTS)
 
@@ -97,25 +98,38 @@ async def post_project_dvc_file(
     # Use a pending path during upload so we can rename after
     sig = hashlib.md5()
     pending_fpath = fpath + ".pending"
-    with fs.open(pending_fpath, "wb") as f:
-        # See https://stackoverflow.com/q/73322065/2284865
-        async for chunk in req.stream():
-            f.write(chunk)  # type: ignore
-            sig.update(chunk)
-    # If using Google Cloud Storage, we need to remove the content type
-    # metadata in order to set it for signed URLs
-    if settings.ENVIRONMENT != "local":
-        remove_gcs_content_type(pending_fpath)
-    digest = sig.hexdigest()
-    logger.info(f"Computed MD5 from DVC post: {digest}")
-    if md5.endswith(".dir"):
-        digest += ".dir"
-    if digest == idx + md5:
-        logger.info("MD5 matches; removing pending suffix")
-        fs.mv(pending_fpath, fpath)
-    else:
-        logger.warning("MD5 does not match")
-        raise HTTPException(400, "MD5 does not match")
+    upload_succeeded = False
+    try:
+        with fs.open(pending_fpath, "wb") as f:
+            # See https://stackoverflow.com/q/73322065/2284865
+            async for chunk in req.stream():
+                f.write(chunk)  # type: ignore
+                sig.update(chunk)
+        # If using Google Cloud Storage, we need to remove the content type
+        # metadata in order to set it for signed URLs
+        if settings.ENVIRONMENT != "local":
+            remove_gcs_content_type(pending_fpath)
+        digest = sig.hexdigest()
+        logger.info(f"Computed MD5 from DVC post: {digest}")
+        if md5.endswith(".dir"):
+            digest += ".dir"
+        if digest == idx + md5:
+            logger.info("MD5 matches; removing pending suffix")
+            fs.mv(pending_fpath, fpath)
+            upload_succeeded = True
+            invalidate_storage_usage_cache(owner_name)
+        else:
+            logger.warning("MD5 does not match")
+            raise HTTPException(400, "MD5 does not match")
+    finally:
+        if not upload_succeeded:
+            try:
+                if fs.exists(pending_fpath):
+                    fs.rm(pending_fpath)
+            except Exception:
+                logger.exception(
+                    "Failed to remove pending DVC upload %s", pending_fpath
+                )
     return Message(message="Success")
 
 

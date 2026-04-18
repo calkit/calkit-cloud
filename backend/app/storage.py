@@ -2,11 +2,10 @@
 
 import json
 import os
-import threading
-import time
 from typing import Any, Literal
 
 import boto3
+import cachetools
 import gcsfs
 import s3fs
 from botocore.config import Config
@@ -21,10 +20,13 @@ MULTIPART_PART_SIZE_BYTES = 16 * 1024 * 1024  # 16 MB
 CHUNKED_CHUNK_SIZE_BYTES = 16 * 1024 * 1024  # 16 MB
 S3_MAX_PARTS = 10000  # S3 multipart upload limit
 STORAGE_USAGE_CACHE_TTL_SECONDS = 10 * 60
+STORAGE_USAGE_CACHE_MAXSIZE = 2048
 
-# In-process cache for owner-level storage usage reads.
-_storage_usage_cache: dict[str, tuple[float, float]] = {}
-_storage_usage_cache_lock = threading.Lock()
+# In-process cache for owner-level storage usage reads
+_storage_usage_cache: cachetools.TTLCache[str, float] = cachetools.TTLCache(
+    maxsize=STORAGE_USAGE_CACHE_MAXSIZE,
+    ttl=STORAGE_USAGE_CACHE_TTL_SECONDS,
+)
 
 
 def get_backend() -> Literal["s3", "gcs"]:
@@ -350,31 +352,28 @@ def get_storage_usage(
 ) -> float:
     """Get storage usage in GB for a given owner."""
     cache_key = f"{settings.ENVIRONMENT}:{owner_name}"
-    now = time.monotonic()
-    with _storage_usage_cache_lock:
+    use_cache = fs is None
+    if use_cache:
         cached = _storage_usage_cache.get(cache_key)
         if cached is not None:
-            cached_usage_gb, cached_at = cached
-            if now - cached_at < STORAGE_USAGE_CACHE_TTL_SECONDS:
-                return cached_usage_gb
-    if fs is None:
+            return cached
         fs = get_object_fs()
+    assert fs is not None
     usage = fs.du(get_data_prefix_for_owner(owner_name))
     if isinstance(usage, dict):
         usage = sum(float(v) for v in usage.values())
     usage_gb = float(usage) / 1e9
-    with _storage_usage_cache_lock:
-        _storage_usage_cache[cache_key] = (usage_gb, now)
+    if use_cache:
+        _storage_usage_cache[cache_key] = usage_gb
     return usage_gb
 
 
 def invalidate_storage_usage_cache(owner_name: str | None = None) -> None:
     """Invalidate cached storage usage for one owner or all owners."""
-    with _storage_usage_cache_lock:
-        if owner_name is None:
-            _storage_usage_cache.clear()
-            return
-        _storage_usage_cache.pop(f"{settings.ENVIRONMENT}:{owner_name}", None)
+    if owner_name is None:
+        _storage_usage_cache.clear()
+        return
+    _storage_usage_cache.pop(f"{settings.ENVIRONMENT}:{owner_name}", None)
 
 
 def migrate_legacy_dvc_paths(dry_run=True):
