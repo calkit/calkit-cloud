@@ -127,6 +127,7 @@ services:
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID?Variable not set}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET?Variable not set}
       - GOOGLE_CREDENTIALS=${GOOGLE_CREDENTIALS-}
+    command: ["fastapi", "run", "--workers", "8", "app/main.py"]
     build:
       context: ./backend
       args:
@@ -149,6 +150,65 @@ services:
       # Enable www redirection for HTTP and HTTPS
       - traefik.http.routers.${STACK_NAME?Variable not set}-backend-http.middlewares=https-redirect,${STACK_NAME?Variable not set}-www-redirect
       - traefik.http.routers.${STACK_NAME?Variable not set}-backend-https.middlewares=${STACK_NAME?Variable not set}-www-redirect
+
+  backend-dvc:
+    image: '${DOCKER_IMAGE_BACKEND?Variable not set}:${TAG-latest}'
+    restart: always
+    pull_policy: never # We build locally on deploy
+    networks:
+      - traefik-public
+      - default
+    depends_on:
+      db:
+        condition: service_healthy
+        restart: true
+      prestart:
+        condition: service_completed_successfully
+    command: ["fastapi", "run", "--workers", "4", "app/main.py"]
+    environment:
+      - PROJECT_NAME=${PROJECT_NAME}
+      - DOMAIN=${DOMAIN}
+      - ENVIRONMENT=${ENVIRONMENT}
+      - BACKEND_CORS_ORIGINS=${BACKEND_CORS_ORIGINS}
+      - SECRET_KEY=${SECRET_KEY?Variable not set}
+      - FERNET_KEY=${FERNET_KEY?Variable not set}
+      - FIRST_SUPERUSER=${FIRST_SUPERUSER?Variable not set}
+      - FIRST_SUPERUSER_PASSWORD=${FIRST_SUPERUSER_PASSWORD?Variable not set}
+      - FIRST_SUPERUSER_GITHUB_USERNAME=${FIRST_SUPERUSER_GITHUB_USERNAME}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
+      - EMAILS_FROM_EMAIL=${EMAILS_FROM_EMAIL}
+      - POSTGRES_SERVER=db
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER?Variable not set}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD?Variable not set}
+      - SENTRY_DSN=${SENTRY_DSN}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD?Variable not set}
+      - GH_CLIENT_ID=${GH_CLIENT_ID?Variable not set}
+      - GH_CLIENT_SECRET=${GH_CLIENT_SECRET?Variable not set}
+      - STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY}
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+      - MIXPANEL_TOKEN=${MIXPANEL_TOKEN?Variable not set}
+      - ZENODO_CLIENT_ID=${ZENODO_CLIENT_ID?Variable not set}
+      - ZENODO_CLIENT_SECRET=${ZENODO_CLIENT_SECRET?Variable not set}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID?Variable not set}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET?Variable not set}
+      - GOOGLE_CREDENTIALS=${GOOGLE_CREDENTIALS-}
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=traefik-public
+      - traefik.constraint-label=traefik-public
+      - traefik.http.services.${STACK_NAME?Variable not set}-backend-dvc.loadbalancer.server.port=8000
+      # More specific rule (Host + PathRegexp) wins over the plain Host rule on backend
+      - traefik.http.routers.${STACK_NAME?Variable not set}-backend-dvc-http.rule=Host(`api.${DOMAIN?Variable not set}`) && PathRegexp(`/dvc/files/md5`)
+      - traefik.http.routers.${STACK_NAME?Variable not set}-backend-dvc-http.entrypoints=http
+      - traefik.http.routers.${STACK_NAME?Variable not set}-backend-dvc-http.middlewares=https-redirect
+      - traefik.http.routers.${STACK_NAME?Variable not set}-backend-dvc-https.rule=Host(`api.${DOMAIN?Variable not set}`) && PathRegexp(`/dvc/files/md5`)
+      - traefik.http.routers.${STACK_NAME?Variable not set}-backend-dvc-https.entrypoints=https
+      - traefik.http.routers.${STACK_NAME?Variable not set}-backend-dvc-https.tls=true
+      - traefik.http.routers.${STACK_NAME?Variable not set}-backend-dvc-https.tls.certresolver=le
 
   frontend:
     image: '${DOCKER_IMAGE_FRONTEND?Variable not set}:${TAG-latest}'

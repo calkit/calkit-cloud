@@ -79,6 +79,25 @@ services:
       SMTP_TLS: "false"
       EMAILS_FROM_EMAIL: "noreply@example.com"
 
+  backend-dvc:
+    restart: "no"
+    env_file:
+      - .env
+    ports:
+      - "8001:8000"
+    volumes:
+      - ./backend/:/app
+      - /app/.venv
+    build:
+      context: ./backend
+      args:
+        INSTALL_DEV: ${INSTALL_DEV-true}
+    command:
+      - fastapi
+      - run
+      - --reload
+      - "app/main.py"
+
   mailcatcher:
     image: schickling/mailcatcher
     ports:
