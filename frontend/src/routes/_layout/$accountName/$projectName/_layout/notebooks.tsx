@@ -121,35 +121,26 @@ function NotebookInfo({
         Info
       </Heading>
       <Text fontSize="sm" mb={1}>
-        <Text as="span" fontWeight="semibold">
-          Title:
-        </Text>{" "}
+        <Text as="span">Title:</Text>{" "}
         <Text as="span" color="gray.500">
           {notebook.title ?? ""}
         </Text>
       </Text>
       <Text fontSize="sm" mb={1}>
-        <Text as="span" fontWeight="semibold">
-          Description:
-        </Text>{" "}
+        <Text as="span">Description:</Text>{" "}
         <Text as="span" color="gray.500">
           {notebook.description ?? ""}
         </Text>
       </Text>
       <Text fontSize="sm" mb={1}>
-        <Text as="span" fontWeight="semibold">
-          Path:
-        </Text>{" "}
-        <Code fontSize="xs">{notebook.path}</Code>
+        <Text as="span">Path:</Text> <Code fontSize="xs">{notebook.path}</Code>
       </Text>
       <Text fontSize="sm" mb={1}>
-        <Text as="span" fontWeight="semibold">
-          Pipeline stage:
-        </Text>{" "}
+        <Text as="span">Pipeline stage:</Text>{" "}
         {notebook.stage ? (
           <Code fontSize="xs">{notebook.stage}</Code>
         ) : (
-          <Text as="span" color="red.500" fontWeight="semibold">
+          <Text as="span" color="red.500">
             Not in pipeline
           </Text>
         )}
