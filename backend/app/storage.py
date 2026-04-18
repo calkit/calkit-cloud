@@ -97,8 +97,9 @@ def get_data_prefix() -> str:
         return f"gcs://calkit-{settings.ENVIRONMENT}/data"
 
 
-def get_data_prefix_for_owner(owner_name: str) -> str:
-    return f"{get_data_prefix()}/{owner_name}"
+def get_data_prefix_for_owner(owner_name: str, lowercase: bool = True) -> str:
+    prefix = f"{get_data_prefix()}/{owner_name}"
+    return prefix.lower() if lowercase else prefix
 
 
 def make_data_fpath(
@@ -117,11 +118,11 @@ def make_data_fpath(
     (without 'files/md5/') for backward compatibility with existing data.
     New uploads should use the new format.
     """
-    prefix = get_data_prefix_for_owner(owner_name)
+    prefix = get_data_prefix_for_owner(owner_name, lowercase=not legacy)
     if legacy:
         return f"{prefix}/{project_name}/{idx}/{md5}"
     else:
-        return f"{prefix}/{project_name}/files/md5/{idx}/{md5}"
+        return f"{prefix}/{project_name.lower()}/files/md5/{idx}/{md5}"
 
 
 def _replace_local_object_host(url: str) -> str:
@@ -386,7 +387,7 @@ def migrate_legacy_dvc_paths(dry_run=True):
     # to prepend 'files/md5/' to match the new DVC path structure
     for owner_path in fs.ls(data_prefix, False):
         owner_name = os.path.basename(owner_path)
-        owner_prefix = get_data_prefix_for_owner(owner_name)
+        owner_prefix = get_data_prefix_for_owner(owner_name, lowercase=False)
         for project_path in fs.ls(owner_prefix, False):
             project_name = os.path.basename(project_path)
             project_prefix = f"{owner_prefix}/{project_name}"
@@ -404,3 +405,13 @@ def migrate_legacy_dvc_paths(dry_run=True):
                     print(f"Renaming {old_path} to {new_path}")
                     if not dry_run:
                         fs.mv(old_path, new_path, recursive=True)
+            # Check that the path is lowercase
+            if project_prefix != project_prefix.lower():
+                old_path = f"{data_prefix}/{owner_name}/{project_name}"
+                new_path = (
+                    f"{data_prefix.lower()}/{owner_name.lower()}"
+                    f"/{project_name.lower()}"
+                )
+                print(f"Renaming {old_path} to {new_path} to make lowercase")
+                if not dry_run:
+                    fs.mv(old_path, new_path, recursive=True)
