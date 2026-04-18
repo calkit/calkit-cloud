@@ -1,3 +1,4 @@
+import React from "react"
 import { Text, Box, Code } from "@chakra-ui/react"
 
 import LoadingSpinner from "../Common/LoadingSpinner"
@@ -25,8 +26,9 @@ function ProjectShowcase({
         <LoadingSpinner height="100px" />
       ) : showcaseRequest.data ? (
         <>
-          {showcaseRequest.data.elements.map((item) => (
-            <>
+          {showcaseRequest.data.elements.map((item, index) => (
+            // eslint-disable-next-line react/no-array-index-key
+            <React.Fragment key={index}>
               {"figure" in item ? (
                 <Box mt={2}>
                   <FigureView figure={item.figure} />
@@ -50,7 +52,7 @@ function ProjectShowcase({
               ) : (
                 ""
               )}
-            </>
+            </React.Fragment>
           ))}
         </>
       ) : (

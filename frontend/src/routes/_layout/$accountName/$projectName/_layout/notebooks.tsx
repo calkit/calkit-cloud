@@ -9,6 +9,7 @@ import {
   Code,
   HStack,
   Button,
+  Tooltip,
 } from "@chakra-ui/react"
 import { useQuery } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
@@ -121,13 +122,30 @@ function NotebookInfo({
         Info
       </Heading>
       <Text fontSize="sm" mb={1}>
-        Path: <Code fontSize="xs">{notebook.path}</Code>
-      </Text>
-      {notebook.stage && (
-        <Text fontSize="sm" mb={1}>
-          Pipeline stage: <Code fontSize="xs">{notebook.stage}</Code>
+        <Text as="span">Title:</Text>{" "}
+        <Text as="span" color="gray.500">
+          {notebook.title ?? ""}
         </Text>
-      )}
+      </Text>
+      <Text fontSize="sm" mb={1}>
+        <Text as="span">Description:</Text>{" "}
+        <Text as="span" color="gray.500">
+          {notebook.description ?? ""}
+        </Text>
+      </Text>
+      <Text fontSize="sm" mb={1}>
+        <Text as="span">Path:</Text> <Code fontSize="xs">{notebook.path}</Code>
+      </Text>
+      <Text fontSize="sm" mb={1}>
+        <Text as="span">Pipeline stage:</Text>{" "}
+        {notebook.stage ? (
+          <Code fontSize="xs">{notebook.stage}</Code>
+        ) : (
+          <Text as="span" color="red.500">
+            Not in pipeline
+          </Text>
+        )}
+      </Text>
       <Button mt={2} size="sm" onClick={onOpenCompare}>
         <Icon as={FaCodeBranch} mr={1} />
         Browse history
@@ -200,41 +218,38 @@ function Notebooks() {
               notebooks.map((nb) => {
                 const isSelected = nb.path === selectedNotebook?.path
                 return (
-                  <HStack
+                  <Tooltip
                     key={nb.path}
-                    px={1}
-                    py={0.5}
-                    borderRadius="md"
-                    cursor="pointer"
-                    fontWeight={isSelected ? "semibold" : "normal"}
-                    _hover={{ color: "blue.500" }}
-                    onClick={() => setSelectedPath(nb.path ?? "")}
-                    spacing={1}
+                    label={nb.title ?? nb.path}
+                    openDelay={600}
+                    placement="right"
                   >
-                    <Icon as={SiJupyter} flexShrink={0} color="orange.400" />
-                    <Text fontSize="sm" noOfLines={1}>
-                      {nb.title ?? nb.path}
-                    </Text>
-                  </HStack>
+                    <HStack
+                      px={1}
+                      py={0.5}
+                      borderRadius="md"
+                      cursor="pointer"
+                      fontWeight={isSelected ? "semibold" : "normal"}
+                      _hover={{ color: "blue.500" }}
+                      onClick={() => setSelectedPath(nb.path ?? "")}
+                      spacing={1}
+                    >
+                      <Icon as={SiJupyter} flexShrink={0} color="orange.400" />
+                      <Text fontSize="sm" noOfLines={1}>
+                        {nb.title ?? nb.path}
+                      </Text>
+                    </HStack>
+                  </Tooltip>
                 )
               })
             )}
           </PageMenu>
-
           {/* Center: viewer */}
           <Box flex={1} minW={0} mr={6}>
             {selectedNotebook ? (
               <>
-                <Heading size="md" mb={1}>
-                  {selectedNotebook.title ?? selectedNotebook.path}
-                </Heading>
-                {selectedNotebook.description && (
-                  <Text fontSize="sm" color="gray.500" mb={2}>
-                    {selectedNotebook.description}
-                  </Text>
-                )}
                 <Box
-                  height="80vh"
+                  height="82vh"
                   borderRadius="lg"
                   overflowX="hidden"
                   overflowY="auto"
@@ -256,7 +271,6 @@ function Notebooks() {
               </Flex>
             )}
           </Box>
-
           {/* Right: info */}
           {selectedNotebook && (
             <Box w="240px" flexShrink={0}>

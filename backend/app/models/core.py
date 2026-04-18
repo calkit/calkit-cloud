@@ -19,6 +19,7 @@ from sqlmodel import Field, Relationship, SQLModel
 class Account(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     name: str = Field(min_length=2, max_length=64, unique=True)
+    display_name: str | None = Field(default=None, max_length=64)
     created: datetime = Field(
         default_factory=utcnow,
         sa_column_kwargs=dict(
@@ -241,13 +242,17 @@ class UsersPublic(SQLModel):
 
 class Org(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    display_name: str = Field(min_length=2, max_length=255)
     # Relationships
     account: Account = Relationship(back_populates="org")
     user_memberships: list["UserOrgMembership"] = Relationship(
         back_populates="org"
     )
     subscription: "OrgSubscription" = Relationship(back_populates="org")
+
+    @computed_field
+    @property
+    def display_name(self) -> str:
+        return self.account.display_name or self.account.name
 
     @computed_field
     @property
@@ -490,6 +495,11 @@ class Project(ProjectBase, table=True):
 
     @computed_field
     @property
+    def owner_account_display_name(self) -> str:
+        return self.owner_account.display_name or self.owner_account.name
+
+    @computed_field
+    @property
     def owner_account_type(self) -> str:
         return self.owner_account.type
 
@@ -530,6 +540,7 @@ class ProjectPublic(ProjectBase):
     id: uuid.UUID
     owner_account_id: uuid.UUID
     owner_account_name: str
+    owner_account_display_name: str
     owner_account_type: str
     current_user_access: Literal["read", "write", "admin", "owner"] | None = (
         None
@@ -620,6 +631,7 @@ class Figure(SQLModel):
     content: str | None = None  # Base64 encoded
     url: str | None = None
     comment_count: int = 0
+    storage: Literal["git", "dvc", "dvc-zip"] | None = None
     # TODO: Link to a dataset, or does the pipeline do that?
     # TODO: Add content, or maybe we can just get from Git contents via path?
 
@@ -893,6 +905,7 @@ class Publication(BaseModel):
     stage_info: DvcPipelineStage | None = None
     url: str | None = None
     overleaf: PublicationOverleaf | None = None
+    storage: Literal["git", "dvc", "dvc-zip"] | None = None
 
 
 class Notebook(BaseModel):
@@ -903,6 +916,7 @@ class Notebook(BaseModel):
     output_format: Literal["html", "notebook"] | None = None
     url: str | None = None
     content: str | None = None
+    storage: Literal["git", "dvc", "dvc-zip"] | None = None
 
 
 class GitRef(BaseModel):

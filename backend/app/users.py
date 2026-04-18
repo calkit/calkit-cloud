@@ -121,14 +121,20 @@ def create_user(*, session: Session, user_create: UserCreate) -> User:
     if not account_name:
         account_name = user_create.email.split("@")[0]
     github_name = user_create.github_username or account_name
-    if account_name in INVALID_ACCOUNT_NAMES:
+    if account_name.lower() in INVALID_ACCOUNT_NAMES:
         raise HTTPException(422, "Invalid account name")
+    existing = session.exec(
+        select(Account).where(Account.name == account_name.lower())
+    ).first()
+    if existing is not None:
+        raise HTTPException(422, "Account name is already taken")
     user = User.model_validate(
         user_create,
         update={
             "hashed_password": get_password_hash(user_create.password),
             "account": Account(
-                name=account_name,
+                name=account_name.lower(),
+                display_name=account_name,
                 github_name=github_name,
             ),  # type: ignore
         },

@@ -51,9 +51,5 @@ def get_account(
                     role = org_membership.role_name
                     break
     account_dict["role"] = role
-    # Determine display name
-    if account.org is not None:
-        account_dict["display_name"] = account.org.display_name
-    else:
-        account_dict["display_name"] = account.name
+    account_dict["display_name"] = account.display_name or account.name
     return AccountPublic.model_validate(account_dict)

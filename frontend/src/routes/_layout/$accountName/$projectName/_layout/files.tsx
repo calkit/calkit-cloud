@@ -12,6 +12,7 @@ import {
   useDisclosure,
   IconButton,
   useColorModeValue,
+  Tooltip,
 } from "@chakra-ui/react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { FiFolder, FiFile, FiDatabase } from "react-icons/fi"
@@ -177,43 +178,45 @@ function Item({ item, level, selectedPath, setSelectedPath }: ItemProps) {
 
   return (
     <>
-      <Flex
-        cursor="pointer"
-        onClick={handleClick}
-        ml={indent * 4}
-        bg={itemIsSelected ? bgActive : ""}
-        borderRadius="md"
-        px="2px"
-      >
-        <Icon
-          as={getIcon(item, isExpanded)}
-          alignSelf="center"
-          mr={1}
-          color={item.calkit_object ? "green.500" : "default"}
-        />
-        <Text
-          isTruncated
-          noOfLines={1}
-          whiteSpace="nowrap"
-          overflow="hidden"
-          textOverflow="ellipsis"
-          display="inline-block"
-          maxW="100%"
+      <Tooltip label={item.path} openDelay={600} placement="right">
+        <Flex
+          cursor="pointer"
+          onClick={handleClick}
+          ml={indent * 4}
+          bg={itemIsSelected ? bgActive : ""}
+          borderRadius="md"
+          px="2px"
         >
-          {item.name}
-        </Text>
-        {item.lock ? (
           <Icon
-            as={FaLock}
-            ml={0.1}
-            color={"yellow.500"}
+            as={getIcon(item, isExpanded)}
             alignSelf="center"
-            height={"12px"}
+            mr={1}
+            color={item.calkit_object ? "green.500" : "default"}
           />
-        ) : (
-          ""
-        )}
-      </Flex>
+          <Text
+            isTruncated
+            noOfLines={1}
+            whiteSpace="nowrap"
+            overflow="hidden"
+            textOverflow="ellipsis"
+            display="inline-block"
+            maxW="100%"
+          >
+            {item.name}
+          </Text>
+          {item.lock ? (
+            <Icon
+              as={FaLock}
+              ml={0.1}
+              color={"yellow.500"}
+              alignSelf="center"
+              height={"12px"}
+            />
+          ) : (
+            ""
+          )}
+        </Flex>
+      </Tooltip>
       {isExpanded && item.type === "dir" ? (
         <Box>
           {data?.dir_items?.map((subItem: ContentsItem) => (

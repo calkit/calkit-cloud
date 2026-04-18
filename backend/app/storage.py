@@ -5,6 +5,7 @@ import os
 from typing import Any, Literal
 
 import boto3
+import cachetools
 import gcsfs
 import s3fs
 from botocore.config import Config
@@ -18,6 +19,14 @@ MULTIPART_THRESHOLD_BYTES = 64 * 1024 * 1024  # 64 MB
 MULTIPART_PART_SIZE_BYTES = 16 * 1024 * 1024  # 16 MB
 CHUNKED_CHUNK_SIZE_BYTES = 16 * 1024 * 1024  # 16 MB
 S3_MAX_PARTS = 10000  # S3 multipart upload limit
+STORAGE_USAGE_CACHE_TTL_SECONDS = 300
+STORAGE_USAGE_CACHE_MAXSIZE = 2048
+
+# In-process cache for owner-level storage usage reads
+_storage_usage_cache: cachetools.TTLCache[str, float] = cachetools.TTLCache(
+    maxsize=STORAGE_USAGE_CACHE_MAXSIZE,
+    ttl=STORAGE_USAGE_CACHE_TTL_SECONDS,
+)
 
 
 def get_backend() -> Literal["s3", "gcs"]:
@@ -90,8 +99,9 @@ def get_data_prefix() -> str:
         return f"gcs://calkit-{settings.ENVIRONMENT}/data"
 
 
-def get_data_prefix_for_owner(owner_name: str) -> str:
-    return f"{get_data_prefix()}/{owner_name}"
+def get_data_prefix_for_owner(owner_name: str, lowercase: bool = True) -> str:
+    prefix = f"{get_data_prefix()}/{owner_name}"
+    return prefix.lower() if lowercase else prefix
 
 
 def make_data_fpath(
@@ -110,11 +120,11 @@ def make_data_fpath(
     (without 'files/md5/') for backward compatibility with existing data.
     New uploads should use the new format.
     """
-    prefix = get_data_prefix_for_owner(owner_name)
+    prefix = get_data_prefix_for_owner(owner_name, lowercase=not legacy)
     if legacy:
         return f"{prefix}/{project_name}/{idx}/{md5}"
     else:
-        return f"{prefix}/{project_name}/files/md5/{idx}/{md5}"
+        return f"{prefix}/{project_name.lower()}/files/md5/{idx}/{md5}"
 
 
 def _replace_local_object_host(url: str) -> str:
@@ -341,12 +351,29 @@ def get_storage_usage(
     owner_name: str, fs: s3fs.S3FileSystem | gcsfs.GCSFileSystem | None = None
 ) -> float:
     """Get storage usage in GB for a given owner."""
-    if fs is None:
+    cache_key = f"{settings.ENVIRONMENT}:{owner_name}"
+    use_cache = fs is None
+    if use_cache:
+        cached = _storage_usage_cache.get(cache_key)
+        if cached is not None:
+            return cached
         fs = get_object_fs()
+    assert fs is not None
     usage = fs.du(get_data_prefix_for_owner(owner_name))
     if isinstance(usage, dict):
         usage = sum(float(v) for v in usage.values())
-    return float(usage) / 1e9
+    usage_gb = float(usage) / 1e9
+    if use_cache:
+        _storage_usage_cache[cache_key] = usage_gb
+    return usage_gb
+
+
+def invalidate_storage_usage_cache(owner_name: str | None = None) -> None:
+    """Invalidate cached storage usage for one owner or all owners."""
+    if owner_name is None:
+        _storage_usage_cache.clear()
+        return
+    _storage_usage_cache.pop(f"{settings.ENVIRONMENT}:{owner_name}", None)
 
 
 def migrate_legacy_dvc_paths(dry_run=True):
@@ -359,7 +386,7 @@ def migrate_legacy_dvc_paths(dry_run=True):
     # to prepend 'files/md5/' to match the new DVC path structure
     for owner_path in fs.ls(data_prefix, False):
         owner_name = os.path.basename(owner_path)
-        owner_prefix = get_data_prefix_for_owner(owner_name)
+        owner_prefix = get_data_prefix_for_owner(owner_name, lowercase=False)
         for project_path in fs.ls(owner_prefix, False):
             project_name = os.path.basename(project_path)
             project_prefix = f"{owner_prefix}/{project_name}"
@@ -377,3 +404,13 @@ def migrate_legacy_dvc_paths(dry_run=True):
                     print(f"Renaming {old_path} to {new_path}")
                     if not dry_run:
                         fs.mv(old_path, new_path, recursive=True)
+            # Check that the path is lowercase
+            if project_prefix != project_prefix.lower():
+                old_path = f"{data_prefix}/{owner_name}/{project_name}"
+                new_path = (
+                    f"{data_prefix.lower()}/{owner_name.lower()}"
+                    f"/{project_name.lower()}"
+                )
+                print(f"Renaming {old_path} to {new_path} to make lowercase")
+                if not dry_run:
+                    fs.mv(old_path, new_path, recursive=True)
