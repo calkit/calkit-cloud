@@ -120,9 +120,27 @@ function PubInfo({
       <Heading size="sm" mb={2}>
         Info
       </Heading>
+      <Text fontSize="sm" mb={1}>
+        <Text as="span" fontWeight="semibold">
+          Title:
+        </Text>{" "}
+        <Text as="span" color="gray.500">
+          {publication.title ?? ""}
+        </Text>
+      </Text>
+      <Text fontSize="sm" mb={1}>
+        <Text as="span" fontWeight="semibold">
+          Description:
+        </Text>{" "}
+        <Text as="span" color="gray.500">
+          {publication.description ?? ""}
+        </Text>
+      </Text>
       {publication.path && (
-        <Text fontSize="sm">
-          Path:{" "}
+        <Text fontSize="sm" mb={1}>
+          <Text as="span" fontWeight="semibold">
+            Path:
+          </Text>{" "}
           <Link
             as={RouterLink}
             to="../files"
@@ -133,15 +151,25 @@ function PubInfo({
         </Text>
       )}
       {publication.type && (
-        <Text fontSize="sm">
-          Type: <Badge>{publication.type}</Badge>
+        <Text fontSize="sm" mb={1}>
+          <Text as="span" fontWeight="semibold">
+            Type:
+          </Text>{" "}
+          <Badge>{publication.type}</Badge>
         </Text>
       )}
-      {publication.stage && (
-        <Text fontSize="sm">
-          Pipeline stage: <Code fontSize="xs">{publication.stage}</Code>
-        </Text>
-      )}
+      <Text fontSize="sm" mb={1}>
+        <Text as="span" fontWeight="semibold">
+          Pipeline stage:
+        </Text>{" "}
+        {publication.stage ? (
+          <Code fontSize="xs">{publication.stage}</Code>
+        ) : (
+          <Text as="span" color="red.500">
+            Not in pipeline
+          </Text>
+        )}
+      </Text>
       {publication.overleaf?.project_id && (
         <Box mt={2}>
           <Flex align="center" gap={1}>
@@ -372,16 +400,8 @@ function Publications() {
           <Box flex={1} minW={0} mr={6} minH={0}>
             {selectedPub ? (
               <>
-                <Heading size="md" mb={1}>
-                  {selectedPub.title}
-                </Heading>
-                {selectedPub.description && (
-                  <Text fontSize="sm" color="gray.500" mb={2}>
-                    {selectedPub.description}
-                  </Text>
-                )}
                 {isPdf && selectedPub.url ? (
-                  <Box height="80vh">
+                  <Box height="82vh">
                     <PdfAnnotator
                       url={String(selectedPub.url)}
                       ownerName={accountName}
@@ -393,7 +413,7 @@ function Publications() {
                     />
                   </Box>
                 ) : (
-                  <Box height="80vh" borderRadius="lg" overflow="hidden">
+                  <Box height="82vh" borderRadius="lg" overflow="hidden">
                     <PublicationView publication={selectedPub} />
                   </Box>
                 )}
