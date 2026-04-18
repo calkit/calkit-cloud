@@ -60,6 +60,12 @@ from app.dvc import (
     make_mermaid_diagram,
     output_from_pipeline,
 )
+from app.pipeline import (
+    color_mermaid_by_status,
+    compute_stage_statuses,
+    find_stage_for_path,
+    overall_pipeline_status,
+)
 from app.git import (
     get_ck_info,
     get_ck_info_from_repo,
@@ -1444,6 +1450,24 @@ def get_project_figures(
     ck_info_full, dvc_lock_outs, zip_path_map = (
         app.projects.get_ck_info_and_dvc_outs_from_tree(project, tree)
     )
+    dvc_lock: dict = {}
+    if tree.is_file("dvc.lock"):
+        dvc_lock = ryaml.load(tree.read_bytes("dvc.lock").decode()) or {}
+    dvc_yaml: dict = {}
+    if tree.is_file("dvc.yaml"):
+        dvc_yaml = ryaml.load(tree.read_bytes("dvc.yaml").decode()) or {}
+    stage_statuses = {}
+    try:
+        stage_statuses = compute_stage_statuses(
+            dvc_yaml=dvc_yaml,
+            dvc_lock=dvc_lock,
+            tree=tree,
+            owner_name=project.owner_account_name,
+            project_name=project.name,
+            fs=get_object_fs(),
+        )
+    except Exception as e:
+        logger.warning(f"Failed to compute pipeline status for figures: {e}")
     for fig in figures:
         item = app.projects.get_contents_from_tree(
             project=project,
@@ -1456,6 +1480,12 @@ def get_project_figures(
         fig["content"] = item.content
         fig["url"] = item.url
         fig["comment_count"] = comment_counts.get(fig["path"], 0)
+        if not fig.get("stage"):
+            auto_stage = find_stage_for_path(fig["path"], dvc_lock)
+            if auto_stage is not None:
+                fig["stage"] = auto_stage
+        if fig.get("stage") and fig["stage"] in stage_statuses:
+            fig["stage_status"] = stage_statuses[fig["stage"]].model_dump()
         fig["storage"] = item.storage
     return [Figure.model_validate(fig) for fig in figures]
 
@@ -2631,9 +2661,32 @@ def get_project_publications(
     ck_info_full, dvc_lock_outs, zip_path_map = (
         app.projects.get_ck_info_and_dvc_outs_from_tree(project, tree)
     )
+    dvc_lock: dict = {}
+    if tree.is_file("dvc.lock"):
+        dvc_lock = ryaml.load(tree.read_bytes("dvc.lock").decode()) or {}
+    stage_statuses = {}
+    try:
+        stage_statuses = compute_stage_statuses(
+            dvc_yaml=pipeline,
+            dvc_lock=dvc_lock,
+            tree=tree,
+            owner_name=project.owner_account_name,
+            project_name=project.name,
+            fs=get_object_fs(),
+        )
+    except Exception as e:
+        logger.warning(
+            f"Failed to compute pipeline status for publications: {e}"
+        )
     for pub in publications:
-        if "stage" in pub:
+        if not pub.get("stage") and pub.get("path"):
+            auto_stage = find_stage_for_path(pub["path"], dvc_lock)
+            if auto_stage is not None:
+                pub["stage"] = auto_stage
+        if pub.get("stage"):
             pub["stage_info"] = pipeline.get("stages", {}).get(pub["stage"])
+            if pub["stage"] in stage_statuses:
+                pub["stage_status"] = stage_statuses[pub["stage"]].model_dump()
         # See if we can fetch the content for this publication
         if "path" in pub:
             try:
@@ -3348,11 +3401,34 @@ def get_project_pipeline(
             stream = io.StringIO()
             ryaml.dump({"pipeline": ck_info["pipeline"]}, stream)
             calkit_content = stream.getvalue()
+    # Compute per-stage staleness against the committed dvc.lock
+    stage_statuses: dict = {}
+    overall_status = "unknown"
+    try:
+        tree = app.projects.get_repo_tree_for_ref(repo, ref)
+        dvc_lock: dict = {}
+        if tree.is_file("dvc.lock"):
+            dvc_lock = ryaml.load(tree.read_bytes("dvc.lock").decode()) or {}
+        fs = get_object_fs()
+        stage_statuses = compute_stage_statuses(
+            dvc_yaml=dvc_pipeline,
+            dvc_lock=dvc_lock,
+            tree=tree,
+            owner_name=project.owner_account_name,
+            project_name=project.name,
+            fs=fs,
+        )
+        overall_status = overall_pipeline_status(stage_statuses)
+        mermaid = color_mermaid_by_status(mermaid, stage_statuses)
+    except Exception as e:
+        logger.warning(f"Failed to compute pipeline status: {e}")
     return Pipeline(
         dvc_stages=dvc_pipeline["stages"],
         mermaid=mermaid,
         dvc_yaml=dvc_content,
         calkit_yaml=calkit_content,
+        stage_statuses=stage_statuses,
+        status=overall_status,
     )
 
 
