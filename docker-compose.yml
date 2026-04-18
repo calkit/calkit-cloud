@@ -41,6 +41,7 @@ services:
 
   prestart:
     image: '${DOCKER_IMAGE_BACKEND?Variable not set}:${TAG-latest}'
+    pull_policy: never # We build locally on deploy
     build:
       context: ./backend
     networks:
