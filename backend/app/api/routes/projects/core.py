@@ -1,7 +1,5 @@
 """Main routes for projects."""
 
-import functools
-import hashlib
 import io
 import logging
 import os
@@ -34,10 +32,8 @@ from fastapi import (
     Header,
     HTTPException,
     Query,
-    Request,
     UploadFile,
 )
-from fastapi.responses import StreamingResponse
 from git.exc import GitCommandError
 from pydantic import BaseModel, ValidationError
 from sqlmodel import Session, and_, func, not_, or_, select
@@ -47,7 +43,6 @@ import app.projects
 from app import mixpanel, orgs, users
 from app.api.deps import (
     CurrentUser,
-    CurrentUserDvcScope,
     CurrentUserOptional,
     SessionDep,
 )
@@ -118,10 +113,8 @@ from app.models.projects import (
     ShowcaseYamlFileInput,
 )
 from app.storage import (
-    get_data_prefix,
     get_object_fs,
     get_object_url,
-    get_storage_usage,
     make_data_fpath,
     remove_gcs_content_type,
 )
@@ -1027,137 +1020,6 @@ def get_project_file_history(
         ttl=FULL_HISTORY_REPO_TTL,
     )
     return get_file_history(repo, path=path, max_count=limit, storage=storage)
-
-
-@router.post("/projects/{owner_name}/{project_name}/dvc/files/md5/{idx}/{md5}")
-async def post_project_dvc_file(
-    *,
-    owner_name: str,
-    project_name: str,
-    idx: str,
-    md5: str,
-    session: SessionDep,
-    current_user: CurrentUserDvcScope,
-    req: Request,
-) -> Message:
-    mixpanel.user_dvc_pushed(
-        user=current_user, owner_name=owner_name, project_name=project_name
-    )
-    logger.info(
-        f"Received request from {current_user.email} to post "
-        f"DVC file MD5 {idx}{md5}"
-    )
-    project = app.projects.get_project(
-        session=session,
-        owner_name=owner_name,
-        project_name=project_name,
-        current_user=current_user,
-        min_access_level="write",
-    )
-    logger.info(f"{current_user.email} requesting to POST data")
-    # Check if user has not exceeded their storage limit
-    fs = get_object_fs()
-    owner = project.owner
-    if owner is None or owner.subscription is None:
-        raise HTTPException(400, "Project owner subscription not configured")
-    storage_limit_gb = owner.subscription.storage_limit
-    session.close()
-    # Create bucket if it doesn't exist -- only necessary with MinIO
-    if settings.ENVIRONMENT == "local" and not fs.exists(get_data_prefix()):
-        fs.makedir(get_data_prefix())
-    storage_used_gb = get_storage_usage(owner_name, fs=fs)
-    logger.info(
-        f"{owner_name} has used {storage_used_gb}/{storage_limit_gb} "
-        "GB of storage"
-    )
-    if storage_used_gb > storage_limit_gb:
-        logger.info("Rejecting request due to storage limit exceeded")
-        mixpanel.user_out_of_storage(user=current_user)
-        raise HTTPException(400, "Storage limit exceeded")
-    fpath = make_data_fpath(
-        owner_name=owner_name, project_name=project_name, idx=idx, md5=md5
-    )
-    # Use a pending path during upload so we can rename after
-    sig = hashlib.md5()
-    pending_fpath = fpath + ".pending"
-    with fs.open(pending_fpath, "wb") as f:
-        # See https://stackoverflow.com/q/73322065/2284865
-        async for chunk in req.stream():
-            f.write(chunk)  # type: ignore
-            sig.update(chunk)
-    # If using Google Cloud Storage, we need to remove the content type
-    # metadata in order to set it for signed URLs
-    if settings.ENVIRONMENT != "local":
-        remove_gcs_content_type(pending_fpath)
-    digest = sig.hexdigest()
-    logger.info(f"Computed MD5 from DVC post: {digest}")
-    if md5.endswith(".dir"):
-        digest += ".dir"
-    if digest == idx + md5:
-        logger.info("MD5 matches; removing pending suffix")
-        fs.mv(pending_fpath, fpath)
-    else:
-        logger.warning("MD5 does not match")
-        raise HTTPException(400, "MD5 does not match")
-    return Message(message="Success")
-
-
-@router.get("/projects/{owner_name}/{project_name}/dvc/files/md5/{idx}/{md5}")
-def get_project_dvc_file(
-    *,
-    owner_name: str,
-    project_name: str,
-    idx: str,
-    md5: str,
-    session: SessionDep,
-    current_user: CurrentUserDvcScope,
-) -> StreamingResponse:
-    mixpanel.user_dvc_pulled(
-        user=current_user, owner_name=owner_name, project_name=project_name
-    )
-    logger.info(f"{current_user.email} requesting to GET data")
-    app.projects.get_project(
-        session=session,
-        owner_name=owner_name,
-        project_name=project_name,
-        current_user=current_user,
-        min_access_level="read",
-    )
-    # If file doesn't exist, return 404
-    fs = get_object_fs()
-    fpath = make_data_fpath(
-        owner_name=owner_name, project_name=project_name, idx=idx, md5=md5
-    )
-    logger.info(f"Checking for {fpath}")
-    if not fs.exists(fpath):
-        logger.info(f"{fpath} does not exist")
-        raise HTTPException(404)
-
-    # Stream the file contents back to the user
-    def iterfile():
-        with fs.open(fpath, "rb") as f:
-            chunker = functools.partial(f.read, 4_000_000)
-            for chunk in iter(chunker, b""):
-                yield chunk
-
-    return StreamingResponse(iterfile())
-
-
-@router.get("/projects/{owner_name}/{project_name}/dvc/files/md5")
-def get_project_dvc_files(
-    owner_name: str,
-    project_name: str,
-    session: SessionDep,
-    current_user: CurrentUser,
-):
-    app.projects.get_project(
-        session=session,
-        owner_name=owner_name,
-        project_name=project_name,
-        current_user=current_user,
-        min_access_level="read",
-    )
-    # TODO: Return what we're supposed to return
 
 
 class GitItem(BaseModel):
