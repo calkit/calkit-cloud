@@ -73,6 +73,14 @@ const useProjectReadme = (
         path: "README.md",
         ref,
       }),
+    retry: (failureCount, error) => {
+      // A missing README is the common case for fresh projects — don't
+      // burn three extra round-trips before the UI settles on "no README".
+      if (error.message === "Not Found" || error.message === "Forbidden") {
+        return false
+      }
+      return failureCount < 3
+    },
   })
   return { readmeRequest }
 }
