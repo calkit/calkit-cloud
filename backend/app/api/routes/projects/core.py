@@ -1402,32 +1402,48 @@ def get_project_figures(
     )
     figures = ck_info.get("figures", [])
     declared_paths = {fig["path"] for fig in figures}
+
+    def _maybe_add_figure(path: str) -> None:
+        """Add *path* to figures if it looks like a figure and is not yet known."""
+        parts = path.split("/")
+        if any(p.startswith(".") for p in parts):
+            return
+        ext = "." + parts[-1].rsplit(".", 1)[-1] if "." in parts[-1] else ""
+        dir_parts = [p.lower() for p in parts[:-1]]
+        if ext.lower() in FIGURE_EXTS and any(
+            d in FIGURE_DIRS for d in dir_parts
+        ):
+            if path not in declared_paths:
+                stem = (
+                    parts[-1]
+                    .rsplit(".", 1)[0]
+                    .replace("_", " ")
+                    .replace("-", " ")
+                    .capitalize()
+                )
+                figures.append({"path": path, "title": stem})
+                declared_paths.add(path)
+
     # Auto-detect figures from the repo tree
     try:
         commit = repo.commit(ref) if ref else repo.head.commit
         for blob in commit.tree.traverse():
             if blob.type != "blob":  # type: ignore[union-attr]
                 continue
-            parts = blob.path.split("/")  # type: ignore[union-attr]
-            # Skip hidden folders like .calkit
-            if any(p.startswith(".") for p in parts):
-                continue
-            ext = (
-                "." + parts[-1].rsplit(".", 1)[-1] if "." in parts[-1] else ""
-            )
-            parent_dir = parts[-2].lower() if len(parts) > 1 else ""
-            if ext.lower() in FIGURE_EXTS and parent_dir in FIGURE_DIRS:
-                if blob.path not in declared_paths:  # type: ignore[union-attr]
-                    stem = (
-                        parts[-1]
-                        .rsplit(".", 1)[0]
-                        .replace("_", " ")
-                        .replace("-", " ")
-                        .title()
-                    )
-                    figures.append({"path": blob.path, "title": stem})  # type: ignore[union-attr]
+            _maybe_add_figure(blob.path)  # type: ignore[union-attr]
     except Exception:
         pass
+    # Pre-compute calkit.yaml / dvc.lock metadata once for the tree so we
+    # don't re-read and re-expand on every iteration.
+    tree = app.projects.get_repo_tree_for_ref(repo, ref)
+    ck_info_full, dvc_lock_outs, zip_path_map = (
+        app.projects.get_ck_info_and_dvc_outs_from_tree(project, tree)
+    )
+    # Also auto-detect figures from DVC lock outs (files stored with DVC)
+    for dvc_path, dvc_out in dvc_lock_outs.items():
+        if dvc_out.get("type") == "dir":
+            continue
+        _maybe_add_figure(dvc_path)
     if not figures:
         return []
     # Build comment count map from DB
@@ -1444,12 +1460,6 @@ def get_project_figures(
         ).all()
     )
     # Get the figure content and base64 encode it.
-    # Pre-compute calkit.yaml / dvc.lock metadata once for the tree so we
-    # don't re-read and re-expand on every iteration.
-    tree = app.projects.get_repo_tree_for_ref(repo, ref)
-    ck_info_full, dvc_lock_outs, zip_path_map = (
-        app.projects.get_ck_info_and_dvc_outs_from_tree(project, tree)
-    )
     dvc_lock: dict = {}
     if tree.is_file("dvc.lock"):
         dvc_lock = ryaml.load(tree.read_bytes("dvc.lock").decode()) or {}
