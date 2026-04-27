@@ -120,8 +120,7 @@ function CliAuth() {
           Authorize CLI Access
         </Heading>
         <Text>
-          Logged in as{" "}
-          <Code>{user.github_username || user.email}</Code>
+          Logged in as <Code>{user.github_username || user.email}</Code>
         </Text>
         <Text>
           A Calkit CLI is requesting access to your account. Click the button
