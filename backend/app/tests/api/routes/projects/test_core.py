@@ -303,3 +303,143 @@ def test_get_project_figures_autodetects_deeply_nested(
             assert not all(w[0].isupper() for w in words[1:] if w), (
                 f"Title {title!r} appears to use title case, not sentence case"
             )
+
+
+def test_get_project_figures_autodetects_dvc_stored(
+    client: TestClient,
+) -> None:
+    """Figures stored with DVC (in dvc_lock_outs) must be auto-detected."""
+    fake_project = SimpleNamespace(id="00000000-0000-0000-0000-000000000001")
+    fake_tree = SimpleNamespace()
+    fake_repo = SimpleNamespace()
+    # Repo has no git-tracked blobs
+    fake_commit = SimpleNamespace()
+    fake_commit.tree = SimpleNamespace(traverse=lambda: iter([]))
+    fake_repo.head = SimpleNamespace(commit=fake_commit)
+    # DVC lock outs contain figure files and non-figure files
+    dvc_detected_paths = [
+        "figures/plot.png",
+        "results/figures/result.png",
+    ]
+    dvc_ignored_paths = [
+        "data/output.png",  # not in a figure dir
+        "figures/plot.txt",  # unsupported extension
+    ]
+    dvc_lock_outs = {}
+    for p in dvc_detected_paths + dvc_ignored_paths:
+        dvc_lock_outs[p] = {"path": p, "md5": "abc123", "type": "file"}
+    # Add a dir entry that must be skipped
+    dvc_lock_outs["figures"] = {"path": "figures", "type": "dir"}
+    fake_contents = ContentsItem(
+        name="fig",
+        path="fig",
+        type="file",
+        size=0,
+        in_repo=True,
+        content=None,
+        url=None,
+        storage=None,
+    )
+    with (
+        patch(
+            "app.api.routes.projects.core.app.projects.get_project",
+            return_value=fake_project,
+        ),
+        patch(
+            "app.api.routes.projects.core.get_repo",
+            return_value=fake_repo,
+        ),
+        patch(
+            "app.api.routes.projects.core.app.projects.get_ck_info_for_ref",
+            return_value={},
+        ),
+        patch(
+            "app.api.routes.projects.core.app.projects.get_repo_tree_for_ref",
+            return_value=fake_tree,
+        ),
+        patch(
+            "app.api.routes.projects.core.app.projects.get_ck_info_and_dvc_outs_from_tree",
+            return_value=({}, dvc_lock_outs, {}),
+        ),
+        patch(
+            "app.api.routes.projects.core.app.projects.get_contents_from_tree",
+            return_value=fake_contents,
+        ),
+    ):
+        response = client.get(
+            f"{settings.API_V1_STR}/projects/test-owner/test-project/figures"
+        )
+    assert response.status_code == 200
+    returned_figures = response.json()
+    returned_paths = {fig["path"] for fig in returned_figures}
+    for path in dvc_detected_paths:
+        assert path in returned_paths, f"Expected DVC path {path!r} to be detected"
+    for path in dvc_ignored_paths:
+        assert path not in returned_paths, (
+            f"Expected DVC path {path!r} to be ignored"
+        )
+    # Dir entry must not appear
+    assert "figures" not in returned_paths
+
+
+def test_get_project_figures_dvc_no_duplicates_with_git(
+    client: TestClient,
+) -> None:
+    """A figure tracked in both git tree and DVC lock outs must appear once."""
+    fake_project = SimpleNamespace(id="00000000-0000-0000-0000-000000000001")
+    fake_tree = SimpleNamespace()
+    shared_path = "figures/shared.png"
+    fake_blob = _make_fake_blob(shared_path)
+    fake_commit = SimpleNamespace()
+    fake_commit.tree = SimpleNamespace(traverse=lambda: iter([fake_blob]))
+    fake_repo = SimpleNamespace()
+    fake_repo.head = SimpleNamespace(commit=fake_commit)
+    # Same path also appears in dvc_lock_outs
+    dvc_lock_outs = {
+        shared_path: {"path": shared_path, "md5": "abc123", "type": "file"},
+    }
+    fake_contents = ContentsItem(
+        name="fig",
+        path="fig",
+        type="file",
+        size=0,
+        in_repo=True,
+        content=None,
+        url=None,
+        storage=None,
+    )
+    with (
+        patch(
+            "app.api.routes.projects.core.app.projects.get_project",
+            return_value=fake_project,
+        ),
+        patch(
+            "app.api.routes.projects.core.get_repo",
+            return_value=fake_repo,
+        ),
+        patch(
+            "app.api.routes.projects.core.app.projects.get_ck_info_for_ref",
+            return_value={},
+        ),
+        patch(
+            "app.api.routes.projects.core.app.projects.get_repo_tree_for_ref",
+            return_value=fake_tree,
+        ),
+        patch(
+            "app.api.routes.projects.core.app.projects.get_ck_info_and_dvc_outs_from_tree",
+            return_value=({}, dvc_lock_outs, {}),
+        ),
+        patch(
+            "app.api.routes.projects.core.app.projects.get_contents_from_tree",
+            return_value=fake_contents,
+        ),
+    ):
+        response = client.get(
+            f"{settings.API_V1_STR}/projects/test-owner/test-project/figures"
+        )
+    assert response.status_code == 200
+    returned_figures = response.json()
+    paths = [fig["path"] for fig in returned_figures]
+    assert paths.count(shared_path) == 1, (
+        f"Expected {shared_path!r} to appear exactly once, got {paths}"
+    )

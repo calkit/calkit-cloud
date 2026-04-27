@@ -1422,8 +1422,39 @@ def get_project_figures(
                         .capitalize()
                     )
                     figures.append({"path": blob.path, "title": stem})  # type: ignore[union-attr]
+                    declared_paths.add(blob.path)  # type: ignore[union-attr]
     except Exception:
         pass
+    # Pre-compute calkit.yaml / dvc.lock metadata once for the tree so we
+    # don't re-read and re-expand on every iteration.
+    tree = app.projects.get_repo_tree_for_ref(repo, ref)
+    ck_info_full, dvc_lock_outs, zip_path_map = (
+        app.projects.get_ck_info_and_dvc_outs_from_tree(project, tree)
+    )
+    # Also auto-detect figures from DVC lock outs (files stored with DVC)
+    for dvc_path, dvc_out in dvc_lock_outs.items():
+        if dvc_out.get("type") == "dir":
+            continue
+        parts = dvc_path.split("/")
+        if any(p.startswith(".") for p in parts):
+            continue
+        ext = (
+            "." + parts[-1].rsplit(".", 1)[-1] if "." in parts[-1] else ""
+        )
+        dir_parts = [p.lower() for p in parts[:-1]]
+        if ext.lower() in FIGURE_EXTS and any(
+            d in FIGURE_DIRS for d in dir_parts
+        ):
+            if dvc_path not in declared_paths:
+                stem = (
+                    parts[-1]
+                    .rsplit(".", 1)[0]
+                    .replace("_", " ")
+                    .replace("-", " ")
+                    .capitalize()
+                )
+                figures.append({"path": dvc_path, "title": stem})
+                declared_paths.add(dvc_path)
     if not figures:
         return []
     # Build comment count map from DB
@@ -1440,12 +1471,6 @@ def get_project_figures(
         ).all()
     )
     # Get the figure content and base64 encode it.
-    # Pre-compute calkit.yaml / dvc.lock metadata once for the tree so we
-    # don't re-read and re-expand on every iteration.
-    tree = app.projects.get_repo_tree_for_ref(repo, ref)
-    ck_info_full, dvc_lock_outs, zip_path_map = (
-        app.projects.get_ck_info_and_dvc_outs_from_tree(project, tree)
-    )
     for fig in figures:
         item = app.projects.get_contents_from_tree(
             project=project,
