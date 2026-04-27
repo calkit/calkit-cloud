@@ -1367,6 +1367,30 @@ def post_project_question(
     return project.questions[-1]
 
 
+def _maybe_add_figure(
+    path: str,
+    figures: list,
+    declared_paths: set,
+) -> None:
+    """Add *path* to *figures* if it looks like a figure and is not yet known."""
+    parts = path.split("/")
+    if any(p.startswith(".") for p in parts):
+        return
+    ext = "." + parts[-1].rsplit(".", 1)[-1] if "." in parts[-1] else ""
+    dir_parts = [p.lower() for p in parts[:-1]]
+    if ext.lower() in FIGURE_EXTS and any(d in FIGURE_DIRS for d in dir_parts):
+        if path not in declared_paths:
+            stem = (
+                parts[-1]
+                .rsplit(".", 1)[0]
+                .replace("_", " ")
+                .replace("-", " ")
+                .capitalize()
+            )
+            figures.append({"path": path, "title": stem})
+            declared_paths.add(path)
+
+
 @router.get("/projects/{owner_name}/{project_name}/figures")
 def get_project_figures(
     owner_name: str,
@@ -1402,27 +1426,7 @@ def get_project_figures(
         for blob in commit.tree.traverse():
             if blob.type != "blob":  # type: ignore[union-attr]
                 continue
-            parts = blob.path.split("/")  # type: ignore[union-attr]
-            # Skip hidden folders like .calkit
-            if any(p.startswith(".") for p in parts):
-                continue
-            ext = (
-                "." + parts[-1].rsplit(".", 1)[-1] if "." in parts[-1] else ""
-            )
-            dir_parts = [p.lower() for p in parts[:-1]]
-            if ext.lower() in FIGURE_EXTS and any(
-                d in FIGURE_DIRS for d in dir_parts
-            ):
-                if blob.path not in declared_paths:  # type: ignore[union-attr]
-                    stem = (
-                        parts[-1]
-                        .rsplit(".", 1)[0]
-                        .replace("_", " ")
-                        .replace("-", " ")
-                        .capitalize()
-                    )
-                    figures.append({"path": blob.path, "title": stem})  # type: ignore[union-attr]
-                    declared_paths.add(blob.path)  # type: ignore[union-attr]
+            _maybe_add_figure(blob.path, figures, declared_paths)  # type: ignore[union-attr]
     except Exception:
         pass
     # Pre-compute calkit.yaml / dvc.lock metadata once for the tree so we
@@ -1435,26 +1439,7 @@ def get_project_figures(
     for dvc_path, dvc_out in dvc_lock_outs.items():
         if dvc_out.get("type") == "dir":
             continue
-        parts = dvc_path.split("/")
-        if any(p.startswith(".") for p in parts):
-            continue
-        ext = (
-            "." + parts[-1].rsplit(".", 1)[-1] if "." in parts[-1] else ""
-        )
-        dir_parts = [p.lower() for p in parts[:-1]]
-        if ext.lower() in FIGURE_EXTS and any(
-            d in FIGURE_DIRS for d in dir_parts
-        ):
-            if dvc_path not in declared_paths:
-                stem = (
-                    parts[-1]
-                    .rsplit(".", 1)[0]
-                    .replace("_", " ")
-                    .replace("-", " ")
-                    .capitalize()
-                )
-                figures.append({"path": dvc_path, "title": stem})
-                declared_paths.add(dvc_path)
+        _maybe_add_figure(dvc_path, figures, declared_paths)
     if not figures:
         return []
     # Build comment count map from DB
