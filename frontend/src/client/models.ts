@@ -80,6 +80,25 @@ export type Collaborator = {
   access_level: string
 }
 
+export type DeviceAuthRequest = {
+  hostname?: string | null
+}
+
+export type DeviceAuthResponse = {
+  device_code: string
+  verification_uri: string
+  expires_in: number
+  interval: number
+}
+
+export type DeviceAuthorizeRequest = {
+  device_code: string
+}
+
+export type DeviceTokenRequest = {
+  device_code: string
+}
+
 /**
  * Portable anchor for a highlighted region within an artifact.
  *

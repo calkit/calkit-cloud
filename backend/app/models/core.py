@@ -436,6 +436,32 @@ class UserToken(UserTokenPublic, table=True):
         return self.expires < utcnow()
 
 
+class CLIAuthRequest(SQLModel, table=True):
+    """A pending CLI device auth request."""
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    device_code: str = Field(index=True, unique=True, max_length=64)
+    created: datetime = Field(
+        default_factory=utcnow,
+        sa_column_kwargs=dict(
+            server_default=sqlalchemy.func.current_timestamp()
+        ),
+    )
+    expires: datetime
+    hostname: str | None = Field(default=None, max_length=255)
+    user_id: uuid.UUID | None = Field(
+        default=None, foreign_key="user.id", nullable=True
+    )
+    # The token value to return to CLI once authorized
+    token_value: str | None = Field(default=None, max_length=128)
+
+    @property
+    def expired(self) -> bool:
+        if self.expires is None:
+            return False
+        return self.expires < utcnow()
+
+
 class NewPassword(SQLModel):
     token: str
     new_password: str = Field(min_length=8, max_length=40)

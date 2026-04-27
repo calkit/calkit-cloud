@@ -16,6 +16,7 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as RecoverPasswordRouteImport } from './routes/recover-password'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as GoogleAuthRouteImport } from './routes/google-auth'
+import { Route as CliAuthRouteImport } from './routes/cli-auth'
 import { Route as CheckoutRouteImport } from './routes/checkout'
 import { Route as LayoutRouteImport } from './routes/_layout'
 import { Route as LayoutIndexRouteImport } from './routes/_layout/index'
@@ -69,6 +70,11 @@ const LoginRoute = LoginRouteImport.update({
 const GoogleAuthRoute = GoogleAuthRouteImport.update({
   id: '/google-auth',
   path: '/google-auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CliAuthRoute = CliAuthRouteImport.update({
+  id: '/cli-auth',
+  path: '/cli-auth',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CheckoutRoute = CheckoutRouteImport.update({
@@ -218,6 +224,7 @@ const LayoutAccountNameProjectNameLayoutAppRoute =
 
 export interface FileRoutesByFullPath {
   '/checkout': typeof CheckoutRoute
+  '/cli-auth': typeof CliAuthRoute
   '/google-auth': typeof GoogleAuthRoute
   '/login': typeof LoginRoute
   '/recover-password': typeof RecoverPasswordRoute
@@ -249,6 +256,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/checkout': typeof CheckoutRoute
+  '/cli-auth': typeof CliAuthRoute
   '/google-auth': typeof GoogleAuthRoute
   '/login': typeof LoginRoute
   '/recover-password': typeof RecoverPasswordRoute
@@ -281,6 +289,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_layout': typeof LayoutRouteWithChildren
   '/checkout': typeof CheckoutRoute
+  '/cli-auth': typeof CliAuthRoute
   '/google-auth': typeof GoogleAuthRoute
   '/login': typeof LoginRoute
   '/recover-password': typeof RecoverPasswordRoute
@@ -315,6 +324,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/checkout'
+    | '/cli-auth'
     | '/google-auth'
     | '/login'
     | '/recover-password'
@@ -346,6 +356,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/checkout'
+    | '/cli-auth'
     | '/google-auth'
     | '/login'
     | '/recover-password'
@@ -377,6 +388,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/_layout'
     | '/checkout'
+    | '/cli-auth'
     | '/google-auth'
     | '/login'
     | '/recover-password'
@@ -411,6 +423,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   LayoutRoute: typeof LayoutRouteWithChildren
   CheckoutRoute: typeof CheckoutRoute
+  CliAuthRoute: typeof CliAuthRoute
   GoogleAuthRoute: typeof GoogleAuthRoute
   LoginRoute: typeof LoginRoute
   RecoverPasswordRoute: typeof RecoverPasswordRoute
@@ -453,6 +466,13 @@ declare module '@tanstack/react-router' {
       path: '/google-auth'
       fullPath: '/google-auth'
       preLoaderRoute: typeof GoogleAuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/cli-auth': {
+      id: '/cli-auth'
+      path: '/cli-auth'
+      fullPath: '/cli-auth'
+      preLoaderRoute: typeof CliAuthRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/checkout': {
@@ -740,6 +760,7 @@ const LayoutRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   LayoutRoute: LayoutRouteWithChildren,
   CheckoutRoute: CheckoutRoute,
+  CliAuthRoute: CliAuthRoute,
   GoogleAuthRoute: GoogleAuthRoute,
   LoginRoute: LoginRoute,
   RecoverPasswordRoute: RecoverPasswordRoute,
