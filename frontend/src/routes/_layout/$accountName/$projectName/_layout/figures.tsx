@@ -46,10 +46,11 @@ export const Route = createFileRoute(
 })
 
 const getIcon = (figure: Figure) => {
-  if (figure.path.endsWith(".png") || figure.path.endsWith(".jpg")) {
+  const lp = figure.path.toLowerCase()
+  if (lp.endsWith(".png") || lp.endsWith(".jpg") || lp.endsWith(".jpeg")) {
     return FaRegFileImage
   }
-  if (figure.path.endsWith(".pdf")) {
+  if (lp.endsWith(".pdf")) {
     return FaRegFilePdf
   }
   return FiFile
@@ -68,14 +69,15 @@ function FigureThumbnail({
   const hoverBg = useColorModeValue("gray.50", "gray.700")
 
   const renderThumb = () => {
+    const lowerPath = figure.path.toLowerCase()
     if (
-      (figure.path.endsWith(".png") ||
-        figure.path.endsWith(".jpg") ||
-        figure.path.endsWith(".jpeg") ||
-        figure.path.endsWith(".svg")) &&
+      (lowerPath.endsWith(".png") ||
+        lowerPath.endsWith(".jpg") ||
+        lowerPath.endsWith(".jpeg") ||
+        lowerPath.endsWith(".svg")) &&
       (figure.content || figure.url)
     ) {
-      const ext = figure.path.split(".").pop() ?? "png"
+      const ext = lowerPath.split(".").pop() ?? "png"
       const mimeMap: Record<string, string> = {
         png: "image/png",
         jpg: "image/jpeg",
@@ -97,7 +99,7 @@ function FigureThumbnail({
         />
       )
     }
-    if (figure.path.endsWith(".pdf") && (figure.content || figure.url)) {
+    if (lowerPath.endsWith(".pdf") && (figure.content || figure.url)) {
       return (
         <Box height="140px" overflow="hidden">
           <PdfCanvas
