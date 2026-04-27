@@ -284,8 +284,22 @@ def test_get_project_figures_autodetects_deeply_nested(
             f"{settings.API_V1_STR}/projects/test-owner/test-project/figures"
         )
     assert response.status_code == 200
-    returned_paths = {fig["path"] for fig in response.json()}
+    returned_figures = response.json()
+    returned_paths = {fig["path"] for fig in returned_figures}
     for path in detected_paths:
         assert path in returned_paths, f"Expected {path!r} to be detected"
     for path in ignored_paths:
         assert path not in returned_paths, f"Expected {path!r} to be ignored"
+    # Titles must use sentence case (only first letter capitalised, not title
+    # case where every word is capitalised).
+    for fig in returned_figures:
+        title = fig["title"]
+        assert title == title[0].upper() + title[1:], (
+            f"Title {title!r} is not in sentence case"
+        )
+        # No word after the first should be capitalised solely due to title()
+        words = title.split()
+        if len(words) > 1:
+            assert not all(w[0].isupper() for w in words[1:]), (
+                f"Title {title!r} appears to use title case, not sentence case"
+            )
