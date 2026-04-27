@@ -1419,7 +1419,7 @@ def get_project_figures(
                         .rsplit(".", 1)[0]
                         .replace("_", " ")
                         .replace("-", " ")
-                        .title()
+                        .capitalize()
                     )
                     figures.append({"path": blob.path, "title": stem})  # type: ignore[union-attr]
     except Exception:
