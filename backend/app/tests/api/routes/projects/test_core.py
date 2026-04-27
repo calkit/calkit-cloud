@@ -219,7 +219,7 @@ def test_get_project_figures_autodetects_deeply_nested(
     client: TestClient,
 ) -> None:
     """Figures inside a 'figures' dir at any depth must be auto-detected."""
-    fake_project = SimpleNamespace(id="fake-project-id")
+    fake_project = SimpleNamespace(id="00000000-0000-0000-0000-000000000001")
     fake_tree = SimpleNamespace()
     # Blobs that should be detected: file is inside a 'figures' directory
     # at various depths.
@@ -288,6 +288,4 @@ def test_get_project_figures_autodetects_deeply_nested(
     for path in detected_paths:
         assert path in returned_paths, f"Expected {path!r} to be detected"
     for path in ignored_paths:
-        assert (
-            path not in returned_paths
-        ), f"Expected {path!r} to be ignored"
+        assert path not in returned_paths, f"Expected {path!r} to be ignored"
