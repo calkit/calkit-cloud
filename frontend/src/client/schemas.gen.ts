@@ -1008,6 +1008,18 @@ export const DeviceAuthorizeRequestSchema = {
   title: "DeviceAuthorizeRequest",
 } as const
 
+export const DeviceTokenPendingResponseSchema = {
+  properties: {
+    detail: {
+      type: "string",
+      title: "Detail",
+    },
+  },
+  type: "object",
+  required: ["detail"],
+  title: "DeviceTokenPendingResponse",
+} as const
+
 export const DeviceTokenRequestSchema = {
   properties: {
     device_code: {

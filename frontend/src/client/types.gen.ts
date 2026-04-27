@@ -226,6 +226,10 @@ export type DeviceAuthResponse = {
   interval: number
 }
 
+export type DeviceTokenPendingResponse = {
+  detail: string
+}
+
 export type DeviceTokenRequest = {
   device_code: string
 }
@@ -1279,7 +1283,9 @@ export type PostLoginDeviceTokenData = {
   requestBody: DeviceTokenRequest
 }
 
-export type PostLoginDeviceTokenResponse = Token
+export type PostLoginDeviceTokenResponse =
+  | (Token | DeviceTokenPendingResponse)
+  | DeviceTokenPendingResponse
 
 export type TestEmailData = {
   emailTo: string

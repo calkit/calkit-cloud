@@ -1,8 +1,10 @@
+from datetime import timedelta
 from unittest.mock import patch
 
 import pytest
 from app.config import settings
-from app.models import User
+from app.core import utcnow
+from app.models import CLIAuthRequest, User
 from app.security import generate_password_reset_token, verify_password
 from fastapi.testclient import TestClient
 from sqlmodel import Session, select
@@ -43,6 +45,21 @@ def test_use_access_token(
     result = r.json()
     assert r.status_code == 200
     assert "email" in result
+
+
+def test_device_token_pending(client: TestClient, db: Session) -> None:
+    auth_request = CLIAuthRequest(
+        device_code="pending-device-code",
+        expires=utcnow() + timedelta(minutes=5),
+    )
+    db.add(auth_request)
+    db.commit()
+    r = client.post(
+        f"{settings.API_V1_STR}/login/device/token",
+        json={"device_code": auth_request.device_code},
+    )
+    assert r.status_code == 202
+    assert r.json() == {"detail": "Authorization pending"}
 
 
 @pytest.mark.skip(reason="Password reset not supported with GitHub-only auth")

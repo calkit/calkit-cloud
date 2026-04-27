@@ -542,7 +542,8 @@ export class LoginService {
    * the request expires. Returns 202 while authorization is still pending.
    * @param data The data for the request.
    * @param data.requestBody
-   * @returns Token Successful Response
+   * @returns unknown Successful Response
+   * @returns DeviceTokenPendingResponse Accepted
    * @throws ApiError
    */
   public static postLoginDeviceToken(

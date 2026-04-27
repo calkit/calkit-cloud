@@ -7,8 +7,8 @@ from typing import Annotated, Any
 
 import jwt
 import requests
-from fastapi import APIRouter, Depends, Header, HTTPException
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi import APIRouter, Depends, Header, HTTPException, Response
+from fastapi.responses import HTMLResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from jwt.algorithms import RSAAlgorithm
 from jwt.exceptions import InvalidTokenError
@@ -76,7 +76,7 @@ def login_access_token(
 @router.post("/login/test-token")
 def test_token(current_user: CurrentUser) -> UserPublic:
     """Test access token."""
-    return current_user
+    return current_user  # type: ignore
 
 
 @router.post("/password-recovery/{email}")
@@ -473,6 +473,10 @@ class DeviceTokenRequest(BaseModel):
     device_code: str
 
 
+class DeviceTokenPendingResponse(BaseModel):
+    detail: str
+
+
 class DeviceAuthorizeRequest(BaseModel):
     device_code: str
 
@@ -561,11 +565,15 @@ def post_login_device_authorize(
     return Message(message="CLI access authorized")
 
 
-@router.post("/login/device/token")
+@router.post(
+    "/login/device/token",
+    responses={202: {"model": DeviceTokenPendingResponse}},
+)
 def post_login_device_token(
     session: SessionDep,
     req: DeviceTokenRequest,
-) -> Token:
+    response: Response,
+) -> Token | DeviceTokenPendingResponse:
     """Poll for a CLI access token after device authorization.
 
     The CLI calls this endpoint repeatedly until it receives a token or
@@ -581,13 +589,12 @@ def post_login_device_token(
     if auth_request.expired:
         raise HTTPException(400, "Device code has expired")
     if auth_request.token_value is None:
-        return JSONResponse(
-            status_code=202,
-            content={"detail": "Authorization pending"},
+        response.status_code = 202
+        return DeviceTokenPendingResponse(
+            detail="Authorization pending",
         )
     token_value = auth_request.token_value
     # Delete the auth request now that it's been claimed
     session.delete(auth_request)
     session.commit()
     return Token(access_token=token_value)
-
