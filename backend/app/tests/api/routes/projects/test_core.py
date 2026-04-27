@@ -5,6 +5,7 @@ from unittest.mock import ANY, patch
 
 from app.api.routes.projects.core import get_project_comments
 from app.config import settings
+from app.models.core import ContentsItem
 from fastapi.testclient import TestClient
 
 
@@ -207,3 +208,84 @@ def test_get_project_comments_uses_all_results() -> None:
     assert session.exec_result.all_called is True
     assert comments == [fake_comment]
     mock_sync.assert_called_once_with(session, [fake_comment], None)
+
+
+def _make_fake_blob(path: str) -> SimpleNamespace:
+    """Return a minimal git blob-like object for auto-detection tests."""
+    return SimpleNamespace(type="blob", path=path)
+
+
+def test_get_project_figures_autodetects_deeply_nested(
+    client: TestClient,
+) -> None:
+    """Figures inside a 'figures' dir at any depth must be auto-detected."""
+    fake_project = SimpleNamespace(id="00000000-0000-0000-0000-000000000001")
+    fake_tree = SimpleNamespace()
+    # Blobs that should be detected: file is inside a 'figures' directory
+    # at various depths.
+    detected_paths = [
+        "figures/plot.png",  # direct child
+        "results/figures/plot.png",  # one extra level
+        "figures/something/else/55/fig.png",  # deeply nested
+        "publications/paper1/figures/result.png",  # publications sub-tree
+    ]
+    # Blobs that must NOT be detected.
+    ignored_paths = [
+        "data/output.png",  # parent dir not in FIGURE_DIRS
+        "plot.png",  # no parent directory at all
+        ".calkit/figures/hidden.png",  # hidden directory
+        "figures/plot.txt",  # unsupported extension
+    ]
+    blobs = [_make_fake_blob(p) for p in detected_paths + ignored_paths]
+    fake_commit = SimpleNamespace()
+    fake_commit.tree = SimpleNamespace(traverse=lambda: iter(blobs))
+    fake_repo = SimpleNamespace()
+    fake_repo.head = SimpleNamespace(commit=fake_commit)
+    # fake_contents is returned by the mocked get_contents_from_tree for each
+    # auto-detected figure, providing the content/url/storage fields the
+    # endpoint attaches to every figure dict.
+    fake_contents = ContentsItem(
+        name="fig",
+        path="fig",
+        type="file",
+        size=0,
+        in_repo=True,
+        content=None,
+        url=None,
+        storage=None,
+    )
+    with (
+        patch(
+            "app.api.routes.projects.core.app.projects.get_project",
+            return_value=fake_project,
+        ),
+        patch(
+            "app.api.routes.projects.core.get_repo",
+            return_value=fake_repo,
+        ),
+        patch(
+            "app.api.routes.projects.core.app.projects.get_ck_info_for_ref",
+            return_value={},
+        ),
+        patch(
+            "app.api.routes.projects.core.app.projects.get_repo_tree_for_ref",
+            return_value=fake_tree,
+        ),
+        patch(
+            "app.api.routes.projects.core.app.projects.get_ck_info_and_dvc_outs_from_tree",
+            return_value=({}, {}, {}),
+        ),
+        patch(
+            "app.api.routes.projects.core.app.projects.get_contents_from_tree",
+            return_value=fake_contents,
+        ),
+    ):
+        response = client.get(
+            f"{settings.API_V1_STR}/projects/test-owner/test-project/figures"
+        )
+    assert response.status_code == 200
+    returned_paths = {fig["path"] for fig in response.json()}
+    for path in detected_paths:
+        assert path in returned_paths, f"Expected {path!r} to be detected"
+    for path in ignored_paths:
+        assert path not in returned_paths, f"Expected {path!r} to be ignored"
