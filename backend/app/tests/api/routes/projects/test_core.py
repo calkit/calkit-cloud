@@ -290,14 +290,14 @@ def test_get_project_figures_autodetects_deeply_nested(
         assert path in returned_paths, f"Expected {path!r} to be detected"
     for path in ignored_paths:
         assert path not in returned_paths, f"Expected {path!r} to be ignored"
-    # Titles must use sentence case (only first letter capitalised, not title
-    # case where every word is capitalised).
+    # Titles must use sentence case (only first letter capitalized, not title
+    # case where every word is capitalized).
     for fig in returned_figures:
         title = fig["title"]
         assert title == title[0].upper() + title[1:], (
             f"Title {title!r} is not in sentence case"
         )
-        # No word after the first should be capitalised solely due to title()
+        # No word after the first should be capitalized solely due to title()
         words = title.split()
         if len(words) > 1:
             assert not all(w[0].isupper() for w in words[1:] if w), (
