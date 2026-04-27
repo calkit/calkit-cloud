@@ -300,6 +300,6 @@ def test_get_project_figures_autodetects_deeply_nested(
         # No word after the first should be capitalised solely due to title()
         words = title.split()
         if len(words) > 1:
-            assert not all(w[0].isupper() for w in words[1:]), (
+            assert not all(w[0].isupper() for w in words[1:] if w), (
                 f"Title {title!r} appears to use title case, not sentence case"
             )
