@@ -8,7 +8,7 @@ from typing import Annotated, Any
 import jwt
 import requests
 from fastapi import APIRouter, Depends, Header, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from jwt.algorithms import RSAAlgorithm
 from jwt.exceptions import InvalidTokenError
@@ -581,7 +581,10 @@ def post_login_device_token(
     if auth_request.expired:
         raise HTTPException(400, "Device code has expired")
     if auth_request.token_value is None:
-        raise HTTPException(202, "Authorization pending")
+        return JSONResponse(
+            status_code=202,
+            content={"detail": "Authorization pending"},
+        )
     token_value = auth_request.token_value
     # Delete the auth request now that it's been claimed
     session.delete(auth_request)
