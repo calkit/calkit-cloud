@@ -289,4 +289,3 @@ def test_get_project_figures_autodetects_deeply_nested(
         assert path in returned_paths, f"Expected {path!r} to be detected"
     for path in ignored_paths:
         assert path not in returned_paths, f"Expected {path!r} to be ignored"
-
