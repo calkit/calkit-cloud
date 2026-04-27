@@ -373,7 +373,9 @@ def test_get_project_figures_autodetects_dvc_stored(
     returned_figures = response.json()
     returned_paths = {fig["path"] for fig in returned_figures}
     for path in dvc_detected_paths:
-        assert path in returned_paths, f"Expected DVC path {path!r} to be detected"
+        assert path in returned_paths, (
+            f"Expected DVC path {path!r} to be detected"
+        )
     for path in dvc_ignored_paths:
         assert path not in returned_paths, (
             f"Expected DVC path {path!r} to be ignored"
