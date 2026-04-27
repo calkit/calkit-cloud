@@ -7,24 +7,34 @@ from typing import Annotated, Any
 
 import jwt
 import requests
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException, Response
 from fastapi.responses import HTMLResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from jwt.algorithms import RSAAlgorithm
 from jwt.exceptions import InvalidTokenError
 from pydantic import BaseModel
+from sqlmodel import select
 
 from app import mixpanel, security, users
-from app.api.deps import CurrentUser, SessionDep, get_current_active_superuser
+from app.api.deps import (
+    CurrentUser,
+    PAT_SELECTOR_LENGTH_BYTES,
+    PAT_VERIFIER_LENGTH_BYTES,
+    SessionDep,
+    get_current_active_superuser,
+)
 from app.config import settings
+from app.core import utcnow
 from app.github import token_resp_text_to_dict
 from app.messaging import generate_reset_password_email, send_email
 from app.models import (
+    CLIAuthRequest,
     Message,
     NewPassword,
     Token,
     UserCreate,
     UserPublic,
+    UserToken,
 )
 from app.security import (
     generate_password_reset_token,
@@ -66,7 +76,7 @@ def login_access_token(
 @router.post("/login/test-token")
 def test_token(current_user: CurrentUser) -> UserPublic:
     """Test access token."""
-    return current_user
+    return current_user  # type: ignore
 
 
 @router.post("/password-recovery/{email}")
@@ -441,3 +451,150 @@ def login_with_github_token(
             expires_delta=access_token_expires,
         )
     )
+
+
+# Device authorization flow (RFC 8628-inspired)
+CLI_AUTH_EXPIRES_MINUTES = 15
+CLI_AUTH_POLL_INTERVAL_SECONDS = 5
+
+
+class DeviceAuthRequest(BaseModel):
+    hostname: str | None = None
+
+
+class DeviceAuthResponse(BaseModel):
+    device_code: str
+    verification_uri: str
+    expires_in: int
+    interval: int
+
+
+class DeviceTokenRequest(BaseModel):
+    device_code: str
+
+
+class DeviceTokenPendingResponse(BaseModel):
+    detail: str
+
+
+class DeviceAuthorizeRequest(BaseModel):
+    device_code: str
+
+
+@router.post("/login/device")
+def post_login_device(
+    session: SessionDep,
+    req: DeviceAuthRequest = DeviceAuthRequest(),
+) -> DeviceAuthResponse:
+    """Initiate a CLI device authorization flow.
+
+    The CLI calls this endpoint, which returns a device_code and a URL for
+    the user to visit in their browser to authorize the CLI. The CLI then
+    polls ``/login/device/token`` with the device_code to receive the access
+    token once the user has authorized it.
+    """
+    device_code = secrets.token_urlsafe(32)
+    expires = utcnow() + timedelta(minutes=CLI_AUTH_EXPIRES_MINUTES)
+    auth_request = CLIAuthRequest(
+        device_code=device_code,
+        expires=expires,
+        hostname=req.hostname,
+    )
+    session.add(auth_request)
+    session.commit()
+    verification_uri = (
+        f"{settings.frontend_host}/cli-auth?device_code={device_code}"
+    )
+    return DeviceAuthResponse(
+        device_code=device_code,
+        verification_uri=verification_uri,
+        expires_in=CLI_AUTH_EXPIRES_MINUTES * 60,
+        interval=CLI_AUTH_POLL_INTERVAL_SECONDS,
+    )
+
+
+@router.post("/login/device/authorize")
+def post_login_device_authorize(
+    session: SessionDep,
+    current_user: CurrentUser,
+    req: DeviceAuthorizeRequest,
+) -> Message:
+    """Authorize a pending CLI device auth request.
+
+    The user must be authenticated. This endpoint is called by the frontend
+    after the user has logged in and clicked "Authorize".
+    """
+    auth_request = session.exec(
+        select(CLIAuthRequest).where(
+            CLIAuthRequest.device_code == req.device_code
+        )
+    ).first()
+    if auth_request is None:
+        raise HTTPException(404, "Device code not found")
+    if auth_request.expired:
+        raise HTTPException(400, "Device code has expired")
+    if auth_request.token_value is not None:
+        raise HTTPException(400, "Device code already authorized")
+    # Create a long-lived PAT for this user
+    selector = secrets.token_hex(PAT_SELECTOR_LENGTH_BYTES)
+    verifier = secrets.token_hex(PAT_VERIFIER_LENGTH_BYTES)
+    token_str = f"ckp_{selector}{verifier}"
+    hashed_verifier = get_password_hash(verifier)
+    description = "CLI login"
+    if auth_request.hostname:
+        description = f"CLI login from {auth_request.hostname}"
+    token = UserToken(
+        user_id=current_user.id,
+        expires=utcnow() + timedelta(days=365),
+        scope=None,
+        is_active=True,
+        selector=selector,
+        hashed_verifier=hashed_verifier,
+        description=description,
+    )
+    session.add(token)
+    # Store the token value in the auth request so the CLI can fetch it
+    auth_request.user_id = current_user.id
+    auth_request.token_value = token_str
+    session.add(auth_request)
+    session.commit()
+    logger.info(
+        f"User {current_user.email} authorized CLI device code "
+        f"(hostname: {auth_request.hostname})"
+    )
+    return Message(message="CLI access authorized")
+
+
+@router.post(
+    "/login/device/token",
+    responses={202: {"model": DeviceTokenPendingResponse}},
+)
+def post_login_device_token(
+    session: SessionDep,
+    req: DeviceTokenRequest,
+    response: Response,
+) -> Token | DeviceTokenPendingResponse:
+    """Poll for a CLI access token after device authorization.
+
+    The CLI calls this endpoint repeatedly until it receives a token or
+    the request expires. Returns 202 while authorization is still pending.
+    """
+    auth_request = session.exec(
+        select(CLIAuthRequest).where(
+            CLIAuthRequest.device_code == req.device_code
+        )
+    ).first()
+    if auth_request is None:
+        raise HTTPException(404, "Device code not found")
+    if auth_request.expired:
+        raise HTTPException(400, "Device code has expired")
+    if auth_request.token_value is None:
+        response.status_code = 202
+        return DeviceTokenPendingResponse(
+            detail="Authorization pending",
+        )
+    token_value = auth_request.token_value
+    # Delete the auth request now that it's been claimed
+    session.delete(auth_request)
+    session.commit()
+    return Token(access_token=token_value)
