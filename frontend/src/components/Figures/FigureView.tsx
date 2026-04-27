@@ -22,7 +22,8 @@ function FigureView({ figure, width }: FigureViewProps) {
   // content unconditionally and gate it with `enabled`; otherwise paging
   // between a non-HTML and an HTML figure changes the hook count and
   // triggers React error #310.
-  const isHtml = figure.path.endsWith(".html")
+  const lowerPath = figure.path.toLowerCase()
+  const isHtml = lowerPath.endsWith(".html")
   const { data: htmlData, isPending: htmlIsPending } = useQuery({
     queryFn: () => axios.get(String(figure.url)),
     queryKey: [
@@ -36,7 +37,7 @@ function FigureView({ figure, width }: FigureViewProps) {
     enabled: isHtml && Boolean(!figure.content && figure.url),
   })
   let figView = <>Not set</>
-  if (figure.path.endsWith(".pdf")) {
+  if (lowerPath.endsWith(".pdf")) {
     figView = (
       <PdfCanvas
         src={
@@ -48,11 +49,11 @@ function FigureView({ figure, width }: FigureViewProps) {
       />
     )
   } else if (
-    figure.path.endsWith(".png") ||
-    figure.path.endsWith(".jpg") ||
-    figure.path.endsWith(".jpeg")
+    lowerPath.endsWith(".png") ||
+    lowerPath.endsWith(".jpg") ||
+    lowerPath.endsWith(".jpeg")
   ) {
-    const mime = figure.path.endsWith(".png") ? "image/png" : "image/jpeg"
+    const mime = lowerPath.endsWith(".png") ? "image/png" : "image/jpeg"
     figView = (
       <Box width="100%" height="100%">
         <Image
@@ -69,7 +70,7 @@ function FigureView({ figure, width }: FigureViewProps) {
         />
       </Box>
     )
-  } else if (figure.path.endsWith(".svg")) {
+  } else if (lowerPath.endsWith(".svg")) {
     figView = (
       <Box width="100%" height="100%">
         <Image
@@ -86,7 +87,7 @@ function FigureView({ figure, width }: FigureViewProps) {
         />
       </Box>
     )
-  } else if (figure.path.endsWith(".json")) {
+  } else if (lowerPath.endsWith(".json")) {
     try {
       const figObject = JSON.parse(atob(String(figure.content)))
       if (figObject.data && figObject.layout) {
