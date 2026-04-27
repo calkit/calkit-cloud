@@ -3,7 +3,11 @@
 from types import SimpleNamespace
 from unittest.mock import ANY, patch
 
-from app.api.routes.projects.core import FIGURE_DIRS, FIGURE_EXTS, get_project_comments
+from app.api.routes.projects.core import (
+    FIGURE_DIRS,
+    FIGURE_EXTS,
+    get_project_comments,
+)
 from app.config import settings
 from fastapi.testclient import TestClient
 
