@@ -221,7 +221,6 @@ def test_get_project_figures_autodetects_deeply_nested(
     """Figures inside a 'figures' dir at any depth must be auto-detected."""
     fake_project = SimpleNamespace(id="fake-project-id")
     fake_tree = SimpleNamespace()
-
     # Blobs that should be detected: file is inside a 'figures' directory
     # at various depths.
     detected_paths = [
@@ -237,15 +236,11 @@ def test_get_project_figures_autodetects_deeply_nested(
         ".calkit/figures/hidden.png",  # hidden directory
         "figures/plot.txt",  # unsupported extension
     ]
-
     blobs = [_make_fake_blob(p) for p in detected_paths + ignored_paths]
-
     fake_commit = SimpleNamespace()
     fake_commit.tree = SimpleNamespace(traverse=lambda: iter(blobs))
-
     fake_repo = SimpleNamespace()
     fake_repo.head = SimpleNamespace(commit=fake_commit)
-
     # fake_contents is returned by the mocked get_contents_from_tree for each
     # auto-detected figure, providing the content/url/storage fields the
     # endpoint attaches to every figure dict.
@@ -259,7 +254,6 @@ def test_get_project_figures_autodetects_deeply_nested(
         url=None,
         storage=None,
     )
-
     with (
         patch(
             "app.api.routes.projects.core.app.projects.get_project",
@@ -289,7 +283,6 @@ def test_get_project_figures_autodetects_deeply_nested(
         response = client.get(
             f"{settings.API_V1_STR}/projects/test-owner/test-project/figures"
         )
-
     assert response.status_code == 200
     returned_paths = {fig["path"] for fig in response.json()}
     for path in detected_paths:
