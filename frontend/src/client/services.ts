@@ -5,6 +5,10 @@ import { request as __request } from "./core/request"
 import type {
   AccountPublic,
   Body_login_login_access_token,
+  DeviceAuthRequest,
+  DeviceAuthResponse,
+  DeviceAuthorizeRequest,
+  DeviceTokenRequest,
   Message,
   NewPassword,
   OAuthCodeExchange,
@@ -119,6 +123,15 @@ export type LoginData = {
   }
   LoginWithGithubToken: {
     authorization?: string | null
+  }
+  PostLoginDevice: {
+    requestBody?: DeviceAuthRequest
+  }
+  PostLoginDeviceAuthorize: {
+    requestBody: DeviceAuthorizeRequest
+  }
+  PostLoginDeviceToken: {
+    requestBody: DeviceTokenRequest
   }
 }
 
@@ -813,6 +826,69 @@ export class LoginService {
       headers: {
         authorization,
       },
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Post Login Device
+   * Initiate a CLI device authorization flow.
+   * @returns DeviceAuthResponse Successful Response
+   * @throws ApiError
+   */
+  public static postLoginDevice(
+    data: LoginData["PostLoginDevice"] = {},
+  ): CancelablePromise<DeviceAuthResponse> {
+    const { requestBody } = data
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/login/device",
+      body: requestBody,
+      mediaType: "application/json",
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Post Login Device Authorize
+   * Authorize a pending CLI device auth request.
+   * @returns Message Successful Response
+   * @throws ApiError
+   */
+  public static postLoginDeviceAuthorize(
+    data: LoginData["PostLoginDeviceAuthorize"],
+  ): CancelablePromise<Message> {
+    const { requestBody } = data
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/login/device/authorize",
+      body: requestBody,
+      mediaType: "application/json",
+      errors: {
+        422: `Validation Error`,
+      },
+    })
+  }
+
+  /**
+   * Post Login Device Token
+   * Poll for a CLI access token after device authorization.
+   * @returns Token Successful Response
+   * @throws ApiError
+   */
+  public static postLoginDeviceToken(
+    data: LoginData["PostLoginDeviceToken"],
+  ): CancelablePromise<Token> {
+    const { requestBody } = data
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/login/device/token",
+      body: requestBody,
+      mediaType: "application/json",
       errors: {
         422: `Validation Error`,
       },
