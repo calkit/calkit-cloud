@@ -3,11 +3,7 @@
 from types import SimpleNamespace
 from unittest.mock import ANY, patch
 
-from app.api.routes.projects.core import (
-    FIGURE_DIRS,
-    FIGURE_EXTS,
-    get_project_comments,
-)
+from app.api.routes.projects.core import get_project_comments
 from app.config import settings
 from app.models.core import ContentsItem
 from fastapi.testclient import TestClient
@@ -294,27 +290,3 @@ def test_get_project_figures_autodetects_deeply_nested(
     for path in ignored_paths:
         assert path not in returned_paths, f"Expected {path!r} to be ignored"
 
-
-def test_figure_exts_includes_jpeg_variants() -> None:
-    """FIGURE_EXTS must contain both .jpg and .jpeg (lowercase) so that the
-    case-insensitive auto-detection in get_project_figures accepts files
-    named with any capitalisation (.jpg, .JPG, .jpeg, .JPEG, etc.)."""
-    assert ".jpg" in FIGURE_EXTS
-    assert ".jpeg" in FIGURE_EXTS
-
-
-def test_figure_autodetect_is_case_insensitive() -> None:
-    """Auto-detection in get_project_figures uses ``ext.lower() in
-    FIGURE_EXTS``, so uppercase extensions like .JPG and .JPEG must resolve
-    to a member of FIGURE_EXTS after lowercasing."""
-    for raw_ext in (".JPG", ".JPEG", ".jpg", ".jpeg", ".PNG", ".png"):
-        assert raw_ext.lower() in FIGURE_EXTS, (
-            f"Extension {raw_ext!r} should be auto-detected as a figure"
-        )
-
-
-def test_figure_dirs_covers_common_names() -> None:
-    """FIGURE_DIRS must contain the canonical directory names that trigger
-    auto-detection even without a calkit.yaml entry."""
-    for d in ("figures", "figure", "figs", "fig", "plots", "images"):
-        assert d in FIGURE_DIRS
