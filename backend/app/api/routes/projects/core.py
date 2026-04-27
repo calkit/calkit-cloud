@@ -1409,8 +1409,10 @@ def get_project_figures(
             ext = (
                 "." + parts[-1].rsplit(".", 1)[-1] if "." in parts[-1] else ""
             )
-            parent_dir = parts[-2].lower() if len(parts) > 1 else ""
-            if ext.lower() in FIGURE_EXTS and parent_dir in FIGURE_DIRS:
+            dir_parts = [p.lower() for p in parts[:-1]]
+            if ext.lower() in FIGURE_EXTS and any(
+                d in FIGURE_DIRS for d in dir_parts
+            ):
                 if blob.path not in declared_paths:  # type: ignore[union-attr]
                     stem = (
                         parts[-1]
