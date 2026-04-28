@@ -401,6 +401,8 @@ class Message(SQLModel):
 class Token(SQLModel):
     access_token: str
     token_type: str = "bearer"
+    expires_in: int | None = None
+    refresh_token: str | None = None
 
 
 # Contents of JWT token
@@ -458,6 +460,37 @@ class DeviceAuth(SQLModel, table=True):
         if self.expires is None:
             return False
         return self.expires < utcnow()
+
+
+class RefreshToken(SQLModel, table=True):
+    """A long-lived refresh token used to obtain new access tokens.
+
+    The raw token value is never stored. Only sha256(token) is persisted so
+    that a database dump cannot be used to impersonate users.
+    """
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="user.id")
+    token_hash: str = Field(index=True, unique=True, max_length=64)
+    created: datetime = Field(
+        default_factory=utcnow,
+        sa_column_kwargs=dict(
+            server_default=sqlalchemy.func.current_timestamp()
+        ),
+    )
+    expires: datetime
+    is_active: bool = True
+    description: str | None = Field(default=None, max_length=256)
+    # Relationships
+    user: "User" = Relationship()
+
+    @property
+    def expired(self) -> bool:
+        return self.expires < utcnow()
+
+
+class RefreshTokenRequest(SQLModel):
+    refresh_token: str
 
 
 class NewPassword(SQLModel):
