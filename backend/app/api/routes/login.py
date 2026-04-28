@@ -33,6 +33,7 @@ from app.models import (
     RefreshToken,
     RefreshTokenRequest,
     Token,
+    User,
     UserCreate,
     UserPublic,
 )
@@ -49,8 +50,8 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-# Short-lived access token; refresh token lasts 90 days
-ACCESS_TOKEN_EXPIRE_MINUTES = 15
+# Access token TTL from settings; refresh token lasts 90 days
+ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
 REFRESH_TOKEN_EXPIRE_DAYS = 90
 
 
@@ -118,19 +119,29 @@ def refresh_access_token(
     """
     token_hash = hash_refresh_token(body.refresh_token)
     refresh_db = session.exec(
-        select(RefreshToken).where(RefreshToken.token_hash == token_hash)
+        select(RefreshToken)
+        .where(RefreshToken.token_hash == token_hash)
+        .with_for_update()
     ).first()
     if refresh_db is None or not refresh_db.is_active:
         raise HTTPException(401, "Invalid refresh token")
     if refresh_db.expired:
         raise HTTPException(401, "Refresh token has expired")
-    user_id = refresh_db.user_id
+
+    user = session.get(User, refresh_db.user_id)
+    if user is None or not user.is_active:
+        # Disable the refresh token if the user is missing/inactive.
+        refresh_db.is_active = False
+        session.add(refresh_db)
+        session.commit()
+        raise HTTPException(401, "User is not active")
+
     # Rotate: deactivate old token
     refresh_db.is_active = False
     session.add(refresh_db)
     # Issue new pair
     access_token, raw_refresh, new_refresh_db = _make_tokens(
-        user_id, description=refresh_db.description
+        user.id, description=refresh_db.description
     )
     session.add(new_refresh_db)
     session.commit()

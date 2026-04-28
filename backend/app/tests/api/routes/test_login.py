@@ -2,9 +2,10 @@ from datetime import timedelta
 from unittest.mock import patch
 
 import pytest
+from app import users
 from app.config import settings
 from app.core import utcnow
-from app.models import DeviceAuth, RefreshToken, User
+from app.models import DeviceAuth, RefreshToken, User, UserCreate
 from app.security import (
     generate_password_reset_token,
     hash_refresh_token,
@@ -110,6 +111,43 @@ def test_refresh_access_token_expired(client: TestClient, db: Session) -> None:
     )
     assert r.status_code == 401
     assert r.json()["detail"] == "Refresh token has expired"
+
+
+def test_refresh_access_token_inactive_user(
+    client: TestClient, db: Session
+) -> None:
+    user = users.create_user(
+        session=db,
+        user_create=UserCreate(
+            email="inactive-refresh-user@example.com",
+            password="test-password-123",
+        ),
+    )
+    user.is_active = False
+    db.add(user)
+    db.commit()
+    refresh_raw = "inactive-user-refresh-token"
+    token_hash = hash_refresh_token(refresh_raw)
+    db.add(
+        RefreshToken(
+            user_id=user.id,
+            token_hash=token_hash,
+            expires=utcnow() + timedelta(minutes=5),
+            description="inactive user token",
+        )
+    )
+    db.commit()
+    r = client.post(
+        f"{settings.API_V1_STR}/login/refresh",
+        json={"refresh_token": refresh_raw},
+    )
+    assert r.status_code == 401
+    assert r.json()["detail"] == "User is not active"
+    stored = db.exec(
+        select(RefreshToken).where(RefreshToken.token_hash == token_hash)
+    ).first()
+    assert stored is not None
+    assert stored.is_active is False
 
 
 def test_get_access_token_incorrect_password(client: TestClient) -> None:

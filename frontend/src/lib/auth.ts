@@ -11,8 +11,10 @@ export const storeTokens = (
   refreshToken?: string | null,
 ) => {
   localStorage.setItem("access_token", accessToken)
-  if (refreshToken) {
+  if (refreshToken != null) {
     localStorage.setItem("refresh_token", refreshToken)
+  } else {
+    localStorage.removeItem("refresh_token")
   }
 }
 
@@ -21,9 +23,17 @@ export const clearTokens = () => {
   localStorage.removeItem("refresh_token")
 }
 
+const decodeBase64Url = (value: string): string => {
+  const base64 = value.replace(/-/g, "+").replace(/_/g, "/")
+  const padding = (4 - (base64.length % 4)) % 4
+  return atob(base64 + "=".repeat(padding))
+}
+
 const getTokenExpiry = (token: string): number | null => {
   try {
-    const payload = JSON.parse(atob(token.split(".")[1]))
+    const [, payloadSegment] = token.split(".")
+    if (!payloadSegment) return null
+    const payload = JSON.parse(decodeBase64Url(payloadSegment))
     return typeof payload.exp === "number" ? payload.exp : null
   } catch {
     return null
@@ -35,7 +45,7 @@ const isTokenExpiredOrExpiringSoon = (
   bufferSeconds = 30,
 ): boolean => {
   const exp = getTokenExpiry(token)
-  if (exp === null) return false
+  if (exp === null) return true
   return Date.now() / 1000 + bufferSeconds >= exp
 }
 
