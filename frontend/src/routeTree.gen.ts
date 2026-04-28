@@ -14,11 +14,12 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as ZenodoAuthRouteImport } from './routes/zenodo-auth'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as RecoverPasswordRouteImport } from './routes/recover-password'
-import { Route as LoginRouteImport } from './routes/login'
 import { Route as GoogleAuthRouteImport } from './routes/google-auth'
 import { Route as CheckoutRouteImport } from './routes/checkout'
 import { Route as LayoutRouteImport } from './routes/_layout'
+import { Route as LoginIndexRouteImport } from './routes/login/index'
 import { Route as LayoutIndexRouteImport } from './routes/_layout/index'
+import { Route as LoginDeviceRouteImport } from './routes/login/device'
 import { Route as LayoutSettingsRouteImport } from './routes/_layout/settings'
 import { Route as LayoutProjectsRouteImport } from './routes/_layout/projects'
 import { Route as LayoutOrgsRouteImport } from './routes/_layout/orgs'
@@ -61,11 +62,6 @@ const RecoverPasswordRoute = RecoverPasswordRouteImport.update({
   path: '/recover-password',
   getParentRoute: () => rootRouteImport,
 } as any)
-const LoginRoute = LoginRouteImport.update({
-  id: '/login',
-  path: '/login',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const GoogleAuthRoute = GoogleAuthRouteImport.update({
   id: '/google-auth',
   path: '/google-auth',
@@ -80,10 +76,20 @@ const LayoutRoute = LayoutRouteImport.update({
   id: '/_layout',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LoginIndexRoute = LoginIndexRouteImport.update({
+  id: '/login/',
+  path: '/login/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LayoutIndexRoute = LayoutIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => LayoutRoute,
+} as any)
+const LoginDeviceRoute = LoginDeviceRouteImport.update({
+  id: '/login/device',
+  path: '/login/device',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const LayoutSettingsRoute = LayoutSettingsRouteImport.update({
   id: '/settings',
@@ -219,7 +225,6 @@ const LayoutAccountNameProjectNameLayoutAppRoute =
 export interface FileRoutesByFullPath {
   '/checkout': typeof CheckoutRoute
   '/google-auth': typeof GoogleAuthRoute
-  '/login': typeof LoginRoute
   '/recover-password': typeof RecoverPasswordRoute
   '/reset-password': typeof ResetPasswordRoute
   '/zenodo-auth': typeof ZenodoAuthRoute
@@ -229,7 +234,9 @@ export interface FileRoutesByFullPath {
   '/orgs': typeof LayoutOrgsRoute
   '/projects': typeof LayoutProjectsRoute
   '/settings': typeof LayoutSettingsRoute
+  '/login/device': typeof LoginDeviceRoute
   '/': typeof LayoutIndexRoute
+  '/login': typeof LoginIndexRoute
   '/$accountName': typeof LayoutAccountNameIndexRoute
   '/$accountName/$projectName': typeof LayoutAccountNameProjectNameLayoutRouteWithChildren
   '/$accountName/$projectName/app': typeof LayoutAccountNameProjectNameLayoutAppRoute
@@ -250,7 +257,6 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/checkout': typeof CheckoutRoute
   '/google-auth': typeof GoogleAuthRoute
-  '/login': typeof LoginRoute
   '/recover-password': typeof RecoverPasswordRoute
   '/reset-password': typeof ResetPasswordRoute
   '/zenodo-auth': typeof ZenodoAuthRoute
@@ -260,7 +266,9 @@ export interface FileRoutesByTo {
   '/orgs': typeof LayoutOrgsRoute
   '/projects': typeof LayoutProjectsRoute
   '/settings': typeof LayoutSettingsRoute
+  '/login/device': typeof LoginDeviceRoute
   '/': typeof LayoutIndexRoute
+  '/login': typeof LoginIndexRoute
   '/$accountName': typeof LayoutAccountNameIndexRoute
   '/$accountName/$projectName': typeof LayoutAccountNameProjectNameLayoutIndexRoute
   '/$accountName/$projectName/app': typeof LayoutAccountNameProjectNameLayoutAppRoute
@@ -282,7 +290,6 @@ export interface FileRoutesById {
   '/_layout': typeof LayoutRouteWithChildren
   '/checkout': typeof CheckoutRoute
   '/google-auth': typeof GoogleAuthRoute
-  '/login': typeof LoginRoute
   '/recover-password': typeof RecoverPasswordRoute
   '/reset-password': typeof ResetPasswordRoute
   '/zenodo-auth': typeof ZenodoAuthRoute
@@ -292,7 +299,9 @@ export interface FileRoutesById {
   '/_layout/orgs': typeof LayoutOrgsRoute
   '/_layout/projects': typeof LayoutProjectsRoute
   '/_layout/settings': typeof LayoutSettingsRoute
+  '/login/device': typeof LoginDeviceRoute
   '/_layout/': typeof LayoutIndexRoute
+  '/login/': typeof LoginIndexRoute
   '/_layout/$accountName/': typeof LayoutAccountNameIndexRoute
   '/_layout/$accountName/$projectName': typeof LayoutAccountNameProjectNameRouteWithChildren
   '/_layout/$accountName/$projectName/_layout': typeof LayoutAccountNameProjectNameLayoutRouteWithChildren
@@ -316,7 +325,6 @@ export interface FileRouteTypes {
   fullPaths:
     | '/checkout'
     | '/google-auth'
-    | '/login'
     | '/recover-password'
     | '/reset-password'
     | '/zenodo-auth'
@@ -326,7 +334,9 @@ export interface FileRouteTypes {
     | '/orgs'
     | '/projects'
     | '/settings'
+    | '/login/device'
     | '/'
+    | '/login'
     | '/$accountName'
     | '/$accountName/$projectName'
     | '/$accountName/$projectName/app'
@@ -347,7 +357,6 @@ export interface FileRouteTypes {
   to:
     | '/checkout'
     | '/google-auth'
-    | '/login'
     | '/recover-password'
     | '/reset-password'
     | '/zenodo-auth'
@@ -357,7 +366,9 @@ export interface FileRouteTypes {
     | '/orgs'
     | '/projects'
     | '/settings'
+    | '/login/device'
     | '/'
+    | '/login'
     | '/$accountName'
     | '/$accountName/$projectName'
     | '/$accountName/$projectName/app'
@@ -378,7 +389,6 @@ export interface FileRouteTypes {
     | '/_layout'
     | '/checkout'
     | '/google-auth'
-    | '/login'
     | '/recover-password'
     | '/reset-password'
     | '/zenodo-auth'
@@ -388,7 +398,9 @@ export interface FileRouteTypes {
     | '/_layout/orgs'
     | '/_layout/projects'
     | '/_layout/settings'
+    | '/login/device'
     | '/_layout/'
+    | '/login/'
     | '/_layout/$accountName/'
     | '/_layout/$accountName/$projectName'
     | '/_layout/$accountName/$projectName/_layout'
@@ -412,10 +424,11 @@ export interface RootRouteChildren {
   LayoutRoute: typeof LayoutRouteWithChildren
   CheckoutRoute: typeof CheckoutRoute
   GoogleAuthRoute: typeof GoogleAuthRoute
-  LoginRoute: typeof LoginRoute
   RecoverPasswordRoute: typeof RecoverPasswordRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   ZenodoAuthRoute: typeof ZenodoAuthRoute
+  LoginDeviceRoute: typeof LoginDeviceRoute
+  LoginIndexRoute: typeof LoginIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -441,13 +454,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RecoverPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/login': {
-      id: '/login'
-      path: '/login'
-      fullPath: '/login'
-      preLoaderRoute: typeof LoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/google-auth': {
       id: '/google-auth'
       path: '/google-auth'
@@ -469,12 +475,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/login/': {
+      id: '/login/'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_layout/': {
       id: '/_layout/'
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof LayoutIndexRouteImport
       parentRoute: typeof LayoutRoute
+    }
+    '/login/device': {
+      id: '/login/device'
+      path: '/login/device'
+      fullPath: '/login/device'
+      preLoaderRoute: typeof LoginDeviceRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_layout/settings': {
       id: '/_layout/settings'
@@ -741,10 +761,11 @@ const rootRouteChildren: RootRouteChildren = {
   LayoutRoute: LayoutRouteWithChildren,
   CheckoutRoute: CheckoutRoute,
   GoogleAuthRoute: GoogleAuthRoute,
-  LoginRoute: LoginRoute,
   RecoverPasswordRoute: RecoverPasswordRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   ZenodoAuthRoute: ZenodoAuthRoute,
+  LoginDeviceRoute: LoginDeviceRoute,
+  LoginIndexRoute: LoginIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
