@@ -4,7 +4,7 @@ from unittest.mock import patch
 import pytest
 from app.config import settings
 from app.core import utcnow
-from app.models import CLIAuthRequest, User
+from app.models import DeviceAuth, User
 from app.security import generate_password_reset_token, verify_password
 from fastapi.testclient import TestClient
 from sqlmodel import Session, select
@@ -48,7 +48,7 @@ def test_use_access_token(
 
 
 def test_device_token_pending(client: TestClient, db: Session) -> None:
-    auth_request = CLIAuthRequest(
+    auth_request = DeviceAuth(
         device_code="pending-device-code",
         expires=utcnow() + timedelta(minutes=5),
     )

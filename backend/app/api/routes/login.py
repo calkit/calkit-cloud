@@ -28,7 +28,7 @@ from app.core import utcnow
 from app.github import token_resp_text_to_dict
 from app.messaging import generate_reset_password_email, send_email
 from app.models import (
-    CLIAuthRequest,
+    DeviceAuth,
     Message,
     NewPassword,
     Token,
@@ -495,7 +495,13 @@ def post_login_device(
     """
     device_code = secrets.token_urlsafe(32)
     expires = utcnow() + timedelta(minutes=CLI_AUTH_EXPIRES_MINUTES)
-    auth_request = CLIAuthRequest(
+    # Clean up expired auth requests opportunistically
+    expired_requests = session.exec(
+        select(DeviceAuth).where(DeviceAuth.expires < utcnow())
+    ).all()
+    for expired in expired_requests:
+        session.delete(expired)
+    auth_request = DeviceAuth(
         device_code=device_code,
         expires=expires,
         hostname=req.hostname,
@@ -525,37 +531,15 @@ def post_login_device_authorize(
     after the user has logged in and clicked "Authorize".
     """
     auth_request = session.exec(
-        select(CLIAuthRequest).where(
-            CLIAuthRequest.device_code == req.device_code
-        )
+        select(DeviceAuth).where(DeviceAuth.device_code == req.device_code)
     ).first()
     if auth_request is None:
         raise HTTPException(404, "Device code not found")
     if auth_request.expired:
         raise HTTPException(400, "Device code has expired")
-    if auth_request.token_value is not None:
+    if auth_request.user_id is not None:
         raise HTTPException(400, "Device code already authorized")
-    # Create a long-lived PAT for this user
-    selector = secrets.token_hex(PAT_SELECTOR_LENGTH_BYTES)
-    verifier = secrets.token_hex(PAT_VERIFIER_LENGTH_BYTES)
-    token_str = f"ckp_{selector}{verifier}"
-    hashed_verifier = get_password_hash(verifier)
-    description = "CLI login"
-    if auth_request.hostname:
-        description = f"CLI login from {auth_request.hostname}"
-    token = UserToken(
-        user_id=current_user.id,
-        expires=utcnow() + timedelta(days=365),
-        scope=None,
-        is_active=True,
-        selector=selector,
-        hashed_verifier=hashed_verifier,
-        description=description,
-    )
-    session.add(token)
-    # Store the token value in the auth request so the CLI can fetch it
     auth_request.user_id = current_user.id
-    auth_request.token_value = token_str
     session.add(auth_request)
     session.commit()
     logger.info(
@@ -580,21 +564,37 @@ def post_login_device_token(
     the request expires. Returns 202 while authorization is still pending.
     """
     auth_request = session.exec(
-        select(CLIAuthRequest).where(
-            CLIAuthRequest.device_code == req.device_code
-        )
+        select(DeviceAuth).where(DeviceAuth.device_code == req.device_code)
     ).first()
     if auth_request is None:
         raise HTTPException(404, "Device code not found")
     if auth_request.expired:
         raise HTTPException(400, "Device code has expired")
-    if auth_request.token_value is None:
+    if auth_request.user_id is None:
         response.status_code = 202
         return DeviceTokenPendingResponse(
             detail="Authorization pending",
         )
-    token_value = auth_request.token_value
-    # Delete the auth request now that it's been claimed
+    # Authorization confirmed — create the PAT now and return it
+    user_id = auth_request.user_id
+    hostname = auth_request.hostname
+    selector = secrets.token_hex(PAT_SELECTOR_LENGTH_BYTES)
+    verifier = secrets.token_hex(PAT_VERIFIER_LENGTH_BYTES)
+    token_str = f"ckp_{selector}{verifier}"
+    hashed_verifier = get_password_hash(verifier)
+    description = "CLI login"
+    if hostname:
+        description = f"CLI login from {hostname}"
+    token = UserToken(
+        user_id=user_id,
+        expires=utcnow() + timedelta(days=365),
+        scope=None,
+        is_active=True,
+        selector=selector,
+        hashed_verifier=hashed_verifier,
+        description=description,
+    )
+    session.add(token)
     session.delete(auth_request)
     session.commit()
-    return Token(access_token=token_value)
+    return Token(access_token=token_str)

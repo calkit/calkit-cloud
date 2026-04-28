@@ -436,7 +436,7 @@ class UserToken(UserTokenPublic, table=True):
         return self.expires < utcnow()
 
 
-class CLIAuthRequest(SQLModel, table=True):
+class DeviceAuth(SQLModel, table=True):
     """A pending CLI device auth request."""
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
@@ -452,8 +452,6 @@ class CLIAuthRequest(SQLModel, table=True):
     user_id: uuid.UUID | None = Field(
         default=None, foreign_key="user.id", nullable=True
     )
-    # The token value to return to CLI once authorized
-    token_value: str | None = Field(default=None, max_length=128)
 
     @property
     def expired(self) -> bool:
