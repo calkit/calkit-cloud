@@ -23,6 +23,13 @@ export const clearTokens = () => {
   localStorage.removeItem("refresh_token")
 }
 
+const shouldBypassRefreshForRequest = (requestUrl?: string): boolean => {
+  if (!requestUrl) return false
+
+  const [path] = requestUrl.split("?")
+  return path === "/login/refresh"
+}
+
 const decodeBase64Url = (value: string): string => {
   const base64 = value.replace(/-/g, "+").replace(/_/g, "/")
   const padding = (4 - (base64.length % 4)) % 4
@@ -57,9 +64,14 @@ let refreshPromise: Promise<string | null> | null = null
  * expiring within 30 seconds. Returns null if refresh fails (caller should
  * treat the session as logged out).
  */
-export const getValidAccessToken = async (): Promise<string | null> => {
+export const getValidAccessToken = async (
+  requestUrl?: string,
+): Promise<string | null> => {
   const accessToken = getAccessToken()
   if (!accessToken) return null
+
+  // Prevent recursive refresh when requesting the refresh endpoint itself.
+  if (shouldBypassRefreshForRequest(requestUrl)) return accessToken
 
   if (!isTokenExpiredOrExpiringSoon(accessToken)) return accessToken
 
