@@ -9,10 +9,11 @@ import { StrictMode } from "react"
 import { OpenAPI } from "./client"
 import theme from "./theme"
 import NotFound from "./components/Common/NotFound"
+import { getValidAccessToken } from "./lib/auth"
 
 OpenAPI.BASE = import.meta.env.VITE_API_URL
 OpenAPI.TOKEN = async () => {
-  return localStorage.getItem("access_token") || ""
+  return (await getValidAccessToken()) ?? ""
 }
 
 const mixpanelToken = import.meta.env.VITE_MIXPANEL_TOKEN
