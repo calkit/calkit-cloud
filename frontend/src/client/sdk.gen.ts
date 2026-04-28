@@ -11,6 +11,8 @@ import type {
   LoginAccessTokenData,
   LoginAccessTokenResponse,
   TestTokenResponse,
+  RefreshAccessTokenData,
+  RefreshAccessTokenResponse,
   RecoverPasswordData,
   RecoverPasswordResponse,
   ResetPasswordData,
@@ -315,6 +317,31 @@ export class LoginService {
     return __request(OpenAPI, {
       method: "POST",
       url: "/login/test-token",
+    })
+  }
+
+  /**
+   * Refresh Access Token
+   * Exchange a refresh token for a new access token and rotated refresh
+   * token.
+   *
+   * The old refresh token is invalidated on use (refresh token rotation).
+   * @param data The data for the request.
+   * @param data.requestBody
+   * @returns Token Successful Response
+   * @throws ApiError
+   */
+  public static refreshAccessToken(
+    data: RefreshAccessTokenData,
+  ): CancelablePromise<RefreshAccessTokenResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/login/refresh",
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        422: "Validation Error",
+      },
     })
   }
 

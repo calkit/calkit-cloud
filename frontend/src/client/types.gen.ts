@@ -961,6 +961,10 @@ export type References = {
   raw_text?: string | null
 }
 
+export type RefreshTokenRequest = {
+  refresh_token: string
+}
+
 export type ReproCheck = {
   has_pipeline: boolean
   has_readme: boolean
@@ -1087,6 +1091,8 @@ export type plan_name2 = "free" | "standard" | "professional"
 export type Token = {
   access_token: string
   token_type?: string
+  expires_in?: number | null
+  refresh_token?: string | null
 }
 
 export type TokenPatch = {
@@ -1107,6 +1113,8 @@ export type TokenPut = {
 export type TokenResp = {
   access_token: string
   token_type?: string
+  expires_in?: number | null
+  refresh_token?: string | null
   id?: string
   user_id: string
   scope?: string | null
@@ -1231,6 +1239,12 @@ export type LoginAccessTokenResponse = Token
 
 export type TestTokenResponse = UserPublic
 
+export type RefreshAccessTokenData = {
+  requestBody: RefreshTokenRequest
+}
+
+export type RefreshAccessTokenResponse = Token
+
 export type RecoverPasswordData = {
   email: string
 }
@@ -1268,7 +1282,7 @@ export type LoginWithGithubTokenData = {
 export type LoginWithGithubTokenResponse = Token
 
 export type PostLoginDeviceData = {
-  requestBody?: DeviceAuthRequest
+  requestBody?: DeviceAuthRequest | null
 }
 
 export type PostLoginDeviceResponse = DeviceAuthResponse

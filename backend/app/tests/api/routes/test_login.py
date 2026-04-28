@@ -2,10 +2,15 @@ from datetime import timedelta
 from unittest.mock import patch
 
 import pytest
+from app import users
 from app.config import settings
 from app.core import utcnow
-from app.models import DeviceAuth, User
-from app.security import generate_password_reset_token, verify_password
+from app.models import DeviceAuth, RefreshToken, User, UserCreate
+from app.security import (
+    generate_password_reset_token,
+    hash_refresh_token,
+    verify_password,
+)
 from fastapi.testclient import TestClient
 from sqlmodel import Session, select
 
@@ -22,6 +27,127 @@ def test_get_access_token(client: TestClient) -> None:
     assert r.status_code == 200
     assert "access_token" in tokens
     assert tokens["access_token"]
+    assert "refresh_token" in tokens
+    assert tokens["refresh_token"]
+    assert "expires_in" in tokens
+    assert tokens["expires_in"] > 0
+
+
+def test_refresh_access_token_rotates(
+    client: TestClient,
+    db: Session,
+) -> None:
+    login_data = {
+        "username": settings.FIRST_SUPERUSER,
+        "password": settings.FIRST_SUPERUSER_PASSWORD,
+    }
+    r = client.post(
+        f"{settings.API_V1_STR}/login/access-token", data=login_data
+    )
+    assert r.status_code == 200
+    initial = r.json()
+    initial_refresh = initial["refresh_token"]
+    r = client.post(
+        f"{settings.API_V1_STR}/login/refresh",
+        json={"refresh_token": initial_refresh},
+    )
+    assert r.status_code == 200
+    rotated = r.json()
+    assert rotated["access_token"]
+    assert rotated["refresh_token"]
+    assert rotated["refresh_token"] != initial_refresh
+    assert rotated["expires_in"] > 0
+    # Rotated token should work for authenticated endpoint.
+    headers = {"Authorization": f"Bearer {rotated['access_token']}"}
+    r = client.post(
+        f"{settings.API_V1_STR}/login/test-token",
+        headers=headers,
+    )
+    assert r.status_code == 200
+    # Old refresh token can no longer be used.
+    r = client.post(
+        f"{settings.API_V1_STR}/login/refresh",
+        json={"refresh_token": initial_refresh},
+    )
+    assert r.status_code == 401
+    assert r.json()["detail"] == "Invalid refresh token"
+    old_hash = hash_refresh_token(initial_refresh)
+    old_token = db.exec(
+        select(RefreshToken).where(RefreshToken.token_hash == old_hash)
+    ).first()
+    assert old_token is not None
+    assert old_token.is_active is False
+
+
+def test_refresh_access_token_invalid(client: TestClient) -> None:
+    r = client.post(
+        f"{settings.API_V1_STR}/login/refresh",
+        json={"refresh_token": "not-a-real-refresh-token"},
+    )
+    assert r.status_code == 401
+    assert r.json()["detail"] == "Invalid refresh token"
+
+
+def test_refresh_access_token_expired(client: TestClient, db: Session) -> None:
+    user = db.exec(
+        select(User).where(User.email == settings.FIRST_SUPERUSER)
+    ).first()
+    assert user is not None
+
+    refresh_raw = "expired-refresh-token"
+    db.add(
+        RefreshToken(
+            user_id=user.id,
+            token_hash=hash_refresh_token(refresh_raw),
+            expires=utcnow() - timedelta(minutes=1),
+            description="expired test token",
+        )
+    )
+    db.commit()
+
+    r = client.post(
+        f"{settings.API_V1_STR}/login/refresh",
+        json={"refresh_token": refresh_raw},
+    )
+    assert r.status_code == 401
+    assert r.json()["detail"] == "Refresh token has expired"
+
+
+def test_refresh_access_token_inactive_user(
+    client: TestClient, db: Session
+) -> None:
+    user = users.create_user(
+        session=db,
+        user_create=UserCreate(
+            email="inactive-refresh-user@example.com",
+            password="test-password-123",
+        ),
+    )
+    user.is_active = False
+    db.add(user)
+    db.commit()
+    refresh_raw = "inactive-user-refresh-token"
+    token_hash = hash_refresh_token(refresh_raw)
+    db.add(
+        RefreshToken(
+            user_id=user.id,
+            token_hash=token_hash,
+            expires=utcnow() + timedelta(minutes=5),
+            description="inactive user token",
+        )
+    )
+    db.commit()
+    r = client.post(
+        f"{settings.API_V1_STR}/login/refresh",
+        json={"refresh_token": refresh_raw},
+    )
+    assert r.status_code == 401
+    assert r.json()["detail"] == "User is not active"
+    stored = db.exec(
+        select(RefreshToken).where(RefreshToken.token_hash == token_hash)
+    ).first()
+    assert stored is not None
+    assert stored.is_active is False
 
 
 def test_get_access_token_incorrect_password(client: TestClient) -> None:
@@ -98,7 +224,6 @@ def test_device_authorize_and_token(
     r = client.post(f"{settings.API_V1_STR}/login/device")
     assert r.status_code == 200
     device_code = r.json()["device_code"]
-
     # Authorize (requires auth)
     r = client.post(
         f"{settings.API_V1_STR}/login/device/authorize",
@@ -107,7 +232,6 @@ def test_device_authorize_and_token(
     )
     assert r.status_code == 200
     assert r.json() == {"message": "CLI access authorized"}
-
     # Poll for token — should now succeed
     r = client.post(
         f"{settings.API_V1_STR}/login/device/token",
@@ -116,8 +240,11 @@ def test_device_authorize_and_token(
     assert r.status_code == 200
     data = r.json()
     assert "access_token" in data
-    assert data["access_token"].startswith("ckp_")
-
+    assert data["access_token"]
+    assert "refresh_token" in data
+    assert data["refresh_token"]
+    assert "expires_in" in data
+    assert data["expires_in"] > 0
     # Row should be deleted — second poll returns 404
     r = client.post(
         f"{settings.API_V1_STR}/login/device/token",
@@ -203,7 +330,6 @@ def test_reset_password(
     )
     assert r.status_code == 200
     assert r.json() == {"message": "Password updated successfully"}
-
     user_query = select(User).where(User.email == settings.FIRST_SUPERUSER)
     user = db.exec(user_query).first()
     assert user
@@ -221,7 +347,6 @@ def test_reset_password_invalid_token(
         json=data,
     )
     response = r.json()
-
     assert "detail" in response
     assert r.status_code == 400
     assert response["detail"] == "Invalid token"

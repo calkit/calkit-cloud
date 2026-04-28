@@ -4566,6 +4566,18 @@ export const ReferencesSchema = {
   title: "References",
 } as const
 
+export const RefreshTokenRequestSchema = {
+  properties: {
+    refresh_token: {
+      type: "string",
+      title: "Refresh Token",
+    },
+  },
+  type: "object",
+  required: ["refresh_token"],
+  title: "RefreshTokenRequest",
+} as const
+
 export const ReproCheckSchema = {
   properties: {
     has_pipeline: {
@@ -5097,6 +5109,28 @@ export const TokenSchema = {
       title: "Token Type",
       default: "bearer",
     },
+    expires_in: {
+      anyOf: [
+        {
+          type: "integer",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Expires In",
+    },
+    refresh_token: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Refresh Token",
+    },
   },
   type: "object",
   required: ["access_token"],
@@ -5186,6 +5220,28 @@ export const TokenRespSchema = {
       type: "string",
       title: "Token Type",
       default: "bearer",
+    },
+    expires_in: {
+      anyOf: [
+        {
+          type: "integer",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Expires In",
+    },
+    refresh_token: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Refresh Token",
     },
     id: {
       type: "string",

@@ -18,8 +18,6 @@ from sqlmodel import select
 
 from app import mixpanel, security, users
 from app.api.deps import (
-    PAT_SELECTOR_LENGTH_BYTES,
-    PAT_VERIFIER_LENGTH_BYTES,
     CurrentUser,
     SessionDep,
     get_current_active_superuser,
@@ -32,14 +30,18 @@ from app.models import (
     DeviceAuth,
     Message,
     NewPassword,
+    RefreshToken,
+    RefreshTokenRequest,
     Token,
+    User,
     UserCreate,
     UserPublic,
-    UserToken,
 )
 from app.security import (
     generate_password_reset_token,
+    generate_refresh_token,
     get_password_hash,
+    hash_refresh_token,
     verify_password_reset_token,
 )
 
@@ -47,6 +49,29 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+# Access token TTL from settings; refresh token lasts 90 days
+ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
+REFRESH_TOKEN_EXPIRE_DAYS = 90
+
+
+def _make_tokens(
+    user_id, description: str | None = None
+) -> tuple[str, str, RefreshToken]:
+    """Create a paired short-lived access token and long-lived refresh token."""
+    access_token = security.create_access_token(
+        subject=user_id,
+        expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
+    )
+    raw_refresh = generate_refresh_token()
+    token_hash = hash_refresh_token(raw_refresh)
+    refresh_db = RefreshToken(
+        user_id=user_id,
+        token_hash=token_hash,
+        expires=utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS),
+        description=description,
+    )
+    return access_token, raw_refresh, refresh_db
 
 
 @router.post("/login/access-token")
@@ -64,13 +89,15 @@ def login_access_token(
         )
     elif not user.is_active:
         raise HTTPException(status_code=400, detail="Inactive user")
-    access_token_expires = timedelta(
-        minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
+    access_token, raw_refresh, refresh_db = _make_tokens(
+        user.id, description="password login"
     )
+    session.add(refresh_db)
+    session.commit()
     return Token(
-        access_token=security.create_access_token(
-            subject=user.id, expires_delta=access_token_expires
-        )
+        access_token=access_token,
+        expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        refresh_token=raw_refresh,
     )
 
 
@@ -78,6 +105,51 @@ def login_access_token(
 def test_token(current_user: CurrentUser) -> UserPublic:
     """Test access token."""
     return current_user  # type: ignore
+
+
+@router.post("/login/refresh")
+def refresh_access_token(
+    session: SessionDep,
+    body: RefreshTokenRequest,
+) -> Token:
+    """Exchange a refresh token for a new access token and rotated refresh
+    token.
+
+    The old refresh token is invalidated on use (refresh token rotation).
+    """
+    token_hash = hash_refresh_token(body.refresh_token)
+    refresh_db = session.exec(
+        select(RefreshToken)
+        .where(RefreshToken.token_hash == token_hash)
+        .with_for_update()
+    ).first()
+    if refresh_db is None or not refresh_db.is_active:
+        raise HTTPException(401, "Invalid refresh token")
+    if refresh_db.expired:
+        raise HTTPException(401, "Refresh token has expired")
+
+    user = session.get(User, refresh_db.user_id)
+    if user is None or not user.is_active:
+        # Disable the refresh token if the user is missing/inactive.
+        refresh_db.is_active = False
+        session.add(refresh_db)
+        session.commit()
+        raise HTTPException(401, "User is not active")
+
+    # Rotate: deactivate old token
+    refresh_db.is_active = False
+    session.add(refresh_db)
+    # Issue new pair
+    access_token, raw_refresh, new_refresh_db = _make_tokens(
+        user.id, description=refresh_db.description
+    )
+    session.add(new_refresh_db)
+    session.commit()
+    return Token(
+        access_token=access_token,
+        expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        refresh_token=raw_refresh,
+    )
 
 
 @router.post("/password-recovery/{email}")
@@ -244,13 +316,15 @@ def login_with_github(req: OAuthCodeExchange, session: SessionDep) -> Token:
     users.save_github_token(session=session, user=user, github_resp=out)
     # Lastly, generate an access token for this user
     mixpanel.user_logged_in(user)
+    access_token, raw_refresh, refresh_db = _make_tokens(
+        user.id, description="GitHub login"
+    )
+    session.add(refresh_db)
+    session.commit()
     return Token(
-        access_token=security.create_access_token(
-            subject=user.id,
-            expires_delta=timedelta(
-                minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
-            ),
-        )
+        access_token=access_token,
+        expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        refresh_token=raw_refresh,
     )
 
 
@@ -576,26 +650,20 @@ def post_login_device_token(
         return DeviceTokenPendingResponse(
             detail="Authorization pending",
         )
-    # Authorization confirmed — create the PAT now and return it
+    # Authorization confirmed — issue short-lived access + refresh token pair
     user_id = auth_request.user_id
     hostname = auth_request.hostname
-    selector = secrets.token_hex(PAT_SELECTOR_LENGTH_BYTES)
-    verifier = secrets.token_hex(PAT_VERIFIER_LENGTH_BYTES)
-    token_str = f"ckp_{selector}{verifier}"
-    hashed_verifier = get_password_hash(verifier)
     description = "CLI login"
     if hostname:
         description = f"CLI login from {hostname}"
-    token = UserToken(
-        user_id=user_id,
-        expires=utcnow() + timedelta(days=365),
-        scope=None,
-        is_active=True,
-        selector=selector,
-        hashed_verifier=hashed_verifier,
-        description=description,
+    access_token, raw_refresh, refresh_db = _make_tokens(
+        user_id, description=description
     )
-    session.add(token)
+    session.add(refresh_db)
     session.delete(auth_request)
     session.commit()
-    return Token(access_token=token_str)
+    return Token(
+        access_token=access_token,
+        expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        refresh_token=raw_refresh,
+    )
