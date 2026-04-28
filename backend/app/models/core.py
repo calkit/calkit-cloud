@@ -186,6 +186,10 @@ class User(UserBase, table=True):
     overleaf_token: UserOverleafToken | None = Relationship(
         cascade_delete=True
     )
+    refresh_tokens: list["RefreshToken"] = Relationship(
+        back_populates="user",
+        cascade_delete=True,
+    )
     external_credentials: list[UserExternalCredential] = Relationship(
         back_populates="user",
         cascade_delete=True,
@@ -482,7 +486,7 @@ class RefreshToken(SQLModel, table=True):
     is_active: bool = True
     description: str | None = Field(default=None, max_length=256)
     # Relationships
-    user: "User" = Relationship()
+    user: "User" = Relationship(back_populates="refresh_tokens")
 
     @property
     def expired(self) -> bool:
