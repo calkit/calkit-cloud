@@ -8,6 +8,7 @@
     "dev-local-api": "VITE_API_URL=http://localhost:8000 vite",
     "build": "tsc && NODE_OPTIONS=--max-old-space-size=4096 vite build",
     "lint": "biome check --apply-unsafe --no-errors-on-unmatched --files-ignore-unknown=true ./",
+    "test:unit": "vitest run",
     "preview": "vite preview",
     "generate-client": "openapi-ts && biome format --write --no-errors-on-unmatched --files-ignore-unknown=true ./src/client"
   },
@@ -66,6 +67,7 @@
     "@vitejs/plugin-react-swc": "^3.7.0",
     "dotenv": "^16.4.5",
     "typescript": "^5.5.4",
-    "vite": "^5.4.14"
+    "vite": "^5.4.14",
+    "vitest": "^2.1.9"
   }
 }
