@@ -76,23 +76,23 @@ from app.models import (
     Dataset,
     DatasetForImport,
     Figure,
-    Notification,
-    ProjectComment,
-    ProjectCommentPatch,
-    ProjectCommentPost,
     FileLock,
+    GitRef,
     Message,
     Notebook,
+    Notification,
     Org,
     OrgSubscription,
     Pipeline,
     Project,
+    ProjectComment,
+    ProjectCommentPatch,
+    ProjectCommentPost,
     ProjectPost,
     ProjectPublic,
     ProjectsPublic,
     Publication,
     Question,
-    GitRef,
     User,
     UserOrgMembership,
     UserProjectAccess,
@@ -508,16 +508,7 @@ def post_project(
             ["dvc", "config", "core.autostage", "true"], cwd=repo.working_dir
         )
         logger.info("Setting up default DVC remote")
-        base_url = "https://api.calkit.io"
-        remote_url = f"{base_url}/projects/{owner_name}/{project.name}/dvc"
-        subprocess.call(
-            ["dvc", "remote", "add", "-d", "-f", "calkit", remote_url],
-            cwd=repo.working_dir,
-        )
-        subprocess.call(
-            ["dvc", "remote", "modify", "calkit", "auth", "custom"],
-            cwd=repo.working_dir,
-        )
+        calkit.dvc.configure_remote(wdir=str(repo.working_dir), use_ck=True)
         repo.git.add(".dvc")
         if project_in.template is not None:
             commit_msg = f"Create new project from {project_in.template}"

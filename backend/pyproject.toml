@@ -34,7 +34,7 @@ dependencies = [
   "mixpanel==4.10.1",
   "gcsfs==2026.3.0",
   "texsoup>=0.3.1",
-  "calkit-python==0.37.0",
+  "calkit-python==0.38.0",
   "boto3>=1.40.70",
   "cachetools>=5.3.3",
 ]
