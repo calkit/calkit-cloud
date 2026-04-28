@@ -503,7 +503,7 @@ def post_login_device(
     session.add(auth_request)
     session.commit()
     verification_uri = (
-        f"{settings.frontend_host}/cli-auth?device_code={device_code}"
+        f"{settings.frontend_host}/login/device?device_code={device_code}"
     )
     return DeviceAuthResponse(
         device_code=device_code,
