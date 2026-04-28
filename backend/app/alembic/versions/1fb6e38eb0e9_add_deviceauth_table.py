@@ -26,7 +26,6 @@ def upgrade():
     sa.Column('expires', sa.DateTime(), nullable=False),
     sa.Column('hostname', sqlmodel.sql.sqltypes.AutoString(length=255), nullable=True),
     sa.Column('user_id', sa.Uuid(), nullable=True),
-    sa.Column('token_value', sqlmodel.sql.sqltypes.AutoString(length=128), nullable=True),
     sa.ForeignKeyConstraint(['user_id'], ['user.id'], ),
     sa.PrimaryKeyConstraint('id')
     )

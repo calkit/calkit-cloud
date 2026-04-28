@@ -13,13 +13,14 @@ from fastapi.security import OAuth2PasswordRequestForm
 from jwt.algorithms import RSAAlgorithm
 from jwt.exceptions import InvalidTokenError
 from pydantic import BaseModel
+from sqlalchemy import delete
 from sqlmodel import select
 
 from app import mixpanel, security, users
 from app.api.deps import (
-    CurrentUser,
     PAT_SELECTOR_LENGTH_BYTES,
     PAT_VERIFIER_LENGTH_BYTES,
+    CurrentUser,
     SessionDep,
     get_current_active_superuser,
 )
@@ -484,7 +485,7 @@ class DeviceAuthorizeRequest(BaseModel):
 @router.post("/login/device")
 def post_login_device(
     session: SessionDep,
-    req: DeviceAuthRequest = DeviceAuthRequest(),
+    req: DeviceAuthRequest | None = None,
 ) -> DeviceAuthResponse:
     """Initiate a CLI device authorization flow.
 
@@ -493,14 +494,12 @@ def post_login_device(
     polls ``/login/device/token`` with the device_code to receive the access
     token once the user has authorized it.
     """
+    if req is None:
+        req = DeviceAuthRequest()
     device_code = secrets.token_urlsafe(32)
     expires = utcnow() + timedelta(minutes=CLI_AUTH_EXPIRES_MINUTES)
-    # Clean up expired auth requests opportunistically
-    expired_requests = session.exec(
-        select(DeviceAuth).where(DeviceAuth.expires < utcnow())
-    ).all()
-    for expired in expired_requests:
-        session.delete(expired)
+    # Clean up expired auth requests with a single bulk delete
+    session.exec(delete(DeviceAuth).where(DeviceAuth.expires < utcnow()))  # type: ignore
     auth_request = DeviceAuth(
         device_code=device_code,
         expires=expires,
@@ -564,7 +563,9 @@ def post_login_device_token(
     the request expires. Returns 202 while authorization is still pending.
     """
     auth_request = session.exec(
-        select(DeviceAuth).where(DeviceAuth.device_code == req.device_code)
+        select(DeviceAuth)
+        .where(DeviceAuth.device_code == req.device_code)
+        .with_for_update()
     ).first()
     if auth_request is None:
         raise HTTPException(404, "Device code not found")
