@@ -50,6 +50,14 @@ function FileContent({ item }: FileContentProps) {
       />
     )
   }
+  if (name.toLowerCase().endsWith(".svg")) {
+    return (
+      <Image
+        src={content ? `data:image/svg+xml;base64,${content}` : String(url)}
+        width={"100%"}
+      />
+    )
+  }
   if (name.endsWith(".pdf")) {
     return (
       <Box
