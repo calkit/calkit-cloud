@@ -403,10 +403,13 @@ def get_contents_from_tree(
                 continue
             try:
                 dvc_file_data = yaml.safe_load(tree.read_text(p))
-                out = (dvc_file_data.get("outs") or [{}])[0]
+                if not isinstance(dvc_file_data, dict):
+                    continue
+                outs = dvc_file_data.get("outs")
+                out = outs[0] if isinstance(outs, list) and outs else {}
                 dvc_pointer_outs[actual_path] = out
-            except Exception:
-                logger.warning(f"Failed to read DVC pointer file {p}")
+            except Exception as e:
+                logger.warning(f"Failed to read DVC pointer file {p}: {e}")
         dvc_paths = [
             p for p, obj in dvc_lock_outs.items() if obj["dirname"] == dirname
         ]
@@ -417,6 +420,8 @@ def get_contents_from_tree(
             if p in ignore_paths:
                 continue
             in_repo = tree.exists(p)
+            # size and obj_type are set in each branch; pre-initialize for the
+            # fallthrough `else` case where the path has no metadata source.
             size: int | None = None
             obj_type: str = "file"
             if in_repo:
