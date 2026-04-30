@@ -1389,7 +1389,9 @@ def get_project_figures(
     declared_paths = {fig["path"] for fig in figures}
 
     def _maybe_add_figure(path: str) -> None:
-        """Add *path* to figures if it looks like a figure and is not yet known."""
+        """Add `path` to figures if it looks like a figure and is not yet
+        known.
+        """
         parts = path.split("/")
         if any(p.startswith(".") for p in parts):
             return
