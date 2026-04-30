@@ -1417,7 +1417,14 @@ def get_project_figures(
         for blob in commit.tree.traverse():
             if blob.type != "blob":  # type: ignore[union-attr]
                 continue
-            _maybe_add_figure(blob.path)  # type: ignore[union-attr]
+            blob_path: str = blob.path  # type: ignore[union-attr]
+            _maybe_add_figure(blob_path)
+            # Also detect figures stored via standalone .dvc pointer files
+            # (tracked with `dvc add`, not via a DVC pipeline stage).
+            if blob_path.endswith(".dvc"):
+                actual_path = blob_path[:-4]
+                if actual_path:
+                    _maybe_add_figure(actual_path)
     except Exception:
         pass
     # Pre-compute calkit.yaml / dvc.lock metadata once for the tree so we

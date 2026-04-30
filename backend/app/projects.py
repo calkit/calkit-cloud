@@ -392,14 +392,33 @@ def get_contents_from_tree(
             paths = [os.path.join(dirname, n) for n in child_names]
         else:
             paths = []
+        # Derive tracked paths from standalone .dvc pointer files (files
+        # tracked with `dvc add`, not via a DVC pipeline stage in dvc.lock).
+        dvc_pointer_outs: dict[str, dict] = {}
+        for p in paths:
+            if not p.endswith(".dvc"):
+                continue
+            actual_path = p[:-4]
+            if not actual_path or actual_path in dvc_lock_outs:
+                continue
+            try:
+                dvc_file_data = yaml.safe_load(tree.read_text(p))
+                out = (dvc_file_data.get("outs") or [{}])[0]
+                dvc_pointer_outs[actual_path] = out
+            except Exception:
+                logger.warning(f"Failed to read DVC pointer file {p}")
         dvc_paths = [
             p for p, obj in dvc_lock_outs.items() if obj["dirname"] == dirname
         ]
-        all_paths = sorted(set(paths + dvc_paths))
+        all_paths = sorted(
+            set(paths + dvc_paths + list(dvc_pointer_outs.keys()))
+        )
         for p in all_paths:
             if p in ignore_paths:
                 continue
             in_repo = tree.exists(p)
+            size: int | None = None
+            obj_type: str = "file"
             if in_repo:
                 size = tree.size(p)
                 obj_type = "file" if tree.is_file(p) else "dir"
@@ -407,6 +426,12 @@ def get_contents_from_tree(
             elif p in dvc_lock_outs:
                 size = dvc_lock_outs[p].get("size")
                 obj_type = dvc_lock_outs[p]["type"]
+                storage = "dvc"
+            elif p in dvc_pointer_outs:
+                dvc_out = dvc_pointer_outs[p]
+                md5 = dvc_out.get("md5", "")
+                size = dvc_out.get("size")
+                obj_type = "dir" if md5.endswith(".dir") else "file"
                 storage = "dvc"
             else:
                 storage = None
