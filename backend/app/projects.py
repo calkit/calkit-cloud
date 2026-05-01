@@ -398,16 +398,24 @@ def get_contents_from_tree(
         for p in paths:
             if not p.endswith(".dvc"):
                 continue
-            actual_path = p[:-4]
-            if not actual_path or actual_path in dvc_lock_outs:
-                continue
             try:
                 dvc_file_data = yaml.safe_load(tree.read_text(p))
                 if not isinstance(dvc_file_data, dict):
                     continue
                 outs = dvc_file_data.get("outs")
                 out = outs[0] if isinstance(outs, list) and outs else {}
-                dvc_pointer_outs[actual_path] = out
+                out_path = out.get("path") if isinstance(out, dict) else None
+                if isinstance(out_path, str) and out_path:
+                    actual_path = os.path.normpath(
+                        os.path.join(os.path.dirname(p), out_path)
+                    )
+                else:
+                    actual_path = p[:-4]
+                if not actual_path or actual_path in dvc_lock_outs:
+                    continue
+                dvc_pointer_outs[actual_path] = (
+                    out if isinstance(out, dict) else {}
+                )
             except Exception as e:
                 logger.warning(f"Failed to read DVC pointer file {p}: {e}")
         dvc_paths = [
@@ -634,7 +642,7 @@ def get_contents_from_tree(
         dvc_pointer = path + ".dvc"
         if path in dvc_lock_outs or tree.is_file(dvc_pointer):
             if tree.is_file(dvc_pointer):
-                dvc_out = yaml.load(tree.read_text(dvc_pointer))["outs"][0]
+                dvc_out = _yaml_load(tree.read_text(dvc_pointer))["outs"][0]
             else:
                 dvc_out = dvc_lock_outs[path]
             md5 = dvc_out["md5"]

@@ -470,9 +470,7 @@ def test_get_project_figures_autodetects_dvc_pointer_files(
         "figures/data.txt",  # unsupported extension
     ]
     # Build fake blobs: use the .dvc pointer file paths
-    blobs = [
-        _make_fake_blob(p + ".dvc") for p in dvc_pointer_detected
-    ] + [
+    blobs = [_make_fake_blob(p + ".dvc") for p in dvc_pointer_detected] + [
         _make_fake_blob(p + ".dvc") for p in dvc_pointer_ignored
     ]
     fake_commit = SimpleNamespace()

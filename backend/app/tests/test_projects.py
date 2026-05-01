@@ -189,9 +189,7 @@ def test_get_contents_dvc_pointer_files_shown(
     repo.git.add(["."])
     repo.git.commit(["-m", "Add files"])
     # Root listing: figures/ dir should appear
-    root_item = app.projects.get_contents_from_repo(
-        project=project, repo=repo
-    )
+    root_item = app.projects.get_contents_from_repo(project=project, repo=repo)
     root_names = {item.name for item in (root_item.dir_items or [])}
     assert "figures" in root_names
     assert "README.md" in root_names
@@ -214,6 +212,43 @@ def test_get_contents_dvc_pointer_files_shown(
     assert dvc_entry.type == "file"
     git_entry = figures_by_name["plot.png.dvc"]
     assert git_entry.storage == "git"
+
+
+def test_get_contents_dvc_pointer_renamed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A .dvc pointer whose filename differs from outs[0].path is resolved correctly."""
+    monkeypatch.setattr(
+        app.projects, "expand_dvc_lock_outs", lambda *a, **k: {}
+    )
+    project = _make_project()
+    repo_dir = tmp_path / "repo"
+    repo = git.Repo.init(repo_dir)
+    repo.git.config(["user.name", "CI Test"])
+    repo.git.config(["user.email", "ci-test@example.com"])
+    figures_dir = repo_dir / "figures"
+    figures_dir.mkdir()
+    # Pointer filename (old_plot.png.dvc) differs from the tracked path (plot.png)
+    dvc_pointer = figures_dir / "old_plot.png.dvc"
+    dvc_pointer.write_text(
+        "outs:\n"
+        "- md5: abc123def456abc123def456abc12345\n"
+        "  size: 7777\n"
+        "  path: plot.png\n"
+    )
+    repo.git.add(["."])
+    repo.git.commit(["-m", "Add renamed pointer"])
+    figures_item = app.projects.get_contents_from_repo(
+        project=project, repo=repo, path="figures"
+    )
+    figures_by_name = {
+        item.name: item for item in (figures_item.dir_items or [])
+    }
+    assert "plot.png" in figures_by_name, (
+        "DVC-tracked path from outs[0].path should appear, not stripped pointer name"
+    )
+    assert figures_by_name["plot.png"].storage == "dvc"
+    assert figures_by_name["plot.png"].size == 7777
 
 
 def test_get_contents_dvc_pointer_dir_shown(
@@ -239,9 +274,7 @@ def test_get_contents_dvc_pointer_dir_shown(
     )
     repo.git.add(["data.dvc"])
     repo.git.commit(["-m", "Add data.dvc pointer"])
-    root_item = app.projects.get_contents_from_repo(
-        project=project, repo=repo
-    )
+    root_item = app.projects.get_contents_from_repo(project=project, repo=repo)
     items_by_name = {item.name: item for item in (root_item.dir_items or [])}
     assert "data" in items_by_name, (
         "DVC-tracked directory should appear without .dvc suffix"

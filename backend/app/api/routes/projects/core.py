@@ -127,7 +127,7 @@ router = APIRouter()
 DEFAULT_REPO_TTL = 60  # Seconds
 FULL_HISTORY_REPO_TTL = 10 * 60  # Seconds; history changes infrequently
 
-FIGURE_EXTS = {".png", ".jpg", ".jpeg", ".svg", ".gif"}
+FIGURE_EXTS = {".png", ".jpg", ".jpeg", ".svg", ".gif", ".pdf"}
 FIGURE_DIRS = {"figures", "figure", "figs", "fig", "plots", "images"}
 
 
@@ -1422,9 +1422,29 @@ def get_project_figures(
             # Also detect figures stored via standalone .dvc pointer files
             # (tracked with `dvc add`, not via a DVC pipeline stage).
             if blob_path.endswith(".dvc"):
-                actual_path = blob_path[:-4]
-                if actual_path:
-                    _maybe_add_figure(actual_path)
+                try:
+                    dvc_data = yaml.safe_load(blob.data_stream.read())  # type: ignore[union-attr]
+                    outs = (
+                        dvc_data.get("outs")
+                        if isinstance(dvc_data, dict)
+                        else None
+                    )
+                    out = outs[0] if isinstance(outs, list) and outs else None
+                    out_path = (
+                        out.get("path") if isinstance(out, dict) else None
+                    )
+                    if isinstance(out_path, str) and out_path:
+                        actual_path = os.path.normpath(
+                            os.path.join(os.path.dirname(blob_path), out_path)
+                        )
+                    else:
+                        actual_path = blob_path[:-4]
+                    if actual_path:
+                        _maybe_add_figure(actual_path)
+                except Exception:
+                    actual_path = blob_path[:-4]
+                    if actual_path:
+                        _maybe_add_figure(actual_path)
     except Exception:
         pass
     # Pre-compute calkit.yaml / dvc.lock metadata once for the tree so we
