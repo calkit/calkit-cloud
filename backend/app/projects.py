@@ -392,14 +392,46 @@ def get_contents_from_tree(
             paths = [os.path.join(dirname, n) for n in child_names]
         else:
             paths = []
+        # Derive tracked paths from standalone .dvc pointer files (files
+        # tracked with `dvc add`, not via a DVC pipeline stage in dvc.lock).
+        dvc_pointer_outs: dict[str, dict] = {}
+        for p in paths:
+            if not p.endswith(".dvc"):
+                continue
+            try:
+                dvc_file_data = yaml.safe_load(tree.read_text(p))
+                if not isinstance(dvc_file_data, dict):
+                    continue
+                outs = dvc_file_data.get("outs")
+                out = outs[0] if isinstance(outs, list) and outs else {}
+                out_path = out.get("path") if isinstance(out, dict) else None
+                if isinstance(out_path, str) and out_path:
+                    actual_path = os.path.normpath(
+                        os.path.join(os.path.dirname(p), out_path)
+                    )
+                else:
+                    actual_path = p[:-4]
+                if not actual_path or actual_path in dvc_lock_outs:
+                    continue
+                dvc_pointer_outs[actual_path] = (
+                    out if isinstance(out, dict) else {}
+                )
+            except Exception as e:
+                logger.warning(f"Failed to read DVC pointer file {p}: {e}")
         dvc_paths = [
             p for p, obj in dvc_lock_outs.items() if obj["dirname"] == dirname
         ]
-        all_paths = sorted(set(paths + dvc_paths))
+        all_paths = sorted(
+            set(paths + dvc_paths + list(dvc_pointer_outs.keys()))
+        )
         for p in all_paths:
             if p in ignore_paths:
                 continue
             in_repo = tree.exists(p)
+            # size and obj_type are set in each branch; pre-initialize for the
+            # fallthrough `else` case where the path has no metadata source.
+            size: int | None = None
+            obj_type: str = "file"
             if in_repo:
                 size = tree.size(p)
                 obj_type = "file" if tree.is_file(p) else "dir"
@@ -407,6 +439,12 @@ def get_contents_from_tree(
             elif p in dvc_lock_outs:
                 size = dvc_lock_outs[p].get("size")
                 obj_type = dvc_lock_outs[p]["type"]
+                storage = "dvc"
+            elif p in dvc_pointer_outs:
+                dvc_out = dvc_pointer_outs[p]
+                md5 = dvc_out.get("md5", "")
+                size = dvc_out.get("size")
+                obj_type = "dir" if md5.endswith(".dir") else "file"
                 storage = "dvc"
             else:
                 storage = None
@@ -604,7 +642,7 @@ def get_contents_from_tree(
         dvc_pointer = path + ".dvc"
         if path in dvc_lock_outs or tree.is_file(dvc_pointer):
             if tree.is_file(dvc_pointer):
-                dvc_out = yaml.load(tree.read_text(dvc_pointer))["outs"][0]
+                dvc_out = _yaml_load(tree.read_text(dvc_pointer))["outs"][0]
             else:
                 dvc_out = dvc_lock_outs[path]
             md5 = dvc_out["md5"]

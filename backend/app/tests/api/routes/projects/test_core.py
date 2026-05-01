@@ -445,3 +445,157 @@ def test_get_project_figures_dvc_no_duplicates_with_git(
     assert paths.count(shared_path) == 1, (
         f"Expected {shared_path!r} to appear exactly once, got {paths}"
     )
+
+
+def test_get_project_figures_autodetects_dvc_pointer_files(
+    client: TestClient,
+) -> None:
+    """Figures stored via standalone .dvc pointer files must be auto-detected.
+
+    When a blob ending in '.dvc' is found in the git tree (e.g.
+    'figures/plot.png.dvc'), the derived path ('figures/plot.png') should be
+    checked and added as a figure if it passes the extension/directory filter.
+    """
+    fake_project = SimpleNamespace(id="00000000-0000-0000-0000-000000000001")
+    fake_tree = SimpleNamespace()
+    fake_repo = SimpleNamespace()
+    # Blobs that are .dvc pointer files whose derived paths are figures
+    dvc_pointer_detected = [
+        "figures/plot.png",
+        "results/figures/result.pdf",
+    ]
+    # .dvc pointer files whose derived paths are NOT figures
+    dvc_pointer_ignored = [
+        "data/output.png",  # not in a figure dir
+        "figures/data.txt",  # unsupported extension
+    ]
+    # Build fake blobs: use the .dvc pointer file paths
+    blobs = [_make_fake_blob(p + ".dvc") for p in dvc_pointer_detected] + [
+        _make_fake_blob(p + ".dvc") for p in dvc_pointer_ignored
+    ]
+    fake_commit = SimpleNamespace()
+    fake_commit.tree = SimpleNamespace(traverse=lambda: iter(blobs))
+    fake_repo.head = SimpleNamespace(commit=fake_commit)
+    fake_contents = ContentsItem(
+        name="fig",
+        path="fig",
+        type="file",
+        size=0,
+        in_repo=True,
+        content=None,
+        url=None,
+        storage=None,
+    )
+    with (
+        patch(
+            "app.api.routes.projects.core.app.projects.get_project",
+            return_value=fake_project,
+        ),
+        patch(
+            "app.api.routes.projects.core.get_repo",
+            return_value=fake_repo,
+        ),
+        patch(
+            "app.api.routes.projects.core.app.projects.get_ck_info_for_ref",
+            return_value={},
+        ),
+        patch(
+            "app.api.routes.projects.core.app.projects.get_repo_tree_for_ref",
+            return_value=fake_tree,
+        ),
+        patch(
+            "app.api.routes.projects.core.app.projects.get_ck_info_and_dvc_outs_from_tree",
+            return_value=({}, {}, {}),
+        ),
+        patch(
+            "app.api.routes.projects.core.app.projects.get_contents_from_tree",
+            return_value=fake_contents,
+        ),
+    ):
+        response = client.get(
+            f"{settings.API_V1_STR}/projects/test-owner/test-project/figures"
+        )
+    assert response.status_code == 200
+    returned_figures = response.json()
+    returned_paths = {fig["path"] for fig in returned_figures}
+    for path in dvc_pointer_detected:
+        assert path in returned_paths, (
+            f"Expected .dvc-pointer-tracked figure {path!r} to be detected"
+        )
+    for path in dvc_pointer_ignored:
+        assert path not in returned_paths, (
+            f"Expected .dvc-pointer-tracked non-figure {path!r} to be ignored"
+        )
+    # The .dvc pointer files themselves must not appear as figures
+    for path in dvc_pointer_detected + dvc_pointer_ignored:
+        assert path + ".dvc" not in returned_paths, (
+            f"Pointer file {path + '.dvc'!r} must not appear as a figure"
+        )
+
+
+def test_get_project_figures_dvc_pointer_no_duplicates_with_dvc_lock(
+    client: TestClient,
+) -> None:
+    """A figure in both dvc_lock_outs and a .dvc pointer blob must appear once.
+
+    If a path is already in dvc_lock_outs (pipeline output), encountering the
+    corresponding .dvc blob in the git tree must not produce a duplicate.
+    """
+    fake_project = SimpleNamespace(id="00000000-0000-0000-0000-000000000001")
+    fake_tree = SimpleNamespace()
+    shared_path = "figures/shared.png"
+    # Git tree contains a .dvc pointer blob for the same figure
+    fake_blob = _make_fake_blob(shared_path + ".dvc")
+    fake_commit = SimpleNamespace()
+    fake_commit.tree = SimpleNamespace(traverse=lambda: iter([fake_blob]))
+    fake_repo = SimpleNamespace()
+    fake_repo.head = SimpleNamespace(commit=fake_commit)
+    # Same path also appears in dvc_lock_outs (pipeline output)
+    dvc_lock_outs = {
+        shared_path: {"path": shared_path, "md5": "abc123", "type": "file"},
+    }
+    fake_contents = ContentsItem(
+        name="fig",
+        path="fig",
+        type="file",
+        size=0,
+        in_repo=True,
+        content=None,
+        url=None,
+        storage=None,
+    )
+    with (
+        patch(
+            "app.api.routes.projects.core.app.projects.get_project",
+            return_value=fake_project,
+        ),
+        patch(
+            "app.api.routes.projects.core.get_repo",
+            return_value=fake_repo,
+        ),
+        patch(
+            "app.api.routes.projects.core.app.projects.get_ck_info_for_ref",
+            return_value={},
+        ),
+        patch(
+            "app.api.routes.projects.core.app.projects.get_repo_tree_for_ref",
+            return_value=fake_tree,
+        ),
+        patch(
+            "app.api.routes.projects.core.app.projects.get_ck_info_and_dvc_outs_from_tree",
+            return_value=({}, dvc_lock_outs, {}),
+        ),
+        patch(
+            "app.api.routes.projects.core.app.projects.get_contents_from_tree",
+            return_value=fake_contents,
+        ),
+    ):
+        response = client.get(
+            f"{settings.API_V1_STR}/projects/test-owner/test-project/figures"
+        )
+    assert response.status_code == 200
+    returned_figures = response.json()
+    returned_paths = [fig["path"] for fig in returned_figures]
+    assert returned_paths.count(shared_path) == 1, (
+        f"Expected {shared_path!r} to appear exactly once, got {returned_paths}"
+    )
