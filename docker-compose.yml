@@ -90,6 +90,7 @@ services:
     networks:
       - traefik-public
       - default
+      - monitoring
     depends_on:
       db:
         condition: service_healthy
@@ -127,7 +128,8 @@ services:
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID?Variable not set}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET?Variable not set}
       - GOOGLE_CREDENTIALS=${GOOGLE_CREDENTIALS-}
-    command: ["fastapi", "run", "--workers", "8", "app/main.py"]
+      - PROMETHEUS_MULTIPROC_DIR=/tmp/prometheus_multiproc
+    command: ["sh", "-c", "mkdir -p /tmp/prometheus_multiproc && exec fastapi run --workers 8 app/main.py"]
     build:
       context: ./backend
       args:
@@ -158,13 +160,13 @@ services:
     networks:
       - traefik-public
       - default
+      - monitoring
     depends_on:
       db:
         condition: service_healthy
         restart: true
       prestart:
         condition: service_completed_successfully
-    command: ["fastapi", "run", "--workers", "4", "app/main.py"]
     environment:
       - PROJECT_NAME=${PROJECT_NAME}
       - DOMAIN=${DOMAIN}
@@ -196,6 +198,8 @@ services:
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID?Variable not set}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET?Variable not set}
       - GOOGLE_CREDENTIALS=${GOOGLE_CREDENTIALS-}
+      - PROMETHEUS_MULTIPROC_DIR=/tmp/prometheus_multiproc
+    command: ["sh", "-c", "mkdir -p /tmp/prometheus_multiproc && exec fastapi run --workers 4 app/main.py"]
     labels:
       - traefik.enable=true
       - traefik.docker.network=traefik-public
@@ -289,4 +293,6 @@ volumes:
 networks:
   traefik-public:
     # Allow setting it to false for testing
+    external: true
+  monitoring:
     external: true
