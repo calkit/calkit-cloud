@@ -90,7 +90,6 @@ services:
     networks:
       - traefik-public
       - default
-      - monitoring
     depends_on:
       db:
         condition: service_healthy
@@ -160,7 +159,6 @@ services:
     networks:
       - traefik-public
       - default
-      - monitoring
     depends_on:
       db:
         condition: service_healthy
@@ -285,14 +283,73 @@ services:
       - traefik.http.routers.${STACK_NAME?Variable not set}-minio-admin-https.service=${STACK_NAME?Variable not set}-minio-admin
       - traefik.http.services.${STACK_NAME?Variable not set}-minio-admin.loadbalancer.server.port=9001
 
+  prometheus:
+    image: prom/prometheus:v3.3.1
+    restart: always
+    volumes:
+      - ./config/prometheus:/etc/prometheus:ro
+      - prometheus-data:/prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=30d
+      - --web.console.libraries=/usr/share/prometheus/console_libraries
+      - --web.console.templates=/usr/share/prometheus/consoles
+
+  loki:
+    image: grafana/loki:3.5.0
+    restart: always
+    volumes:
+      - ./config/loki:/etc/loki:ro
+      - loki-data:/loki
+    command: -config.file=/etc/loki/loki.yml
+
+  alloy:
+    image: grafana/alloy:v1.8.3
+    restart: always
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./config/alloy:/etc/alloy:ro
+      - alloy-data:/var/lib/alloy/data
+    command: run --storage.path=/var/lib/alloy/data /etc/alloy/config.alloy
+
+  grafana:
+    image: grafana/grafana:12.0.0
+    restart: always
+    networks:
+      - traefik-public
+      - default
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./config/grafana/provisioning:/etc/grafana/provisioning:ro
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD?Variable not set}
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SERVER_ROOT_URL=https://grafana.${DOMAIN?Variable not set}
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=traefik-public
+      - traefik.constraint-label=traefik-public
+      - traefik.http.routers.${STACK_NAME?Variable not set}-grafana-http.rule=Host(`grafana.${DOMAIN?Variable not set}`)
+      - traefik.http.routers.${STACK_NAME?Variable not set}-grafana-http.entrypoints=http
+      - traefik.http.routers.${STACK_NAME?Variable not set}-grafana-http.middlewares=https-redirect
+      - traefik.http.routers.${STACK_NAME?Variable not set}-grafana-https.rule=Host(`grafana.${DOMAIN?Variable not set}`)
+      - traefik.http.routers.${STACK_NAME?Variable not set}-grafana-https.entrypoints=https
+      - traefik.http.routers.${STACK_NAME?Variable not set}-grafana-https.tls=true
+      - traefik.http.routers.${STACK_NAME?Variable not set}-grafana-https.tls.certresolver=le
+      - traefik.http.services.${STACK_NAME?Variable not set}-grafana.loadbalancer.server.port=3000
+
 volumes:
   app-db-data:
   minio-data:
     driver: local
+  prometheus-data:
+  loki-data:
+  grafana-data:
+  alloy-data:
 
 networks:
   traefik-public:
     # Allow setting it to false for testing
-    external: true
-  monitoring:
     external: true
