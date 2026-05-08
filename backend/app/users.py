@@ -262,6 +262,7 @@ def get_github_token(session: Session, user: User) -> str:
                 grant_type="refresh_token",
                 refresh_token=tokens["refresh_token"],
             ),
+            timeout=15,
         )
         logger.info(f"GitHub token refresh status code: {resp.status_code}")
         gh_resp = token_resp_text_to_dict(resp.text)
@@ -373,6 +374,7 @@ def get_zenodo_token(session: Session, user: User) -> str:
                 grant_type="refresh_token",
                 refresh_token=tokens["refresh_token"],
             ),
+            timeout=15,
         )
         logger.info(f"Refreshed Zenodo token; status code: {resp.status_code}")
         try:
@@ -511,6 +513,7 @@ def get_google_token(session: Session, user: User) -> str:
                 grant_type="refresh_token",
                 refresh_token=tokens["refresh_token"],
             ),
+            timeout=15,
         )
         logger.info(f"Google token refresh status code: {resp.status_code}")
         # Handle failure

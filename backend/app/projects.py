@@ -161,6 +161,7 @@ def get_project(
                     resp = requests.get(
                         url,
                         headers={"Authorization": f"Bearer {github_token}"},
+                        timeout=15,
                     )
                     if resp.status_code == 200:
                         logger.info("Fetched permissions from GitHub")
