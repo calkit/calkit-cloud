@@ -37,6 +37,8 @@ dependencies = [
   "calkit-python==0.38.0",
   "boto3>=1.40.70",
   "cachetools>=5.3.3",
+  "prometheus-fastapi-instrumentator>=7.0.0",
+  "python-json-logger>=2.0.0",
 ]
 
 [dependency-groups]

@@ -1,22 +1,47 @@
 """Main FastAPI application and entry point for the Calkit Cloud backend."""
 
 import logging
+import os
+import time
+from collections.abc import Awaitable, Callable
 
 import sentry_sdk
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from fastapi.routing import APIRoute
 from git.exc import GitCommandError
+from pythonjsonlogger import jsonlogger
 from starlette.middleware.cors import CORSMiddleware
 
 from app.api.main import api_router
 from app.config import settings
 
+# Prometheus multiprocess mode requires its data dir to exist *before*
+# prometheus_client is imported (which the instrumentator import below
+# triggers). Create it here so this holds even if the startup script
+# didn't pre-create it.
+_prom_dir = os.environ.get(
+    "PROMETHEUS_MULTIPROC_DIR", os.environ.get("prometheus_multiproc_dir")
+)
+if _prom_dir:
+    os.makedirs(_prom_dir, exist_ok=True)
+
+from prometheus_fastapi_instrumentator import Instrumentator  # noqa: E402
+
+# Configure JSON logging so Loki can parse structured log lines.
+handler = logging.StreamHandler()
+handler.setFormatter(
+    jsonlogger.JsonFormatter("%(asctime)s %(name)s %(levelname)s %(message)s")
+)
+logging.basicConfig(level=logging.INFO, handlers=[handler])
+
 logger = logging.getLogger(__name__)
 
 
 def custom_generate_unique_id(route: APIRoute) -> str:
-    return f"{route.tags[0]}-{route.name}"
+    if route.tags:
+        return f"{route.tags[0]}-{route.name}"
+    return route.name
 
 
 if settings.SENTRY_DSN and settings.ENVIRONMENT != "local":
@@ -39,6 +64,43 @@ if settings.BACKEND_CORS_ORIGINS:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+Instrumentator(
+    # A hung request never records a duration (that only happens on
+    # completion), so without this gauge a stuck endpoint is invisible in
+    # Grafana. With it, a hang shows up live as a non-zero in-progress count
+    # for that handler.
+    should_instrument_requests_inprogress=True,
+    inprogress_name="http_requests_inprogress",
+    inprogress_labels=True,
+).instrument(app).expose(app)
+
+
+# High-frequency endpoints that would otherwise dominate log volume (and
+# cost) without adding diagnostic value.
+_LOG_SKIP_PATHS = {"/metrics"}
+
+
+@app.middleware("http")
+async def log_requests(
+    request: Request,
+    call_next: Callable[[Request], Awaitable[Response]],
+) -> Response:
+    start = time.perf_counter()
+    response = await call_next(request)
+    if request.url.path in _LOG_SKIP_PATHS:
+        return response
+    duration_ms = round((time.perf_counter() - start) * 1000, 2)
+    logger.info(
+        "request",
+        extra={
+            "method": request.method,
+            "path": request.url.path,
+            "status_code": response.status_code,
+            "duration_ms": duration_ms,
+        },
+    )
+    return response
 
 
 @app.exception_handler(GitCommandError)

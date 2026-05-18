@@ -21,6 +21,7 @@ env:
   SECRET_KEY: test-secret-key-for-ci
   FERNET_KEY: test-fernet-key-for-ci
   FERNET_KEYS: test-fernet-key-for-ci
+  GRAFANA_ADMIN_PASSWORD: test-grafana-admin-password-for-ci
 
 jobs:
   backend:

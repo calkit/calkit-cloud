@@ -127,7 +127,10 @@ services:
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID?Variable not set}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET?Variable not set}
       - GOOGLE_CREDENTIALS=${GOOGLE_CREDENTIALS-}
-    command: ["fastapi", "run", "--workers", "8", "app/main.py"]
+      - PROMETHEUS_MULTIPROC_DIR=/tmp/prometheus_multiproc
+    # Wipe stale per-worker metric files from a previous run so restarts
+    # don't double-count, then recreate the dir before workers start.
+    command: ["sh", "-c", "rm -rf /tmp/prometheus_multiproc && mkdir -p /tmp/prometheus_multiproc && exec fastapi run --workers 8 app/main.py"]
     build:
       context: ./backend
       args:
@@ -143,6 +146,18 @@ services:
       - traefik.http.routers.${STACK_NAME?Variable not set}-backend-https.entrypoints=https
       - traefik.http.routers.${STACK_NAME?Variable not set}-backend-https.tls=true
       - traefik.http.routers.${STACK_NAME?Variable not set}-backend-https.tls.certresolver=le
+      # Prometheus scrapes backend:8000 directly over the Docker network, so
+      # /metrics has no legitimate public consumer. A dedicated higher-priority
+      # router restricts it to private networks to avoid leaking internal
+      # route/latency info publicly.
+      - traefik.http.middlewares.${STACK_NAME?Variable not set}-metrics-internal.ipallowlist.sourcerange=127.0.0.1/32,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16
+      - traefik.http.routers.${STACK_NAME?Variable not set}-backend-metrics-https.rule=Host(`api.${DOMAIN?Variable not set}`) && PathPrefix(`/metrics`)
+      - traefik.http.routers.${STACK_NAME?Variable not set}-backend-metrics-https.entrypoints=https
+      - traefik.http.routers.${STACK_NAME?Variable not set}-backend-metrics-https.priority=100
+      - traefik.http.routers.${STACK_NAME?Variable not set}-backend-metrics-https.tls=true
+      - traefik.http.routers.${STACK_NAME?Variable not set}-backend-metrics-https.tls.certresolver=le
+      - traefik.http.routers.${STACK_NAME?Variable not set}-backend-metrics-https.middlewares=${STACK_NAME?Variable not set}-metrics-internal
+      - traefik.http.routers.${STACK_NAME?Variable not set}-backend-metrics-https.service=${STACK_NAME?Variable not set}-backend
       # Define Traefik Middleware to handle domain with and without "www" to redirect to only one
       - traefik.http.middlewares.${STACK_NAME?Variable not set}-www-redirect.redirectregex.regex=^http(s)?://www.(${DOMAIN?Variable not set})/(.*)
       # Redirect a domain with www to non-www
@@ -164,7 +179,6 @@ services:
         restart: true
       prestart:
         condition: service_completed_successfully
-    command: ["fastapi", "run", "--workers", "4", "app/main.py"]
     environment:
       - PROJECT_NAME=${PROJECT_NAME}
       - DOMAIN=${DOMAIN}
@@ -196,6 +210,10 @@ services:
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID?Variable not set}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET?Variable not set}
       - GOOGLE_CREDENTIALS=${GOOGLE_CREDENTIALS-}
+      - PROMETHEUS_MULTIPROC_DIR=/tmp/prometheus_multiproc
+    # Wipe stale per-worker metric files from a previous run so restarts
+    # don't double-count, then recreate the dir before workers start.
+    command: ["sh", "-c", "rm -rf /tmp/prometheus_multiproc && mkdir -p /tmp/prometheus_multiproc && exec fastapi run --workers 4 app/main.py"]
     labels:
       - traefik.enable=true
       - traefik.docker.network=traefik-public
@@ -281,10 +299,71 @@ services:
       - traefik.http.routers.${STACK_NAME?Variable not set}-minio-admin-https.service=${STACK_NAME?Variable not set}-minio-admin
       - traefik.http.services.${STACK_NAME?Variable not set}-minio-admin.loadbalancer.server.port=9001
 
+  prometheus:
+    image: prom/prometheus:v3.3.1
+    restart: always
+    volumes:
+      - ./config/prometheus:/etc/prometheus:ro
+      - prometheus-data:/prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=30d
+      - --web.console.libraries=/usr/share/prometheus/console_libraries
+      - --web.console.templates=/usr/share/prometheus/consoles
+
+  loki:
+    image: grafana/loki:3.5.0
+    restart: always
+    volumes:
+      - ./config/loki:/etc/loki:ro
+      - loki-data:/loki
+    command: -config.file=/etc/loki/loki.yml
+
+  alloy:
+    image: grafana/alloy:v1.8.3
+    restart: always
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./config/alloy:/etc/alloy:ro
+      - alloy-data:/var/lib/alloy/data
+    command: run --storage.path=/var/lib/alloy/data /etc/alloy/config.alloy
+
+  grafana:
+    image: grafana/grafana:12.0.0
+    restart: always
+    networks:
+      - traefik-public
+      - default
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./config/grafana/provisioning:/etc/grafana/provisioning:ro
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD?Variable not set}
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SERVER_ROOT_URL=https://grafana.${DOMAIN?Variable not set}
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=traefik-public
+      - traefik.constraint-label=traefik-public
+      - traefik.http.routers.${STACK_NAME?Variable not set}-grafana-http.rule=Host(`grafana.${DOMAIN?Variable not set}`)
+      - traefik.http.routers.${STACK_NAME?Variable not set}-grafana-http.entrypoints=http
+      - traefik.http.routers.${STACK_NAME?Variable not set}-grafana-http.middlewares=https-redirect
+      - traefik.http.routers.${STACK_NAME?Variable not set}-grafana-https.rule=Host(`grafana.${DOMAIN?Variable not set}`)
+      - traefik.http.routers.${STACK_NAME?Variable not set}-grafana-https.entrypoints=https
+      - traefik.http.routers.${STACK_NAME?Variable not set}-grafana-https.tls=true
+      - traefik.http.routers.${STACK_NAME?Variable not set}-grafana-https.tls.certresolver=le
+      - traefik.http.services.${STACK_NAME?Variable not set}-grafana.loadbalancer.server.port=3000
+
 volumes:
   app-db-data:
   minio-data:
     driver: local
+  prometheus-data:
+  loki-data:
+  grafana-data:
+  alloy-data:
 
 networks:
   traefik-public:
