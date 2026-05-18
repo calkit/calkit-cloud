@@ -80,6 +80,10 @@ def _make_git_auth_env(
         "GIT_CONFIG_VALUE_1": f"!{_get_credential_helper()}",
         "GIT_TOKEN": token,
         "GIT_TERMINAL_PROMPT": "0",
+        # Abort HTTPS transfers that stall (<1 KB/s for 60s) so a slow or
+        # unresponsive remote can't wedge a worker indefinitely.
+        "GIT_HTTP_LOW_SPEED_LIMIT": "1000",
+        "GIT_HTTP_LOW_SPEED_TIME": "60",
     }
     if username is not None:
         env["GIT_USER"] = username
@@ -138,7 +142,7 @@ def get_repo(
                         if access_token
                         else None
                     )
-                    subprocess.check_call(clone_cmd, env=env)
+                    subprocess.check_call(clone_cmd, env=env, timeout=300)
                 except subprocess.CalledProcessError:
                     logger.error("Failed to clone repo")
                     # It's possible another process cloned this repo just as
@@ -372,6 +376,7 @@ def get_overleaf_repo(
         subprocess.check_call(
             ["git", "clone", git_plain_url, repo_dir],
             env={**os.environ, **overleaf_auth},
+            timeout=300,
         )
         repo = git.Repo(repo_dir)
         repo.git.update_environment(**overleaf_auth)
@@ -906,8 +911,13 @@ def get_file_history(
                 seen.add(c["hash"])
                 commits.append(c)
     if check_dvc_lock:
+        # Walk a few multiples of ``max_count`` so we still surface
+        # transitions even when most dvc.lock commits don't touch this path,
+        # but cap the absolute count to keep the YAML-parse loop bounded on
+        # repos with very chatty dvc.lock histories.
+        dvc_lock_walk = min(max_count * 4, 400)
         lock_commits = _get_commits_for_paths(
-            repo, max_count * 4, ["dvc.lock"]
+            repo, dvc_lock_walk, ["dvc.lock"]
         )
         specs = [f"{c['hash']}:dvc.lock" for c in lock_commits]
         blobs = _batch_read_blobs(repo, specs)
