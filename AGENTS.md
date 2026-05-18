@@ -50,18 +50,25 @@ Key points:
 ## Common Patterns
 
 ### Modifying API Contracts
+
 1. Update backend route in `backend/app/api/routes/`
 2. Regenerate the client: `make frontend-client`
 3. Update frontend code to use new/changed SDK methods
 4. Format both: `make format`
 
 ### Adding Database Features
+
 1. Add `SQLModel` class in `backend/app/models/core.py`
 2. Create migration: `docker compose exec backend alembic revision --autogenerate -m "Add new_table"`
 3. Apply migration: `docker compose exec backend alembic upgrade head`
 4. Commit the migration file in `backend/app/alembic/versions/`
 
 ### Building and Testing
+
 - Local frontend build: `cd frontend && npm run build`
 - Docker frontend build: `docker compose build frontend`
 - Backend tests: `make test-backend`
+
+## Misc rules
+
+Version control operations are for humans, not agents.
