@@ -26,11 +26,12 @@ from app.models import GitRef, Project, User
 
 _SYMLINK_MODE = 0o120000
 
-# Max seconds a single git network subprocess (fetch/clone) may run before
-# it is killed. Without this, a stalled connection to GitHub hangs the
-# worker indefinitely (the GIT_HTTP_LOW_SPEED guard only catches slow
-# transfers, not a stalled handshake/auth).
-GIT_NETWORK_TIMEOUT = 120
+# Max seconds a single git network subprocess may run before being killed,
+# so a stalled remote can't wedge a worker indefinitely. Clone gets a
+# larger budget than fetch since initial clones of large repos are
+# legitimately slower.
+GIT_CLONE_TIMEOUT = 300
+GIT_FETCH_TIMEOUT = 120
 
 
 @contextmanager
@@ -160,7 +161,7 @@ def get_repo(
     access_token: str | None = None
     if user is not None:
         logger.info(f"Getting {user.email}'s access token for Git operations")
-        with _timed("get-github-token", user=user.email):
+        with _timed("get-github-token", user=user.github_username):
             access_token = users.get_github_token(session=session, user=user)
     # Plain URL with no embedded token -- credentials handled in helper
     git_plain_url = project.git_repo_url
@@ -187,7 +188,7 @@ def get_repo(
                         subprocess.check_call(
                             clone_cmd,
                             env=env,
-                            timeout=GIT_NETWORK_TIMEOUT,
+                            timeout=GIT_CLONE_TIMEOUT,
                         )
                 except subprocess.CalledProcessError:
                     logger.error("Failed to clone repo")
@@ -248,7 +249,7 @@ def get_repo(
                     with _timed("fetch-unshallow", repo=repo_label):
                         repo.git.fetch(
                             ["--unshallow", "--tags"],
-                            kill_after_timeout=GIT_NETWORK_TIMEOUT,
+                            kill_after_timeout=GIT_FETCH_TIMEOUT,
                         )
                     subprocess.call(["touch", updated_fpath])
                 if not is_shallow:
@@ -260,7 +261,7 @@ def get_repo(
                         ):
                             repo.git.fetch(
                                 ["origin", branch_name],
-                                kill_after_timeout=GIT_NETWORK_TIMEOUT,
+                                kill_after_timeout=GIT_FETCH_TIMEOUT,
                             )
                         # If we had any failed previous transactions, reset
                         # and clean
@@ -274,7 +275,7 @@ def get_repo(
                         with _timed("fetch-all", repo=repo_label):
                             repo.git.fetch(
                                 ["--all", "--tags"],
-                                kill_after_timeout=GIT_NETWORK_TIMEOUT,
+                                kill_after_timeout=GIT_FETCH_TIMEOUT,
                             )
                     subprocess.call(["touch", updated_fpath])
                 did_refresh = True

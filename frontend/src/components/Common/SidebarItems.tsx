@@ -61,7 +61,7 @@ const SidebarItems = ({ onClose, basePath }: SidebarItemsProps) => {
     error: localServerError,
     data: localServerData,
   } = useQuery({
-    queryKey: ["local-server-sidebar"],
+    queryKey: ["local-server-sidebar", accountName, projectName],
     queryFn: () =>
       // The Calkit local server is usually not running. Fail fast so a
       // silently-dropped connection can't leave a request hanging; the

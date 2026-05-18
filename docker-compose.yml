@@ -128,7 +128,9 @@ services:
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET?Variable not set}
       - GOOGLE_CREDENTIALS=${GOOGLE_CREDENTIALS-}
       - PROMETHEUS_MULTIPROC_DIR=/tmp/prometheus_multiproc
-    command: ["sh", "-c", "mkdir -p /tmp/prometheus_multiproc && exec fastapi run --workers 8 app/main.py"]
+    # Wipe stale per-worker metric files from a previous run so restarts
+    # don't double-count, then recreate the dir before workers start.
+    command: ["sh", "-c", "rm -rf /tmp/prometheus_multiproc && mkdir -p /tmp/prometheus_multiproc && exec fastapi run --workers 8 app/main.py"]
     build:
       context: ./backend
       args:
@@ -144,6 +146,18 @@ services:
       - traefik.http.routers.${STACK_NAME?Variable not set}-backend-https.entrypoints=https
       - traefik.http.routers.${STACK_NAME?Variable not set}-backend-https.tls=true
       - traefik.http.routers.${STACK_NAME?Variable not set}-backend-https.tls.certresolver=le
+      # Prometheus scrapes backend:8000 directly over the Docker network, so
+      # /metrics has no legitimate public consumer. A dedicated higher-priority
+      # router restricts it to private networks to avoid leaking internal
+      # route/latency info publicly.
+      - traefik.http.middlewares.${STACK_NAME?Variable not set}-metrics-internal.ipallowlist.sourcerange=127.0.0.1/32,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16
+      - traefik.http.routers.${STACK_NAME?Variable not set}-backend-metrics-https.rule=Host(`api.${DOMAIN?Variable not set}`) && PathPrefix(`/metrics`)
+      - traefik.http.routers.${STACK_NAME?Variable not set}-backend-metrics-https.entrypoints=https
+      - traefik.http.routers.${STACK_NAME?Variable not set}-backend-metrics-https.priority=100
+      - traefik.http.routers.${STACK_NAME?Variable not set}-backend-metrics-https.tls=true
+      - traefik.http.routers.${STACK_NAME?Variable not set}-backend-metrics-https.tls.certresolver=le
+      - traefik.http.routers.${STACK_NAME?Variable not set}-backend-metrics-https.middlewares=${STACK_NAME?Variable not set}-metrics-internal
+      - traefik.http.routers.${STACK_NAME?Variable not set}-backend-metrics-https.service=${STACK_NAME?Variable not set}-backend
       # Define Traefik Middleware to handle domain with and without "www" to redirect to only one
       - traefik.http.middlewares.${STACK_NAME?Variable not set}-www-redirect.redirectregex.regex=^http(s)?://www.(${DOMAIN?Variable not set})/(.*)
       # Redirect a domain with www to non-www
@@ -197,7 +211,9 @@ services:
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET?Variable not set}
       - GOOGLE_CREDENTIALS=${GOOGLE_CREDENTIALS-}
       - PROMETHEUS_MULTIPROC_DIR=/tmp/prometheus_multiproc
-    command: ["sh", "-c", "mkdir -p /tmp/prometheus_multiproc && exec fastapi run --workers 4 app/main.py"]
+    # Wipe stale per-worker metric files from a previous run so restarts
+    # don't double-count, then recreate the dir before workers start.
+    command: ["sh", "-c", "rm -rf /tmp/prometheus_multiproc && mkdir -p /tmp/prometheus_multiproc && exec fastapi run --workers 4 app/main.py"]
     labels:
       - traefik.enable=true
       - traefik.docker.network=traefik-public
