@@ -810,7 +810,9 @@ def get_project_history(
     project_name: str,
     session: SessionDep,
     current_user: CurrentUserOptional,
-    limit: int = Query(50, description="Max number of commits to return"),
+    limit: int = Query(
+        50, le=200, description="Max number of commits to return"
+    ),
     offset: int = Query(0, description="Number of commits to skip"),
     ref: Optional[str] = Query(
         None, description="Branch, tag, or commit to read history from"
@@ -976,7 +978,9 @@ def get_project_file_history(
     path: str,
     session: SessionDep,
     current_user: CurrentUserOptional,
-    limit: int = Query(100, description="Max number of commits to return"),
+    limit: int = Query(
+        100, le=200, description="Max number of commits to return"
+    ),
     storage: Optional[Literal["git", "dvc", "dvc-zip"]] = Query(
         None,
         description=(
