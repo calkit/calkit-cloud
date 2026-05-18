@@ -63,7 +63,13 @@ const SidebarItems = ({ onClose, basePath }: SidebarItemsProps) => {
   } = useQuery({
     queryKey: ["local-server-sidebar"],
     queryFn: () =>
-      axios.get(`http://localhost:8866/projects/${accountName}/${projectName}`),
+      // The Calkit local server is usually not running. Fail fast so a
+      // silently-dropped connection can't leave a request hanging; the
+      // result only controls the sidebar "running locally" icon color.
+      axios.get(
+        `http://localhost:8866/projects/${accountName}/${projectName}`,
+        { timeout: 2000 },
+      ),
     retry: false,
   })
   const localMachineColor =

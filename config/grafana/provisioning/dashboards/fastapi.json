@@ -2,7 +2,7 @@
   "title": "FastAPI",
   "uid": "fastapi-overview",
   "schemaVersion": 38,
-  "version": 1,
+  "version": 2,
   "refresh": "30s",
   "time": { "from": "now-1h", "to": "now" },
   "panels": [
@@ -74,10 +74,44 @@
       ]
     },
     {
+      "id": 6,
+      "title": "Requests In Progress (hung requests stay > 0 here)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "A request that never completes records no latency or status, but its handler stays non-zero here. If e.g. the git/refs handler sits at 1+ with no traffic, it is hung.",
+      "targets": [
+        {
+          "expr": "sum by (handler) (http_requests_inprogress{job=~\"backend|backend-dvc\", handler!=\"/metrics\"})",
+          "legendFormat": "{{handler}}"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Git Operation Timings (start/done, duration_ms)",
+      "type": "logs",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "description": "Structured git_op logs from get_repo. A 'git op start' with no matching 'git op done' is a hanging git subprocess (clone/fetch/token).",
+      "targets": [
+        {
+          "expr": "{service=~\"backend|backend-dvc\"} | json | git_op =~ \".+\"",
+          "legendFormat": ""
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": true,
+        "wrapLogMessage": true,
+        "sortOrder": "Descending"
+      }
+    },
+    {
       "id": 5,
       "title": "Application Logs",
       "type": "logs",
-      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 16 },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 24 },
       "datasource": { "type": "loki", "uid": "loki" },
       "targets": [
         {

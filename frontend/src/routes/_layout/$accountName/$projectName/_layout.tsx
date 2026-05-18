@@ -47,7 +47,6 @@ import { FaGithub, FaQuestion, FaRegClone } from "react-icons/fa"
 import { LuCopyPlus } from "react-icons/lu"
 import { MdEdit } from "react-icons/md"
 import { BsThreeDots } from "react-icons/bs"
-import axios from "axios"
 import mixpanel from "mixpanel-browser"
 
 import LoadingSpinner from "../../../../components/Common/LoadingSpinner"
@@ -376,12 +375,6 @@ function ProjectLayout() {
     }
   }, [project, accountName, projectName, navigate])
   const helpDrawer = useDisclosure()
-  const localServerQuery = useQuery({
-    queryKey: ["local-server", accountName, projectName],
-    queryFn: () =>
-      axios.get(`http://localhost:8866/projects/${accountName}/${projectName}`),
-    retry: false,
-  })
   const refsQuery = useQuery({
     queryKey: ["projects", accountName, projectName, "refs"],
     queryFn: () =>
@@ -410,7 +403,7 @@ function ProjectLayout() {
 
   return (
     <>
-      {isPending || localServerQuery.isPending ? (
+      {isPending ? (
         <LoadingSpinner height="100vh" />
       ) : (
         <Flex>

@@ -20,9 +20,7 @@ from app.config import settings
 # Configure JSON logging so Loki can parse structured log lines.
 handler = logging.StreamHandler()
 handler.setFormatter(
-    jsonlogger.JsonFormatter(
-        "%(asctime)s %(name)s %(levelname)s %(message)s"
-    )
+    jsonlogger.JsonFormatter("%(asctime)s %(name)s %(levelname)s %(message)s")
 )
 logging.basicConfig(level=logging.INFO, handlers=[handler])
 
@@ -63,7 +61,15 @@ if settings.BACKEND_CORS_ORIGINS:
         allow_headers=["*"],
     )
 
-Instrumentator().instrument(app).expose(app)
+Instrumentator(
+    # A hung request never records a duration (that only happens on
+    # completion), so without this gauge a stuck endpoint is invisible in
+    # Grafana. With it, a hang shows up live as a non-zero in-progress count
+    # for that handler.
+    should_instrument_requests_inprogress=True,
+    inprogress_name="http_requests_inprogress",
+    inprogress_labels=True,
+).instrument(app).expose(app)
 
 
 @app.middleware("http")
