@@ -3555,20 +3555,20 @@ def get_project_pipeline(
         ttl=DEFAULT_REPO_TTL,
         ref=ref,
     )
-    fpath = os.path.join(repo.working_dir, "dvc.yaml")
-    if not os.path.isfile(fpath):
+    # Read files at the requested ref rather than the live checkout, which
+    # always reflects the default branch (get_repo only fetches a ref, it
+    # does not check it out).
+    tree = app.projects.get_repo_tree_for_ref(repo, ref)
+    if not tree.is_file("dvc.yaml"):
         return
-    with open(fpath) as f:
-        dvc_content = f.read()
+    dvc_content = tree.read_text("dvc.yaml")
     dvc_pipeline = ryaml.load(dvc_content)
     # Pop off any private stages
     for stage_name in list(dvc_pipeline.get("stages", {}).keys()):
         if stage_name.startswith("_"):
             dvc_pipeline["stages"].pop(stage_name)
-    params_fpath = os.path.join(repo.working_dir, "params.yaml")
-    if os.path.isfile(params_fpath):
-        with open(params_fpath) as f:
-            params = ryaml.load(f)
+    if tree.is_file("params.yaml"):
+        params = ryaml.load(tree.read_text("params.yaml"))
     else:
         params = None
     # Generate Mermaid diagram
@@ -3577,11 +3577,9 @@ def get_project_pipeline(
         f"Created Mermaid diagram for {owner_name}/{project_name}:\n{mermaid}"
     )
     # See if we can read a Calkit pipeline
-    ck_fpath = os.path.join(repo.working_dir, "calkit.yaml")
     calkit_content = None
-    if os.path.isfile(ck_fpath):
-        with open(ck_fpath) as f:
-            ck_info = ryaml.load(f)
+    if tree.is_file("calkit.yaml"):
+        ck_info = ryaml.load(tree.read_text("calkit.yaml"))
         if "pipeline" in ck_info:
             stream = io.StringIO()
             ryaml.dump({"pipeline": ck_info["pipeline"]}, stream)

@@ -599,3 +599,55 @@ def test_get_project_figures_dvc_pointer_no_duplicates_with_dvc_lock(
     assert returned_paths.count(shared_path) == 1, (
         f"Expected {shared_path!r} to appear exactly once, got {returned_paths}"
     )
+
+
+def test_get_project_pipeline_reads_at_ref(client: TestClient) -> None:
+    """The pipeline endpoint must read files at the requested ref.
+
+    get_repo only fetches a ref; it never checks it out, so reading from
+    the working tree would silently return the default branch's pipeline.
+    The endpoint must therefore read through get_repo_tree_for_ref.
+    """
+    fake_project = SimpleNamespace()
+    fake_repo = SimpleNamespace()
+
+    files = {
+        "dvc.yaml": "stages:\n  train:\n    cmd: python train.py\n",
+    }
+
+    class FakeTree:
+        def is_file(self, path: str) -> bool:
+            return path in files
+
+        def read_text(self, path: str, encoding: str = "utf-8") -> str:
+            return files[path]
+
+    fake_tree = FakeTree()
+
+    with (
+        patch(
+            "app.api.routes.projects.core.app.projects.get_project",
+            return_value=fake_project,
+        ),
+        patch(
+            "app.api.routes.projects.core.get_repo",
+            return_value=fake_repo,
+        ) as mock_get_repo,
+        patch(
+            "app.api.routes.projects.core.app.projects.get_repo_tree_for_ref",
+            return_value=fake_tree,
+        ) as mock_get_tree,
+    ):
+        response = client.get(
+            f"{settings.API_V1_STR}/projects/test-owner/test-project/pipeline"
+            "?ref=some-branch"
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert "train" in body["dvc_stages"]
+    # The ref must be forwarded to get_repo so the branch is fetched
+    assert mock_get_repo.call_args.kwargs["ref"] == "some-branch"
+    # ...and to get_repo_tree_for_ref so files are read at that snapshot
+    # rather than from the live working-tree checkout
+    mock_get_tree.assert_called_once_with(fake_repo, "some-branch")
