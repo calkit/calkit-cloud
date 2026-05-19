@@ -2739,7 +2739,11 @@ def get_project_presentations(
     ck_info = get_ck_info_from_repo(repo)
     pipeline = get_dvc_pipeline_from_repo(repo)
     presentations = ck_info.get("presentations", [])
+    # Paths explicitly declared under ``presentations`` in calkit.yaml. These
+    # are always respected (like figures/publications): they're never
+    # filtered by the auto-detect heuristics or the PDF/source dedup below.
     declared_paths = {p["path"] for p in presentations if "path" in p}
+    explicit_paths = set(declared_paths)
 
     def _maybe_add_presentation(path: str) -> None:
         """Add ``path`` if it looks like a presentation and isn't declared."""
@@ -2807,10 +2811,11 @@ def get_project_presentations(
         if dvc_out.get("type") == "dir":
             continue
         _maybe_add_presentation(dvc_path)
-    # Deduplicate presentations that exist as both a PDF and a source format
-    # (e.g. slides.pptx exported to slides.pdf). Keep the PDF, since it
-    # renders and annotates natively, and drop the non-PDF sibling sharing
-    # the same path stem.
+    # Deduplicate auto-detected presentations that exist as both a PDF and a
+    # source format (e.g. slides.pptx exported to slides.pdf). Keep the PDF,
+    # since it renders and annotates natively, and drop the non-PDF sibling
+    # sharing the same path stem. Explicitly declared presentations are
+    # always kept.
     pdf_stems = {
         os.path.splitext(p["path"])[0]
         for p in presentations
@@ -2819,11 +2824,61 @@ def get_project_presentations(
     presentations = [
         p
         for p in presentations
-        if p.get("path", "").lower().endswith(".pdf")
+        if p.get("path", "") in explicit_paths
+        or p.get("path", "").lower().endswith(".pdf")
         or os.path.splitext(p.get("path", ""))[0] not in pdf_stems
     ]
+
+    # Map each pipeline output path to the stage that produces it, so
+    # auto-detected presentations (which aren't declared in calkit.yaml with
+    # an explicit ``stage``) can still be associated with their pipeline
+    # stage. We read both calkit.yaml's ``pipeline.stages`` (authoritative,
+    # uses ``outputs``) and the generated dvc.yaml (uses ``outs``), since the
+    # latter may be absent or stale. Output entries can be plain strings or
+    # dicts ({path: {...}} in dvc.yaml, {path: ..., storage: ...} in
+    # calkit.yaml); templated paths (iterate_over) are skipped.
+    def _register_outs(stages: dict, key: str, dest: dict[str, str]) -> None:
+        for stage_name, stage_def in (stages or {}).items():
+            if not isinstance(stage_def, dict):
+                continue
+            for out in stage_def.get(key, []) or []:
+                if isinstance(out, dict):
+                    # dvc.yaml: {path: {...}}; calkit.yaml: {path: <str>}
+                    out_paths = (
+                        [out["path"]]
+                        if "path" in out and isinstance(out["path"], str)
+                        else list(out.keys())
+                    )
+                else:
+                    out_paths = [out]
+                for out_path in out_paths:
+                    if not isinstance(out_path, str) or "{" in out_path:
+                        continue
+                    norm = os.path.normpath(out_path)
+                    dest.setdefault(norm, stage_name)
+
+    out_path_to_stage: dict[str, str] = {}
+    _register_outs(
+        (ck_info.get("pipeline") or {}).get("stages") or {},
+        "outputs",
+        out_path_to_stage,
+    )
+    _register_outs(pipeline.get("stages") or {}, "outs", out_path_to_stage)
+
     resp = []
     for pres in presentations:
+        if "stage" not in pres and "path" in pres:
+            # Match the path directly, or any ancestor directory (a stage may
+            # declare a directory output containing the presentation file).
+            norm_path = os.path.normpath(pres["path"])
+            stage_name = out_path_to_stage.get(norm_path)
+            while stage_name is None and norm_path not in (".", "/", ""):
+                norm_path = os.path.dirname(norm_path)
+                if not norm_path:
+                    break
+                stage_name = out_path_to_stage.get(norm_path)
+            if stage_name is not None:
+                pres["stage"] = stage_name
         if "stage" in pres:
             pres["stage_info"] = pipeline.get("stages", {}).get(pres["stage"])
         if "path" in pres:
