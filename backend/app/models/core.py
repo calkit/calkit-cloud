@@ -957,6 +957,25 @@ class Publication(BaseModel):
     storage: Literal["git", "dvc", "dvc-zip"] | None = None
 
 
+class Presentation(BaseModel):
+    path: str
+    title: str
+    description: str | None = None
+    type: (
+        Literal[
+            "slides",
+            "poster",
+            "talk",
+        ]
+        | None
+    ) = None
+    stage: str | None = None
+    content: str | None = None
+    stage_info: DvcPipelineStage | None = None
+    url: str | None = None
+    storage: Literal["git", "dvc", "dvc-zip"] | None = None
+
+
 class Notebook(BaseModel):
     path: str
     title: str | None = None

@@ -21,36 +21,36 @@ import {
   Switch,
   Text,
   Textarea,
-  useColorModeValue,
   VStack,
+  useColorModeValue,
 } from "@chakra-ui/react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
-  useRef,
-  useState,
+  type MutableRefObject,
   useCallback,
   useEffect,
   useLayoutEffect,
   useMemo,
-  type MutableRefObject,
+  useRef,
+  useState,
 } from "react"
 import {
   AreaHighlight,
   Highlight,
+  type IHighlight,
+  type NewHighlight,
   PdfHighlighter,
   PdfLoader,
   Popup,
-  type IHighlight,
-  type NewHighlight,
 } from "react-pdf-highlighter"
 import "react-pdf-highlighter/dist/style.css"
-import { FaCheck, FaUndo, FaGithub, FaReply } from "react-icons/fa"
 import { ExternalLinkIcon } from "@chakra-ui/icons"
+import { FaCheck, FaGithub, FaReply, FaUndo } from "react-icons/fa"
 
 import {
-  ProjectsService,
-  type ProjectComment,
   type CommentHighlight,
+  type ProjectComment,
+  ProjectsService,
 } from "../../client"
 import useAuth from "../../hooks/useAuth"
 
@@ -256,6 +256,7 @@ export function CommentList({
   ownerName,
   projectName,
   publicationPath,
+  artifactType = "publication",
   gitRef,
   isLoading,
 }: {
@@ -270,6 +271,7 @@ export function CommentList({
   ownerName: string
   projectName: string
   publicationPath?: string
+  artifactType?: "publication" | "presentation"
   gitRef?: string | null
   isLoading?: boolean
 }) {
@@ -292,7 +294,7 @@ export function CommentList({
         projectName,
         requestBody: {
           artifact_path: publicationPath ?? "",
-          artifact_type: "publication",
+          artifact_type: artifactType,
           comment: body,
           create_github_issue: createIssue,
           git_ref: gitRef ?? null,
@@ -308,7 +310,7 @@ export function CommentList({
           ownerName,
           projectName,
           "comments",
-          "publication",
+          artifactType,
           publicationPath,
         ],
       })
@@ -332,7 +334,7 @@ export function CommentList({
           ownerName,
           projectName,
           "comments",
-          "publication",
+          artifactType,
           publicationPath,
         ],
       })
@@ -648,6 +650,7 @@ interface PdfAnnotatorProps {
   ownerName: string
   projectName: string
   publicationPath: string
+  artifactType?: "publication" | "presentation"
   gitRef?: string | null
   showResolved?: boolean
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -659,6 +662,7 @@ export default function PdfAnnotator({
   ownerName,
   projectName,
   publicationPath,
+  artifactType = "publication",
   gitRef,
   showResolved = false,
   externalScrollRef,
@@ -672,7 +676,7 @@ export default function PdfAnnotator({
   const [pdfReady, setPdfReady] = useState(false)
   const [highlightsKey, setHighlightsKey] = useState(0)
   useLayoutEffect(() => {
-    let rafId: number | null = requestAnimationFrame(() => {
+    const rafId: number | null = requestAnimationFrame(() => {
       setPdfReady(true)
     })
     return () => {
@@ -759,14 +763,14 @@ export default function PdfAnnotator({
       ownerName,
       projectName,
       "comments",
-      "publication",
+      artifactType,
       publicationPath,
     ],
     queryFn: () =>
       ProjectsService.getProjectComments({
         ownerName,
         projectName,
-        artifactType: "publication",
+        artifactType,
         artifactPath: publicationPath,
       }),
   })
@@ -782,7 +786,7 @@ export default function PdfAnnotator({
         projectName,
         requestBody: {
           artifact_path: publicationPath,
-          artifact_type: "publication",
+          artifact_type: artifactType,
           comment: data.comment,
           highlight: data.highlight,
           create_github_issue: data.create_github_issue,
@@ -796,7 +800,7 @@ export default function PdfAnnotator({
           ownerName,
           projectName,
           "comments",
-          "publication",
+          artifactType,
           publicationPath,
         ],
       })
@@ -821,7 +825,7 @@ export default function PdfAnnotator({
           ownerName,
           projectName,
           "comments",
-          "publication",
+          artifactType,
           publicationPath,
         ],
       })

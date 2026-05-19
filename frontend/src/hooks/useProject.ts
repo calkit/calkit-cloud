@@ -171,6 +171,23 @@ const useProjectPublications = (
   return { publicationsRequest }
 }
 
+const useProjectPresentations = (
+  accountName: string,
+  projectName: string,
+  ref?: string,
+) => {
+  const presentationsRequest = useQuery({
+    queryKey: ["projects", accountName, projectName, "presentations", ref],
+    queryFn: () =>
+      ProjectsService.getProjectPresentations({
+        ownerName: accountName,
+        projectName: projectName,
+        ref,
+      }),
+  })
+  return { presentationsRequest }
+}
+
 const useProjectIssues = (
   accountName: string,
   projectName: string,
@@ -216,6 +233,7 @@ export {
   useProjectFiles,
   useProjectFigures,
   useProjectPublications,
+  useProjectPresentations,
   useProjectReadme,
   useProjectDatasets,
   useProjectEnvironments,

@@ -8,6 +8,7 @@ import type {
   GetAccountResponse,
   GetDatasetsData,
   GetDatasetsResponse,
+  MetricsResponse,
   LoginAccessTokenData,
   LoginAccessTokenResponse,
   TestTokenResponse,
@@ -126,6 +127,8 @@ import type {
   GetProjectPublicationsResponse,
   PostProjectPublicationData,
   PostProjectPublicationResponse,
+  GetProjectPresentationsData,
+  GetProjectPresentationsResponse,
   PostProjectOverleafPublicationData,
   PostProjectOverleafPublicationResponse,
   PostProjectOverleafSyncData,
@@ -280,6 +283,21 @@ export class DatasetsService {
       errors: {
         422: "Validation Error",
       },
+    })
+  }
+}
+
+export class DefaultService {
+  /**
+   * Metrics
+   * Endpoint that serves Prometheus metrics.
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static metrics(): CancelablePromise<MetricsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/metrics",
     })
   }
 }
@@ -1916,6 +1934,34 @@ export class ProjectsService {
       },
       formData: data.formData,
       mediaType: "application/x-www-form-urlencoded",
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Get Project Presentations
+   * @param data The data for the request.
+   * @param data.ownerName
+   * @param data.projectName
+   * @param data.ref
+   * @returns Presentation Successful Response
+   * @throws ApiError
+   */
+  public static getProjectPresentations(
+    data: GetProjectPresentationsData,
+  ): CancelablePromise<GetProjectPresentationsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/projects/{owner_name}/{project_name}/presentations",
+      path: {
+        owner_name: data.ownerName,
+        project_name: data.projectName,
+      },
+      query: {
+        ref: data.ref,
+      },
       errors: {
         422: "Validation Error",
       },

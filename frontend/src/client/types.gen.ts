@@ -710,6 +710,18 @@ export type Pipeline = {
   calkit_yaml: string | null
 }
 
+export type Presentation = {
+  path: string
+  title: string
+  description?: string | null
+  type?: "slides" | "poster" | "talk" | null
+  stage?: string | null
+  content?: string | null
+  stage_info?: DvcPipelineStage | null
+  url?: string | null
+  storage?: "git" | "dvc" | "dvc-zip" | null
+}
+
 export type PresignedChunkedAccess = {
   kind?: "presigned-chunked"
   init_url: string
@@ -1231,6 +1243,8 @@ export type GetDatasetsData = {
 
 export type GetDatasetsResponse = DatasetsResponse
 
+export type MetricsResponse = unknown
+
 export type LoginAccessTokenData = {
   formData: Body_login_login_access_token
 }
@@ -1709,6 +1723,14 @@ export type PostProjectPublicationData = {
 }
 
 export type PostProjectPublicationResponse = Publication
+
+export type GetProjectPresentationsData = {
+  ownerName: string
+  projectName: string
+  ref?: string | null
+}
+
+export type GetProjectPresentationsResponse = Array<Presentation>
 
 export type PostProjectOverleafPublicationData = {
   formData: Body_projects_post_project_overleaf_publication

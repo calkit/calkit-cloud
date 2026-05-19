@@ -3105,6 +3105,100 @@ export const PipelineSchema = {
   title: "Pipeline",
 } as const
 
+export const PresentationSchema = {
+  properties: {
+    path: {
+      type: "string",
+      title: "Path",
+    },
+    title: {
+      type: "string",
+      title: "Title",
+    },
+    description: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Description",
+    },
+    type: {
+      anyOf: [
+        {
+          type: "string",
+          enum: ["slides", "poster", "talk"],
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Type",
+    },
+    stage: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Stage",
+    },
+    content: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Content",
+    },
+    stage_info: {
+      anyOf: [
+        {
+          $ref: "#/components/schemas/DvcPipelineStage",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    url: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Url",
+    },
+    storage: {
+      anyOf: [
+        {
+          type: "string",
+          enum: ["git", "dvc", "dvc-zip"],
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Storage",
+    },
+  },
+  type: "object",
+  required: ["path", "title"],
+  title: "Presentation",
+} as const
+
 export const PresignedChunkedAccessSchema = {
   properties: {
     kind: {
