@@ -1,7 +1,7 @@
-import { ExternalLinkIcon } from "@chakra-ui/icons"
 import {
   Badge,
   Box,
+  Button,
   Code,
   Flex,
   HStack,
@@ -21,7 +21,7 @@ import {
   useSearch,
 } from "@tanstack/react-router"
 import { useRef, useState } from "react"
-import { FiFile } from "react-icons/fi"
+import { FiDownload, FiFile } from "react-icons/fi"
 import { z } from "zod"
 
 import type { Presentation } from "../../../../../client"
@@ -110,13 +110,18 @@ function PresInfo({ presentation }: PresInfoProps) {
         )}
       </Text>
       {presentation.url && (
-        <Box mt={2}>
-          <Link isExternal href={String(presentation.url)} fontSize="sm">
-            <Flex align="center" gap={1}>
-              <Text>Download</Text>
-              <Icon as={ExternalLinkIcon} />
-            </Flex>
-          </Link>
+        <Box mt={3}>
+          <Button
+            as="a"
+            href={String(presentation.url)}
+            download
+            target="_blank"
+            rel="noopener noreferrer"
+            size="sm"
+            leftIcon={<FiDownload />}
+          >
+            Download
+          </Button>
         </Box>
       )}
     </Box>
@@ -256,6 +261,7 @@ function Presentations() {
                     artifactType="presentation"
                     gitRef={ref}
                     showResolved={showResolved}
+                    pagedNav
                     externalScrollRef={pdfScrollRef}
                   />
                 </Box>

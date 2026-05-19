@@ -2,12 +2,24 @@ import { Box, Image } from "@chakra-ui/react"
 import SyntaxHighlighter from "react-syntax-highlighter"
 import { atomOneDark } from "react-syntax-highlighter/dist/esm/styles/hljs"
 
-import Markdown from "../Common/Markdown"
-import { type ContentsItem } from "../../client"
+import type { ContentsItem } from "../../client"
 import { decodeBase64Utf8 } from "../../lib/strings"
+import Markdown from "../Common/Markdown"
+import PresentationView from "../Presentations/PresentationView"
 
 interface FileContentProps {
   item: ContentsItem
+}
+
+// Render a Quarto/R Markdown source as Markdown while keeping the leading
+// YAML front matter block verbatim (shown as a fenced code block rather than
+// being parsed/consumed by the Markdown renderer).
+function qmdToMarkdown(src: string): string {
+  const match = src.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/)
+  if (!match) return src
+  const frontMatter = match[1]
+  const body = src.slice(match[0].length)
+  return `\`\`\`yaml\n${frontMatter}\n\`\`\`\n\n${body}`
 }
 
 function getLanguage(name: string): string {
@@ -75,7 +87,28 @@ function FileContent({ item }: FileContentProps) {
       </Box>
     )
   }
-  if (name.endsWith(".md") && content) {
+  const lowerName = name.toLowerCase()
+  if (lowerName.endsWith(".pptx") || lowerName.endsWith(".ppt")) {
+    return (
+      <Box
+        height="calc(100vh - 160px)"
+        width="100%"
+        borderRadius="lg"
+        overflow="hidden"
+      >
+        <PresentationView
+          presentation={{
+            path: item.path,
+            title: name,
+            content: content ?? null,
+            url: url ?? null,
+          }}
+        />
+      </Box>
+    )
+  }
+  if ((name.endsWith(".md") || lowerName.endsWith(".qmd")) && content) {
+    const decoded = decodeBase64Utf8(content)
     return (
       <Box
         height="calc(100vh - 160px)"
@@ -84,7 +117,9 @@ function FileContent({ item }: FileContentProps) {
         py={2}
         px={4}
       >
-        <Markdown>{decodeBase64Utf8(content)}</Markdown>
+        <Markdown>
+          {lowerName.endsWith(".qmd") ? qmdToMarkdown(decoded) : decoded}
+        </Markdown>
       </Box>
     )
   }

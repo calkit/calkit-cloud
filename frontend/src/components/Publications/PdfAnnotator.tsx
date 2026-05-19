@@ -46,6 +46,7 @@ import {
 import "react-pdf-highlighter/dist/style.css"
 import { ExternalLinkIcon } from "@chakra-ui/icons"
 import { FaCheck, FaGithub, FaReply, FaUndo } from "react-icons/fa"
+import { FiChevronLeft, FiChevronRight } from "react-icons/fi"
 
 import {
   type CommentHighlight,
@@ -653,6 +654,9 @@ interface PdfAnnotatorProps {
   artifactType?: "publication" | "presentation"
   gitRef?: string | null
   showResolved?: boolean
+  // When true, render page-by-page navigation (prev/next arrows + arrow keys)
+  // like a slide carousel. Used for presentation PDFs; off for publications.
+  pagedNav?: boolean
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   externalScrollRef?: MutableRefObject<(h: any) => void>
 }
@@ -665,11 +669,15 @@ export default function PdfAnnotator({
   artifactType = "publication",
   gitRef,
   showResolved = false,
+  pagedNav = false,
   externalScrollRef,
 }: PdfAnnotatorProps) {
   const { user } = useAuth()
   const queryClient = useQueryClient()
   const containerRef = useRef<HTMLDivElement>(null)
+  // The 16:9-ish viewport box for paged ("carousel") mode; its height is
+  // clamped to a single page so only one page shows at a time.
+  const pdfBoxRef = useRef<HTMLDivElement>(null)
   // Gate rendering until the next animation frame. In React StrictMode dev,
   // the throwaway mount is torn down before RAF, so PdfLoader/PdfHighlighter
   // initialize only once on the real mount and avoid duplicate page nodes.
@@ -756,6 +764,157 @@ export default function PdfAnnotator({
   }, [pdfReady, url])
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const scrollRef = useRef<(h: any) => void>(() => {})
+
+  // ---- Paged ("carousel") navigation for presentation PDFs ----------------
+  const [pageNav, setPageNav] = useState({ current: 1, total: 0 })
+  // Latest page index, tracked outside React state so layout/scale changes
+  // can re-snap to the right slide without re-subscribing effects.
+  const currentPageRef = useRef(1)
+
+  const getPdfPages = useCallback((): HTMLElement[] => {
+    const root = containerRef.current
+    if (!root) return []
+    const seen = new Set<string>()
+    const pages: HTMLElement[] = []
+    for (const p of root.querySelectorAll<HTMLElement>(
+      ".pdfViewer .page[data-page-number]",
+    )) {
+      const n = p.dataset.pageNumber
+      if (!n || seen.has(n)) continue
+      seen.add(n)
+      pages.push(p)
+    }
+    return pages.sort(
+      (a, b) => Number(a.dataset.pageNumber) - Number(b.dataset.pageNumber),
+    )
+  }, [])
+
+  // react-pdf-highlighter v8 styles its scroll container with a hashed CSS
+  // module class, so we can't select it by name. It is always the direct
+  // parent of the `.pdfViewer` element.
+  const getScrollEl = useCallback((): HTMLElement | null => {
+    const root = containerRef.current
+    if (!root) return null
+    const viewer = root.querySelector<HTMLElement>(".pdfViewer")
+    return (viewer?.parentElement as HTMLElement | null) ?? null
+  }, [])
+
+  const goToPdfPage = useCallback(
+    (delta: number) => {
+      const scrollEl = getScrollEl()
+      const pages = getPdfPages()
+      if (!scrollEl || pages.length === 0) return
+      setPageNav((prev) => {
+        const target = Math.min(Math.max(prev.current + delta, 1), pages.length)
+        const page = pages[target - 1]
+        if (page) {
+          currentPageRef.current = target
+          // Instant jump so each slide replaces the previous one cleanly.
+          scrollEl.scrollTop +=
+            page.getBoundingClientRect().top -
+            scrollEl.getBoundingClientRect().top
+        }
+        return { current: target, total: pages.length }
+      })
+    },
+    [getPdfPages, getScrollEl],
+  )
+
+  // Track the current page from scroll position and keep the total in sync.
+  useEffect(() => {
+    if (!pagedNav || !pdfReady) return
+    const root = containerRef.current
+    if (!root) return
+    let scrollEl: HTMLElement | null = null
+    let raf: number | null = null
+
+    const recompute = () => {
+      raf = null
+      if (!scrollEl) return
+      const pages = getPdfPages()
+      if (pages.length === 0) return
+      const containerTop = scrollEl.getBoundingClientRect().top
+      let best = 1
+      let bestDist = Number.POSITIVE_INFINITY
+      for (let i = 0; i < pages.length; i += 1) {
+        const dist = Math.abs(
+          pages[i].getBoundingClientRect().top - containerTop,
+        )
+        if (dist < bestDist) {
+          bestDist = dist
+          best = i + 1
+        }
+      }
+      currentPageRef.current = best
+      setPageNav((prev) =>
+        prev.current === best && prev.total === pages.length
+          ? prev
+          : { current: best, total: pages.length },
+      )
+    }
+    const onScroll = () => {
+      if (raf === null) raf = requestAnimationFrame(recompute)
+    }
+
+    // The scrollable element is created asynchronously by react-pdf-highlighter.
+    const attach = () => {
+      const el = getScrollEl()
+      if (el && el !== scrollEl) {
+        scrollEl?.removeEventListener("scroll", onScroll)
+        scrollEl = el
+        scrollEl.addEventListener("scroll", onScroll, { passive: true })
+      }
+      if (scrollEl) {
+        // Lock free vertical scrolling. With page-width scaling each page's
+        // height is deterministic, so we size the viewport box to exactly
+        // one page's height — the next page then sits entirely below the
+        // clipped fold and only one page is ever visible. We move between
+        // pages programmatically via scrollTop on prev/next.
+        scrollEl.style.overflow = "hidden"
+        const pages = getPdfPages()
+        const page = pages[currentPageRef.current - 1]
+        const box = pdfBoxRef.current
+        if (page && box) {
+          const ph = page.getBoundingClientRect().height
+          if (ph > 0) {
+            // Never exceed the available pane height.
+            const cap = containerRef.current?.clientHeight ?? ph
+            box.style.height = `${Math.min(Math.round(ph), cap)}px`
+          }
+          // Keep the active slide aligned after (re)layout / rescale.
+          scrollEl.scrollTop +=
+            page.getBoundingClientRect().top -
+            scrollEl.getBoundingClientRect().top
+        }
+      }
+      recompute()
+    }
+    attach()
+    const observer = new MutationObserver(attach)
+    observer.observe(root, { childList: true, subtree: true })
+    return () => {
+      observer.disconnect()
+      scrollEl?.removeEventListener("scroll", onScroll)
+      if (raf !== null) cancelAnimationFrame(raf)
+    }
+  }, [pagedNav, pdfReady, getPdfPages, getScrollEl])
+
+  useEffect(() => {
+    if (!pagedNav || pageNav.total <= 1) return
+    const onKey = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement | null)?.tagName
+      if (tag === "INPUT" || tag === "TEXTAREA") return
+      if (e.key === "ArrowLeft") {
+        e.preventDefault()
+        goToPdfPage(-1)
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault()
+        goToPdfPage(1)
+      }
+    }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [pagedNav, pageNav.total, goToPdfPage])
 
   const commentsQuery = useQuery({
     queryKey: [
@@ -861,115 +1020,188 @@ export default function PdfAnnotator({
     [postMutation],
   )
 
+  const highlightSx = {
+    ".Highlight__part": {
+      opacity: 0.45,
+      background: "rgba(246, 224, 94, 0.85)",
+    },
+  }
+
+  const pdfViewer = pdfReady ? (
+    <PdfLoader url={url} beforeLoad={<Spinner color="ui.main" />}>
+      {(pdfDocument) => (
+        <PdfHighlighter
+          key={url}
+          pdfDocument={pdfDocument}
+          enableAreaSelection={(e) => e.altKey}
+          pdfScaleValue={pagedNav ? "page-width" : undefined}
+          onScrollChange={() => {}}
+          scrollRef={(fn) => {
+            scrollRef.current = fn
+            if (externalScrollRef) externalScrollRef.current = fn
+          }}
+          onSelectionFinished={(
+            position,
+            content,
+            hideTip,
+            transformSelection,
+          ) => {
+            // transformSelection sets ghostHighlight on PdfHighlighter so
+            // the yellow selection remains visible while the user types in
+            // the comment box (typing clears document.getSelection(), which
+            // otherwise makes isCollapsed=true and drops the visual selection).
+            transformSelection()
+            return user ? (
+              <AddCommentTip
+                onConfirm={(text, createIssue) => {
+                  handleAddHighlight(
+                    { position, content, comment: { text, emoji: "" } },
+                    text,
+                    createIssue,
+                  )
+                  hideTip()
+                }}
+                onCancel={hideTip}
+              />
+            ) : null
+          }}
+          highlightTransform={(
+            highlight,
+            _index,
+            setTip,
+            hideTip,
+            _viewportToScaled,
+            _screenshot,
+            isScrolledTo,
+          ) => {
+            const annotHL = highlight as unknown as AnnotationHighlight
+            const isArea = Boolean(highlight.content?.image)
+            const component = isArea ? (
+              <AreaHighlight
+                isScrolledTo={isScrolledTo}
+                highlight={highlight}
+                onChange={() => {}}
+              />
+            ) : (
+              <Highlight
+                isScrolledTo={isScrolledTo}
+                position={highlight.position}
+                comment={highlight.comment}
+              />
+            )
+            return (
+              <Popup
+                popupContent={
+                  <HighlightPopup
+                    highlight={annotHL}
+                    canResolve={!!user}
+                    isResolved={annotHL.resolved}
+                    isResolving={
+                      resolveMutation.isPending &&
+                      resolveMutation.variables?.commentId === annotHL.dbId
+                    }
+                    onResolve={(resolved) => {
+                      resolveMutation.mutate({
+                        commentId: annotHL.dbId,
+                        resolved,
+                      })
+                      hideTip()
+                    }}
+                  />
+                }
+                onMouseOver={(popupContent) =>
+                  setTip(highlight, () => popupContent)
+                }
+                onMouseOut={hideTip}
+                key={highlight.id}
+              >
+                {component}
+              </Popup>
+            )
+          }}
+          highlights={highlights}
+        />
+      )}
+    </PdfLoader>
+  ) : null
+
+  if (pagedNav) {
+    return (
+      <Box
+        ref={containerRef}
+        position="relative"
+        height="100%"
+        overflow="hidden"
+        display="flex"
+        flexDirection="column"
+        alignItems="center"
+        justifyContent="center"
+        sx={highlightSx}
+      >
+        <Flex align="center" justify="center" w="100%" flex="1" minH={0}>
+          <Flex w="32px" flexShrink={0} align="center" justify="center">
+            {pageNav.total > 1 && (
+              <IconButton
+                aria-label="Previous page"
+                icon={<FiChevronLeft />}
+                size="sm"
+                variant="ghost"
+                onClick={() => goToPdfPage(-1)}
+                isDisabled={pageNav.current <= 1}
+              />
+            )}
+          </Flex>
+          <Flex
+            direction="column"
+            align="center"
+            justify="center"
+            flex="1"
+            minW={0}
+            minH={0}
+            height="100%"
+          >
+            <Box
+              ref={pdfBoxRef}
+              position="relative"
+              w="100%"
+              height="100%"
+              maxH="100%"
+              overflow="hidden"
+            >
+              {pdfViewer}
+            </Box>
+            {pageNav.total > 1 && (
+              <Text mt={2} fontSize="sm" color="gray.500" flexShrink={0}>
+                {pageNav.current} / {pageNav.total}
+              </Text>
+            )}
+          </Flex>
+          <Flex w="32px" flexShrink={0} align="center" justify="center">
+            {pageNav.total > 1 && (
+              <IconButton
+                aria-label="Next page"
+                icon={<FiChevronRight />}
+                size="sm"
+                variant="ghost"
+                onClick={() => goToPdfPage(1)}
+                isDisabled={pageNav.current >= pageNav.total}
+              />
+            )}
+          </Flex>
+        </Flex>
+      </Box>
+    )
+  }
+
   return (
     <Box
       ref={containerRef}
       position="relative"
       height="100%"
       overflow="hidden"
-      sx={{
-        ".Highlight__part": {
-          opacity: 0.45,
-          background: "rgba(246, 224, 94, 0.85)",
-        },
-      }}
+      sx={highlightSx}
     >
-      {pdfReady && (
-        <PdfLoader url={url} beforeLoad={<Spinner color="ui.main" />}>
-          {(pdfDocument) => (
-            <PdfHighlighter
-              key={url}
-              pdfDocument={pdfDocument}
-              enableAreaSelection={(e) => e.altKey}
-              onScrollChange={() => {}}
-              scrollRef={(fn) => {
-                scrollRef.current = fn
-                if (externalScrollRef) externalScrollRef.current = fn
-              }}
-              onSelectionFinished={(
-                position,
-                content,
-                hideTip,
-                transformSelection,
-              ) => {
-                // transformSelection sets ghostHighlight on PdfHighlighter so
-                // the yellow selection remains visible while the user types in
-                // the comment box (typing clears document.getSelection(), which
-                // otherwise makes isCollapsed=true and drops the visual selection).
-                transformSelection()
-                return user ? (
-                  <AddCommentTip
-                    onConfirm={(text, createIssue) => {
-                      handleAddHighlight(
-                        { position, content, comment: { text, emoji: "" } },
-                        text,
-                        createIssue,
-                      )
-                      hideTip()
-                    }}
-                    onCancel={hideTip}
-                  />
-                ) : null
-              }}
-              highlightTransform={(
-                highlight,
-                _index,
-                setTip,
-                hideTip,
-                _viewportToScaled,
-                _screenshot,
-                isScrolledTo,
-              ) => {
-                const annotHL = highlight as unknown as AnnotationHighlight
-                const isArea = Boolean(highlight.content?.image)
-                const component = isArea ? (
-                  <AreaHighlight
-                    isScrolledTo={isScrolledTo}
-                    highlight={highlight}
-                    onChange={() => {}}
-                  />
-                ) : (
-                  <Highlight
-                    isScrolledTo={isScrolledTo}
-                    position={highlight.position}
-                    comment={highlight.comment}
-                  />
-                )
-                return (
-                  <Popup
-                    popupContent={
-                      <HighlightPopup
-                        highlight={annotHL}
-                        canResolve={!!user}
-                        isResolved={annotHL.resolved}
-                        isResolving={
-                          resolveMutation.isPending &&
-                          resolveMutation.variables?.commentId === annotHL.dbId
-                        }
-                        onResolve={(resolved) => {
-                          resolveMutation.mutate({
-                            commentId: annotHL.dbId,
-                            resolved,
-                          })
-                          hideTip()
-                        }}
-                      />
-                    }
-                    onMouseOver={(popupContent) =>
-                      setTip(highlight, () => popupContent)
-                    }
-                    onMouseOut={hideTip}
-                    key={highlight.id}
-                  >
-                    {component}
-                  </Popup>
-                )
-              }}
-              highlights={highlights}
-            />
-          )}
-        </PdfLoader>
-      )}
+      {pdfViewer}
     </Box>
   )
 }
