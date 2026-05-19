@@ -64,7 +64,6 @@ from app.git import (
     get_ck_info,
     get_ck_info_from_repo,
     get_commit_history,
-    get_dvc_pipeline_from_repo,
     get_file_history,
     get_overleaf_repo,
     get_repo,
@@ -645,7 +644,12 @@ def get_project(
             ttl=DEFAULT_REPO_TTL,
             ref=ref,
         )
-        ck_info = get_ck_info_from_repo(repo=repo)
+        # Read at the requested ref. get_repo only fetches a ref, it does
+        # not check it out, so get_ck_info_from_repo (working tree) would
+        # report the default branch's calkit.yaml keys instead.
+        ck_info = app.projects.get_ck_info_for_ref(
+            project=project, repo=repo, ref=ref
+        )
         resp.calkit_info_keys = list(ck_info.keys())
         # Read status if present
         status_fpath = os.path.join(repo.working_dir, ".calkit", "status.csv")
@@ -1321,12 +1325,18 @@ def get_project_questions(
         current_user=current_user,
         min_access_level="read",
     )
-    ck_info = get_ck_info(
+    # Read at the requested ref. get_ck_info reads the working tree, which
+    # get_repo never checks out to the ref, so it would return the default
+    # branch's questions instead.
+    repo = get_repo(
         project=project,
         user=current_user,
         session=session,
         ttl=DEFAULT_REPO_TTL,
         ref=ref,
+    )
+    ck_info = app.projects.get_ck_info_for_ref(
+        project=project, repo=repo, ref=ref
     )
     project = _sync_questions_with_db(
         ck_info=ck_info, project=project, session=session
@@ -2669,8 +2679,13 @@ def get_project_publications(
         ttl=DEFAULT_REPO_TTL,
         ref=ref,
     )
-    ck_info = get_ck_info_from_repo(repo)
-    pipeline = get_dvc_pipeline_from_repo(repo)
+    # Read declared metadata at the requested ref. get_repo only fetches a
+    # ref, it does not check it out, so reading the working tree would return
+    # the default branch's publications/pipeline.
+    ck_info = app.projects.get_ck_info_for_ref(
+        project=project, repo=repo, ref=ref
+    )
+    pipeline = app.projects.get_dvc_pipeline_for_ref(repo, ref)
     publications = ck_info.get("publications", [])
     overleaf_info = calkit.overleaf.get_sync_info(
         wdir=repo.working_dir, ck_info=ck_info, fix_legacy=False
@@ -2736,8 +2751,13 @@ def get_project_presentations(
         ttl=DEFAULT_REPO_TTL,
         ref=ref,
     )
-    ck_info = get_ck_info_from_repo(repo)
-    pipeline = get_dvc_pipeline_from_repo(repo)
+    # Read declared metadata at the requested ref. get_repo only fetches a
+    # ref, it does not check it out, so reading the working tree would return
+    # the default branch's presentations/pipeline.
+    ck_info = app.projects.get_ck_info_for_ref(
+        project=project, repo=repo, ref=ref
+    )
+    pipeline = app.projects.get_dvc_pipeline_for_ref(repo, ref)
     presentations = ck_info.get("presentations", [])
     # Paths explicitly declared under ``presentations`` in calkit.yaml. These
     # are always respected (like figures/publications): they're never

@@ -29,12 +29,14 @@ def _yaml_load(data: bytes | str):
 
 
 from app.git import RepoTree, get_repo_tree_for_ref
-from app.core import CATEGORIES_PLURAL_TO_SINGULAR, params_from_url
+from app.core import CATEGORIES_PLURAL_TO_SINGULAR, params_from_url, ryaml
 from app.dvc import expand_dvc_lock_outs
 from app.dvc import get_data_fpath_for_md5
-from app.git import get_ck_info_from_repo, get_zip_path_map_from_repo
+from app.git import (
+    get_ck_info_from_repo,
+    get_dvc_pipeline_from_repo,
+)
 from app.models import (
-    Account,
     ContentsItem,
     Figure,
     ItemLock,
@@ -700,6 +702,24 @@ def get_ck_info_for_ref(
     if ck_info is None:
         return {}
     return ck_info
+
+
+def get_dvc_pipeline_for_ref(
+    repo: git.Repo,
+    ref: str | None = None,
+) -> dict:
+    """Return the parsed dvc.yaml for the requested ref, if provided.
+
+    ``get_dvc_pipeline_from_repo`` reads the live working tree, which always
+    reflects the default branch (``get_repo`` only fetches a ref, it does
+    not check it out), so it must not be used for ref-scoped reads.
+    """
+    if ref is None:
+        return get_dvc_pipeline_from_repo(repo)
+    tree = get_repo_tree_for_ref(repo, ref)
+    if not tree.is_file("dvc.yaml"):
+        return {}
+    return ryaml.load(tree.read_text("dvc.yaml")) or {}
 
 
 def get_figure_from_repo(
