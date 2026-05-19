@@ -931,7 +931,7 @@ class PublicationOverleaf(BaseModel):
     url: str | None = None
     push_paths: list[str] = []
     sync_paths: list[str] = []
-    last_sync_commit: str | None
+    last_sync_commit: str | None = None
 
 
 class Publication(BaseModel):
