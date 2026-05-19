@@ -64,11 +64,16 @@ const CreateIssue = ({ isOpen, onClose }: CreateIssueProps) => {
       // Insert the new issue into the cached list directly. GitHub's REST
       // API is not immediately read-your-writes consistent, so refetching
       // here would return a stale list that omits the issue just created.
+      // Initialize the list if the issues query hasn't populated yet.
       const key = ["projects", accountName, projectName, "issues"]
-      const existing = queryClient.getQueryData<Issue[]>(key)
-      if (existing !== undefined) {
-        queryClient.setQueryData<Issue[]>(key, [createdIssue, ...existing])
-      }
+      queryClient.setQueryData<Issue[]>(key, (existing) =>
+        existing !== undefined ? [createdIssue, ...existing] : [createdIssue],
+      )
+      // Reconcile with the server once GitHub is consistent, so the cache
+      // doesn't drift (e.g. an in-flight initial fetch landing stale).
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: key })
+      }, 5000)
     },
     onError: (err: ApiError) => {
       handleError(err, showToast)

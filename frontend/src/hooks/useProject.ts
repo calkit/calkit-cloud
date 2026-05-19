@@ -193,6 +193,17 @@ const useProjectIssues = (accountName: string, projectName: string) => {
 
   const issuesKey = ["projects", accountName, projectName, "issues"] as const
 
+  // GitHub's REST API is not immediately read-your-writes consistent, so we
+  // reconcile with the server only after a delay long enough for it to catch
+  // up. This keeps the optimistic UI instant while still picking up the
+  // server's truth (and any external changes) eventually.
+  const ISSUES_RECONCILE_DELAY_MS = 5000
+  const scheduleIssuesReconcile = () => {
+    setTimeout(() => {
+      queryClient.invalidateQueries({ queryKey: issuesKey })
+    }, ISSUES_RECONCILE_DELAY_MS)
+  }
+
   // Always fetch every issue and let the UI filter open vs. closed. A single
   // cache keeps the list consistent no matter how the "show closed" toggle is
   // flipped, and lets optimistic updates apply in one place.
@@ -221,27 +232,34 @@ const useProjectIssues = (accountName: string, projectName: string) => {
         issueNumber: data.issueNumber,
         requestBody: { state: data.state },
       }),
-    // Optimistically flip the issue's state. GitHub's REST API is not
-    // immediately read-your-writes consistent, so an immediate refetch would
-    // return the stale list and revert the change in the UI.
+    // Optimistically flip the issue's state so the UI updates instantly
+    // despite GitHub's eventual consistency.
     onMutate: async (data: IssueStateChange) => {
       await queryClient.cancelQueries({ queryKey: issuesKey })
-      const prev = queryClient.getQueryData<Issue[]>(issuesKey)
-      if (prev !== undefined) {
-        queryClient.setQueryData<Issue[]>(
-          issuesKey,
-          prev.map((i) =>
-            i.number === data.issueNumber ? { ...i, state: data.state } : i,
+      const prevState = queryClient
+        .getQueryData<Issue[]>(issuesKey)
+        ?.find((i) => i.number === data.issueNumber)?.state
+      queryClient.setQueryData<Issue[]>(issuesKey, (old) =>
+        old?.map((i) =>
+          i.number === data.issueNumber ? { ...i, state: data.state } : i,
+        ),
+      )
+      return { prevState }
+    },
+    // Roll back only the mutated issue so we don't clobber other cache
+    // writes (e.g. a newly created issue) that happened in the meantime.
+    onError: (_err, data, context) => {
+      if (context?.prevState !== undefined) {
+        queryClient.setQueryData<Issue[]>(issuesKey, (old) =>
+          old?.map((i) =>
+            i.number === data.issueNumber
+              ? { ...i, state: context.prevState as Issue["state"] }
+              : i,
           ),
         )
       }
-      return { prev }
     },
-    onError: (_err, _data, context) => {
-      if (context?.prev !== undefined) {
-        queryClient.setQueryData(issuesKey, context.prev)
-      }
-    },
+    onSettled: scheduleIssuesReconcile,
   })
 
   return { issueStateMutation, issuesRequest }
