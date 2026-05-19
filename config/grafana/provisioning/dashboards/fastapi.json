@@ -2,7 +2,7 @@
   "title": "FastAPI",
   "uid": "fastapi-overview",
   "schemaVersion": 38,
-  "version": 2,
+  "version": 3,
   "refresh": "30s",
   "time": { "from": "now-1h", "to": "now" },
   "panels": [
@@ -68,8 +68,8 @@
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
-          "expr": "sum by (handler, status_code) (rate(http_requests_total{job=~\"backend|backend-dvc\", status_code=~\"4..|5..\"}[2m]))",
-          "legendFormat": "{{handler}} {{status_code}}"
+          "expr": "sum by (handler, status) (rate(http_requests_total{job=~\"backend|backend-dvc\", status=~\"4xx|5xx\"}[2m]))",
+          "legendFormat": "{{handler}} {{status}}"
         }
       ]
     },
