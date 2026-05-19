@@ -307,12 +307,13 @@ function PresentationView({ presentation }: PresentationViewProps) {
       path.endsWith(".jpeg")) &&
     hasContent
   ) {
+    const imageMime = path.endsWith(".png") ? "image/png" : "image/jpeg"
     return (
       <Image
         alt={presentation.title}
         src={
           presentation.content
-            ? `data:image;base64,${presentation.content}`
+            ? `data:${imageMime};base64,${presentation.content}`
             : String(presentation.url)
         }
       />

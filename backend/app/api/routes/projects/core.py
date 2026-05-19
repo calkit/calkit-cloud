@@ -2817,7 +2817,7 @@ def get_project_presentations(
     # sharing the same path stem. Explicitly declared presentations are
     # always kept.
     pdf_stems = {
-        os.path.splitext(p["path"])[0]
+        os.path.splitext(p["path"])[0].lower()
         for p in presentations
         if p.get("path", "").lower().endswith(".pdf")
     }
@@ -2826,7 +2826,7 @@ def get_project_presentations(
         for p in presentations
         if p.get("path", "") in explicit_paths
         or p.get("path", "").lower().endswith(".pdf")
-        or os.path.splitext(p.get("path", ""))[0] not in pdf_stems
+        or os.path.splitext(p.get("path", ""))[0].lower() not in pdf_stems
     ]
 
     # Map each pipeline output path to the stage that produces it, so

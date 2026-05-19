@@ -23,30 +23,35 @@ function qmdToMarkdown(src: string): string {
 }
 
 function getLanguage(name: string): string {
-  if (name.endsWith(".py")) return "python"
-  if (name.endsWith(".ts") || name.endsWith(".tsx")) return "typescript"
-  if (name.endsWith(".js") || name.endsWith(".jsx")) return "javascript"
-  if (name.endsWith(".yaml") || name.endsWith(".yml") || name === "dvc.lock")
+  // Compare case-insensitively so all-caps names map to the right language.
+  const n = name.toLowerCase()
+  if (n.endsWith(".py")) return "python"
+  if (n.endsWith(".ts") || n.endsWith(".tsx")) return "typescript"
+  if (n.endsWith(".js") || n.endsWith(".jsx")) return "javascript"
+  if (n.endsWith(".yaml") || n.endsWith(".yml") || n === "dvc.lock")
     return "yaml"
-  if (name.endsWith(".json")) return "json"
-  if (name.endsWith(".sh") || name.endsWith(".bash")) return "bash"
-  if (name.endsWith(".r") || name.endsWith(".R")) return "r"
-  if (name.endsWith(".toml")) return "ini"
-  if (name === "Dockerfile") return "dockerfile"
-  if (name.endsWith(".cpp") || name.endsWith(".cc")) return "cpp"
-  if (name.endsWith(".c")) return "c"
-  if (name.endsWith(".go")) return "go"
-  if (name.endsWith(".java")) return "java"
-  if (name.endsWith(".rs")) return "rust"
-  if (name.endsWith(".css")) return "css"
-  if (name.endsWith(".html")) return "html"
-  if (name.endsWith(".tex")) return "latex"
+  if (n.endsWith(".json")) return "json"
+  if (n.endsWith(".sh") || n.endsWith(".bash")) return "bash"
+  if (n.endsWith(".r")) return "r"
+  if (n.endsWith(".toml")) return "ini"
+  if (n === "dockerfile") return "dockerfile"
+  if (n.endsWith(".cpp") || n.endsWith(".cc")) return "cpp"
+  if (n.endsWith(".c")) return "c"
+  if (n.endsWith(".go")) return "go"
+  if (n.endsWith(".java")) return "java"
+  if (n.endsWith(".rs")) return "rust"
+  if (n.endsWith(".css")) return "css"
+  if (n.endsWith(".html")) return "html"
+  if (n.endsWith(".tex")) return "latex"
   return "text"
 }
 
 function FileContent({ item }: FileContentProps) {
   const { name, content, url } = item
-  if (name.endsWith(".png")) {
+  // Match extensions case-insensitively so all-caps names (FOO.PDF, IMG.PNG,
+  // SLIDES.PPTX, …) render the same as their lowercase equivalents.
+  const lowerName = name.toLowerCase()
+  if (lowerName.endsWith(".png")) {
     return (
       <Image
         src={content ? `data:image/png;base64,${content}` : String(url)}
@@ -54,7 +59,7 @@ function FileContent({ item }: FileContentProps) {
       />
     )
   }
-  if (name.endsWith(".jpg") || name.endsWith(".jpeg")) {
+  if (lowerName.endsWith(".jpg") || lowerName.endsWith(".jpeg")) {
     return (
       <Image
         src={content ? `data:image/jpeg;base64,${content}` : String(url)}
@@ -62,7 +67,7 @@ function FileContent({ item }: FileContentProps) {
       />
     )
   }
-  if (name.toLowerCase().endsWith(".svg")) {
+  if (lowerName.endsWith(".svg")) {
     return (
       <Image
         src={content ? `data:image/svg+xml;base64,${content}` : String(url)}
@@ -70,7 +75,7 @@ function FileContent({ item }: FileContentProps) {
       />
     )
   }
-  if (name.endsWith(".pdf")) {
+  if (lowerName.endsWith(".pdf")) {
     return (
       <Box
         height="calc(100vh - 160px)"
@@ -87,7 +92,6 @@ function FileContent({ item }: FileContentProps) {
       </Box>
     )
   }
-  const lowerName = name.toLowerCase()
   if (lowerName.endsWith(".pptx") || lowerName.endsWith(".ppt")) {
     return (
       <Box
@@ -107,7 +111,7 @@ function FileContent({ item }: FileContentProps) {
       </Box>
     )
   }
-  if ((name.endsWith(".md") || lowerName.endsWith(".qmd")) && content) {
+  if ((lowerName.endsWith(".md") || lowerName.endsWith(".qmd")) && content) {
     const decoded = decodeBase64Utf8(content)
     return (
       <Box
