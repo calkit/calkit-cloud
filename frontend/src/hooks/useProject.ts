@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
-import { ProjectsService } from "../client"
+import { type Issue, ProjectsService } from "../client"
 
 const useProject = (accountName: string, projectName: string, ref?: string) => {
   const queryClient = useQueryClient()
@@ -188,20 +188,21 @@ const useProjectPresentations = (
   return { presentationsRequest }
 }
 
-const useProjectIssues = (
-  accountName: string,
-  projectName: string,
-  showClosedTodos: boolean,
-) => {
+const useProjectIssues = (accountName: string, projectName: string) => {
   const queryClient = useQueryClient()
 
+  const issuesKey = ["projects", accountName, projectName, "issues"] as const
+
+  // Always fetch every issue and let the UI filter open vs. closed. A single
+  // cache keeps the list consistent no matter how the "show closed" toggle is
+  // flipped, and lets optimistic updates apply in one place.
   const issuesRequest = useQuery({
-    queryKey: ["projects", accountName, projectName, "issues", showClosedTodos],
+    queryKey: issuesKey,
     queryFn: () =>
       ProjectsService.getProjectIssues({
         ownerName: accountName,
         projectName: projectName,
-        state: showClosedTodos ? "all" : "open",
+        state: "all",
       }),
     refetchOnWindowFocus: false,
     refetchOnMount: false,
@@ -220,10 +221,27 @@ const useProjectIssues = (
         issueNumber: data.issueNumber,
         requestBody: { state: data.state },
       }),
-    onSettled: () =>
-      queryClient.invalidateQueries({
-        queryKey: ["projects", accountName, projectName, "issues"],
-      }),
+    // Optimistically flip the issue's state. GitHub's REST API is not
+    // immediately read-your-writes consistent, so an immediate refetch would
+    // return the stale list and revert the change in the UI.
+    onMutate: async (data: IssueStateChange) => {
+      await queryClient.cancelQueries({ queryKey: issuesKey })
+      const prev = queryClient.getQueryData<Issue[]>(issuesKey)
+      if (prev !== undefined) {
+        queryClient.setQueryData<Issue[]>(
+          issuesKey,
+          prev.map((i) =>
+            i.number === data.issueNumber ? { ...i, state: data.state } : i,
+          ),
+        )
+      }
+      return { prev }
+    },
+    onError: (_err, _data, context) => {
+      if (context?.prev !== undefined) {
+        queryClient.setQueryData(issuesKey, context.prev)
+      }
+    },
   })
 
   return { issueStateMutation, issuesRequest }

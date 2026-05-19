@@ -17,7 +17,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { type SubmitHandler, useForm } from "react-hook-form"
 import { getRouteApi } from "@tanstack/react-router"
 
-import { ProjectsService } from "../../client"
+import { type Issue, ProjectsService } from "../../client"
 import type { ApiError } from "../../client/core/ApiError"
 import useCustomToast from "../../hooks/useCustomToast"
 import { handleError } from "../../lib/errors"
@@ -57,18 +57,21 @@ const CreateIssue = ({ isOpen, onClose }: CreateIssueProps) => {
         projectName: projectName,
         requestBody: data,
       }),
-    onSuccess: () => {
+    onSuccess: (createdIssue) => {
       showToast("Success!", "Issue created successfully.", "success")
       reset()
       onClose()
+      // Insert the new issue into the cached list directly. GitHub's REST
+      // API is not immediately read-your-writes consistent, so refetching
+      // here would return a stale list that omits the issue just created.
+      const key = ["projects", accountName, projectName, "issues"]
+      const existing = queryClient.getQueryData<Issue[]>(key)
+      if (existing !== undefined) {
+        queryClient.setQueryData<Issue[]>(key, [createdIssue, ...existing])
+      }
     },
     onError: (err: ApiError) => {
       handleError(err, showToast)
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["projects", accountName, projectName, "issues"],
-      })
     },
   })
 

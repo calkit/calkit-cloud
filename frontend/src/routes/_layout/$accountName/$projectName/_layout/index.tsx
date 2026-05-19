@@ -63,7 +63,9 @@ function ProjectView() {
   const { issuesRequest, issueStateMutation } = useProjectIssues(
     accountName,
     projectName,
-    showClosedTodos,
+  )
+  const visibleIssues = issuesRequest.data?.filter(
+    (issue) => showClosedTodos || issue.state === "open",
   )
   const { readmeRequest } = useProjectReadme(accountName, projectName, ref)
   const { questionsRequest } = useProjectQuestions(
@@ -89,7 +91,9 @@ function ProjectView() {
   }
   const onTodoCheckbox = (e: any) => {
     issueStateMutation.mutate({
-      issueNumber: e.target.id as number,
+      // e.target.id is the DOM id string; coerce it to a number so it
+      // matches issue.number when updating the cache.
+      issueNumber: Number(e.target.id),
       state: e.target.checked ? "closed" : "open",
     })
   }
@@ -249,13 +253,11 @@ function ProjectView() {
                 </FormControl>
               </Box>
             </Flex>
-            {issuesRequest.isPending ||
-            issuesRequest.isRefetching ||
-            issueStateMutation.isPending ? (
+            {issuesRequest.isPending || issuesRequest.isRefetching ? (
               <LoadingSpinner />
             ) : (
               <>
-                {issuesRequest?.data?.map((issue) => {
+                {visibleIssues?.map((issue) => {
                   const routeMap: Record<string, string> = {
                     figure: "figures",
                     publication: "publications",
@@ -270,16 +272,13 @@ function ProjectView() {
                       ? `/${accountName}/${projectName}/${artifactRoute}?path=${encodeURIComponent(issue.artifact_path)}`
                       : null
                   return (
-                    <Flex
-                      key={issue.number}
-                      alignItems={"center"}
-                      alignContent={"center"}
-                    >
+                    <Flex key={issue.number} alignItems={"flex-start"}>
                       <Checkbox
                         isChecked={issue.state === "closed"}
                         onChange={onTodoCheckbox}
                         id={String(issue.number)}
                         isDisabled={!userHasWriteAccess}
+                        mt={1}
                       />
                       <Text ml={2}>
                         {" "}
