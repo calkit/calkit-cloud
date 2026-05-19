@@ -28,12 +28,35 @@ if _prom_dir:
 
 from prometheus_fastapi_instrumentator import Instrumentator  # noqa: E402
 
-# Configure JSON logging so Loki can parse structured log lines.
+# Configure JSON logging so Loki can parse structured log lines. force=True
+# is required: other modules (e.g. app.core) are imported before this runs
+# and may have already attached a default plain-text handler to the root
+# logger, which would make this basicConfig a silent no-op and break every
+# Loki `| json` query.
 handler = logging.StreamHandler()
 handler.setFormatter(
     jsonlogger.JsonFormatter("%(asctime)s %(name)s %(levelname)s %(message)s")
 )
-logging.basicConfig(level=logging.INFO, handlers=[handler])
+logging.basicConfig(level=logging.INFO, handlers=[handler], force=True)
+
+
+class _SkipMetricsAccessLog(logging.Filter):
+    """Drop uvicorn access-log lines for Prometheus /metrics scrapes.
+
+    log_requests already skips /metrics for the app's own structured log,
+    but uvicorn's access logger emits a line for every scrape (~every
+    scrape_interval per backend), which is pure noise in Loki.
+    """
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        # uvicorn.access record args: (client, method, path, http_ver, code)
+        args = record.args
+        if isinstance(args, tuple) and len(args) >= 3:
+            return "/metrics" not in str(args[2])
+        return "/metrics" not in record.getMessage()
+
+
+logging.getLogger("uvicorn.access").addFilter(_SkipMetricsAccessLog())
 
 logger = logging.getLogger(__name__)
 
