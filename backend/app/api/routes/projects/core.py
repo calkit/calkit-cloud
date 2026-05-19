@@ -64,7 +64,6 @@ from app.git import (
     get_ck_info,
     get_ck_info_from_repo,
     get_commit_history,
-    get_dvc_pipeline_from_repo,
     get_file_history,
     get_overleaf_repo,
     get_repo,
@@ -645,7 +644,12 @@ def get_project(
             ttl=DEFAULT_REPO_TTL,
             ref=ref,
         )
-        ck_info = get_ck_info_from_repo(repo=repo)
+        # Read at the requested ref. get_repo only fetches a ref, it does
+        # not check it out, so get_ck_info_from_repo (working tree) would
+        # report the default branch's calkit.yaml keys instead.
+        ck_info = app.projects.get_ck_info_for_ref(
+            project=project, repo=repo, ref=ref
+        )
         resp.calkit_info_keys = list(ck_info.keys())
         # Read status if present
         status_fpath = os.path.join(repo.working_dir, ".calkit", "status.csv")
@@ -1321,12 +1325,18 @@ def get_project_questions(
         current_user=current_user,
         min_access_level="read",
     )
-    ck_info = get_ck_info(
+    # Read at the requested ref. get_ck_info reads the working tree, which
+    # get_repo never checks out to the ref, so it would return the default
+    # branch's questions instead.
+    repo = get_repo(
         project=project,
         user=current_user,
         session=session,
         ttl=DEFAULT_REPO_TTL,
         ref=ref,
+    )
+    ck_info = app.projects.get_ck_info_for_ref(
+        project=project, repo=repo, ref=ref
     )
     project = _sync_questions_with_db(
         ck_info=ck_info, project=project, session=session
@@ -2669,8 +2679,13 @@ def get_project_publications(
         ttl=DEFAULT_REPO_TTL,
         ref=ref,
     )
-    ck_info = get_ck_info_from_repo(repo)
-    pipeline = get_dvc_pipeline_from_repo(repo)
+    # Read declared metadata at the requested ref. get_repo only fetches a
+    # ref, it does not check it out, so reading the working tree would return
+    # the default branch's publications/pipeline.
+    ck_info = app.projects.get_ck_info_for_ref(
+        project=project, repo=repo, ref=ref
+    )
+    pipeline = app.projects.get_dvc_pipeline_for_ref(repo, ref)
     publications = ck_info.get("publications", [])
     overleaf_info = calkit.overleaf.get_sync_info(
         wdir=repo.working_dir, ck_info=ck_info, fix_legacy=False
@@ -2736,8 +2751,13 @@ def get_project_presentations(
         ttl=DEFAULT_REPO_TTL,
         ref=ref,
     )
-    ck_info = get_ck_info_from_repo(repo)
-    pipeline = get_dvc_pipeline_from_repo(repo)
+    # Read declared metadata at the requested ref. get_repo only fetches a
+    # ref, it does not check it out, so reading the working tree would return
+    # the default branch's presentations/pipeline.
+    ck_info = app.projects.get_ck_info_for_ref(
+        project=project, repo=repo, ref=ref
+    )
+    pipeline = app.projects.get_dvc_pipeline_for_ref(repo, ref)
     presentations = ck_info.get("presentations", [])
     # Paths explicitly declared under ``presentations`` in calkit.yaml. These
     # are always respected (like figures/publications): they're never
@@ -3555,20 +3575,20 @@ def get_project_pipeline(
         ttl=DEFAULT_REPO_TTL,
         ref=ref,
     )
-    fpath = os.path.join(repo.working_dir, "dvc.yaml")
-    if not os.path.isfile(fpath):
+    # Read files at the requested ref rather than the live checkout, which
+    # always reflects the default branch (get_repo only fetches a ref, it
+    # does not check it out).
+    tree = app.projects.get_repo_tree_for_ref(repo, ref)
+    if not tree.is_file("dvc.yaml"):
         return
-    with open(fpath) as f:
-        dvc_content = f.read()
+    dvc_content = tree.read_text("dvc.yaml")
     dvc_pipeline = ryaml.load(dvc_content)
     # Pop off any private stages
     for stage_name in list(dvc_pipeline.get("stages", {}).keys()):
         if stage_name.startswith("_"):
             dvc_pipeline["stages"].pop(stage_name)
-    params_fpath = os.path.join(repo.working_dir, "params.yaml")
-    if os.path.isfile(params_fpath):
-        with open(params_fpath) as f:
-            params = ryaml.load(f)
+    if tree.is_file("params.yaml"):
+        params = ryaml.load(tree.read_text("params.yaml"))
     else:
         params = None
     # Generate Mermaid diagram
@@ -3577,11 +3597,9 @@ def get_project_pipeline(
         f"Created Mermaid diagram for {owner_name}/{project_name}:\n{mermaid}"
     )
     # See if we can read a Calkit pipeline
-    ck_fpath = os.path.join(repo.working_dir, "calkit.yaml")
     calkit_content = None
-    if os.path.isfile(ck_fpath):
-        with open(ck_fpath) as f:
-            ck_info = ryaml.load(f)
+    if tree.is_file("calkit.yaml"):
+        ck_info = ryaml.load(tree.read_text("calkit.yaml"))
         if "pipeline" in ck_info:
             stream = io.StringIO()
             ryaml.dump({"pipeline": ck_info["pipeline"]}, stream)

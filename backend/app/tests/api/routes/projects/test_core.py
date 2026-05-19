@@ -599,3 +599,159 @@ def test_get_project_figures_dvc_pointer_no_duplicates_with_dvc_lock(
     assert returned_paths.count(shared_path) == 1, (
         f"Expected {shared_path!r} to appear exactly once, got {returned_paths}"
     )
+
+
+def test_get_project_pipeline_reads_at_ref(client: TestClient) -> None:
+    """The pipeline endpoint must read files at the requested ref.
+
+    get_repo only fetches a ref; it never checks it out, so reading from
+    the working tree would silently return the default branch's pipeline.
+    The endpoint must therefore read through get_repo_tree_for_ref.
+    """
+    fake_project = SimpleNamespace()
+    fake_repo = SimpleNamespace()
+
+    files = {
+        "dvc.yaml": "stages:\n  train:\n    cmd: python train.py\n",
+    }
+
+    class FakeTree:
+        def is_file(self, path: str) -> bool:
+            return path in files
+
+        def read_text(self, path: str, encoding: str = "utf-8") -> str:
+            return files[path]
+
+    fake_tree = FakeTree()
+
+    with (
+        patch(
+            "app.api.routes.projects.core.app.projects.get_project",
+            return_value=fake_project,
+        ),
+        patch(
+            "app.api.routes.projects.core.get_repo",
+            return_value=fake_repo,
+        ) as mock_get_repo,
+        patch(
+            "app.api.routes.projects.core.app.projects.get_repo_tree_for_ref",
+            return_value=fake_tree,
+        ) as mock_get_tree,
+    ):
+        response = client.get(
+            f"{settings.API_V1_STR}/projects/test-owner/test-project/pipeline"
+            "?ref=some-branch"
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert "train" in body["dvc_stages"]
+    # The ref must be forwarded to get_repo so the branch is fetched
+    assert mock_get_repo.call_args.kwargs["ref"] == "some-branch"
+    # ...and to get_repo_tree_for_ref so files are read at that snapshot
+    # rather than from the live working-tree checkout
+    mock_get_tree.assert_called_once_with(fake_repo, "some-branch")
+
+
+class _EmptyTree:
+    """A repo tree with no files (defeats auto-detection in tests)."""
+
+    def traverse(self):
+        return []
+
+
+def _ref_aware_endpoint_reads_declared_at_ref(
+    client: TestClient, endpoint: str, ck_key: str
+) -> None:
+    """Shared assertions: declared metadata + pipeline read at the ref.
+
+    get_repo only fetches a ref, it does not check it out, so the declared
+    publications/presentations list and the DVC pipeline must be read via
+    the ref-aware helpers rather than the live working tree.
+    """
+    fake_project = SimpleNamespace(owner_account_name="o", name="p")
+    fake_repo = SimpleNamespace(
+        working_dir="/tmp/nonexistent",
+        commit=lambda _ref: SimpleNamespace(tree=_EmptyTree()),
+        head=SimpleNamespace(commit=SimpleNamespace(tree=_EmptyTree())),
+    )
+    declared = [{"path": f"declared/from-{ck_key}.pdf", "title": "Declared"}]
+
+    with (
+        patch(
+            "app.api.routes.projects.core.app.projects.get_project",
+            return_value=fake_project,
+        ),
+        patch(
+            "app.api.routes.projects.core.get_repo",
+            return_value=fake_repo,
+        ) as mock_get_repo,
+        patch(
+            "app.api.routes.projects.core.app.projects.get_ck_info_for_ref",
+            return_value={ck_key: [dict(d) for d in declared]},
+        ) as mock_ck_for_ref,
+        patch(
+            "app.api.routes.projects.core.app.projects"
+            ".get_dvc_pipeline_for_ref",
+            return_value={},
+        ) as mock_pipeline_for_ref,
+        patch(
+            "app.api.routes.projects.core.app.projects.get_repo_tree_for_ref",
+            return_value=object(),
+        ),
+        patch(
+            "app.api.routes.projects.core.app.projects"
+            ".get_ck_info_and_dvc_outs_from_tree",
+            return_value=({}, {}, {}),
+        ),
+        patch(
+            "app.api.routes.projects.core.app.projects.get_contents_from_tree",
+            return_value=ContentsItem(
+                name="x",
+                path="x",
+                type="file",
+                size=1,
+                in_repo=True,
+                content=None,
+                url=None,
+                storage=None,
+                dir_items=None,
+            ),
+        ),
+        patch(
+            "app.api.routes.projects.core.calkit.overleaf.get_sync_info",
+            return_value={},
+        ),
+    ):
+        response = client.get(
+            f"{settings.API_V1_STR}/projects/test-owner/test-project/"
+            f"{endpoint}?ref=some-branch"
+        )
+
+    assert response.status_code == 200, response.text
+    paths = [item["path"] for item in response.json()]
+    assert f"declared/from-{ck_key}.pdf" in paths
+    assert mock_get_repo.call_args.kwargs["ref"] == "some-branch"
+    # Declared metadata and the DVC pipeline must come from the ref, not
+    # the working tree
+    assert mock_ck_for_ref.call_args.kwargs["ref"] == "some-branch"
+    pipeline_args = mock_pipeline_for_ref.call_args
+    assert (pipeline_args.args + tuple(pipeline_args.kwargs.values()))[
+        -1
+    ] == "some-branch"
+
+
+def test_get_project_publications_reads_declared_at_ref(
+    client: TestClient,
+) -> None:
+    _ref_aware_endpoint_reads_declared_at_ref(
+        client, "publications", "publications"
+    )
+
+
+def test_get_project_presentations_reads_declared_at_ref(
+    client: TestClient,
+) -> None:
+    _ref_aware_endpoint_reads_declared_at_ref(
+        client, "presentations", "presentations"
+    )
