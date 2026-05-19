@@ -936,7 +936,7 @@ export type PublicationOverleaf = {
   url?: string | null
   push_paths?: Array<string>
   sync_paths?: Array<string>
-  last_sync_commit: string | null
+  last_sync_commit?: string | null
 }
 
 export type Question = {

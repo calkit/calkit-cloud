@@ -4498,7 +4498,7 @@ export const PublicationOverleafSchema = {
     },
   },
   type: "object",
-  required: ["project_id", "last_sync_commit"],
+  required: ["project_id"],
   title: "PublicationOverleaf",
 } as const
 

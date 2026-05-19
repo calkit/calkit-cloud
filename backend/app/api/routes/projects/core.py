@@ -1413,6 +1413,22 @@ def get_project_figures(
         ref=ref,
     )
     figures = ck_info.get("figures", [])
+
+    def _title_from_path(path: str) -> str:
+        """Derive a human-readable figure title from its file name."""
+        return (
+            path.split("/")[-1]
+            .rsplit(".", 1)[0]
+            .replace("_", " ")
+            .replace("-", " ")
+            .capitalize()
+        )
+
+    # Declared figures (from calkit.yaml) may omit a title; fill one in so
+    # they validate against the Figure model.
+    for fig in figures:
+        if not fig.get("title"):
+            fig["title"] = _title_from_path(fig["path"])
     declared_paths = {fig["path"] for fig in figures}
 
     def _maybe_add_figure(path: str) -> None:
@@ -1428,14 +1444,7 @@ def get_project_figures(
             d in FIGURE_DIRS for d in dir_parts
         ):
             if path not in declared_paths:
-                stem = (
-                    parts[-1]
-                    .rsplit(".", 1)[0]
-                    .replace("_", " ")
-                    .replace("-", " ")
-                    .capitalize()
-                )
-                figures.append({"path": path, "title": stem})
+                figures.append({"path": path, "title": _title_from_path(path)})
                 declared_paths.add(path)
 
     # Auto-detect figures from the repo tree
