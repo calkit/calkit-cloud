@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useRef } from "react"
 
 import { type Issue, ProjectsService } from "../client"
 
@@ -193,15 +194,81 @@ const useProjectIssues = (accountName: string, projectName: string) => {
 
   const issuesKey = ["projects", accountName, projectName, "issues"] as const
 
-  // GitHub's REST API is not immediately read-your-writes consistent, so we
-  // reconcile with the server only after a delay long enough for it to catch
-  // up. This keeps the optimistic UI instant while still picking up the
-  // server's truth (and any external changes) eventually.
+  // GitHub's REST list endpoint is eventually consistent, so a plain refetch
+  // shortly after a write can return a stale list and clobber the optimistic
+  // change. Instead of invalidating, we refetch and *merge*: optimistic
+  // changes the server hasn't caught up to yet are re-applied, and we keep
+  // re-checking (with a cap) until the server confirms them.
   const ISSUES_RECONCILE_DELAY_MS = 5000
-  const scheduleIssuesReconcile = () => {
-    setTimeout(() => {
-      queryClient.invalidateQueries({ queryKey: issuesKey })
-    }, ISSUES_RECONCILE_DELAY_MS)
+  const ISSUES_RECONCILE_MAX_ATTEMPTS = 6
+  // issueNumber -> the state we expect the server to eventually report.
+  const pendingStates = useRef(new Map<number, Issue["state"]>())
+  // issueNumber -> a created issue the server list may not include yet.
+  const pendingCreates = useRef(new Map<number, Issue>())
+  const reconcileTimer = useRef<ReturnType<typeof setTimeout>>()
+  const reconcileAttempts = useRef(0)
+
+  const hasPending = () =>
+    pendingStates.current.size > 0 || pendingCreates.current.size > 0
+
+  // Overlay still-unconfirmed optimistic changes onto a list of issues.
+  const applyPending = (list: Issue[]): Issue[] => {
+    let result = list.map((i) => {
+      const want = pendingStates.current.get(i.number)
+      return want && i.state !== want ? { ...i, state: want } : i
+    })
+    const present = new Set(result.map((i) => i.number))
+    for (const [num, issue] of pendingCreates.current) {
+      if (!present.has(num)) result = [issue, ...result]
+    }
+    return result
+  }
+
+  const reconcileIssues = async () => {
+    let server: Issue[]
+    try {
+      server = await ProjectsService.getProjectIssues({
+        ownerName: accountName,
+        projectName: projectName,
+        state: "all",
+      })
+    } catch {
+      return // Leave the optimistic cache as-is; try again later.
+    }
+    const serverByNum = new Map(server.map((i) => [i.number, i]))
+    // Drop expectations the server now satisfies.
+    for (const [num, want] of [...pendingStates.current]) {
+      if (serverByNum.get(num)?.state === want) {
+        pendingStates.current.delete(num)
+      }
+    }
+    for (const num of [...pendingCreates.current.keys()]) {
+      if (serverByNum.has(num)) pendingCreates.current.delete(num)
+    }
+    queryClient.setQueryData<Issue[]>(issuesKey, applyPending(server))
+    // Keep reconciling until the server agrees, up to a cap (after which we
+    // accept the server's truth, e.g. a change reverted elsewhere).
+    if (
+      hasPending() &&
+      reconcileAttempts.current < ISSUES_RECONCILE_MAX_ATTEMPTS
+    ) {
+      reconcileAttempts.current += 1
+      scheduleIssuesReconcile(false)
+    } else {
+      pendingStates.current.clear()
+      pendingCreates.current.clear()
+    }
+  }
+
+  // `fresh` resets the attempt counter — a new user action restarts the
+  // window the server is given to catch up.
+  const scheduleIssuesReconcile = (fresh = true) => {
+    if (fresh) reconcileAttempts.current = 0
+    if (reconcileTimer.current) clearTimeout(reconcileTimer.current)
+    reconcileTimer.current = setTimeout(
+      reconcileIssues,
+      ISSUES_RECONCILE_DELAY_MS,
+    )
   }
 
   // Always fetch every issue and let the UI filter open vs. closed. A single
@@ -239,6 +306,7 @@ const useProjectIssues = (accountName: string, projectName: string) => {
       const prevState = queryClient
         .getQueryData<Issue[]>(issuesKey)
         ?.find((i) => i.number === data.issueNumber)?.state
+      pendingStates.current.set(data.issueNumber, data.state)
       queryClient.setQueryData<Issue[]>(issuesKey, (old) =>
         old?.map((i) =>
           i.number === data.issueNumber ? { ...i, state: data.state } : i,
@@ -249,6 +317,7 @@ const useProjectIssues = (accountName: string, projectName: string) => {
     // Roll back only the mutated issue so we don't clobber other cache
     // writes (e.g. a newly created issue) that happened in the meantime.
     onError: (_err, data, context) => {
+      pendingStates.current.delete(data.issueNumber)
       if (context?.prevState !== undefined) {
         queryClient.setQueryData<Issue[]>(issuesKey, (old) =>
           old?.map((i) =>
@@ -259,10 +328,20 @@ const useProjectIssues = (accountName: string, projectName: string) => {
         )
       }
     },
-    onSettled: scheduleIssuesReconcile,
+    onSettled: () => scheduleIssuesReconcile(),
   })
 
-  return { issueStateMutation, issuesRequest }
+  // Called by the create-issue flow so the new issue is preserved through
+  // reconciles until GitHub's list endpoint returns it.
+  const registerCreatedIssue = (issue: Issue) => {
+    pendingCreates.current.set(issue.number, issue)
+    queryClient.setQueryData<Issue[]>(issuesKey, (old) =>
+      old !== undefined ? [issue, ...old] : [issue],
+    )
+    scheduleIssuesReconcile()
+  }
+
+  return { issueStateMutation, issuesRequest, registerCreatedIssue }
 }
 
 export {

@@ -60,10 +60,8 @@ function ProjectView() {
     projectName,
     ref,
   )
-  const { issuesRequest, issueStateMutation } = useProjectIssues(
-    accountName,
-    projectName,
-  )
+  const { issuesRequest, issueStateMutation, registerCreatedIssue } =
+    useProjectIssues(accountName, projectName)
   const visibleIssues = issuesRequest.data?.filter(
     (issue) => showClosedTodos || issue.state === "open",
   )
@@ -232,6 +230,7 @@ function ProjectView() {
                       <CreateIssue
                         isOpen={newIssueModal.isOpen}
                         onClose={newIssueModal.onClose}
+                        onCreated={registerCreatedIssue}
                       />
                     </>
                   ) : (
@@ -253,7 +252,7 @@ function ProjectView() {
                 </FormControl>
               </Box>
             </Flex>
-            {issuesRequest.isPending || issuesRequest.isRefetching ? (
+            {issuesRequest.isPending ? (
               <LoadingSpinner />
             ) : (
               <>

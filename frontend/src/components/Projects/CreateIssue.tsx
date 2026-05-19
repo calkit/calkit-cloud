@@ -13,7 +13,8 @@ import {
   ModalOverlay,
   Textarea,
 } from "@chakra-ui/react"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useMutation } from "@tanstack/react-query"
+import { useRef } from "react"
 import { type SubmitHandler, useForm } from "react-hook-form"
 import { getRouteApi } from "@tanstack/react-router"
 
@@ -25,6 +26,9 @@ import { handleError } from "../../lib/errors"
 interface CreateIssueProps {
   isOpen: boolean
   onClose: () => void
+  // Hands the created issue to the issues hook, which keeps it visible
+  // through reconciles until GitHub's list endpoint returns it.
+  onCreated: (issue: Issue) => void
 }
 
 interface IssuePost {
@@ -32,8 +36,7 @@ interface IssuePost {
   body?: string
 }
 
-const CreateIssue = ({ isOpen, onClose }: CreateIssueProps) => {
-  const queryClient = useQueryClient()
+const CreateIssue = ({ isOpen, onClose, onCreated }: CreateIssueProps) => {
   const showToast = useCustomToast()
   const routeApi = getRouteApi("/_layout/$accountName/$projectName")
   const { accountName, projectName } = routeApi.useParams()
@@ -61,19 +64,7 @@ const CreateIssue = ({ isOpen, onClose }: CreateIssueProps) => {
       showToast("Success!", "Issue created successfully.", "success")
       reset()
       onClose()
-      // Insert the new issue into the cached list directly. GitHub's REST
-      // API is not immediately read-your-writes consistent, so refetching
-      // here would return a stale list that omits the issue just created.
-      // Initialize the list if the issues query hasn't populated yet.
-      const key = ["projects", accountName, projectName, "issues"]
-      queryClient.setQueryData<Issue[]>(key, (existing) =>
-        existing !== undefined ? [createdIssue, ...existing] : [createdIssue],
-      )
-      // Reconcile with the server once GitHub is consistent, so the cache
-      // doesn't drift (e.g. an in-flight initial fetch landing stale).
-      setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: key })
-      }, 5000)
+      onCreated(createdIssue)
     },
     onError: (err: ApiError) => {
       handleError(err, showToast)
@@ -84,6 +75,20 @@ const CreateIssue = ({ isOpen, onClose }: CreateIssueProps) => {
     mutation.mutate(data)
   }
 
+  // Focus the title field when the modal opens.
+  const initialFocusRef = useRef<HTMLInputElement | null>(null)
+  const { ref: titleFieldRef, ...titleField } = register("title", {
+    required: "Title is required",
+  })
+
+  // Submit on Cmd/Ctrl+Enter (e.g. from the multi-line Details field).
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault()
+      handleSubmit(onSubmit)()
+    }
+  }
+
   return (
     <>
       <Modal
@@ -91,9 +96,14 @@ const CreateIssue = ({ isOpen, onClose }: CreateIssueProps) => {
         onClose={onClose}
         size={{ base: "sm", md: "md" }}
         isCentered
+        initialFocusRef={initialFocusRef}
       >
         <ModalOverlay />
-        <ModalContent as="form" onSubmit={handleSubmit(onSubmit)}>
+        <ModalContent
+          as="form"
+          onSubmit={handleSubmit(onSubmit)}
+          onKeyDown={onKeyDown}
+        >
           <ModalHeader>Create new issue</ModalHeader>
           <ModalCloseButton />
           <ModalBody pb={6}>
@@ -101,9 +111,11 @@ const CreateIssue = ({ isOpen, onClose }: CreateIssueProps) => {
               <FormLabel htmlFor="title">Title</FormLabel>
               <Input
                 id="title"
-                {...register("title", {
-                  required: "Title is required",
-                })}
+                {...titleField}
+                ref={(e) => {
+                  titleFieldRef(e)
+                  initialFocusRef.current = e
+                }}
                 placeholder="Ex: Process the data"
                 type="text"
               />
