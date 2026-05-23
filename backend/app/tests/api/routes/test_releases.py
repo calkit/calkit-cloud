@@ -60,9 +60,7 @@ def test_get_project_releases_includes_calkit_yaml(
     client: TestClient,
 ) -> None:
     """Releases declared in calkit.yaml are surfaced to read-only viewers."""
-    fake_project = SimpleNamespace(
-        id=uuid.uuid4(), current_user_access="read"
-    )
+    fake_project = SimpleNamespace(id=uuid.uuid4(), current_user_access="read")
     ck_info = {
         "releases": {
             "v0.1": {

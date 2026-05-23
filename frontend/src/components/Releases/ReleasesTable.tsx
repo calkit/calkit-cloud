@@ -28,25 +28,17 @@ import {
   useDisclosure,
 } from "@chakra-ui/react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { createFileRoute, useSearch } from "@tanstack/react-router"
 import { useState } from "react"
 import { FaPlus, FaTrash } from "react-icons/fa"
 import { FiCopy, FiExternalLink } from "react-icons/fi"
 
-import { type ReleaseListItem, ReleasesService } from "../../../../../client"
-import type { ApiError } from "../../../../../client/core/ApiError"
-import LoadingSpinner from "../../../../../components/Common/LoadingSpinner"
-import NewRelease from "../../../../../components/Releases/NewRelease"
-import useCustomToast from "../../../../../hooks/useCustomToast"
-import useProject from "../../../../../hooks/useProject"
-import { handleError } from "../../../../../lib/errors"
-import { releaseUrl } from "../../../../../lib/releases"
-
-export const Route = createFileRoute(
-  "/_layout/$accountName/$projectName/_layout/releases",
-)({
-  component: Releases,
-})
+import { type ReleaseListItem, ReleasesService } from "../../client"
+import type { ApiError } from "../../client/core/ApiError"
+import useCustomToast from "../../hooks/useCustomToast"
+import { handleError } from "../../lib/errors"
+import { releaseUrl } from "../../lib/releases"
+import LoadingSpinner from "../Common/LoadingSpinner"
+import NewRelease from "./NewRelease"
 
 const formatDate = (date: string | null | undefined): string => {
   if (!date) return "—"
@@ -69,15 +61,17 @@ const CopyLinkButton = ({ token }: { token: string }) => {
   )
 }
 
-function Releases() {
-  const { accountName, projectName } = Route.useParams()
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const layoutSearch = useSearch({
-    from: "/_layout/$accountName/$projectName/_layout" as any,
-    strict: false,
-  }) as any
-  const ref: string | undefined = layoutSearch?.ref
-  const { userHasWriteAccess } = useProject(accountName, projectName)
+interface ReleasesTableProps {
+  ownerName: string
+  projectName: string
+  userHasWriteAccess: boolean
+}
+
+const ReleasesTable = ({
+  ownerName,
+  projectName,
+  userHasWriteAccess,
+}: ReleasesTableProps) => {
   const queryClient = useQueryClient()
   const showToast = useCustomToast()
   const newReleaseModal = useDisclosure()
@@ -85,18 +79,14 @@ function Releases() {
   const [toDelete, setToDelete] = useState<ReleaseListItem | null>(null)
 
   const releasesQuery = useQuery({
-    queryKey: ["projects", accountName, projectName, "releases", ref],
+    queryKey: ["projects", ownerName, projectName, "releases", undefined],
     queryFn: () =>
-      ReleasesService.getProjectReleases({
-        ownerName: accountName,
-        projectName,
-        ref,
-      }),
+      ReleasesService.getProjectReleases({ ownerName, projectName }),
   })
   const deleteMutation = useMutation({
     mutationFn: (name: string) =>
       ReleasesService.deleteProjectRelease({
-        ownerName: accountName,
+        ownerName,
         projectName,
         releaseName: name,
       }),
@@ -108,16 +98,16 @@ function Releases() {
     onError: (err: ApiError) => handleError(err, showToast),
     onSettled: () => {
       queryClient.invalidateQueries({
-        queryKey: ["projects", accountName, projectName, "releases"],
+        queryKey: ["projects", ownerName, projectName, "releases"],
       })
     },
   })
   const releases = releasesQuery.data ?? []
 
   return (
-    <Box px={4} py={2} w="100%">
+    <Box>
       <Flex align="center" mb={4}>
-        <Heading size="lg">Releases</Heading>
+        <Heading size="md">Releases</Heading>
         {userHasWriteAccess && (
           <Button
             variant="primary"
@@ -239,7 +229,7 @@ function Releases() {
       <NewRelease
         isOpen={newReleaseModal.isOpen}
         onClose={newReleaseModal.onClose}
-        ownerName={accountName}
+        ownerName={ownerName}
         projectName={projectName}
       />
       <Modal
@@ -271,3 +261,5 @@ function Releases() {
     </Box>
   )
 }
+
+export default ReleasesTable

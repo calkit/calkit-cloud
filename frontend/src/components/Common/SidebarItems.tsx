@@ -13,7 +13,6 @@ import {
   FiHome,
   FiImage,
   FiMonitor,
-  FiTag,
   FiUsers,
 } from "react-icons/fi"
 import { IoLibraryOutline } from "react-icons/io5"
@@ -33,7 +32,6 @@ const items = [
   { icon: FiMonitor, title: "Presentations", path: "/presentations" },
   { icon: SiJupyter, title: "Notebooks", path: "/notebooks" },
   { icon: FiGitBranch, title: "History", path: "/history" },
-  { icon: FiTag, title: "Releases", path: "/releases" },
   { icon: FiHardDrive, title: "Software", path: "/software" },
   { icon: FiUsers, title: "Collaborators", path: "/collaborators" },
   { icon: IoLibraryOutline, title: "References", path: "/references" },
