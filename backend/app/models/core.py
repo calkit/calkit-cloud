@@ -976,12 +976,37 @@ class ReleaseListItem(BaseModel):
     public: bool = True
     url: str | None = None
     doi: str | None = None
+    # Where the artifact was declared released (e.g., arxiv, journal, zenodo,
+    # caltechdata). Unified with the existing ``publisher`` key that Zenodo
+    # releases already use. ``None`` for hosted cloud secret-link releases.
+    publisher: str | None = None
     # Release date as an ISO string (calkit.yaml ``date`` or cloud ``created``).
     date: str | None = None
     # Cloud-only fields.
     secret_token: str | None = None
     view_count: int | None = None
     comment_count: int | None = None
+
+
+class ExternalReleasePost(SQLModel):
+    """A release declared as published to an external venue.
+
+    Recorded loosely in ``calkit.yaml`` (not hosted by Calkit); used to track
+    that an artifact was, e.g., posted to arXiv or published in a journal. The
+    ``publisher`` key matches what Zenodo releases already write.
+    """
+
+    name: str = Field(min_length=1, max_length=255)
+    kind: str = "publication"
+    path: str | None = None
+    publisher: str | None = None
+    url: str | None = None
+    doi: str | None = None
+    # ISO date string; defaults to today when omitted.
+    date: str | None = None
+    title: str | None = None
+    description: str | None = None
+    public: bool = True
 
 
 class DatasetBase(SQLModel):

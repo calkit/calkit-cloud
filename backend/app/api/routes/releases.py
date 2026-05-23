@@ -16,7 +16,9 @@ shared via the secret link without granting repo access.
 """
 
 import logging
+import os
 import secrets
+from datetime import date
 
 from fastapi import APIRouter, HTTPException
 from sqlmodel import select
@@ -25,9 +27,11 @@ import app.projects
 from app import mixpanel, users
 from app.api.deps import CurrentUser, CurrentUserOptional, SessionDep
 from app.config import settings
+from app.core import ryaml
 from app.git import get_repo, get_repo_tree_for_ref
 from app.models import (
     ContentsItem,
+    ExternalReleasePost,
     Message,
     Release,
     ReleaseComment,
@@ -182,6 +186,80 @@ def post_project_release(
     return release
 
 
+@router.post("/projects/{owner_name}/{project_name}/releases/external")
+def post_external_release(
+    owner_name: str,
+    project_name: str,
+    release_in: ExternalReleasePost,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> Message:
+    """Declare a release published to an external venue.
+
+    Recorded as an entry in ``calkit.yaml`` (committed and pushed); not hosted
+    by Calkit. Loosely coupled -- we only track the metadata.
+    """
+    project = app.projects.get_project(
+        session=session,
+        owner_name=owner_name,
+        project_name=project_name,
+        current_user=current_user,
+        min_access_level="write",
+    )
+    repo = get_repo(
+        project=project, user=current_user, session=session, ttl=None
+    )
+    ck_path = os.path.join(repo.working_dir, "calkit.yaml")
+    ck_info = {}
+    if os.path.exists(ck_path):
+        with open(ck_path) as f:
+            ck_info = ryaml.load(f) or {}
+    releases = ck_info.get("releases") or {}
+    if release_in.name in releases:
+        raise HTTPException(
+            409,
+            f"A release named '{release_in.name}' already exists "
+            "in calkit.yaml",
+        )
+    # Build the entry, omitting empty values to keep calkit.yaml tidy. A
+    # missing ``public`` key means public, so only write it when False.
+    entry: dict = {
+        "kind": release_in.kind,
+        "path": release_in.path or ".",
+    }
+    if release_in.publisher:
+        entry["publisher"] = release_in.publisher
+    if release_in.url:
+        entry["url"] = release_in.url
+    if release_in.doi:
+        entry["doi"] = release_in.doi
+    entry["date"] = release_in.date or date.today().isoformat()
+    if release_in.title:
+        entry["title"] = release_in.title
+    if release_in.description:
+        entry["description"] = release_in.description
+    if not release_in.public:
+        entry["public"] = False
+    releases[release_in.name] = entry
+    ck_info["releases"] = releases
+    with open(ck_path, "w") as f:
+        ryaml.dump(ck_info, f)
+    repo.git.add("calkit.yaml")
+    repo.git.commit(["-m", f"Declare release {release_in.name}"])
+    repo.git.push(["origin", repo.active_branch.name])
+    mixpanel.track(
+        current_user,
+        "Declared external release",
+        {
+            "owner_name": owner_name,
+            "project_name": project_name,
+            "kind": release_in.kind,
+            "publisher": release_in.publisher,
+        },
+    )
+    return Message(message="success")
+
+
 @router.get("/projects/{owner_name}/{project_name}/releases")
 def get_project_releases(
     owner_name: str,
@@ -257,9 +335,11 @@ def get_project_releases(
         git_rev = rel.get("git_rev")
         # Prefer the declared date; otherwise fall back to the release's
         # commit date (or its tag's commit), so every release shows a date.
-        date = str(rel["date"]) if rel.get("date") else None
-        if date is None:
-            date = _commit_date(repo, git_rev) or _commit_date(repo, name)
+        release_date = str(rel["date"]) if rel.get("date") else None
+        if release_date is None:
+            release_date = _commit_date(repo, git_rev) or _commit_date(
+                repo, name
+            )
         items.append(
             ReleaseListItem(
                 source="calkit",
@@ -274,7 +354,8 @@ def get_project_releases(
                 public=rel.get("public", True),
                 url=rel.get("url"),
                 doi=rel.get("doi"),
-                date=date,
+                publisher=rel.get("publisher"),
+                date=release_date,
             )
         )
     return items

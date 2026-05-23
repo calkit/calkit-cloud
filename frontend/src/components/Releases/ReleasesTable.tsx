@@ -29,7 +29,7 @@ import {
 } from "@chakra-ui/react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useState } from "react"
-import { FaPlus, FaTrash } from "react-icons/fa"
+import { FaPlus, FaSort, FaSortDown, FaSortUp, FaTrash } from "react-icons/fa"
 import { FiCopy, FiExternalLink } from "react-icons/fi"
 
 import { type ReleaseListItem, ReleasesService } from "../../client"
@@ -44,6 +44,46 @@ const formatDate = (date: string | null | undefined): string => {
   if (!date) return "—"
   const d = new Date(date)
   return Number.isNaN(d.getTime()) ? date : d.toLocaleDateString()
+}
+
+export type SortKey =
+  | "name"
+  | "path"
+  | "version"
+  | "date"
+  | "visibility"
+  | "views"
+  | "comments"
+
+export type SortDir = "asc" | "desc"
+
+export interface ReleaseSort {
+  key: SortKey
+  dir: SortDir
+}
+
+export const DEFAULT_RELEASE_SORT: ReleaseSort = { key: "date", dir: "desc" }
+
+// Columns that read most naturally as descending on first click.
+const DESC_FIRST: Set<SortKey> = new Set(["date", "views", "comments"])
+
+const sortValue = (r: ReleaseListItem, key: SortKey): string | number => {
+  switch (key) {
+    case "name":
+      return r.name.toLowerCase()
+    case "path":
+      return (r.path && r.path !== "." ? r.path : "").toLowerCase()
+    case "version":
+      return (r.git_ref ?? r.git_rev_abbrev ?? "").toLowerCase()
+    case "date":
+      return r.date ? new Date(r.date).getTime() || 0 : 0
+    case "visibility":
+      return r.public ? 1 : 0
+    case "views":
+      return r.view_count ?? -1
+    case "comments":
+      return r.comment_count ?? -1
+  }
 }
 
 const CopyLinkButton = ({ token }: { token: string }) => {
@@ -65,18 +105,37 @@ interface ReleasesTableProps {
   ownerName: string
   projectName: string
   userHasWriteAccess: boolean
+  // Controlled sort state so it can be persisted (e.g., in URL params).
+  sort?: ReleaseSort
+  onSortChange?: (sort: ReleaseSort) => void
 }
 
 const ReleasesTable = ({
   ownerName,
   projectName,
   userHasWriteAccess,
+  sort: sortProp,
+  onSortChange,
 }: ReleasesTableProps) => {
   const queryClient = useQueryClient()
   const showToast = useCustomToast()
   const newReleaseModal = useDisclosure()
   const confirmDelete = useDisclosure()
   const [toDelete, setToDelete] = useState<ReleaseListItem | null>(null)
+  // Fall back to internal state when used uncontrolled.
+  const [sortState, setSortState] = useState<ReleaseSort>(DEFAULT_RELEASE_SORT)
+  const sort = sortProp ?? sortState
+  const toggleSort = (key: SortKey) => {
+    const next: ReleaseSort =
+      sort.key === key
+        ? { key, dir: sort.dir === "asc" ? "desc" : "asc" }
+        : { key, dir: DESC_FIRST.has(key) ? "desc" : "asc" }
+    if (onSortChange) {
+      onSortChange(next)
+    } else {
+      setSortState(next)
+    }
+  }
 
   const releasesQuery = useQuery({
     queryKey: ["projects", ownerName, projectName, "releases", undefined],
@@ -103,6 +162,52 @@ const ReleasesTable = ({
     },
   })
   const releases = releasesQuery.data ?? []
+  const sortedReleases = [...releases].sort((a, b) => {
+    const av = sortValue(a, sort.key)
+    const bv = sortValue(b, sort.key)
+    let cmp: number
+    if (typeof av === "number" && typeof bv === "number") {
+      cmp = av - bv
+    } else {
+      cmp = String(av).localeCompare(String(bv))
+    }
+    return sort.dir === "asc" ? cmp : -cmp
+  })
+
+  const SortableTh = ({
+    label,
+    sortKey,
+    isNumeric,
+  }: {
+    label: string
+    sortKey: SortKey
+    isNumeric?: boolean
+  }) => {
+    const active = sort.key === sortKey
+    const icon = !active ? FaSort : sort.dir === "asc" ? FaSortUp : FaSortDown
+    return (
+      <Th
+        isNumeric={isNumeric}
+        cursor="pointer"
+        userSelect="none"
+        onClick={() => toggleSort(sortKey)}
+        _hover={{ color: "blue.500" }}
+      >
+        <HStack
+          spacing={1}
+          display="inline-flex"
+          justify={isNumeric ? "flex-end" : "flex-start"}
+        >
+          <Text as="span">{label}</Text>
+          <Icon
+            as={icon}
+            fontSize="2xs"
+            color={active ? "blue.500" : "gray.400"}
+          />
+        </HStack>
+      </Th>
+    )
+  }
 
   return (
     <Box>
@@ -136,19 +241,19 @@ const ReleasesTable = ({
           <Table size="sm">
             <Thead>
               <Tr>
-                <Th>Name</Th>
-                <Th>Path</Th>
-                <Th>Version</Th>
-                <Th>Date</Th>
-                <Th>Visibility</Th>
-                <Th isNumeric>Views</Th>
-                <Th isNumeric>Comments</Th>
+                <SortableTh label="Name" sortKey="name" />
+                <SortableTh label="Path" sortKey="path" />
+                <SortableTh label="Version" sortKey="version" />
+                <SortableTh label="Date" sortKey="date" />
+                <SortableTh label="Visibility" sortKey="visibility" />
+                <SortableTh label="Views" sortKey="views" isNumeric />
+                <SortableTh label="Comments" sortKey="comments" isNumeric />
                 <Th>Link / DOI</Th>
                 {userHasWriteAccess && <Th />}
               </Tr>
             </Thead>
             <Tbody>
-              {releases.map((r) => (
+              {sortedReleases.map((r) => (
                 <Tr key={`${r.source}-${r.name}`}>
                   <Td fontWeight="semibold">{r.name}</Td>
                   <Td>
@@ -188,15 +293,25 @@ const ReleasesTable = ({
                           />
                         </Tooltip>
                       </HStack>
-                    ) : r.url || r.doi ? (
-                      <Link
-                        href={r.url ?? `https://doi.org/${r.doi}`}
-                        isExternal
-                        color="blue.500"
-                        fontSize="sm"
-                      >
-                        {r.doi ?? "Link"} <Icon as={FiExternalLink} mb="-2px" />
-                      </Link>
+                    ) : r.url || r.doi || r.publisher ? (
+                      <HStack spacing={1}>
+                        {r.publisher && (
+                          <Badge colorScheme="purple" fontSize="xs">
+                            {r.publisher}
+                          </Badge>
+                        )}
+                        {(r.url || r.doi) && (
+                          <Link
+                            href={r.url ?? `https://doi.org/${r.doi}`}
+                            isExternal
+                            color="blue.500"
+                            fontSize="sm"
+                          >
+                            {r.doi ?? "Link"}{" "}
+                            <Icon as={FiExternalLink} mb="-2px" />
+                          </Link>
+                        )}
+                      </HStack>
                     ) : (
                       "—"
                     )}

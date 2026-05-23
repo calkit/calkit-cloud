@@ -341,6 +341,26 @@ export type ExistsResult = {
   exists: boolean
 }
 
+/**
+ * A release declared as published to an external venue.
+ *
+ * Recorded loosely in ``calkit.yaml`` (not hosted by Calkit); used to track
+ * that an artifact was, e.g., posted to arXiv or published in a journal. The
+ * ``publisher`` key matches what Zenodo releases already write.
+ */
+export type ExternalReleasePost = {
+  name: string
+  kind?: string
+  path?: string | null
+  publisher?: string | null
+  url?: string | null
+  doi?: string | null
+  date?: string | null
+  title?: string | null
+  description?: string | null
+  public?: boolean
+}
+
 export type ExternalTokenResponse = {
   access_token: string
 }
@@ -1011,6 +1031,7 @@ export type ReleaseListItem = {
   public?: boolean
   url?: string | null
   doi?: string | null
+  publisher?: string | null
   date?: string | null
   secret_token?: string | null
   view_count?: number | null
@@ -2087,6 +2108,14 @@ export type GetProjectReleasesData = {
 }
 
 export type GetProjectReleasesResponse = Array<ReleaseListItem>
+
+export type PostExternalReleaseData = {
+  ownerName: string
+  projectName: string
+  requestBody: ExternalReleasePost
+}
+
+export type PostExternalReleaseResponse = Message
 
 export type DeleteProjectReleaseData = {
   ownerName: string

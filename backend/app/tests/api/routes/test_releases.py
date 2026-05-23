@@ -45,6 +45,15 @@ def test_post_project_release_requires_auth(client: TestClient) -> None:
     assert resp.status_code == 401
 
 
+def test_post_external_release_requires_auth(client: TestClient) -> None:
+    resp = client.post(
+        f"{settings.API_V1_STR}"
+        "/projects/test-owner/test-project/releases/external",
+        json={"name": "v1.0", "publisher": "arxiv"},
+    )
+    assert resp.status_code == 401
+
+
 def test_get_project_releases_unknown_project_returns_404(
     client: TestClient,
 ) -> None:

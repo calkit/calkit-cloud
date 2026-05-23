@@ -47,7 +47,7 @@ import PdfAnnotator, {
   type AnnotationHighlight,
 } from "../../../../../components/Publications/PdfAnnotator"
 import PublicationView from "../../../../../components/Publications/PublicationView"
-import NewRelease from "../../../../../components/Releases/NewRelease"
+import PublicationReleasesPanel from "../../../../../components/Releases/PublicationReleasesPanel"
 import useAuth from "../../../../../hooks/useAuth"
 import useCustomToast from "../../../../../hooks/useCustomToast"
 import useProject, {
@@ -204,6 +204,14 @@ function PubInfo({
         <Icon as={FaCodeBranch} mr={1} />
         Browse history
       </Button>
+      {publication.path && (
+        <PublicationReleasesPanel
+          ownerName={ownerName}
+          projectName={projectName}
+          path={publication.path}
+          userHasWriteAccess={userHasWriteAccess}
+        />
+      )}
     </Box>
   )
 }
@@ -213,7 +221,6 @@ function Publications() {
   const labelPubModal = useDisclosure()
   const newPubTemplateModal = useDisclosure()
   const overleafImportModal = useDisclosure()
-  const newReleaseModal = useDisclosure()
   const { accountName, projectName } = Route.useParams()
   const layoutSearch = useSearch({
     from: "/_layout/$accountName/$projectName/_layout" as any,
@@ -351,12 +358,6 @@ function Publications() {
                         <MenuItem onClick={labelPubModal.onOpen}>
                           Label existing file
                         </MenuItem>
-                        <MenuItem
-                          onClick={newReleaseModal.onOpen}
-                          isDisabled={!selectedPub}
-                        >
-                          Create release
-                        </MenuItem>
                       </MenuList>
                     </Portal>
                   </Menu>
@@ -378,14 +379,6 @@ function Publications() {
                     isOpen={labelPubModal.isOpen}
                     onClose={labelPubModal.onClose}
                     variant="label"
-                  />
-                  <NewRelease
-                    isOpen={newReleaseModal.isOpen}
-                    onClose={newReleaseModal.onClose}
-                    ownerName={accountName}
-                    projectName={projectName}
-                    defaultPath={selectedPub?.path}
-                    kind="publication"
                   />
                 </>
               )}

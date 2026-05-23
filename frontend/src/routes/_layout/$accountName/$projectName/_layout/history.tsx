@@ -28,7 +28,7 @@ import {
 } from "@chakra-ui/react"
 import { useQuery } from "@tanstack/react-query"
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import {
   FaChevronDown,
   FaChevronRight,
@@ -47,7 +47,10 @@ import {
   ReleasesService,
 } from "../../../../../client"
 import LoadingSpinner from "../../../../../components/Common/LoadingSpinner"
-import ReleasesTable from "../../../../../components/Releases/ReleasesTable"
+import ReleasesTable, {
+  DEFAULT_RELEASE_SORT,
+  type ReleaseSort,
+} from "../../../../../components/Releases/ReleasesTable"
 import useProject from "../../../../../hooks/useProject"
 
 interface CommitHistory {
@@ -78,8 +81,25 @@ interface CommitDetail extends CommitHistory {
   files_truncated?: boolean
 }
 
+const TAB_NAMES = ["commits", "releases", "branches", "tags"] as const
+const SORT_KEYS = [
+  "name",
+  "path",
+  "version",
+  "date",
+  "visibility",
+  "views",
+  "comments",
+] as const
+
 const historySearchSchema = z.object({
   ref: z.string().optional(),
+  tab: z.enum(TAB_NAMES).optional(),
+  // Releases-table sort, persisted so it survives navigation/refresh.
+  sort: z.enum(SORT_KEYS).optional(),
+  dir: z.enum(["asc", "desc"]).optional(),
+  // How many pages of commits are loaded (page N loads (N+1)*PAGE_SIZE).
+  page: z.number().int().min(0).optional(),
 })
 
 export const Route = createFileRoute(
@@ -365,55 +385,74 @@ function BranchRow({
 
 function History() {
   const { accountName, projectName } = Route.useParams()
-  const { ref: selectedRef } = Route.useSearch()
+  const search = Route.useSearch()
+  const selectedRef = search.ref
   const navigate = useNavigate({ from: Route.fullPath })
   const bgHover = useColorModeValue("gray.50", "gray.700")
   const bgSelected = useColorModeValue("blue.50", "blue.900")
   const borderColor = useColorModeValue("gray.200", "gray.600")
-  const [page, setPage] = useState(0)
-  const [allCommits, setAllCommits] = useState<CommitHistory[]>([])
-  const [hasMore, setHasMore] = useState(true)
   const [selectedCommit, setSelectedCommit] = useState<CommitHistory | null>(
     null,
   )
   const [detailOpen, setDetailOpen] = useState(false)
-  // 0: Commits, 1: Releases, 2: Branches, 3: Tags
-  const [tabIndex, setTabIndex] = useState(0)
 
-  // Reset pagination when ref changes
-  useEffect(() => {
-    setPage(0)
-    setAllCommits([])
-    setHasMore(true)
-  }, [selectedRef])
+  // Tab, sort, and pagination are all derived from the URL so they survive
+  // refresh and are shareable. Commits default to the URL-clean state.
+  const tabIndex = Math.max(0, TAB_NAMES.indexOf(search.tab ?? "commits"))
+  const setTabIndex = (i: number) => {
+    const name = TAB_NAMES[i]
+    navigate({
+      search: (prev) => ({
+        ...prev,
+        tab: name === "commits" ? undefined : name,
+      }),
+    })
+  }
+  const sort: ReleaseSort = {
+    key: search.sort ?? DEFAULT_RELEASE_SORT.key,
+    dir: search.dir ?? DEFAULT_RELEASE_SORT.dir,
+  }
+  const setSort = (s: ReleaseSort) => {
+    const isDefault =
+      s.key === DEFAULT_RELEASE_SORT.key && s.dir === DEFAULT_RELEASE_SORT.dir
+    navigate({
+      search: (prev) => ({
+        ...prev,
+        sort: isDefault ? undefined : s.key,
+        dir: isDefault ? undefined : s.dir,
+      }),
+    })
+  }
+  const page = search.page ?? 0
+  const setPage = (p: number) =>
+    navigate({ search: (prev) => ({ ...prev, page: p > 0 ? p : undefined }) })
 
-  const { isPending: isLoadingHistory, isFetching } = useQuery({
+  // Load (page+1) pages of commits in a single request so the loaded depth is
+  // reconstructable from the URL (reload-safe, unlike client-side accumulation).
+  const limit = (page + 1) * PAGE_SIZE
+  const commitsQuery = useQuery({
     queryKey: [
       "projects",
       accountName,
       projectName,
       "history",
       selectedRef,
-      "page",
-      page,
+      "limit",
+      limit,
     ],
-    queryFn: async () => {
-      const results = (await ProjectsService.getProjectHistory({
+    queryFn: async () =>
+      (await ProjectsService.getProjectHistory({
         ownerName: accountName,
         projectName: projectName,
-        limit: PAGE_SIZE,
-        offset: page * PAGE_SIZE,
+        limit,
+        offset: 0,
         ref: selectedRef,
-      })) as unknown as CommitHistory[]
-      setAllCommits((prev) => {
-        if (page === 0) return results
-        const existing = new Set(prev.map((c) => c.hash))
-        return [...prev, ...results.filter((c) => !existing.has(c.hash))]
-      })
-      setHasMore(results.length === PAGE_SIZE)
-      return results
-    },
+      })) as unknown as CommitHistory[],
   })
+  const allCommits = commitsQuery.data ?? []
+  const hasMore = allCommits.length === limit
+  const isLoadingHistory = commitsQuery.isPending
+  const isFetching = commitsQuery.isFetching
 
   const refsQuery = useQuery({
     queryKey: ["projects", accountName, projectName, "refs", "all"],
@@ -450,18 +489,23 @@ function History() {
   const releasesForCommit = (hash: string) =>
     releases.filter((r) => r.git_rev && hash.startsWith(r.git_rev))
 
-  const selectRef = (name: string) => {
-    navigate({ search: (prev) => ({ ...prev, ref: name }) })
-  }
-
   const clearRef = () => {
-    navigate({ search: (prev) => ({ ...prev, ref: undefined }) })
+    navigate({
+      search: (prev) => ({ ...prev, ref: undefined, page: undefined }),
+    })
   }
 
-  // Filter commits by a branch/tag and jump to the Commits tab.
+  // Filter commits by a branch/tag and jump to the Commits tab, resetting how
+  // far the commit list is paged.
   const viewRefHistory = (name: string) => {
-    selectRef(name)
-    setTabIndex(0)
+    navigate({
+      search: (prev) => ({
+        ...prev,
+        ref: name,
+        tab: undefined,
+        page: undefined,
+      }),
+    })
   }
 
   const openCommit = (commit: CommitHistory) => {
@@ -587,7 +631,7 @@ function History() {
                       size="sm"
                       variant="outline"
                       isLoading={isFetching}
-                      onClick={() => setPage((p) => p + 1)}
+                      onClick={() => setPage(page + 1)}
                     >
                       Load more
                     </Button>
@@ -603,6 +647,8 @@ function History() {
               ownerName={accountName}
               projectName={projectName}
               userHasWriteAccess={userHasWriteAccess}
+              sort={sort}
+              onSortChange={setSort}
             />
           </TabPanel>
 

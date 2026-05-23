@@ -1455,6 +1455,112 @@ export const ExistsResultSchema = {
   title: "ExistsResult",
 } as const
 
+export const ExternalReleasePostSchema = {
+  properties: {
+    name: {
+      type: "string",
+      maxLength: 255,
+      minLength: 1,
+      title: "Name",
+    },
+    kind: {
+      type: "string",
+      title: "Kind",
+      default: "publication",
+    },
+    path: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Path",
+    },
+    publisher: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Publisher",
+    },
+    url: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Url",
+    },
+    doi: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Doi",
+    },
+    date: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Date",
+    },
+    title: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Title",
+    },
+    description: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Description",
+    },
+    public: {
+      type: "boolean",
+      title: "Public",
+      default: true,
+    },
+  },
+  type: "object",
+  required: ["name"],
+  title: "ExternalReleasePost",
+  description: `A release declared as published to an external venue.
+
+Recorded loosely in \`\`calkit.yaml\`\` (not hosted by Calkit); used to track
+that an artifact was, e.g., posted to arXiv or published in a journal. The
+\`\`publisher\`\` key matches what Zenodo releases already write.`,
+} as const
+
 export const ExternalTokenResponseSchema = {
   properties: {
     access_token: {
@@ -4854,6 +4960,17 @@ export const ReleaseListItemSchema = {
         },
       ],
       title: "Doi",
+    },
+    publisher: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Publisher",
     },
     date: {
       anyOf: [

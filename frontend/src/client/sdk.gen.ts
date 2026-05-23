@@ -191,6 +191,8 @@ import type {
   PostProjectReleaseResponse,
   GetProjectReleasesData,
   GetProjectReleasesResponse,
+  PostExternalReleaseData,
+  PostExternalReleaseResponse,
   DeleteProjectReleaseData,
   DeleteProjectReleaseResponse,
   GetReleaseData,
@@ -2862,6 +2864,37 @@ export class ReleasesService {
       query: {
         ref: data.ref,
       },
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Post External Release
+   * Declare a release published to an external venue.
+   *
+   * Recorded as an entry in ``calkit.yaml`` (committed and pushed); not hosted
+   * by Calkit. Loosely coupled -- we only track the metadata.
+   * @param data The data for the request.
+   * @param data.ownerName
+   * @param data.projectName
+   * @param data.requestBody
+   * @returns Message Successful Response
+   * @throws ApiError
+   */
+  public static postExternalRelease(
+    data: PostExternalReleaseData,
+  ): CancelablePromise<PostExternalReleaseResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/projects/{owner_name}/{project_name}/releases/external",
+      path: {
+        owner_name: data.ownerName,
+        project_name: data.projectName,
+      },
+      body: data.requestBody,
+      mediaType: "application/json",
       errors: {
         422: "Validation Error",
       },
