@@ -548,6 +548,9 @@ class Project(ProjectBase, table=True):
     notifications: list["Notification"] = Relationship(
         back_populates="project", cascade_delete=True
     )
+    releases: list["Release"] = Relationship(
+        back_populates="project", cascade_delete=True
+    )
 
     @computed_field
     @property
@@ -803,6 +806,182 @@ class Notification(SQLModel, table=True):
     # Relationships
     user: User = Relationship(back_populates="notifications")
     project: Project = Relationship(back_populates="notifications")
+
+
+# Release ``kind`` mirrors calkit's release schema (the ``releases`` map in
+# calkit.yaml is keyed by tag). For this cloud feature the DB is the source of
+# truth; private releases are not written to calkit.yaml.
+ReleaseKind = Literal["project", "publication", "dataset", "model", "figure"]
+
+
+class ReleaseBase(SQLModel):
+    # ``name`` is the release tag/identifier, unique within a project.
+    name: str = Field(min_length=1, max_length=255)
+    kind: str = Field(default="publication", max_length=32)
+    # Released path; None or "." means the whole project.
+    path: str | None = Field(default=None, max_length=512)
+    title: str | None = Field(default=None, max_length=255)
+    description: str | None = Field(default=None, max_length=2048)
+    # Human-readable ref the release was cut from (tag or branch).
+    git_ref: str | None = Field(default=None, max_length=256)
+    # Full commit SHA the content is pinned to.
+    git_rev: str | None = Field(default=None, max_length=40)
+    public: bool = Field(default=False)
+    comments_enabled: bool = Field(default=True)
+    # When comments are enabled, whether viewers without a login may comment.
+    allow_anonymous_comments: bool = Field(default=True)
+    # Populated for public releases (e.g., Zenodo); unused for private ones.
+    url: str | None = Field(default=None, max_length=2048)
+    doi: str | None = Field(default=None, max_length=255)
+
+
+class Release(ReleaseBase, table=True):
+    __table_args__ = (
+        sqlalchemy.UniqueConstraint(
+            "project_id", "name", name="uq_release_project_name"
+        ),
+    )
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    project_id: uuid.UUID = Field(foreign_key="project.id")
+    created_by_user_id: uuid.UUID = Field(foreign_key="user.id")
+    # Secret token embedded in the shareable link.
+    secret_token: str = Field(index=True, unique=True, max_length=64)
+    view_count: int = Field(default=0)
+    created: datetime = Field(default_factory=utcnow)
+    # Relationships
+    project: Project = Relationship(back_populates="releases")
+    created_by: User = Relationship()
+    comments: list["ReleaseComment"] = Relationship(
+        back_populates="release", cascade_delete=True
+    )
+
+    @computed_field
+    @property
+    def comment_count(self) -> int:
+        return len(self.comments)
+
+    @computed_field
+    @property
+    def git_rev_abbrev(self) -> str | None:
+        return self.git_rev[:7] if self.git_rev else None
+
+
+class ReleasePost(SQLModel):
+    name: str = Field(min_length=1, max_length=255)
+    kind: str = "publication"
+    path: str | None = None
+    title: str | None = None
+    description: str | None = None
+    # If None, defaults to the project's default branch HEAD.
+    git_ref: str | None = None
+    public: bool = False
+    comments_enabled: bool = True
+    allow_anonymous_comments: bool = True
+
+
+class ReleasePublic(ReleaseBase):
+    """Release as seen by a user with write access (includes the secret link)."""
+
+    id: uuid.UUID
+    project_id: uuid.UUID
+    secret_token: str
+    view_count: int
+    comment_count: int
+    git_rev_abbrev: str | None
+    created: datetime
+
+
+class ReleaseView(SQLModel):
+    """Release as seen by an anonymous viewer holding the secret link.
+
+    Deliberately omits internal identifiers; exposes only what the viewer
+    page needs to render the artifact, the provenance note, and comments.
+    """
+
+    name: str
+    kind: str
+    path: str | None
+    title: str | None
+    description: str | None
+    git_ref: str | None
+    git_rev_abbrev: str | None
+    public: bool
+    comments_enabled: bool
+    allow_anonymous_comments: bool
+    comment_count: int
+    created: datetime
+    owner_account_name: str
+    owner_account_display_name: str
+    project_name: str
+    project_title: str
+
+
+class ReleaseComment(SQLModel, table=True):
+    """A comment posted against a release via its secret link.
+
+    Kept separate from ``ProjectComment`` because release comments may be
+    anonymous (no ``user_id``) and are scoped to a release rather than a
+    project artifact path.
+    """
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    release_id: uuid.UUID = Field(foreign_key="release.id")
+    # Set when the commenter was logged in; None for anonymous comments.
+    user_id: uuid.UUID | None = Field(default=None, foreign_key="user.id")
+    # Optional display name supplied by an anonymous commenter.
+    author_name: str | None = Field(default=None, max_length=255)
+    comment: str = Field(
+        sa_column=sqlalchemy.Column(sqlalchemy.Text, nullable=False)
+    )
+    # GitHub issue URL, if the comment was mirrored to an issue.
+    external_url: str | None = Field(default=None, max_length=2048)
+    created: datetime = Field(default_factory=utcnow)
+    # Relationships
+    release: Release = Relationship(back_populates="comments")
+
+
+class ReleaseCommentPost(SQLModel):
+    comment: str = Field(min_length=1)
+    author_name: str | None = None
+
+
+class ReleaseCommentPublic(SQLModel):
+    id: uuid.UUID
+    author_name: str | None
+    comment: str
+    external_url: str | None
+    created: datetime
+
+
+class ReleaseListItem(BaseModel):
+    """A release row for the project releases page.
+
+    Merges two sources: ``calkit`` releases declared in ``calkit.yaml`` (the
+    public, DOI-bearing ones produced via the CLI/Zenodo) and ``cloud``
+    releases stored in this database (the private, secret-link ones). Fields
+    that only apply to one source are optional.
+    """
+
+    source: Literal["cloud", "calkit"]
+    name: str
+    kind: str | None = None
+    path: str | None = None
+    title: str | None = None
+    description: str | None = None
+    git_ref: str | None = None
+    git_rev: str | None = None
+    git_rev_abbrev: str | None = None
+    # calkit.yaml releases default to public (a missing key means public);
+    # cloud releases carry an explicit flag.
+    public: bool = True
+    url: str | None = None
+    doi: str | None = None
+    # Release date as an ISO string (calkit.yaml ``date`` or cloud ``created``).
+    date: str | None = None
+    # Cloud-only fields.
+    secret_token: str | None = None
+    view_count: int | None = None
+    comment_count: int | None = None
 
 
 class DatasetBase(SQLModel):

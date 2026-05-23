@@ -4672,6 +4672,620 @@ export const RefreshTokenRequestSchema = {
   title: "RefreshTokenRequest",
 } as const
 
+export const ReleaseCommentPostSchema = {
+  properties: {
+    comment: {
+      type: "string",
+      minLength: 1,
+      title: "Comment",
+    },
+    author_name: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Author Name",
+    },
+  },
+  type: "object",
+  required: ["comment"],
+  title: "ReleaseCommentPost",
+} as const
+
+export const ReleaseCommentPublicSchema = {
+  properties: {
+    id: {
+      type: "string",
+      format: "uuid",
+      title: "Id",
+    },
+    author_name: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Author Name",
+    },
+    comment: {
+      type: "string",
+      title: "Comment",
+    },
+    external_url: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "External Url",
+    },
+    created: {
+      type: "string",
+      format: "date-time",
+      title: "Created",
+    },
+  },
+  type: "object",
+  required: ["id", "author_name", "comment", "external_url", "created"],
+  title: "ReleaseCommentPublic",
+} as const
+
+export const ReleaseListItemSchema = {
+  properties: {
+    source: {
+      type: "string",
+      enum: ["cloud", "calkit"],
+      title: "Source",
+    },
+    name: {
+      type: "string",
+      title: "Name",
+    },
+    kind: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Kind",
+    },
+    path: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Path",
+    },
+    title: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Title",
+    },
+    description: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Description",
+    },
+    git_ref: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Git Ref",
+    },
+    git_rev: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Git Rev",
+    },
+    git_rev_abbrev: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Git Rev Abbrev",
+    },
+    public: {
+      type: "boolean",
+      title: "Public",
+      default: true,
+    },
+    url: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Url",
+    },
+    doi: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Doi",
+    },
+    date: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Date",
+    },
+    secret_token: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Secret Token",
+    },
+    view_count: {
+      anyOf: [
+        {
+          type: "integer",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "View Count",
+    },
+    comment_count: {
+      anyOf: [
+        {
+          type: "integer",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Comment Count",
+    },
+  },
+  type: "object",
+  required: ["source", "name"],
+  title: "ReleaseListItem",
+  description: `A release row for the project releases page.
+
+Merges two sources: \`\`calkit\`\` releases declared in \`\`calkit.yaml\`\` (the
+public, DOI-bearing ones produced via the CLI/Zenodo) and \`\`cloud\`\`
+releases stored in this database (the private, secret-link ones). Fields
+that only apply to one source are optional.`,
+} as const
+
+export const ReleasePostSchema = {
+  properties: {
+    name: {
+      type: "string",
+      maxLength: 255,
+      minLength: 1,
+      title: "Name",
+    },
+    kind: {
+      type: "string",
+      title: "Kind",
+      default: "publication",
+    },
+    path: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Path",
+    },
+    title: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Title",
+    },
+    description: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Description",
+    },
+    git_ref: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Git Ref",
+    },
+    public: {
+      type: "boolean",
+      title: "Public",
+      default: false,
+    },
+    comments_enabled: {
+      type: "boolean",
+      title: "Comments Enabled",
+      default: true,
+    },
+    allow_anonymous_comments: {
+      type: "boolean",
+      title: "Allow Anonymous Comments",
+      default: true,
+    },
+  },
+  type: "object",
+  required: ["name"],
+  title: "ReleasePost",
+} as const
+
+export const ReleasePublicSchema = {
+  properties: {
+    name: {
+      type: "string",
+      maxLength: 255,
+      minLength: 1,
+      title: "Name",
+    },
+    kind: {
+      type: "string",
+      maxLength: 32,
+      title: "Kind",
+      default: "publication",
+    },
+    path: {
+      anyOf: [
+        {
+          type: "string",
+          maxLength: 512,
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Path",
+    },
+    title: {
+      anyOf: [
+        {
+          type: "string",
+          maxLength: 255,
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Title",
+    },
+    description: {
+      anyOf: [
+        {
+          type: "string",
+          maxLength: 2048,
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Description",
+    },
+    git_ref: {
+      anyOf: [
+        {
+          type: "string",
+          maxLength: 256,
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Git Ref",
+    },
+    git_rev: {
+      anyOf: [
+        {
+          type: "string",
+          maxLength: 40,
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Git Rev",
+    },
+    public: {
+      type: "boolean",
+      title: "Public",
+      default: false,
+    },
+    comments_enabled: {
+      type: "boolean",
+      title: "Comments Enabled",
+      default: true,
+    },
+    allow_anonymous_comments: {
+      type: "boolean",
+      title: "Allow Anonymous Comments",
+      default: true,
+    },
+    url: {
+      anyOf: [
+        {
+          type: "string",
+          maxLength: 2048,
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Url",
+    },
+    doi: {
+      anyOf: [
+        {
+          type: "string",
+          maxLength: 255,
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Doi",
+    },
+    id: {
+      type: "string",
+      format: "uuid",
+      title: "Id",
+    },
+    project_id: {
+      type: "string",
+      format: "uuid",
+      title: "Project Id",
+    },
+    secret_token: {
+      type: "string",
+      title: "Secret Token",
+    },
+    view_count: {
+      type: "integer",
+      title: "View Count",
+    },
+    comment_count: {
+      type: "integer",
+      title: "Comment Count",
+    },
+    git_rev_abbrev: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Git Rev Abbrev",
+    },
+    created: {
+      type: "string",
+      format: "date-time",
+      title: "Created",
+    },
+  },
+  type: "object",
+  required: [
+    "name",
+    "id",
+    "project_id",
+    "secret_token",
+    "view_count",
+    "comment_count",
+    "git_rev_abbrev",
+    "created",
+  ],
+  title: "ReleasePublic",
+  description:
+    "Release as seen by a user with write access (includes the secret link).",
+} as const
+
+export const ReleaseViewSchema = {
+  properties: {
+    name: {
+      type: "string",
+      title: "Name",
+    },
+    kind: {
+      type: "string",
+      title: "Kind",
+    },
+    path: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Path",
+    },
+    title: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Title",
+    },
+    description: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Description",
+    },
+    git_ref: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Git Ref",
+    },
+    git_rev_abbrev: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Git Rev Abbrev",
+    },
+    public: {
+      type: "boolean",
+      title: "Public",
+    },
+    comments_enabled: {
+      type: "boolean",
+      title: "Comments Enabled",
+    },
+    allow_anonymous_comments: {
+      type: "boolean",
+      title: "Allow Anonymous Comments",
+    },
+    comment_count: {
+      type: "integer",
+      title: "Comment Count",
+    },
+    created: {
+      type: "string",
+      format: "date-time",
+      title: "Created",
+    },
+    owner_account_name: {
+      type: "string",
+      title: "Owner Account Name",
+    },
+    owner_account_display_name: {
+      type: "string",
+      title: "Owner Account Display Name",
+    },
+    project_name: {
+      type: "string",
+      title: "Project Name",
+    },
+    project_title: {
+      type: "string",
+      title: "Project Title",
+    },
+  },
+  type: "object",
+  required: [
+    "name",
+    "kind",
+    "path",
+    "title",
+    "description",
+    "git_ref",
+    "git_rev_abbrev",
+    "public",
+    "comments_enabled",
+    "allow_anonymous_comments",
+    "comment_count",
+    "created",
+    "owner_account_name",
+    "owner_account_display_name",
+    "project_name",
+    "project_title",
+  ],
+  title: "ReleaseView",
+  description: `Release as seen by an anonymous viewer holding the secret link.
+
+Deliberately omits internal identifiers; exposes only what the viewer
+page needs to render the artifact, the provenance note, and comments.`,
+} as const
+
 export const ReproCheckSchema = {
   properties: {
     has_pipeline: {
