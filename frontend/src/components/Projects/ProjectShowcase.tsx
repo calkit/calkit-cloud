@@ -1,12 +1,11 @@
-import React from "react"
-import { Text, Box, Code } from "@chakra-ui/react"
+import { Box, Code, Text } from "@chakra-ui/react"
 
-import LoadingSpinner from "../Common/LoadingSpinner"
 import useProject from "../../hooks/useProject"
-import FigureView from "../Figures/FigureView"
-import PublicationView from "../Publications/PublicationView"
+import LoadingSpinner from "../Common/LoadingSpinner"
 import Markdown from "../Common/Markdown"
+import FigureView from "../Figures/FigureView"
 import NotebookView from "../Notebooks/NotebookView"
+import PublicationView from "../Publications/PublicationView"
 
 interface ProjectShowcaseProps {
   ownerName: string
@@ -28,17 +27,15 @@ function ProjectShowcase({
         <>
           {showcaseRequest.data.elements.map((item, index) => (
             // eslint-disable-next-line react/no-array-index-key
-            <React.Fragment key={index}>
+            <Box mt={3} key={index}>
               {"figure" in item ? (
-                <Box mt={2}>
-                  <FigureView figure={item.figure} />
-                </Box>
+                <FigureView figure={item.figure} />
               ) : "publication" in item ? (
-                <Box mt={2} height="600px">
+                <Box height="600px">
                   <PublicationView publication={item.publication} />
                 </Box>
               ) : "text" in item ? (
-                <Text mt={2}>{item.text}</Text>
+                <Text>{item.text}</Text>
               ) : "markdown" in item ? (
                 <Markdown>{item.markdown}</Markdown>
               ) : "yaml" in item ? (
@@ -46,13 +43,13 @@ function ProjectShowcase({
                   {item.yaml}
                 </Code>
               ) : "notebook" in item ? (
-                <Box mt={2} height="600px">
+                <Box height="600px">
                   <NotebookView notebook={item.notebook} />
                 </Box>
               ) : (
                 ""
               )}
-            </React.Fragment>
+            </Box>
           ))}
         </>
       ) : (
