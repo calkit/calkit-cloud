@@ -44,8 +44,8 @@ export function extractFilePaths(yamlContent: string): Set<string> {
 
 /**
  * Collect the string values of every `environment:` key in the pipeline YAML.
- * These are the tokens we linkify. A value may be composite ("outer:inner"),
- * which is split and linked per-segment in the renderer.
+ * These are the tokens we turn into links. A value may be composite
+ * ("outer:inner"), which is split and linked per-segment in the renderer.
  */
 export function extractEnvRefs(yamlContent: string): Set<string> {
   try {

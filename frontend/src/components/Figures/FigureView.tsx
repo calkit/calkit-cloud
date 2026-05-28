@@ -97,33 +97,59 @@ function FigureView({ figure, width, fillHeight }: FigureViewProps) {
     try {
       const figObject = JSON.parse(atob(String(figure.content)))
       if (figObject.data && figObject.layout) {
-        // When fitting to the container, drop any hard-coded layout
-        // height/width and let Plotly autosize so the figure resizes to fit.
-        const layout = fillHeight
-          ? {
-              ...figObject.layout,
-              autosize: true,
-              height: undefined,
-              width: undefined,
-            }
-          : figObject.layout
-        figView = (
-          <Box
-            width={boxWidth}
-            height={fillHeight ? "100%" : undefined}
-            minH={0}
-          >
-            <Suspense fallback={<Text>Loading...</Text>}>
-              <Plot
-                data={figObject.data}
-                layout={layout}
-                config={{ displayModeBar: false, responsive: true }}
-                style={{ width: "100%", height: "100%" }}
-                useResizeHandler={true}
-              />
-            </Suspense>
-          </Box>
-        )
+        if (fillHeight) {
+          // Render at the figure's natural height (Plotly's default is 450px
+          // when none is set), but cap it to the container and center it
+          // vertically so short figures keep their proportions and only tall
+          // ones are squished down to fit.
+          const naturalHeight =
+            typeof figObject.layout.height === "number"
+              ? figObject.layout.height
+              : 450
+          const layout = {
+            ...figObject.layout,
+            autosize: true,
+            height: undefined,
+            width: undefined,
+          }
+          figView = (
+            <Box
+              width={boxWidth}
+              height="100%"
+              minH={0}
+              display="flex"
+              alignItems="center"
+              justifyContent="center"
+              overflow="hidden"
+            >
+              <Box width="100%" height={`${naturalHeight}px`} maxH="100%">
+                <Suspense fallback={<Text>Loading...</Text>}>
+                  <Plot
+                    data={figObject.data}
+                    layout={layout}
+                    config={{ displayModeBar: false, responsive: true }}
+                    style={{ width: "100%", height: "100%" }}
+                    useResizeHandler={true}
+                  />
+                </Suspense>
+              </Box>
+            </Box>
+          )
+        } else {
+          figView = (
+            <Box width={boxWidth}>
+              <Suspense fallback={<Text>Loading...</Text>}>
+                <Plot
+                  data={figObject.data}
+                  layout={figObject.layout}
+                  config={{ displayModeBar: false }}
+                  style={{ width: "100%", height: "100%" }}
+                  useResizeHandler={true}
+                />
+              </Suspense>
+            </Box>
+          )
+        }
       } else {
         figView = <Text>Cannot render this type of figure</Text>
       }
