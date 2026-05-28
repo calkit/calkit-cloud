@@ -133,7 +133,7 @@ function ArtifactContent({
     }
     return (
       <Box height="100%" width="100%">
-        <FigureView figure={fig} />
+        <FigureView figure={fig} fillHeight />
       </Box>
     )
   }

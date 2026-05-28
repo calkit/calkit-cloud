@@ -1,20 +1,26 @@
 import { Box, Image, Text } from "@chakra-ui/react"
-import { lazy, Suspense } from "react"
 import axios from "axios"
+import { Suspense, lazy } from "react"
 
 const Plot = lazy(() => import("react-plotly.js"))
 import { useQuery } from "@tanstack/react-query"
 import { getRouteApi } from "@tanstack/react-router"
 
-import { type Figure } from "../../client"
+import type { Figure } from "../../client"
 import PdfCanvas from "../Common/PdfCanvas"
 
 interface FigureViewProps {
   figure: Figure
   width?: string
+  /**
+   * Fit the figure to the height of its (height-bounded) container instead of
+   * its intrinsic height. Used in the figure modal so tall Plotly figures
+   * resize down rather than overflowing vertically.
+   */
+  fillHeight?: boolean
 }
 
-function FigureView({ figure, width }: FigureViewProps) {
+function FigureView({ figure, width, fillHeight }: FigureViewProps) {
   const routeApi = getRouteApi("/_layout/$accountName/$projectName")
   const { accountName, projectName } = routeApi.useParams()
   const boxWidth = width ? width : "100%"
@@ -91,13 +97,27 @@ function FigureView({ figure, width }: FigureViewProps) {
     try {
       const figObject = JSON.parse(atob(String(figure.content)))
       if (figObject.data && figObject.layout) {
+        // When fitting to the container, drop any hard-coded layout
+        // height/width and let Plotly autosize so the figure resizes to fit.
+        const layout = fillHeight
+          ? {
+              ...figObject.layout,
+              autosize: true,
+              height: undefined,
+              width: undefined,
+            }
+          : figObject.layout
         figView = (
-          <Box width={boxWidth}>
+          <Box
+            width={boxWidth}
+            height={fillHeight ? "100%" : undefined}
+            minH={0}
+          >
             <Suspense fallback={<Text>Loading...</Text>}>
               <Plot
                 data={figObject.data}
-                layout={figObject.layout}
-                config={{ displayModeBar: false }}
+                layout={layout}
+                config={{ displayModeBar: false, responsive: true }}
                 style={{ width: "100%", height: "100%" }}
                 useResizeHandler={true}
               />

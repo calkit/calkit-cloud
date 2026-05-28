@@ -12,6 +12,7 @@ import { z } from "zod"
 import { ProjectsService } from "../../../../../client"
 import LoadingSpinner from "../../../../../components/Common/LoadingSpinner"
 import Mermaid from "../../../../../components/Common/Mermaid"
+import { useProjectEnvironments } from "../../../../../hooks/useProject"
 
 SyntaxHighlighter.registerLanguage("yaml", yaml)
 
@@ -46,6 +47,35 @@ function extractFilePaths(yamlContent: string): Set<string> {
     }
     walk(doc)
     return paths
+  } catch {
+    return new Set()
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Collect the string values of every `environment:` key in the pipeline YAML.
+// These are the tokens we linkify. A value may be composite ("outer:inner"),
+// which is split and linked per-segment in the renderer.
+// ---------------------------------------------------------------------------
+function extractEnvRefs(yamlContent: string): Set<string> {
+  try {
+    const doc = jsYaml.load(yamlContent)
+    const refs = new Set<string>()
+    function walk(v: unknown) {
+      if (Array.isArray(v)) {
+        v.forEach(walk)
+      } else if (v !== null && typeof v === "object") {
+        for (const [k, child] of Object.entries(v as Record<string, unknown>)) {
+          if (k === "environment" && typeof child === "string") {
+            refs.add(child)
+          } else {
+            walk(child)
+          }
+        }
+      }
+    }
+    walk(doc)
+    return refs
   } catch {
     return new Set()
   }
@@ -92,6 +122,9 @@ function findStageLineRange(
 function makeRenderer(
   paths: Set<string>,
   filesTo: string,
+  envRefs: Set<string>,
+  envNames: Set<string>,
+  envTo: string,
   highlightRange: [number, number] | null,
   firstHighlightRef: React.RefObject<HTMLSpanElement>,
 ) {
@@ -120,6 +153,27 @@ function makeRenderer(
             <RouterLink key={key} to={filesTo} search={{ path: val } as never}>
               <span style={{ textDecoration: "underline" }}>{val}</span>
             </RouterLink>
+          )
+        }
+        // Environment reference, possibly composite ("outer:inner"). Link each
+        // segment that names a known environment; leave the rest as plain text.
+        if (envRefs.has(val)) {
+          const segments = val.split(":")
+          return (
+            <React.Fragment key={key}>
+              {segments.map((seg, i) => (
+                <React.Fragment key={`${key}-env-${i}`}>
+                  {i > 0 ? ":" : null}
+                  {envNames.has(seg) ? (
+                    <RouterLink to={envTo} search={{ name: seg } as never}>
+                      <span style={{ textDecoration: "underline" }}>{seg}</span>
+                    </RouterLink>
+                  ) : (
+                    seg
+                  )}
+                </React.Fragment>
+              ))}
+            </React.Fragment>
           )
         }
         return val
@@ -198,21 +252,35 @@ function makeRenderer(
 function LinkedYaml({
   content,
   filesTo,
+  envNames,
+  envTo,
   highlightStage,
 }: {
   content: string
   filesTo: string
+  envNames: Set<string>
+  envTo: string
   highlightStage?: string
 }) {
   const paths = useMemo(() => extractFilePaths(content), [content])
+  const envRefs = useMemo(() => extractEnvRefs(content), [content])
   const highlightRange = useMemo(
     () => (highlightStage ? findStageLineRange(content, highlightStage) : null),
     [content, highlightStage],
   )
   const firstHighlightRef = useRef<HTMLSpanElement>(null)
   const renderer = useMemo(
-    () => makeRenderer(paths, filesTo, highlightRange, firstHighlightRef),
-    [paths, filesTo, highlightRange],
+    () =>
+      makeRenderer(
+        paths,
+        filesTo,
+        envRefs,
+        envNames,
+        envTo,
+        highlightRange,
+        firstHighlightRef,
+      ),
+    [paths, filesTo, envRefs, envNames, envTo, highlightRange],
   )
 
   useEffect(() => {
@@ -271,9 +339,19 @@ function ProjectPipeline() {
         ref,
       }),
   })
+  const { environmentsRequest } = useProjectEnvironments(
+    accountName,
+    projectName,
+    ref,
+  )
+  const envNames = useMemo(
+    () => new Set(environmentsRequest.data?.map((e) => e.name) ?? []),
+    [environmentsRequest.data],
+  )
   const [isDiagramExpanded, setIsDiagramExpanded] = useState(false)
 
   const filesTo = `/${accountName}/${projectName}/files`
+  const envTo = `/${accountName}/${projectName}/environments`
 
   return (
     <>
@@ -301,6 +379,8 @@ function ProjectPipeline() {
                     <LinkedYaml
                       content={String(pipelineQuery.data.calkit_yaml)}
                       filesTo={filesTo}
+                      envNames={envNames}
+                      envTo={envTo}
                       highlightStage={stage}
                     />
                   </>
@@ -312,6 +392,8 @@ function ProjectPipeline() {
                     <LinkedYaml
                       content={String(pipelineQuery.data.dvc_yaml)}
                       filesTo={filesTo}
+                      envNames={envNames}
+                      envTo={envTo}
                       highlightStage={stage}
                     />
                   </>
