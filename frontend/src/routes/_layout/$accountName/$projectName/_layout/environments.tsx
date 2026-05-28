@@ -1,37 +1,43 @@
-import LoadingSpinner from "../../../../../components/Common/LoadingSpinner"
 import {
-  Box,
-  Heading,
-  Flex,
-  Text,
-  Code,
-  Badge,
-  SimpleGrid,
-  Card,
-  Icon,
-  Button,
-  useDisclosure,
-  Link,
   Alert,
   AlertIcon,
+  Badge,
+  Box,
+  Button,
+  Card,
+  Code,
+  Flex,
+  Heading,
+  Icon,
+  Link,
+  SimpleGrid,
+  Text,
 } from "@chakra-ui/react"
 import {
-  createFileRoute,
   Link as RouterLink,
-  useSearch,
+  createFileRoute,
+  useNavigate,
 } from "@tanstack/react-router"
-import { FaCube, FaDocker } from "react-icons/fa"
 import { AiOutlinePython } from "react-icons/ai"
+import { FaCube, FaDocker } from "react-icons/fa"
 import { SiAnaconda } from "react-icons/si"
+import { z } from "zod"
+import LoadingSpinner from "../../../../../components/Common/LoadingSpinner"
 
-import { useProjectEnvironments } from "../../../../../hooks/useProject"
+import type { Environment } from "../../../../../client"
 import ViewEnvironment from "../../../../../components/Environments/ViewEnvironment"
-import { Environment } from "../../../../../client"
+import { useProjectEnvironments } from "../../../../../hooks/useProject"
+
+const environmentsSearchSchema = z.object({
+  ref: z.string().optional(),
+  name: z.string().optional(),
+})
 
 export const Route = createFileRoute(
   "/_layout/$accountName/$projectName/_layout/environments",
 )({
   component: ProjectEnvs,
+  validateSearch: (search) => environmentsSearchSchema.parse(search),
 })
 
 const getIcon = (envType: string) => {
@@ -49,11 +55,10 @@ const getIcon = (envType: string) => {
 
 interface EnvCardProps {
   environment: Environment
+  onView: (name: string) => void
 }
 
-const EnvCard = ({ environment }: EnvCardProps) => {
-  const viewEnvModal = useDisclosure()
-
+const EnvCard = ({ environment, onView }: EnvCardProps) => {
   return (
     <>
       <Card key={environment.name} p={6} variant="elevated">
@@ -98,7 +103,7 @@ const EnvCard = ({ environment }: EnvCardProps) => {
         {environment.all_attrs.image ? (
           <Text mb={1}>
             <strong>Image:</strong>{" "}
-            <Code>{environment.all_attrs.image as String}</Code>
+            <Code>{environment.all_attrs.image as string}</Code>
           </Text>
         ) : (
           ""
@@ -116,18 +121,13 @@ const EnvCard = ({ environment }: EnvCardProps) => {
               variant="primary"
               size="xs"
               mr={2}
-              onClick={viewEnvModal.onOpen}
+              onClick={() => onView(environment.name)}
             >
               View
             </Button>
           ) : (
             ""
           )}
-          <ViewEnvironment
-            environment={environment}
-            isOpen={viewEnvModal.isOpen}
-            onClose={viewEnvModal.onClose}
-          />
         </Flex>
       </Card>
     </>
@@ -136,11 +136,8 @@ const EnvCard = ({ environment }: EnvCardProps) => {
 
 function ProjectEnvsView() {
   const { accountName, projectName } = Route.useParams()
-  const layoutSearch = useSearch({
-    from: "/_layout/$accountName/$projectName/_layout" as any,
-    strict: false,
-  }) as any
-  const ref: string | undefined = layoutSearch?.ref
+  const { ref, name: selectedEnvName } = Route.useSearch()
+  const navigate = useNavigate({ from: Route.fullPath })
   const { environmentsRequest } = useProjectEnvironments(
     accountName,
     projectName,
@@ -148,6 +145,13 @@ function ProjectEnvsView() {
   )
   const { isPending: environmentsPending, data: environments } =
     environmentsRequest
+
+  const openEnv = (name: string) =>
+    navigate({ search: (prev) => ({ ...prev, name }) })
+  const closeEnv = () =>
+    navigate({ search: (prev) => ({ ...prev, name: undefined }) })
+
+  const selectedEnv = environments?.find((e) => e.name === selectedEnvName)
 
   return (
     <>
@@ -160,7 +164,11 @@ function ProjectEnvsView() {
         <Box>
           <SimpleGrid columns={[2, null, 3]} gap={6}>
             {environments?.map((environment) => (
-              <EnvCard environment={environment} />
+              <EnvCard
+                key={environment.name}
+                environment={environment}
+                onView={openEnv}
+              />
             ))}
           </SimpleGrid>
         </Box>
@@ -169,6 +177,13 @@ function ProjectEnvsView() {
           <AlertIcon />
           This project has no environments defined.
         </Alert>
+      )}
+      {selectedEnv && (
+        <ViewEnvironment
+          environment={selectedEnv}
+          isOpen={Boolean(selectedEnv)}
+          onClose={closeEnv}
+        />
       )}
     </>
   )

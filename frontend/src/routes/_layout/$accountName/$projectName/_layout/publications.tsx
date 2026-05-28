@@ -1,58 +1,58 @@
+import { ExternalLinkIcon } from "@chakra-ui/icons"
 import {
-  Flex,
+  Badge,
   Box,
+  Button,
+  Code,
+  Flex,
+  HStack,
   Heading,
   Icon,
-  Text,
   Link,
-  useColorModeValue,
   Menu,
   MenuButton,
-  Button,
-  Portal,
-  MenuList,
   MenuItem,
-  useDisclosure,
-  Badge,
-  Code,
-  HStack,
-  VStack,
+  MenuList,
+  Portal,
+  Text,
   Tooltip,
+  VStack,
+  useColorModeValue,
+  useDisclosure,
 } from "@chakra-ui/react"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
-  createFileRoute,
   Link as RouterLink,
+  createFileRoute,
   useNavigate,
   useSearch,
 } from "@tanstack/react-router"
-import { FiFile } from "react-icons/fi"
-import { FaPlus, FaSync, FaCodeBranch } from "react-icons/fa"
-import { SiOverleaf } from "react-icons/si"
-import { ExternalLinkIcon } from "@chakra-ui/icons"
-import { z } from "zod"
 import { useRef, useState } from "react"
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { FaCodeBranch, FaPlus, FaSync } from "react-icons/fa"
+import { FiFile } from "react-icons/fi"
+import { SiOverleaf } from "react-icons/si"
+import { z } from "zod"
 
+import type { Publication } from "../../../../../client"
+import { ProjectsService } from "../../../../../client"
+import type { ApiError } from "../../../../../client/core/ApiError"
+import { ArtifactCompareModal } from "../../../../../components/Common/ArtifactCompareModal"
 import LoadingSpinner from "../../../../../components/Common/LoadingSpinner"
-import { type Publication } from "../../../../../client"
-import NewPublication from "../../../../../components/Publications/NewPublication"
-import ImportOverleaf from "../../../../../components/Publications/ImportOverleaf"
 import PageMenu from "../../../../../components/Common/PageMenu"
-import useProject, {
-  useProjectPublications,
-} from "../../../../../hooks/useProject"
-import PublicationView from "../../../../../components/Publications/PublicationView"
+import ImportOverleaf from "../../../../../components/Publications/ImportOverleaf"
+import NewPublication from "../../../../../components/Publications/NewPublication"
 import PdfAnnotator, {
   CommentList,
   commentToHighlight,
   type AnnotationHighlight,
 } from "../../../../../components/Publications/PdfAnnotator"
-import { ProjectsService } from "../../../../../client"
-import type { ApiError } from "../../../../../client/core/ApiError"
-import useCustomToast from "../../../../../hooks/useCustomToast"
-import { handleError } from "../../../../../lib/errors"
-import { ArtifactCompareModal } from "../../../../../components/Common/ArtifactCompareModal"
+import PublicationView from "../../../../../components/Publications/PublicationView"
 import useAuth from "../../../../../hooks/useAuth"
+import useCustomToast from "../../../../../hooks/useCustomToast"
+import useProject, {
+  useProjectPublications,
+} from "../../../../../hooks/useProject"
+import { handleError } from "../../../../../lib/errors"
 
 const pubSearchSchema = z.object({
   path: z.string().optional(),
@@ -164,7 +164,15 @@ function PubInfo({
           Pipeline stage:
         </Text>{" "}
         {publication.stage ? (
-          <Code fontSize="xs">{publication.stage}</Code>
+          <Link
+            as={RouterLink}
+            to="../pipeline"
+            search={{ stage: publication.stage } as any}
+          >
+            <Code fontSize="xs" cursor="pointer">
+              {publication.stage}
+            </Code>
+          </Link>
         ) : (
           <Text as="span" color="red.500">
             Not in pipeline
