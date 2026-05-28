@@ -1,3 +1,4 @@
+import { ExternalLinkIcon } from "@chakra-ui/icons"
 /**
  * Modal for viewing an artifact with version comparison support.
  *
@@ -5,37 +6,41 @@
  * select two commits to compare side-by-side.
  */
 import {
+  Avatar,
+  Badge,
+  Box,
+  Button,
+  Checkbox,
+  Code,
+  Divider,
+  Flex,
+  Heading,
+  Icon,
+  IconButton,
+  Link,
   Modal,
-  ModalOverlay,
+  ModalBody,
+  ModalCloseButton,
   ModalContent,
   ModalHeader,
-  ModalCloseButton,
-  ModalBody,
-  Flex,
-  Box,
-  Text,
-  Heading,
+  ModalOverlay,
   Spinner,
-  Badge,
-  Code,
-  Button,
-  VStack,
-  Divider,
-  useColorModeValue,
-  IconButton,
-  Tooltip,
-  Link,
-  Textarea,
-  Avatar,
-  Tabs,
-  TabList,
-  Tab,
-  TabPanels,
-  TabPanel,
-  Icon,
-  Checkbox,
   Switch,
+  Tab,
+  TabList,
+  TabPanel,
+  TabPanels,
+  Tabs,
+  Text,
+  Textarea,
+  Tooltip,
+  VStack,
+  useColorModeValue,
 } from "@chakra-ui/react"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { Link as RouterLink } from "@tanstack/react-router"
+import { Suspense, lazy, useEffect, useState } from "react"
+import ReactDiffViewer, { DiffMethod } from "react-diff-viewer-continued"
 import {
   FaCheck,
   FaChevronLeft,
@@ -43,26 +48,22 @@ import {
   FaCodeBranch,
   FaGithub,
   FaLink,
-  FaUndo,
   FaReply,
+  FaUndo,
 } from "react-icons/fa"
-import { ExternalLinkIcon } from "@chakra-ui/icons"
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { useState, useEffect, lazy, Suspense } from "react"
-import ReactDiffViewer, { DiffMethod } from "react-diff-viewer-continued"
 
-import FigureView from "../Figures/FigureView"
-import PdfCanvas from "./PdfCanvas"
-import FileContent from "../Files/FileContent"
 import {
+  type ContentsItem,
   type Figure,
   type GitRef,
-  type Publication,
   type Notebook,
-  type ContentsItem,
   ProjectsService,
+  type Publication,
 } from "../../client"
 import useAuth from "../../hooks/useAuth"
+import FigureView from "../Figures/FigureView"
+import FileContent from "../Files/FileContent"
+import PdfCanvas from "./PdfCanvas"
 const IpynbRenderer = lazy(() =>
   import("react-ipynb-renderer").then(async (m) => {
     await import("react-ipynb-renderer/dist/styles/monokai.css")
@@ -286,6 +287,81 @@ function useArtifactAtRef(
     enabled,
     retry: false,
   })
+}
+
+/** Info panel for a figure, mirroring the publications page layout. */
+function FigureInfo({
+  figure,
+  ownerName,
+  projectName,
+}: {
+  figure: Figure
+  ownerName: string
+  projectName: string
+}) {
+  const secBgColor = useColorModeValue("ui.secondary", "ui.darkSlate")
+  // Typed as plain string so the router's typed `to` prop accepts them.
+  const filesTo: string = `/${ownerName}/${projectName}/files`
+  const pipelineTo: string = `/${ownerName}/${projectName}/pipeline`
+  return (
+    <Box bg={secBgColor} borderRadius="lg" p={3} mb={3} h="fit-content">
+      <Heading size="sm" mb={2}>
+        Info
+      </Heading>
+      {figure.title && (
+        <Text fontSize="sm" mb={1}>
+          <Text as="span" fontWeight="semibold">
+            Title:
+          </Text>{" "}
+          <Text as="span" color="gray.500">
+            {figure.title}
+          </Text>
+        </Text>
+      )}
+      {figure.description && (
+        <Text fontSize="sm" mb={1}>
+          <Text as="span" fontWeight="semibold">
+            Description:
+          </Text>{" "}
+          <Text as="span" color="gray.500">
+            {figure.description}
+          </Text>
+        </Text>
+      )}
+      <Text fontSize="sm" mb={1}>
+        <Text as="span" fontWeight="semibold">
+          Path:
+        </Text>{" "}
+        <Link
+          as={RouterLink}
+          to={filesTo}
+          search={{ path: figure.path } as any}
+        >
+          {figure.path}
+        </Link>
+      </Text>
+      <Text fontSize="sm" mb={1}>
+        <Text as="span" fontWeight="semibold">
+          Pipeline stage:
+        </Text>{" "}
+        {figure.stage ? (
+          <Link
+            as={RouterLink}
+            to={pipelineTo}
+            search={{ stage: figure.stage } as any}
+          >
+            <Code fontSize="xs" cursor="pointer">
+              {figure.stage}
+            </Code>
+          </Link>
+        ) : (
+          <Text as="span" color="red.500">
+            Not in pipeline
+          </Text>
+        )}
+      </Text>
+    </Box>
+  )
 }
 
 function FigureComments({
@@ -756,6 +832,14 @@ export function ArtifactCompareModal({
 
   const isComparing = Boolean(ref2)
 
+  // Figure metadata (title/description/stage) for the info panel, sourced from
+  // the figure at the displayed ref, falling back to the one we opened with.
+  const figureInfo =
+    kind === "figure"
+      ? (displayData1 as Figure | undefined) ??
+        (initialArtifact as Figure | undefined)
+      : undefined
+
   const getShareUrl = () => {
     const url = new URL(window.location.href)
     if (ref1) url.searchParams.set("base_ref", ref1)
@@ -1149,6 +1233,13 @@ export function ArtifactCompareModal({
                 pl={3}
                 overflowY="auto"
               >
+                {figureInfo && (
+                  <FigureInfo
+                    figure={figureInfo}
+                    ownerName={ownerName}
+                    projectName={projectName}
+                  />
+                )}
                 <FigureComments
                   ownerName={ownerName}
                   projectName={projectName}
