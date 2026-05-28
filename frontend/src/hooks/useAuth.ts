@@ -13,10 +13,16 @@ import {
   UsersService,
 } from "../client"
 import useCustomToast from "./useCustomToast"
-import { popPostLoginRedirect, isAuthenticationError } from "../lib/auth"
+import {
+  clearTokens,
+  getAccessToken,
+  popPostLoginRedirect,
+  isAuthenticationError,
+  storeTokens,
+} from "../lib/auth"
 
 const isLoggedIn = () => {
-  return localStorage.getItem("access_token") !== null
+  return getAccessToken() !== null
 }
 
 const useAuth = () => {
@@ -64,10 +70,10 @@ const useAuth = () => {
   })
 
   const login = async (data: AccessToken) => {
-    const response = await LoginService.loginAccessToken({
+    const response = await LoginService.accessToken({
       formData: data,
     })
-    localStorage.setItem("access_token", response.access_token)
+    storeTokens(response.access_token, response.refresh_token)
   }
 
   const loginMutation = useMutation({
@@ -89,13 +95,13 @@ const useAuth = () => {
   })
 
   const loginGithub = async (data: { code: string; redirectUri: string }) => {
-    const response = await LoginService.loginWithGithub({
+    const response = await LoginService.withGithub({
       requestBody: {
         code: data.code,
         redirect_uri: data.redirectUri,
       },
     })
-    localStorage.setItem("access_token", response.access_token)
+    storeTokens(response.access_token, response.refresh_token)
   }
 
   const loginGitHubMutation = useMutation({
@@ -118,7 +124,7 @@ const useAuth = () => {
   })
 
   const logout = () => {
-    localStorage.removeItem("access_token")
+    clearTokens()
     mixpanel.reset()
     localStorage.removeItem("post_login_redirect")
     if (typeof window !== "undefined") {

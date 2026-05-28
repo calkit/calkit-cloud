@@ -11,6 +11,7 @@ import tempfile
 import time
 from abc import ABC, abstractmethod
 from collections import OrderedDict
+from contextlib import contextmanager
 
 import calkit
 import git
@@ -24,6 +25,43 @@ from app.core import logger, ryaml
 from app.models import GitRef, Project, User
 
 _SYMLINK_MODE = 0o120000
+
+# Max seconds a single git network subprocess may run before being killed,
+# so a stalled remote can't wedge a worker indefinitely. Clone gets a
+# larger budget than fetch since initial clones of large repos are
+# legitimately slower.
+GIT_CLONE_TIMEOUT = 300
+GIT_FETCH_TIMEOUT = 120
+
+
+@contextmanager
+def _timed(operation: str, **fields):
+    """Log the wall-clock duration of a git operation as structured JSON.
+
+    Emitted fields land in Loki so a slow/hanging step is visible in
+    Grafana (e.g. filter ``git_op="fetch"`` and sort by ``duration_ms``).
+    A line is logged on entry too, so a hang shows the start with no
+    matching completion.
+    """
+    logger.info(
+        f"git op start: {operation}",
+        extra={"git_op": operation, "git_phase": "start", **fields},
+    )
+    start = time.perf_counter()
+    try:
+        yield
+    finally:
+        duration_ms = round((time.perf_counter() - start) * 1000, 2)
+        logger.info(
+            f"git op done: {operation}",
+            extra={
+                "git_op": operation,
+                "git_phase": "done",
+                "duration_ms": duration_ms,
+                **fields,
+            },
+        )
+
 
 # Path to a persistent git credential helper script created at first use
 # The script reads credentials from GIT_TOKEN / GIT_USER env vars so the
@@ -80,6 +118,10 @@ def _make_git_auth_env(
         "GIT_CONFIG_VALUE_1": f"!{_get_credential_helper()}",
         "GIT_TOKEN": token,
         "GIT_TERMINAL_PROMPT": "0",
+        # Abort HTTPS transfers that stall (<1 KB/s for 60s) so a slow or
+        # unresponsive remote can't wedge a worker indefinitely.
+        "GIT_HTTP_LOW_SPEED_LIMIT": "1000",
+        "GIT_HTTP_LOW_SPEED_TIME": "60",
     }
     if username is not None:
         env["GIT_USER"] = username
@@ -119,7 +161,8 @@ def get_repo(
     access_token: str | None = None
     if user is not None:
         logger.info(f"Getting {user.email}'s access token for Git operations")
-        access_token = users.get_github_token(session=session, user=user)
+        with _timed("get-github-token", user=user.github_username):
+            access_token = users.get_github_token(session=session, user=user)
     # Plain URL with no embedded token -- credentials handled in helper
     git_plain_url = project.git_repo_url
     if not git_plain_url.endswith(".git"):
@@ -138,7 +181,15 @@ def get_repo(
                         if access_token
                         else None
                     )
-                    subprocess.check_call(clone_cmd, env=env)
+                    with _timed(
+                        "clone",
+                        repo=f"{owner_name}/{project_name}",
+                    ):
+                        subprocess.check_call(
+                            clone_cmd,
+                            env=env,
+                            timeout=GIT_CLONE_TIMEOUT,
+                        )
                 except subprocess.CalledProcessError:
                     logger.error("Failed to clone repo")
                     # It's possible another process cloned this repo just as
@@ -192,15 +243,26 @@ def get_repo(
                     )
                 # Unshallow any repo that was cloned with --depth before we
                 # switched to always doing full clones.
+                repo_label = f"{owner_name}/{project_name}"
                 if is_shallow:
                     logger.info("Unshallowing legacy shallow repo")
-                    repo.git.fetch(["--unshallow", "--tags"])
+                    with _timed("fetch-unshallow", repo=repo_label):
+                        repo.git.fetch(
+                            ["--unshallow", "--tags"],
+                            kill_after_timeout=GIT_FETCH_TIMEOUT,
+                        )
                     subprocess.call(["touch", updated_fpath])
                 if not is_shallow:
                     logger.info("Git fetching")
                     if ref is None:
                         branch_name = repo.active_branch.name
-                        repo.git.fetch(["origin", branch_name])
+                        with _timed(
+                            "fetch", repo=repo_label, branch=branch_name
+                        ):
+                            repo.git.fetch(
+                                ["origin", branch_name],
+                                kill_after_timeout=GIT_FETCH_TIMEOUT,
+                            )
                         # If we had any failed previous transactions, reset
                         # and clean
                         repo.git.reset()
@@ -210,7 +272,11 @@ def get_repo(
                         repo.git.branch(["-D", branch_name])
                         repo.git.checkout(["-b", branch_name])
                     else:
-                        repo.git.fetch(["--all", "--tags"])
+                        with _timed("fetch-all", repo=repo_label):
+                            repo.git.fetch(
+                                ["--all", "--tags"],
+                                kill_after_timeout=GIT_FETCH_TIMEOUT,
+                            )
                     subprocess.call(["touch", updated_fpath])
                 did_refresh = True
         except Timeout:
@@ -372,6 +438,7 @@ def get_overleaf_repo(
         subprocess.check_call(
             ["git", "clone", git_plain_url, repo_dir],
             env={**os.environ, **overleaf_auth},
+            timeout=300,
         )
         repo = git.Repo(repo_dir)
         repo.git.update_environment(**overleaf_auth)
@@ -906,8 +973,13 @@ def get_file_history(
                 seen.add(c["hash"])
                 commits.append(c)
     if check_dvc_lock:
+        # Walk a few multiples of ``max_count`` so we still surface
+        # transitions even when most dvc.lock commits don't touch this path,
+        # but cap the absolute count to keep the YAML-parse loop bounded on
+        # repos with very chatty dvc.lock histories.
+        dvc_lock_walk = min(max_count * 4, 400)
         lock_commits = _get_commits_for_paths(
-            repo, max_count * 4, ["dvc.lock"]
+            repo, dvc_lock_walk, ["dvc.lock"]
         )
         specs = [f"{c['hash']}:dvc.lock" for c in lock_commits]
         blobs = _batch_read_blobs(repo, specs)

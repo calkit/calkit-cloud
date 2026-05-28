@@ -1,24 +1,25 @@
 import { Box, Flex, Icon, Text, useColorModeValue } from "@chakra-ui/react"
+import { useQuery } from "@tanstack/react-query"
 import { Link, getRouteApi, useSearch } from "@tanstack/react-router"
+import axios from "axios"
+import { FaLaptop } from "react-icons/fa"
+import { FaCubes } from "react-icons/fa"
 import {
-  FiHome,
-  FiUsers,
-  FiHardDrive,
   FiBookOpen,
   FiDatabase,
-  FiImage,
   FiFolder,
   FiGitBranch,
+  FiHardDrive,
+  FiHome,
+  FiImage,
+  FiMonitor,
+  FiUsers,
 } from "react-icons/fi"
-import { FaLaptop } from "react-icons/fa"
 import { IoLibraryOutline } from "react-icons/io5"
-import axios from "axios"
-import { useQuery } from "@tanstack/react-query"
-import { SiJupyter } from "react-icons/si"
 import { MdOutlineDashboard } from "react-icons/md"
-import useAuth from "../../hooks/useAuth"
+import { SiJupyter } from "react-icons/si"
 import { TiFlowMerge } from "react-icons/ti"
-import { FaCubes } from "react-icons/fa"
+import useAuth from "../../hooks/useAuth"
 
 const items = [
   { icon: FiHome, title: "Project home", path: "" },
@@ -28,6 +29,7 @@ const items = [
   { icon: FiDatabase, title: "Datasets", path: "/datasets" },
   { icon: FiImage, title: "Figures", path: "/figures" },
   { icon: FiBookOpen, title: "Publications", path: "/publications" },
+  { icon: FiMonitor, title: "Presentations", path: "/presentations" },
   { icon: SiJupyter, title: "Notebooks", path: "/notebooks" },
   { icon: FiGitBranch, title: "History", path: "/history" },
   { icon: FiHardDrive, title: "Software", path: "/software" },
@@ -61,9 +63,15 @@ const SidebarItems = ({ onClose, basePath }: SidebarItemsProps) => {
     error: localServerError,
     data: localServerData,
   } = useQuery({
-    queryKey: ["local-server-sidebar"],
+    queryKey: ["local-server-sidebar", accountName, projectName],
     queryFn: () =>
-      axios.get(`http://localhost:8866/projects/${accountName}/${projectName}`),
+      // The Calkit local server is usually not running. Fail fast so a
+      // silently-dropped connection can't leave a request hanging; the
+      // result only controls the sidebar "running locally" icon color.
+      axios.get(
+        `http://localhost:8866/projects/${accountName}/${projectName}`,
+        { timeout: 2000 },
+      ),
     retry: false,
   })
   const localMachineColor =

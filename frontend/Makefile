@@ -13,4 +13,10 @@ format:
 .PHONY: test
 test:
 	@echo "🚀 Running frontend tests"
+	@$(MAKE) test-unit
 	@npx playwright test --reporter=list
+
+.PHONY: test-unit
+test-unit:
+	@echo "🚀 Running frontend unit tests"
+	@npm run test:unit

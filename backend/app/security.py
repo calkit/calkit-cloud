@@ -1,5 +1,7 @@
 """Authentication."""
 
+import hashlib
+import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
 from functools import lru_cache
@@ -109,3 +111,13 @@ def decrypt_secret(value: str) -> str:
         except Exception:
             continue
     raise ValueError("Failed to decrypt secret with configured Fernet keys")
+
+
+def generate_refresh_token() -> str:
+    """Generate a cryptographically secure random refresh token string."""
+    return secrets.token_urlsafe(32)
+
+
+def hash_refresh_token(token: str) -> str:
+    """Return the hex-encoded SHA-256 digest of a refresh token."""
+    return hashlib.sha256(token.encode()).hexdigest()

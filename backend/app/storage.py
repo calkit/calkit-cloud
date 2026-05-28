@@ -256,6 +256,8 @@ def get_object_url(
                 kws["ResponseContentType"] = "application/pdf"
             elif fname.endswith(".html"):
                 kws["ResponseContentType"] = "text/html"
+            elif fname.endswith(".svg"):
+                kws["ResponseContentType"] = "image/svg+xml"
         kws["client_method"] = f"{method}_object"
     elif isinstance(fs, gcsfs.GCSFileSystem):
         kws = {}
@@ -265,6 +267,8 @@ def get_object_url(
                 kws["response_type"] = "application/pdf"
             elif fname.endswith(".html"):
                 kws["response_type"] = "text/html"
+            elif fname.endswith(".svg"):
+                kws["response_type"] = "image/svg+xml"
         kws["method"] = method.upper()
     else:
         raise ValueError("Unsupported filesystem type")

@@ -47,7 +47,12 @@ export const Route = createFileRoute(
 
 const getIcon = (figure: Figure) => {
   const lp = figure.path.toLowerCase()
-  if (lp.endsWith(".png") || lp.endsWith(".jpg") || lp.endsWith(".jpeg")) {
+  if (
+    lp.endsWith(".png") ||
+    lp.endsWith(".jpg") ||
+    lp.endsWith(".jpeg") ||
+    lp.endsWith(".svg")
+  ) {
     return FaRegFileImage
   }
   if (lp.endsWith(".pdf")) {

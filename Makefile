@@ -39,7 +39,7 @@ frontend: ## Build the frontend.
 	@cd frontend && npm run build
 
 .PHONY: test-frontend
-test-frontend: ## Run frontend tests.
+test-frontend: ## Run frontend unit tests then end-to-end tests.
 	@cd frontend && make test
 
 .PHONY: test-backend

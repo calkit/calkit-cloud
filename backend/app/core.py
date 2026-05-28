@@ -8,7 +8,11 @@ from urllib.parse import parse_qs, urlparse
 
 import ruamel.yaml
 
-logging.basicConfig(level=logging.INFO)
+# NOTE: logging handlers/formatters are configured centrally in app.main.
+# Do not call logging.basicConfig() here: app.core is imported before
+# app.main configures logging, and basicConfig is a no-op once the root
+# logger has a handler, which would silently disable JSON logging (and
+# break every Loki `| json` query / Alloy stage.json extraction).
 logger = logging.getLogger(__name__)
 
 ryaml = ruamel.yaml.YAML()
