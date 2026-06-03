@@ -1,6 +1,7 @@
-import { Image, Alert, AlertIcon } from "@chakra-ui/react"
+import { Alert, AlertIcon, Image } from "@chakra-ui/react"
 
-import { type Publication } from "../../client"
+import type { Publication } from "../../client"
+import PdfDocumentViewer from "../Common/PdfDocumentViewer"
 
 interface PubViewProps {
   publication: Publication
@@ -13,15 +14,13 @@ function PublicationView({ publication }: PubViewProps) {
     (publication.content || publication.url)
   ) {
     contentView = (
-      <embed
-        height="100%"
-        width="100%"
-        type="application/pdf"
-        src={
+      <PdfDocumentViewer
+        url={
           publication.content
             ? `data:application/pdf;base64,${publication.content}`
             : String(publication.url)
         }
+        source="showcase"
       />
     )
   } else if (
