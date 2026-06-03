@@ -152,21 +152,28 @@ function OutlineTree({
     <>
       {nodes.map((node, i) => (
         <Box key={`${node.title}-${i}`} pl={2}>
-          <Text
-            fontSize="xs"
-            py={0.5}
-            noOfLines={2}
-            cursor={node.pageNumber ? "pointer" : "default"}
-            color={
-              node.pageNumber && node.pageNumber === currentPage
-                ? "ui.main"
-                : undefined
-            }
-            _hover={node.pageNumber ? { color: "ui.main" } : undefined}
-            onClick={() => node.pageNumber && onSelect(node.pageNumber)}
-          >
-            {node.title}
-          </Text>
+          {node.pageNumber ? (
+            <Box
+              as="button"
+              type="button"
+              display="block"
+              textAlign="left"
+              width="100%"
+              fontSize="xs"
+              py={0.5}
+              noOfLines={2}
+              cursor="pointer"
+              color={node.pageNumber === currentPage ? "ui.main" : undefined}
+              _hover={{ color: "ui.main" }}
+              onClick={() => onSelect(node.pageNumber as number)}
+            >
+              {node.title}
+            </Box>
+          ) : (
+            <Text fontSize="xs" py={0.5} noOfLines={2} color="gray.500">
+              {node.title}
+            </Text>
+          )}
           {node.items.length > 0 && (
             <OutlineTree
               nodes={node.items}
@@ -317,6 +324,8 @@ function PdfViewerInner({
   const [searching, setSearching] = useState(false)
   // Lazily-built per-page lowercased text, cached for the document's lifetime.
   const textIndexRef = useRef<string[] | null>(null)
+  // Monotonic token so out-of-order async searches can drop stale results.
+  const searchSeqRef = useRef(0)
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const scrollRef = useRef<(h: any) => void>(() => {})
@@ -645,6 +654,7 @@ function PdfViewerInner({
   const runSearch = useCallback(
     async (q: string) => {
       const term = q.trim().toLowerCase()
+      const seq = ++searchSeqRef.current
       if (!term) {
         setMatchPages([])
         setMatchIdx(0)
@@ -653,6 +663,8 @@ function PdfViewerInner({
       setSearching(true)
       try {
         const pages = await ensureTextIndex()
+        // Drop results if a newer search started while we were indexing.
+        if (seq !== searchSeqRef.current) return
         const hits: number[] = []
         pages.forEach((text, i) => {
           if (text.includes(term)) hits.push(i + 1)
@@ -666,7 +678,7 @@ function PdfViewerInner({
           num_matching_pages: hits.length,
         })
       } finally {
-        setSearching(false)
+        if (seq === searchSeqRef.current) setSearching(false)
       }
     },
     [ensureTextIndex, goToPage, source],
