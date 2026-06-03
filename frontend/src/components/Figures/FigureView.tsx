@@ -1,20 +1,26 @@
 import { Box, Image, Text } from "@chakra-ui/react"
-import { lazy, Suspense } from "react"
 import axios from "axios"
+import { Suspense, lazy } from "react"
 
 const Plot = lazy(() => import("react-plotly.js"))
 import { useQuery } from "@tanstack/react-query"
 import { getRouteApi } from "@tanstack/react-router"
 
-import { type Figure } from "../../client"
+import type { Figure } from "../../client"
 import PdfCanvas from "../Common/PdfCanvas"
 
 interface FigureViewProps {
   figure: Figure
   width?: string
+  /**
+   * Fit the figure to the height of its (height-bounded) container instead of
+   * its intrinsic height. Used in the figure modal so tall Plotly figures
+   * resize down rather than overflowing vertically.
+   */
+  fillHeight?: boolean
 }
 
-function FigureView({ figure, width }: FigureViewProps) {
+function FigureView({ figure, width, fillHeight }: FigureViewProps) {
   const routeApi = getRouteApi("/_layout/$accountName/$projectName")
   const { accountName, projectName } = routeApi.useParams()
   const boxWidth = width ? width : "100%"
@@ -91,19 +97,59 @@ function FigureView({ figure, width }: FigureViewProps) {
     try {
       const figObject = JSON.parse(atob(String(figure.content)))
       if (figObject.data && figObject.layout) {
-        figView = (
-          <Box width={boxWidth}>
-            <Suspense fallback={<Text>Loading...</Text>}>
-              <Plot
-                data={figObject.data}
-                layout={figObject.layout}
-                config={{ displayModeBar: false }}
-                style={{ width: "100%", height: "100%" }}
-                useResizeHandler={true}
-              />
-            </Suspense>
-          </Box>
-        )
+        if (fillHeight) {
+          // Render at the figure's natural height (Plotly's default is 450px
+          // when none is set), but cap it to the container and center it
+          // vertically so short figures keep their proportions and only tall
+          // ones are squished down to fit.
+          const naturalHeight =
+            typeof figObject.layout.height === "number"
+              ? figObject.layout.height
+              : 450
+          const layout = {
+            ...figObject.layout,
+            autosize: true,
+            height: undefined,
+            width: undefined,
+          }
+          figView = (
+            <Box
+              width={boxWidth}
+              height="100%"
+              minH={0}
+              display="flex"
+              alignItems="center"
+              justifyContent="center"
+              overflow="hidden"
+            >
+              <Box width="100%" height={`${naturalHeight}px`} maxH="100%">
+                <Suspense fallback={<Text>Loading...</Text>}>
+                  <Plot
+                    data={figObject.data}
+                    layout={layout}
+                    config={{ displayModeBar: false, responsive: true }}
+                    style={{ width: "100%", height: "100%" }}
+                    useResizeHandler={true}
+                  />
+                </Suspense>
+              </Box>
+            </Box>
+          )
+        } else {
+          figView = (
+            <Box width={boxWidth}>
+              <Suspense fallback={<Text>Loading...</Text>}>
+                <Plot
+                  data={figObject.data}
+                  layout={figObject.layout}
+                  config={{ displayModeBar: false }}
+                  style={{ width: "100%", height: "100%" }}
+                  useResizeHandler={true}
+                />
+              </Suspense>
+            </Box>
+          )
+        }
       } else {
         figView = <Text>Cannot render this type of figure</Text>
       }

@@ -165,7 +165,15 @@ function PubInfo({
           Pipeline stage:
         </Text>{" "}
         {publication.stage ? (
-          <Code fontSize="xs">{publication.stage}</Code>
+          <Link
+            as={RouterLink}
+            to="../pipeline"
+            search={{ stage: publication.stage } as any}
+          >
+            <Code fontSize="xs" cursor="pointer">
+              {publication.stage}
+            </Code>
+          </Link>
         ) : (
           <Text as="span" color="red.500">
             Not in pipeline
