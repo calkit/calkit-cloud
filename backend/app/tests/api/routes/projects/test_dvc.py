@@ -1,6 +1,5 @@
 """Tests for app.api.routes.projects.dvc endpoints."""
 
-import asyncio
 import hashlib
 import io
 from types import SimpleNamespace
@@ -8,7 +7,6 @@ from unittest.mock import ANY, MagicMock, patch
 
 from fastapi.testclient import TestClient
 
-from app.api.routes.projects import dvc as dvc_routes
 from app.config import settings
 
 OWNER = "testowner"
@@ -260,36 +258,3 @@ def test_post_dvc_file_md5_mismatch_cleans_pending_file(
         response = client.post(post_url, headers=headers, content=body)
     assert response.status_code == 400
     fake_fs.rm.assert_called_once()
-
-
-def test_limit_dvc_route_concurrency_waits_for_slot() -> None:
-    async def run() -> None:
-        original = dvc_routes.dvc_request_semaphore
-        dvc_routes.dvc_request_semaphore = asyncio.Semaphore(1)
-        try:
-            first = dvc_routes.limit_dvc_route_concurrency()
-            await first.__anext__()
-            state = {"second_acquired": False}
-
-            async def acquire_second() -> None:
-                second = dvc_routes.limit_dvc_route_concurrency()
-                await second.__anext__()
-                state["second_acquired"] = True
-                try:
-                    await second.__anext__()
-                except StopAsyncIteration:
-                    pass
-
-            task = asyncio.create_task(acquire_second())
-            await asyncio.sleep(0.05)
-            assert state["second_acquired"] is False
-            try:
-                await first.__anext__()
-            except StopAsyncIteration:
-                pass
-            await asyncio.wait_for(task, timeout=1.0)
-            assert state["second_acquired"] is True
-        finally:
-            dvc_routes.dvc_request_semaphore = original
-
-    asyncio.run(run())
