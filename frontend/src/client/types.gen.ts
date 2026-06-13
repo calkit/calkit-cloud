@@ -341,6 +341,26 @@ export type ExistsResult = {
   exists: boolean
 }
 
+/**
+ * A release declared as published to an external venue.
+ *
+ * Recorded loosely in ``calkit.yaml`` (not hosted by Calkit); used to track
+ * that an artifact was, e.g., posted to arXiv or published in a journal. The
+ * ``publisher`` key matches what Zenodo releases already write.
+ */
+export type ExternalReleasePost = {
+  name: string
+  kind?: string
+  path?: string | null
+  publisher?: string | null
+  url?: string | null
+  doi?: string | null
+  date?: string | null
+  title?: string | null
+  description?: string | null
+  public?: boolean
+}
+
 export type ExternalTokenResponse = {
   access_token: string
 }
@@ -975,6 +995,111 @@ export type References = {
 
 export type RefreshTokenRequest = {
   refresh_token: string
+}
+
+export type ReleaseCommentPost = {
+  comment: string
+  author_name?: string | null
+}
+
+export type ReleaseCommentPublic = {
+  id: string
+  author_name: string | null
+  comment: string
+  external_url: string | null
+  created: string
+}
+
+/**
+ * A release row for the project releases page.
+ *
+ * Merges two sources: ``calkit`` releases declared in ``calkit.yaml`` (the
+ * public, DOI-bearing ones produced via the CLI/Zenodo) and ``cloud``
+ * releases stored in this database (the private, secret-link ones). Fields
+ * that only apply to one source are optional.
+ */
+export type ReleaseListItem = {
+  source: "cloud" | "calkit"
+  name: string
+  kind?: string | null
+  path?: string | null
+  title?: string | null
+  description?: string | null
+  git_ref?: string | null
+  git_rev?: string | null
+  git_rev_abbrev?: string | null
+  public?: boolean
+  url?: string | null
+  doi?: string | null
+  publisher?: string | null
+  date?: string | null
+  secret_token?: string | null
+  view_count?: number | null
+  comment_count?: number | null
+}
+
+export type source = "cloud" | "calkit"
+
+export type ReleasePost = {
+  name: string
+  kind?: string
+  path?: string | null
+  title?: string | null
+  description?: string | null
+  git_ref?: string | null
+  public?: boolean
+  comments_enabled?: boolean
+  allow_anonymous_comments?: boolean
+}
+
+/**
+ * Release as seen by a user with write access (includes the secret link).
+ */
+export type ReleasePublic = {
+  name: string
+  kind?: string
+  path?: string | null
+  title?: string | null
+  description?: string | null
+  git_ref?: string | null
+  git_rev?: string | null
+  public?: boolean
+  comments_enabled?: boolean
+  allow_anonymous_comments?: boolean
+  url?: string | null
+  doi?: string | null
+  id: string
+  project_id: string
+  secret_token: string
+  view_count: number
+  comment_count: number
+  git_rev_abbrev: string | null
+  created: string
+}
+
+/**
+ * Release as seen by an anonymous viewer holding the secret link.
+ *
+ * Deliberately omits internal identifiers; exposes only what the viewer
+ * page needs to render the artifact, the provenance note, and comments.
+ */
+export type ReleaseView = {
+  name: string
+  kind: string
+  path: string | null
+  title: string | null
+  description: string | null
+  git_ref: string | null
+  git_rev_abbrev: string | null
+  public: boolean
+  comments_enabled: boolean
+  allow_anonymous_comments: boolean
+  comment_count: number
+  created: string
+  owner_account_name: string
+  owner_account_display_name: string
+  project_name: string
+  project_title: string
 }
 
 export type ReproCheck = {
@@ -1967,6 +2092,63 @@ export type PostProjectFsBatchOpData = {
 }
 
 export type PostProjectFsBatchOpResponse = FsOpBatchResponse
+
+export type PostProjectReleaseData = {
+  ownerName: string
+  projectName: string
+  requestBody: ReleasePost
+}
+
+export type PostProjectReleaseResponse = ReleasePublic
+
+export type GetProjectReleasesData = {
+  ownerName: string
+  projectName: string
+  ref?: string | null
+}
+
+export type GetProjectReleasesResponse = Array<ReleaseListItem>
+
+export type PostExternalReleaseData = {
+  ownerName: string
+  projectName: string
+  requestBody: ExternalReleasePost
+}
+
+export type PostExternalReleaseResponse = Message
+
+export type DeleteProjectReleaseData = {
+  ownerName: string
+  projectName: string
+  releaseName: string
+}
+
+export type DeleteProjectReleaseResponse = Message
+
+export type GetReleaseData = {
+  secretToken: string
+}
+
+export type GetReleaseResponse = ReleaseView
+
+export type GetReleaseContentData = {
+  secretToken: string
+}
+
+export type GetReleaseContentResponse = ContentsItem
+
+export type GetReleaseCommentsData = {
+  secretToken: string
+}
+
+export type GetReleaseCommentsResponse = Array<ReleaseCommentPublic>
+
+export type PostReleaseCommentData = {
+  requestBody: ReleaseCommentPost
+  secretToken: string
+}
+
+export type PostReleaseCommentResponse = ReleaseCommentPublic
 
 export type ReadUsersData = {
   limit?: number

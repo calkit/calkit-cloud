@@ -19,6 +19,7 @@ import { Route as CheckoutRouteImport } from './routes/checkout'
 import { Route as LayoutRouteImport } from './routes/_layout'
 import { Route as LoginIndexRouteImport } from './routes/login/index'
 import { Route as LayoutIndexRouteImport } from './routes/_layout/index'
+import { Route as ReleasesTokenRouteImport } from './routes/releases.$token'
 import { Route as LoginDeviceRouteImport } from './routes/login/device'
 import { Route as LayoutSettingsRouteImport } from './routes/_layout/settings'
 import { Route as LayoutProjectsRouteImport } from './routes/_layout/projects'
@@ -86,6 +87,11 @@ const LayoutIndexRoute = LayoutIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => LayoutRoute,
+} as any)
+const ReleasesTokenRoute = ReleasesTokenRouteImport.update({
+  id: '/releases/$token',
+  path: '/releases/$token',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const LoginDeviceRoute = LoginDeviceRouteImport.update({
   id: '/login/device',
@@ -242,6 +248,7 @@ export interface FileRoutesByFullPath {
   '/projects': typeof LayoutProjectsRoute
   '/settings': typeof LayoutSettingsRoute
   '/login/device': typeof LoginDeviceRoute
+  '/releases/$token': typeof ReleasesTokenRoute
   '/': typeof LayoutIndexRoute
   '/login': typeof LoginIndexRoute
   '/$accountName': typeof LayoutAccountNameIndexRoute
@@ -275,6 +282,7 @@ export interface FileRoutesByTo {
   '/projects': typeof LayoutProjectsRoute
   '/settings': typeof LayoutSettingsRoute
   '/login/device': typeof LoginDeviceRoute
+  '/releases/$token': typeof ReleasesTokenRoute
   '/': typeof LayoutIndexRoute
   '/login': typeof LoginIndexRoute
   '/$accountName': typeof LayoutAccountNameIndexRoute
@@ -309,6 +317,7 @@ export interface FileRoutesById {
   '/_layout/projects': typeof LayoutProjectsRoute
   '/_layout/settings': typeof LayoutSettingsRoute
   '/login/device': typeof LoginDeviceRoute
+  '/releases/$token': typeof ReleasesTokenRoute
   '/_layout/': typeof LayoutIndexRoute
   '/login/': typeof LoginIndexRoute
   '/_layout/$accountName/': typeof LayoutAccountNameIndexRoute
@@ -345,6 +354,7 @@ export interface FileRouteTypes {
     | '/projects'
     | '/settings'
     | '/login/device'
+    | '/releases/$token'
     | '/'
     | '/login'
     | '/$accountName'
@@ -378,6 +388,7 @@ export interface FileRouteTypes {
     | '/projects'
     | '/settings'
     | '/login/device'
+    | '/releases/$token'
     | '/'
     | '/login'
     | '/$accountName'
@@ -411,6 +422,7 @@ export interface FileRouteTypes {
     | '/_layout/projects'
     | '/_layout/settings'
     | '/login/device'
+    | '/releases/$token'
     | '/_layout/'
     | '/login/'
     | '/_layout/$accountName/'
@@ -441,6 +453,7 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   ZenodoAuthRoute: typeof ZenodoAuthRoute
   LoginDeviceRoute: typeof LoginDeviceRoute
+  ReleasesTokenRoute: typeof ReleasesTokenRoute
   LoginIndexRoute: typeof LoginIndexRoute
 }
 
@@ -501,6 +514,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof LayoutIndexRouteImport
       parentRoute: typeof LayoutRoute
+    }
+    '/releases/$token': {
+      id: '/releases/$token'
+      path: '/releases/$token'
+      fullPath: '/releases/$token'
+      preLoaderRoute: typeof ReleasesTokenRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/login/device': {
       id: '/login/device'
@@ -788,6 +808,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   ZenodoAuthRoute: ZenodoAuthRoute,
   LoginDeviceRoute: LoginDeviceRoute,
+  ReleasesTokenRoute: ReleasesTokenRoute,
   LoginIndexRoute: LoginIndexRoute,
 }
 export const routeTree = rootRouteImport

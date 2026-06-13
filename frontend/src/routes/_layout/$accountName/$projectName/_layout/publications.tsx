@@ -47,6 +47,7 @@ import PdfAnnotator, {
   type AnnotationHighlight,
 } from "../../../../../components/Publications/PdfAnnotator"
 import PublicationView from "../../../../../components/Publications/PublicationView"
+import PublicationReleasesPanel from "../../../../../components/Releases/PublicationReleasesPanel"
 import useAuth from "../../../../../hooks/useAuth"
 import useCustomToast from "../../../../../hooks/useCustomToast"
 import useProject, {
@@ -211,6 +212,14 @@ function PubInfo({
         <Icon as={FaCodeBranch} mr={1} />
         Browse history
       </Button>
+      {publication.path && (
+        <PublicationReleasesPanel
+          ownerName={ownerName}
+          projectName={projectName}
+          path={publication.path}
+          userHasWriteAccess={userHasWriteAccess}
+        />
+      )}
     </Box>
   )
 }

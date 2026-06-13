@@ -3,6 +3,7 @@ from app.api.routes import (
     login,
     misc,
     projects,
+    releases,
     users,
     orgs,
     datasets,
@@ -15,5 +16,6 @@ api_router.include_router(login.router, tags=["login"])
 api_router.include_router(users.router, tags=["users"])
 api_router.include_router(misc.router, tags=["misc"])
 api_router.include_router(projects.router, tags=["projects"])
+api_router.include_router(releases.router, tags=["releases"])
 api_router.include_router(orgs.router, tags=["orgs"])
 api_router.include_router(datasets.router, tags=["datasets"])
