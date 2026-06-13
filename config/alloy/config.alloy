@@ -51,12 +51,16 @@ loki.process "parse_json" {
     }
   }
 
+  // Only promote low-cardinality fields to Loki stream labels. `path` and
+  // `status_code` are left as parsed JSON fields (still queryable via
+  // `| json`): `path` in particular is effectively unbounded (every DVC
+  // object is a unique md5 path), and promoting it spawns a new stream per
+  // request, blowing past Loki's per-tenant stream limit and silently
+  // dropping ingestion for the backend services.
   stage.labels {
     values = {
-      level       = "",
-      method      = "",
-      path        = "",
-      status_code = "",
+      level  = "",
+      method = "",
     }
   }
 }

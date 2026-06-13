@@ -1,12 +1,10 @@
 """Routes for the Calkit HTTP DVC remote."""
 
-import asyncio
 import functools
 import hashlib
 import logging
-from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 
 import app.projects
@@ -28,21 +26,6 @@ router = APIRouter()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Cap in-process concurrent DVC remote requests so they wait for a slot
-DVC_MAX_CONCURRENT_REQUESTS = 12
-dvc_request_semaphore = asyncio.Semaphore(DVC_MAX_CONCURRENT_REQUESTS)
-
-
-async def limit_dvc_route_concurrency():
-    await dvc_request_semaphore.acquire()
-    try:
-        yield
-    finally:
-        dvc_request_semaphore.release()
-
-
-DvcConcurrencyDep = Annotated[None, Depends(limit_dvc_route_concurrency)]
-
 
 @router.post("/projects/{owner_name}/{project_name}/dvc/files/md5/{idx}/{md5}")
 async def post_project_dvc_file(
@@ -54,7 +37,6 @@ async def post_project_dvc_file(
     session: SessionDep,
     current_user: CurrentUserDvcScope,
     req: Request,
-    _dvc_concurrency: DvcConcurrencyDep,
 ) -> Message:
     owner_name = owner_name.lower()
     project_name = project_name.lower()
@@ -142,7 +124,6 @@ async def get_project_dvc_file(
     md5: str,
     session: SessionDep,
     current_user: CurrentUserDvcScope,
-    _dvc_concurrency: DvcConcurrencyDep,
 ) -> StreamingResponse:
     owner_name = owner_name.lower()
     project_name = project_name.lower()
@@ -157,6 +138,11 @@ async def get_project_dvc_file(
         current_user=current_user,
         min_access_level="read",
     )
+    # Release the DB connection before streaming: FastAPI finalizes the
+    # session dependency only after the response body is fully sent, so an
+    # open session would pin a pool connection (idle in transaction) for the
+    # entire download. The POST route closes early for the same reason.
+    session.close()
     # If file doesn't exist, return 404
     fs = get_object_fs()
     fpath = make_data_fpath(

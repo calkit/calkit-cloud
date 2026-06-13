@@ -21,8 +21,11 @@ logger = logging.getLogger(__name__)
 max_tries = 60 * 5  # 5 minutes
 wait_seconds = 1
 
+# Each worker process gets its own pool, so keep per-process limits modest:
+# with 12 workers (8 backend + 4 backend-dvc), 5 + 5 = 10 per process gives a
+# 120-connection worst case, comfortably under the db's max_connections (300).
 engine = create_engine(
-    str(settings.SQLALCHEMY_DATABASE_URI), pool_size=10, max_overflow=10
+    str(settings.SQLALCHEMY_DATABASE_URI), pool_size=5, max_overflow=5
 )
 
 # make sure all SQLModel models are imported (app.models) before initializing DB

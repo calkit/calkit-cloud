@@ -5,6 +5,7 @@ import { atomOneDark } from "react-syntax-highlighter/dist/esm/styles/hljs"
 import type { ContentsItem } from "../../client"
 import { decodeBase64Utf8 } from "../../lib/strings"
 import Markdown from "../Common/Markdown"
+import PdfDocumentViewer from "../Common/PdfDocumentViewer"
 import PresentationView from "../Presentations/PresentationView"
 
 interface FileContentProps {
@@ -83,11 +84,9 @@ function FileContent({ item }: FileContentProps) {
         borderRadius="lg"
         overflow="hidden"
       >
-        <embed
-          height="100%"
-          width="100%"
-          type="application/pdf"
-          src={content ? `data:application/pdf;base64,${content}` : String(url)}
+        <PdfDocumentViewer
+          url={content ? `data:application/pdf;base64,${content}` : String(url)}
+          source="file"
         />
       </Box>
     )
