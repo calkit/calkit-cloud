@@ -1605,6 +1605,16 @@ export const FigureSchema = {
       ],
       title: "Stage",
     },
+    stage_status: {
+      anyOf: [
+        {
+          $ref: "#/components/schemas/StageStatus",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
     dataset: {
       anyOf: [
         {
@@ -3205,6 +3215,19 @@ export const PipelineSchema = {
       ],
       title: "Calkit Yaml",
     },
+    stage_statuses: {
+      additionalProperties: {
+        $ref: "#/components/schemas/StageStatus",
+      },
+      type: "object",
+      title: "Stage Statuses",
+    },
+    status: {
+      type: "string",
+      enum: ["up-to-date", "stale", "unknown"],
+      title: "Status",
+      default: "unknown",
+    },
   },
   type: "object",
   required: ["mermaid", "dvc_stages", "dvc_yaml", "calkit_yaml"],
@@ -4487,6 +4510,16 @@ export const PublicationSchema = {
       ],
       title: "Stage",
     },
+    stage_status: {
+      anyOf: [
+        {
+          $ref: "#/components/schemas/StageStatus",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
     content: {
       anyOf: [
         {
@@ -5100,6 +5133,11 @@ export const ReleasePostSchema = {
       title: "Allow Anonymous Comments",
       default: true,
     },
+    acknowledge_non_reproducible: {
+      type: "boolean",
+      title: "Acknowledge Non Reproducible",
+      default: false,
+    },
   },
   type: "object",
   required: ["name"],
@@ -5272,6 +5310,78 @@ export const ReleasePublicSchema = {
   title: "ReleasePublic",
   description:
     "Release as seen by a user with write access (includes the secret link).",
+} as const
+
+export const ReleaseStalenessSchema = {
+  properties: {
+    path: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Path",
+    },
+    stage: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Stage",
+    },
+    status: {
+      anyOf: [
+        {
+          type: "string",
+          enum: ["up-to-date", "stale", "not-run", "unknown"],
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Status",
+    },
+    up_to_date: {
+      type: "boolean",
+      title: "Up To Date",
+      default: true,
+    },
+    modified_inputs: {
+      items: {
+        type: "string",
+      },
+      type: "array",
+      title: "Modified Inputs",
+    },
+    modified_outputs: {
+      items: {
+        type: "string",
+      },
+      type: "array",
+      title: "Modified Outputs",
+    },
+    missing_outputs: {
+      items: {
+        type: "string",
+      },
+      type: "array",
+      title: "Missing Outputs",
+    },
+  },
+  type: "object",
+  title: "ReleaseStaleness",
+  description: `Whether the pipeline stage that produces a release path is up-to-date.
+
+Used to warn before creating a release of a possibly non-reproducible
+artifact. \`\`stage\`\` is None when the path isn't produced by any pipeline
+stage (staleness doesn't apply), in which case \`\`up_to_date\`\` stays True.`,
 } as const
 
 export const ReleaseViewSchema = {
@@ -5836,6 +5946,45 @@ export const SoftwareItemSchema = {
   type: "object",
   required: ["title", "path"],
   title: "SoftwareItem",
+} as const
+
+export const StageStatusSchema = {
+  properties: {
+    status: {
+      type: "string",
+      enum: ["up-to-date", "stale", "not-run", "unknown", "always-run"],
+      title: "Status",
+    },
+    modified_command: {
+      type: "boolean",
+      title: "Modified Command",
+      default: false,
+    },
+    modified_inputs: {
+      items: {
+        type: "string",
+      },
+      type: "array",
+      title: "Modified Inputs",
+    },
+    modified_outputs: {
+      items: {
+        type: "string",
+      },
+      type: "array",
+      title: "Modified Outputs",
+    },
+    missing_outputs: {
+      items: {
+        type: "string",
+      },
+      type: "array",
+      title: "Missing Outputs",
+    },
+  },
+  type: "object",
+  required: ["status"],
+  title: "StageStatus",
 } as const
 
 export const StorageUsageSchema = {

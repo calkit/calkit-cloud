@@ -370,6 +370,7 @@ export type Figure = {
   title: string
   description?: string | null
   stage?: string | null
+  stage_status?: StageStatus | null
   dataset?: string | null
   content?: string | null
   url?: string | null
@@ -728,7 +729,13 @@ export type Pipeline = {
   }
   dvc_yaml: string
   calkit_yaml: string | null
+  stage_statuses?: {
+    [key: string]: StageStatus
+  }
+  status?: "up-to-date" | "stale" | "unknown"
 }
+
+export type status = "up-to-date" | "stale" | "unknown"
 
 export type Presentation = {
   path: string
@@ -923,7 +930,7 @@ export type ProjectStatus = {
   message?: string | null
 }
 
-export type status = "in-progress" | "on-hold" | "completed"
+export type status2 = "in-progress" | "on-hold" | "completed"
 
 export type ProjectStatusPost = {
   status: "in-progress" | "on-hold" | "completed"
@@ -943,6 +950,7 @@ export type Publication = {
     | "book"
     | null
   stage?: string | null
+  stage_status?: StageStatus | null
   content?: string | null
   stage_info?: DvcPipelineStage | null
   url?: string | null
@@ -1050,6 +1058,7 @@ export type ReleasePost = {
   public?: boolean
   comments_enabled?: boolean
   allow_anonymous_comments?: boolean
+  acknowledge_non_reproducible?: boolean
 }
 
 /**
@@ -1075,6 +1084,23 @@ export type ReleasePublic = {
   comment_count: number
   git_rev_abbrev: string | null
   created: string
+}
+
+/**
+ * Whether the pipeline stage that produces a release path is up-to-date.
+ *
+ * Used to warn before creating a release of a possibly non-reproducible
+ * artifact. ``stage`` is None when the path isn't produced by any pipeline
+ * stage (staleness doesn't apply), in which case ``up_to_date`` stays True.
+ */
+export type ReleaseStaleness = {
+  path?: string | null
+  stage?: string | null
+  status?: "up-to-date" | "stale" | "not-run" | "unknown" | null
+  up_to_date?: boolean
+  modified_inputs?: Array<string>
+  modified_outputs?: Array<string>
+  missing_outputs?: Array<string>
 }
 
 /**
@@ -1202,6 +1228,21 @@ export type SoftwareItem = {
   path: string
   description?: string | null
 }
+
+export type StageStatus = {
+  status: "up-to-date" | "stale" | "not-run" | "unknown" | "always-run"
+  modified_command?: boolean
+  modified_inputs?: Array<string>
+  modified_outputs?: Array<string>
+  missing_outputs?: Array<string>
+}
+
+export type status3 =
+  | "up-to-date"
+  | "stale"
+  | "not-run"
+  | "unknown"
+  | "always-run"
 
 export type StorageUsage = {
   limit_gb: number
@@ -2116,6 +2157,15 @@ export type PostExternalReleaseData = {
 }
 
 export type PostExternalReleaseResponse = Message
+
+export type GetReleaseStalenessData = {
+  gitRef?: string | null
+  ownerName: string
+  path?: string | null
+  projectName: string
+}
+
+export type GetReleaseStalenessResponse = ReleaseStaleness
 
 export type DeleteProjectReleaseData = {
   ownerName: string

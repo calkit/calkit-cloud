@@ -659,11 +659,21 @@ class DvcForeachStage(SQLModel):
     do: DvcPipelineStage
 
 
+class StageStatus(SQLModel):
+    status: Literal["up-to-date", "stale", "not-run", "unknown", "always-run"]
+    modified_command: bool = False
+    modified_inputs: list[str] = Field(default_factory=list)
+    modified_outputs: list[str] = Field(default_factory=list)
+    missing_outputs: list[str] = Field(default_factory=list)
+
+
 class Pipeline(SQLModel):
     mermaid: str
     dvc_stages: dict[str, DvcPipelineStage | DvcForeachStage]
     dvc_yaml: str
     calkit_yaml: str | None
+    stage_statuses: dict[str, StageStatus] = Field(default_factory=dict)
+    status: Literal["up-to-date", "stale", "unknown"] = "unknown"
 
 
 class Question(SQLModel, table=True):
@@ -680,6 +690,7 @@ class Figure(SQLModel):
     title: str
     description: str | None = None
     stage: str | None = None
+    stage_status: "StageStatus | None" = None
     dataset: str | None = None
     content: str | None = None  # Base64 encoded
     url: str | None = None
@@ -877,6 +888,26 @@ class ReleasePost(SQLModel):
     public: bool = False
     comments_enabled: bool = True
     allow_anonymous_comments: bool = True
+    # Set True to release even when the producing pipeline stage is stale, i.e.
+    # the user has acknowledged the artifact may not be reproducible.
+    acknowledge_non_reproducible: bool = False
+
+
+class ReleaseStaleness(SQLModel):
+    """Whether the pipeline stage that produces a release path is up-to-date.
+
+    Used to warn before creating a release of a possibly non-reproducible
+    artifact. ``stage`` is None when the path isn't produced by any pipeline
+    stage (staleness doesn't apply), in which case ``up_to_date`` stays True.
+    """
+
+    path: str | None = None
+    stage: str | None = None
+    status: Literal["up-to-date", "stale", "not-run", "unknown"] | None = None
+    up_to_date: bool = True
+    modified_inputs: list[str] = Field(default_factory=list)
+    modified_outputs: list[str] = Field(default_factory=list)
+    missing_outputs: list[str] = Field(default_factory=list)
 
 
 class ReleasePublic(ReleaseBase):
@@ -1154,6 +1185,7 @@ class Publication(BaseModel):
         | None
     ) = None
     stage: str | None = None
+    stage_status: "StageStatus | None" = None
     content: str | None = None
     stage_info: DvcPipelineStage | None = None
     url: str | None = None

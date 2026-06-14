@@ -40,8 +40,11 @@ from app.models import (
     ReleaseListItem,
     ReleasePost,
     ReleasePublic,
+    ReleaseStaleness,
     ReleaseView,
 )
+from app.pipeline import compute_stage_statuses, find_stage_for_path
+from app.storage import get_object_fs
 
 logger = logging.getLogger("uvicorn")
 
@@ -70,6 +73,56 @@ def _commit_date(repo, rev: str | None) -> str | None:
         return repo.commit(rev).committed_datetime.date().isoformat()
     except Exception:
         return None
+
+
+def _path_staleness(
+    repo,
+    git_rev: str | None,
+    path: str | None,
+    owner_name: str,
+    project_name: str,
+) -> ReleaseStaleness:
+    """Report whether the pipeline stage that produces *path* is up-to-date.
+
+    Returns an ``up_to_date=True`` result (staleness not applicable) when the
+    path is the whole project, isn't produced by any stage, or status can't be
+    determined. Never raises.
+    """
+    result = ReleaseStaleness(path=path)
+    if not path or path == ".":
+        return result
+    try:
+        tree = get_repo_tree_for_ref(repo, git_rev)
+        dvc_lock: dict = {}
+        if tree.is_file("dvc.lock"):
+            dvc_lock = ryaml.load(tree.read_bytes("dvc.lock").decode()) or {}
+        stage = find_stage_for_path(path, dvc_lock)
+        if stage is None:
+            return result
+        dvc_yaml: dict = {}
+        if tree.is_file("dvc.yaml"):
+            dvc_yaml = ryaml.load(tree.read_bytes("dvc.yaml").decode()) or {}
+        statuses = compute_stage_statuses(
+            dvc_yaml=dvc_yaml,
+            dvc_lock=dvc_lock,
+            tree=tree,
+            owner_name=owner_name,
+            project_name=project_name,
+            fs=get_object_fs(),
+            cache_token=git_rev,
+        )
+        ss = statuses.get(stage)
+        if ss is None:
+            return result
+        result.stage = stage
+        result.status = ss.status
+        result.up_to_date = ss.status not in ("stale", "not-run")
+        result.modified_inputs = ss.modified_inputs
+        result.modified_outputs = ss.modified_outputs
+        result.missing_outputs = ss.missing_outputs
+    except Exception as e:
+        logger.warning(f"Failed to compute release staleness for {path}: {e}")
+    return result
 
 
 def _get_release_by_token(session: SessionDep, secret_token: str) -> Release:
@@ -154,6 +207,23 @@ def post_project_release(
         except Exception:
             raise HTTPException(
                 404, f"Path '{release_in.path}' not found at the given ref"
+            )
+    # Block releasing a possibly non-reproducible artifact unless the user has
+    # acknowledged it. Staleness is checked against the pinned commit.
+    if not release_in.acknowledge_non_reproducible:
+        staleness = _path_staleness(
+            repo,
+            git_rev,
+            release_in.path,
+            project.owner_account_name,
+            project.name,
+        )
+        if not staleness.up_to_date:
+            raise HTTPException(
+                409,
+                "The pipeline stage that produces this path is not up to date, "
+                "so the artifact may not be reproducible. Re-run the pipeline, "
+                "or acknowledge to release it anyway.",
             )
     release = Release(
         project_id=project.id,
@@ -359,6 +429,44 @@ def get_project_releases(
             )
         )
     return items
+
+
+@router.get("/projects/{owner_name}/{project_name}/releases/staleness")
+def get_release_staleness(
+    owner_name: str,
+    project_name: str,
+    current_user: CurrentUser,
+    session: SessionDep,
+    path: str | None = None,
+    git_ref: str | None = None,
+) -> ReleaseStaleness:
+    """Report whether the artifact at *path* is up-to-date with its pipeline
+    stage, so the New Release form can warn before releasing something that may
+    not be reproducible.
+    """
+    project = app.projects.get_project(
+        session=session,
+        owner_name=owner_name,
+        project_name=project_name,
+        current_user=current_user,
+        min_access_level="write",
+    )
+    repo = get_repo(
+        project=project,
+        user=current_user,
+        session=session,
+        ttl=RELEASES_REPO_TTL,
+    )
+    try:
+        if git_ref:
+            git_rev = repo.commit(git_ref).hexsha
+        else:
+            git_rev = repo.head.commit.hexsha
+    except Exception:
+        raise HTTPException(400, f"Could not resolve Git ref '{git_ref}'")
+    return _path_staleness(
+        repo, git_rev, path, project.owner_account_name, project.name
+    )
 
 
 @router.delete("/projects/{owner_name}/{project_name}/releases/{release_name}")

@@ -71,5 +71,6 @@ Key points:
 
 ## Misc rules
 
-- Version control operations are for humans, not agents.
+- Git committing and pushing is for humans, not agents.
 - No blank lines in functions.
+- Search inputs should always be clearable.

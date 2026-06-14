@@ -9,6 +9,10 @@ import {
   HStack,
   Heading,
   Icon,
+  IconButton,
+  Input,
+  InputGroup,
+  InputRightElement,
   Modal,
   ModalBody,
   ModalCloseButton,
@@ -26,6 +30,7 @@ import {
   VStack,
   useColorModeValue,
 } from "@chakra-ui/react"
+import { CloseIcon } from "@chakra-ui/icons"
 import { useQuery } from "@tanstack/react-query"
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { useState } from "react"
@@ -472,6 +477,27 @@ function History() {
     (r: GitRef) => r.kind === "tag",
   )
 
+  // Client-side search across the active tab's loaded items.
+  const [query, setQuery] = useState("")
+  const ql = query.trim().toLowerCase()
+  const displayedCommits = ql
+    ? allCommits.filter((c) =>
+        `${c.hash ?? ""} ${c.author ?? ""} ${c.message ?? ""}`
+          .toLowerCase()
+          .includes(ql),
+      )
+    : allCommits
+  const displayedBranches = ql
+    ? branches.filter((b) =>
+        `${b.name} ${b.message ?? ""}`.toLowerCase().includes(ql),
+      )
+    : branches
+  const displayedTags = ql
+    ? tags.filter((t) =>
+        `${t.name} ${t.message ?? ""}`.toLowerCase().includes(ql),
+      )
+    : tags
+
   const { userHasWriteAccess } = useProject(accountName, projectName)
   // Shares its cache with the Releases tab table (same query key) so the
   // timeline badges and the table stay consistent without a second request.
@@ -519,6 +545,26 @@ function History() {
 
   return (
     <Box p={4} maxH="100%" overflowY="auto" w="100%">
+      <InputGroup maxW="container.sm" mb={4}>
+        <Input
+          placeholder="Search commits, releases, branches, and tags…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          autoComplete="off"
+          pr={query ? 8 : undefined}
+        />
+        {query && (
+          <InputRightElement>
+            <IconButton
+              aria-label="Clear search"
+              icon={<CloseIcon boxSize="8px" />}
+              size="xs"
+              variant="ghost"
+              onClick={() => setQuery("")}
+            />
+          </InputRightElement>
+        )}
+      </InputGroup>
       <Tabs colorScheme="blue" index={tabIndex} onChange={setTabIndex} isLazy>
         <TabList>
           <Tab>Commits</Tab>
@@ -539,12 +585,14 @@ function History() {
             </Flex>
             {(isLoadingHistory || isFetching) && allCommits.length === 0 ? (
               <LoadingSpinner height="400px" />
-            ) : allCommits.length === 0 ? (
-              <Text color="gray.500">No commits found</Text>
+            ) : displayedCommits.length === 0 ? (
+              <Text color="gray.500">
+                {ql ? "No matching commits" : "No commits found"}
+              </Text>
             ) : (
               <>
                 <VStack align="stretch" spacing={3}>
-                  {allCommits.map((commit) => (
+                  {displayedCommits.map((commit) => (
                     <Box
                       key={commit.hash}
                       p={3}
@@ -649,6 +697,7 @@ function History() {
               userHasWriteAccess={userHasWriteAccess}
               sort={sort}
               onSortChange={setSort}
+              filter={query}
             />
           </TabPanel>
 
@@ -661,13 +710,13 @@ function History() {
               <Flex justify="center" py={2}>
                 <Spinner size="sm" color="ui.main" />
               </Flex>
-            ) : branches.length === 0 ? (
+            ) : displayedBranches.length === 0 ? (
               <Text fontSize="sm" color="gray.500">
-                No branches found
+                {ql ? "No matching branches" : "No branches found"}
               </Text>
             ) : (
               <VStack align="stretch" spacing={2} maxW="container.sm">
-                {branches.map((branch) => (
+                {displayedBranches.map((branch) => (
                   <BranchRow
                     key={branch.name}
                     branch={branch}
@@ -691,13 +740,13 @@ function History() {
               <Flex justify="center" py={2}>
                 <Spinner size="sm" color="ui.main" />
               </Flex>
-            ) : tags.length === 0 ? (
+            ) : displayedTags.length === 0 ? (
               <Text fontSize="sm" color="gray.500">
-                No tags found
+                {ql ? "No matching tags" : "No tags found"}
               </Text>
             ) : (
               <VStack align="stretch" spacing={2} maxW="container.sm">
-                {tags.map((tag) => {
+                {displayedTags.map((tag) => {
                   const isSelected = selectedRef === tag.name
                   return (
                     <Box

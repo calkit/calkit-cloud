@@ -193,6 +193,8 @@ import type {
   GetProjectReleasesResponse,
   PostExternalReleaseData,
   PostExternalReleaseResponse,
+  GetReleaseStalenessData,
+  GetReleaseStalenessResponse,
   DeleteProjectReleaseData,
   DeleteProjectReleaseResponse,
   GetReleaseData,
@@ -2895,6 +2897,39 @@ export class ReleasesService {
       },
       body: data.requestBody,
       mediaType: "application/json",
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Get Release Staleness
+   * Report whether the artifact at *path* is up-to-date with its pipeline
+   * stage, so the New Release form can warn before releasing something that may
+   * not be reproducible.
+   * @param data The data for the request.
+   * @param data.ownerName
+   * @param data.projectName
+   * @param data.path
+   * @param data.gitRef
+   * @returns ReleaseStaleness Successful Response
+   * @throws ApiError
+   */
+  public static getReleaseStaleness(
+    data: GetReleaseStalenessData,
+  ): CancelablePromise<GetReleaseStalenessResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/projects/{owner_name}/{project_name}/releases/staleness",
+      path: {
+        owner_name: data.ownerName,
+        project_name: data.projectName,
+      },
+      query: {
+        path: data.path,
+        git_ref: data.gitRef,
+      },
       errors: {
         422: "Validation Error",
       },

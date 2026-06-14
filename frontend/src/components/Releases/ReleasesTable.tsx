@@ -108,6 +108,8 @@ interface ReleasesTableProps {
   // Controlled sort state so it can be persisted (e.g., in URL params).
   sort?: ReleaseSort
   onSortChange?: (sort: ReleaseSort) => void
+  // Case-insensitive substring filter across name/path/title/publisher.
+  filter?: string
 }
 
 const ReleasesTable = ({
@@ -116,6 +118,7 @@ const ReleasesTable = ({
   userHasWriteAccess,
   sort: sortProp,
   onSortChange,
+  filter,
 }: ReleasesTableProps) => {
   const queryClient = useQueryClient()
   const showToast = useCustomToast()
@@ -161,7 +164,14 @@ const ReleasesTable = ({
       })
     },
   })
-  const releases = releasesQuery.data ?? []
+  const filterLower = (filter ?? "").trim().toLowerCase()
+  const releases = (releasesQuery.data ?? []).filter(
+    (r) =>
+      !filterLower ||
+      `${r.name} ${r.path ?? ""} ${r.title ?? ""} ${r.publisher ?? ""}`
+        .toLowerCase()
+        .includes(filterLower),
+  )
   const sortedReleases = [...releases].sort((a, b) => {
     const av = sortValue(a, sort.key)
     const bv = sortValue(b, sort.key)

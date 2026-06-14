@@ -1,6 +1,11 @@
 import {
+  Alert,
+  AlertDescription,
+  AlertIcon,
+  AlertTitle,
   Box,
   Button,
+  Checkbox,
   Code,
   FormControl,
   FormErrorMessage,
@@ -24,7 +29,7 @@ import {
   Textarea,
   useClipboard,
 } from "@chakra-ui/react"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useEffect, useState } from "react"
 import { type SubmitHandler, useForm } from "react-hook-form"
 
@@ -58,6 +63,8 @@ interface NewReleaseForm {
   public: boolean
   comments_enabled: boolean
   allow_anonymous_comments: boolean
+  // Acknowledgement required when the producing stage is stale.
+  acknowledge: boolean
   // "external" destination
   publisher: string
   url: string
@@ -100,6 +107,7 @@ const NewRelease = ({
       public: false,
       comments_enabled: true,
       allow_anonymous_comments: true,
+      acknowledge: false,
       publisher: "",
       url: "",
       doi: "",
@@ -115,6 +123,54 @@ const NewRelease = ({
   }, [isOpen, defaultPath, reset])
   const destination = watch("destination")
   const commentsEnabled = watch("comments_enabled")
+  const path = watch("path")
+  const gitRef = watch("git_ref")
+  const acknowledged = watch("acknowledge")
+  // Debounce the staleness lookup so we don't hit the repo on every keystroke.
+  const [stalenessTarget, setStalenessTarget] = useState({
+    path: "",
+    gitRef: "",
+  })
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      setStalenessTarget({ path: path.trim(), gitRef: gitRef.trim() })
+      // A new artifact/ref means any prior acknowledgement no longer applies.
+      setValue("acknowledge", false)
+    }, 500)
+    return () => clearTimeout(handle)
+  }, [path, gitRef, setValue])
+  // Only hosted (link) releases of a specific path can be gated on staleness.
+  const stalenessEnabled =
+    isOpen && destination === "link" && stalenessTarget.path.length > 0
+  const { data: staleness } = useQuery({
+    queryKey: [
+      "projects",
+      ownerName,
+      projectName,
+      "release-staleness",
+      stalenessTarget.path,
+      stalenessTarget.gitRef,
+    ],
+    queryFn: () =>
+      ReleasesService.getReleaseStaleness({
+        ownerName,
+        projectName,
+        path: stalenessTarget.path || undefined,
+        gitRef: stalenessTarget.gitRef || undefined,
+      }),
+    enabled: stalenessEnabled,
+    retry: false,
+  })
+  const isStale = stalenessEnabled && staleness?.up_to_date === false
+  const needsAck = isStale && !acknowledged
+  // Per-field opt-out for password managers (Dashlane especially keeps trying
+  // to autofill even with a form-level opt-out), spread onto each text input.
+  const noAutofill = {
+    autoComplete: "off",
+    "data-form-type": "other",
+    "data-1p-ignore": true,
+    "data-lpignore": "true",
+  } as const
 
   const invalidate = () =>
     queryClient.invalidateQueries({
@@ -136,6 +192,7 @@ const NewRelease = ({
           public: data.public,
           comments_enabled: data.comments_enabled,
           allow_anonymous_comments: data.allow_anonymous_comments,
+          acknowledge_non_reproducible: data.acknowledge,
         },
       }),
     onSuccess: (data) => {
@@ -225,7 +282,7 @@ const NewRelease = ({
     }
     return (
       <ModalContent>
-        <ModalHeader>Release declared</ModalHeader>
+        <ModalHeader>Release created</ModalHeader>
         <ModalCloseButton />
         <ModalBody pb={6}>
           <Text>
@@ -253,7 +310,16 @@ const NewRelease = ({
       {created || externalDone ? (
         renderSuccess()
       ) : (
-        <ModalContent as="form" onSubmit={handleSubmit(onSubmit)}>
+        <ModalContent
+          as="form"
+          onSubmit={handleSubmit(onSubmit)}
+          autoComplete="off"
+          // Opt the whole form out of password managers (Dashlane, 1Password,
+          // LastPass), which otherwise pop suggestions over these fields.
+          data-form-type="other"
+          data-1p-ignore
+          data-lpignore="true"
+        >
           <ModalHeader>Create release</ModalHeader>
           <ModalCloseButton />
           <ModalBody pb={6}>
@@ -277,6 +343,7 @@ const NewRelease = ({
                 id="name"
                 placeholder="Ex: v1.0"
                 {...register("name", { required: "Name is required" })}
+                {...noAutofill}
               />
               {errors.name && (
                 <FormErrorMessage>{errors.name.message}</FormErrorMessage>
@@ -288,6 +355,7 @@ const NewRelease = ({
                 id="path"
                 placeholder="Ex: paper/paper.html (blank = whole project)"
                 {...register("path")}
+                {...noAutofill}
               />
               <FormHelperText>
                 The file or folder released. Leave blank for the whole project.
@@ -295,18 +363,55 @@ const NewRelease = ({
             </FormControl>
 
             {destination === "link" ? (
-              <FormControl mt={4}>
-                <FormLabel htmlFor="git_ref">Git ref</FormLabel>
-                <Input
-                  id="git_ref"
-                  placeholder="Tag or branch (blank = latest)"
-                  {...register("git_ref")}
-                />
-                <FormHelperText>
-                  The release is pinned to this commit. Leave blank to use the
-                  latest commit on the default branch.
-                </FormHelperText>
-              </FormControl>
+              <>
+                <FormControl mt={4}>
+                  <FormLabel htmlFor="git_ref">Git ref</FormLabel>
+                  <Input
+                    id="git_ref"
+                    placeholder="Tag or branch (blank = latest)"
+                    {...register("git_ref")}
+                    {...noAutofill}
+                  />
+                  <FormHelperText>
+                    The release is pinned to this commit. Leave blank to use the
+                    latest commit on the default branch.
+                  </FormHelperText>
+                </FormControl>
+                {isStale && (
+                  <Alert
+                    status="warning"
+                    mt={4}
+                    borderRadius="md"
+                    alignItems="flex-start"
+                    flexDirection="column"
+                  >
+                    <Box display="flex">
+                      <AlertIcon />
+                      <Box>
+                        <AlertTitle>This artifact may be stale</AlertTitle>
+                        <AlertDescription fontSize="sm">
+                          {staleness?.stage ? (
+                            <>
+                              The pipeline stage <Code>
+                                {staleness.stage}
+                              </Code>{" "}
+                            </>
+                          ) : (
+                            "The pipeline stage that produced this path "
+                          )}
+                          {staleness?.status === "not-run"
+                            ? "has not been run, so this file may not exist or match the current code."
+                            : "is out of date, so this file may not match the current code."}{" "}
+                          Re-run the pipeline to be safe.
+                        </AlertDescription>
+                      </Box>
+                    </Box>
+                    <Checkbox mt={3} {...register("acknowledge")}>
+                      I understand I may be sharing a non-reproducible artifact
+                    </Checkbox>
+                  </Alert>
+                )}
+              </>
             ) : (
               <>
                 <FormControl mt={4}>
@@ -315,6 +420,7 @@ const NewRelease = ({
                     id="publisher"
                     placeholder="e.g., arxiv, zenodo, or a journal name"
                     {...register("publisher")}
+                    {...noAutofill}
                   />
                 </FormControl>
                 <FormControl mt={4}>
@@ -323,11 +429,17 @@ const NewRelease = ({
                     id="url"
                     placeholder="https://…"
                     {...register("url")}
+                    {...noAutofill}
                   />
                 </FormControl>
                 <FormControl mt={4}>
                   <FormLabel htmlFor="doi">DOI</FormLabel>
-                  <Input id="doi" placeholder="10.…" {...register("doi")} />
+                  <Input
+                    id="doi"
+                    placeholder="10.…"
+                    {...register("doi")}
+                    {...noAutofill}
+                  />
                 </FormControl>
                 <FormControl mt={4}>
                   <FormLabel htmlFor="date">Date</FormLabel>
@@ -341,7 +453,12 @@ const NewRelease = ({
 
             <FormControl mt={4}>
               <FormLabel htmlFor="title">Title</FormLabel>
-              <Input id="title" placeholder="Optional" {...register("title")} />
+              <Input
+                id="title"
+                placeholder="Optional"
+                {...register("title")}
+                {...noAutofill}
+              />
             </FormControl>
             <FormControl mt={4}>
               <FormLabel htmlFor="description">Description</FormLabel>
@@ -349,6 +466,7 @@ const NewRelease = ({
                 id="description"
                 placeholder="Optional"
                 {...register("description")}
+                {...noAutofill}
               />
             </FormControl>
 
@@ -393,8 +511,9 @@ const NewRelease = ({
               variant="primary"
               type="submit"
               isLoading={isSubmitting || isPending}
+              isDisabled={needsAck}
             >
-              {destination === "external" ? "Declare" : "Create"}
+              Save
             </Button>
             <Button onClick={handleClose}>Cancel</Button>
           </ModalFooter>
