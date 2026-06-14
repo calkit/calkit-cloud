@@ -52,10 +52,11 @@ import {
   ReleasesService,
 } from "../../../../../client"
 import LoadingSpinner from "../../../../../components/Common/LoadingSpinner"
-import ReleasesTable, {
+import ReleasesTable from "../../../../../components/Releases/ReleasesTable"
+import {
   DEFAULT_RELEASE_SORT,
   type ReleaseSort,
-} from "../../../../../components/Releases/ReleasesTable"
+} from "../../../../../components/Releases/releaseSort"
 import useProject from "../../../../../hooks/useProject"
 
 interface CommitHistory {

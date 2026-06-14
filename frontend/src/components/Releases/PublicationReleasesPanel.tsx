@@ -59,18 +59,10 @@ const PublicationReleasesPanel = ({
     queryFn: () =>
       ReleasesService.getProjectReleases({ ownerName, projectName }),
   })
-  // A publication is covered both by a release of its own path and by a
-  // whole-project release (path "." or unset). Show both, but distinguish
-  // them so it's clear the project release included this publication rather
-  // than targeting it specifically. File-specific releases sort first.
-  const isProjectRelease = (p: string | null | undefined) => !p || p === "."
-  const matching = (releasesQuery.data ?? [])
-    .filter((r) => r.path === path || isProjectRelease(r.path))
-    .sort((a, b) => {
-      const aProj = isProjectRelease(a.path) ? 1 : 0
-      const bProj = isProjectRelease(b.path) ? 1 : 0
-      return aProj - bProj
-    })
+  // Only releases that specifically target this publication's path -- not
+  // whole-project releases, which would otherwise flood every publication's
+  // panel (e.g. after importing many project releases from GitHub).
+  const matching = (releasesQuery.data ?? []).filter((r) => r.path === path)
 
   return (
     <Box mt={3}>
@@ -102,13 +94,6 @@ const PublicationReleasesPanel = ({
             <Text fontSize="sm" flex={1} noOfLines={1}>
               {r.name}
             </Text>
-            {isProjectRelease(r.path) && (
-              <Tooltip label="The whole project was released at this version, which includes this publication">
-                <Badge colorScheme="blue" fontSize="xs" flexShrink={0}>
-                  Project
-                </Badge>
-              </Tooltip>
-            )}
             {r.publisher && (
               <Badge colorScheme="purple" fontSize="xs" flexShrink={0}>
                 {r.publisher}

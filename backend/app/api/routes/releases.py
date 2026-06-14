@@ -20,7 +20,9 @@ import os
 import secrets
 from datetime import date
 
+import requests
 from fastapi import APIRouter, HTTPException
+from git.exc import GitCommandError
 from sqlmodel import select
 
 import app.projects
@@ -330,6 +332,99 @@ def post_external_release(
     return Message(message="success")
 
 
+@router.post("/projects/{owner_name}/{project_name}/releases/import-github")
+def import_github_releases(
+    owner_name: str,
+    project_name: str,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> Message:
+    """Import GitHub releases not yet recorded in ``calkit.yaml``.
+
+    A one-way import: ``calkit.yaml`` is the portable source of truth for
+    project releases, so this pulls any GitHub releases that aren't already
+    declared there (keyed by tag name) and records them with a link back to the
+    GitHub release. Existing entries are left untouched. Commits and pushes once
+    if anything changed.
+    """
+    project = app.projects.get_project(
+        session=session,
+        owner_name=owner_name,
+        project_name=project_name,
+        current_user=current_user,
+        min_access_level="write",
+    )
+    token = users.get_github_token(session=session, user=current_user)
+    gh_url = f"https://api.github.com/repos/{project.github_repo}/releases"
+    resp = requests.get(gh_url, headers={"Authorization": f"Bearer {token}"})
+    if resp.status_code >= 400:
+        raise HTTPException(400, "Failed to fetch GitHub releases")
+    gh_releases = resp.json()
+    if not isinstance(gh_releases, list):
+        raise HTTPException(502, "Unexpected response from GitHub")
+    repo = get_repo(
+        project=project, user=current_user, session=session, ttl=None
+    )
+    ck_path = os.path.join(repo.working_dir, "calkit.yaml")
+    ck_info = {}
+    if os.path.exists(ck_path):
+        with open(ck_path) as f:
+            ck_info = ryaml.load(f) or {}
+    releases = ck_info.get("releases") or {}
+    imported: list[str] = []
+    for gh in gh_releases:
+        tag = gh.get("tag_name")
+        if not tag or tag in releases:
+            continue
+        entry: dict = {
+            "kind": "project",
+            "path": ".",
+            "publisher": "github",
+            "url": gh.get("html_url"),
+        }
+        published = gh.get("published_at") or gh.get("created_at")
+        if published:
+            entry["date"] = published[:10]
+        if gh.get("name"):
+            entry["title"] = gh["name"]
+        if gh.get("body"):
+            entry["description"] = gh["body"]
+        releases[tag] = entry
+        imported.append(tag)
+    if not imported:
+        return Message(message="No new GitHub releases to import")
+    ck_info["releases"] = releases
+    with open(ck_path, "w") as f:
+        ryaml.dump(ck_info, f)
+    try:
+        repo.git.add("calkit.yaml")
+        repo.git.commit(
+            ["-m", f"Import {len(imported)} release(s) from GitHub"]
+        )
+        repo.git.push(["origin", repo.active_branch.name])
+    except GitCommandError as e:
+        # Leave the cached clone clean for the next request and surface a
+        # meaningful error instead of an opaque 500 (e.g. the user has Calkit
+        # write access but not GitHub push access to the repo).
+        repo.git.reset(["--hard", "origin/" + repo.active_branch.name])
+        logger.warning(f"Failed to commit/push imported releases: {e}")
+        raise HTTPException(
+            502,
+            "Imported the releases, but couldn't push to GitHub. Check that "
+            "you have push access to the repository.",
+        )
+    mixpanel.track(
+        current_user,
+        "Imported GitHub releases",
+        {
+            "owner_name": owner_name,
+            "project_name": project_name,
+            "count": len(imported),
+        },
+    )
+    return Message(message=f"Imported {len(imported)} release(s) from GitHub")
+
+
 @router.get("/projects/{owner_name}/{project_name}/releases")
 def get_project_releases(
     owner_name: str,
@@ -539,6 +634,41 @@ def get_release_content(
         zip_path_map=zip_path_map,
     )
     return item
+
+
+@router.get("/releases/{secret_token}/contents")
+def get_release_contents(
+    secret_token: str,
+    session: SessionDep,
+    path: str | None = None,
+) -> ContentsItem:
+    """Browse the project's files at the release's ref via the secret link.
+
+    Read-only, anonymous (the secret token is the credential), and pinned to
+    the release's commit -- fetched with the creator's GitHub token so private
+    repos can be browsed without granting repo access. Restricted to
+    whole-project releases; single-artifact releases must not expose the rest
+    of the repo, so they 403 here (use ``/content`` for the single file).
+    """
+    release = _get_release_by_token(session, secret_token)
+    if release.path and release.path != ".":
+        raise HTTPException(
+            403, "This release shares a single artifact, not the whole project"
+        )
+    project = release.project
+    repo = get_repo(
+        project=project,
+        user=release.created_by,
+        session=session,
+        ttl=None,
+        ref=release.git_rev,
+    )
+    return app.projects.get_contents_from_repo(
+        project=project,
+        repo=repo,
+        path=path,
+        ref=release.git_rev,
+    )
 
 
 @router.get("/releases/{secret_token}/comments")

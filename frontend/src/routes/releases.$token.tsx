@@ -21,7 +21,8 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 import { useState } from "react"
-import { FiDownload, FiExternalLink } from "react-icons/fi"
+import { FaFile, FaFolder } from "react-icons/fa"
+import { FiArrowUp, FiDownload, FiExternalLink } from "react-icons/fi"
 
 import { type ContentsItem, type ReleaseView, ReleasesService } from "../client"
 import type { ApiError } from "../client/core/ApiError"
@@ -208,6 +209,108 @@ function CommentsPanel({
   )
 }
 
+// Read-only browser over a whole-project release's files at its pinned ref.
+// Anonymous visitors navigate directories and preview files via the secret
+// link, without access to the rest of the project outside this ref.
+function ProjectBrowser({ token }: { token: string }) {
+  const [path, setPath] = useState<string | undefined>(undefined)
+  const {
+    data: item,
+    isPending,
+    isError,
+  } = useQuery({
+    queryKey: ["releases", token, "contents", path ?? ""],
+    queryFn: () =>
+      ReleasesService.getReleaseContents({ secretToken: token, path }),
+    retry: false,
+  })
+  const parts = path ? path.split("/") : []
+  const goUp = () =>
+    setPath(parts.length > 1 ? parts.slice(0, -1).join("/") : undefined)
+  if (isPending) return <LoadingSpinner height="100%" />
+  if (isError || !item) {
+    return (
+      <Flex align="center" justify="center" h="100%" p={4}>
+        <Alert status="warning" borderRadius="lg" maxW="md">
+          <AlertIcon />
+          Couldn't load the project files.
+        </Alert>
+      </Flex>
+    )
+  }
+  const isDir = item.type === "dir" || item.dir_items != null
+  if (!isDir) {
+    return (
+      <Flex direction="column" h="100%">
+        <Button
+          onClick={goUp}
+          leftIcon={<Icon as={FiArrowUp} />}
+          size="sm"
+          variant="ghost"
+          m={2}
+          alignSelf="flex-start"
+        >
+          Back to {parts.length > 1 ? parts.slice(0, -1).join("/") : "files"}
+        </Button>
+        <Box flex={1} minH={0}>
+          <ArtifactView path={item.path} item={item} />
+        </Box>
+      </Flex>
+    )
+  }
+  const entries = [...(item.dir_items ?? [])].sort((a, b) => {
+    const ad = a.type === "dir" ? 0 : 1
+    const bd = b.type === "dir" ? 0 : 1
+    return ad - bd || a.name.localeCompare(b.name)
+  })
+  return (
+    <Box p={4} h="100%" overflowY="auto">
+      <Text fontSize="sm" color="gray.500" mb={2}>
+        /{path ?? ""}
+      </Text>
+      <VStack align="stretch" spacing={0} maxW="container.sm">
+        {path && (
+          <Flex
+            align="center"
+            gap={2}
+            py={1.5}
+            px={2}
+            cursor="pointer"
+            borderRadius="md"
+            _hover={{ bg: "blackAlpha.50" }}
+            onClick={goUp}
+          >
+            <Icon as={FiArrowUp} color="gray.400" />
+            <Text fontSize="sm">..</Text>
+          </Flex>
+        )}
+        {entries.map((e) => (
+          <Flex
+            key={e.path}
+            align="center"
+            gap={2}
+            py={1.5}
+            px={2}
+            cursor="pointer"
+            borderRadius="md"
+            _hover={{ bg: "blackAlpha.50" }}
+            onClick={() => setPath(e.path)}
+          >
+            <Icon
+              as={e.type === "dir" ? FaFolder : FaFile}
+              color={e.type === "dir" ? "blue.400" : "gray.400"}
+              flexShrink={0}
+            />
+            <Text fontSize="sm" noOfLines={1}>
+              {e.name}
+            </Text>
+          </Flex>
+        ))}
+      </VStack>
+    </Box>
+  )
+}
+
 function ReleaseViewer() {
   const { token } = Route.useParams()
   const releaseQuery = useQuery({
@@ -216,10 +319,11 @@ function ReleaseViewer() {
     retry: false,
   })
   const release = releaseQuery.data
+  const isWholeProject = !release?.path || release.path === "."
   const contentQuery = useQuery({
     queryKey: ["releases", token, "content"],
     queryFn: () => ReleasesService.getReleaseContent({ secretToken: token }),
-    enabled: Boolean(release?.path),
+    enabled: Boolean(release?.path) && !isWholeProject,
     retry: false,
   })
 
@@ -294,18 +398,12 @@ function ReleaseViewer() {
       {/* Body: artifact + optional comments */}
       <Flex flex={1} minH={0}>
         <Box flex={1} minW={0}>
-          {!release.path ? (
-            <Flex align="center" justify="center" h="100%" p={4}>
-              <Alert status="info" borderRadius="lg" maxW="md">
-                <AlertIcon />
-                This release covers the whole project. Use the download button
-                where available.
-              </Alert>
-            </Flex>
+          {isWholeProject ? (
+            <ProjectBrowser token={token} />
           ) : contentQuery.isPending ? (
             <LoadingSpinner height="100%" />
           ) : item ? (
-            <ArtifactView path={release.path} item={item} />
+            <ArtifactView path={release.path ?? ""} item={item} />
           ) : (
             <Flex align="center" justify="center" h="100%" p={4}>
               <Alert status="warning" borderRadius="lg" maxW="md">

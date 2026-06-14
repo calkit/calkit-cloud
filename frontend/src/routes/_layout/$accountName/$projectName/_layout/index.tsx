@@ -37,11 +37,12 @@ import { ExternalLinkIcon } from "@chakra-ui/icons"
 import Markdown from "../../../../../components/Common/Markdown"
 import { ReleasesService, type ReleaseListItem } from "../../../../../client"
 import { decodeBase64Utf8 } from "../../../../../lib/strings"
-import { releaseUrl } from "../../../../../lib/releases"
+import { releaseExternalLink } from "../../../../../lib/releases"
 import CreateIssue from "../../../../../components/Projects/CreateIssue"
 import CreateQuestion from "../../../../../components/Projects/CreateQuestion"
 import NewPublication from "../../../../../components/Publications/NewPublication"
 import NewRelease from "../../../../../components/Releases/NewRelease"
+import ReleaseDetailsModal from "../../../../../components/Releases/ReleaseDetailsModal"
 import useProject, {
   useProjectIssues,
   useProjectQuestions,
@@ -91,15 +92,10 @@ function ProjectView() {
         projectName,
       }),
   })
-  // External venue/secret link for a release, or null to fall back to the
-  // Releases tab.
-  const releaseLink = (r: ReleaseListItem): string | null => {
-    if (r.source === "cloud" && r.secret_token)
-      return releaseUrl(r.secret_token)
-    if (r.url) return r.url
-    if (r.doi) return `https://doi.org/${r.doi}`
-    return null
-  }
+  // Release opened in the details modal (null = closed).
+  const [detailRelease, setDetailRelease] = useState<ReleaseListItem | null>(
+    null,
+  )
   // Newest first (ISO dates sort lexically); show only the latest few on the
   // home page and link to the full list on the History page.
   const HOME_RELEASES_LIMIT = 5
@@ -386,7 +382,7 @@ function ProjectView() {
                   </Thead>
                   <Tbody>
                     {topReleases.map((release) => {
-                      const href = releaseLink(release)
+                      const link = releaseExternalLink(release)
                       const pathLabel =
                         release.path && release.path !== "."
                           ? release.path
@@ -394,17 +390,17 @@ function ProjectView() {
                       return (
                         <Tr key={`${release.source}-${release.name}`}>
                           <Td px={2}>
-                            {href ? (
-                              <Link isExternal href={href}>
-                                {release.name}
-                              </Link>
-                            ) : (
+                            <Link onClick={() => setDetailRelease(release)}>
+                              {release.name}
+                            </Link>
+                            {link && (
                               <Link
-                                as={RouterLink}
-                                to={`/${accountName}/${projectName}/history`}
-                                search={{ tab: "releases" } as any}
+                                href={link.href}
+                                isExternal
+                                ml={1}
+                                aria-label={`Open ${link.label}`}
                               >
-                                {release.name}
+                                <Icon as={ExternalLinkIcon} />
                               </Link>
                             )}
                           </Td>
@@ -497,6 +493,11 @@ function ProjectView() {
           )}
         </Box>
       </Flex>
+      <ReleaseDetailsModal
+        isOpen={!!detailRelease}
+        onClose={() => setDetailRelease(null)}
+        release={detailRelease}
+      />
     </>
   )
 }

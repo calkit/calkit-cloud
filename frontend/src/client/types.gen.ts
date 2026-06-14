@@ -2158,6 +2158,13 @@ export type PostExternalReleaseData = {
 
 export type PostExternalReleaseResponse = Message
 
+export type ImportGithubReleasesData = {
+  ownerName: string
+  projectName: string
+}
+
+export type ImportGithubReleasesResponse = Message
+
 export type GetReleaseStalenessData = {
   gitRef?: string | null
   ownerName: string
@@ -2186,6 +2193,13 @@ export type GetReleaseContentData = {
 }
 
 export type GetReleaseContentResponse = ContentsItem
+
+export type GetReleaseContentsData = {
+  path?: string | null
+  secretToken: string
+}
+
+export type GetReleaseContentsResponse = ContentsItem
 
 export type GetReleaseCommentsData = {
   secretToken: string

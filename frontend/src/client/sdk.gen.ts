@@ -193,6 +193,8 @@ import type {
   GetProjectReleasesResponse,
   PostExternalReleaseData,
   PostExternalReleaseResponse,
+  ImportGithubReleasesData,
+  ImportGithubReleasesResponse,
   GetReleaseStalenessData,
   GetReleaseStalenessResponse,
   DeleteProjectReleaseData,
@@ -201,6 +203,8 @@ import type {
   GetReleaseResponse,
   GetReleaseContentData,
   GetReleaseContentResponse,
+  GetReleaseContentsData,
+  GetReleaseContentsResponse,
   GetReleaseCommentsData,
   GetReleaseCommentsResponse,
   PostReleaseCommentData,
@@ -2904,6 +2908,37 @@ export class ReleasesService {
   }
 
   /**
+   * Import Github Releases
+   * Import GitHub releases not yet recorded in ``calkit.yaml``.
+   *
+   * A one-way import: ``calkit.yaml`` is the portable source of truth for
+   * project releases, so this pulls any GitHub releases that aren't already
+   * declared there (keyed by tag name) and records them with a link back to the
+   * GitHub release. Existing entries are left untouched. Commits and pushes once
+   * if anything changed.
+   * @param data The data for the request.
+   * @param data.ownerName
+   * @param data.projectName
+   * @returns Message Successful Response
+   * @throws ApiError
+   */
+  public static importGithubReleases(
+    data: ImportGithubReleasesData,
+  ): CancelablePromise<ImportGithubReleasesResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/projects/{owner_name}/{project_name}/releases/import-github",
+      path: {
+        owner_name: data.ownerName,
+        project_name: data.projectName,
+      },
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
    * Get Release Staleness
    * Report whether the artifact at *path* is up-to-date with its pipeline
    * stage, so the New Release form can warn before releasing something that may
@@ -2999,6 +3034,39 @@ export class ReleasesService {
       url: "/releases/{secret_token}/content",
       path: {
         secret_token: data.secretToken,
+      },
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Get Release Contents
+   * Browse the project's files at the release's ref via the secret link.
+   *
+   * Read-only, anonymous (the secret token is the credential), and pinned to
+   * the release's commit -- fetched with the creator's GitHub token so private
+   * repos can be browsed without granting repo access. Restricted to
+   * whole-project releases; single-artifact releases must not expose the rest
+   * of the repo, so they 403 here (use ``/content`` for the single file).
+   * @param data The data for the request.
+   * @param data.secretToken
+   * @param data.path
+   * @returns ContentsItem Successful Response
+   * @throws ApiError
+   */
+  public static getReleaseContents(
+    data: GetReleaseContentsData,
+  ): CancelablePromise<GetReleaseContentsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/releases/{secret_token}/contents",
+      path: {
+        secret_token: data.secretToken,
+      },
+      query: {
+        path: data.path,
       },
       errors: {
         422: "Validation Error",

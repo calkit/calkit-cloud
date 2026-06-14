@@ -20,6 +20,15 @@ def test_get_release_invalid_token_returns_404(client: TestClient) -> None:
     assert resp.status_code == 404
 
 
+def test_get_release_contents_invalid_token_returns_404(
+    client: TestClient,
+) -> None:
+    resp = client.get(
+        f"{settings.API_V1_STR}/releases/does-not-exist-token/contents"
+    )
+    assert resp.status_code == 404
+
+
 def test_get_release_comments_invalid_token_returns_404(
     client: TestClient,
 ) -> None:
@@ -52,6 +61,14 @@ def test_post_external_release_requires_auth(client: TestClient) -> None:
         f"{settings.API_V1_STR}"
         "/projects/test-owner/test-project/releases/external",
         json={"name": "v1.0", "publisher": "arxiv"},
+    )
+    assert resp.status_code == 401
+
+
+def test_import_github_releases_requires_auth(client: TestClient) -> None:
+    resp = client.post(
+        f"{settings.API_V1_STR}"
+        "/projects/test-owner/test-project/releases/import-github"
     )
     assert resp.status_code == 401
 

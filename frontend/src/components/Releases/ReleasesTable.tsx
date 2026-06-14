@@ -29,7 +29,14 @@ import {
 } from "@chakra-ui/react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useState } from "react"
-import { FaPlus, FaSort, FaSortDown, FaSortUp, FaTrash } from "react-icons/fa"
+import {
+  FaGithub,
+  FaPlus,
+  FaSort,
+  FaSortDown,
+  FaSortUp,
+  FaTrash,
+} from "react-icons/fa"
 import { FiCopy, FiExternalLink } from "react-icons/fi"
 
 import { type ReleaseListItem, ReleasesService } from "../../client"
@@ -39,30 +46,17 @@ import { handleError } from "../../lib/errors"
 import { releaseUrl } from "../../lib/releases"
 import LoadingSpinner from "../Common/LoadingSpinner"
 import NewRelease from "./NewRelease"
+import {
+  DEFAULT_RELEASE_SORT,
+  type ReleaseSort,
+  type SortKey,
+} from "./releaseSort"
 
 const formatDate = (date: string | null | undefined): string => {
   if (!date) return "—"
   const d = new Date(date)
   return Number.isNaN(d.getTime()) ? date : d.toLocaleDateString()
 }
-
-export type SortKey =
-  | "name"
-  | "path"
-  | "version"
-  | "date"
-  | "visibility"
-  | "views"
-  | "comments"
-
-export type SortDir = "asc" | "desc"
-
-export interface ReleaseSort {
-  key: SortKey
-  dir: SortDir
-}
-
-export const DEFAULT_RELEASE_SORT: ReleaseSort = { key: "date", dir: "desc" }
 
 // Columns that read most naturally as descending on first click.
 const DESC_FIRST: Set<SortKey> = new Set(["date", "views", "comments"])
@@ -164,6 +158,19 @@ const ReleasesTable = ({
       })
     },
   })
+  const importMutation = useMutation({
+    mutationFn: () =>
+      ReleasesService.importGithubReleases({ ownerName, projectName }),
+    onSuccess: (msg) => {
+      showToast("Success", msg.message, "success")
+    },
+    onError: (err: ApiError) => handleError(err, showToast),
+    onSettled: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["projects", ownerName, projectName, "releases"],
+      })
+    },
+  })
   const filterLower = (filter ?? "").trim().toLowerCase()
   const releases = (releasesQuery.data ?? []).filter(
     (r) =>
@@ -224,15 +231,26 @@ const ReleasesTable = ({
       <Flex align="center" mb={4}>
         <Heading size="md">Releases</Heading>
         {userHasWriteAccess && (
-          <Button
-            variant="primary"
-            size="sm"
-            ml={4}
-            leftIcon={<Icon as={FaPlus} />}
-            onClick={newReleaseModal.onOpen}
-          >
-            New release
-          </Button>
+          <>
+            <Button
+              variant="primary"
+              size="sm"
+              ml={4}
+              leftIcon={<Icon as={FaPlus} />}
+              onClick={newReleaseModal.onOpen}
+            >
+              New release
+            </Button>
+            <Button
+              size="sm"
+              ml={2}
+              leftIcon={<Icon as={FaGithub} />}
+              onClick={() => importMutation.mutate()}
+              isLoading={importMutation.isPending}
+            >
+              Import from GitHub
+            </Button>
+          </>
         )}
       </Flex>
       {releasesQuery.isPending ? (
