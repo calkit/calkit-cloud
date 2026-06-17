@@ -22,6 +22,34 @@ where it makes sense, but with eyes open about licensing (see below). Calkit is 
 
 ---
 
+## Decisions log
+
+Settled during planning (see referenced sections for rationale):
+
+| Topic | Decision | Ref |
+|---|---|---|
+| **License** | Path 1 — our own loader around the WASM binaries; copy no TeXlyre source | §0 |
+| **TeX engine** | BusyTeX (TeX Live 2026 + SyncTeX) from the start | Phase 0 |
+| **Compile role** | Preview-only; never a pipeline artifact; pipeline stays source of truth | §3.1 |
+| **Preview download** | None — preview is view-only in the editor | §3.1 |
+| **Git hosting** | GitHub-backed; git-backend abstraction added up front; self-host deferred | §2.4, I4 |
+| **Push credential** | Done — existing Calkit GitHub App installation; only authorship routing remains | §2.2 |
+| **Onboarding (near-term)** | Google sign-in + email/password signup via invite links (pick password on first sign-in) | §2.3 |
+| **University SSO** | Deferred | I3 |
+| **Sequencing** | I1 + I2 land before/with editor Phase 1; Phase 0 spike runs in parallel | §6 |
+| **Phase 3 order** | 3a (real-time collaboration) first, then 3b (sessions-as-branches) | Phase 3 |
+| **TeX Live packages** | Upstream server for Phase 0/1; self-hosted cached proxy in Phase 2 | Phase 2 |
+
+**Open verification tasks (not decisions):** confirm BusyTeX + SwiftLaTeX engine `.wasm`
+artifact licenses fit Path 1 redistribution before Phase 1 ships.
+
+The near-term critical path: **Phase 0 compile spike (BusyTeX)** in parallel with **I1**
+(Google/email signup + GitHub-less authorship) and **I2** (native membership + invite
+links), then **editor Phase 1** (single-file edit → preview → auto-commit). The detailed
+task breakdown for that work is in §8.
+
+---
+
 ## 0. The licensing decision (must resolve before writing code)
 
 This is the single most important gate on the plan.
@@ -458,14 +486,17 @@ deferred.
 
 ---
 
-## 7. Proposed first concrete steps (once §0 is settled)
+## 7. Proposed first concrete steps
 
-1. Phase 0 spike in a scratch branch: SwiftLaTeX `pdftex` WASM in a Web Worker compiling a
-   real project `.tex` → PDF in browser; measure & document.
+1. Phase 0 spike in a scratch branch: **BusyTeX** WASM in a Web Worker compiling a real
+   project `.tex` → PDF in browser; measure & document. (See §8.1 for the full task list.)
 2. Add `codemirror`, pdf.js (already partly present via `pdfjs-dist`), and the engine
    artifact to `frontend/`; scaffold `src/components/Publications/LatexEditor/`.
 3. Wire the `Edit` button + full-screen modal shell with file-load and save stubs.
 4. Land the manual-compile + auto-commit MVP behind a feature flag.
+
+The fully decomposed task breakdown for the near-term critical path (Phase 0 + I1 + I2 +
+editor Phase 1) is in **§8**.
 
 ---
 
@@ -488,6 +519,117 @@ deferred.
 - ~~TeX Live package server~~ — **DECIDED: defer.** Use the upstream/public package server
   for Phase 0/1; self-host a cached package proxy in Phase 2 (§ Phase 2) for reproducibility
   and uptime.
+
+---
+
+## 8. Task breakdown — near-term critical path
+
+Four workstreams. **§8.1 (Phase 0 spike)** can start immediately and run in parallel with
+**§8.2 (I1)** and **§8.3 (I2)**; **§8.4 (editor Phase 1)** depends on all three. File paths
+are the current locations found during research — verify before editing.
+
+### 8.1 Phase 0 — BusyTeX compile spike (throwaway, scratch branch)
+
+Goal: prove an in-browser compile of a real Calkit paper before committing to UI work.
+
+- [ ] Obtain the **BusyTeX** WASM artifact + JS glue; confirm its license fits Path 1
+      (record finding; this is the gating verification task).
+- [ ] Stand up a minimal Vite page that loads the engine in a **Web Worker**, mounts an
+      in-memory FS, writes a hello-world `.tex`, compiles to PDF, renders via `pdfjs-dist`
+      (already a frontend dep).
+- [ ] Compile a **real publication `.tex`** pulled from an existing project; confirm package
+      on-demand fetch works against the upstream package server.
+- [ ] Measure & document: cold-start time, bundle/engine size, memory, compile time,
+      SyncTeX availability, and any missing-package failures.
+- [ ] Decide the FS-seed contract (how files get handed to the worker) — feeds §8.4.
+- **Exit:** a written go/no-go with numbers + a working compile of one of our papers.
+
+### 8.2 I1 — Onboarding & GitHub-less authorship
+
+Goal: a user can create a Calkit Cloud account without GitHub, and their edits can be
+authored as them and pushed via the existing GitHub App.
+
+**Backend**
+- [ ] Re-enable signup: replace the `501` in `POST /users/signup`
+      (`backend/app/api/routes/users.py` ~line 165) with real email/password registration
+      using existing `UserRegister`/`UserCreate` + bcrypt in `app/security.py`.
+- [ ] Make `Account.github_name` **nullable** (`backend/app/models/core.py`) + Alembic
+      migration; mint a Calkit `Account.name` independent of GitHub; audit every read of
+      `github_name`/`github_username` for None-safety (repo-URL defaulting, GitHub API calls).
+- [ ] Finalize **Google sign-in** on the backend (token exchange + user/account creation),
+      pairing with the existing `google-auth.tsx` callback; store identity via
+      `UserExternalCredential` (provider=google).
+- [ ] **Authorship routing:** when committing on behalf of a GitHub-less user, set git
+      `author`/`committer` to the Calkit user's name + **verified** email, while the push
+      uses the existing GitHub App installation token (confirm where that token is fetched in
+      `app/git.py` and that the commit path in `projects/core.py` PUT-contents can take an
+      explicit author). Add email verification if not already enforced.
+
+**Frontend**
+- [ ] Login/signup UI (`src/routes/login/`): add "Continue with Google" + email/password
+      sign-up alongside the existing GitHub button.
+- [ ] Wire the Google callback (`src/routes/google-auth.tsx`) end-to-end through `lib/auth.ts`
+      token storage.
+
+- **Exit:** create an account via Google and via email/password (no GitHub); make an edit
+  through an existing write path and see a commit authored as the Calkit user, pushed by the
+  App.
+
+### 8.3 I2 — Native membership & shareable invite links
+
+Goal: project access resolves from a native table first, and a share link lets a new user
+join and start editing.
+
+**Backend**
+- [ ] `ProjectMembership` table (user_id, project_id, role) — model + migration in
+      `backend/app/models/core.py`. Mirror the role semantics already in `UserOrgMembership`.
+- [ ] `ProjectInvitation` table: token (opaque), project_id, role, expiry, max-uses,
+      created_by; endpoints to **create**, **list/revoke**, and **redeem** (redeem → create
+      `ProjectMembership`, requires an authenticated account from §8.2).
+- [ ] Update access resolution in `backend/app/projects.py` (`get_project`, ~lines 80–200):
+      check native `ProjectMembership` **first**, fall back to the existing
+      GitHub-collaborator `UserProjectAccess` cache. Don't regress GitHub-derived access.
+- [ ] Decide invite-link → repo-write mapping: a redeemer with native `write` must be able
+      to push via the App even though they're not a GitHub collaborator (ties to §8.2
+      authorship routing). Guard against share-link role escalation / leakage (risk §5.10).
+
+**Frontend**
+- [ ] "Invite / share" UI on the project (create link, pick role, copy). Reuse Chakra modal
+      patterns.
+- [ ] Invite landing route: unauthenticated visitor → signup (§8.2) → auto-redeem → land in
+      the project.
+
+- **Exit:** a brand-new user clicks a share link, signs up with Google or a password, and
+  is dropped into the project with the granted role.
+
+### 8.4 Editor Phase 1 — single-file editor MVP (depends on 8.1–8.3)
+
+Goal: open a publication, edit its `.tex`, compile-preview in-browser, save via auto-commit.
+
+**Frontend**
+- [ ] Add deps: `codemirror` (v6) + LaTeX language support; reuse `pdfjs-dist`. Package the
+      BusyTeX engine artifact (lazy-loaded only when the editor opens).
+- [ ] Scaffold `src/components/Publications/LatexEditor/`: full-screen Chakra `Modal`
+      (`size="full"`, closable, unsaved-changes guard) following `ArtifactCompareModal` /
+      `FileViewModal` precedent.
+- [ ] **Edit** button on the publications page
+      (`src/routes/_layout/$accountName/$projectName/_layout/publications.tsx`), gated on
+      Write permission.
+- [ ] On open: fetch the publication's `.tex` (+ sibling `.bib`) via
+      `ProjectsService.getProjectContents()` into the worker's virtual FS.
+- [ ] CodeMirror editor pane | PDF preview pane; manual + debounced auto compile through the
+      §8.1 worker; collapsible log/error panel. **View-only preview, no download** (§3.1).
+- [ ] Save via `putProjectContents()` (per-file) with debounce + save-on-close; auto-commit
+      handled by the backend.
+- [ ] Feature-flag the whole entry point.
+
+**Backend**
+- [ ] Likely no new endpoints — reuse `PUT contents`
+      (`backend/app/api/routes/projects/core.py` ~lines 1138–1185). Confirm `.tex` round-trips
+      as raw text and re-check the 1 MB file-size limit for typical sources.
+
+- **Exit:** edit a real paper's `.tex`, compile to PDF in-browser, save, and see the
+  auto-commit land + push to GitHub — as a non-GitHub user who joined via an invite link.
 
 **All open questions resolved.** Remaining follow-ups are verification tasks, not decisions:
 confirm the BusyTeX + SwiftLaTeX engine artifact licenses fit Path 1 before Phase 1 ships.
