@@ -29,7 +29,7 @@ Settled during planning (see referenced sections for rationale):
 | Topic | Decision | Ref |
 |---|---|---|
 | **License** | Path 1 — our own loader around the WASM binaries; copy no TeXlyre source | §0 |
-| **TeX engine** | BusyTeX (TeX Live 2026 + SyncTeX) from the start | Phase 0 |
+| **TeX engine** | Upstream **busytex/busytex** (MIT, TeX Live 2023 + SyncTeX). The TeXlyre TeX Live 2026 build is AGPL — rejected for Path 1. | §0, Phase 0 |
 | **Compile role** | Preview-only; never a pipeline artifact; pipeline stays source of truth | §3.1 |
 | **Preview download** | None — preview is view-only in the editor | §3.1 |
 | **Git hosting** | GitHub-backed; git-backend abstraction added up front; self-host deferred | §2.4, I4 |
@@ -79,10 +79,17 @@ our own loader). We have three realistic paths:
    distinct AGPL module/micro-frontend with its own LICENSE, loaded at runtime. Legally
    fragile for a hosted SaaS; only with counsel sign-off.
 
-> **DECIDED: Path 1.** We write our own loader/bridge around the SwiftLaTeX WASM binaries
-> and copy **no** TeXlyre React/TS source. Still to do before Phase 1 lands in `master`: a
-> quick license verification on the engine `.wasm` artifacts themselves
-> (EPL-2.0 / GPL-2.0-w-Classpath) to confirm redistribution is fine.
+> **DECIDED: Path 1.** We write our own loader/bridge around the WASM binaries and copy
+> **no** TeXlyre React/TS source.
+>
+> **Engine license verification — DONE, and it has teeth (2026-06-17):**
+> - `texlyre-busytex` (npm, TeX Live **2026**) is **AGPL-3.0-or-later** — does **not** fit
+>   Path 1 for an MIT project. Its AGPL covers the TS wrapper + build tooling.
+> - Upstream `busytex/busytex` is **MIT** (code/scripts); its published `.wasm`/`.data`
+>   binaries carry TeX Live/LPPL (permissive) licenses — Path-1-clean — but bundle TeX Live
+>   **2023**, not 2026. (No npm package; GitHub-releases only.)
+> - **Implication:** the license-clean engine is **busytex 2023**, not the TeXlyre 2026
+>   build. See the revised engine decision below / in the Decisions log.
 
 A second gotcha that rides along with the engine choice: **SwiftLaTeX fetches TeX Live
 packages on demand from a remote package server at compile time.** We must either
@@ -341,11 +348,11 @@ preview-only regardless.
 
 ### Phase 0 — Spike & decisions (no production code)
 - Resolve the **licensing path** (§0) — blocker for everything else.
-- Stand up a throwaway spike: load the **BusyTeX** WASM (TeX Live 2026, SyncTeX support) in
-  a Web Worker, compile a hello-world `.tex` to PDF entirely in the browser, render with
-  pdf.js. Confirm bundle size, cold-start time, and where TeX Live packages come from.
-  Verify the BusyTeX artifact's license fits Path 1 redistribution alongside the SwiftLaTeX
-  engine note in §0.
+- Stand up a throwaway spike: load the **upstream MIT busytex** WASM (TeX Live 2023, SyncTeX
+  support) in a Web Worker, compile a hello-world `.tex` to PDF entirely in the browser,
+  render with pdf.js. Confirm bundle size, cold-start time, and where TeX Live packages come
+  from. (Engine license already verified — §0: MIT busytex is Path-1-clean; the TeXlyre 2026
+  build is AGPL and rejected.)
 - Decide editor lib (**CodeMirror 6** recommended — it's what TeXlyre uses, lighter than
   Monaco, good LaTeX support, and the same core we'd need for Yjs later via `y-codemirror`).
 - **Exit criteria:** a documented yes/no on engine + license, and a measured compile of a
@@ -503,8 +510,8 @@ editor Phase 1) is in **§8**.
 ### Open questions for review
 - ~~Licensing path~~ — **DECIDED: Path 1** (§0). Only follow-up: verify the engine `.wasm`
   artifact licenses before Phase 1.
-- ~~Engine choice~~ — **DECIDED: BusyTeX** (TeX Live 2026 + SyncTeX) from the start.
-  Follow-up: confirm its artifact license fits Path 1.
+- ~~Engine choice~~ — **DECIDED: upstream MIT `busytex/busytex`** (TeX Live 2023 + SyncTeX).
+  License verified Path-1-clean; the TeXlyre TeX Live 2026 build is AGPL and was rejected.
 - ~~Git hosting strategy~~ — **DECIDED: GitHub-backed, with the git-backend abstraction
   (§2.4) introduced up front.** Self-hosted git stays a pluggable backend deferred to I4.
 - ~~Push credential~~ — **DECIDED/DONE: existing Calkit GitHub App installation** supplies
@@ -532,17 +539,23 @@ are the current locations found during research — verify before editing.
 
 Goal: prove an in-browser compile of a real Calkit paper before committing to UI work.
 
-- [ ] Obtain the **BusyTeX** WASM artifact + JS glue; confirm its license fits Path 1
-      (record finding; this is the gating verification task).
-- [ ] Stand up a minimal Vite page that loads the engine in a **Web Worker**, mounts an
-      in-memory FS, writes a hello-world `.tex`, compiles to PDF, renders via `pdfjs-dist`
-      (already a frontend dep).
-- [ ] Compile a **real publication `.tex`** pulled from an existing project; confirm package
-      on-demand fetch works against the upstream package server.
-- [ ] Measure & document: cold-start time, bundle/engine size, memory, compile time,
-      SyncTeX availability, and any missing-package failures.
-- [ ] Decide the FS-seed contract (how files get handed to the worker) — feeds §8.4.
-- **Exit:** a written go/no-go with numbers + a working compile of one of our papers.
+**STATUS: DONE — verdict GO.** Spike lives in `spikes/latex-wasm-busytex/` (throwaway;
+binaries gitignored, re-fetch via `download-assets.sh`). Verified headless in Chrome.
+
+- [x] ~~Obtain artifact + confirm license fits Path 1.~~ **Done (§0):** upstream MIT
+      `busytex/busytex` (TeX Live 2023); TeXlyre's 2026 build is AGPL and rejected.
+- [x] ~~Page loads engine in a Web Worker, compiles a hello-world `.tex` to PDF, renders it.~~
+      Our own loader (`main.js`) around the MIT busytex worker; PDF shown via blob-URL iframe.
+- [x] ~~Compile a real-ish `.tex` with packages.~~ article + `amsmath`/`graphicx`/`hyperref`
+      → 121.6 KB PDF, `exit_code 0`, all packages resolved from the `texlive-basic` bundle.
+      *(Follow-up: try a heavier real paper from an actual project in §8.4.)*
+- [x] ~~Measure & document.~~ **Cold-start ~1.5–1.8 s, compile ~0.4 s, total ~1.9–2.2 s.**
+      Asset size dominates: `busytex.wasm` ≈ 29 MB + `texlive-basic.data` ≈ 100 MB one-time.
+- [ ] FS-seed contract decision (how files reach the worker) — carried into §8.4 (the
+      `{path, contents}[]` shape busytex expects maps cleanly onto `getProjectContents`).
+- **Exit met:** GO with numbers + a working compile. **Key productionization takeaway:** the
+      ~130 MB one-time asset download — not compile speed — is the cost to manage (lazy-load
+      when the editor opens; cache in IndexedDB / service worker).
 
 ### 8.2 I1 — Onboarding & GitHub-less authorship
 
