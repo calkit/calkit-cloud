@@ -32,7 +32,10 @@ class Account(SQLModel, table=True):
     org_id: uuid.UUID | None = Field(
         default=None, foreign_key="org.id", nullable=True
     )
-    github_name: str
+    # Null for accounts created without GitHub (email/Google signup). Project
+    # owners must still have a github_name until git hosting is decoupled from
+    # GitHub (see LATEX_EDITOR_PLAN.md I4); collaborators need not.
+    github_name: str | None = Field(default=None)
     # Relationships
     owned_projects: list["Project"] = Relationship(
         back_populates="owner_account",
@@ -64,7 +67,7 @@ class UserBase(SQLModel):
 class UserCreate(UserBase):
     password: str = Field(min_length=8, max_length=40)
     account_name: str | None = Field(default=None, max_length=64)
-    github_username: str = Field(default=None, max_length=64)
+    github_username: str | None = Field(default=None, max_length=64)
 
 
 class UserRegister(SQLModel):
@@ -216,7 +219,7 @@ class User(UserBase, table=True):
 
     @computed_field
     @property
-    def github_username(self) -> str:
+    def github_username(self) -> str | None:
         return self.account.github_name
 
     @property
@@ -235,7 +238,7 @@ class User(UserBase, table=True):
 # Properties to return via API, id is always required
 class UserPublic(UserBase):
     id: uuid.UUID
-    github_username: str
+    github_username: str | None
     subscription: Union["UserSubscription", None]
 
 
@@ -261,6 +264,9 @@ class Org(SQLModel, table=True):
     @computed_field
     @property
     def github_name(self) -> str:
+        # Orgs are always created with a GitHub name.
+        if self.account.github_name is None:
+            raise ValueError("Org account has no github_name")
         return self.account.github_name
 
     @property
@@ -567,6 +573,10 @@ class Project(ProjectBase, table=True):
     @computed_field
     @property
     def owner_github_name(self) -> str:
+        # Project owners must have a GitHub account (collaborators need not)
+        # until git hosting is decoupled from GitHub.
+        if self.owner_account.github_name is None:
+            raise ValueError("Project owner account has no github_name")
         return self.owner_account.github_name
 
     @property
@@ -750,7 +760,7 @@ class ProjectComment(SQLModel, table=True):
 
     @computed_field
     @property
-    def user_github_username(self) -> str:
+    def user_github_username(self) -> str | None:
         return self.user.github_username
 
     @computed_field
@@ -887,7 +897,7 @@ class FileLock(SQLModel, table=True):
 
     @computed_field
     @property
-    def user_github_username(self) -> str:
+    def user_github_username(self) -> str | None:
         return self.user.github_username
 
     @computed_field

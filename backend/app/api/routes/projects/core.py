@@ -269,6 +269,13 @@ def post_project(
     project_in: ProjectPost,
 ) -> ProjectPublic:
     """Create new project."""
+    # Project owners must have a linked GitHub account until git hosting is
+    # decoupled from GitHub. GitHub-less users can still collaborate.
+    if current_user.account.github_name is None:
+        raise HTTPException(
+            403,
+            "A linked GitHub account is required to create or own projects.",
+        )
     project_in.name = project_in.name.lower()
     if project_in.git_repo_exists and project_in.git_repo_url is None:
         raise HTTPException(

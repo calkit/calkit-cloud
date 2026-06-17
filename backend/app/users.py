@@ -120,7 +120,9 @@ def create_user(*, session: Session, user_create: UserCreate) -> User:
     account_name = user_create.account_name or user_create.github_username
     if not account_name:
         account_name = user_create.email.split("@")[0]
-    github_name = user_create.github_username or account_name
+    # Only set a GitHub name when the user actually has a GitHub account;
+    # GitHub-less (email/Google) signups leave it null.
+    github_name = user_create.github_username
     if account_name.lower() in INVALID_ACCOUNT_NAMES:
         raise HTTPException(422, "Invalid account name")
     existing = session.exec(

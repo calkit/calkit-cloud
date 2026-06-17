@@ -35,6 +35,7 @@ Settled during planning (see referenced sections for rationale):
 | **Git hosting** | GitHub-backed; git-backend abstraction added up front; self-host deferred | §2.4, I4 |
 | **Push credential** | Done — existing Calkit GitHub App installation; only authorship routing remains | §2.2 |
 | **Onboarding (near-term)** | Google sign-in + email/password signup via invite links (pick password on first sign-in) | §2.3 |
+| **GitHub-less users** | Can be **collaborators**, but **cannot own/create projects** until git hosting is decoupled (I4). Owners must have a linked GitHub account. | §2.2, I1 |
 | **University SSO** | Deferred | I3 |
 | **Sequencing** | I1 + I2 land before/with editor Phase 1; Phase 0 spike runs in parallel | §6 |
 | **Phase 3 order** | 3a (real-time collaboration) first, then 3b (sessions-as-branches) | Phase 3 |
@@ -562,13 +563,21 @@ binaries gitignored, re-fetch via `download-assets.sh`). Verified headless in Ch
 Goal: a user can create a Calkit Cloud account without GitHub, and their edits can be
 authored as them and pushed via the existing GitHub App.
 
+**Constraint (from Pete):** GitHub-less users may **collaborate** but **cannot own/create
+projects** until git hosting is decoupled (I4). Owners must have a linked GitHub account.
+
 **Backend**
-- [ ] Re-enable signup: replace the `501` in `POST /users/signup`
-      (`backend/app/api/routes/users.py` ~line 165) with real email/password registration
-      using existing `UserRegister`/`UserCreate` + bcrypt in `app/security.py`.
-- [ ] Make `Account.github_name` **nullable** (`backend/app/models/core.py`) + Alembic
-      migration; mint a Calkit `Account.name` independent of GitHub; audit every read of
-      `github_name`/`github_username` for None-safety (repo-URL defaulting, GitHub API calls).
+- [x] ~~Re-enable signup~~ — `POST /users/signup` now creates an email/password user
+      (bcrypt) with no GitHub account. (`app/api/routes/users.py`)
+- [x] ~~Make `Account.github_name` nullable + migration.~~ Column nullable
+      (`app/models/core.py`); migration `f3a9c1d2b4e6_make_account_github_name_nullable`
+      (applies cleanly to head). `create_user` no longer forces a `github_name`; None-safe
+      types on `User.github_username` / `UserPublic` / `AccountPublic` and the derived
+      comment/file-lock props; **invariant guards** keep `Org.github_name` /
+      `Project.owner_github_name` typed `str` (owners/orgs always have one).
+- [x] ~~Owner guard.~~ `post_project` returns **403** "A linked GitHub account is required to
+      create or own projects" for GitHub-less users. Tests: GitHub-less signup + owner-guard
+      added; **full backend suite green (89 passed, 4 skipped)**.
 - [ ] Finalize **Google sign-in** on the backend (token exchange + user/account creation),
       pairing with the existing `google-auth.tsx` callback; store identity via
       `UserExternalCredential` (provider=google).
@@ -576,7 +585,9 @@ authored as them and pushed via the existing GitHub App.
       `author`/`committer` to the Calkit user's name + **verified** email, while the push
       uses the existing GitHub App installation token (confirm where that token is fetched in
       `app/git.py` and that the commit path in `projects/core.py` PUT-contents can take an
-      explicit author). Add email verification if not already enforced.
+      explicit author). Add email verification if not already enforced. *(Only hit once
+      GitHub-less collaborators can reach a project — needs I2; also make the `git.py` temp-
+      path / committer-config `github_username` reads None-safe at that point.)*
 
 **Frontend**
 - [ ] Login/signup UI (`src/routes/login/`): add "Continue with Google" + email/password
