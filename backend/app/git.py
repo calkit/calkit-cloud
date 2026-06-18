@@ -20,7 +20,7 @@ from filelock import FileLock, Timeout
 from git.exc import GitCommandError
 from sqlmodel import Session
 
-from app import users
+from app import github, users
 from app.core import logger, ryaml
 from app.models import GitRef, Project, User
 
@@ -146,7 +146,10 @@ def get_repo(
     # Add the file to the repo(s) -- we may need to clone it.
     # Ref-based reads should not mutate this working tree checkout.
     if user is not None:
-        base_dir = f"/tmp/{user.github_username}/{owner_name}/{project_name}"
+        # github_username is None for GitHub-less users; fall back to the
+        # (always-present, unique) account name for a stable temp path.
+        user_dir = user.github_username or user.account.name
+        base_dir = f"/tmp/{user_dir}/{owner_name}/{project_name}"
     else:
         base_dir = f"/tmp/anonymous/{owner_name}/{project_name}"
     repo_dir = os.path.join(base_dir, "repo")
@@ -160,9 +163,24 @@ def get_repo(
     # Clone the repo if it doesn't exist -- it will be in a "repo" dir
     access_token: str | None = None
     if user is not None:
-        logger.info(f"Getting {user.email}'s access token for Git operations")
-        with _timed("get-github-token", user=user.github_username):
-            access_token = users.get_github_token(session=session, user=user)
+        if user.account.github_name is not None:
+            # GitHub user: operate with their personal token.
+            logger.info(f"Getting {user.email}'s token for Git operations")
+            with _timed("get-github-token", user=user.github_username):
+                access_token = users.get_github_token(
+                    session=session, user=user
+                )
+        else:
+            # GitHub-less member: access was authorized natively upstream
+            # (e.g. via an invite). Operate via the GitHub App installation
+            # token for the repo; commits are still authored as this user.
+            logger.info(
+                f"Getting GitHub App installation token for {user.email}"
+            )
+            with _timed("get-app-installation-token", user=user.email):
+                access_token = github.get_app_installation_token(
+                    owner_name, project_name
+                )
     # Plain URL with no embedded token -- credentials handled in helper
     git_plain_url = project.git_repo_url
     if not git_plain_url.endswith(".git"):

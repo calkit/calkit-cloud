@@ -581,13 +581,16 @@ projects** until git hosting is decoupled (I4). Owners must have a linked GitHub
 - [ ] Finalize **Google sign-in** on the backend (token exchange + user/account creation),
       pairing with the existing `google-auth.tsx` callback; store identity via
       `UserExternalCredential` (provider=google).
-- [ ] **Authorship routing:** when committing on behalf of a GitHub-less user, set git
-      `author`/`committer` to the Calkit user's name + **verified** email, while the push
-      uses the existing GitHub App installation token (confirm where that token is fetched in
-      `app/git.py` and that the commit path in `projects/core.py` PUT-contents can take an
-      explicit author). Add email verification if not already enforced. *(Only hit once
-      GitHub-less collaborators can reach a project — needs I2; also make the `git.py` temp-
-      path / committer-config `github_username` reads None-safe at that point.)*
+- [x] ~~**Authorship routing.**~~ `get_repo` now uses a **GitHub App installation token**
+      for GitHub-less users (`github.get_app_installation_token(owner, repo)` mints a
+      repo-scoped token via the App JWT) instead of a personal token; GitHub users are
+      unchanged. `_configure_committer` already authors as the Calkit user (name = full_name
+      / email, email = `user.email`) and is None-safe; `get_repo`'s temp-path now falls back
+      to `account.name` when `github_username` is None. Unit-tested the token exchange (mocked
+      GitHub API) + 502 handling. **Caveat:** the live App-token network path and the
+      GitHub-less clone/push round-trip can't be exercised locally (needs the App private key
+      + real repo) — verify on staging. Email **verification** for authored commits is still
+      a TODO (currently trusts the signup email).
 
 **Frontend**
 - [ ] Login/signup UI (`src/routes/login/`): add "Continue with Google" + email/password
@@ -618,10 +621,9 @@ join and start editing.
       cache (extracted into `_resolve_github_collaborator_access`). GitHub access unchanged.
 - [x] ~~Role-escalation guard.~~ Invites cap at **admin** (never owner); create/list/revoke
       require admin access. Tests cover create+redeem→access, admin-only, revoked→410.
-- [ ] **Repo-write for native members** (the redeemer-can-push half of §8.2 authorship
-      routing) still pending — a native `write` member pushing via the App, plus None-safe
-      `github_username` in `git.py`. This is the last backend piece before a GitHub-less
-      collaborator can actually *edit* in the editor.
+- [x] ~~**Repo-write for native members.**~~ Done via the §8.2 authorship-routing work — a
+      GitHub-less `write` member's git operations run through the App installation token,
+      authored as them. (Live push verification deferred to staging — see §8.2 caveat.)
 
 **Frontend** (not started)
 - [ ] "Invite / share" UI on the project (create link, pick role, copy). Reuse Chakra modal
