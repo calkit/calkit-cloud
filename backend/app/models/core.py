@@ -537,6 +537,13 @@ class Project(ProjectBase, table=True):
     user_access_records: list["UserProjectAccess"] = Relationship(
         back_populates="project", cascade_delete=True
     )
+    # Native (non-GitHub) project membership and shareable invite links.
+    memberships: list["ProjectMembership"] = Relationship(
+        back_populates="project", cascade_delete=True
+    )
+    invitations: list["ProjectInvitation"] = Relationship(
+        back_populates="project", cascade_delete=True
+    )
     # TODO: Figure out how to do self-referential relationships with parent
     # and children projects
     questions: list["Question"] = Relationship(
@@ -650,6 +657,101 @@ class UserProjectAccess(SQLModel, table=True):
     # Relationships
     user: User = Relationship()
     project: Project = Relationship(back_populates="user_access_records")
+
+
+class ProjectMembership(SQLModel, table=True):
+    """Native (non-GitHub) membership of a user in a project.
+
+    Resolved before GitHub-derived access in ``get_project``, and the only
+    access path for GitHub-less collaborators.
+    """
+
+    user_id: uuid.UUID = Field(foreign_key="user.id", primary_key=True)
+    project_id: uuid.UUID = Field(foreign_key="project.id", primary_key=True)
+    # Membership cannot grant ownership; capped at admin by the API.
+    role_id: int = Field(ge=min(ROLE_IDS.values()), le=max(ROLE_IDS.values()))
+    created: datetime = Field(default_factory=utcnow)
+    updated: datetime = Field(
+        default_factory=utcnow,
+        sa_column_kwargs=dict(
+            server_onupdate=sqlalchemy.func.now(),
+            server_default=sqlalchemy.func.now(),
+        ),
+    )
+    invited_by_user_id: uuid.UUID | None = Field(
+        default=None, foreign_key="user.id"
+    )
+    # Relationships (no User relationship: two user FKs would be ambiguous)
+    project: Project = Relationship(back_populates="memberships")
+
+    @computed_field
+    @property
+    def role_name(self) -> str:
+        return ROLE_NAMES[self.role_id]
+
+
+class ProjectInvitation(SQLModel, table=True):
+    """A shareable invite link granting project membership when redeemed."""
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    project_id: uuid.UUID = Field(foreign_key="project.id")
+    # Only the SHA-256 hash of the token is stored; the raw token lives in the
+    # invite URL and is shown to the creator once.
+    token_hash: str = Field(unique=True, index=True)
+    role_id: int = Field(ge=min(ROLE_IDS.values()), le=max(ROLE_IDS.values()))
+    created_by_user_id: uuid.UUID | None = Field(
+        default=None, foreign_key="user.id"
+    )
+    created: datetime = Field(default_factory=utcnow)
+    expires: datetime | None = Field(default=None)
+    max_uses: int | None = Field(default=None)
+    use_count: int = Field(default=0)
+    revoked: bool = Field(default=False)
+    # Relationships
+    project: Project = Relationship(back_populates="invitations")
+
+    @computed_field
+    @property
+    def role_name(self) -> str:
+        return ROLE_NAMES[self.role_id]
+
+    @property
+    def is_valid(self) -> bool:
+        if self.revoked:
+            return False
+        if self.expires is not None and self.expires < utcnow():
+            return False
+        if self.max_uses is not None and self.use_count >= self.max_uses:
+            return False
+        return True
+
+
+class ProjectInvitationPost(SQLModel):
+    role: Literal["read", "write", "admin"] = "write"
+    expires_days: int | None = Field(default=None, ge=1, le=365)
+    max_uses: int | None = Field(default=None, ge=1)
+
+
+class ProjectInvitationPublic(SQLModel):
+    id: uuid.UUID
+    role_name: str
+    created: datetime
+    expires: datetime | None
+    max_uses: int | None
+    use_count: int
+    revoked: bool
+
+
+class ProjectInvitationCreated(ProjectInvitationPublic):
+    # Raw token + ready-to-share URL, returned only at creation time.
+    token: str
+    url: str
+
+
+class ProjectInvitationRedeemed(SQLModel):
+    owner_name: str
+    project_name: str
+    role_name: str
 
 
 class DvcPipelineStage(SQLModel):

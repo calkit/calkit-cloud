@@ -604,27 +604,34 @@ projects** until git hosting is decoupled (I4). Owners must have a linked GitHub
 Goal: project access resolves from a native table first, and a share link lets a new user
 join and start editing.
 
-**Backend**
-- [ ] `ProjectMembership` table (user_id, project_id, role) — model + migration in
-      `backend/app/models/core.py`. Mirror the role semantics already in `UserOrgMembership`.
-- [ ] `ProjectInvitation` table: token (opaque), project_id, role, expiry, max-uses,
-      created_by; endpoints to **create**, **list/revoke**, and **redeem** (redeem → create
-      `ProjectMembership`, requires an authenticated account from §8.2).
-- [ ] Update access resolution in `backend/app/projects.py` (`get_project`, ~lines 80–200):
-      check native `ProjectMembership` **first**, fall back to the existing
-      GitHub-collaborator `UserProjectAccess` cache. Don't regress GitHub-derived access.
-- [ ] Decide invite-link → repo-write mapping: a redeemer with native `write` must be able
-      to push via the App even though they're not a GitHub collaborator (ties to §8.2
-      authorship routing). Guard against share-link role escalation / leakage (risk §5.10).
+**Backend — DONE (full suite green, 92 passed / 4 skipped).**
+- [x] ~~`ProjectMembership` table.~~ `(user_id, project_id, role_id)` mirroring
+      `UserOrgMembership`, with `role_name` computed (`app/models/core.py`).
+- [x] ~~`ProjectInvitation` table + endpoints.~~ Token is high-entropy
+      (`generate_refresh_token`), only its **SHA-256 hash** is stored; `role_id`, `expires`,
+      `max_uses`, `use_count`, `revoked`, `is_valid`. Endpoints: **create** / **list** /
+      **revoke** (admin-only) + **redeem** (`POST /project-invitations/{token}` → creates
+      membership; 410 if revoked/expired/used-up; owners aren't downgraded). Migration
+      `b7e2f4a1c9d8_add_project_membership_and_invitations` (FK cascades; applies to head).
+- [x] ~~Access resolution.~~ `get_project` now checks native `ProjectMembership` **first**
+      in the collaborator branch, falling back to the GitHub-derived `UserProjectAccess`
+      cache (extracted into `_resolve_github_collaborator_access`). GitHub access unchanged.
+- [x] ~~Role-escalation guard.~~ Invites cap at **admin** (never owner); create/list/revoke
+      require admin access. Tests cover create+redeem→access, admin-only, revoked→410.
+- [ ] **Repo-write for native members** (the redeemer-can-push half of §8.2 authorship
+      routing) still pending — a native `write` member pushing via the App, plus None-safe
+      `github_username` in `git.py`. This is the last backend piece before a GitHub-less
+      collaborator can actually *edit* in the editor.
 
-**Frontend**
+**Frontend** (not started)
 - [ ] "Invite / share" UI on the project (create link, pick role, copy). Reuse Chakra modal
       patterns.
-- [ ] Invite landing route: unauthenticated visitor → signup (§8.2) → auto-redeem → land in
-      the project.
+- [ ] Invite landing route (`/join/{token}`): unauthenticated visitor → signup (§8.2) →
+      auto-redeem → land in the project.
 
-- **Exit:** a brand-new user clicks a share link, signs up with Google or a password, and
-  is dropped into the project with the granted role.
+- **Exit (backend met):** a GitHub-less user signs up, redeems an invite, and gains native
+  access to a private project (verified by test). Remaining for full exit: the frontend
+  flow + repo-write authorship routing.
 
 ### 8.4 Editor Phase 1 — single-file editor MVP (depends on 8.1–8.3)
 

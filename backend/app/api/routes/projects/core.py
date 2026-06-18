@@ -9,7 +9,7 @@ import sys
 import uuid
 import zipfile
 from copy import deepcopy
-from datetime import datetime
+from datetime import datetime, timedelta
 from fnmatch import fnmatch
 from io import StringIO
 from pathlib import Path
@@ -48,6 +48,7 @@ from app.api.deps import (
 )
 from app.api.routes.orgs import OrgPost, post_org
 from app.config import settings
+from app.security import generate_refresh_token, hash_refresh_token
 from app.core import (
     CATEGORIES_PLURAL_TO_SINGULAR,
     CATEGORIES_SINGULAR_TO_PLURAL,
@@ -88,6 +89,12 @@ from app.models import (
     ProjectComment,
     ProjectCommentPatch,
     ProjectCommentPost,
+    ProjectInvitation,
+    ProjectInvitationCreated,
+    ProjectInvitationPost,
+    ProjectInvitationPublic,
+    ProjectInvitationRedeemed,
+    ProjectMembership,
     ProjectPost,
     ProjectPublic,
     ProjectsPublic,
@@ -98,6 +105,7 @@ from app.models import (
     UserOrgMembership,
     UserProjectAccess,
 )
+from app.models.core import ROLE_IDS
 from app.models.projects import (
     Showcase,
     ShowcaseFigure,
@@ -3792,6 +3800,159 @@ def delete_project_collaborator(
         )
     session.commit()
     return Message(message="Success")
+
+
+@router.post("/projects/{owner_name}/{project_name}/invitations")
+def create_project_invitation(
+    owner_name: str,
+    project_name: str,
+    req: ProjectInvitationPost,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> ProjectInvitationCreated:
+    """Create a shareable invite link granting native project membership.
+
+    The raw token is returned only here; the DB stores its hash. Invites can
+    grant up to admin, never ownership.
+    """
+    project = app.projects.get_project(
+        owner_name=owner_name,
+        project_name=project_name,
+        session=session,
+        current_user=current_user,
+        min_access_level="admin",
+    )
+    token = generate_refresh_token()
+    expires = (
+        utcnow() + timedelta(days=req.expires_days)
+        if req.expires_days is not None
+        else None
+    )
+    invitation = ProjectInvitation(
+        project_id=project.id,
+        token_hash=hash_refresh_token(token),
+        role_id=ROLE_IDS[req.role],
+        created_by_user_id=current_user.id,
+        expires=expires,
+        max_uses=req.max_uses,
+    )
+    session.add(invitation)
+    session.commit()
+    session.refresh(invitation)
+    url = f"{settings.frontend_host.rstrip('/')}/join/{token}"
+    return ProjectInvitationCreated(
+        id=invitation.id,
+        role_name=invitation.role_name,
+        created=invitation.created,
+        expires=invitation.expires,
+        max_uses=invitation.max_uses,
+        use_count=invitation.use_count,
+        revoked=invitation.revoked,
+        token=token,
+        url=url,
+    )
+
+
+@router.get("/projects/{owner_name}/{project_name}/invitations")
+def get_project_invitations(
+    owner_name: str,
+    project_name: str,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> list[ProjectInvitationPublic]:
+    project = app.projects.get_project(
+        owner_name=owner_name,
+        project_name=project_name,
+        session=session,
+        current_user=current_user,
+        min_access_level="admin",
+    )
+    invitations = session.exec(
+        select(ProjectInvitation)
+        .where(ProjectInvitation.project_id == project.id)
+        .order_by(sqlalchemy.desc(ProjectInvitation.created))  # type: ignore
+    ).all()
+    return list(invitations)  # type: ignore[return-value]
+
+
+@router.delete(
+    "/projects/{owner_name}/{project_name}/invitations/{invitation_id}"
+)
+def delete_project_invitation(
+    owner_name: str,
+    project_name: str,
+    invitation_id: uuid.UUID,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> Message:
+    project = app.projects.get_project(
+        owner_name=owner_name,
+        project_name=project_name,
+        session=session,
+        current_user=current_user,
+        min_access_level="admin",
+    )
+    invitation = session.get(ProjectInvitation, invitation_id)
+    if invitation is None or invitation.project_id != project.id:
+        raise HTTPException(404, "Invitation not found")
+    invitation.revoked = True
+    session.add(invitation)
+    session.commit()
+    return Message(message="Invitation revoked")
+
+
+@router.post("/project-invitations/{token}")
+def redeem_project_invitation(
+    token: str,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> ProjectInvitationRedeemed:
+    """Redeem an invite link, granting the current user native membership."""
+    invitation = session.exec(
+        select(ProjectInvitation).where(
+            ProjectInvitation.token_hash == hash_refresh_token(token)
+        )
+    ).first()
+    if invitation is None:
+        raise HTTPException(404, "Invitation not found")
+    if not invitation.is_valid:
+        raise HTTPException(410, "Invitation is no longer valid")
+    project = session.get(Project, invitation.project_id)
+    if project is None:
+        raise HTTPException(404, "Project not found")
+    # Project owners already have full access; don't create a lesser membership.
+    if project.owner_account.user_id == current_user.id:
+        return ProjectInvitationRedeemed(
+            owner_name=project.owner_account.name,
+            project_name=project.name,
+            role_name="owner",
+        )
+    existing = session.exec(
+        select(ProjectMembership)
+        .where(ProjectMembership.project_id == project.id)
+        .where(ProjectMembership.user_id == current_user.id)
+    ).first()
+    if existing is None:
+        session.add(
+            ProjectMembership(
+                user_id=current_user.id,
+                project_id=project.id,
+                role_id=invitation.role_id,
+                invited_by_user_id=invitation.created_by_user_id,
+            )
+        )
+    elif invitation.role_id > existing.role_id:
+        # Upgrade if the invite grants more than they already have.
+        existing.role_id = invitation.role_id
+        session.add(existing)
+    invitation.use_count += 1
+    session.add(invitation)
+    session.commit()
+    return ProjectInvitationRedeemed(
+        owner_name=project.owner_account.name,
+        project_name=project.name,
+        role_name=invitation.role_name,
+    )
 
 
 class Issue(BaseModel):
