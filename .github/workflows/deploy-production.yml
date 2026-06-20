@@ -49,6 +49,6 @@ jobs:
       GRAFANA_ADMIN_PASSWORD: ${{ secrets.GRAFANA_ADMIN_PASSWORD }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - run: docker compose -f docker-compose.yml --project-name ${{ vars.STACK_NAME }} build
       - run: docker compose -f docker-compose.yml --project-name ${{ vars.STACK_NAME }} up -d
