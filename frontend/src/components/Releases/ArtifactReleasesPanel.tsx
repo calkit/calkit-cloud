@@ -93,7 +93,7 @@ const ArtifactReleasesPanel = ({
               {r.name}
             </Link>
             {(() => {
-              // Show where it was released to -- "Internal" (hosted on Calkit)
+              // Show where it was released to -- "Calkit" (hosted for review)
               // or the external venue (Zenodo, arXiv, …) -- not public/private.
               const dest = releaseLocation(r)
               return (

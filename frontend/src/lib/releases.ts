@@ -43,15 +43,15 @@ const LOCATION_LABELS: Record<string, string> = {
   dryad: "Dryad",
 }
 
-// Where a release lives: "Internal" (hosted on Calkit for review) or the
-// external venue it was published to (Zenodo, CaltechDATA, arXiv, …), with the
-// off-site link when there is one.
+// Where a release lives: "Calkit" (hosted for review) or the external venue it
+// was published to (Zenodo, CaltechDATA, arXiv, …), with the off-site link when
+// there is one.
 export const releaseLocation = (
   r: ReleaseListItem,
 ): { label: string; internal: boolean; href: string | null } => {
   // Cloud (hosted) releases always carry internal=true, so the flag alone
   // decides this -- no need to special-case the source.
-  if (r.internal) return { label: "Internal", internal: true, href: null }
+  if (r.internal) return { label: "Calkit", internal: true, href: null }
   const label = r.publisher
     ? LOCATION_LABELS[r.publisher.toLowerCase()] ?? r.publisher
     : "External"
