@@ -296,7 +296,7 @@ const ReleasesTable = ({
                       color="blue.500"
                     >
                       <Text noOfLines={1} maxW="180px">
-                        {r.path && r.path !== "." ? r.path : "(whole project)"}
+                        {r.path || "."}
                       </Text>
                     </Link>
                   </Td>

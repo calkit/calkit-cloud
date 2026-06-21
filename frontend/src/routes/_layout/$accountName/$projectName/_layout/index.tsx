@@ -378,10 +378,7 @@ function ProjectView() {
                   <Tbody>
                     {topReleases.map((release) => {
                       const dest = releaseLocation(release)
-                      const pathLabel =
-                        release.path && release.path !== "."
-                          ? release.path
-                          : "Project"
+                      const pathLabel = release.path || "."
                       return (
                         <Tr key={`${release.source}-${release.name}`}>
                           <Td px={2}>

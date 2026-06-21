@@ -212,17 +212,6 @@ function PubInfo({
         <Icon as={FaCodeBranch} mr={1} />
         Browse history
       </Button>
-      {publication.path && (
-        <Box mt={3}>
-          <ArtifactReleasesPanel
-            ownerName={ownerName}
-            projectName={projectName}
-            path={publication.path}
-            userHasWriteAccess={userHasWriteAccess}
-            kind="publication"
-          />
-        </Box>
-      )}
     </Box>
   )
 }
@@ -238,6 +227,7 @@ function Publications() {
     strict: false,
   }) as any
   const ref: string | undefined = layoutSearch?.ref
+  const secBgColor = useColorModeValue("ui.secondary", "ui.darkSlate")
   const { userHasWriteAccess } = useProject(accountName, projectName)
   const { publicationsRequest } = useProjectPublications(
     accountName,
@@ -488,6 +478,17 @@ function Publications() {
                     })
                   }
                 />
+                {selectedPub.path && (
+                  <Box bg={secBgColor} borderRadius="lg" p={3}>
+                    <ArtifactReleasesPanel
+                      ownerName={accountName}
+                      projectName={projectName}
+                      path={selectedPub.path}
+                      userHasWriteAccess={userHasWriteAccess}
+                      kind="publication"
+                    />
+                  </Box>
+                )}
                 {selectedPub && (
                   <CommentList
                     comments={pdfComments}

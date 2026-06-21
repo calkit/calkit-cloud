@@ -48,6 +48,7 @@ import useCustomToast from "../../hooks/useCustomToast"
 import { handleError } from "../../lib/errors"
 import { releaseLocation, releaseDownloadName } from "../../lib/releases"
 import LoadingSpinner from "../Common/LoadingSpinner"
+import Markdown from "../Common/Markdown"
 import PdfDocumentViewer from "../Common/PdfDocumentViewer"
 import ProjectShowcase from "../Projects/ProjectShowcase"
 import PresentationView from "../Presentations/PresentationView"
@@ -926,9 +927,9 @@ function CalkitReleaseView({
                   >
                     Description
                   </Text>
-                  <Text fontSize="sm" whiteSpace="pre-wrap">
-                    {release.description}
-                  </Text>
+                  <Box fontSize="sm">
+                    <Markdown>{release.description}</Markdown>
+                  </Box>
                 </Box>
               )}
             </VStack>
