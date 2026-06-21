@@ -37,10 +37,7 @@ import { ExternalLinkIcon } from "@chakra-ui/icons"
 import Markdown from "../../../../../components/Common/Markdown"
 import { ReleasesService } from "../../../../../client"
 import { decodeBase64Utf8 } from "../../../../../lib/strings"
-import {
-  releaseDestination,
-  releasePagePath,
-} from "../../../../../lib/releases"
+import { releaseLocation, releasePagePath } from "../../../../../lib/releases"
 import CreateIssue from "../../../../../components/Projects/CreateIssue"
 import CreateQuestion from "../../../../../components/Projects/CreateQuestion"
 import NewPublication from "../../../../../components/Publications/NewPublication"
@@ -365,18 +362,6 @@ function ProjectView() {
                 ""
               )}
             </Flex>
-            <Text fontSize="sm" color="gray.500" mb={3}>
-              Any time you want to snapshot the project (or a single artifact)
-              for sharing, that's a release. Make it{" "}
-              <Text as="span" fontWeight="semibold">
-                internal
-              </Text>{" "}
-              to share privately with collaborators or reviewers — including
-              people not working in Calkit directly — via a link, with no
-              account or repo access needed; they can view and comment. Or
-              record one already published externally (arXiv, Zenodo, a journal)
-              so it shows up here with its DOI.
-            </Text>
             {releasesRequest.isPending ? (
               <LoadingSpinner height="100px" />
             ) : topReleases.length > 0 ? (
@@ -387,11 +372,12 @@ function ProjectView() {
                       <Th px={2}>Name</Th>
                       <Th px={2}>Path</Th>
                       <Th px={2}>Date</Th>
+                      <Th px={2}>Location</Th>
                     </Tr>
                   </Thead>
                   <Tbody>
                     {topReleases.map((release) => {
-                      const dest = releaseDestination(release)
+                      const dest = releaseLocation(release)
                       const pathLabel =
                         release.path && release.path !== "."
                           ? release.path
@@ -412,22 +398,44 @@ function ProjectView() {
                             >
                               {release.name}
                             </Link>
-                            {dest.href && (
-                              <Link
-                                href={dest.href}
-                                isExternal
-                                ml={1}
-                                aria-label={`Open ${dest.label}`}
-                              >
-                                <Icon as={ExternalLinkIcon} />
-                              </Link>
-                            )}
                           </Td>
-                          <Td px={2} fontSize="sm" color="gray.500">
-                            {pathLabel}
+                          <Td px={2} fontSize="sm">
+                            <Link
+                              as={RouterLink}
+                              to={
+                                releasePagePath(
+                                  accountName,
+                                  projectName,
+                                  release.name,
+                                ) as any
+                              }
+                              color="blue.500"
+                            >
+                              {pathLabel}
+                            </Link>
                           </Td>
                           <Td px={2} fontSize="sm" color="gray.500">
                             {release.date ?? "—"}
+                          </Td>
+                          <Td px={2} fontSize="sm">
+                            {dest.href ? (
+                              <Link
+                                href={dest.href}
+                                isExternal
+                                color="blue.500"
+                                display="inline-flex"
+                                alignItems="center"
+                                gap={1}
+                                aria-label={`Open ${dest.label}`}
+                              >
+                                {dest.label}
+                                <Icon as={ExternalLinkIcon} />
+                              </Link>
+                            ) : (
+                              <Text as="span" color="gray.500">
+                                {dest.label}
+                              </Text>
+                            )}
                           </Td>
                         </Tr>
                       )

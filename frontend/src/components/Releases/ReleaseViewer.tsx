@@ -1,9 +1,12 @@
+import { ExternalLinkIcon } from "@chakra-ui/icons"
 import {
   Alert,
   AlertIcon,
+  Avatar,
   Badge,
   Box,
   Button,
+  Checkbox,
   Divider,
   Flex,
   FormControl,
@@ -18,11 +21,12 @@ import {
   Text,
   Textarea,
   VStack,
+  useColorModeValue,
 } from "@chakra-ui/react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link as RouterLink } from "@tanstack/react-router"
-import { useState } from "react"
-import { FaFile, FaFolder } from "react-icons/fa"
+import { type ReactNode, useState } from "react"
+import { FaFile, FaFolder, FaGithub } from "react-icons/fa"
 import {
   FiArrowUp,
   FiDownload,
@@ -33,6 +37,7 @@ import {
 
 import {
   type ContentsItem,
+  ProjectsService,
   type ReleaseListItem,
   type ReleaseView,
   ReleasesService,
@@ -41,8 +46,11 @@ import type { ApiError } from "../../client/core/ApiError"
 import useAuth from "../../hooks/useAuth"
 import useCustomToast from "../../hooks/useCustomToast"
 import { handleError } from "../../lib/errors"
-import { releaseDestination, releaseDownloadName } from "../../lib/releases"
+import { releaseLocation, releaseDownloadName } from "../../lib/releases"
 import LoadingSpinner from "../Common/LoadingSpinner"
+import PdfDocumentViewer from "../Common/PdfDocumentViewer"
+import ProjectShowcase from "../Projects/ProjectShowcase"
+import PresentationView from "../Presentations/PresentationView"
 
 export interface ReleaseLocator {
   ownerName: string
@@ -57,13 +65,46 @@ function dataUri(item: ContentsItem, mime: string): string | null {
   return null
 }
 
-function ArtifactView({ path, item }: { path: string; item: ContentsItem }) {
+function ArtifactView({
+  path,
+  item,
+  kind,
+}: {
+  path: string
+  item: ContentsItem
+  kind?: string | null
+}) {
   const lower = path.toLowerCase()
+  const isPptx = lower.endsWith(".pptx") || lower.endsWith(".ppt")
+  // A presentation is shown as slides (left/right nav) regardless of format;
+  // pptx is always slides. PresentationView handles pptx/pdf/html internally.
+  const asSlides =
+    isPptx ||
+    (kind === "presentation" &&
+      (lower.endsWith(".pdf") ||
+        lower.endsWith(".html") ||
+        lower.endsWith(".htm")))
+  if (asSlides) {
+    return (
+      <Box h="100%" w="100%">
+        <PresentationView
+          presentation={{
+            path: item.path,
+            title: item.name,
+            content: item.content ?? null,
+            url: item.url ?? null,
+          }}
+        />
+      </Box>
+    )
+  }
   if (lower.endsWith(".pdf")) {
     const src = dataUri(item, "application/pdf")
     if (src)
       return (
-        <embed height="100%" width="100%" type="application/pdf" src={src} />
+        <Box h="100%" w="100%">
+          <PdfDocumentViewer url={src} source="release" />
+        </Box>
       )
   } else if (lower.endsWith(".html") || lower.endsWith(".htm")) {
     // Prefer the hosted URL; fall back to inline content. Sandboxed to limit
@@ -96,6 +137,44 @@ function ArtifactView({ path, item }: { path: string; item: ContentsItem }) {
   )
 }
 
+// Downloads an artifact with a guaranteed filename. The browser ignores an
+// <a download> name for cross-origin storage URLs (and chaining downloads can
+// trip the "multiple files" block), so fetch the bytes and save a blob.
+function DownloadButton({ href, name }: { href: string; name: string }) {
+  const showToast = useCustomToast()
+  const [busy, setBusy] = useState(false)
+  const onClick = async () => {
+    setBusy(true)
+    try {
+      const resp = await fetch(href)
+      if (!resp.ok) throw new Error(String(resp.status))
+      const blob = await resp.blob()
+      const objectUrl = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = objectUrl
+      a.download = name
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(objectUrl)
+    } catch {
+      showToast("Error", "Couldn't download the file.", "error")
+    } finally {
+      setBusy(false)
+    }
+  }
+  return (
+    <Button
+      size="sm"
+      leftIcon={<FiDownload />}
+      onClick={onClick}
+      isLoading={busy}
+    >
+      Download
+    </Button>
+  )
+}
+
 function CommentsPanel({
   loc,
   release,
@@ -106,6 +185,7 @@ function CommentsPanel({
   const queryClient = useQueryClient()
   const showToast = useCustomToast()
   const { user } = useAuth()
+  const borderColor = useColorModeValue("gray.200", "gray.600")
   const [comment, setComment] = useState("")
   const [authorName, setAuthorName] = useState("")
   const commentsKey = [
@@ -152,9 +232,9 @@ function CommentsPanel({
   return (
     <Flex direction="column" h="100%">
       <Heading size="sm" mb={3}>
-        Comments
+        Comments ({comments.length})
       </Heading>
-      <VStack align="stretch" spacing={3} flex={1} overflowY="auto" mb={3}>
+      <VStack align="stretch" spacing={2} flex={1} overflowY="auto" mb={3}>
         {commentsQuery.isPending ? (
           <LoadingSpinner height="80px" />
         ) : comments.length === 0 ? (
@@ -163,29 +243,41 @@ function CommentsPanel({
           </Text>
         ) : (
           comments.map((c) => (
-            <Box key={c.id} borderWidth="1px" borderRadius="md" p={2}>
-              <Flex justify="space-between" align="baseline">
-                <Text fontSize="sm" fontWeight="semibold">
-                  {c.author_name || "Anonymous"}
+            <Flex key={c.id} gap={2}>
+              <Avatar
+                name={c.author_name ?? undefined}
+                size="xs"
+                mt={0.5}
+                flexShrink={0}
+              />
+              <Box
+                flex={1}
+                borderWidth={1}
+                borderColor={borderColor}
+                borderRadius="md"
+                p={3}
+              >
+                <Flex align="center" gap={1} mb={1} wrap="wrap">
+                  <Text fontSize="xs" fontWeight="bold" mr={1}>
+                    {c.author_name || "Anonymous"}
+                  </Text>
+                  <Text fontSize="xs" color="gray.500" mr="auto">
+                    {new Date(c.created).toLocaleDateString()}
+                  </Text>
+                  {c.external_url && (
+                    <Link href={c.external_url} isExternal color="gray.500">
+                      <Flex align="center" gap={0.5}>
+                        <Icon as={FaGithub} boxSize={3} />
+                        <ExternalLinkIcon boxSize={2.5} />
+                      </Flex>
+                    </Link>
+                  )}
+                </Flex>
+                <Text fontSize="sm" whiteSpace="pre-wrap">
+                  {c.comment}
                 </Text>
-                <Text fontSize="xs" color="gray.500">
-                  {new Date(c.created).toLocaleDateString()}
-                </Text>
-              </Flex>
-              <Text fontSize="sm" whiteSpace="pre-wrap">
-                {c.comment}
-              </Text>
-              {c.external_url && (
-                <Link
-                  href={c.external_url}
-                  isExternal
-                  fontSize="xs"
-                  color="blue.500"
-                >
-                  View on GitHub <Icon as={FiExternalLink} mb="-2px" />
-                </Link>
-              )}
-            </Box>
+              </Box>
+            </Flex>
           ))
         )}
       </VStack>
@@ -230,6 +322,156 @@ function CommentsPanel({
       ) : (
         <Text fontSize="sm" color="gray.500">
           This link is view-only.
+        </Text>
+      )}
+    </Flex>
+  )
+}
+
+// Comments for a calkit.yaml release, via the generic project-comment system
+// (artifact_type "release", keyed by the release name). Login required to post
+// -- these releases are members-only, unlike the token-shared cloud releases.
+function MemberCommentsPanel({
+  loc,
+  release,
+}: {
+  loc: ReleaseLocator
+  release: ReleaseListItem
+}) {
+  const queryClient = useQueryClient()
+  const showToast = useCustomToast()
+  const { user } = useAuth()
+  const borderColor = useColorModeValue("gray.200", "gray.600")
+  const [comment, setComment] = useState("")
+  const [createIssue, setCreateIssue] = useState(true)
+  const commentsKey = [
+    "projects",
+    loc.ownerName,
+    loc.projectName,
+    "comments",
+    "release",
+    release.name,
+  ]
+  const commentsQuery = useQuery({
+    queryKey: commentsKey,
+    queryFn: () =>
+      ProjectsService.getProjectComments({
+        ownerName: loc.ownerName,
+        projectName: loc.projectName,
+        artifactType: "release",
+        artifactPath: release.name,
+      }),
+  })
+  const mutation = useMutation({
+    mutationFn: () =>
+      ProjectsService.postProjectComment({
+        ownerName: loc.ownerName,
+        projectName: loc.projectName,
+        requestBody: {
+          comment,
+          artifact_type: "release",
+          artifact_path: release.name,
+          git_ref: release.git_rev ?? release.git_rev_abbrev ?? null,
+          create_github_issue: createIssue,
+        },
+      }),
+    onSuccess: () => {
+      setComment("")
+      showToast("Thanks!", "Your comment was posted.", "success")
+      queryClient.invalidateQueries({ queryKey: commentsKey })
+    },
+    onError: (err: ApiError) => handleError(err, showToast),
+  })
+  const comments = commentsQuery.data ?? []
+
+  return (
+    <Flex direction="column" h="100%">
+      <Heading size="sm" mb={3}>
+        Comments ({comments.length})
+      </Heading>
+      <VStack align="stretch" spacing={2} flex={1} overflowY="auto" mb={3}>
+        {commentsQuery.isPending ? (
+          <LoadingSpinner height="80px" />
+        ) : comments.length === 0 ? (
+          <Text fontSize="sm" color="gray.500">
+            No comments yet.
+          </Text>
+        ) : (
+          comments.map((c) => (
+            <Flex key={c.id} gap={2}>
+              <Avatar
+                name={c.user_full_name ?? c.user_github_username ?? undefined}
+                size="xs"
+                mt={0.5}
+                flexShrink={0}
+              />
+              <Box
+                flex={1}
+                borderWidth={1}
+                borderColor={borderColor}
+                borderRadius="md"
+                p={3}
+              >
+                <Flex align="center" gap={1} mb={1} wrap="wrap">
+                  <Text fontSize="xs" fontWeight="bold" mr={1}>
+                    {c.user_full_name ?? c.user_github_username}
+                  </Text>
+                  <Text fontSize="xs" color="gray.500" mr="auto">
+                    {c.created ? new Date(c.created).toLocaleDateString() : ""}
+                  </Text>
+                  {c.external_url && (
+                    <Link href={c.external_url} isExternal color="gray.500">
+                      <Flex align="center" gap={0.5}>
+                        <Icon as={FaGithub} boxSize={3} />
+                        <ExternalLinkIcon boxSize={2.5} />
+                      </Flex>
+                    </Link>
+                  )}
+                </Flex>
+                <Text fontSize="sm" whiteSpace="pre-wrap">
+                  {c.comment}
+                </Text>
+              </Box>
+            </Flex>
+          ))
+        )}
+      </VStack>
+      <Divider mb={3} />
+      {user ? (
+        <Box>
+          <Textarea
+            size="sm"
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            placeholder="Leave a comment"
+            mb={2}
+          />
+          <Flex align="center" gap={3} mb={2}>
+            <Checkbox
+              size="sm"
+              isChecked={createIssue}
+              onChange={(e) => setCreateIssue(e.target.checked)}
+            >
+              Create GitHub issue
+            </Checkbox>
+            <Button
+              size="sm"
+              variant="primary"
+              ml="auto"
+              isDisabled={!comment.trim()}
+              isLoading={mutation.isPending}
+              onClick={() => mutation.mutate()}
+            >
+              Post
+            </Button>
+          </Flex>
+        </Box>
+      ) : (
+        <Text fontSize="sm" color="gray.500">
+          <Link href="/login" color="blue.500">
+            Log in
+          </Link>{" "}
+          to leave a comment.
         </Text>
       )}
     </Flex>
@@ -349,6 +591,44 @@ function ProjectBrowser({ loc }: { loc: ReleaseLocator }) {
   )
 }
 
+// Main view for a whole-project release: the project's showcase at the pinned
+// commit if it has one, otherwise the supplied fallback (file browser or a
+// browse prompt). The showcase needs project read access, so no-signup token
+// viewers of a private project fall through to the fallback.
+function WholeProjectView({
+  loc,
+  gitRev,
+  fallback,
+}: {
+  loc: ReleaseLocator
+  gitRev?: string
+  fallback: ReactNode
+}) {
+  const showcaseQuery = useQuery({
+    queryKey: ["projects", loc.ownerName, loc.projectName, "showcase", gitRev],
+    queryFn: () =>
+      ProjectsService.getProjectShowcase({
+        ownerName: loc.ownerName,
+        projectName: loc.projectName,
+        ref: gitRev,
+      }),
+    retry: false,
+  })
+  if (showcaseQuery.isPending) return <LoadingSpinner height="100%" />
+  if ((showcaseQuery.data?.elements?.length ?? 0) > 0) {
+    return (
+      <Box h="100%" overflowY="auto" p={4}>
+        <ProjectShowcase
+          ownerName={loc.ownerName}
+          projectName={loc.projectName}
+          gitRef={gitRev}
+        />
+      </Box>
+    )
+  }
+  return <>{fallback}</>
+}
+
 interface ReleaseViewerProps {
   loc: ReleaseLocator
   // When set, a close affordance is shown (used when embedded in a modal).
@@ -421,8 +701,32 @@ export default function ReleaseViewer({ loc, onClose }: ReleaseViewerProps) {
   return <ReleaseUnavailable />
 }
 
-// A release declared in calkit.yaml: show its metadata and where it went, with
-// a link to browse the project at the pinned commit (via the ref query param).
+// Header button that opens the project's Files view at the release's commit.
+function BrowseProjectButton({
+  loc,
+  gitRev,
+}: {
+  loc: ReleaseLocator
+  gitRev?: string
+}) {
+  if (!gitRev) return null
+  return (
+    <Link
+      as={RouterLink}
+      to={`/${loc.ownerName}/${loc.projectName}` as any}
+      search={{ ref: gitRev } as any}
+    >
+      <Button size="sm" variant="outline" leftIcon={<FiFolder />}>
+        Browse project at this version
+      </Button>
+    </Link>
+  )
+}
+
+// A release declared in calkit.yaml (published externally, or a CLI snapshot):
+// renders the released artifact at its pinned commit when it's a single file,
+// alongside a metadata sidebar showing where it went and a link to browse the
+// whole project at that commit.
 function CalkitReleaseView({
   loc,
   release,
@@ -432,9 +736,42 @@ function CalkitReleaseView({
   release: ReleaseListItem
   onClose?: () => void
 }) {
-  const dest = releaseDestination(release)
+  const dest = releaseLocation(release)
   const gitRev = release.git_rev ?? release.git_rev_abbrev ?? undefined
+  const refLabel = release.git_ref ?? release.git_rev_abbrev ?? ""
   const isWholeProject = !release.path || release.path === "."
+  // For a single-artifact release, fetch the file at the pinned commit via the
+  // project's contents API (no cloud row, so no release-content endpoint).
+  const contentQuery = useQuery({
+    queryKey: [
+      "projects",
+      loc.ownerName,
+      loc.projectName,
+      "contents",
+      release.path,
+      gitRev,
+    ],
+    queryFn: () =>
+      ProjectsService.getProjectContents({
+        ownerName: loc.ownerName,
+        projectName: loc.projectName,
+        path: release.path,
+        ref: gitRev,
+      }),
+    enabled: !isWholeProject && Boolean(release.path),
+    retry: false,
+  })
+  const item = contentQuery.data
+  const downloadHref = item
+    ? item.url ??
+      (item.content
+        ? `data:application/octet-stream;base64,${item.content}`
+        : undefined)
+    : undefined
+  const downloadName = release.path
+    ? releaseDownloadName(loc.projectName, release.name, release.path)
+    : undefined
+
   return (
     <Flex direction="column" h="100%">
       <Flex
@@ -457,14 +794,18 @@ function CalkitReleaseView({
           </Text>
         </Box>
         <HStack spacing={3} flexShrink={0}>
-          {release.git_ref || release.git_rev_abbrev ? (
+          {refLabel && (
             <HStack spacing={1}>
               <Text fontSize="sm" color="gray.500">
                 Version
               </Text>
-              <Badge>{release.git_ref ?? release.git_rev_abbrev}</Badge>
+              <Badge>{refLabel}</Badge>
             </HStack>
-          ) : null}
+          )}
+          <BrowseProjectButton loc={loc} gitRev={gitRev} />
+          {downloadHref && downloadName && (
+            <DownloadButton href={downloadHref} name={downloadName} />
+          )}
           {onClose && (
             <IconButton
               aria-label="Close"
@@ -476,71 +817,127 @@ function CalkitReleaseView({
           )}
         </HStack>
       </Flex>
-      <Box flex={1} overflowY="auto" p={6}>
-        <VStack align="stretch" spacing={4} maxW="container.sm" mx="auto">
-          <Box>
-            <Text fontSize="xs" color="gray.500" textTransform="uppercase">
-              Destination
-            </Text>
-            <HStack mt={1}>
-              <Badge colorScheme={dest.internal ? "blue" : "purple"}>
-                {dest.label}
-              </Badge>
-              {dest.href && (
-                <Link
-                  href={dest.href}
-                  isExternal
-                  color="blue.500"
-                  fontSize="sm"
+
+      <Flex flex={1} minH={0}>
+        <Box flex={1} minW={0}>
+          {isWholeProject ? (
+            <WholeProjectView
+              loc={loc}
+              gitRev={gitRev}
+              fallback={
+                <Flex
+                  align="center"
+                  justify="center"
+                  h="100%"
+                  p={6}
+                  textAlign="center"
                 >
-                  {release.doi ?? "View"} <Icon as={FiExternalLink} mb="-2px" />
-                </Link>
+                  <Text fontSize="sm" color="gray.500">
+                    This release is the whole project at{" "}
+                    <Badge>{refLabel || "this commit"}</Badge>. Use “Browse
+                    project at this version” above to explore it.
+                  </Text>
+                </Flex>
+              }
+            />
+          ) : contentQuery.isPending ? (
+            <LoadingSpinner height="100%" />
+          ) : item ? (
+            <ArtifactView
+              path={release.path ?? ""}
+              item={item}
+              kind={release.kind}
+            />
+          ) : (
+            <Flex align="center" justify="center" h="100%" p={4}>
+              <Alert status="warning" borderRadius="lg" maxW="md">
+                <AlertIcon />
+                Couldn't load the released file.
+              </Alert>
+            </Flex>
+          )}
+        </Box>
+
+        <Flex
+          w="340px"
+          flexShrink={0}
+          borderLeftWidth="1px"
+          direction="column"
+          minH={0}
+        >
+          <Box p={4} borderBottomWidth="1px">
+            <VStack align="stretch" spacing={4}>
+              <Box>
+                <Text fontSize="xs" color="gray.500" textTransform="uppercase">
+                  Location
+                </Text>
+                <HStack mt={1}>
+                  <Badge colorScheme={dest.internal ? "blue" : "purple"}>
+                    {dest.label}
+                  </Badge>
+                  {dest.href && (
+                    <Link
+                      href={dest.href}
+                      isExternal
+                      color="blue.500"
+                      fontSize="sm"
+                      display="inline-flex"
+                      alignItems="center"
+                      gap={1}
+                    >
+                      {release.doi ?? "View"}
+                      <Icon as={FiExternalLink} />
+                    </Link>
+                  )}
+                </HStack>
+              </Box>
+              {release.kind && (
+                <Box>
+                  <Text
+                    fontSize="xs"
+                    color="gray.500"
+                    textTransform="uppercase"
+                  >
+                    Kind
+                  </Text>
+                  <Text fontSize="sm">{release.kind}</Text>
+                </Box>
               )}
-            </HStack>
+              {release.date && (
+                <Box>
+                  <Text
+                    fontSize="xs"
+                    color="gray.500"
+                    textTransform="uppercase"
+                  >
+                    Released
+                  </Text>
+                  <Text fontSize="sm">
+                    {new Date(release.date).toLocaleDateString()}
+                  </Text>
+                </Box>
+              )}
+              {release.description && (
+                <Box>
+                  <Text
+                    fontSize="xs"
+                    color="gray.500"
+                    textTransform="uppercase"
+                  >
+                    Description
+                  </Text>
+                  <Text fontSize="sm" whiteSpace="pre-wrap">
+                    {release.description}
+                  </Text>
+                </Box>
+              )}
+            </VStack>
           </Box>
-          {release.kind && (
-            <Box>
-              <Text fontSize="xs" color="gray.500" textTransform="uppercase">
-                Kind
-              </Text>
-              <Text fontSize="sm">{release.kind}</Text>
-            </Box>
-          )}
-          {release.date && (
-            <Box>
-              <Text fontSize="xs" color="gray.500" textTransform="uppercase">
-                Released
-              </Text>
-              <Text fontSize="sm">
-                {new Date(release.date).toLocaleDateString()}
-              </Text>
-            </Box>
-          )}
-          {release.description && (
-            <Box>
-              <Text fontSize="xs" color="gray.500" textTransform="uppercase">
-                Description
-              </Text>
-              <Text fontSize="sm" whiteSpace="pre-wrap">
-                {release.description}
-              </Text>
-            </Box>
-          )}
-          {gitRev && (
-            <Box pt={2}>
-              <Link
-                as={RouterLink}
-                to={`/${loc.ownerName}/${loc.projectName}` as any}
-                search={{ ref: gitRev } as any}
-              >
-                <Button size="sm" leftIcon={<FiFolder />}>
-                  Browse project at this version
-                </Button>
-              </Link>
-            </Box>
-          )}
-        </VStack>
-      </Box>
+          <Box flex={1} minH={0} p={4}>
+            <MemberCommentsPanel loc={loc} release={release} />
+          </Box>
+        </Flex>
+      </Flex>
     </Flex>
   )
 }
@@ -575,6 +972,7 @@ function CloudReleaseView({
   })
 
   const refLabel = release.git_ref ?? release.git_rev_abbrev ?? ""
+  const gitRev = release.git_ref ?? release.git_rev_abbrev ?? undefined
   const item = contentQuery.data
   const downloadHref = item
     ? item.url ??
@@ -583,7 +981,7 @@ function CloudReleaseView({
         : undefined)
     : undefined
   const downloadName = release.path
-    ? releaseDownloadName(release.path, refLabel)
+    ? releaseDownloadName(loc.projectName, release.name, release.path)
     : undefined
 
   return (
@@ -616,15 +1014,7 @@ function CloudReleaseView({
             <Badge>{refLabel}</Badge>
           </HStack>
           {downloadHref && downloadName && (
-            <Button
-              as="a"
-              href={downloadHref}
-              download={downloadName}
-              size="sm"
-              leftIcon={<FiDownload />}
-            >
-              Download
-            </Button>
+            <DownloadButton href={downloadHref} name={downloadName} />
           )}
           {onClose && (
             <IconButton
@@ -642,11 +1032,19 @@ function CloudReleaseView({
       <Flex flex={1} minH={0}>
         <Box flex={1} minW={0}>
           {isWholeProject ? (
-            <ProjectBrowser loc={loc} />
+            <WholeProjectView
+              loc={loc}
+              gitRev={gitRev}
+              fallback={<ProjectBrowser loc={loc} />}
+            />
           ) : contentQuery.isPending ? (
             <LoadingSpinner height="100%" />
           ) : item ? (
-            <ArtifactView path={release.path ?? ""} item={item} />
+            <ArtifactView
+              path={release.path ?? ""}
+              item={item}
+              kind={release.kind}
+            />
           ) : (
             <Flex align="center" justify="center" h="100%" p={4}>
               <Alert status="warning" borderRadius="lg" maxW="md">

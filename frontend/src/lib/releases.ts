@@ -32,8 +32,8 @@ export const releasePageUrl = (
     token,
   )}`
 
-// Pretty labels for known release destinations (archival services / venues).
-const DESTINATION_LABELS: Record<string, string> = {
+// Pretty labels for known release locations (archival services / venues).
+const LOCATION_LABELS: Record<string, string> = {
   zenodo: "Zenodo",
   caltechdata: "CaltechDATA",
   github: "GitHub",
@@ -43,16 +43,17 @@ const DESTINATION_LABELS: Record<string, string> = {
   dryad: "Dryad",
 }
 
-// Where a release went: "Internal" (hosted on Calkit for review) or the
+// Where a release lives: "Internal" (hosted on Calkit for review) or the
 // external venue it was published to (Zenodo, CaltechDATA, arXiv, …), with the
 // off-site link when there is one.
-export const releaseDestination = (
+export const releaseLocation = (
   r: ReleaseListItem,
 ): { label: string; internal: boolean; href: string | null } => {
-  if (r.source === "cloud" || r.internal)
-    return { label: "Internal", internal: true, href: null }
+  // Cloud (hosted) releases always carry internal=true, so the flag alone
+  // decides this -- no need to special-case the source.
+  if (r.internal) return { label: "Internal", internal: true, href: null }
   const label = r.publisher
-    ? DESTINATION_LABELS[r.publisher.toLowerCase()] ?? r.publisher
+    ? LOCATION_LABELS[r.publisher.toLowerCase()] ?? r.publisher
     : "External"
   const href = r.url ?? (r.doi ? `https://doi.org/${r.doi}` : null)
   return { label, internal: false, href }
@@ -84,15 +85,17 @@ export const releaseExternalLink = (
   return null
 }
 
-// Build the download filename for a released artifact, appending the git ref
-// before the extension (e.g., paper.html + abc1234 -> paper-abc1234.html).
+// Build the download filename for a released artifact, matching the calkit CLI
+// convention so a downloaded file traces back to its project and release:
+// {project}-{stem}-{release}{ext} (e.g. adani-swarm-assessment-slides-v0.pdf).
 export const releaseDownloadName = (
+  projectName: string,
+  releaseName: string,
   path: string,
-  ref: string | null | undefined,
 ): string => {
   const base = path.split("/").pop() ?? path
-  if (!ref) return base
   const dot = base.lastIndexOf(".")
-  if (dot <= 0) return `${base}-${ref}`
-  return `${base.slice(0, dot)}-${ref}${base.slice(dot)}`
+  const stem = dot > 0 ? base.slice(0, dot) : base
+  const ext = dot > 0 ? base.slice(dot) : ""
+  return `${projectName}-${stem}-${releaseName}${ext}`
 }

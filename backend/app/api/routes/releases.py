@@ -685,7 +685,8 @@ def get_project_releases(
                 description=rel.get("description"),
                 git_rev=git_rev,
                 git_rev_abbrev=_abbrev(git_rev),
-                # A missing ``public`` key means the release is public.
+                # A missing ``public`` key means public. Visibility is separate
+                # from where it was released (internal vs an external venue).
                 public=rel.get("public", True),
                 url=rel.get("url"),
                 doi=rel.get("doi"),

@@ -43,7 +43,7 @@ import { type ReleaseListItem, ReleasesService } from "../../client"
 import type { ApiError } from "../../client/core/ApiError"
 import useCustomToast from "../../hooks/useCustomToast"
 import { handleError } from "../../lib/errors"
-import { releaseDestination, releasePagePath } from "../../lib/releases"
+import { releaseLocation, releasePagePath } from "../../lib/releases"
 import LoadingSpinner from "../Common/LoadingSpinner"
 import NewRelease from "./NewRelease"
 import ShareDialog from "./ShareDialog"
@@ -269,7 +269,7 @@ const ReleasesTable = ({
                 <SortableTh label="Visibility" sortKey="visibility" />
                 <SortableTh label="Views" sortKey="views" isNumeric />
                 <SortableTh label="Comments" sortKey="comments" isNumeric />
-                <Th>Destination</Th>
+                <Th>Location</Th>
                 {userHasWriteAccess && <Th />}
               </Tr>
             </Thead>
@@ -288,9 +288,17 @@ const ReleasesTable = ({
                     </Link>
                   </Td>
                   <Td>
-                    <Text noOfLines={1} maxW="180px">
-                      {r.path && r.path !== "." ? r.path : "(whole project)"}
-                    </Text>
+                    <Link
+                      as={RouterLink}
+                      to={
+                        releasePagePath(ownerName, projectName, r.name) as any
+                      }
+                      color="blue.500"
+                    >
+                      <Text noOfLines={1} maxW="180px">
+                        {r.path && r.path !== "." ? r.path : "(whole project)"}
+                      </Text>
+                    </Link>
                   </Td>
                   <Td>
                     <Code fontSize="xs">
@@ -309,7 +317,7 @@ const ReleasesTable = ({
                   </Td>
                   <Td>
                     {(() => {
-                      const dest = releaseDestination(r)
+                      const dest = releaseLocation(r)
                       if (dest.internal)
                         return (
                           <Tooltip label="Hosted on Calkit for review">
@@ -329,9 +337,12 @@ const ReleasesTable = ({
                               isExternal
                               color="blue.500"
                               fontSize="sm"
+                              display="inline-flex"
+                              alignItems="center"
+                              gap={1}
                             >
-                              {r.doi ?? "Link"}{" "}
-                              <Icon as={FiExternalLink} mb="-2px" />
+                              {r.doi ?? "Link"}
+                              <Icon as={FiExternalLink} />
                             </Link>
                           )}
                         </HStack>

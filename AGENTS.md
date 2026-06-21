@@ -76,3 +76,5 @@ Key points:
 - Search inputs should always be clearable.
 - Changes to the UI state, e.g., a selected tab or a modal open,
   should typically be part of query params so a link will show a similar state.
+- Tooltips should always have the same hover delay site-wide.
+- Always put a comma after "i.e." and "e.g.".

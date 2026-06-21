@@ -1494,9 +1494,11 @@ def get_project_figures(
     # Pre-compute calkit.yaml / dvc.lock metadata once for the tree so we
     # don't re-read and re-expand on every iteration.
     tree = app.projects.get_repo_tree_for_ref(repo, ref)
-    ck_info_full, dvc_lock_outs, zip_path_map = (
-        app.projects.get_ck_info_and_dvc_outs_from_tree(project, tree)
-    )
+    (
+        ck_info_full,
+        dvc_lock_outs,
+        zip_path_map,
+    ) = app.projects.get_ck_info_and_dvc_outs_from_tree(project, tree)
     # Also auto-detect figures from DVC lock outs (files stored with DVC)
     for dvc_path, dvc_out in dvc_lock_outs.items():
         if dvc_out.get("type") == "dir":
@@ -1756,6 +1758,31 @@ def get_project_comments(
     return comments
 
 
+def _comment_artifact_link(
+    owner_name: str,
+    project_name: str,
+    artifact_type: str | None,
+    artifact_path: str,
+) -> str:
+    """Frontend-relative deep link to the artifact a comment is about.
+
+    Releases live at a path segment (``/releases/{name}``); other artifacts use
+    a ``?path=`` query on their section page.
+    """
+    base = f"/{owner_name}/{project_name}"
+    if artifact_type == "release":
+        return f"{base}/releases/{artifact_path}"
+    route_map = {
+        "figure": "figures",
+        "publication": "publications",
+        "presentation": "presentations",
+        "notebook": "notebooks",
+        "file": "files",
+    }
+    route = route_map.get(artifact_type or "", "files")
+    return f"{base}/{route}?path={artifact_path}"
+
+
 @router.post("/projects/{owner_name}/{project_name}/comments")
 def post_project_comment(
     owner_name: str,
@@ -1815,17 +1842,11 @@ def post_project_comment(
     session.flush()
     if comment_in.create_github_issue and comment_in.artifact_path:
         app_base = settings.frontend_host.rstrip("/")
-        route_map = {
-            "figure": "figures",
-            "publication": "publications",
-            "presentation": "presentations",
-            "notebook": "notebooks",
-            "file": "files",
-        }
-        route = route_map.get(comment_in.artifact_type or "", "files")
-        artifact_link = (
-            f"{app_base}/{owner_name}/{project_name}/{route}"
-            f"?path={comment_in.artifact_path}"
+        artifact_link = app_base + _comment_artifact_link(
+            owner_name,
+            project_name,
+            comment_in.artifact_type,
+            comment_in.artifact_path,
         )
         body_lines = [
             f"Comment on [{comment_in.artifact_path}]({artifact_link}):",
@@ -1847,22 +1868,16 @@ def post_project_comment(
             comment.external_url = issue_url
     commenter_name = current_user.full_name or current_user.account.github_name
     if comment_in.artifact_path:
-        route_map = {
-            "figure": "figures",
-            "publication": "publications",
-            "presentation": "presentations",
-            "notebook": "notebooks",
-            "file": "files",
-        }
-        route = route_map.get(comment_in.artifact_type or "", "files")
         _fan_out_notifications(
             session=session,
             project=project,
             commenter_id=current_user.id,
             message=f"{commenter_name} commented on {comment_in.artifact_path}",
-            link=(
-                f"/{owner_name}/{project_name}/{route}"
-                f"?path={comment_in.artifact_path}"
+            link=_comment_artifact_link(
+                owner_name,
+                project_name,
+                comment_in.artifact_type,
+                comment_in.artifact_path,
             ),
         )
     session.commit()
@@ -2735,9 +2750,11 @@ def get_project_publications(
     )
     resp = []
     tree = app.projects.get_repo_tree_for_ref(repo, ref)
-    ck_info_full, dvc_lock_outs, zip_path_map = (
-        app.projects.get_ck_info_and_dvc_outs_from_tree(project, tree)
-    )
+    (
+        ck_info_full,
+        dvc_lock_outs,
+        zip_path_map,
+    ) = app.projects.get_ck_info_and_dvc_outs_from_tree(project, tree)
     # Staleness is best-effort: never let it block the publication listing.
     dvc_lock: dict = {}
     stage_statuses = {}
@@ -2891,9 +2908,11 @@ def get_project_presentations(
     except Exception:
         pass
     tree = app.projects.get_repo_tree_for_ref(repo, ref)
-    ck_info_full, dvc_lock_outs, zip_path_map = (
-        app.projects.get_ck_info_and_dvc_outs_from_tree(project, tree)
-    )
+    (
+        ck_info_full,
+        dvc_lock_outs,
+        zip_path_map,
+    ) = app.projects.get_ck_info_and_dvc_outs_from_tree(project, tree)
     # Also auto-detect presentations from DVC lock outs
     for dvc_path, dvc_out in dvc_lock_outs.items():
         if dvc_out.get("type") == "dir":
@@ -4427,9 +4446,11 @@ def get_project_notebooks(
             nb["stage"] = nb_path_to_stage_name[nb_path]
     # Get the notebook content and base64 encode it
     tree = app.projects.get_repo_tree_for_ref(repo, ref)
-    ck_info_full, dvc_lock_outs, zip_path_map = (
-        app.projects.get_ck_info_and_dvc_outs_from_tree(project, tree)
-    )
+    (
+        ck_info_full,
+        dvc_lock_outs,
+        zip_path_map,
+    ) = app.projects.get_ck_info_and_dvc_outs_from_tree(project, tree)
     for notebook in notebooks:
         try:
             item = app.projects.get_contents_from_tree(

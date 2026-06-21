@@ -35,7 +35,10 @@ import PdfAnnotator, {
   type AnnotationHighlight,
 } from "../../../../../components/Publications/PdfAnnotator"
 import useAuth from "../../../../../hooks/useAuth"
-import { useProjectPresentations } from "../../../../../hooks/useProject"
+import useProject, {
+  useProjectPresentations,
+} from "../../../../../hooks/useProject"
+import ArtifactReleasesPanel from "../../../../../components/Releases/ArtifactReleasesPanel"
 
 const presSearchSchema = z.object({
   path: z.string().optional(),
@@ -135,6 +138,8 @@ function Presentations() {
     strict: false,
   }) as any
   const ref: string | undefined = layoutSearch?.ref
+  const secBgColor = useColorModeValue("ui.secondary", "ui.darkSlate")
+  const { userHasWriteAccess } = useProject(accountName, projectName)
   const { presentationsRequest } = useProjectPresentations(
     accountName,
     projectName,
@@ -287,6 +292,17 @@ function Presentations() {
             <Box w="280px" flexShrink={0} overflowY="auto">
               <VStack align="stretch" spacing={3}>
                 <PresInfo presentation={selectedPres} />
+                {selectedPres.path && (
+                  <Box bg={secBgColor} borderRadius="lg" p={3}>
+                    <ArtifactReleasesPanel
+                      ownerName={accountName}
+                      projectName={projectName}
+                      path={selectedPres.path}
+                      userHasWriteAccess={userHasWriteAccess}
+                      kind="presentation"
+                    />
+                  </Box>
+                )}
                 <CommentList
                   comments={comments}
                   highlights={highlights}

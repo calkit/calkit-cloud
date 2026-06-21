@@ -47,7 +47,7 @@ import PdfAnnotator, {
   type AnnotationHighlight,
 } from "../../../../../components/Publications/PdfAnnotator"
 import PublicationView from "../../../../../components/Publications/PublicationView"
-import PublicationReleasesPanel from "../../../../../components/Releases/PublicationReleasesPanel"
+import ArtifactReleasesPanel from "../../../../../components/Releases/ArtifactReleasesPanel"
 import useAuth from "../../../../../hooks/useAuth"
 import useCustomToast from "../../../../../hooks/useCustomToast"
 import useProject, {
@@ -213,12 +213,15 @@ function PubInfo({
         Browse history
       </Button>
       {publication.path && (
-        <PublicationReleasesPanel
-          ownerName={ownerName}
-          projectName={projectName}
-          path={publication.path}
-          userHasWriteAccess={userHasWriteAccess}
-        />
+        <Box mt={3}>
+          <ArtifactReleasesPanel
+            ownerName={ownerName}
+            projectName={projectName}
+            path={publication.path}
+            userHasWriteAccess={userHasWriteAccess}
+            kind="publication"
+          />
+        </Box>
       )}
     </Box>
   )
