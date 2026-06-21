@@ -246,7 +246,6 @@ def _to_view(
         name=release.name,
         kind=release.kind,
         path=release.path,
-        title=release.title,
         description=release.description,
         git_ref=release.git_ref,
         git_rev_abbrev=release.git_rev_abbrev,
@@ -294,8 +293,6 @@ def _record_internal_release_in_calkit_yaml(
         "git_rev": git_rev,
         "date": date.today().isoformat(),
     }
-    if release_in.title:
-        entry["title"] = release_in.title
     if release_in.description:
         entry["description"] = release_in.description
     # A missing ``public`` key means public, so only write it when False.
@@ -371,6 +368,29 @@ def post_project_release(
             raise HTTPException(
                 404, f"Path '{release_in.path}' not found at the given ref"
             )
+    # Don't re-release the same artifact at the same commit. Every release
+    # (cloud, CLI, or external) is recorded in calkit.yaml, so it's the single
+    # place to check; a release at a newer commit is fine (it's a new version).
+    new_path = release_in.path or "."
+    ck_path = os.path.join(repo.working_dir, "calkit.yaml")
+    if os.path.exists(ck_path):
+        with open(ck_path) as f:
+            existing_ck = ryaml.load(f) or {}
+        for rname, rel in (existing_ck.get("releases") or {}).items():
+            if not isinstance(rel, dict):
+                continue
+            rrev = rel.get("git_rev")
+            if (
+                rrev
+                and git_rev.startswith(str(rrev))
+                and (rel.get("path") or ".") == new_path
+            ):
+                where = "the project" if new_path == "." else f"'{new_path}'"
+                raise HTTPException(
+                    409,
+                    f"{where} at this commit is already released as "
+                    f"'{rname}'.",
+                )
     # Block releasing a possibly non-reproducible artifact unless the user has
     # acknowledged it. Staleness is checked against the pinned commit.
     if not release_in.acknowledge_non_reproducible:
@@ -394,7 +414,6 @@ def post_project_release(
         name=release_in.name,
         kind=release_in.kind,
         path=release_in.path,
-        title=release_in.title,
         description=release_in.description,
         git_ref=git_ref,
         git_rev=git_rev,
@@ -474,8 +493,6 @@ def post_external_release(
     if release_in.doi:
         entry["doi"] = release_in.doi
     entry["date"] = release_in.date or date.today().isoformat()
-    if release_in.title:
-        entry["title"] = release_in.title
     if release_in.description:
         entry["description"] = release_in.description
     if not release_in.public:
@@ -553,8 +570,6 @@ def import_github_releases(
         published = gh.get("published_at") or gh.get("created_at")
         if published:
             entry["date"] = published[:10]
-        if gh.get("name"):
-            entry["title"] = gh["name"]
         if gh.get("body"):
             entry["description"] = gh["body"]
         releases[tag] = entry
@@ -633,7 +648,6 @@ def get_project_releases(
                     name=r.name,
                     kind=r.kind,
                     path=r.path,
-                    title=r.title,
                     description=r.description,
                     git_ref=r.git_ref,
                     git_rev=r.git_rev,
@@ -681,7 +695,6 @@ def get_project_releases(
                 name=name,
                 kind=rel.get("kind"),
                 path=rel.get("path"),
-                title=rel.get("title"),
                 description=rel.get("description"),
                 git_rev=git_rev,
                 git_rev_abbrev=_abbrev(git_rev),

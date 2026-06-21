@@ -787,7 +787,7 @@ function CalkitReleaseView({
       >
         <Box minW={0}>
           <Heading size="sm" noOfLines={1}>
-            {release.title || release.name}
+            {release.name}
           </Heading>
           <Text fontSize="xs" color="gray.500" noOfLines={1}>
             {loc.ownerName} / {loc.projectName}
@@ -1000,7 +1000,7 @@ function CloudReleaseView({
       >
         <Box minW={0}>
           <Heading size="sm" noOfLines={1}>
-            {release.title || release.name}
+            {release.name}
           </Heading>
           <Text fontSize="xs" color="gray.500" noOfLines={1}>
             {release.owner_account_display_name} / {release.project_name}

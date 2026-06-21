@@ -1523,17 +1523,6 @@ export const ExternalReleasePostSchema = {
       ],
       title: "Date",
     },
-    title: {
-      anyOf: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
-      title: "Title",
-    },
     description: {
       anyOf: [
         {
@@ -4912,17 +4901,6 @@ export const ReleaseListItemSchema = {
       ],
       title: "Path",
     },
-    title: {
-      anyOf: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
-      title: "Title",
-    },
     description: {
       anyOf: [
         {
@@ -5090,17 +5068,6 @@ export const ReleasePostSchema = {
       ],
       title: "Path",
     },
-    title: {
-      anyOf: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
-      title: "Title",
-    },
     description: {
       anyOf: [
         {
@@ -5169,18 +5136,6 @@ export const ReleasePublicSchema = {
         },
       ],
       title: "Path",
-    },
-    title: {
-      anyOf: [
-        {
-          type: "string",
-          maxLength: 255,
-        },
-        {
-          type: "null",
-        },
-      ],
-      title: "Title",
     },
     description: {
       anyOf: [
@@ -5596,17 +5551,6 @@ export const ReleaseViewSchema = {
       ],
       title: "Path",
     },
-    title: {
-      anyOf: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
-      title: "Title",
-    },
     description: {
       anyOf: [
         {
@@ -5695,7 +5639,6 @@ export const ReleaseViewSchema = {
     "name",
     "kind",
     "path",
-    "title",
     "description",
     "git_ref",
     "git_rev_abbrev",

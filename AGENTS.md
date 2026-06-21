@@ -34,6 +34,7 @@ Key points:
 - Generate migrations with: `docker compose exec backend alembic revision --autogenerate -m "Description"`
 - Apply migrations with: `docker compose exec backend alembic upgrade head`
 - Check current version with: `alembic current` (from `backend/` directory)
+- Squash into one per branch/PR
 
 ## Development Environment
 

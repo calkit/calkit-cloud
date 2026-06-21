@@ -38,6 +38,7 @@ import type { ApiError } from "../../client/core/ApiError"
 import useCustomToast from "../../hooks/useCustomToast"
 import { handleError } from "../../lib/errors"
 import { releasePageUrl } from "../../lib/releases"
+import PathPicker from "./PathPicker"
 
 interface NewReleaseProps {
   isOpen: boolean
@@ -50,17 +51,16 @@ interface NewReleaseProps {
   kind?: string
 }
 
-type Destination = "link" | "external"
+type Destination = "internal" | "external"
 
 interface NewReleaseForm {
+  // Where the release lives: hosted on Calkit (internal) or published to an
+  // external venue.
   destination: Destination
   name: string
   path: string
-  title: string
   description: string
-  // "link" destination
-  git_ref: string
-  public: boolean
+  // "internal" destination
   comments_enabled: boolean
   // Acknowledgement required when the producing stage is stale.
   acknowledge: boolean
@@ -99,13 +99,10 @@ const NewRelease = ({
   } = useForm<NewReleaseForm>({
     mode: "onBlur",
     defaultValues: {
-      destination: "link",
+      destination: "internal",
       name: "",
       path: defaultPath ?? "",
-      title: "",
       description: "",
-      git_ref: "",
-      public: false,
       comments_enabled: true,
       acknowledge: false,
       publisher: "",
@@ -123,39 +120,34 @@ const NewRelease = ({
   }, [isOpen, defaultPath, reset])
   const destination = watch("destination")
   const path = watch("path")
-  const gitRef = watch("git_ref")
   const acknowledged = watch("acknowledge")
   // Debounce the staleness lookup so we don't hit the repo on every keystroke.
-  const [stalenessTarget, setStalenessTarget] = useState({
-    path: "",
-    gitRef: "",
-  })
+  // Releases always pin to the latest commit, so staleness is checked there.
+  const [stalenessPath, setStalenessPath] = useState("")
   useEffect(() => {
     const handle = setTimeout(() => {
-      setStalenessTarget({ path: path.trim(), gitRef: gitRef.trim() })
-      // A new artifact/ref means any prior acknowledgement no longer applies.
+      setStalenessPath(path.trim())
+      // A new artifact means any prior acknowledgement no longer applies.
       setValue("acknowledge", false)
     }, 500)
     return () => clearTimeout(handle)
-  }, [path, gitRef, setValue])
-  // Only hosted (link) releases of a specific path can be gated on staleness.
+  }, [path, setValue])
+  // Only internal releases of a specific path can be gated on staleness.
   const stalenessEnabled =
-    isOpen && destination === "link" && stalenessTarget.path.length > 0
+    isOpen && destination === "internal" && stalenessPath.length > 0
   const { data: staleness } = useQuery({
     queryKey: [
       "projects",
       ownerName,
       projectName,
       "release-staleness",
-      stalenessTarget.path,
-      stalenessTarget.gitRef,
+      stalenessPath,
     ],
     queryFn: () =>
       ReleasesService.getReleaseStaleness({
         ownerName,
         projectName,
-        path: stalenessTarget.path || undefined,
-        gitRef: stalenessTarget.gitRef || undefined,
+        path: stalenessPath || undefined,
       }),
     enabled: stalenessEnabled,
     retry: false,
@@ -176,7 +168,7 @@ const NewRelease = ({
       queryKey: ["projects", ownerName, projectName, "releases"],
     })
 
-  const linkMutation = useMutation({
+  const internalMutation = useMutation({
     mutationFn: (data: NewReleaseForm) =>
       ReleasesService.postProjectRelease({
         ownerName,
@@ -185,10 +177,10 @@ const NewRelease = ({
           name: data.name,
           kind,
           path: data.path.trim() || null,
-          title: data.title || null,
           description: data.description || null,
-          git_ref: data.git_ref || null,
-          public: data.public,
+          // Pinned to the latest commit; private link by default (share it,
+          // or make it public, afterward).
+          public: false,
           comments_enabled: data.comments_enabled,
           acknowledge_non_reproducible: data.acknowledge,
         },
@@ -214,7 +206,6 @@ const NewRelease = ({
           url: data.url || null,
           doi: data.doi || null,
           date: data.date || null,
-          title: data.title || null,
           description: data.description || null,
           public: true,
         },
@@ -227,12 +218,12 @@ const NewRelease = ({
     onSettled: invalidate,
   })
 
-  const isPending = linkMutation.isPending || externalMutation.isPending
+  const isPending = internalMutation.isPending || externalMutation.isPending
   const onSubmit: SubmitHandler<NewReleaseForm> = (data) => {
     if (data.destination === "external") {
       externalMutation.mutate(data)
     } else {
-      linkMutation.mutate(data)
+      internalMutation.mutate(data)
     }
   }
 
@@ -327,9 +318,11 @@ const NewRelease = ({
                 onChange={(v) => setValue("destination", v as Destination)}
               >
                 <Stack direction="column" spacing={1}>
-                  <Radio value="link">Private link (hosted on Calkit)</Radio>
+                  <Radio value="internal">
+                    Internal — share via a link (hosted on Calkit)
+                  </Radio>
                   <Radio value="external">
-                    Already published (arXiv, journal, Zenodo, …)
+                    External — already published (arXiv, Zenodo, a journal, …)
                   </Radio>
                 </Stack>
               </RadioGroup>
@@ -348,32 +341,20 @@ const NewRelease = ({
             </FormControl>
             <FormControl mt={4}>
               <FormLabel htmlFor="path">Path</FormLabel>
-              <Input
-                id="path"
-                placeholder="Ex: paper/paper.html (blank = whole project)"
-                {...register("path")}
-                {...noAutofill}
+              <input type="hidden" {...register("path")} />
+              <PathPicker
+                ownerName={ownerName}
+                projectName={projectName}
+                value={path}
+                onChange={(p) => setValue("path", p, { shouldDirty: true })}
               />
               <FormHelperText>
-                The file or folder released. Leave blank for the whole project.
+                Pick a file to release, or release the whole project.
               </FormHelperText>
             </FormControl>
 
-            {destination === "link" ? (
+            {destination === "internal" ? (
               <>
-                <FormControl mt={4}>
-                  <FormLabel htmlFor="git_ref">Git ref</FormLabel>
-                  <Input
-                    id="git_ref"
-                    placeholder="Tag or branch (blank = latest)"
-                    {...register("git_ref")}
-                    {...noAutofill}
-                  />
-                  <FormHelperText>
-                    The release is pinned to this commit. Leave blank to use the
-                    latest commit on the default branch.
-                  </FormHelperText>
-                </FormControl>
                 {isStale && (
                   <Alert
                     status="warning"
@@ -449,47 +430,25 @@ const NewRelease = ({
             )}
 
             <FormControl mt={4}>
-              <FormLabel htmlFor="title">Title</FormLabel>
-              <Input
-                id="title"
-                placeholder="Optional"
-                {...register("title")}
-                {...noAutofill}
-              />
-            </FormControl>
-            <FormControl mt={4}>
               <FormLabel htmlFor="description">Description</FormLabel>
               <Textarea
                 id="description"
-                placeholder="Optional"
+                placeholder="Optional (Markdown supported)"
                 {...register("description")}
                 {...noAutofill}
               />
             </FormControl>
 
-            {destination === "link" && (
-              <>
-                <FormControl mt={4} display="flex" alignItems="center">
-                  <Switch
-                    id="comments_enabled"
-                    {...register("comments_enabled")}
-                  />
-                  <FormLabel htmlFor="comments_enabled" mb={0} ml={2}>
-                    Allow comments
-                  </FormLabel>
-                </FormControl>
-                <FormControl mt={4} display="flex" alignItems="center">
-                  <Switch id="public" {...register("public")} />
-                  <Box ml={2}>
-                    <FormLabel htmlFor="public" mb={0}>
-                      Public
-                    </FormLabel>
-                    <Text fontSize="xs" color="gray.500">
-                      Leave off to keep this a private, link-only release.
-                    </Text>
-                  </Box>
-                </FormControl>
-              </>
+            {destination === "internal" && (
+              <FormControl mt={4} display="flex" alignItems="center">
+                <Switch
+                  id="comments_enabled"
+                  {...register("comments_enabled")}
+                />
+                <FormLabel htmlFor="comments_enabled" mb={0} ml={2}>
+                  Allow comments
+                </FormLabel>
+              </FormControl>
             )}
           </ModalBody>
           <ModalFooter gap={3}>

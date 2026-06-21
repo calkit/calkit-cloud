@@ -168,7 +168,7 @@ const ReleasesTable = ({
   const releases = (releasesQuery.data ?? []).filter(
     (r) =>
       !filterLower ||
-      `${r.name} ${r.path ?? ""} ${r.title ?? ""} ${r.publisher ?? ""}`
+      `${r.name} ${r.path ?? ""} ${r.publisher ?? ""}`
         .toLowerCase()
         .includes(filterLower),
   )

@@ -831,7 +831,6 @@ class ReleaseBase(SQLModel):
     kind: str = Field(default="publication", max_length=32)
     # Released path; None or "." means the whole project.
     path: str | None = Field(default=None, max_length=512)
-    title: str | None = Field(default=None, max_length=255)
     description: str | None = Field(default=None, max_length=2048)
     # Human-readable ref the release was cut from (tag or branch).
     git_ref: str | None = Field(default=None, max_length=256)
@@ -883,7 +882,6 @@ class ReleasePost(SQLModel):
     name: str = Field(min_length=1, max_length=255)
     kind: str = "publication"
     path: str | None = None
-    title: str | None = None
     description: str | None = None
     # If None, defaults to the project's default branch HEAD.
     git_ref: str | None = None
@@ -934,7 +932,6 @@ class ReleaseView(SQLModel):
     name: str
     kind: str
     path: str | None
-    title: str | None
     description: str | None
     git_ref: str | None
     git_rev_abbrev: str | None
@@ -1085,7 +1082,6 @@ class ReleaseListItem(BaseModel):
     name: str
     kind: str | None = None
     path: str | None = None
-    title: str | None = None
     description: str | None = None
     git_ref: str | None = None
     git_rev: str | None = None
@@ -1128,7 +1124,6 @@ class ExternalReleasePost(SQLModel):
     doi: str | None = None
     # ISO date string; defaults to today when omitted.
     date: str | None = None
-    title: str | None = None
     description: str | None = None
     public: bool = True
 

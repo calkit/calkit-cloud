@@ -356,7 +356,6 @@ export type ExternalReleasePost = {
   url?: string | null
   doi?: string | null
   date?: string | null
-  title?: string | null
   description?: string | null
   public?: boolean
 }
@@ -1031,7 +1030,6 @@ export type ReleaseListItem = {
   name: string
   kind?: string | null
   path?: string | null
-  title?: string | null
   description?: string | null
   git_ref?: string | null
   git_rev?: string | null
@@ -1053,7 +1051,6 @@ export type ReleasePost = {
   name: string
   kind?: string
   path?: string | null
-  title?: string | null
   description?: string | null
   git_ref?: string | null
   public?: boolean
@@ -1068,7 +1065,6 @@ export type ReleasePublic = {
   name: string
   kind?: string
   path?: string | null
-  title?: string | null
   description?: string | null
   git_ref?: string | null
   git_rev?: string | null
@@ -1151,7 +1147,6 @@ export type ReleaseView = {
   name: string
   kind: string
   path: string | null
-  title: string | null
   description: string | null
   git_ref: string | null
   git_rev_abbrev: string | null
