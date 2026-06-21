@@ -15,12 +15,14 @@ pinned commit using the release creator's GitHub token, so private repos can be
 shared via the secret link without granting repo access.
 """
 
+import hashlib
 import logging
 import os
 import secrets
 from datetime import date
 
 import requests
+import sqlalchemy
 from fastapi import APIRouter, HTTPException
 from git.exc import GitCommandError
 from sqlmodel import select
@@ -29,12 +31,13 @@ import app.projects
 from app import mixpanel, users
 from app.api.deps import CurrentUser, CurrentUserOptional, SessionDep
 from app.config import settings
-from app.core import ryaml
+from app.core import ryaml, utcnow
 from app.git import get_repo, get_repo_tree_for_ref
 from app.models import (
     ContentsItem,
     ExternalReleasePost,
     Message,
+    Project,
     Release,
     ReleaseComment,
     ReleaseCommentPost,
@@ -42,8 +45,13 @@ from app.models import (
     ReleaseListItem,
     ReleasePost,
     ReleasePublic,
+    ReleaseShareToken,
+    ReleaseShareTokenCreated,
+    ReleaseShareTokenPost,
+    ReleaseShareTokenPublic,
     ReleaseStaleness,
     ReleaseView,
+    User,
 )
 from app.pipeline import compute_stage_statuses, find_stage_for_path
 from app.storage import get_object_fs
@@ -127,16 +135,112 @@ def _path_staleness(
     return result
 
 
-def _get_release_by_token(session: SessionDep, secret_token: str) -> Release:
+def _get_project_unchecked(
+    session: SessionDep, owner_name: str, project_name: str
+) -> Project:
+    """Look up a project without enforcing the caller's access level.
+
+    Used on the share-link paths, where authorization comes from a valid share
+    token rather than project membership, so we can't go through
+    ``get_project`` (which 403s a logged-in non-member of a private project).
+    """
+    project = session.exec(
+        select(Project)
+        .where(Project.owner_account.has(name=owner_name.lower()))
+        .where(sqlalchemy.func.lower(Project.name) == project_name.lower())
+    ).first()
+    if project is None:
+        raise HTTPException(404, "Project not found")
+    return project
+
+
+def _member_access(
+    session: SessionDep, project: Project, current_user: User | None
+) -> str | None:
+    """The caller's project access level, or None if they aren't a member.
+
+    Never raises -- a logged-in user with no access to a private project comes
+    back as None (or ``read`` for a public project) so the share-token path can
+    still authorize them.
+    """
+    if current_user is None:
+        return "read" if project.is_public else None
+    try:
+        p = app.projects.get_project(
+            session=session,
+            owner_name=project.owner_account_name,
+            project_name=project.name,
+            current_user=current_user,
+            min_access_level=None,
+        )
+        return p.current_user_access
+    except HTTPException:
+        return "read" if project.is_public else None
+
+
+def _hash_share_token(token: str) -> str:
+    """SHA-256 of a raw share token; only the hash is ever stored."""
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
+def _valid_share_token(
+    session: SessionDep, release: Release, token: str | None
+) -> ReleaseShareToken | None:
+    """Return the live (non-revoked, non-expired) share token for a release."""
+    if not token:
+        return None
+    st = session.exec(
+        select(ReleaseShareToken)
+        .where(ReleaseShareToken.release_id == release.id)
+        .where(ReleaseShareToken.token_hash == _hash_share_token(token))
+    ).first()
+    if st is None or st.revoked:
+        return None
+    if st.expires_at is not None and st.expires_at < utcnow():
+        return None
+    return st
+
+
+def _authorize_release(
+    session: SessionDep,
+    owner_name: str,
+    project_name: str,
+    release_name: str,
+    token: str | None,
+    current_user: User | None,
+) -> tuple[Release, str, ReleaseShareToken | None]:
+    """Resolve a release and the caller's effective permission.
+
+    Permission is ``manage`` for a project member with write access, otherwise
+    ``comment``/``view`` from a valid share token, otherwise ``view`` for a
+    project member with read access. Raises 404 if the release doesn't exist
+    and 403 when the caller has neither membership nor a valid token.
+    """
+    project = _get_project_unchecked(session, owner_name, project_name)
     release = session.exec(
-        select(Release).where(Release.secret_token == secret_token)
+        select(Release)
+        .where(Release.project_id == project.id)
+        .where(Release.name == release_name)
     ).first()
     if release is None:
         raise HTTPException(404, "Release not found")
-    return release
+    access = _member_access(session, project, current_user)
+    if access in ("write", "admin", "owner"):
+        return release, "manage", None
+    st = _valid_share_token(session, release, token)
+    if st is not None:
+        permission = st.permission if st.permission == "comment" else "view"
+        return release, permission, st
+    if access == "read":
+        return release, "view", None
+    raise HTTPException(403, "A valid share link is required to view this")
 
 
-def _to_view(release: Release) -> ReleaseView:
+def _to_view(
+    release: Release,
+    permission: str,
+    share_token: ReleaseShareToken | None,
+) -> ReleaseView:
     project = release.project
     return ReleaseView(
         name=release.name,
@@ -148,14 +252,71 @@ def _to_view(release: Release) -> ReleaseView:
         git_rev_abbrev=release.git_rev_abbrev,
         public=release.public,
         comments_enabled=release.comments_enabled,
-        allow_anonymous_comments=release.allow_anonymous_comments,
         comment_count=release.comment_count,
         created=release.created,
         owner_account_name=project.owner_account_name,
         owner_account_display_name=project.owner_account_display_name,
         project_name=project.name,
         project_title=project.title,
+        permission=permission,
+        viewer_email=share_token.email if share_token is not None else None,
     )
+
+
+def _record_internal_release_in_calkit_yaml(
+    repo, release_in: ReleasePost, git_rev: str
+) -> None:
+    """Write an ``internal: true`` entry to ``calkit.yaml`` and push it.
+
+    Mirrors the cloud release into the project's portable source of truth so it
+    shows up wherever ``calkit.yaml`` is read. The cloud database keeps the
+    review-only data (share tokens, comments, view counts). On a push failure
+    the working clone is reset so the next request starts clean.
+    """
+    ck_path = os.path.join(repo.working_dir, "calkit.yaml")
+    ck_info = {}
+    if os.path.exists(ck_path):
+        with open(ck_path) as f:
+            ck_info = ryaml.load(f) or {}
+    releases = ck_info.get("releases") or {}
+    if release_in.name in releases:
+        raise HTTPException(
+            409,
+            f"A release named '{release_in.name}' already exists "
+            "in calkit.yaml",
+        )
+    # An internal release is pinned to a commit and hosted for review rather
+    # than published, so it carries no publisher or DOI.
+    entry: dict = {
+        "kind": release_in.kind,
+        "path": release_in.path or ".",
+        "internal": True,
+        "git_rev": git_rev,
+        "date": date.today().isoformat(),
+    }
+    if release_in.title:
+        entry["title"] = release_in.title
+    if release_in.description:
+        entry["description"] = release_in.description
+    # A missing ``public`` key means public, so only write it when False.
+    if not release_in.public:
+        entry["public"] = False
+    releases[release_in.name] = entry
+    ck_info["releases"] = releases
+    with open(ck_path, "w") as f:
+        ryaml.dump(ck_info, f)
+    try:
+        repo.git.add("calkit.yaml")
+        repo.git.commit(["-m", f"Add internal release {release_in.name}"])
+        repo.git.push(["origin", repo.active_branch.name])
+    except GitCommandError as e:
+        repo.git.reset(["--hard", "origin/" + repo.active_branch.name])
+        logger.warning(f"Failed to push internal release to calkit.yaml: {e}")
+        raise HTTPException(
+            502,
+            "Couldn't record the release in calkit.yaml. Check that you have "
+            "push access to the repository.",
+        )
 
 
 @router.post("/projects/{owner_name}/{project_name}/releases")
@@ -239,10 +400,17 @@ def post_project_release(
         git_rev=git_rev,
         public=release_in.public,
         comments_enabled=release_in.comments_enabled,
-        allow_anonymous_comments=release_in.allow_anonymous_comments,
-        secret_token=secrets.token_urlsafe(SECRET_TOKEN_BYTES),
     )
     session.add(release)
+    session.flush()
+    # Persist the release to calkit.yaml as an internal release so it's part of
+    # the project's portable source of truth; roll back the DB row if the push
+    # fails so the two stores stay consistent.
+    try:
+        _record_internal_release_in_calkit_yaml(repo, release_in, git_rev)
+    except Exception:
+        session.rollback()
+        raise
     session.commit()
     session.refresh(release)
     mixpanel.track(
@@ -436,8 +604,8 @@ def get_project_releases(
     """List a project's releases.
 
     Merges releases declared in ``calkit.yaml`` (public, DOI-bearing) with the
-    private secret-link releases stored in this database. The latter are only
-    included for users with write access, since they expose a secret token.
+    hosted review releases stored in this database. The latter are only
+    included for users with write access, since they carry share-link counts.
     """
     project = app.projects.get_project(
         session=session,
@@ -458,6 +626,7 @@ def get_project_releases(
         ).all()
         for r in cloud:
             cloud_names.add(r.name)
+            active_shares = sum(1 for t in r.share_tokens if not t.revoked)
             items.append(
                 ReleaseListItem(
                     source="cloud",
@@ -473,9 +642,10 @@ def get_project_releases(
                     url=r.url,
                     doi=r.doi,
                     date=r.created.isoformat(),
-                    secret_token=r.secret_token,
+                    internal=True,
                     view_count=r.view_count,
                     comment_count=r.comment_count,
+                    share_count=active_shares,
                 )
             )
     # Releases declared in calkit.yaml at the requested ref.
@@ -521,6 +691,7 @@ def get_project_releases(
                 doi=rel.get("doi"),
                 publisher=rel.get("publisher"),
                 date=release_date,
+                internal=bool(rel.get("internal", False)),
             )
         )
     return items
@@ -586,28 +757,215 @@ def delete_project_release(
     ).first()
     if release is None:
         raise HTTPException(404, "Release not found")
+    # Keep calkit.yaml in sync: drop the matching internal release entry (and
+    # push) before deleting the DB row, so it doesn't reappear as a calkit.yaml
+    # release. Only entries we own (internal) are touched.
+    repo = get_repo(
+        project=project, user=current_user, session=session, ttl=None
+    )
+    ck_path = os.path.join(repo.working_dir, "calkit.yaml")
+    ck_info = {}
+    if os.path.exists(ck_path):
+        with open(ck_path) as f:
+            ck_info = ryaml.load(f) or {}
+    releases = ck_info.get("releases") or {}
+    entry = releases.get(release_name)
+    if isinstance(entry, dict) and entry.get("internal"):
+        del releases[release_name]
+        ck_info["releases"] = releases
+        with open(ck_path, "w") as f:
+            ryaml.dump(ck_info, f)
+        try:
+            repo.git.add("calkit.yaml")
+            repo.git.commit(["-m", f"Remove internal release {release_name}"])
+            repo.git.push(["origin", repo.active_branch.name])
+        except GitCommandError as e:
+            repo.git.reset(["--hard", "origin/" + repo.active_branch.name])
+            logger.warning(f"Failed to push release removal: {e}")
+            raise HTTPException(
+                502,
+                "Couldn't remove the release from calkit.yaml. Check that you "
+                "have push access to the repository.",
+            )
     session.delete(release)
     session.commit()
     return Message(message="success")
 
 
-@router.get("/releases/{secret_token}")
-def get_release(secret_token: str, session: SessionDep) -> ReleaseView:
-    release = _get_release_by_token(session, secret_token)
-    # Count the visit. Kept simple (every GET counts); good enough for an
-    # at-a-glance signal.
+# --- Share token management (project members with write access) -------------
+
+
+@router.post(
+    "/projects/{owner_name}/{project_name}/releases/{release_name}/shares"
+)
+def create_release_share(
+    owner_name: str,
+    project_name: str,
+    release_name: str,
+    share_in: ReleaseShareTokenPost,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> ReleaseShareTokenCreated:
+    """Mint a share link for a release, optionally scoped to an email.
+
+    The raw token is returned only here, once -- afterwards only its hash is
+    stored, so it can't be recovered from the manage list.
+    """
+    project = app.projects.get_project(
+        session=session,
+        owner_name=owner_name,
+        project_name=project_name,
+        current_user=current_user,
+        min_access_level="write",
+    )
+    release = session.exec(
+        select(Release)
+        .where(Release.project_id == project.id)
+        .where(Release.name == release_name)
+    ).first()
+    if release is None:
+        raise HTTPException(404, "Release not found")
+    if share_in.permission not in ("view", "comment"):
+        raise HTTPException(400, "Permission must be 'view' or 'comment'")
+    raw_token = secrets.token_urlsafe(SECRET_TOKEN_BYTES)
+    token = ReleaseShareToken(
+        release_id=release.id,
+        created_by_user_id=current_user.id,
+        token_hash=_hash_share_token(raw_token),
+        email=(share_in.email or "").strip() or None,
+        permission=share_in.permission,
+        note=(share_in.note or "").strip() or None,
+        expires_at=share_in.expires_at,
+    )
+    session.add(token)
+    session.commit()
+    session.refresh(token)
+    return ReleaseShareTokenCreated(
+        id=token.id,
+        token=raw_token,
+        email=token.email,
+        permission=token.permission,
+        note=token.note,
+        expires_at=token.expires_at,
+        revoked=token.revoked,
+        view_count=token.view_count,
+        created=token.created,
+    )
+
+
+@router.get(
+    "/projects/{owner_name}/{project_name}/releases/{release_name}/shares"
+)
+def list_release_shares(
+    owner_name: str,
+    project_name: str,
+    release_name: str,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> list[ReleaseShareTokenPublic]:
+    project = app.projects.get_project(
+        session=session,
+        owner_name=owner_name,
+        project_name=project_name,
+        current_user=current_user,
+        min_access_level="write",
+    )
+    release = session.exec(
+        select(Release)
+        .where(Release.project_id == project.id)
+        .where(Release.name == release_name)
+    ).first()
+    if release is None:
+        raise HTTPException(404, "Release not found")
+    tokens = session.exec(
+        select(ReleaseShareToken)
+        .where(ReleaseShareToken.release_id == release.id)
+        .order_by(ReleaseShareToken.created.desc())
+    ).all()
+    return list(tokens)
+
+
+@router.delete(
+    "/projects/{owner_name}/{project_name}/releases/{release_name}"
+    "/shares/{token_id}"
+)
+def delete_release_share(
+    owner_name: str,
+    project_name: str,
+    release_name: str,
+    token_id: str,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> Message:
+    project = app.projects.get_project(
+        session=session,
+        owner_name=owner_name,
+        project_name=project_name,
+        current_user=current_user,
+        min_access_level="write",
+    )
+    release = session.exec(
+        select(Release)
+        .where(Release.project_id == project.id)
+        .where(Release.name == release_name)
+    ).first()
+    if release is None:
+        raise HTTPException(404, "Release not found")
+    token = session.exec(
+        select(ReleaseShareToken)
+        .where(ReleaseShareToken.id == token_id)
+        .where(ReleaseShareToken.release_id == release.id)
+    ).first()
+    if token is None:
+        raise HTTPException(404, "Share link not found")
+    session.delete(token)
+    session.commit()
+    return Message(message="success")
+
+
+# --- Release viewing (project members or share-token holders) ---------------
+
+
+@router.get(
+    "/projects/{owner_name}/{project_name}/releases/{release_name}/view"
+)
+def get_release_view(
+    owner_name: str,
+    project_name: str,
+    release_name: str,
+    current_user: CurrentUserOptional,
+    session: SessionDep,
+    token: str | None = None,
+) -> ReleaseView:
+    """The release page payload, for a member or a share-token holder."""
+    release, permission, share_token = _authorize_release(
+        session, owner_name, project_name, release_name, token, current_user
+    )
+    # Count the visit. Kept simple (every GET counts); a good enough signal.
     release.view_count += 1
     session.add(release)
+    if share_token is not None:
+        share_token.view_count += 1
+        session.add(share_token)
     session.commit()
     session.refresh(release)
-    return _to_view(release)
+    return _to_view(release, permission, share_token)
 
 
-@router.get("/releases/{secret_token}/content")
+@router.get(
+    "/projects/{owner_name}/{project_name}/releases/{release_name}/content"
+)
 def get_release_content(
-    secret_token: str, session: SessionDep
+    owner_name: str,
+    project_name: str,
+    release_name: str,
+    current_user: CurrentUserOptional,
+    session: SessionDep,
+    token: str | None = None,
 ) -> ContentsItem:
-    release = _get_release_by_token(session, secret_token)
+    release, _permission, _share = _authorize_release(
+        session, owner_name, project_name, release_name, token, current_user
+    )
     if not release.path or release.path == ".":
         raise HTTPException(
             400, "This release does not point at a single file"
@@ -622,9 +980,11 @@ def get_release_content(
         ref=release.git_rev,
     )
     tree = get_repo_tree_for_ref(repo, release.git_rev)
-    ck_info, dvc_lock_outs, zip_path_map = (
-        app.projects.get_ck_info_and_dvc_outs_from_tree(project, tree)
-    )
+    (
+        ck_info,
+        dvc_lock_outs,
+        zip_path_map,
+    ) = app.projects.get_ck_info_and_dvc_outs_from_tree(project, tree)
     item = app.projects.get_contents_from_tree(
         project=project,
         tree=tree,
@@ -636,21 +996,28 @@ def get_release_content(
     return item
 
 
-@router.get("/releases/{secret_token}/contents")
+@router.get(
+    "/projects/{owner_name}/{project_name}/releases/{release_name}/contents"
+)
 def get_release_contents(
-    secret_token: str,
+    owner_name: str,
+    project_name: str,
+    release_name: str,
+    current_user: CurrentUserOptional,
     session: SessionDep,
     path: str | None = None,
+    token: str | None = None,
 ) -> ContentsItem:
-    """Browse the project's files at the release's ref via the secret link.
+    """Browse the project's files at the release's ref.
 
-    Read-only, anonymous (the secret token is the credential), and pinned to
-    the release's commit -- fetched with the creator's GitHub token so private
-    repos can be browsed without granting repo access. Restricted to
-    whole-project releases; single-artifact releases must not expose the rest
-    of the repo, so they 403 here (use ``/content`` for the single file).
+    Read-only and pinned to the release's commit -- fetched with the creator's
+    GitHub token so private repos can be browsed without granting repo access.
+    Restricted to whole-project releases; single-artifact releases must not
+    expose the rest of the repo, so they 403 here (use ``/content`` instead).
     """
-    release = _get_release_by_token(session, secret_token)
+    release, _permission, _share = _authorize_release(
+        session, owner_name, project_name, release_name, token, current_user
+    )
     if release.path and release.path != ".":
         raise HTTPException(
             403, "This release shares a single artifact, not the whole project"
@@ -671,11 +1038,20 @@ def get_release_contents(
     )
 
 
-@router.get("/releases/{secret_token}/comments")
+@router.get(
+    "/projects/{owner_name}/{project_name}/releases/{release_name}/comments"
+)
 def get_release_comments(
-    secret_token: str, session: SessionDep
+    owner_name: str,
+    project_name: str,
+    release_name: str,
+    current_user: CurrentUserOptional,
+    session: SessionDep,
+    token: str | None = None,
 ) -> list[ReleaseCommentPublic]:
-    release = _get_release_by_token(session, secret_token)
+    release, _permission, _share = _authorize_release(
+        session, owner_name, project_name, release_name, token, current_user
+    )
     comments = session.exec(
         select(ReleaseComment)
         .where(ReleaseComment.release_id == release.id)
@@ -693,29 +1069,45 @@ def get_release_comments(
     ]
 
 
-@router.post("/releases/{secret_token}/comments")
+@router.post(
+    "/projects/{owner_name}/{project_name}/releases/{release_name}/comments"
+)
 def post_release_comment(
-    secret_token: str,
+    owner_name: str,
+    project_name: str,
+    release_name: str,
     comment_in: ReleaseCommentPost,
     current_user: CurrentUserOptional,
     session: SessionDep,
+    token: str | None = None,
 ) -> ReleaseCommentPublic:
-    release = _get_release_by_token(session, secret_token)
+    release, permission, share_token = _authorize_release(
+        session, owner_name, project_name, release_name, token, current_user
+    )
     if not release.comments_enabled:
         raise HTTPException(403, "Comments are disabled for this release")
-    if current_user is None and not release.allow_anonymous_comments:
-        raise HTTPException(401, "You must be logged in to comment")
-    # Prefer the logged-in user's name; fall back to the supplied display name.
+    if permission not in ("comment", "manage"):
+        raise HTTPException(403, "This link is view-only")
+    # Identity is attribution only. Prefer the logged-in user, then the share
+    # token's recipient email, then a name typed by an anonymous commenter.
+    author_email = None
     if current_user is not None:
         author_name = (
             current_user.full_name or current_user.account.github_name
         )
+        author_email = current_user.email
     else:
-        author_name = (comment_in.author_name or "").strip() or None
+        author_email = share_token.email if share_token is not None else None
+        author_name = (
+            (comment_in.author_name or "").strip() or author_email or None
+        )
     comment = ReleaseComment(
         release_id=release.id,
         user_id=current_user.id if current_user is not None else None,
+        share_token_id=share_token.id if share_token is not None else None,
         author_name=author_name,
+        author_email=author_email,
+        git_rev=release.git_rev,
         comment=comment_in.comment,
     )
     session.add(comment)
@@ -757,8 +1149,11 @@ def _try_create_release_github_issue(
     import requests
 
     app_base = settings.frontend_host.rstrip("/")
-    link = f"{app_base}/releases/{release.secret_token}"
-    author = comment.author_name or "Anonymous"
+    link = (
+        f"{app_base}/{project.owner_account_name}/{project.name}"
+        f"/releases/{release.name}"
+    )
+    author = comment.author_name or comment.author_email or "Anonymous"
     title = f"Feedback on release {release.name}"
     if release.path:
         title += f" ({release.path})"

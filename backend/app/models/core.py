@@ -606,9 +606,9 @@ class ProjectPublic(ProjectBase):
     owner_account_name: str
     owner_account_display_name: str
     owner_account_type: str
-    current_user_access: Literal["read", "write", "admin", "owner"] | None = (
-        None
-    )
+    current_user_access: Literal[
+        "read", "write", "admin", "owner"
+    ] | None = None
 
 
 class ProjectsPublic(SQLModel):
@@ -838,9 +838,10 @@ class ReleaseBase(SQLModel):
     # Full commit SHA the content is pinned to.
     git_rev: str | None = Field(default=None, max_length=40)
     public: bool = Field(default=False)
+    # Master switch for the release's comment thread. Who may actually comment
+    # is governed per-share-token (a token's ``permission``) or by project
+    # membership, not by a global anonymous flag.
     comments_enabled: bool = Field(default=True)
-    # When comments are enabled, whether viewers without a login may comment.
-    allow_anonymous_comments: bool = Field(default=True)
     # Populated for public releases (e.g., Zenodo); unused for private ones.
     url: str | None = Field(default=None, max_length=2048)
     doi: str | None = Field(default=None, max_length=255)
@@ -855,14 +856,15 @@ class Release(ReleaseBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     project_id: uuid.UUID = Field(foreign_key="project.id")
     created_by_user_id: uuid.UUID = Field(foreign_key="user.id")
-    # Secret token embedded in the shareable link.
-    secret_token: str = Field(index=True, unique=True, max_length=64)
     view_count: int = Field(default=0)
     created: datetime = Field(default_factory=utcnow)
     # Relationships
     project: Project = Relationship(back_populates="releases")
     created_by: User = Relationship()
     comments: list["ReleaseComment"] = Relationship(
+        back_populates="release", cascade_delete=True
+    )
+    share_tokens: list["ReleaseShareToken"] = Relationship(
         back_populates="release", cascade_delete=True
     )
 
@@ -887,7 +889,6 @@ class ReleasePost(SQLModel):
     git_ref: str | None = None
     public: bool = False
     comments_enabled: bool = True
-    allow_anonymous_comments: bool = True
     # Set True to release even when the producing pipeline stage is stale, i.e.
     # the user has acknowledged the artifact may not be reproducible.
     acknowledge_non_reproducible: bool = False
@@ -911,11 +912,10 @@ class ReleaseStaleness(SQLModel):
 
 
 class ReleasePublic(ReleaseBase):
-    """Release as seen by a user with write access (includes the secret link)."""
+    """Release as seen by a user with write access."""
 
     id: uuid.UUID
     project_id: uuid.UUID
-    secret_token: str
     view_count: int
     comment_count: int
     git_rev_abbrev: str | None
@@ -923,10 +923,12 @@ class ReleasePublic(ReleaseBase):
 
 
 class ReleaseView(SQLModel):
-    """Release as seen by an anonymous viewer holding the secret link.
+    """Release as rendered on its page, for a member or a share-token holder.
 
-    Deliberately omits internal identifiers; exposes only what the viewer
-    page needs to render the artifact, the provenance note, and comments.
+    Deliberately omits internal identifiers; exposes only what the viewer page
+    needs to render the artifact, the provenance note, and comments. The
+    viewer's effective ``permission`` says whether they may comment or manage
+    the release, so the UI can adapt without leaking the share tokens.
     """
 
     name: str
@@ -938,13 +940,17 @@ class ReleaseView(SQLModel):
     git_rev_abbrev: str | None
     public: bool
     comments_enabled: bool
-    allow_anonymous_comments: bool
     comment_count: int
     created: datetime
     owner_account_name: str
     owner_account_display_name: str
     project_name: str
     project_title: str
+    # The viewing party's effective access: ``view`` (read-only), ``comment``
+    # (may post comments), or ``manage`` (a project member with write access).
+    permission: Literal["view", "comment", "manage"]
+    # Pre-fill/identity for a token-scoped viewer (attribution only).
+    viewer_email: str | None = None
 
 
 class ReleaseComment(SQLModel, table=True):
@@ -959,8 +965,26 @@ class ReleaseComment(SQLModel, table=True):
     release_id: uuid.UUID = Field(foreign_key="release.id")
     # Set when the commenter was logged in; None for anonymous comments.
     user_id: uuid.UUID | None = Field(default=None, foreign_key="user.id")
+    # Set when the comment came in through a share link; records which invite.
+    # ON DELETE SET NULL so revoking/deleting a share token (or its release)
+    # never trips over the referencing comments -- the comment's own
+    # name/email attribution is preserved.
+    share_token_id: uuid.UUID | None = Field(
+        default=None,
+        sa_column=sqlalchemy.Column(
+            sqlalchemy.Uuid,
+            sqlalchemy.ForeignKey("releasesharetoken.id", ondelete="SET NULL"),
+            nullable=True,
+        ),
+    )
     # Optional display name supplied by an anonymous commenter.
     author_name: str | None = Field(default=None, max_length=255)
+    # Email the comment is attributed to (from the share token or the logged-in
+    # user). Attribution only -- never verified.
+    author_email: str | None = Field(default=None, max_length=320)
+    # The commit the comment was made against -- copied from the release at post
+    # time so feedback stays pinned to the exact reviewed revision.
+    git_rev: str | None = Field(default=None, max_length=40)
     comment: str = Field(
         sa_column=sqlalchemy.Column(sqlalchemy.Text, nullable=False)
     )
@@ -982,6 +1006,70 @@ class ReleaseCommentPublic(SQLModel):
     comment: str
     external_url: str | None
     created: datetime
+
+
+# Permission a share token grants. ``view`` is read-only; ``comment`` also
+# allows posting comments. Editing is intentionally never grantable via a
+# release share token -- releases are no-signup and comment-only.
+ReleaseSharePermission = Literal["view", "comment"]
+
+
+class ReleaseShareToken(SQLModel, table=True):
+    """An unguessable link that grants scoped, no-signup access to a release.
+
+    Each token optionally targets a specific recipient ``email`` (attribution
+    only -- never verified) and carries a ``permission`` of ``view`` or
+    ``comment``. A release can have many tokens, so access can be granted and
+    revoked per recipient without affecting the others.
+
+    Only the SHA-256 ``token_hash`` is stored -- the raw token is shown to its
+    creator once at mint time and never persisted, so a database leak can't be
+    turned into working links. The tokens are high-entropy, so a plain (fast)
+    hash is sufficient and keeps the lookup an indexed equality check.
+    """
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    release_id: uuid.UUID = Field(foreign_key="release.id")
+    created_by_user_id: uuid.UUID = Field(foreign_key="user.id")
+    token_hash: str = Field(index=True, unique=True, max_length=64)
+    # Intended recipient; None means "anyone with the link".
+    email: str | None = Field(default=None, max_length=320)
+    permission: str = Field(default="comment", max_length=16)
+    # Optional human label, e.g. "Reviewer 2".
+    note: str | None = Field(default=None, max_length=255)
+    expires_at: datetime | None = Field(default=None)
+    revoked: bool = Field(default=False)
+    view_count: int = Field(default=0)
+    created: datetime = Field(default_factory=utcnow)
+    # Relationships
+    release: Release = Relationship(back_populates="share_tokens")
+    created_by: User = Relationship()
+
+
+class ReleaseShareTokenPost(SQLModel):
+    email: str | None = None
+    permission: ReleaseSharePermission = "comment"
+    note: str | None = None
+    expires_at: datetime | None = None
+
+
+class ReleaseShareTokenPublic(SQLModel):
+    """A share token as shown in the manage list -- never includes the secret."""
+
+    id: uuid.UUID
+    email: str | None
+    permission: str
+    note: str | None
+    expires_at: datetime | None
+    revoked: bool
+    view_count: int
+    created: datetime
+
+
+class ReleaseShareTokenCreated(ReleaseShareTokenPublic):
+    """Returned once when a token is minted; carries the raw token to share."""
+
+    token: str
 
 
 class ReleaseListItem(BaseModel):
@@ -1013,10 +1101,15 @@ class ReleaseListItem(BaseModel):
     publisher: str | None = None
     # Release date as an ISO string (calkit.yaml ``date`` or cloud ``created``).
     date: str | None = None
+    # An internal release: a frozen, pinned snapshot hosted for review rather
+    # than published to an archival service. True for all cloud releases and
+    # for calkit.yaml entries with ``internal: true``.
+    internal: bool = False
     # Cloud-only fields.
-    secret_token: str | None = None
     view_count: int | None = None
     comment_count: int | None = None
+    # Number of active (non-revoked) share links, for cloud releases.
+    share_count: int | None = None
 
 
 class ExternalReleasePost(SQLModel):
@@ -1232,9 +1325,7 @@ class GitRef(BaseModel):
     author: str | None = None  # Commit author
     timestamp: str | None = None  # ISO format datetime
     hash: str | None = None  # Full commit hash
-    short_hash: str | None = (
-        None  # Short commit hash (7 chars); consumer may truncate hash if needed
-    )
+    short_hash: str | None = None  # Short commit hash (7 chars); consumer may truncate hash if needed
     is_default: bool = False  # Whether this is the default branch
     ahead: int = 0  # Commits ahead of default branch
     behind: int = 0  # Commits behind default branch

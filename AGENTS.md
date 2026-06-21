@@ -74,3 +74,5 @@ Key points:
 - Git committing and pushing is for humans, not agents.
 - No blank lines in functions.
 - Search inputs should always be clearable.
+- Changes to the UI state, e.g., a selected tab or a modal open,
+  should typically be part of query params so a link will show a similar state.

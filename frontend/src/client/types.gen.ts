@@ -1041,9 +1041,10 @@ export type ReleaseListItem = {
   doi?: string | null
   publisher?: string | null
   date?: string | null
-  secret_token?: string | null
+  internal?: boolean
   view_count?: number | null
   comment_count?: number | null
+  share_count?: number | null
 }
 
 export type source = "cloud" | "calkit"
@@ -1057,12 +1058,11 @@ export type ReleasePost = {
   git_ref?: string | null
   public?: boolean
   comments_enabled?: boolean
-  allow_anonymous_comments?: boolean
   acknowledge_non_reproducible?: boolean
 }
 
 /**
- * Release as seen by a user with write access (includes the secret link).
+ * Release as seen by a user with write access.
  */
 export type ReleasePublic = {
   name: string
@@ -1074,15 +1074,51 @@ export type ReleasePublic = {
   git_rev?: string | null
   public?: boolean
   comments_enabled?: boolean
-  allow_anonymous_comments?: boolean
   url?: string | null
   doi?: string | null
   id: string
   project_id: string
-  secret_token: string
   view_count: number
   comment_count: number
   git_rev_abbrev: string | null
+  created: string
+}
+
+/**
+ * Returned once when a token is minted; carries the raw token to share.
+ */
+export type ReleaseShareTokenCreated = {
+  id: string
+  email: string | null
+  permission: string
+  note: string | null
+  expires_at: string | null
+  revoked: boolean
+  view_count: number
+  created: string
+  token: string
+}
+
+export type ReleaseShareTokenPost = {
+  email?: string | null
+  permission?: "view" | "comment"
+  note?: string | null
+  expires_at?: string | null
+}
+
+export type permission = "view" | "comment"
+
+/**
+ * A share token as shown in the manage list -- never includes the secret.
+ */
+export type ReleaseShareTokenPublic = {
+  id: string
+  email: string | null
+  permission: string
+  note: string | null
+  expires_at: string | null
+  revoked: boolean
+  view_count: number
   created: string
 }
 
@@ -1104,10 +1140,12 @@ export type ReleaseStaleness = {
 }
 
 /**
- * Release as seen by an anonymous viewer holding the secret link.
+ * Release as rendered on its page, for a member or a share-token holder.
  *
- * Deliberately omits internal identifiers; exposes only what the viewer
- * page needs to render the artifact, the provenance note, and comments.
+ * Deliberately omits internal identifiers; exposes only what the viewer page
+ * needs to render the artifact, the provenance note, and comments. The
+ * viewer's effective ``permission`` says whether they may comment or manage
+ * the release, so the UI can adapt without leaking the share tokens.
  */
 export type ReleaseView = {
   name: string
@@ -1119,14 +1157,17 @@ export type ReleaseView = {
   git_rev_abbrev: string | null
   public: boolean
   comments_enabled: boolean
-  allow_anonymous_comments: boolean
   comment_count: number
   created: string
   owner_account_name: string
   owner_account_display_name: string
   project_name: string
   project_title: string
+  permission: "view" | "comment" | "manage"
+  viewer_email?: string | null
 }
+
+export type permission2 = "view" | "comment" | "manage"
 
 export type ReproCheck = {
   has_pipeline: boolean
@@ -2182,34 +2223,75 @@ export type DeleteProjectReleaseData = {
 
 export type DeleteProjectReleaseResponse = Message
 
-export type GetReleaseData = {
-  secretToken: string
+export type CreateReleaseShareData = {
+  ownerName: string
+  projectName: string
+  releaseName: string
+  requestBody: ReleaseShareTokenPost
 }
 
-export type GetReleaseResponse = ReleaseView
+export type CreateReleaseShareResponse = ReleaseShareTokenCreated
+
+export type ListReleaseSharesData = {
+  ownerName: string
+  projectName: string
+  releaseName: string
+}
+
+export type ListReleaseSharesResponse = Array<ReleaseShareTokenPublic>
+
+export type DeleteReleaseShareData = {
+  ownerName: string
+  projectName: string
+  releaseName: string
+  tokenId: string
+}
+
+export type DeleteReleaseShareResponse = Message
+
+export type GetReleaseViewData = {
+  ownerName: string
+  projectName: string
+  releaseName: string
+  token?: string | null
+}
+
+export type GetReleaseViewResponse = ReleaseView
 
 export type GetReleaseContentData = {
-  secretToken: string
+  ownerName: string
+  projectName: string
+  releaseName: string
+  token?: string | null
 }
 
 export type GetReleaseContentResponse = ContentsItem
 
 export type GetReleaseContentsData = {
+  ownerName: string
   path?: string | null
-  secretToken: string
+  projectName: string
+  releaseName: string
+  token?: string | null
 }
 
 export type GetReleaseContentsResponse = ContentsItem
 
 export type GetReleaseCommentsData = {
-  secretToken: string
+  ownerName: string
+  projectName: string
+  releaseName: string
+  token?: string | null
 }
 
 export type GetReleaseCommentsResponse = Array<ReleaseCommentPublic>
 
 export type PostReleaseCommentData = {
+  ownerName: string
+  projectName: string
+  releaseName: string
   requestBody: ReleaseCommentPost
-  secretToken: string
+  token?: string | null
 }
 
 export type PostReleaseCommentResponse = ReleaseCommentPublic

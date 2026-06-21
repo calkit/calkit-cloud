@@ -199,8 +199,14 @@ import type {
   GetReleaseStalenessResponse,
   DeleteProjectReleaseData,
   DeleteProjectReleaseResponse,
-  GetReleaseData,
-  GetReleaseResponse,
+  CreateReleaseShareData,
+  CreateReleaseShareResponse,
+  ListReleaseSharesData,
+  ListReleaseSharesResponse,
+  DeleteReleaseShareData,
+  DeleteReleaseShareResponse,
+  GetReleaseViewData,
+  GetReleaseViewResponse,
   GetReleaseContentData,
   GetReleaseContentResponse,
   GetReleaseContentsData,
@@ -2848,8 +2854,8 @@ export class ReleasesService {
    * List a project's releases.
    *
    * Merges releases declared in ``calkit.yaml`` (public, DOI-bearing) with the
-   * private secret-link releases stored in this database. The latter are only
-   * included for users with write access, since they expose a secret token.
+   * hosted review releases stored in this database. The latter are only
+   * included for users with write access, since they carry share-link counts.
    * @param data The data for the request.
    * @param data.ownerName
    * @param data.projectName
@@ -2998,20 +3004,116 @@ export class ReleasesService {
   }
 
   /**
-   * Get Release
+   * Create Release Share
+   * Mint a share link for a release, optionally scoped to an email.
+   *
+   * The raw token is returned only here, once -- afterwards only its hash is
+   * stored, so it can't be recovered from the manage list.
    * @param data The data for the request.
-   * @param data.secretToken
+   * @param data.ownerName
+   * @param data.projectName
+   * @param data.releaseName
+   * @param data.requestBody
+   * @returns ReleaseShareTokenCreated Successful Response
+   * @throws ApiError
+   */
+  public static createReleaseShare(
+    data: CreateReleaseShareData,
+  ): CancelablePromise<CreateReleaseShareResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/projects/{owner_name}/{project_name}/releases/{release_name}/shares",
+      path: {
+        owner_name: data.ownerName,
+        project_name: data.projectName,
+        release_name: data.releaseName,
+      },
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * List Release Shares
+   * @param data The data for the request.
+   * @param data.ownerName
+   * @param data.projectName
+   * @param data.releaseName
+   * @returns ReleaseShareTokenPublic Successful Response
+   * @throws ApiError
+   */
+  public static listReleaseShares(
+    data: ListReleaseSharesData,
+  ): CancelablePromise<ListReleaseSharesResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/projects/{owner_name}/{project_name}/releases/{release_name}/shares",
+      path: {
+        owner_name: data.ownerName,
+        project_name: data.projectName,
+        release_name: data.releaseName,
+      },
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Delete Release Share
+   * @param data The data for the request.
+   * @param data.ownerName
+   * @param data.projectName
+   * @param data.releaseName
+   * @param data.tokenId
+   * @returns Message Successful Response
+   * @throws ApiError
+   */
+  public static deleteReleaseShare(
+    data: DeleteReleaseShareData,
+  ): CancelablePromise<DeleteReleaseShareResponse> {
+    return __request(OpenAPI, {
+      method: "DELETE",
+      url: "/projects/{owner_name}/{project_name}/releases/{release_name}/shares/{token_id}",
+      path: {
+        owner_name: data.ownerName,
+        project_name: data.projectName,
+        release_name: data.releaseName,
+        token_id: data.tokenId,
+      },
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Get Release View
+   * The release page payload, for a member or a share-token holder.
+   * @param data The data for the request.
+   * @param data.ownerName
+   * @param data.projectName
+   * @param data.releaseName
+   * @param data.token
    * @returns ReleaseView Successful Response
    * @throws ApiError
    */
-  public static getRelease(
-    data: GetReleaseData,
-  ): CancelablePromise<GetReleaseResponse> {
+  public static getReleaseView(
+    data: GetReleaseViewData,
+  ): CancelablePromise<GetReleaseViewResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/releases/{secret_token}",
+      url: "/projects/{owner_name}/{project_name}/releases/{release_name}/view",
       path: {
-        secret_token: data.secretToken,
+        owner_name: data.ownerName,
+        project_name: data.projectName,
+        release_name: data.releaseName,
+      },
+      query: {
+        token: data.token,
       },
       errors: {
         422: "Validation Error",
@@ -3022,7 +3124,10 @@ export class ReleasesService {
   /**
    * Get Release Content
    * @param data The data for the request.
-   * @param data.secretToken
+   * @param data.ownerName
+   * @param data.projectName
+   * @param data.releaseName
+   * @param data.token
    * @returns ContentsItem Successful Response
    * @throws ApiError
    */
@@ -3031,9 +3136,14 @@ export class ReleasesService {
   ): CancelablePromise<GetReleaseContentResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/releases/{secret_token}/content",
+      url: "/projects/{owner_name}/{project_name}/releases/{release_name}/content",
       path: {
-        secret_token: data.secretToken,
+        owner_name: data.ownerName,
+        project_name: data.projectName,
+        release_name: data.releaseName,
+      },
+      query: {
+        token: data.token,
       },
       errors: {
         422: "Validation Error",
@@ -3043,16 +3153,18 @@ export class ReleasesService {
 
   /**
    * Get Release Contents
-   * Browse the project's files at the release's ref via the secret link.
+   * Browse the project's files at the release's ref.
    *
-   * Read-only, anonymous (the secret token is the credential), and pinned to
-   * the release's commit -- fetched with the creator's GitHub token so private
-   * repos can be browsed without granting repo access. Restricted to
-   * whole-project releases; single-artifact releases must not expose the rest
-   * of the repo, so they 403 here (use ``/content`` for the single file).
+   * Read-only and pinned to the release's commit -- fetched with the creator's
+   * GitHub token so private repos can be browsed without granting repo access.
+   * Restricted to whole-project releases; single-artifact releases must not
+   * expose the rest of the repo, so they 403 here (use ``/content`` instead).
    * @param data The data for the request.
-   * @param data.secretToken
+   * @param data.ownerName
+   * @param data.projectName
+   * @param data.releaseName
    * @param data.path
+   * @param data.token
    * @returns ContentsItem Successful Response
    * @throws ApiError
    */
@@ -3061,12 +3173,15 @@ export class ReleasesService {
   ): CancelablePromise<GetReleaseContentsResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/releases/{secret_token}/contents",
+      url: "/projects/{owner_name}/{project_name}/releases/{release_name}/contents",
       path: {
-        secret_token: data.secretToken,
+        owner_name: data.ownerName,
+        project_name: data.projectName,
+        release_name: data.releaseName,
       },
       query: {
         path: data.path,
+        token: data.token,
       },
       errors: {
         422: "Validation Error",
@@ -3077,7 +3192,10 @@ export class ReleasesService {
   /**
    * Get Release Comments
    * @param data The data for the request.
-   * @param data.secretToken
+   * @param data.ownerName
+   * @param data.projectName
+   * @param data.releaseName
+   * @param data.token
    * @returns ReleaseCommentPublic Successful Response
    * @throws ApiError
    */
@@ -3086,9 +3204,14 @@ export class ReleasesService {
   ): CancelablePromise<GetReleaseCommentsResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/releases/{secret_token}/comments",
+      url: "/projects/{owner_name}/{project_name}/releases/{release_name}/comments",
       path: {
-        secret_token: data.secretToken,
+        owner_name: data.ownerName,
+        project_name: data.projectName,
+        release_name: data.releaseName,
+      },
+      query: {
+        token: data.token,
       },
       errors: {
         422: "Validation Error",
@@ -3099,8 +3222,11 @@ export class ReleasesService {
   /**
    * Post Release Comment
    * @param data The data for the request.
-   * @param data.secretToken
+   * @param data.ownerName
+   * @param data.projectName
+   * @param data.releaseName
    * @param data.requestBody
+   * @param data.token
    * @returns ReleaseCommentPublic Successful Response
    * @throws ApiError
    */
@@ -3109,9 +3235,14 @@ export class ReleasesService {
   ): CancelablePromise<PostReleaseCommentResponse> {
     return __request(OpenAPI, {
       method: "POST",
-      url: "/releases/{secret_token}/comments",
+      url: "/projects/{owner_name}/{project_name}/releases/{release_name}/comments",
       path: {
-        secret_token: data.secretToken,
+        owner_name: data.ownerName,
+        project_name: data.projectName,
+        release_name: data.releaseName,
+      },
+      query: {
+        token: data.token,
       },
       body: data.requestBody,
       mediaType: "application/json",

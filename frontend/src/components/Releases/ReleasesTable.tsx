@@ -24,10 +24,10 @@ import {
   Thead,
   Tooltip,
   Tr,
-  useClipboard,
   useDisclosure,
 } from "@chakra-ui/react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { Link as RouterLink } from "@tanstack/react-router"
 import { useState } from "react"
 import {
   FaGithub,
@@ -37,15 +37,16 @@ import {
   FaSortUp,
   FaTrash,
 } from "react-icons/fa"
-import { FiCopy, FiExternalLink } from "react-icons/fi"
+import { FiExternalLink, FiShare2 } from "react-icons/fi"
 
 import { type ReleaseListItem, ReleasesService } from "../../client"
 import type { ApiError } from "../../client/core/ApiError"
 import useCustomToast from "../../hooks/useCustomToast"
 import { handleError } from "../../lib/errors"
-import { releaseUrl } from "../../lib/releases"
+import { releaseDestination, releasePagePath } from "../../lib/releases"
 import LoadingSpinner from "../Common/LoadingSpinner"
 import NewRelease from "./NewRelease"
+import ShareDialog from "./ShareDialog"
 import {
   DEFAULT_RELEASE_SORT,
   type ReleaseSort,
@@ -80,21 +81,6 @@ const sortValue = (r: ReleaseListItem, key: SortKey): string | number => {
   }
 }
 
-const CopyLinkButton = ({ token }: { token: string }) => {
-  const { onCopy, hasCopied } = useClipboard(releaseUrl(token))
-  return (
-    <Tooltip label={hasCopied ? "Copied!" : "Copy link"}>
-      <IconButton
-        aria-label="Copy link"
-        icon={<FiCopy />}
-        size="xs"
-        variant="ghost"
-        onClick={onCopy}
-      />
-    </Tooltip>
-  )
-}
-
 interface ReleasesTableProps {
   ownerName: string
   projectName: string
@@ -118,7 +104,14 @@ const ReleasesTable = ({
   const showToast = useCustomToast()
   const newReleaseModal = useDisclosure()
   const confirmDelete = useDisclosure()
+  const shareModal = useDisclosure()
   const [toDelete, setToDelete] = useState<ReleaseListItem | null>(null)
+  // The cloud release whose share links are being managed.
+  const [active, setActive] = useState<ReleaseListItem | null>(null)
+  const openShare = (r: ReleaseListItem) => {
+    setActive(r)
+    shareModal.onOpen()
+  }
   // Fall back to internal state when used uncontrolled.
   const [sortState, setSortState] = useState<ReleaseSort>(DEFAULT_RELEASE_SORT)
   const sort = sortProp ?? sortState
@@ -260,7 +253,7 @@ const ReleasesTable = ({
           <Text>
             No releases yet.
             {userHasWriteAccess
-              ? " Create one to share a versioned artifact via a secret link."
+              ? " Create one to share a versioned artifact for review."
               : ""}
           </Text>
         </Flex>
@@ -276,14 +269,24 @@ const ReleasesTable = ({
                 <SortableTh label="Visibility" sortKey="visibility" />
                 <SortableTh label="Views" sortKey="views" isNumeric />
                 <SortableTh label="Comments" sortKey="comments" isNumeric />
-                <Th>Link / DOI</Th>
+                <Th>Destination</Th>
                 {userHasWriteAccess && <Th />}
               </Tr>
             </Thead>
             <Tbody>
               {sortedReleases.map((r) => (
                 <Tr key={`${r.source}-${r.name}`}>
-                  <Td fontWeight="semibold">{r.name}</Td>
+                  <Td fontWeight="semibold">
+                    <Link
+                      as={RouterLink}
+                      to={
+                        releasePagePath(ownerName, projectName, r.name) as any
+                      }
+                      color="blue.500"
+                    >
+                      {r.name}
+                    </Link>
+                  </Td>
                   <Td>
                     <Text noOfLines={1} maxW="180px">
                       {r.path && r.path !== "." ? r.path : "(whole project)"}
@@ -305,61 +308,69 @@ const ReleasesTable = ({
                     {r.comment_count != null ? r.comment_count : "—"}
                   </Td>
                   <Td>
-                    {r.source === "cloud" && r.secret_token ? (
-                      <HStack spacing={0}>
-                        <CopyLinkButton token={r.secret_token} />
-                        <Tooltip label="Open">
-                          <IconButton
-                            as="a"
-                            href={releaseUrl(r.secret_token)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            aria-label="Open release"
-                            icon={<FiExternalLink />}
-                            size="xs"
-                            variant="ghost"
-                          />
-                        </Tooltip>
-                      </HStack>
-                    ) : r.url || r.doi || r.publisher ? (
-                      <HStack spacing={1}>
-                        {r.publisher && (
+                    {(() => {
+                      const dest = releaseDestination(r)
+                      if (dest.internal)
+                        return (
+                          <Tooltip label="Hosted on Calkit for review">
+                            <Badge colorScheme="blue" fontSize="xs">
+                              Internal
+                            </Badge>
+                          </Tooltip>
+                        )
+                      return (
+                        <HStack spacing={1}>
                           <Badge colorScheme="purple" fontSize="xs">
-                            {r.publisher}
+                            {dest.label}
                           </Badge>
-                        )}
-                        {(r.url || r.doi) && (
-                          <Link
-                            href={r.url ?? `https://doi.org/${r.doi}`}
-                            isExternal
-                            color="blue.500"
-                            fontSize="sm"
-                          >
-                            {r.doi ?? "Link"}{" "}
-                            <Icon as={FiExternalLink} mb="-2px" />
-                          </Link>
-                        )}
-                      </HStack>
-                    ) : (
-                      "—"
-                    )}
+                          {dest.href && (
+                            <Link
+                              href={dest.href}
+                              isExternal
+                              color="blue.500"
+                              fontSize="sm"
+                            >
+                              {r.doi ?? "Link"}{" "}
+                              <Icon as={FiExternalLink} mb="-2px" />
+                            </Link>
+                          )}
+                        </HStack>
+                      )
+                    })()}
                   </Td>
                   {userHasWriteAccess && (
                     <Td>
                       {r.source === "cloud" && (
-                        <Tooltip label="Delete">
-                          <IconButton
-                            aria-label="Delete release"
-                            icon={<FaTrash />}
-                            size="xs"
-                            variant="ghost"
-                            colorScheme="red"
-                            onClick={() => {
-                              setToDelete(r)
-                              confirmDelete.onOpen()
-                            }}
-                          />
-                        </Tooltip>
+                        <HStack spacing={0} justify="flex-end">
+                          <Tooltip
+                            label={
+                              r.share_count
+                                ? `Share (${r.share_count} active)`
+                                : "Share"
+                            }
+                          >
+                            <IconButton
+                              aria-label="Share release"
+                              icon={<FiShare2 />}
+                              size="xs"
+                              variant="ghost"
+                              onClick={() => openShare(r)}
+                            />
+                          </Tooltip>
+                          <Tooltip label="Delete">
+                            <IconButton
+                              aria-label="Delete release"
+                              icon={<FaTrash />}
+                              size="xs"
+                              variant="ghost"
+                              colorScheme="red"
+                              onClick={() => {
+                                setToDelete(r)
+                                confirmDelete.onOpen()
+                              }}
+                            />
+                          </Tooltip>
+                        </HStack>
                       )}
                     </Td>
                   )}
@@ -386,8 +397,9 @@ const ReleasesTable = ({
           <ModalHeader>Delete release</ModalHeader>
           <ModalCloseButton />
           <ModalBody>
-            Delete release <Code>{toDelete?.name}</Code>? The secret link will
-            stop working. This cannot be undone.
+            Delete release <Code>{toDelete?.name}</Code>? Its share links and
+            comments are removed, and it's dropped from <Code>calkit.yaml</Code>
+            . This cannot be undone.
           </ModalBody>
           <ModalFooter gap={3}>
             <Button
@@ -401,6 +413,15 @@ const ReleasesTable = ({
           </ModalFooter>
         </ModalContent>
       </Modal>
+      {active && (
+        <ShareDialog
+          isOpen={shareModal.isOpen}
+          onClose={shareModal.onClose}
+          ownerName={ownerName}
+          projectName={projectName}
+          releaseName={active.name}
+        />
+      )}
     </Box>
   )
 }

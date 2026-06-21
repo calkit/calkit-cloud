@@ -15,37 +15,62 @@ from app.pipeline import StageStatus
 from fastapi.testclient import TestClient
 
 
-def test_get_release_invalid_token_returns_404(client: TestClient) -> None:
-    resp = client.get(f"{settings.API_V1_STR}/releases/does-not-exist-token")
-    assert resp.status_code == 404
-
-
-def test_get_release_contents_invalid_token_returns_404(
+def test_get_release_view_unknown_project_returns_404(
     client: TestClient,
 ) -> None:
     resp = client.get(
-        f"{settings.API_V1_STR}/releases/does-not-exist-token/contents"
+        f"{settings.API_V1_STR}"
+        "/projects/test-owner/test-project/releases/v1/view"
     )
     assert resp.status_code == 404
 
 
-def test_get_release_comments_invalid_token_returns_404(
+def test_get_release_contents_unknown_project_returns_404(
     client: TestClient,
 ) -> None:
     resp = client.get(
-        f"{settings.API_V1_STR}/releases/does-not-exist-token/comments"
+        f"{settings.API_V1_STR}"
+        "/projects/test-owner/test-project/releases/v1/contents"
     )
     assert resp.status_code == 404
 
 
-def test_post_release_comment_invalid_token_returns_404(
+def test_get_release_comments_unknown_project_returns_404(
+    client: TestClient,
+) -> None:
+    resp = client.get(
+        f"{settings.API_V1_STR}"
+        "/projects/test-owner/test-project/releases/v1/comments"
+    )
+    assert resp.status_code == 404
+
+
+def test_post_release_comment_unknown_project_returns_404(
     client: TestClient,
 ) -> None:
     resp = client.post(
-        f"{settings.API_V1_STR}/releases/does-not-exist-token/comments",
+        f"{settings.API_V1_STR}"
+        "/projects/test-owner/test-project/releases/v1/comments",
         json={"comment": "hello"},
     )
     assert resp.status_code == 404
+
+
+def test_create_release_share_requires_auth(client: TestClient) -> None:
+    resp = client.post(
+        f"{settings.API_V1_STR}"
+        "/projects/test-owner/test-project/releases/v1/shares",
+        json={"permission": "comment"},
+    )
+    assert resp.status_code == 401
+
+
+def test_list_release_shares_requires_auth(client: TestClient) -> None:
+    resp = client.get(
+        f"{settings.API_V1_STR}"
+        "/projects/test-owner/test-project/releases/v1/shares"
+    )
+    assert resp.status_code == 401
 
 
 def test_post_project_release_requires_auth(client: TestClient) -> None:
@@ -205,6 +230,21 @@ def test_path_staleness_stale_stage_flags_not_up_to_date() -> None:
     assert res.status == "stale"
     assert res.stage == "build-paper"
     assert res.modified_inputs == ["paper/paper.tex"]
+
+
+def test_hash_share_token_is_sha256_and_not_identity() -> None:
+    """Share tokens are stored as a SHA-256 hash, never in the clear."""
+    import hashlib
+
+    from app.api.routes import releases
+
+    raw = "super-secret-token"
+    hashed = releases._hash_share_token(raw)
+    assert hashed == hashlib.sha256(raw.encode()).hexdigest()
+    assert hashed != raw
+    assert len(hashed) == 64
+    # Deterministic so lookups by hash work.
+    assert releases._hash_share_token(raw) == hashed
 
 
 def test_post_project_release_blocks_non_reproducible(

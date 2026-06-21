@@ -35,14 +35,16 @@ import { MdEdit } from "react-icons/md"
 import { ExternalLinkIcon } from "@chakra-ui/icons"
 
 import Markdown from "../../../../../components/Common/Markdown"
-import { ReleasesService, type ReleaseListItem } from "../../../../../client"
+import { ReleasesService } from "../../../../../client"
 import { decodeBase64Utf8 } from "../../../../../lib/strings"
-import { releaseExternalLink } from "../../../../../lib/releases"
+import {
+  releaseDestination,
+  releasePagePath,
+} from "../../../../../lib/releases"
 import CreateIssue from "../../../../../components/Projects/CreateIssue"
 import CreateQuestion from "../../../../../components/Projects/CreateQuestion"
 import NewPublication from "../../../../../components/Publications/NewPublication"
 import NewRelease from "../../../../../components/Releases/NewRelease"
-import ReleaseDetailsModal from "../../../../../components/Releases/ReleaseDetailsModal"
 import useProject, {
   useProjectIssues,
   useProjectQuestions,
@@ -92,10 +94,6 @@ function ProjectView() {
         projectName,
       }),
   })
-  // Release opened in the details modal (null = closed).
-  const [detailRelease, setDetailRelease] = useState<ReleaseListItem | null>(
-    null,
-  )
   // Newest first (ISO dates sort lexically); show only the latest few on the
   // home page and link to the full list on the History page.
   const HOME_RELEASES_LIMIT = 5
@@ -339,8 +337,7 @@ function ProjectView() {
               <Heading size="md" mb={2}>
                 <Link
                   as={RouterLink}
-                  to={`/${accountName}/${projectName}/history`}
-                  search={{ tab: "releases" } as any}
+                  to={`/${accountName}/${projectName}/releases`}
                 >
                   Releases
                 </Link>
@@ -368,6 +365,18 @@ function ProjectView() {
                 ""
               )}
             </Flex>
+            <Text fontSize="sm" color="gray.500" mb={3}>
+              Any time you want to snapshot the project (or a single artifact)
+              for sharing, that's a release. Make it{" "}
+              <Text as="span" fontWeight="semibold">
+                internal
+              </Text>{" "}
+              to share privately with collaborators or reviewers — including
+              people not working in Calkit directly — via a link, with no
+              account or repo access needed; they can view and comment. Or
+              record one already published externally (arXiv, Zenodo, a journal)
+              so it shows up here with its DOI.
+            </Text>
             {releasesRequest.isPending ? (
               <LoadingSpinner height="100px" />
             ) : topReleases.length > 0 ? (
@@ -382,7 +391,7 @@ function ProjectView() {
                   </Thead>
                   <Tbody>
                     {topReleases.map((release) => {
-                      const link = releaseExternalLink(release)
+                      const dest = releaseDestination(release)
                       const pathLabel =
                         release.path && release.path !== "."
                           ? release.path
@@ -390,15 +399,25 @@ function ProjectView() {
                       return (
                         <Tr key={`${release.source}-${release.name}`}>
                           <Td px={2}>
-                            <Link onClick={() => setDetailRelease(release)}>
+                            <Link
+                              as={RouterLink}
+                              to={
+                                releasePagePath(
+                                  accountName,
+                                  projectName,
+                                  release.name,
+                                ) as any
+                              }
+                              color="blue.500"
+                            >
                               {release.name}
                             </Link>
-                            {link && (
+                            {dest.href && (
                               <Link
-                                href={link.href}
+                                href={dest.href}
                                 isExternal
                                 ml={1}
-                                aria-label={`Open ${link.label}`}
+                                aria-label={`Open ${dest.label}`}
                               >
                                 <Icon as={ExternalLinkIcon} />
                               </Link>
@@ -418,8 +437,7 @@ function ProjectView() {
                 {sortedReleases.length > topReleases.length ? (
                   <Link
                     as={RouterLink}
-                    to={`/${accountName}/${projectName}/history`}
-                    search={{ tab: "releases" } as any}
+                    to={`/${accountName}/${projectName}/releases`}
                     fontSize="sm"
                   >
                     View all {sortedReleases.length} releases →
@@ -493,11 +511,6 @@ function ProjectView() {
           )}
         </Box>
       </Flex>
-      <ReleaseDetailsModal
-        isOpen={!!detailRelease}
-        onClose={() => setDetailRelease(null)}
-        release={detailRelease}
-      />
     </>
   )
 }

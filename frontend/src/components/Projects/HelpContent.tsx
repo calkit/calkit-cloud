@@ -5,6 +5,24 @@ interface HelpContentProps {
   userHasWriteAccess: boolean
 }
 
+// Shown on both the project home and the Releases page so the concept is
+// discoverable from either help drawer.
+function ReleasesHelp({ mb }: { mb: number }) {
+  return (
+    <Text mb={mb}>
+      Any time you want to snapshot the project (or a single artifact) for
+      sharing, that's a release. Make it{" "}
+      <Text as="span" fontWeight="semibold">
+        internal
+      </Text>{" "}
+      to share privately with collaborators or reviewers — including people not
+      working in Calkit directly — via a link, with no account or repo access
+      needed; they can view and comment. Or record one already published
+      externally (arXiv, Zenodo, a journal) so it shows up here with its DOI.
+    </Text>
+  )
+}
+
 function HelpContent({ userHasWriteAccess }: HelpContentProps) {
   const routeApi = getRouteApi("/_layout/$accountName/$projectName")
   const { accountName, projectName } = routeApi.useParams()
@@ -197,6 +215,9 @@ function HelpContent({ userHasWriteAccess }: HelpContentProps) {
       </>
     )
   }
+  if (page === "releases") {
+    return <ReleasesHelp mb={mb} />
+  }
   if (page === "software") {
     return (
       <>
@@ -257,6 +278,7 @@ function HelpContent({ userHasWriteAccess }: HelpContentProps) {
       <Code whiteSpace="pre" overflow="auto" mb={mb} width="100%" p={2}>
         calkit clone {accountName}/{projectName}
       </Code>
+      <ReleasesHelp mb={mb} />
     </>
   )
 }

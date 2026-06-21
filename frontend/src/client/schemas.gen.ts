@@ -5016,16 +5016,10 @@ export const ReleaseListItemSchema = {
       ],
       title: "Date",
     },
-    secret_token: {
-      anyOf: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
-      title: "Secret Token",
+    internal: {
+      type: "boolean",
+      title: "Internal",
+      default: false,
     },
     view_count: {
       anyOf: [
@@ -5048,6 +5042,17 @@ export const ReleaseListItemSchema = {
         },
       ],
       title: "Comment Count",
+    },
+    share_count: {
+      anyOf: [
+        {
+          type: "integer",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Share Count",
     },
   },
   type: "object",
@@ -5126,11 +5131,6 @@ export const ReleasePostSchema = {
     comments_enabled: {
       type: "boolean",
       title: "Comments Enabled",
-      default: true,
-    },
-    allow_anonymous_comments: {
-      type: "boolean",
-      title: "Allow Anonymous Comments",
       default: true,
     },
     acknowledge_non_reproducible: {
@@ -5228,11 +5228,6 @@ export const ReleasePublicSchema = {
       title: "Comments Enabled",
       default: true,
     },
-    allow_anonymous_comments: {
-      type: "boolean",
-      title: "Allow Anonymous Comments",
-      default: true,
-    },
     url: {
       anyOf: [
         {
@@ -5267,10 +5262,6 @@ export const ReleasePublicSchema = {
       format: "uuid",
       title: "Project Id",
     },
-    secret_token: {
-      type: "string",
-      title: "Secret Token",
-    },
     view_count: {
       type: "integer",
       title: "View Count",
@@ -5301,15 +5292,215 @@ export const ReleasePublicSchema = {
     "name",
     "id",
     "project_id",
-    "secret_token",
     "view_count",
     "comment_count",
     "git_rev_abbrev",
     "created",
   ],
   title: "ReleasePublic",
+  description: "Release as seen by a user with write access.",
+} as const
+
+export const ReleaseShareTokenCreatedSchema = {
+  properties: {
+    id: {
+      type: "string",
+      format: "uuid",
+      title: "Id",
+    },
+    email: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Email",
+    },
+    permission: {
+      type: "string",
+      title: "Permission",
+    },
+    note: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Note",
+    },
+    expires_at: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Expires At",
+    },
+    revoked: {
+      type: "boolean",
+      title: "Revoked",
+    },
+    view_count: {
+      type: "integer",
+      title: "View Count",
+    },
+    created: {
+      type: "string",
+      format: "date-time",
+      title: "Created",
+    },
+    token: {
+      type: "string",
+      title: "Token",
+    },
+  },
+  type: "object",
+  required: [
+    "id",
+    "email",
+    "permission",
+    "note",
+    "expires_at",
+    "revoked",
+    "view_count",
+    "created",
+    "token",
+  ],
+  title: "ReleaseShareTokenCreated",
   description:
-    "Release as seen by a user with write access (includes the secret link).",
+    "Returned once when a token is minted; carries the raw token to share.",
+} as const
+
+export const ReleaseShareTokenPostSchema = {
+  properties: {
+    email: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Email",
+    },
+    permission: {
+      type: "string",
+      enum: ["view", "comment"],
+      title: "Permission",
+      default: "comment",
+    },
+    note: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Note",
+    },
+    expires_at: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Expires At",
+    },
+  },
+  type: "object",
+  title: "ReleaseShareTokenPost",
+} as const
+
+export const ReleaseShareTokenPublicSchema = {
+  properties: {
+    id: {
+      type: "string",
+      format: "uuid",
+      title: "Id",
+    },
+    email: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Email",
+    },
+    permission: {
+      type: "string",
+      title: "Permission",
+    },
+    note: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Note",
+    },
+    expires_at: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Expires At",
+    },
+    revoked: {
+      type: "boolean",
+      title: "Revoked",
+    },
+    view_count: {
+      type: "integer",
+      title: "View Count",
+    },
+    created: {
+      type: "string",
+      format: "date-time",
+      title: "Created",
+    },
+  },
+  type: "object",
+  required: [
+    "id",
+    "email",
+    "permission",
+    "note",
+    "expires_at",
+    "revoked",
+    "view_count",
+    "created",
+  ],
+  title: "ReleaseShareTokenPublic",
+  description:
+    "A share token as shown in the manage list -- never includes the secret.",
 } as const
 
 export const ReleaseStalenessSchema = {
@@ -5457,10 +5648,6 @@ export const ReleaseViewSchema = {
       type: "boolean",
       title: "Comments Enabled",
     },
-    allow_anonymous_comments: {
-      type: "boolean",
-      title: "Allow Anonymous Comments",
-    },
     comment_count: {
       type: "integer",
       title: "Comment Count",
@@ -5486,6 +5673,22 @@ export const ReleaseViewSchema = {
       type: "string",
       title: "Project Title",
     },
+    permission: {
+      type: "string",
+      enum: ["view", "comment", "manage"],
+      title: "Permission",
+    },
+    viewer_email: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Viewer Email",
+    },
   },
   type: "object",
   required: [
@@ -5498,19 +5701,21 @@ export const ReleaseViewSchema = {
     "git_rev_abbrev",
     "public",
     "comments_enabled",
-    "allow_anonymous_comments",
     "comment_count",
     "created",
     "owner_account_name",
     "owner_account_display_name",
     "project_name",
     "project_title",
+    "permission",
   ],
   title: "ReleaseView",
-  description: `Release as seen by an anonymous viewer holding the secret link.
+  description: `Release as rendered on its page, for a member or a share-token holder.
 
-Deliberately omits internal identifiers; exposes only what the viewer
-page needs to render the artifact, the provenance note, and comments.`,
+Deliberately omits internal identifiers; exposes only what the viewer page
+needs to render the artifact, the provenance note, and comments. The
+viewer's effective \`\`permission\`\` says whether they may comment or manage
+the release, so the UI can adapt without leaking the share tokens.`,
 } as const
 
 export const ReproCheckSchema = {

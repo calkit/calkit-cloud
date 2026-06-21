@@ -11,6 +11,7 @@ import {
   HStack,
   Heading,
   Icon,
+  IconButton,
   Image,
   Input,
   Link,
@@ -19,22 +20,36 @@ import {
   VStack,
 } from "@chakra-ui/react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { createFileRoute } from "@tanstack/react-router"
+import { Link as RouterLink } from "@tanstack/react-router"
 import { useState } from "react"
 import { FaFile, FaFolder } from "react-icons/fa"
-import { FiArrowUp, FiDownload, FiExternalLink } from "react-icons/fi"
+import {
+  FiArrowUp,
+  FiDownload,
+  FiExternalLink,
+  FiFolder,
+  FiX,
+} from "react-icons/fi"
 
-import { type ContentsItem, type ReleaseView, ReleasesService } from "../client"
-import type { ApiError } from "../client/core/ApiError"
-import LoadingSpinner from "../components/Common/LoadingSpinner"
-import useAuth from "../hooks/useAuth"
-import useCustomToast from "../hooks/useCustomToast"
-import { handleError } from "../lib/errors"
-import { releaseDownloadName } from "../lib/releases"
+import {
+  type ContentsItem,
+  type ReleaseListItem,
+  type ReleaseView,
+  ReleasesService,
+} from "../../client"
+import type { ApiError } from "../../client/core/ApiError"
+import useAuth from "../../hooks/useAuth"
+import useCustomToast from "../../hooks/useCustomToast"
+import { handleError } from "../../lib/errors"
+import { releaseDestination, releaseDownloadName } from "../../lib/releases"
+import LoadingSpinner from "../Common/LoadingSpinner"
 
-export const Route = createFileRoute("/releases/$token")({
-  component: ReleaseViewer,
-})
+export interface ReleaseLocator {
+  ownerName: string
+  projectName: string
+  releaseName: string
+  token?: string
+}
 
 function dataUri(item: ContentsItem, mime: string): string | null {
   if (item.url) return item.url
@@ -42,13 +57,7 @@ function dataUri(item: ContentsItem, mime: string): string | null {
   return null
 }
 
-function ArtifactView({
-  path,
-  item,
-}: {
-  path: string
-  item: ContentsItem
-}) {
+function ArtifactView({ path, item }: { path: string; item: ContentsItem }) {
   const lower = path.toLowerCase()
   if (lower.endsWith(".pdf")) {
     const src = dataUri(item, "application/pdf")
@@ -88,10 +97,10 @@ function ArtifactView({
 }
 
 function CommentsPanel({
-  token,
+  loc,
   release,
 }: {
-  token: string
+  loc: ReleaseLocator
   release: ReleaseView
 }) {
   const queryClient = useQueryClient()
@@ -99,29 +108,45 @@ function CommentsPanel({
   const { user } = useAuth()
   const [comment, setComment] = useState("")
   const [authorName, setAuthorName] = useState("")
+  const commentsKey = [
+    "releases",
+    loc.ownerName,
+    loc.projectName,
+    loc.releaseName,
+    "comments",
+  ]
   const commentsQuery = useQuery({
-    queryKey: ["releases", token, "comments"],
-    queryFn: () => ReleasesService.getReleaseComments({ secretToken: token }),
+    queryKey: commentsKey,
+    queryFn: () =>
+      ReleasesService.getReleaseComments({
+        ownerName: loc.ownerName,
+        projectName: loc.projectName,
+        releaseName: loc.releaseName,
+        token: loc.token,
+      }),
   })
   const mutation = useMutation({
     mutationFn: () =>
       ReleasesService.postReleaseComment({
-        secretToken: token,
-        requestBody: {
-          comment,
-          author_name: authorName || null,
-        },
+        ownerName: loc.ownerName,
+        projectName: loc.projectName,
+        releaseName: loc.releaseName,
+        token: loc.token,
+        requestBody: { comment, author_name: authorName || null },
       }),
     onSuccess: () => {
       setComment("")
       showToast("Thanks!", "Your comment was posted.", "success")
-      queryClient.invalidateQueries({
-        queryKey: ["releases", token, "comments"],
-      })
+      queryClient.invalidateQueries({ queryKey: commentsKey })
     },
     onError: (err: ApiError) => handleError(err, showToast),
   })
-  const canComment = Boolean(user) || release.allow_anonymous_comments
+  // The page payload already encodes whether this viewer may comment.
+  const canComment =
+    release.permission === "comment" || release.permission === "manage"
+  // A token bound to an email identifies the commenter; only truly anonymous
+  // viewers (no login, no token email) need to type a name.
+  const needsName = !user && !release.viewer_email
   const comments = commentsQuery.data ?? []
 
   return (
@@ -167,7 +192,12 @@ function CommentsPanel({
       <Divider mb={3} />
       {canComment ? (
         <Box>
-          {!user && release.allow_anonymous_comments && (
+          {release.viewer_email && (
+            <Text fontSize="xs" color="gray.500" mb={2}>
+              Commenting as {release.viewer_email}
+            </Text>
+          )}
+          {needsName && (
             <FormControl mb={2}>
               <FormLabel fontSize="sm" mb={1}>
                 Name (optional)
@@ -199,10 +229,7 @@ function CommentsPanel({
         </Box>
       ) : (
         <Text fontSize="sm" color="gray.500">
-          <Link href="/login" color="blue.500">
-            Log in
-          </Link>{" "}
-          to leave a comment.
+          This link is view-only.
         </Text>
       )}
     </Flex>
@@ -210,18 +237,29 @@ function CommentsPanel({
 }
 
 // Read-only browser over a whole-project release's files at its pinned ref.
-// Anonymous visitors navigate directories and preview files via the secret
-// link, without access to the rest of the project outside this ref.
-function ProjectBrowser({ token }: { token: string }) {
+function ProjectBrowser({ loc }: { loc: ReleaseLocator }) {
   const [path, setPath] = useState<string | undefined>(undefined)
   const {
     data: item,
     isPending,
     isError,
   } = useQuery({
-    queryKey: ["releases", token, "contents", path ?? ""],
+    queryKey: [
+      "releases",
+      loc.ownerName,
+      loc.projectName,
+      loc.releaseName,
+      "contents",
+      path ?? "",
+    ],
     queryFn: () =>
-      ReleasesService.getReleaseContents({ secretToken: token, path }),
+      ReleasesService.getReleaseContents({
+        ownerName: loc.ownerName,
+        projectName: loc.projectName,
+        releaseName: loc.releaseName,
+        token: loc.token,
+        path,
+      }),
     retry: false,
   })
   const parts = path ? path.split("/") : []
@@ -311,35 +349,230 @@ function ProjectBrowser({ token }: { token: string }) {
   )
 }
 
-function ReleaseViewer() {
-  const { token } = Route.useParams()
-  const releaseQuery = useQuery({
-    queryKey: ["releases", token],
-    queryFn: () => ReleasesService.getRelease({ secretToken: token }),
+interface ReleaseViewerProps {
+  loc: ReleaseLocator
+  // When set, a close affordance is shown (used when embedded in a modal).
+  onClose?: () => void
+}
+
+function ReleaseUnavailable() {
+  return (
+    <Flex align="center" justify="center" h="100%" p={4}>
+      <Alert status="error" borderRadius="lg" maxW="md">
+        <AlertIcon />
+        This release is unavailable, or you need a valid share link to view it.
+      </Alert>
+    </Flex>
+  )
+}
+
+// Resolves a release and renders the right view: a cloud (internal, hosted)
+// release with its artifact/project browser and comments, or a release
+// declared in calkit.yaml (published to an external venue, or a CLI-made
+// snapshot) shown as metadata with a link to browse the project at its commit.
+export default function ReleaseViewer({ loc, onClose }: ReleaseViewerProps) {
+  const viewQuery = useQuery({
+    queryKey: [
+      "releases",
+      loc.ownerName,
+      loc.projectName,
+      loc.releaseName,
+      loc.token,
+    ],
+    queryFn: () =>
+      ReleasesService.getReleaseView({
+        ownerName: loc.ownerName,
+        projectName: loc.projectName,
+        releaseName: loc.releaseName,
+        token: loc.token,
+      }),
     retry: false,
   })
-  const release = releaseQuery.data
-  const isWholeProject = !release?.path || release.path === "."
-  const contentQuery = useQuery({
-    queryKey: ["releases", token, "content"],
-    queryFn: () => ReleasesService.getReleaseContent({ secretToken: token }),
-    enabled: Boolean(release?.path) && !isWholeProject,
+  // calkit.yaml releases have no cloud row, so getReleaseView 404s; fall back
+  // to their metadata from the project's releases listing.
+  const listQuery = useQuery({
+    queryKey: [
+      "projects",
+      loc.ownerName,
+      loc.projectName,
+      "releases",
+      undefined,
+    ],
+    queryFn: () =>
+      ReleasesService.getProjectReleases({
+        ownerName: loc.ownerName,
+        projectName: loc.projectName,
+      }),
+    enabled: viewQuery.isError,
     retry: false,
   })
 
-  if (releaseQuery.isPending) {
-    return <LoadingSpinner height="100vh" />
-  }
-  if (releaseQuery.isError || !release) {
+  if (viewQuery.isPending) return <LoadingSpinner height="100%" />
+  if (viewQuery.data)
     return (
-      <Flex align="center" justify="center" h="100vh" p={4}>
-        <Alert status="error" borderRadius="lg" maxW="md">
-          <AlertIcon />
-          This release link is invalid or has been removed.
-        </Alert>
-      </Flex>
+      <CloudReleaseView loc={loc} release={viewQuery.data} onClose={onClose} />
     )
-  }
+  if (listQuery.isPending) return <LoadingSpinner height="100%" />
+  const calkit = (listQuery.data ?? []).find(
+    (r) => r.name === loc.releaseName && r.source !== "cloud",
+  )
+  if (calkit)
+    return <CalkitReleaseView loc={loc} release={calkit} onClose={onClose} />
+  return <ReleaseUnavailable />
+}
+
+// A release declared in calkit.yaml: show its metadata and where it went, with
+// a link to browse the project at the pinned commit (via the ref query param).
+function CalkitReleaseView({
+  loc,
+  release,
+  onClose,
+}: {
+  loc: ReleaseLocator
+  release: ReleaseListItem
+  onClose?: () => void
+}) {
+  const dest = releaseDestination(release)
+  const gitRev = release.git_rev ?? release.git_rev_abbrev ?? undefined
+  const isWholeProject = !release.path || release.path === "."
+  return (
+    <Flex direction="column" h="100%">
+      <Flex
+        as="header"
+        align="center"
+        justify="space-between"
+        px={4}
+        py={2}
+        borderBottomWidth="1px"
+        gap={3}
+        flexWrap="wrap"
+      >
+        <Box minW={0}>
+          <Heading size="sm" noOfLines={1}>
+            {release.title || release.name}
+          </Heading>
+          <Text fontSize="xs" color="gray.500" noOfLines={1}>
+            {loc.ownerName} / {loc.projectName}
+            {isWholeProject ? " · whole project" : ` · ${release.path}`}
+          </Text>
+        </Box>
+        <HStack spacing={3} flexShrink={0}>
+          {release.git_ref || release.git_rev_abbrev ? (
+            <HStack spacing={1}>
+              <Text fontSize="sm" color="gray.500">
+                Version
+              </Text>
+              <Badge>{release.git_ref ?? release.git_rev_abbrev}</Badge>
+            </HStack>
+          ) : null}
+          {onClose && (
+            <IconButton
+              aria-label="Close"
+              icon={<FiX />}
+              size="sm"
+              variant="ghost"
+              onClick={onClose}
+            />
+          )}
+        </HStack>
+      </Flex>
+      <Box flex={1} overflowY="auto" p={6}>
+        <VStack align="stretch" spacing={4} maxW="container.sm" mx="auto">
+          <Box>
+            <Text fontSize="xs" color="gray.500" textTransform="uppercase">
+              Destination
+            </Text>
+            <HStack mt={1}>
+              <Badge colorScheme={dest.internal ? "blue" : "purple"}>
+                {dest.label}
+              </Badge>
+              {dest.href && (
+                <Link
+                  href={dest.href}
+                  isExternal
+                  color="blue.500"
+                  fontSize="sm"
+                >
+                  {release.doi ?? "View"} <Icon as={FiExternalLink} mb="-2px" />
+                </Link>
+              )}
+            </HStack>
+          </Box>
+          {release.kind && (
+            <Box>
+              <Text fontSize="xs" color="gray.500" textTransform="uppercase">
+                Kind
+              </Text>
+              <Text fontSize="sm">{release.kind}</Text>
+            </Box>
+          )}
+          {release.date && (
+            <Box>
+              <Text fontSize="xs" color="gray.500" textTransform="uppercase">
+                Released
+              </Text>
+              <Text fontSize="sm">
+                {new Date(release.date).toLocaleDateString()}
+              </Text>
+            </Box>
+          )}
+          {release.description && (
+            <Box>
+              <Text fontSize="xs" color="gray.500" textTransform="uppercase">
+                Description
+              </Text>
+              <Text fontSize="sm" whiteSpace="pre-wrap">
+                {release.description}
+              </Text>
+            </Box>
+          )}
+          {gitRev && (
+            <Box pt={2}>
+              <Link
+                as={RouterLink}
+                to={`/${loc.ownerName}/${loc.projectName}` as any}
+                search={{ ref: gitRev } as any}
+              >
+                <Button size="sm" leftIcon={<FiFolder />}>
+                  Browse project at this version
+                </Button>
+              </Link>
+            </Box>
+          )}
+        </VStack>
+      </Box>
+    </Flex>
+  )
+}
+
+function CloudReleaseView({
+  loc,
+  release,
+  onClose,
+}: {
+  loc: ReleaseLocator
+  release: ReleaseView
+  onClose?: () => void
+}) {
+  const isWholeProject = !release.path || release.path === "."
+  const contentQuery = useQuery({
+    queryKey: [
+      "releases",
+      loc.ownerName,
+      loc.projectName,
+      loc.releaseName,
+      "content",
+    ],
+    queryFn: () =>
+      ReleasesService.getReleaseContent({
+        ownerName: loc.ownerName,
+        projectName: loc.projectName,
+        releaseName: loc.releaseName,
+        token: loc.token,
+      }),
+    enabled: Boolean(release.path) && !isWholeProject,
+    retry: false,
+  })
 
   const refLabel = release.git_ref ?? release.git_rev_abbrev ?? ""
   const item = contentQuery.data
@@ -354,7 +587,7 @@ function ReleaseViewer() {
     : undefined
 
   return (
-    <Flex direction="column" h="100vh">
+    <Flex direction="column" h="100%">
       {/* Header / provenance bar */}
       <Flex
         as="header"
@@ -368,10 +601,11 @@ function ReleaseViewer() {
       >
         <Box minW={0}>
           <Heading size="sm" noOfLines={1}>
-            {release.title || release.project_title}
+            {release.title || release.name}
           </Heading>
           <Text fontSize="xs" color="gray.500" noOfLines={1}>
             {release.owner_account_display_name} / {release.project_name}
+            {isWholeProject ? " · whole project" : ` · ${release.path}`}
           </Text>
         </Box>
         <HStack spacing={3} flexShrink={0}>
@@ -392,6 +626,15 @@ function ReleaseViewer() {
               Download
             </Button>
           )}
+          {onClose && (
+            <IconButton
+              aria-label="Close"
+              icon={<FiX />}
+              size="sm"
+              variant="ghost"
+              onClick={onClose}
+            />
+          )}
         </HStack>
       </Flex>
 
@@ -399,7 +642,7 @@ function ReleaseViewer() {
       <Flex flex={1} minH={0}>
         <Box flex={1} minW={0}>
           {isWholeProject ? (
-            <ProjectBrowser token={token} />
+            <ProjectBrowser loc={loc} />
           ) : contentQuery.isPending ? (
             <LoadingSpinner height="100%" />
           ) : item ? (
@@ -421,7 +664,7 @@ function ReleaseViewer() {
             p={4}
             overflowY="auto"
           >
-            <CommentsPanel token={token} release={release} />
+            <CommentsPanel loc={loc} release={release} />
           </Box>
         )}
       </Flex>

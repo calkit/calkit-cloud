@@ -37,7 +37,7 @@ import { type ReleasePublic, ReleasesService } from "../../client"
 import type { ApiError } from "../../client/core/ApiError"
 import useCustomToast from "../../hooks/useCustomToast"
 import { handleError } from "../../lib/errors"
-import { releaseUrl } from "../../lib/releases"
+import { releasePageUrl } from "../../lib/releases"
 
 interface NewReleaseProps {
   isOpen: boolean
@@ -62,7 +62,6 @@ interface NewReleaseForm {
   git_ref: string
   public: boolean
   comments_enabled: boolean
-  allow_anonymous_comments: boolean
   // Acknowledgement required when the producing stage is stale.
   acknowledge: boolean
   // "external" destination
@@ -86,7 +85,9 @@ const NewRelease = ({
   // link); an external declaration just commits to calkit.yaml.
   const [created, setCreated] = useState<ReleasePublic | null>(null)
   const [externalDone, setExternalDone] = useState(false)
-  const link = created ? releaseUrl(created.secret_token) : ""
+  const link = created
+    ? releasePageUrl(ownerName, projectName, created.name)
+    : ""
   const { onCopy, hasCopied } = useClipboard(link)
   const {
     register,
@@ -106,7 +107,6 @@ const NewRelease = ({
       git_ref: "",
       public: false,
       comments_enabled: true,
-      allow_anonymous_comments: true,
       acknowledge: false,
       publisher: "",
       url: "",
@@ -122,7 +122,6 @@ const NewRelease = ({
     }
   }, [isOpen, defaultPath, reset])
   const destination = watch("destination")
-  const commentsEnabled = watch("comments_enabled")
   const path = watch("path")
   const gitRef = watch("git_ref")
   const acknowledged = watch("acknowledge")
@@ -191,7 +190,6 @@ const NewRelease = ({
           git_ref: data.git_ref || null,
           public: data.public,
           comments_enabled: data.comments_enabled,
-          allow_anonymous_comments: data.allow_anonymous_comments,
           acknowledge_non_reproducible: data.acknowledge,
         },
       }),
@@ -253,8 +251,8 @@ const NewRelease = ({
           <ModalCloseButton />
           <ModalBody pb={6}>
             <Text mb={2}>
-              Share this secret link to let others view{" "}
-              <Code>{created.path ?? "the project"}</Code> at{" "}
+              Recorded in <Code>calkit.yaml</Code> and pushed. Open the release
+              page for <Code>{created.path ?? "the project"}</Code> at{" "}
               <Code>{created.git_ref ?? created.git_rev_abbrev}</Code>:
             </Text>
             <InputGroup>
@@ -265,12 +263,11 @@ const NewRelease = ({
                 </Button>
               </InputRightElement>
             </InputGroup>
-            {!created.public && (
-              <Text mt={3} fontSize="sm" color="gray.500">
-                Anyone with this link can view it, even without a Calkit
-                account. The rest of your project stays private.
-              </Text>
-            )}
+            <Text mt={3} fontSize="sm" color="gray.500">
+              To let teammates or external reviewers view and comment without an
+              account, use <b>Share</b> on the release to create an email-scoped
+              link.
+            </Text>
           </ModalBody>
           <ModalFooter>
             <Button variant="primary" onClick={handleClose}>
@@ -481,17 +478,6 @@ const NewRelease = ({
                     Allow comments
                   </FormLabel>
                 </FormControl>
-                {commentsEnabled && (
-                  <FormControl mt={2} display="flex" alignItems="center">
-                    <Switch
-                      id="allow_anonymous_comments"
-                      {...register("allow_anonymous_comments")}
-                    />
-                    <FormLabel htmlFor="allow_anonymous_comments" mb={0} ml={2}>
-                      Allow comments without a login
-                    </FormLabel>
-                  </FormControl>
-                )}
                 <FormControl mt={4} display="flex" alignItems="center">
                   <Switch id="public" {...register("public")} />
                   <Box ml={2}>

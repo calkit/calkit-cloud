@@ -2,38 +2,21 @@ import {
   Badge,
   Box,
   Flex,
-  HStack,
   Heading,
   Icon,
   IconButton,
   Spinner,
   Text,
   Tooltip,
-  useClipboard,
   useDisclosure,
 } from "@chakra-ui/react"
 import { useQuery } from "@tanstack/react-query"
 import { FaPlus, FaTag } from "react-icons/fa"
-import { FiCopy, FiExternalLink } from "react-icons/fi"
+import { FiExternalLink } from "react-icons/fi"
 
 import { ReleasesService } from "../../client"
-import { releaseUrl } from "../../lib/releases"
+import { releasePageUrl } from "../../lib/releases"
 import NewRelease from "./NewRelease"
-
-const CopyLinkButton = ({ token }: { token: string }) => {
-  const { onCopy, hasCopied } = useClipboard(releaseUrl(token))
-  return (
-    <Tooltip label={hasCopied ? "Copied!" : "Copy link"}>
-      <IconButton
-        aria-label="Copy link"
-        icon={<FiCopy />}
-        size="xs"
-        variant="ghost"
-        onClick={onCopy}
-      />
-    </Tooltip>
-  )
-}
 
 interface PublicationReleasesPanelProps {
   ownerName: string
@@ -106,22 +89,20 @@ const PublicationReleasesPanel = ({
             >
               {r.public ? "Public" : "Private"}
             </Badge>
-            {r.source === "cloud" && r.secret_token ? (
-              <HStack spacing={0} flexShrink={0}>
-                <CopyLinkButton token={r.secret_token} />
-                <Tooltip label="Open">
-                  <IconButton
-                    as="a"
-                    href={releaseUrl(r.secret_token)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label="Open release"
-                    icon={<FiExternalLink />}
-                    size="xs"
-                    variant="ghost"
-                  />
-                </Tooltip>
-              </HStack>
+            {r.source === "cloud" ? (
+              <Tooltip label="Open">
+                <IconButton
+                  as="a"
+                  href={releasePageUrl(ownerName, projectName, r.name)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Open release"
+                  icon={<FiExternalLink />}
+                  size="xs"
+                  variant="ghost"
+                  flexShrink={0}
+                />
+              </Tooltip>
             ) : (
               (r.url || r.doi) && (
                 <Tooltip label={r.doi ?? "Open"}>
