@@ -212,6 +212,34 @@ function HelpContent({ userHasWriteAccess }: HelpContentProps) {
       </>
     )
   }
+  if (page === "publications") {
+    return (
+      <>
+        <Text mb={mb}>
+          Publications are used to provide a summary of the project and its
+          findings. Typically these are the "interface" that others will
+          interact with first before diving deeper into the rest of the
+          project's artifacts. It's typically a good idea to share a publication
+          PDF as a released artifact so it's clear exactly what snapshot of the
+          project produced it, so other can trace back through the pipeline to
+          see how all of the evidence (e.g., figures) was generated.
+        </Text>
+      </>
+    )
+  }
+  if (page === "presentations") {
+    return (
+      <>
+        <Text mb={mb}>
+          Presentations are artifacts used to support interactive discussions on
+          the project's findings. These can be produced with LaTeX (Beamer),
+          Quarto, or PowerPoint. It's usually a good idea to share the PDF of
+          these as part of a release so it's clear exactly what snapshot of
+          files produced it.
+        </Text>
+      </>
+    )
+  }
   if (page === "releases") {
     return <ReleasesHelp mb={mb} />
   }
