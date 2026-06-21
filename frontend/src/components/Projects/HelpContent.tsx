@@ -1,4 +1,4 @@
-import { Link, Text, Code } from "@chakra-ui/react"
+import { Link, Text, Code, Heading } from "@chakra-ui/react"
 import { Link as RouterLink, getRouteApi } from "@tanstack/react-router"
 
 interface HelpContentProps {
@@ -10,15 +10,12 @@ interface HelpContentProps {
 function ReleasesHelp({ mb }: { mb: number }) {
   return (
     <Text mb={mb}>
-      Any time you want to snapshot the project (or a single artifact) for
-      sharing, that's a release. Make it{" "}
-      <Text as="span" fontWeight="semibold">
-        internal
-      </Text>{" "}
-      to share privately with collaborators or reviewers — including people not
-      working in Calkit directly — via a link, with no account or repo access
-      needed; they can view and comment. Or record one already published
-      externally (arXiv, Zenodo, a journal) so it shows up here with its DOI.
+      When you want to share part or all of your project with the outside world,
+      create a release. These can be internal, which means they remain in Calkit
+      only (useful for sharing with collaborators who mainly act as reviewers),
+      or they can be external, uploaded to a permanent archival service like
+      Figshare, Zenodo, or CaltechDATA. You can also list releases to journals
+      or arXiv here to keep track of which exact versions made it where.
     </Text>
   )
 }
@@ -252,6 +249,7 @@ function HelpContent({ userHasWriteAccess }: HelpContentProps) {
       </>
     )
   }
+  // Default project home help content
   return (
     <>
       {userHasWriteAccess ? (
@@ -278,6 +276,19 @@ function HelpContent({ userHasWriteAccess }: HelpContentProps) {
       <Code whiteSpace="pre" overflow="auto" mb={mb} width="100%" p={2}>
         calkit clone {accountName}/{projectName}
       </Code>
+      {/* Questions help */}
+      <Heading size="md" mb={mb / 2}>
+        Questions
+      </Heading>
+      <Text mb={mb}>
+        Research projects are typically driven by one or more questions. Add
+        these to the questions section and then tie back outputs as evidence to
+        support answers to them.
+      </Text>
+      {/* Releases help */}
+      <Heading size="md" mb={mb / 2}>
+        Releases
+      </Heading>
       <ReleasesHelp mb={mb} />
     </>
   )
