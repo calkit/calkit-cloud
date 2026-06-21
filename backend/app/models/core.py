@@ -606,9 +606,9 @@ class ProjectPublic(ProjectBase):
     owner_account_name: str
     owner_account_display_name: str
     owner_account_type: str
-    current_user_access: Literal[
-        "read", "write", "admin", "owner"
-    ] | None = None
+    current_user_access: Literal["read", "write", "admin", "owner"] | None = (
+        None
+    )
 
 
 class ProjectsPublic(SQLModel):
@@ -1325,7 +1325,9 @@ class GitRef(BaseModel):
     author: str | None = None  # Commit author
     timestamp: str | None = None  # ISO format datetime
     hash: str | None = None  # Full commit hash
-    short_hash: str | None = None  # Short commit hash (7 chars); consumer may truncate hash if needed
+    short_hash: str | None = (
+        None  # Short commit hash (7 chars); consumer may truncate hash if needed
+    )
     is_default: bool = False  # Whether this is the default branch
     ahead: int = 0  # Commits ahead of default branch
     behind: int = 0  # Commits behind default branch
