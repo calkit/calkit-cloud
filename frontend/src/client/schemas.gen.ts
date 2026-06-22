@@ -5513,7 +5513,14 @@ export const ReleaseStalenessSchema = {
       anyOf: [
         {
           type: "string",
-          enum: ["up-to-date", "stale", "not-run", "unknown", "frozen"],
+          enum: [
+            "up-to-date",
+            "stale",
+            "not-run",
+            "unknown",
+            "always-run",
+            "frozen",
+          ],
         },
         {
           type: "null",

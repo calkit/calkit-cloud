@@ -1133,7 +1133,14 @@ export type ReleaseShareTokenPublic = {
 export type ReleaseStaleness = {
   path?: string | null
   stage?: string | null
-  status?: "up-to-date" | "stale" | "not-run" | "unknown" | "frozen" | null
+  status?:
+    | "up-to-date"
+    | "stale"
+    | "not-run"
+    | "unknown"
+    | "always-run"
+    | "frozen"
+    | null
   up_to_date?: boolean
   modified_inputs?: Array<string>
   modified_outputs?: Array<string>

@@ -905,7 +905,15 @@ class ReleaseStaleness(SQLModel):
     path: str | None = None
     stage: str | None = None
     status: (
-        Literal["up-to-date", "stale", "not-run", "unknown", "frozen"] | None
+        Literal[
+            "up-to-date",
+            "stale",
+            "not-run",
+            "unknown",
+            "always-run",
+            "frozen",
+        ]
+        | None
     ) = None
     up_to_date: bool = True
     modified_inputs: list[str] = Field(default_factory=list)

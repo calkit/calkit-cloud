@@ -14,7 +14,7 @@ from fnmatch import fnmatch
 from io import StringIO
 from pathlib import Path
 from typing import Annotated, Literal, Optional, cast
-from urllib.parse import urlparse
+from urllib.parse import quote, urlparse
 
 import bibtexparser
 import calkit
@@ -1770,8 +1770,10 @@ def _comment_artifact_link(
     a ``?path=`` query on their section page.
     """
     base = f"/{owner_name}/{project_name}"
+    # Encode so paths/names with spaces, #, ?, /, etc. don't break the link.
+    encoded = quote(artifact_path, safe="")
     if artifact_type == "release":
-        return f"{base}/releases/{artifact_path}"
+        return f"{base}/releases/{encoded}"
     route_map = {
         "figure": "figures",
         "publication": "publications",
@@ -1780,7 +1782,7 @@ def _comment_artifact_link(
         "file": "files",
     }
     route = route_map.get(artifact_type or "", "files")
-    return f"{base}/{route}?path={artifact_path}"
+    return f"{base}/{route}?path={encoded}"
 
 
 @router.post("/projects/{owner_name}/{project_name}/comments")

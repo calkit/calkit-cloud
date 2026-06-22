@@ -17,6 +17,7 @@ import hashlib
 import io
 import logging
 import re
+import threading
 import time
 from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor
@@ -47,6 +48,10 @@ _STAGE_STATUS_CACHE_MAX = 64
 # cache entry was written (the SHA pins everything in the tree itself).
 _STAGE_STATUS_CACHE_TTL_S = 600
 _stage_status_cache: "OrderedDict[str, tuple[float, dict[str, StageStatus]]]" = OrderedDict()
+# Sync endpoints run in a threadpool, so cache reads/evictions/writes can happen
+# concurrently. Guard every mutation with this lock to keep the OrderedDict and
+# its LRU order consistent.
+_stage_status_cache_lock = threading.Lock()
 
 
 class StageStatus(BaseModel):
@@ -166,24 +171,26 @@ def _stage_status_cache_key(
 
 
 def _stage_status_cache_get(cache_key: str) -> dict[str, StageStatus] | None:
-    cached = _stage_status_cache.get(cache_key)
-    if cached is None:
-        return None
-    cached_at, value = cached
-    if time.monotonic() - cached_at > _STAGE_STATUS_CACHE_TTL_S:
-        del _stage_status_cache[cache_key]
-        return None
-    _stage_status_cache.move_to_end(cache_key)
-    return value
+    with _stage_status_cache_lock:
+        cached = _stage_status_cache.get(cache_key)
+        if cached is None:
+            return None
+        cached_at, value = cached
+        if time.monotonic() - cached_at > _STAGE_STATUS_CACHE_TTL_S:
+            del _stage_status_cache[cache_key]
+            return None
+        _stage_status_cache.move_to_end(cache_key)
+        return value
 
 
 def _stage_status_cache_put(
     cache_key: str, value: dict[str, StageStatus]
 ) -> None:
-    _stage_status_cache[cache_key] = (time.monotonic(), value)
-    _stage_status_cache.move_to_end(cache_key)
-    if len(_stage_status_cache) > _STAGE_STATUS_CACHE_MAX:
-        _stage_status_cache.popitem(last=False)
+    with _stage_status_cache_lock:
+        _stage_status_cache[cache_key] = (time.monotonic(), value)
+        _stage_status_cache.move_to_end(cache_key)
+        if len(_stage_status_cache) > _STAGE_STATUS_CACHE_MAX:
+            _stage_status_cache.popitem(last=False)
 
 
 def _build_outs_index(dvc_lock: dict) -> dict[str, str | None]:
