@@ -324,7 +324,9 @@ def test_send_share_email_swallows_send_failure() -> None:
 
 
 def test_post_project_release_blocks_non_reproducible(
-    client: TestClient, normal_user_token_headers: dict[str, str]
+    client: TestClient,
+    normal_user_token_headers: dict[str, str],
+    tmp_path,
 ) -> None:
     """A stale artifact is rejected with 409 unless acknowledged."""
     fake_project = SimpleNamespace(
@@ -336,10 +338,13 @@ def test_post_project_release_blocks_non_reproducible(
             return object()
 
     fake_commit = SimpleNamespace(hexsha="a" * 40, tree=_FakeTree())
+    # An empty working dir (no calkit.yaml) makes the re-release guard a no-op,
+    # so the request reaches the staleness check this test targets.
     fake_repo = SimpleNamespace(
         commit=lambda ref: fake_commit,
         head=SimpleNamespace(commit=fake_commit),
         tags=[],
+        working_dir=str(tmp_path),
     )
     stale = ReleaseStaleness(
         path="paper/paper.pdf",
