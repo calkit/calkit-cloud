@@ -27,7 +27,7 @@ build-dev: ## Build containers for development.
 
 .PHONY: format
 format: ## Format all code (runs every pre-commit hook over all files).
-	@prek run --all-files
+	@uvx prek run --all-files
 
 .PHONY: frontend-client
 frontend-client: ## Regenerate the OpenAPI client for the frontend.

@@ -113,8 +113,9 @@ function ArtifactView({
         </Box>
       )
   } else if (lower.endsWith(".html") || lower.endsWith(".htm")) {
-    // Prefer the hosted URL; fall back to inline content. Sandboxed to limit
-    // what shared HTML can do while still allowing scripts to render docs.
+    // Prefer the hosted URL; fall back to inline content. Sandboxed (no
+    // allow-same-origin) so shared HTML runs in an opaque origin and can't
+    // reach the host page, while scripts still run to render the doc.
     const src = item.url
       ? item.url
       : item.content
@@ -126,7 +127,7 @@ function ArtifactView({
           title="release"
           style={{ height: "100%", width: "100%", border: "none" }}
           src={src}
-          sandbox="allow-scripts allow-popups allow-same-origin"
+          sandbox="allow-scripts allow-popups"
         />
       )
   } else if (/\.(png|jpe?g|gif|webp|svg)$/.test(lower)) {
