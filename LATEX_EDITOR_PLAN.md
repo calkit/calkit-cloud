@@ -625,11 +625,21 @@ join and start editing.
       GitHub-less `write` member's git operations run through the App installation token,
       authored as them. (Live push verification deferred to staging — see §8.2 caveat.)
 
-**Frontend** (not started)
-- [ ] "Invite / share" UI on the project (create link, pick role, copy). Reuse Chakra modal
-      patterns.
+**Frontend**
+- [x] ~~"Invite / share" UI.~~ Built on the **Collaborators page** (per Pete) —
+      `components/Projects/InviteLinks.tsx`: create-link modal (role + optional expiry/
+      max-uses), one-time link reveal with copy, list with status/uses/expiry + revoke.
+      Client regenerated (`make client`); tsc + biome clean. *(Admin-facing — works for
+      existing GitHub users; not blocked by the `_layout` gate below.)*
 - [ ] Invite landing route (`/join/{token}`): unauthenticated visitor → signup (§8.2) →
       auto-redeem → land in the project.
+- [ ] **Email/password + Google signup UI** (§8.2 frontend) — the consumer entry point.
+- [ ] ⚠️ **BLOCKER for the GitHub-less consumer flow:** `src/routes/_layout.tsx` forces
+      **every** authenticated user to have the Calkit GitHub App installed (queries
+      `getUserGithubAppInstallations`; redirects to install, or logs out on the GitHub API
+      error a tokenless user hits). A GitHub-less user currently **cannot enter any
+      `_layout` route**. This gate must be relaxed for GitHub-less users before signup/join
+      can actually land someone in a project. Core-behavior change — worth a design pass.
 
 - **Exit (backend met):** a GitHub-less user signs up, redeems an invite, and gains native
   access to a private project (verified by test). Remaining for full exit: the frontend

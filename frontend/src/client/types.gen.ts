@@ -17,7 +17,7 @@ export type _ContentsItemBase = {
 
 export type AccountPublic = {
   name: string
-  github_name: string
+  github_name: string | null
   display_name: string
   kind: "user" | "org"
   role?: "self" | "read" | "write" | "admin" | "owner" | null
@@ -362,7 +362,7 @@ export type FileLock = {
   path: string
   created?: string
   user_id: string
-  readonly user_github_username: string
+  readonly user_github_username: string | null
   readonly user_email: string
 }
 
@@ -809,7 +809,7 @@ export type ProjectComment = {
   resolved?: string | null
   git_ref?: string | null
   git_rev?: string | null
-  readonly user_github_username: string
+  readonly user_github_username: string | null
   readonly user_full_name: string | null
   readonly user_email: string
 }
@@ -826,6 +826,42 @@ export type ProjectCommentPost = {
   create_github_issue?: boolean
   parent_id?: string | null
   git_ref?: string | null
+}
+
+export type ProjectInvitationCreated = {
+  id: string
+  role_name: string
+  created: string
+  expires: string | null
+  max_uses: number | null
+  use_count: number
+  revoked: boolean
+  token: string
+  url: string
+}
+
+export type ProjectInvitationPost = {
+  role?: "read" | "write" | "admin"
+  expires_days?: number | null
+  max_uses?: number | null
+}
+
+export type role2 = "read" | "write" | "admin"
+
+export type ProjectInvitationPublic = {
+  id: string
+  role_name: string
+  created: string
+  expires: string | null
+  max_uses: number | null
+  use_count: number
+  revoked: boolean
+}
+
+export type ProjectInvitationRedeemed = {
+  owner_name: string
+  project_name: string
+  role_name: string
 }
 
 export type ProjectOptionalExtended = {
@@ -1155,7 +1191,7 @@ export type UserCreate = {
   full_name?: string | null
   password: string
   account_name?: string | null
-  github_username?: string
+  github_username?: string | null
 }
 
 export type UserPublic = {
@@ -1164,7 +1200,7 @@ export type UserPublic = {
   is_superuser?: boolean
   full_name?: string | null
   id: string
-  github_username: string
+  github_username: string | null
   subscription: UserSubscription | null
 }
 
@@ -1785,6 +1821,35 @@ export type DeleteProjectCollaboratorData = {
 }
 
 export type DeleteProjectCollaboratorResponse = Message
+
+export type PostProjectInvitationData = {
+  ownerName: string
+  projectName: string
+  requestBody: ProjectInvitationPost
+}
+
+export type PostProjectInvitationResponse = ProjectInvitationCreated
+
+export type GetProjectInvitationsData = {
+  ownerName: string
+  projectName: string
+}
+
+export type GetProjectInvitationsResponse = Array<ProjectInvitationPublic>
+
+export type DeleteProjectInvitationData = {
+  invitationId: string
+  ownerName: string
+  projectName: string
+}
+
+export type DeleteProjectInvitationResponse = Message
+
+export type PostProjectInvitationRedemptionData = {
+  token: string
+}
+
+export type PostProjectInvitationRedemptionResponse = ProjectInvitationRedeemed
 
 export type GetProjectIssuesData = {
   ownerName: string

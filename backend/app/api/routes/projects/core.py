@@ -3803,7 +3803,7 @@ def delete_project_collaborator(
 
 
 @router.post("/projects/{owner_name}/{project_name}/invitations")
-def create_project_invitation(
+def post_project_invitation(
     owner_name: str,
     project_name: str,
     req: ProjectInvitationPost,
@@ -3902,7 +3902,7 @@ def delete_project_invitation(
 
 
 @router.post("/project-invitations/{token}")
-def redeem_project_invitation(
+def post_project_invitation_redemption(
     token: str,
     current_user: CurrentUser,
     session: SessionDep,

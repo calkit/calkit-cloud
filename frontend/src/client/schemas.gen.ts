@@ -7,7 +7,14 @@ export const AccountPublicSchema = {
       title: "Name",
     },
     github_name: {
-      type: "string",
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "Github Name",
     },
     display_name: {
@@ -1577,7 +1584,14 @@ export const FileLockSchema = {
       title: "User Id",
     },
     user_github_username: {
-      type: "string",
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "User Github Username",
       readOnly: true,
     },
@@ -3599,7 +3613,14 @@ export const ProjectCommentSchema = {
       title: "Git Rev",
     },
     user_github_username: {
-      type: "string",
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "User Github Username",
       readOnly: true,
     },
@@ -3728,6 +3749,196 @@ export const ProjectCommentPostSchema = {
   type: "object",
   required: ["comment"],
   title: "ProjectCommentPost",
+} as const
+
+export const ProjectInvitationCreatedSchema = {
+  properties: {
+    id: {
+      type: "string",
+      format: "uuid",
+      title: "Id",
+    },
+    role_name: {
+      type: "string",
+      title: "Role Name",
+    },
+    created: {
+      type: "string",
+      format: "date-time",
+      title: "Created",
+    },
+    expires: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Expires",
+    },
+    max_uses: {
+      anyOf: [
+        {
+          type: "integer",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Max Uses",
+    },
+    use_count: {
+      type: "integer",
+      title: "Use Count",
+    },
+    revoked: {
+      type: "boolean",
+      title: "Revoked",
+    },
+    token: {
+      type: "string",
+      title: "Token",
+    },
+    url: {
+      type: "string",
+      title: "Url",
+    },
+  },
+  type: "object",
+  required: [
+    "id",
+    "role_name",
+    "created",
+    "expires",
+    "max_uses",
+    "use_count",
+    "revoked",
+    "token",
+    "url",
+  ],
+  title: "ProjectInvitationCreated",
+} as const
+
+export const ProjectInvitationPostSchema = {
+  properties: {
+    role: {
+      type: "string",
+      enum: ["read", "write", "admin"],
+      title: "Role",
+      default: "write",
+    },
+    expires_days: {
+      anyOf: [
+        {
+          type: "integer",
+          maximum: 365,
+          minimum: 1,
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Expires Days",
+    },
+    max_uses: {
+      anyOf: [
+        {
+          type: "integer",
+          minimum: 1,
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Max Uses",
+    },
+  },
+  type: "object",
+  title: "ProjectInvitationPost",
+} as const
+
+export const ProjectInvitationPublicSchema = {
+  properties: {
+    id: {
+      type: "string",
+      format: "uuid",
+      title: "Id",
+    },
+    role_name: {
+      type: "string",
+      title: "Role Name",
+    },
+    created: {
+      type: "string",
+      format: "date-time",
+      title: "Created",
+    },
+    expires: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Expires",
+    },
+    max_uses: {
+      anyOf: [
+        {
+          type: "integer",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Max Uses",
+    },
+    use_count: {
+      type: "integer",
+      title: "Use Count",
+    },
+    revoked: {
+      type: "boolean",
+      title: "Revoked",
+    },
+  },
+  type: "object",
+  required: [
+    "id",
+    "role_name",
+    "created",
+    "expires",
+    "max_uses",
+    "use_count",
+    "revoked",
+  ],
+  title: "ProjectInvitationPublic",
+} as const
+
+export const ProjectInvitationRedeemedSchema = {
+  properties: {
+    owner_name: {
+      type: "string",
+      title: "Owner Name",
+    },
+    project_name: {
+      type: "string",
+      title: "Project Name",
+    },
+    role_name: {
+      type: "string",
+      title: "Role Name",
+    },
+  },
+  type: "object",
+  required: ["owner_name", "project_name", "role_name"],
+  title: "ProjectInvitationRedeemed",
 } as const
 
 export const ProjectOptionalExtendedSchema = {
@@ -5506,8 +5717,15 @@ export const UserCreateSchema = {
       title: "Account Name",
     },
     github_username: {
-      type: "string",
-      maxLength: 64,
+      anyOf: [
+        {
+          type: "string",
+          maxLength: 64,
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "Github Username",
     },
   },
@@ -5552,7 +5770,14 @@ export const UserPublicSchema = {
       title: "Id",
     },
     github_username: {
-      type: "string",
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "Github Username",
     },
     subscription: {
