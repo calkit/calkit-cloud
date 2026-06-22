@@ -206,6 +206,9 @@ interface PdfDocumentViewerProps {
   // Where the viewer is used (e.g. "publication", "presentation", "file").
   // Sent along with analytics events.
   source?: string
+  // Initial zoom (a pdf.js scale value, e.g. "auto", "page-width",
+  // "page-fit", or a number). Defaults to "auto".
+  defaultScale?: string
 }
 
 const highlightSx = {
@@ -227,6 +230,7 @@ export default function PdfDocumentViewer({
   externalScrollRef,
   pagedNav = false,
   source = "pdf",
+  defaultScale = "auto",
 }: PdfDocumentViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   // Gate rendering until the next animation frame. In React StrictMode dev,
@@ -266,6 +270,7 @@ export default function PdfDocumentViewer({
               externalScrollRef={externalScrollRef}
               pagedNav={pagedNav}
               source={source}
+              defaultScale={defaultScale}
             />
           )}
         </PdfLoader>
@@ -293,6 +298,7 @@ function PdfViewerInner({
   externalScrollRef,
   pagedNav = false,
   source = "pdf",
+  defaultScale = "auto",
 }: PdfViewerInnerProps) {
   const toolbarBg = useColorModeValue("ui.secondary", "ui.darkSlate")
   const borderColor = useColorModeValue("gray.200", "gray.600")
@@ -302,7 +308,7 @@ function PdfViewerInner({
   const [highlightsKey, setHighlightsKey] = useState(0)
 
   // Toolbar state.
-  const [scaleValue, setScaleValue] = useState<string>("auto")
+  const [scaleValue, setScaleValue] = useState<string>(defaultScale)
   const [outline, setOutline] = useState<OutlineNode[]>([])
   const [outlineOpen, setOutlineOpen] = useState(false)
   const [pageNav, setPageNav] = useState({

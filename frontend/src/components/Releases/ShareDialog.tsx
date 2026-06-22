@@ -105,6 +105,11 @@ const ShareDialog = ({
   const [permission, setPermission] = useState("comment")
   const [note, setNote] = useState("")
   const [minted, setMinted] = useState<ReleaseShareTokenCreated | null>(null)
+  // The stable, token-free link to the release page. Project members (and
+  // anyone, if the release is public) can open it directly; the form below
+  // mints scoped links for people without an account.
+  const pageUrl = releasePageUrl(ownerName, projectName, releaseName)
+  const { onCopy: onCopyPage, hasCopied: hasCopiedPage } = useClipboard(pageUrl)
 
   const sharesKey = [
     "projects",
@@ -181,6 +186,24 @@ const ShareDialog = ({
         </ModalHeader>
         <ModalCloseButton />
         <ModalBody pb={6}>
+          <Box mb={4}>
+            <Text fontSize="sm" fontWeight="semibold" mb={1}>
+              Link to this release
+            </Text>
+            <InputGroup size="sm">
+              <Input value={pageUrl} isReadOnly pr="4rem" />
+              <InputRightElement width="4rem">
+                <Button h="1.5rem" size="xs" onClick={onCopyPage}>
+                  {hasCopiedPage ? "Copied" : "Copy"}
+                </Button>
+              </InputRightElement>
+            </InputGroup>
+            <Text mt={1} fontSize="xs" color="gray.500">
+              Project members can open this directly. To let someone without an
+              account view or comment, create a link below.
+            </Text>
+          </Box>
+          <Divider mb={4} />
           {minted && (
             <MintedLink
               ownerName={ownerName}

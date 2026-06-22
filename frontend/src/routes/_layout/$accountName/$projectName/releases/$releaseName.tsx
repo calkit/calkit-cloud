@@ -20,12 +20,17 @@ function ReleasePage() {
   const { accountName, projectName, releaseName } = Route.useParams()
   const { token } = Route.useSearch()
   const router = useRouter()
+  // Decks embedded in the showcase (e.g. reveal.js) push a slide fragment onto
+  // the shared session history per slide, so router.history.back() can land on
+  // a previous slide instead of leaving the release. Navigate away explicitly
+  // so the close button always closes. Share-link viewers aren't members, so
+  // send them to the home page rather than into the (gated) project shell.
   const close = () => {
-    if (window.history.length > 1) {
-      router.history.back()
-    } else {
-      router.navigate({ to: `/${accountName}/${projectName}` as any })
+    if (token) {
+      router.navigate({ to: "/" as any })
+      return
     }
+    router.navigate({ to: `/${accountName}/${projectName}` as any })
   }
   return (
     <Modal isOpen onClose={close} isCentered scrollBehavior="inside">

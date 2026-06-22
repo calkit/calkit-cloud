@@ -85,6 +85,22 @@ export const releaseExternalLink = (
   return null
 }
 
+// Format a release date for display, rounded to the nearest minute. Cloud
+// releases carry a full timestamp (created.isoformat()); calkit.yaml releases
+// carry a plain YYYY-MM-DD, which is shown as a date only.
+export const formatReleaseDate = (date?: string | null): string => {
+  if (!date) return "—"
+  const d = new Date(date)
+  if (Number.isNaN(d.getTime())) return date
+  const hasTime = /[T ]\d{2}:\d{2}/.test(date)
+  if (!hasTime) return d.toLocaleDateString()
+  const rounded = new Date(Math.round(d.getTime() / 60000) * 60000)
+  return rounded.toLocaleString(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  })
+}
+
 // Build the download filename for a released artifact, matching the calkit CLI
 // convention so a downloaded file traces back to its project and release:
 // {project}-{stem}-{release}{ext} (e.g. adani-swarm-assessment-slides-v0.pdf).

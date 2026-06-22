@@ -86,12 +86,16 @@ export function commentToHighlight(
 // ---------------------------------------------------------------------------
 // Inline tip shown when user finishes selecting text
 // ---------------------------------------------------------------------------
-function AddCommentTip({
+export function AddCommentTip({
   onConfirm,
   onCancel,
+  hideIssueCheckbox = false,
 }: {
   onConfirm: (text: string, createIssue: boolean) => void
   onCancel: () => void
+  // Hide the "Create GitHub issue" checkbox (e.g. for release review, where
+  // issue mirroring is handled server-side and isn't a reviewer choice).
+  hideIssueCheckbox?: boolean
 }) {
   const [text, setText] = useState("")
   const [createIssue, setCreateIssue] = useState(true)
@@ -124,14 +128,16 @@ function AddCommentTip({
         }}
         mb={2}
       />
-      <Checkbox
-        size="sm"
-        mb={2}
-        isChecked={createIssue}
-        onChange={(e) => setCreateIssue(e.target.checked)}
-      >
-        Create GitHub issue
-      </Checkbox>
+      {!hideIssueCheckbox && (
+        <Checkbox
+          size="sm"
+          mb={2}
+          isChecked={createIssue}
+          onChange={(e) => setCreateIssue(e.target.checked)}
+        >
+          Create GitHub issue
+        </Checkbox>
+      )}
       <Flex gap={2}>
         <Button
           size="xs"
@@ -152,7 +158,7 @@ function AddCommentTip({
 // ---------------------------------------------------------------------------
 // Popup shown when hovering / clicking an existing highlight
 // ---------------------------------------------------------------------------
-function HighlightPopup({
+export function HighlightPopup({
   highlight,
   canResolve,
   isResolved,

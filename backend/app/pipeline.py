@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 _yaml = ruamel.yaml.YAML(typ="safe")
 
 StatusLiteral = Literal[
-    "up-to-date", "stale", "not-run", "unknown", "always-run"
+    "up-to-date", "stale", "not-run", "unknown", "always-run", "frozen"
 ]
 OverallStatusLiteral = Literal["up-to-date", "stale", "unknown"]
 
@@ -364,8 +364,15 @@ def compute_stage_statuses(
         always_changed = bool(
             isinstance(yaml_stage, dict) and yaml_stage.get("always_changed")
         )
-        if is_stale:
-            status: StatusLiteral = "stale"
+        # A frozen stage (``dvc freeze``) is pinned: DVC won't re-run it even
+        # when its deps change, so it's never stale -- surface it as frozen.
+        frozen = bool(
+            isinstance(yaml_stage, dict) and yaml_stage.get("frozen")
+        )
+        if frozen:
+            status: StatusLiteral = "frozen"
+        elif is_stale:
+            status = "stale"
         elif always_changed:
             status = "always-run"
         else:
@@ -390,8 +397,9 @@ def overall_pipeline_status(
     statuses = {s.status for s in stage_statuses.values()}
     if "stale" in statuses or "not-run" in statuses:
         return "stale"
-    # Always-run stages re-execute by design; they don't make a pipeline stale.
-    if statuses <= {"up-to-date", "always-run"}:
+    # Always-run stages re-execute by design and frozen stages are pinned;
+    # neither makes a pipeline stale.
+    if statuses <= {"up-to-date", "always-run", "frozen"}:
         return "up-to-date"
     return "unknown"
 
@@ -403,6 +411,8 @@ _MERMAID_STYLES = {
     "not-run": "fill:#3a3a3a,stroke:#888,color:#ddd",
     "up-to-date": "fill:#1f5a1f,stroke:#3a8a3a,color:#d6f5d6",
     "always-run": "fill:#1a4f7a,stroke:#3a8fd6,color:#d6ecff",
+    # Frozen stages are pinned, not stale -- a frosty gray-blue (ice).
+    "frozen": "fill:#5e7d8a,stroke:#a9d7e8,color:#eaf7fc",
 }
 
 
@@ -417,6 +427,7 @@ def color_mermaid_by_status(
         return mermaid
     rank = {
         "up-to-date": 0,
+        "frozen": 1,
         "always-run": 1,
         "unknown": 2,
         "not-run": 3,
@@ -434,6 +445,7 @@ def color_mermaid_by_status(
         "not-run": [],
         "up-to-date": [],
         "always-run": [],
+        "frozen": [],
     }
     for line in mermaid.splitlines():
         m = _MERMAID_NODE_RE.match(line)

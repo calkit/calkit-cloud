@@ -660,7 +660,9 @@ class DvcForeachStage(SQLModel):
 
 
 class StageStatus(SQLModel):
-    status: Literal["up-to-date", "stale", "not-run", "unknown", "always-run"]
+    status: Literal[
+        "up-to-date", "stale", "not-run", "unknown", "always-run", "frozen"
+    ]
     modified_command: bool = False
     modified_inputs: list[str] = Field(default_factory=list)
     modified_outputs: list[str] = Field(default_factory=list)
@@ -902,7 +904,9 @@ class ReleaseStaleness(SQLModel):
 
     path: str | None = None
     stage: str | None = None
-    status: Literal["up-to-date", "stale", "not-run", "unknown"] | None = None
+    status: (
+        Literal["up-to-date", "stale", "not-run", "unknown", "frozen"] | None
+    ) = None
     up_to_date: bool = True
     modified_inputs: list[str] = Field(default_factory=list)
     modified_outputs: list[str] = Field(default_factory=list)
@@ -985,6 +989,14 @@ class ReleaseComment(SQLModel, table=True):
     comment: str = Field(
         sa_column=sqlalchemy.Column(sqlalchemy.Text, nullable=False)
     )
+    # Optional PDF (or other artifact) highlight anchor this comment is pinned
+    # to, in the react-pdf-highlighter format. Stored as a plain dict (JSON
+    # column); CommentHighlight is used only for input validation in the post
+    # schema, matching ProjectComment.highlight.
+    highlight: dict | None = Field(
+        default=None,
+        sa_column=sqlalchemy.Column(sqlalchemy.JSON, nullable=True),
+    )
     # GitHub issue URL, if the comment was mirrored to an issue.
     external_url: str | None = Field(default=None, max_length=2048)
     created: datetime = Field(default_factory=utcnow)
@@ -995,12 +1007,14 @@ class ReleaseComment(SQLModel, table=True):
 class ReleaseCommentPost(SQLModel):
     comment: str = Field(min_length=1)
     author_name: str | None = None
+    highlight: CommentHighlight | None = None
 
 
 class ReleaseCommentPublic(SQLModel):
     id: uuid.UUID
     author_name: str | None
     comment: str
+    highlight: dict | None = None
     external_url: str | None
     created: datetime
 

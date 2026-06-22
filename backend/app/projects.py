@@ -189,14 +189,17 @@ def get_project(
             project.current_user_access = "read"
         if project.current_user_access is None:
             raise HTTPException(403)
-        access_levels = {
-            level: n
-            for (n, level) in enumerate(["read", "write", "admin", "owner"])
-        }
-        user_has_level = access_levels[project.current_user_access]
-        min_level = access_levels[min_access_level]
-        if user_has_level < min_level:
-            raise HTTPException(403)
+        if min_access_level is not None:
+            access_levels = {
+                level: n
+                for (n, level) in enumerate(
+                    ["read", "write", "admin", "owner"]
+                )
+            }
+            user_has_level = access_levels[project.current_user_access]
+            min_level = access_levels[min_access_level]
+            if user_has_level < min_level:
+                raise HTTPException(403)
     return project
 
 

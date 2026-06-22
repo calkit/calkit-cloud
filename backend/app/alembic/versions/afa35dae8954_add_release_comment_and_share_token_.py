@@ -66,6 +66,7 @@ def upgrade():
     sa.Column('author_email', sqlmodel.sql.sqltypes.AutoString(length=320), nullable=True),
     sa.Column('git_rev', sqlmodel.sql.sqltypes.AutoString(length=40), nullable=True),
     sa.Column('comment', sa.Text(), nullable=False),
+    sa.Column('highlight', sa.JSON(), nullable=True),
     sa.Column('external_url', sqlmodel.sql.sqltypes.AutoString(length=2048), nullable=True),
     sa.Column('created', sa.DateTime(), nullable=False),
     sa.ForeignKeyConstraint(['release_id'], ['release.id'], ),

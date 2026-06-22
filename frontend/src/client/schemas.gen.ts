@@ -4818,6 +4818,16 @@ export const ReleaseCommentPostSchema = {
       ],
       title: "Author Name",
     },
+    highlight: {
+      anyOf: [
+        {
+          $ref: "#/components/schemas/CommentHighlight",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
   },
   type: "object",
   required: ["comment"],
@@ -4845,6 +4855,18 @@ export const ReleaseCommentPublicSchema = {
     comment: {
       type: "string",
       title: "Comment",
+    },
+    highlight: {
+      anyOf: [
+        {
+          additionalProperties: true,
+          type: "object",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Highlight",
     },
     external_url: {
       anyOf: [
@@ -5491,7 +5513,7 @@ export const ReleaseStalenessSchema = {
       anyOf: [
         {
           type: "string",
-          enum: ["up-to-date", "stale", "not-run", "unknown"],
+          enum: ["up-to-date", "stale", "not-run", "unknown", "frozen"],
         },
         {
           type: "null",
@@ -6105,7 +6127,14 @@ export const StageStatusSchema = {
   properties: {
     status: {
       type: "string",
-      enum: ["up-to-date", "stale", "not-run", "unknown", "always-run"],
+      enum: [
+        "up-to-date",
+        "stale",
+        "not-run",
+        "unknown",
+        "always-run",
+        "frozen",
+      ],
       title: "Status",
     },
     modified_command: {

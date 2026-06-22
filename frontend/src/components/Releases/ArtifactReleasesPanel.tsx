@@ -6,18 +6,24 @@ import {
   Icon,
   IconButton,
   Link,
+  Menu,
+  MenuButton,
+  MenuItem,
+  MenuList,
   Spinner,
   Text,
   Tooltip,
+  useClipboard,
   useDisclosure,
 } from "@chakra-ui/react"
 import { useQuery } from "@tanstack/react-query"
 import { Link as RouterLink } from "@tanstack/react-router"
 import { useState } from "react"
 import { FaPlus, FaTag } from "react-icons/fa"
-import { FiExternalLink, FiShare2 } from "react-icons/fi"
+import { FiExternalLink, FiLink, FiShare2 } from "react-icons/fi"
 
 import { ReleasesService } from "../../client"
+import useCustomToast from "../../hooks/useCustomToast"
 import { releaseLocation, releasePagePath } from "../../lib/releases"
 import NewRelease from "./NewRelease"
 import ShareDialog from "./ShareDialog"
@@ -67,13 +73,22 @@ const ArtifactReleasesPanel = ({
     setShareName(name)
     shareModal.onOpen()
   }
-  // Share this artifact: share the latest hosted release, or create one first
-  // when none exists yet.
-  const handleShare = () => {
-    if (shareable.length > 0) {
-      openShare(shareable[0].name)
-      return
-    }
+  const showToast = useCustomToast()
+  // A direct link to this artifact's page, so sharing doesn't require a
+  // release. It opens the project shell, so it's only useful to project members
+  // (vs. a release's no-signup share link).
+  const kindRoute = kind === "presentation" ? "presentations" : "publications"
+  const artifactUrl = `${window.location.origin}/${ownerName}/${projectName}/${kindRoute}?path=${encodeURIComponent(path)}`
+  const { onCopy: onCopyArtifact } = useClipboard(artifactUrl)
+  const copyArtifactLink = () => {
+    onCopyArtifact()
+    showToast(
+      "Link copied",
+      `A link to this ${kind} was copied. Project members can open it.`,
+      "success",
+    )
+  }
+  const createReleaseToShare = () => {
     setShareAfterCreate(true)
     newReleaseModal.onOpen()
   }
@@ -98,16 +113,34 @@ const ArtifactReleasesPanel = ({
                 onClick={newReleaseModal.onOpen}
               />
             </Tooltip>
-            <Tooltip label={`Share this ${kind}`}>
-              <IconButton
-                aria-label="Share"
-                icon={<FiShare2 />}
-                size="xs"
-                variant="ghost"
-                ml={1}
-                onClick={handleShare}
-              />
-            </Tooltip>
+            <Menu>
+              <Tooltip label={`Share this ${kind}`}>
+                <MenuButton
+                  as={IconButton}
+                  aria-label="Share"
+                  icon={<FiShare2 />}
+                  size="xs"
+                  variant="ghost"
+                  ml={1}
+                />
+              </Tooltip>
+              <MenuList>
+                {shareable.length > 0 && (
+                  <MenuItem
+                    icon={<FiShare2 />}
+                    onClick={() => openShare(shareable[0].name)}
+                  >
+                    Share release {shareable[0].name}
+                  </MenuItem>
+                )}
+                <MenuItem icon={<FiLink />} onClick={copyArtifactLink}>
+                  Copy link to this {kind}
+                </MenuItem>
+                <MenuItem icon={<FaPlus />} onClick={createReleaseToShare}>
+                  Create a release to share a version
+                </MenuItem>
+              </MenuList>
+            </Menu>
           </>
         )}
       </Flex>

@@ -52,6 +52,7 @@ import Markdown from "../Common/Markdown"
 import PdfDocumentViewer from "../Common/PdfDocumentViewer"
 import ProjectShowcase from "../Projects/ProjectShowcase"
 import PresentationView from "../Presentations/PresentationView"
+import ReleasePdfAnnotator from "./ReleasePdfAnnotator"
 
 export interface ReleaseLocator {
   ownerName: string
@@ -104,7 +105,11 @@ function ArtifactView({
     if (src)
       return (
         <Box h="100%" w="100%">
-          <PdfDocumentViewer url={src} source="release" />
+          <PdfDocumentViewer
+            url={src}
+            source="release"
+            defaultScale="page-width"
+          />
         </Box>
       )
   } else if (lower.endsWith(".html") || lower.endsWith(".htm")) {
@@ -703,22 +708,28 @@ export default function ReleaseViewer({ loc, onClose }: ReleaseViewerProps) {
 }
 
 // Header button that opens the project's Files view at the release's commit.
+// For a whole-project release we always offer it (alwaysShow): if the release
+// pins to a commit/tag we browse at it, otherwise we browse the project's
+// latest -- a version-less project release with a showcase still deserves a way
+// in.
 function BrowseProjectButton({
   loc,
   gitRev,
+  alwaysShow = false,
 }: {
   loc: ReleaseLocator
   gitRev?: string
+  alwaysShow?: boolean
 }) {
-  if (!gitRev) return null
+  if (!gitRev && !alwaysShow) return null
   return (
     <Link
       as={RouterLink}
       to={`/${loc.ownerName}/${loc.projectName}` as any}
-      search={{ ref: gitRev } as any}
+      search={(gitRev ? { ref: gitRev } : {}) as any}
     >
       <Button size="sm" variant="outline" leftIcon={<FiFolder />}>
-        Browse project at this version
+        {gitRev ? "Browse project at this version" : "Browse project"}
       </Button>
     </Link>
   )
@@ -738,7 +749,11 @@ function CalkitReleaseView({
   onClose?: () => void
 }) {
   const dest = releaseLocation(release)
-  const gitRev = release.git_rev ?? release.git_rev_abbrev ?? undefined
+  // Fall back through every recorded ref so the "browse at this version" button
+  // appears whenever the release pins to anything (a commit or just a tag);
+  // externally-published releases often record only git_ref.
+  const gitRev =
+    release.git_rev ?? release.git_rev_abbrev ?? release.git_ref ?? undefined
   const refLabel = release.git_ref ?? release.git_rev_abbrev ?? ""
   const isWholeProject = !release.path || release.path === "."
   // For a single-artifact release, fetch the file at the pinned commit via the
@@ -803,7 +818,11 @@ function CalkitReleaseView({
               <Badge>{refLabel}</Badge>
             </HStack>
           )}
-          <BrowseProjectButton loc={loc} gitRev={gitRev} />
+          <BrowseProjectButton
+            loc={loc}
+            gitRev={gitRev}
+            alwaysShow={isWholeProject}
+          />
           {downloadHref && downloadName && (
             <DownloadButton href={downloadHref} name={downloadName} />
           )}
@@ -984,6 +1003,15 @@ function CloudReleaseView({
   const downloadName = release.path
     ? releaseDownloadName(loc.projectName, release.name, release.path)
     : undefined
+  // A single-file PDF release (not a slide deck) gets the annotatable viewer so
+  // reviewers can leave comments anchored to highlights, pinned to this version.
+  const isPdfArtifact =
+    (release.path ?? "").toLowerCase().endsWith(".pdf") &&
+    release.kind !== "presentation"
+  const pdfSrc = item && isPdfArtifact ? dataUri(item, "application/pdf") : null
+  const canComment =
+    release.comments_enabled &&
+    (release.permission === "comment" || release.permission === "manage")
 
   return (
     <Flex direction="column" h="100%">
@@ -1014,6 +1042,11 @@ function CloudReleaseView({
             </Text>
             <Badge>{refLabel}</Badge>
           </HStack>
+          <BrowseProjectButton
+            loc={loc}
+            gitRev={gitRev}
+            alwaysShow={isWholeProject}
+          />
           {downloadHref && downloadName && (
             <DownloadButton href={downloadHref} name={downloadName} />
           )}
@@ -1040,6 +1073,15 @@ function CloudReleaseView({
             />
           ) : contentQuery.isPending ? (
             <LoadingSpinner height="100%" />
+          ) : pdfSrc ? (
+            <ReleasePdfAnnotator
+              url={pdfSrc}
+              ownerName={loc.ownerName}
+              projectName={loc.projectName}
+              releaseName={loc.releaseName}
+              token={loc.token}
+              canComment={canComment}
+            />
           ) : item ? (
             <ArtifactView
               path={release.path ?? ""}

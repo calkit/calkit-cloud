@@ -37,7 +37,11 @@ import { ExternalLinkIcon } from "@chakra-ui/icons"
 import Markdown from "../../../../../components/Common/Markdown"
 import { ReleasesService } from "../../../../../client"
 import { decodeBase64Utf8 } from "../../../../../lib/strings"
-import { releaseLocation, releasePagePath } from "../../../../../lib/releases"
+import {
+  formatReleaseDate,
+  releaseLocation,
+  releasePagePath,
+} from "../../../../../lib/releases"
 import CreateIssue from "../../../../../components/Projects/CreateIssue"
 import CreateQuestion from "../../../../../components/Projects/CreateQuestion"
 import NewPublication from "../../../../../components/Publications/NewPublication"
@@ -412,7 +416,7 @@ function ProjectView() {
                             </Link>
                           </Td>
                           <Td px={2} fontSize="sm" color="gray.500">
-                            {release.date ?? "—"}
+                            {formatReleaseDate(release.date)}
                           </Td>
                           <Td px={2} fontSize="sm">
                             {dest.href ? (

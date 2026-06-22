@@ -8,7 +8,6 @@ export type SortKey =
   | "path"
   | "version"
   | "date"
-  | "visibility"
   | "views"
   | "comments"
 

@@ -1007,12 +1007,16 @@ export type RefreshTokenRequest = {
 export type ReleaseCommentPost = {
   comment: string
   author_name?: string | null
+  highlight?: CommentHighlight | null
 }
 
 export type ReleaseCommentPublic = {
   id: string
   author_name: string | null
   comment: string
+  highlight?: {
+    [key: string]: unknown
+  } | null
   external_url: string | null
   created: string
 }
@@ -1129,7 +1133,7 @@ export type ReleaseShareTokenPublic = {
 export type ReleaseStaleness = {
   path?: string | null
   stage?: string | null
-  status?: "up-to-date" | "stale" | "not-run" | "unknown" | null
+  status?: "up-to-date" | "stale" | "not-run" | "unknown" | "frozen" | null
   up_to_date?: boolean
   modified_inputs?: Array<string>
   modified_outputs?: Array<string>
@@ -1267,7 +1271,13 @@ export type SoftwareItem = {
 }
 
 export type StageStatus = {
-  status: "up-to-date" | "stale" | "not-run" | "unknown" | "always-run"
+  status:
+    | "up-to-date"
+    | "stale"
+    | "not-run"
+    | "unknown"
+    | "always-run"
+    | "frozen"
   modified_command?: boolean
   modified_inputs?: Array<string>
   modified_outputs?: Array<string>
@@ -1280,6 +1290,7 @@ export type status3 =
   | "not-run"
   | "unknown"
   | "always-run"
+  | "frozen"
 
 export type StorageUsage = {
   limit_gb: number

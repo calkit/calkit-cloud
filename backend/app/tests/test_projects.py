@@ -121,6 +121,51 @@ def test_get_project_with_caps_in_account_name(db: Session) -> None:
         db.commit()
 
 
+def test_get_project_logged_in_without_min_access_level(db: Session) -> None:
+    """A logged-in member can fetch a project with no min access level.
+
+    Regression: the min_access_level check ran unconditionally for
+    authenticated users, so the default ``min_access_level=None`` did
+    ``access_levels[None]`` and raised KeyError. That broke release viewing for
+    project members (the owner saw "release unavailable" for their own release).
+    """
+    from app import users
+    from app.models import UserCreate
+
+    suffix = uuid.uuid4().hex[:8]
+    name = f"member-{suffix}"
+    owner = users.create_user(
+        session=db,
+        user_create=UserCreate(
+            email=f"{name}@example.com",
+            password="MemberPassword123",
+            account_name=name,
+            github_username=name,
+        ),
+    )
+    project = Project(
+        name="member-view-project",
+        title="Member View Project",
+        git_repo_url=f"https://github.com/{name}/member-view-project",
+        owner_account_id=owner.account.id,
+    )
+    db.add(project)
+    db.commit()
+    try:
+        found = app.projects.get_project(
+            session=db,
+            owner_name=name,
+            project_name="member-view-project",
+            current_user=owner,
+            min_access_level=None,
+        )
+        assert found.current_user_access == "owner"
+    finally:
+        db.delete(project)
+        db.delete(owner)
+        db.commit()
+
+
 def test_get_contents_from_repo_at_given_ref(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

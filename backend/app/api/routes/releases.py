@@ -23,6 +23,7 @@ from datetime import date
 
 import requests
 import sqlalchemy
+from calkit.models import Release as CkRelease
 from fastapi import APIRouter, HTTPException
 from git.exc import GitCommandError
 from sqlmodel import select
@@ -81,6 +82,21 @@ def _commit_date(repo, rev: str | None) -> str | None:
         return None
     try:
         return repo.commit(rev).committed_datetime.date().isoformat()
+    except Exception:
+        return None
+
+
+def _resolve_rev(repo, rev: str | None) -> str | None:
+    """Resolve a ref (tag, branch, or SHA) to a full commit SHA, or None.
+
+    Lets a release keyed only by its tag (e.g. an imported GitHub release)
+    expose the exact commit it points at, so it can be browsed at that version.
+    Never raises.
+    """
+    if not rev:
+        return None
+    try:
+        return repo.commit(rev).hexsha
     except Exception:
         return None
 
@@ -327,19 +343,16 @@ def _record_internal_release_in_calkit_yaml(
             "in calkit.yaml",
         )
     # An internal release is pinned to a commit and hosted for review rather
-    # than published, so it carries no publisher or DOI.
-    entry: dict = {
-        "kind": release_in.kind,
-        "path": release_in.path or ".",
-        "internal": True,
-        "git_rev": git_rev,
-        "date": date.today().isoformat(),
-    }
-    if release_in.description:
-        entry["description"] = release_in.description
-    # A missing ``public`` key means public, so only write it when False.
-    if not release_in.public:
-        entry["public"] = False
+    # than published, so it carries no publisher or DOI. Serialize through
+    # calkit's Release model so the entry always matches the canonical schema.
+    entry = CkRelease(
+        kind=release_in.kind,
+        path=release_in.path or ".",
+        internal=True,
+        git_rev=git_rev,
+        date=date.today().isoformat(),
+        description=release_in.description or None,
+    ).model_dump(exclude_none=True, exclude_defaults=True)
     releases[release_in.name] = entry
     ck_info["releases"] = releases
     with open(ck_path, "w") as f:
@@ -403,13 +416,35 @@ def post_project_release(
     tag_names = {t.name for t in repo.tags}
     git_ref = release_in.git_ref if release_in.git_ref in tag_names else None
     # Verify the released path exists at that commit (skip for whole-project).
+    # Accept files tracked in git OR produced/tracked via DVC (e.g. a built
+    # paper PDF that the pipeline writes but isn't committed to git), matching
+    # how the release content is later served.
     if release_in.path and release_in.path != ".":
         try:
             repo.commit(git_rev).tree / release_in.path
         except Exception:
-            raise HTTPException(
-                404, f"Path '{release_in.path}' not found at the given ref"
-            )
+            try:
+                tree = get_repo_tree_for_ref(repo, git_rev)
+                (
+                    ck_info,
+                    dvc_lock_outs,
+                    zip_path_map,
+                ) = app.projects.get_ck_info_and_dvc_outs_from_tree(
+                    project, tree
+                )
+                app.projects.get_contents_from_tree(
+                    project=project,
+                    tree=tree,
+                    path=release_in.path,
+                    ck_info=ck_info,
+                    dvc_lock_outs=dvc_lock_outs,
+                    zip_path_map=zip_path_map,
+                )
+            except Exception:
+                raise HTTPException(
+                    404,
+                    f"Path '{release_in.path}' not found at the given ref",
+                )
     # Don't re-release the same artifact at the same commit. Every release
     # (cloud, CLI, or external) is recorded in calkit.yaml, so it's the single
     # place to check; a release at a newer commit is fine (it's a new version).
@@ -522,23 +557,17 @@ def post_external_release(
             f"A release named '{release_in.name}' already exists "
             "in calkit.yaml",
         )
-    # Build the entry, omitting empty values to keep calkit.yaml tidy. A
-    # missing ``public`` key means public, so only write it when False.
-    entry: dict = {
-        "kind": release_in.kind,
-        "path": release_in.path or ".",
-    }
-    if release_in.publisher:
-        entry["publisher"] = release_in.publisher
-    if release_in.url:
-        entry["url"] = release_in.url
-    if release_in.doi:
-        entry["doi"] = release_in.doi
-    entry["date"] = release_in.date or date.today().isoformat()
-    if release_in.description:
-        entry["description"] = release_in.description
-    if not release_in.public:
-        entry["public"] = False
+    # Serialize through calkit's Release model so the entry matches the
+    # canonical schema; exclude_none/defaults keeps calkit.yaml tidy.
+    entry = CkRelease(
+        kind=release_in.kind,
+        path=release_in.path or ".",
+        publisher=release_in.publisher or None,
+        url=release_in.url or None,
+        doi=release_in.doi or None,
+        date=release_in.date or date.today().isoformat(),
+        description=release_in.description or None,
+    ).model_dump(exclude_none=True, exclude_defaults=True)
     releases[release_in.name] = entry
     ck_info["releases"] = releases
     with open(ck_path, "w") as f:
@@ -603,17 +632,15 @@ def import_github_releases(
         tag = gh.get("tag_name")
         if not tag or tag in releases:
             continue
-        entry: dict = {
-            "kind": "project",
-            "path": ".",
-            "publisher": "github",
-            "url": gh.get("html_url"),
-        }
         published = gh.get("published_at") or gh.get("created_at")
-        if published:
-            entry["date"] = published[:10]
-        if gh.get("body"):
-            entry["description"] = gh["body"]
+        entry = CkRelease(
+            kind="project",
+            path=".",
+            publisher="github",
+            url=gh.get("html_url"),
+            date=published[:10] if published else None,
+            description=gh.get("body") or None,
+        ).model_dump(exclude_none=True, exclude_defaults=True)
         releases[tag] = entry
         imported.append(tag)
     if not imported:
@@ -724,6 +751,16 @@ def get_project_releases(
         if not isinstance(rel, dict) or name in cloud_names:
             continue
         git_rev = rel.get("git_rev")
+        git_ref = rel.get("git_ref")
+        # Releases declared in calkit.yaml (e.g. imported from GitHub) are keyed
+        # by their tag but often don't record a commit. Resolve the tag (the
+        # release name) to its commit so the release can be browsed at its exact
+        # version, and surface the tag as the human-readable ref.
+        if not git_rev:
+            resolved = _resolve_rev(repo, name)
+            if resolved:
+                git_rev = resolved
+                git_ref = git_ref or name
         # Prefer the declared date; otherwise fall back to the release's
         # commit date (or its tag's commit), so every release shows a date.
         release_date = str(rel["date"]) if rel.get("date") else None
@@ -738,6 +775,7 @@ def get_project_releases(
                 kind=rel.get("kind"),
                 path=rel.get("path"),
                 description=rel.get("description"),
+                git_ref=git_ref,
                 git_rev=git_rev,
                 git_rev_abbrev=_abbrev(git_rev),
                 # A missing ``public`` key means public. Visibility is separate
@@ -1122,6 +1160,7 @@ def get_release_comments(
             id=c.id,
             author_name=c.author_name,
             comment=c.comment,
+            highlight=c.highlight,
             external_url=c.external_url,
             created=c.created,
         )
@@ -1169,6 +1208,11 @@ def post_release_comment(
         author_email=author_email,
         git_rev=release.git_rev,
         comment=comment_in.comment,
+        highlight=(
+            comment_in.highlight.model_dump()
+            if comment_in.highlight is not None
+            else None
+        ),
     )
     session.add(comment)
     session.flush()
@@ -1185,6 +1229,7 @@ def post_release_comment(
         id=comment.id,
         author_name=comment.author_name,
         comment=comment.comment,
+        highlight=comment.highlight,
         external_url=comment.external_url,
         created=comment.created,
     )

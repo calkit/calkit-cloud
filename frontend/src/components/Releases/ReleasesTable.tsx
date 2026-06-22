@@ -72,8 +72,6 @@ const sortValue = (r: ReleaseListItem, key: SortKey): string | number => {
       return (r.git_ref ?? r.git_rev_abbrev ?? "").toLowerCase()
     case "date":
       return r.date ? new Date(r.date).getTime() || 0 : 0
-    case "visibility":
-      return r.public ? 1 : 0
     case "views":
       return r.view_count ?? -1
     case "comments":
@@ -266,7 +264,6 @@ const ReleasesTable = ({
                 <SortableTh label="Path" sortKey="path" />
                 <SortableTh label="Version" sortKey="version" />
                 <SortableTh label="Date" sortKey="date" />
-                <SortableTh label="Visibility" sortKey="visibility" />
                 <SortableTh label="Views" sortKey="views" isNumeric />
                 <SortableTh label="Comments" sortKey="comments" isNumeric />
                 <Th>Location</Th>
@@ -306,11 +303,6 @@ const ReleasesTable = ({
                     </Code>
                   </Td>
                   <Td whiteSpace="nowrap">{formatDate(r.date)}</Td>
-                  <Td>
-                    <Badge colorScheme={r.public ? "green" : "gray"}>
-                      {r.public ? "Public" : "Private"}
-                    </Badge>
-                  </Td>
                   <Td isNumeric>{r.view_count != null ? r.view_count : "—"}</Td>
                   <Td isNumeric>
                     {r.comment_count != null ? r.comment_count : "—"}

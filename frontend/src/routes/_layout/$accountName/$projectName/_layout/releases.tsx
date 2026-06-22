@@ -22,7 +22,6 @@ const SORT_KEYS = [
   "path",
   "version",
   "date",
-  "visibility",
   "views",
   "comments",
 ] as const

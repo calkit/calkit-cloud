@@ -403,6 +403,37 @@ def test_always_run_stage_with_real_change_is_stale(tmp_path):
     assert statuses["run"].status == "stale"
 
 
+def test_frozen_stage_with_real_change_is_not_stale(tmp_path):
+    """A frozen stage is pinned, so even a modified cmd reads as frozen."""
+    repo = _init_repo(tmp_path / "repo")
+    script = "print('hi')\n"
+    _commit(repo, {"script.py": script, "out.txt": "result\n"}, "init")
+    tree = get_repo_tree_for_ref(repo, None)
+    dvc_yaml = {
+        "stages": {
+            "run": {
+                "cmd": "python script.py --new-flag",
+                "deps": ["script.py"],
+                "outs": ["out.txt"],
+                "frozen": True,
+            }
+        }
+    }
+    dvc_lock = {
+        "stages": {
+            "run": {
+                "cmd": "python script.py",
+                "deps": [{"path": "script.py", "md5": _md5(script)}],
+                "outs": [{"path": "out.txt", "md5": _md5("result\n")}],
+            }
+        }
+    }
+    statuses = compute_stage_statuses(
+        dvc_yaml, dvc_lock, tree, "o", "p", FakeFS()
+    )
+    assert statuses["run"].status == "frozen"
+
+
 def test_find_stage_for_path_directory_output():
     """Issue 622: a figure produced into a stage's output *directory* must map
     back to that stage, not just on an exact out-path match."""

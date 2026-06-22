@@ -64,6 +64,7 @@ import useAuth from "../../hooks/useAuth"
 import FigureView from "../Figures/FigureView"
 import FileContent from "../Files/FileContent"
 import PdfCanvas from "./PdfCanvas"
+import PdfDocumentViewer from "./PdfDocumentViewer"
 const IpynbRenderer = lazy(() =>
   import("react-ipynb-renderer").then(async (m) => {
     await import("react-ipynb-renderer/dist/styles/monokai.css")
@@ -145,12 +146,7 @@ function ArtifactContent({
     if (path.endsWith(".pdf") || pub.url?.includes(".pdf")) {
       return (
         <Box height="75vh" width="100%">
-          <embed
-            height="100%"
-            width="100%"
-            type="application/pdf"
-            src={pub.url}
-          />
+          <PdfDocumentViewer url={pub.url} source="compare" />
         </Box>
       )
     }

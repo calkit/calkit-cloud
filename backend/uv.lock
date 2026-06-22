@@ -312,7 +312,7 @@ requires-dist = [
     { name = "bibtexparser", specifier = "==1.4.1" },
     { name = "boto3", specifier = ">=1.40.70" },
     { name = "cachetools", specifier = ">=5.3.3" },
-    { name = "calkit-python", specifier = "==0.41.15" },
+    { name = "calkit-python", specifier = "==0.41.19" },
     { name = "cryptography", specifier = "==43.0.0" },
     { name = "email-validator", specifier = ">=2.1.0.post1,<3.0.0.0" },
     { name = "emails", specifier = ">=0.6,<1.0" },
@@ -646,7 +646,7 @@ wheels = [
 
 [[package]]
 name = "calkit-python"
-version = "0.41.15"
+version = "0.41.19"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "arithmeval" },
@@ -678,9 +678,9 @@ dependencies = [
     { name = "typer" },
     { name = "uvicorn" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/0e/27/5c29ce4dcaa0f7b2545d5d88fd26cd680a61f5845e912051dc9b9c7a51c2/calkit_python-0.41.15.tar.gz", hash = "sha256:85cffb54863a3e77228738c8c63193132602d05ec0915d311b141d0870ce1ad0", size = 10566624, upload-time = "2026-06-13T01:42:40.921Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/04/e1/bcc6566f8c766569e8f0d2758d77420667f5fffc6a95f9808c32d81e3e44/calkit_python-0.41.19.tar.gz", hash = "sha256:417cec1ee0c0e09966352fa6bfaa7d01dd7f9e77b82020b8e1c0875a44912c2d", size = 10775628, upload-time = "2026-06-22T13:18:05.353Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/17/b9/143798639a034c1fd36af24936f620abd7542365e018d70be3a5f5abbc13/calkit_python-0.41.15-py3-none-any.whl", hash = "sha256:2ba875a54f8097883d9675cdce2a2b8b90de220b4c557114596a987916e230f5", size = 594106, upload-time = "2026-06-13T01:42:37.92Z" },
+    { url = "https://files.pythonhosted.org/packages/3b/6d/d2a69bdfc1be1438cff45a4de245412f2d1a6d61ec749b2a54f1ae361071/calkit_python-0.41.19-py3-none-any.whl", hash = "sha256:5c5e05abbd6a4daaf4ba1570b5ae7b9ca4fe39431ba6234b5e8dc5356402d3de", size = 610660, upload-time = "2026-06-22T13:18:02.375Z" },
 ]
 
 [[package]]
