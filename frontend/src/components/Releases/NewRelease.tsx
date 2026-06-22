@@ -49,6 +49,9 @@ interface NewReleaseProps {
   defaultPath?: string
   // Calkit release kind; defaults to "publication".
   kind?: string
+  // When provided, an internal release skips the link-success screen and hands
+  // the created release back to the caller (e.g., to immediately open Share).
+  onCreated?: (release: ReleasePublic) => void
 }
 
 type Destination = "internal" | "external"
@@ -78,6 +81,7 @@ const NewRelease = ({
   projectName,
   defaultPath,
   kind = "publication",
+  onCreated,
 }: NewReleaseProps) => {
   const queryClient = useQueryClient()
   const showToast = useCustomToast()
@@ -186,6 +190,11 @@ const NewRelease = ({
         },
       }),
     onSuccess: (data) => {
+      if (onCreated) {
+        onCreated(data)
+        handleClose()
+        return
+      }
       setCreated(data)
       reset()
     },

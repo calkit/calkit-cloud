@@ -1067,6 +1067,10 @@ class ReleaseShareTokenCreated(ReleaseShareTokenPublic):
     """Returned once when a token is minted; carries the raw token to share."""
 
     token: str
+    # Whether the invite email was actually sent to ``email``. False when no
+    # recipient was given or email isn't configured, in which case the caller
+    # falls back to copying the link.
+    email_sent: bool = False
 
 
 class ReleaseListItem(BaseModel):

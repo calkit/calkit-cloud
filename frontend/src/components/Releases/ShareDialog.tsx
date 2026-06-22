@@ -67,11 +67,11 @@ const MintedLink = ({
       mb={4}
     >
       <Text fontSize="sm" fontWeight="semibold" mb={1}>
-        Share link created
+        {created.email_sent ? "Invite emailed" : "Share link created"}
         {created.email ? (
           <>
             {" "}
-            for <Code>{created.email}</Code>
+            {created.email_sent ? "to" : "for"} <Code>{created.email}</Code>
           </>
         ) : null}
       </Text>
@@ -84,7 +84,9 @@ const MintedLink = ({
         </InputRightElement>
       </InputGroup>
       <Text mt={2} fontSize="xs" color="gray.500">
-        Copy it now — for security, the link can't be shown again.
+        {created.email_sent
+          ? "We emailed this link. Copy it now if you also want to share it yourself — it can't be shown again."
+          : "Copy it now — for security, the link can't be shown again."}
       </Text>
     </Box>
   )

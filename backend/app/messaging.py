@@ -82,6 +82,32 @@ def generate_reset_password_email(
     return EmailData(html_content=html_content, subject=subject)
 
 
+def generate_release_share_email(
+    email_to: str,
+    project_name: str,
+    release_name: str,
+    link: str,
+    inviter: str,
+    permission: str,
+    note: str | None = None,
+) -> EmailData:
+    subject = f"{inviter} shared {project_name} ({release_name}) with you"
+    action = "view and comment on" if permission == "comment" else "view"
+    html_content = render_email_template(
+        template_name="release_share.html",
+        context={
+            "project_name": settings.PROJECT_NAME,
+            "shared_project": project_name,
+            "release_name": release_name,
+            "inviter": inviter,
+            "action": action,
+            "note": note,
+            "link": link,
+        },
+    )
+    return EmailData(html_content=html_content, subject=subject)
+
+
 def generate_new_account_email(
     email_to: str, username: str, password: str
 ) -> EmailData:

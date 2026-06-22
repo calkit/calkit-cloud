@@ -5318,6 +5318,11 @@ export const ReleaseShareTokenCreatedSchema = {
       type: "string",
       title: "Token",
     },
+    email_sent: {
+      type: "boolean",
+      title: "Email Sent",
+      default: false,
+    },
   },
   type: "object",
   required: [

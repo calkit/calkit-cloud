@@ -1093,6 +1093,7 @@ export type ReleaseShareTokenCreated = {
   view_count: number
   created: string
   token: string
+  email_sent?: boolean
 }
 
 export type ReleaseShareTokenPost = {

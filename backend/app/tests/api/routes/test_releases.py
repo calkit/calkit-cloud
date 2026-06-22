@@ -247,6 +247,82 @@ def test_hash_share_token_is_sha256_and_not_identity() -> None:
     assert releases._hash_share_token(raw) == hashed
 
 
+def _share_email_fixtures():
+    project = SimpleNamespace(owner_account_name="test-owner", name="proj")
+    release = SimpleNamespace(name="v1.0")
+    token = SimpleNamespace(
+        email="reviewer@example.com", permission="comment", note=None
+    )
+    user = SimpleNamespace(full_name="Alice", email="alice@example.com")
+    return project, release, token, user
+
+
+def test_send_share_email_skips_when_not_configured() -> None:
+    """No SMTP config -> no send, returns False, creation still succeeds."""
+    from app.api.routes import releases
+
+    project, release, token, user = _share_email_fixtures()
+    with (
+        patch.object(settings, "SMTP_HOST", None),
+        patch("app.api.routes.releases.messaging.send_email") as send,
+    ):
+        sent = releases._send_share_email(project, release, token, "RAW", user)
+    assert sent is False
+    send.assert_not_called()
+
+
+def test_send_share_email_skips_without_recipient() -> None:
+    """A link with no recipient email is never emailed, even if configured."""
+    from app.api.routes import releases
+
+    project, release, token, user = _share_email_fixtures()
+    token.email = None
+    with (
+        patch.object(settings, "SMTP_HOST", "smtp.example.com"),
+        patch.object(settings, "EMAILS_FROM_EMAIL", "from@example.com"),
+        patch("app.api.routes.releases.messaging.send_email") as send,
+    ):
+        sent = releases._send_share_email(project, release, token, "RAW", user)
+    assert sent is False
+    send.assert_not_called()
+
+
+def test_send_share_email_sends_link_with_token() -> None:
+    """When configured, the invite is sent and embeds the token link."""
+    from app.api.routes import releases
+
+    project, release, token, user = _share_email_fixtures()
+    with (
+        patch.object(settings, "SMTP_HOST", "smtp.example.com"),
+        patch.object(settings, "EMAILS_FROM_EMAIL", "from@example.com"),
+        patch("app.api.routes.releases.messaging.send_email") as send,
+    ):
+        sent = releases._send_share_email(project, release, token, "RAW", user)
+    assert sent is True
+    send.assert_called_once()
+    kwargs = send.call_args.kwargs
+    assert kwargs["email_to"] == "reviewer@example.com"
+    assert "?token=RAW" in kwargs["html_content"]
+    assert "v1.0" in kwargs["html_content"]
+
+
+def test_send_share_email_swallows_send_failure() -> None:
+    """A transport error doesn't fail share creation -- it returns False."""
+    from app.api.routes import releases
+
+    project, release, token, user = _share_email_fixtures()
+    with (
+        patch.object(settings, "SMTP_HOST", "smtp.example.com"),
+        patch.object(settings, "EMAILS_FROM_EMAIL", "from@example.com"),
+        patch(
+            "app.api.routes.releases.messaging.send_email",
+            side_effect=RuntimeError("smtp down"),
+        ),
+    ):
+        sent = releases._send_share_email(project, release, token, "RAW", user)
+    assert sent is False
+
+
 def test_post_project_release_blocks_non_reproducible(
     client: TestClient, normal_user_token_headers: dict[str, str]
 ) -> None:

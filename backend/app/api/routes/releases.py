@@ -28,7 +28,7 @@ from git.exc import GitCommandError
 from sqlmodel import select
 
 import app.projects
-from app import mixpanel, users
+from app import messaging, mixpanel, users
 from app.api.deps import CurrentUser, CurrentUserOptional, SessionDep
 from app.config import settings
 from app.core import ryaml, utcnow
@@ -181,6 +181,48 @@ def _member_access(
 def _hash_share_token(token: str) -> str:
     """SHA-256 of a raw share token; only the hash is ever stored."""
     return hashlib.sha256(token.encode()).hexdigest()
+
+
+def _send_share_email(
+    project: Project,
+    release: Release,
+    token: ReleaseShareToken,
+    raw_token: str,
+    inviter_user: User,
+) -> bool:
+    """Best-effort send of a share invite; returns whether it went out.
+
+    A no-op (returning False) when there's no recipient or email isn't
+    configured, so creating a share never fails just because SMTP is unset --
+    the caller still shows the copyable link.
+    """
+    if not token.email or not settings.emails_enabled:
+        return False
+    app_base = settings.frontend_host.rstrip("/")
+    link = (
+        f"{app_base}/{project.owner_account_name}/{project.name}"
+        f"/releases/{release.name}?token={raw_token}"
+    )
+    inviter = inviter_user.full_name or inviter_user.email
+    email_data = messaging.generate_release_share_email(
+        email_to=token.email,
+        project_name=project.name,
+        release_name=release.name,
+        link=link,
+        inviter=inviter,
+        permission=token.permission,
+        note=token.note,
+    )
+    try:
+        messaging.send_email(
+            email_to=token.email,
+            subject=email_data.subject,
+            html_content=email_data.html_content,
+        )
+        return True
+    except Exception:
+        logger.exception("Failed to send release share email")
+        return False
 
 
 def _valid_share_token(
@@ -854,6 +896,9 @@ def create_release_share(
     session.add(token)
     session.commit()
     session.refresh(token)
+    email_sent = _send_share_email(
+        project, release, token, raw_token, current_user
+    )
     return ReleaseShareTokenCreated(
         id=token.id,
         token=raw_token,
@@ -864,6 +909,7 @@ def create_release_share(
         revoked=token.revoked,
         view_count=token.view_count,
         created=token.created,
+        email_sent=email_sent,
     )
 
 
