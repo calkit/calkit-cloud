@@ -24,6 +24,7 @@ import { useQuery } from "@tanstack/react-query"
 
 import Navbar from "../../../../../components/Common/Navbar"
 import AddCollaborator from "../../../../../components/Projects/AddCollaborator"
+import InviteLinks from "../../../../../components/Projects/InviteLinks"
 import { ProjectsService } from "../../../../../client"
 import useAuth from "../../../../../hooks/useAuth"
 import Delete from "../../../../../components/Common/DeleteAlert"
@@ -154,6 +155,7 @@ function Collaborators() {
           )}
         </Table>
       </TableContainer>
+      <InviteLinks ownerName={accountName} projectName={projectName} />
     </Box>
   )
 }

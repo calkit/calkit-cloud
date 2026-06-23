@@ -17,7 +17,7 @@ router = APIRouter()
 
 class AccountPublic(SQLModel):
     name: str
-    github_name: str
+    github_name: str | None
     display_name: str
     kind: Literal["user", "org"]
     role: Literal["self", "read", "write", "admin", "owner"] | None = None

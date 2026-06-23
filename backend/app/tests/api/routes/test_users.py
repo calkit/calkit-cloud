@@ -286,15 +286,24 @@ def test_update_password_me_same_password_error(
 
 
 def test_register_user(client: TestClient, db: Session) -> None:
-    username = random_email()
+    """A user can self-register with email + password and no GitHub account."""
+    email = random_email()
     password = random_lower_string()
     full_name = random_lower_string()
-    data = {"email": username, "password": password, "full_name": full_name}
+    data = {"email": email, "password": password, "full_name": full_name}
     r = client.post(
         f"{settings.API_V1_STR}/users/signup",
         json=data,
     )
-    assert r.status_code == 501
+    assert 200 <= r.status_code < 300
+    created = r.json()
+    assert created["email"] == email
+    # GitHub-less signup: no GitHub username on the public payload
+    assert created["github_username"] is None
+    user = users.get_user_by_email(session=db, email=email)
+    assert user is not None
+    assert user.account.github_name is None
+    assert verify_password(password, user.hashed_password)
 
 
 def test_register_user_already_exists_error(client: TestClient) -> None:
@@ -309,7 +318,31 @@ def test_register_user_already_exists_error(client: TestClient) -> None:
         f"{settings.API_V1_STR}/users/signup",
         json=data,
     )
-    assert r.status_code == 501
+    assert r.status_code == 400
+
+
+def test_github_less_user_cannot_create_project(client: TestClient) -> None:
+    """GitHub-less users can sign up but cannot own projects (yet)."""
+    email = random_email()
+    password = random_lower_string()
+    r = client.post(
+        f"{settings.API_V1_STR}/users/signup",
+        json={"email": email, "password": password},
+    )
+    assert 200 <= r.status_code < 300
+    login = client.post(
+        f"{settings.API_V1_STR}/login/access-token",
+        data={"username": email, "password": password},
+    )
+    assert login.status_code == 200
+    headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+    r = client.post(
+        f"{settings.API_V1_STR}/projects",
+        headers=headers,
+        json={"name": "ghless-project", "title": "GitHub-less project"},
+    )
+    assert r.status_code == 403
+    assert "GitHub" in r.json()["detail"]
 
 
 def test_update_user(

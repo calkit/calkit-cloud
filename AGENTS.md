@@ -71,5 +71,7 @@ Key points:
 
 ## Misc rules
 
-- Version control operations are for humans, not agents.
+- Git commits and pushes are for humans, not agents.
 - No blank lines in functions.
+- API endpoint functions should start with their REST verbs,
+  e.g., `post_something` or `get_something`.

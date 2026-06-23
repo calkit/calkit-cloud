@@ -43,6 +43,7 @@ from app.models import (
     Notebook,
     Org,
     Project,
+    ProjectMembership,
     Publication,
     User,
     UserProjectAccess,
@@ -75,6 +76,64 @@ _CK_DVC_CACHE_TTL_S = 600
 _ck_dvc_cache: OrderedDict[str, tuple[float, tuple[dict, dict, dict]]] = (
     OrderedDict()
 )
+
+
+def _resolve_github_collaborator_access(
+    session: Session, project: Project, current_user: User
+) -> None:
+    """Resolve a non-member user's access from the cached GitHub permission,
+    querying GitHub and caching the result on a miss. Sets
+    ``project.current_user_access`` (left None if it can't be determined).
+    """
+    # TODO: There may be a race here with concurrent requests, though it does
+    # not appear to cause a real problem despite the failed writes.
+    access_query = (
+        select(UserProjectAccess)
+        .where(UserProjectAccess.project_id == project.id)
+        .where(UserProjectAccess.user_id == current_user.id)
+        .with_for_update()
+    )
+    access = session.exec(access_query).first()
+    if access is not None:
+        project.current_user_access = access.access
+        return
+    # Query GitHub for permissions
+    try:
+        github_token = app.users.get_github_token(session, current_user)
+    except HTTPException:
+        github_token = None
+        logger.info(f"User {current_user.email} has no GitHub token")
+    if github_token is None:
+        return
+    logger.info("Fetching permissions from GitHub")
+    url = (
+        f"https://api.github.com/repos/{project.github_repo}"
+        f"/collaborators/{current_user.github_username}/permission"
+    )
+    resp = requests.get(
+        url,
+        headers={"Authorization": f"Bearer {github_token}"},
+        timeout=15,
+    )
+    if resp.status_code == 200:
+        logger.info("Fetched permissions from GitHub")
+        permissions = resp.json()["permission"]
+        if permissions == "none":
+            permissions = None
+    else:
+        permissions = None
+        logger.info(
+            f"Failed to fetch permissions from GitHub ({resp.status_code})"
+        )
+    project.current_user_access = permissions
+    session.add(
+        UserProjectAccess(
+            project_id=project.id,
+            user_id=current_user.id,
+            access=permissions,
+        )
+    )
+    session.commit()
 
 
 def get_project(
@@ -127,64 +186,20 @@ def get_project(
             if project.current_user_access is None and project.is_public:
                 project.current_user_access = "read"
         else:
-            # Query for permissions in our database, and if they aren't set,
-            # query GitHub and save
-            # TODO: We seem to have a race condition here with multiple
-            # requests causing this to run concurrently, though it doesn't
-            # seem to actually cause a problem despite the failure to write
-            # to the database in all but one
-            access_query = (
-                select(UserProjectAccess)
-                .where(UserProjectAccess.project_id == project.id)
-                .where(UserProjectAccess.user_id == current_user.id)
-                .with_for_update()
-            )
-            access = session.exec(access_query).first()
-            if access is not None:
-                project.current_user_access = access.access
+            # Non-owner: native Calkit membership takes precedence over
+            # GitHub-derived access, and is the only access path for
+            # GitHub-less collaborators.
+            membership = session.exec(
+                select(ProjectMembership)
+                .where(ProjectMembership.project_id == project.id)
+                .where(ProjectMembership.user_id == current_user.id)
+            ).first()
+            if membership is not None:
+                project.current_user_access = membership.role_name
             else:
-                # Query GitHub for permissions
-                try:
-                    github_token = app.users.get_github_token(
-                        session, current_user
-                    )
-                except HTTPException:
-                    github_token = None
-                    logger.info(
-                        f"User {current_user.email} has no GitHub token"
-                    )
-                if github_token is not None:
-                    logger.info("Fetching permissions from GitHub")
-                    url = (
-                        f"https://api.github.com/repos/{project.github_repo}"
-                        f"/collaborators/{current_user.github_username}/"
-                        "permission"
-                    )
-                    resp = requests.get(
-                        url,
-                        headers={"Authorization": f"Bearer {github_token}"},
-                        timeout=15,
-                    )
-                    if resp.status_code == 200:
-                        logger.info("Fetched permissions from GitHub")
-                        permissions = resp.json()["permission"]
-                        if permissions == "none":
-                            permissions = None
-                    else:
-                        permissions = None
-                        logger.info(
-                            "Failed to fetch permissions from GitHub "
-                            f"({resp.status_code})"
-                        )
-                    project.current_user_access = permissions
-                    session.add(
-                        UserProjectAccess(
-                            project_id=project.id,
-                            user_id=current_user.id,
-                            access=permissions,
-                        )
-                    )
-                    session.commit()
+                _resolve_github_collaborator_access(
+                    session, project, current_user
+                )
         if project.is_public and project.current_user_access is None:
             project.current_user_access = "read"
         if project.current_user_access is None:

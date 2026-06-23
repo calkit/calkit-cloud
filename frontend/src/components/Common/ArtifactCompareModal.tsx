@@ -496,7 +496,7 @@ function FigureComments({
     return (
       <Flex key={c.id} gap={2}>
         <Avatar
-          name={c.user_github_username}
+          name={c.user_github_username ?? undefined}
           size="xs"
           mt={0.5}
           flexShrink={0}

@@ -143,6 +143,14 @@ import type {
   PutProjectCollaboratorResponse,
   DeleteProjectCollaboratorData,
   DeleteProjectCollaboratorResponse,
+  PostProjectInvitationData,
+  PostProjectInvitationResponse,
+  GetProjectInvitationsData,
+  GetProjectInvitationsResponse,
+  DeleteProjectInvitationData,
+  DeleteProjectInvitationResponse,
+  PostProjectInvitationRedemptionData,
+  PostProjectInvitationRedemptionResponse,
   GetProjectIssuesData,
   GetProjectIssuesResponse,
   PostProjectIssueData,
@@ -2169,6 +2177,110 @@ export class ProjectsService {
   }
 
   /**
+   * Post Project Invitation
+   * Create a shareable invite link granting native project membership.
+   *
+   * The raw token is returned only here; the DB stores its hash. Invites can
+   * grant up to admin, never ownership.
+   * @param data The data for the request.
+   * @param data.ownerName
+   * @param data.projectName
+   * @param data.requestBody
+   * @returns ProjectInvitationCreated Successful Response
+   * @throws ApiError
+   */
+  public static postProjectInvitation(
+    data: PostProjectInvitationData,
+  ): CancelablePromise<PostProjectInvitationResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/projects/{owner_name}/{project_name}/invitations",
+      path: {
+        owner_name: data.ownerName,
+        project_name: data.projectName,
+      },
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Get Project Invitations
+   * @param data The data for the request.
+   * @param data.ownerName
+   * @param data.projectName
+   * @returns ProjectInvitationPublic Successful Response
+   * @throws ApiError
+   */
+  public static getProjectInvitations(
+    data: GetProjectInvitationsData,
+  ): CancelablePromise<GetProjectInvitationsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/projects/{owner_name}/{project_name}/invitations",
+      path: {
+        owner_name: data.ownerName,
+        project_name: data.projectName,
+      },
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Delete Project Invitation
+   * @param data The data for the request.
+   * @param data.ownerName
+   * @param data.projectName
+   * @param data.invitationId
+   * @returns Message Successful Response
+   * @throws ApiError
+   */
+  public static deleteProjectInvitation(
+    data: DeleteProjectInvitationData,
+  ): CancelablePromise<DeleteProjectInvitationResponse> {
+    return __request(OpenAPI, {
+      method: "DELETE",
+      url: "/projects/{owner_name}/{project_name}/invitations/{invitation_id}",
+      path: {
+        owner_name: data.ownerName,
+        project_name: data.projectName,
+        invitation_id: data.invitationId,
+      },
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Post Project Invitation Redemption
+   * Redeem an invite link, granting the current user native membership.
+   * @param data The data for the request.
+   * @param data.token
+   * @returns ProjectInvitationRedeemed Successful Response
+   * @throws ApiError
+   */
+  public static postProjectInvitationRedemption(
+    data: PostProjectInvitationRedemptionData,
+  ): CancelablePromise<PostProjectInvitationRedemptionResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/project-invitations/{token}",
+      path: {
+        token: data.token,
+      },
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
    * Get Project Issues
    * @param data The data for the request.
    * @param data.ownerName
@@ -2913,7 +3025,10 @@ export class UsersService {
 
   /**
    * Register User
-   * Create new user without the need to be logged in.
+   * Create a new user with email + password, without a GitHub account.
+   *
+   * Such users can collaborate on projects (e.g. via invite links) but cannot
+   * own projects until git hosting is decoupled from GitHub.
    * @param data The data for the request.
    * @param data.requestBody
    * @returns UserPublic Successful Response
