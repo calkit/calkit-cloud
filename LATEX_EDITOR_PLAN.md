@@ -31,6 +31,7 @@ Settled during planning (see referenced sections for rationale):
 | **License** | Path 1 — our own loader around the WASM binaries; copy no TeXlyre source | §0 |
 | **TeX engine** | Upstream **busytex/busytex** (MIT, TeX Live 2023 + SyncTeX). The TeXlyre TeX Live 2026 build is AGPL — rejected for Path 1. | §0, Phase 0 |
 | **Compile role** | Preview-only; never a pipeline artifact; pipeline stays source of truth | §3.1 |
+| **Preview latency** | Phase 1–2: BusyTeX ~0.4 s full recompile (warm + debounce + keep last PDF). Instant-preview later via **WASM linear-memory snapshotting** (client-side analog of TeXpresso's `fork()`); server-side TeXpresso only as opt-in fallback. TeXpresso itself is native-only (no WASM). | §3.2 |
 | **Preview download** | None — preview is view-only in the editor | §3.1 |
 | **Git hosting** | GitHub-backed; git-backend abstraction added up front; self-host deferred | §2.4, I4 |
 | **Push credential** | Done — existing Calkit GitHub App installation; only authorship routing remains | §2.2 |
@@ -343,6 +344,46 @@ produces and caches it, exactly as the canonical path does now. That would be th
 sanctioned way to promote a compiled PDF to a real artifact; the in-browser WASM path stays
 preview-only regardless.
 
+### 3.2 Preview latency & TeXpresso (evaluated)
+
+BusyTeX gives a **full** recompile in ~0.4 s (measured, §8.1) — fine for a manual/debounced
+"compile" button, but not the keystroke-live feel of [TeXpresso](https://github.com/let-def/texpresso).
+Pete flagged TeXpresso as the bar for fast previews; here's the assessment.
+
+**What TeXpresso is.** MIT-licensed, the best live-LaTeX UX available: edit → the render
+updates almost instantly, with immediate inline errors. Stack = a **custom XeTeX** (Tectonic
+fork) + native **MuPDF** rendering + **libSDL** viewer + a C driver.
+
+**Why it's fast — and why it doesn't port.** The "live magic" is *"the cute hack of forking
+the process near the part of the input being edited"*: it `fork()`s the TeX engine at
+checkpoints, so on an edit it rolls back to the nearest checkpoint and replays only the
+changed tail. That's **Unix-`fork()`-only — native Linux/macOS, no Windows, no browser, no
+WASM.** The author's own roadmap is WSL → "WebAssembly with a capable VM" → *implement
+snapshotting inside the XeTeX engine* — and he states he lacks capacity for that engine work.
+So there is **nothing to adopt off-the-shelf for a browser/WASM editor**, and rendering is
+native (MuPDF/SDL), not canvas/pdf.js. Adopting TeXpresso as-is would mean a **server-side**
+preview service — reintroducing the per-session compute we chose WASM to avoid.
+
+**The portable idea: WASM linear-memory snapshotting.** TeXpresso's `fork()` is really
+"snapshot the engine's mutable state, restore it later." In a single-threaded WASM module,
+that state *is* its **linear memory** (+ globals/table). So the browser-native analog is:
+snapshot BusyTeX's linear memory at checkpoints (e.g. per page/paragraph boundary), and on
+edit `restore nearest checkpoint → replay the tail`. Memory copies of tens of MB are
+millisecond-cheap. This is exactly the author's "long-term" engine-snapshotting goal, done at
+the **WASM-memory level** instead of in XeTeX source — and it keeps everything **client-side,
+zero-infra**. It's real engineering (checkpoint placement, determinism, output diffing) but
+architecturally aligned with our decisions.
+
+**Decision / sequencing.**
+- **Phase 1–2 (now):** ship BusyTeX full recompile (~0.4 s) made to *feel* fast — keep the
+  engine warm (already preloaded), debounce, and keep the last good PDF on screen while
+  recompiling. No new infra.
+- **Instant-preview upgrade (post-Phase 2):** prototype **WASM linear-memory snapshotting**
+  on BusyTeX as the client-side path to TeXpresso-class latency. Fallback if that proves too
+  hard: an **opt-in server-side TeXpresso** fast-preview tier (still preview-only — §3.1
+  provenance unaffected; default stays WASM).
+- Re-evaluate after Phase 2 with real editing-latency feedback before investing.
+
 ---
 
 ## 4. Phased delivery
@@ -631,15 +672,20 @@ join and start editing.
       max-uses), one-time link reveal with copy, list with status/uses/expiry + revoke.
       Client regenerated (`make client`); tsc + biome clean. *(Admin-facing — works for
       existing GitHub users; not blocked by the `_layout` gate below.)*
-- [ ] Invite landing route (`/join/{token}`): unauthenticated visitor → signup (§8.2) →
-      auto-redeem → land in the project.
-- [ ] **Email/password + Google signup UI** (§8.2 frontend) — the consumer entry point.
-- [ ] ⚠️ **BLOCKER for the GitHub-less consumer flow:** `src/routes/_layout.tsx` forces
-      **every** authenticated user to have the Calkit GitHub App installed (queries
-      `getUserGithubAppInstallations`; redirects to install, or logs out on the GitHub API
-      error a tokenless user hits). A GitHub-less user currently **cannot enter any
-      `_layout` route**. This gate must be relaxed for GitHub-less users before signup/join
-      can actually land someone in a project. Core-behavior change — worth a design pass.
+- [x] ~~Invite landing route (`/join/{token}`).~~ `routes/join/$token.tsx`: bounces
+      unauthenticated visitors to `/signup` (storing the redirect), then redeems via
+      `postProjectInvitationRedemption` and navigates into the project.
+- [x] ~~Email/password signup UI.~~ `routes/signup.tsx` (register → **auto-login** → honor
+      redirect) + email/password sign-in and a "Create an account" link on the login page.
+      *(Google sign-in still TODO — needs a backend `login/google` endpoint; the existing
+      `google-auth.tsx` is account-linking only.)*
+- [x] ~~**Gate relaxed.**~~ `routes/_layout.tsx` now only enforces the GitHub-App install
+      for users **with** a `github_username`; GitHub-less users skip the query, the
+      install-redirect, and the loading-wait.
+- [x] **Verified end-to-end** (headless Chrome): email/password signup → GitHub-less user
+      created (`github_username: null`) → auto-login → **lands on the dashboard, not the
+      GitHub-install gate**. (Required `alembic upgrade head` on the dev DB — see note below.)
+- [ ] Google sign-in (backend `login/google` + login-page button).
 
 - **Exit (backend met):** a GitHub-less user signs up, redeems an invite, and gains native
   access to a private project (verified by test). Remaining for full exit: the frontend
