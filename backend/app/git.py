@@ -18,6 +18,7 @@ import git
 from fastapi import HTTPException
 from filelock import FileLock, Timeout
 from git.exc import GitCommandError
+from ruamel.yaml import YAMLError
 from sqlmodel import Session
 
 from app import users
@@ -366,9 +367,18 @@ def get_zip_path_map_from_repo(repo: git.Repo) -> dict:
 
 
 def get_ck_info_from_repo(repo: git.Repo, process_includes=False) -> dict:
-    ck_info = calkit.load_calkit_info(
-        wdir=repo.working_dir, process_includes=process_includes
-    )
+    try:
+        ck_info = calkit.load_calkit_info(
+            wdir=repo.working_dir, process_includes=process_includes
+        )
+    except YAMLError as e:
+        # A user's calkit.yaml can be malformed (e.g., multiple YAML documents
+        # in a single file). That's bad data in their repo, not a server
+        # error, so treat it as empty rather than letting it 500 the project.
+        logger.warning(
+            f"Failed to parse calkit.yaml in {repo.working_dir}: {e}"
+        )
+        return {}
     if ck_info is None:
         ck_info = {}
     return ck_info

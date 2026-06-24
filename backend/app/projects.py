@@ -414,6 +414,11 @@ def get_contents_from_tree(
         for p in paths:
             if not p.endswith(".dvc"):
                 continue
+            # The DVC config directory is literally named ".dvc", which also
+            # matches the suffix above. Skip directories so we only try to
+            # read actual ".dvc" pointer files.
+            if tree.is_dir(p):
+                continue
             try:
                 dvc_file_data = yaml.safe_load(tree.read_text(p))
                 if not isinstance(dvc_file_data, dict):
