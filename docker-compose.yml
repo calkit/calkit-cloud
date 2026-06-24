@@ -283,7 +283,7 @@ services:
     environment:
       # Inline reverse-proxy mode: Anubis challenges browsers and forwards
       # cleared requests to the frontend container. Serving the challenge on
-      # the same host (calkit.io) avoids the cross-domain post-challenge
+      # the frontend's own host avoids the cross-domain post-challenge
       # redirect failure of forwardauth mode ("Redirect domain not allowed",
       # Anubis issue #970), and needs no dedicated anubis.${DOMAIN} record.
       - BIND=:8080
