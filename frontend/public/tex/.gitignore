@@ -1,0 +1,5 @@
+# Large busytex engine binaries — not committed. Fetch with scripts/download-tex-engine.sh
+busytex.js
+busytex.wasm
+texlive-basic.js
+texlive-basic.data
