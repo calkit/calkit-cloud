@@ -208,6 +208,233 @@ def test_missing_output_not_in_object_storage(tmp_path):
     assert "data/out.bin" in statuses["run"].missing_outputs
 
 
+def test_zip_stored_output_is_not_stale(tmp_path):
+    """A dvc-zip-stored output lives under .calkit/zip, not files/md5, so the
+    standard md5 presence check can't find it. It must not be flagged missing
+    when .calkit/zip/paths.json maps it (calkit status sees it up to date).
+    """
+    import json
+
+    repo = _init_repo(tmp_path / "repo")
+    zip_paths = json.dumps({"data/mydir": ".calkit/zip/files/data/mydir.zip"})
+    _commit(
+        repo,
+        {"script.py": "x\n", ".calkit/zip/paths.json": zip_paths},
+        "init",
+    )
+    tree = get_repo_tree_for_ref(repo, None)
+    dvc_yaml = {
+        "stages": {
+            "run": {
+                "cmd": "python script.py",
+                "deps": ["script.py"],
+                "outs": ["data/mydir"],
+            }
+        }
+    }
+    dvc_lock = {
+        "stages": {
+            "run": {
+                "cmd": "python script.py",
+                "deps": [{"path": "script.py", "md5": _md5("x\n")}],
+                "outs": [{"path": "data/mydir", "md5": f"{_md5('c')}.dir"}],
+            }
+        }
+    }
+    # FakeFS has no objects, so presence is False -- only the zip mapping
+    # keeps this from being flagged stale.
+    statuses = compute_stage_statuses(
+        dvc_yaml, dvc_lock, tree, "o", "p", FakeFS()
+    )
+    assert statuses["run"].status == "up-to-date"
+    assert not statuses["run"].missing_outputs
+
+
+def test_orphaned_lock_stage_is_ignored(tmp_path):
+    """A dvc.lock stage no longer in dvc.yaml (renamed/removed) isn't reported,
+    even if its recorded outs would look missing/stale."""
+    repo = _init_repo(tmp_path / "repo")
+    _commit(repo, {"script.py": "x\n"}, "init")
+    tree = get_repo_tree_for_ref(repo, None)
+    dvc_yaml = {
+        "stages": {
+            "keep": {
+                "cmd": "python script.py",
+                "deps": ["script.py"],
+                "outs": ["out.txt"],
+            }
+        }
+    }
+    dvc_lock = {
+        "stages": {
+            "keep": {
+                "cmd": "python script.py",
+                "deps": [{"path": "script.py", "md5": _md5("x\n")}],
+                "outs": [{"path": "out.txt", "md5": _md5("r\n")}],
+            },
+            "gone": {
+                "cmd": "python old.py",
+                "deps": [{"path": "old.py", "md5": "old"}],
+                "outs": [{"path": "old.bin", "md5": "missing"}],
+            },
+        }
+    }
+    statuses = compute_stage_statuses(
+        dvc_yaml, dvc_lock, tree, "o", "p", FakeFS({_md5("r\n")})
+    )
+    assert "gone" not in statuses
+    assert statuses["keep"].status == "up-to-date"
+
+
+def test_matrix_bare_lock_entry_is_ignored(tmp_path):
+    """A matrix stage's bare lock entry is stale cruft; only name@... count."""
+    repo = _init_repo(tmp_path / "repo")
+    _commit(repo, {"run.py": "x\n"}, "init")
+    tree = get_repo_tree_for_ref(repo, None)
+    dvc_yaml = {
+        "stages": {
+            "bench": {
+                "matrix": {"n": [1]},
+                "cmd": "python run.py ${item.n}",
+                "deps": ["run.py"],
+                "outs": ["out-${item.n}.txt"],
+            }
+        }
+    }
+    dvc_lock = {
+        "stages": {
+            "bench": {  # stale bare entry: missing out would look stale
+                "cmd": "python run.py",
+                "deps": [{"path": "run.py", "md5": _md5("x\n")}],
+                "outs": [{"path": "stale-out.txt", "md5": "missing"}],
+            },
+            "bench@1": {
+                "cmd": "python run.py 1",
+                "deps": [{"path": "run.py", "md5": _md5("x\n")}],
+                "outs": [{"path": "out-1.txt", "md5": _md5("r\n")}],
+            },
+        }
+    }
+    statuses = compute_stage_statuses(
+        dvc_yaml, dvc_lock, tree, "o", "p", FakeFS({_md5("r\n")})
+    )
+    assert "bench" not in statuses
+    assert statuses["bench@1"].status == "up-to-date"
+
+
+def test_leftover_matrix_expansion_is_ignored(tmp_path):
+    """A lock @ entry from an old matrix value (no longer produced by the
+    current dvc.yaml matrix) is skipped, even if its objects were gc'd. Only
+    the current expansion is reported."""
+    repo = _init_repo(tmp_path / "repo")
+    _commit(repo, {"run.py": "x\n"}, "init")
+    tree = get_repo_tree_for_ref(repo, None)
+    dvc_yaml = {
+        "stages": {
+            "bench": {
+                "matrix": {"n": [1]},
+                "cmd": "python run.py ${item.n}",
+                "deps": ["run.py"],
+                "outs": ["out-${item.n}.txt"],
+            }
+        }
+    }
+    dvc_lock = {
+        "stages": {
+            "bench@1": {  # current matrix value
+                "cmd": "python run.py 1",
+                "deps": [{"path": "run.py", "md5": _md5("x\n")}],
+                "outs": [{"path": "out-1.txt", "md5": _md5("r\n")}],
+            },
+            "bench@2": {  # leftover: n=2 no longer in the matrix, object gc'd
+                "cmd": "python run.py 2",
+                "deps": [{"path": "run.py", "md5": _md5("x\n")}],
+                "outs": [{"path": "out-2.txt", "md5": "missing"}],
+            },
+        }
+    }
+    statuses = compute_stage_statuses(
+        dvc_yaml, dvc_lock, tree, "o", "p", FakeFS({_md5("r\n")})
+    )
+    assert statuses["bench@1"].status == "up-to-date"
+    assert "bench@2" not in statuses
+
+
+def test_leftover_matrix_naming_change_is_ignored(tmp_path):
+    """When DVC's matrix naming changes (a list-of-dicts matrix names its
+    expansions ``@_arg0N``), old ``@v1-v2`` entries linger in the lock with the
+    SAME output path. The leftover (old-named) entry must be dropped, not
+    flagged stale, even though the current entry's object is present."""
+    repo = _init_repo(tmp_path / "repo")
+    _commit(repo, {"run.py": "x\n"}, "init")
+    tree = get_repo_tree_for_ref(repo, None)
+    dvc_yaml = {
+        "stages": {
+            "bench": {
+                "matrix": {"_arg0": [{"a": 1, "b": 3}]},
+                "cmd": "run ${item._arg0.a}",
+                "deps": ["run.py"],
+                "outs": ["out"],
+            }
+        }
+    }
+    dvc_lock = {
+        "stages": {
+            "bench@_arg00": {  # current naming, object present
+                "cmd": "run 1",
+                "deps": [{"path": "run.py", "md5": _md5("x\n")}],
+                "outs": [{"path": "out", "md5": _md5("r\n")}],
+            },
+            "bench@1-3": {  # old naming, same output path, object gc'd
+                "cmd": "run 1",
+                "deps": [{"path": "run.py", "md5": _md5("x\n")}],
+                "outs": [{"path": "out", "md5": "gone"}],
+            },
+        }
+    }
+    statuses = compute_stage_statuses(
+        dvc_yaml, dvc_lock, tree, "o", "p", FakeFS({_md5("r\n")})
+    )
+    assert statuses["bench@_arg00"].status == "up-to-date"
+    assert "bench@1-3" not in statuses
+
+
+def test_committed_dep_beats_stale_producer_out_md5(tmp_path):
+    """A dep committed to git uses the committed content, not a producing
+    stage's possibly-stale recorded out md5 (e.g. cleaned notebooks)."""
+    repo = _init_repo(tmp_path / "repo")
+    cleaned = "cleaned-content\n"
+    _commit(repo, {"src.py": "x\n", "cleaned.ipynb": cleaned}, "init")
+    tree = get_repo_tree_for_ref(repo, None)
+    dvc_yaml = {
+        "stages": {
+            "consume": {
+                "cmd": "python src.py",
+                "deps": ["cleaned.ipynb"],
+                "outs": ["out.txt"],
+            }
+        }
+    }
+    dvc_lock = {
+        "stages": {
+            "_clean": {  # producer recorded a STALE md5 for cleaned.ipynb
+                "cmd": "clean",
+                "outs": [{"path": "cleaned.ipynb", "md5": "staleproducermd5"}],
+            },
+            "consume": {  # dep md5 matches the committed content
+                "cmd": "python src.py",
+                "deps": [{"path": "cleaned.ipynb", "md5": _md5(cleaned)}],
+                "outs": [{"path": "out.txt", "md5": _md5("r\n")}],
+            },
+        }
+    }
+    statuses = compute_stage_statuses(
+        dvc_yaml, dvc_lock, tree, "o", "p", FakeFS({_md5("r\n")})
+    )
+    assert statuses["consume"].status == "up-to-date"
+    assert "cleaned.ipynb" not in statuses["consume"].modified_inputs
+
+
 def test_not_run_stage(tmp_path):
     repo = _init_repo(tmp_path / "repo")
     _commit(repo, {"script.py": "x\n"}, "init")

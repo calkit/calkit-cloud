@@ -15,6 +15,8 @@ from __future__ import annotations
 
 import hashlib
 import io
+import itertools
+import json
 import logging
 import re
 import threading
@@ -209,14 +211,21 @@ def _resolve_current_dep_md5(
     tree: RepoTree,
     outs_index: dict[str, str | None],
 ) -> str | None:
-    """Current md5 for a dep path, or None if missing from the tree."""
-    if path in outs_index:
-        return outs_index[path]
+    """Current md5 for a dep path, or None if it can't be observed.
+
+    Committed content wins: a producing stage's recorded out md5
+    (``outs_index``) can be stale -- e.g. non-deterministic notebook cleaning
+    leaves the cleaning stage's lock entry out of sync with the committed,
+    regenerated file -- so only fall back to it when the file isn't in the git
+    tree (a gitignored DVC pipeline output).
+    """
     ptr = _read_dvc_pointer_md5(tree, path)
     if ptr is not None:
         return ptr
     if tree.is_file(path):
         return _tree_file_md5(tree, path)
+    if path in outs_index:
+        return outs_index[path]
     return None
 
 
@@ -235,6 +244,73 @@ def _normalize_cmd(cmd) -> str | None:
     if isinstance(cmd, list):
         return " && ".join(str(c) for c in cmd).strip()
     return str(cmd).strip()
+
+
+def _expansion_at_names(base: str, yaml_stage: dict) -> set[str] | None:
+    """The ``base@...`` stage names DVC generates for a matrix/foreach stage.
+
+    Mirrors DVC's naming: each matrix combination is named by joining its
+    values with ``-``; a scalar value contributes ``str(value)`` while a
+    list/dict value contributes ``{key}{index}`` (so a ``{_arg0: [..dicts..]}``
+    matrix yields ``base@_arg00``, ``base@_arg01``, ...). Returns None when the
+    expansion can't be determined statically (e.g. ``foreach: ${var}``).
+    """
+    matrix = yaml_stage.get("matrix")
+    if isinstance(matrix, dict):
+        keys = list(matrix.keys())
+        value_lists = []
+        for k in keys:
+            v = matrix[k]
+            if not isinstance(v, list):
+                return None
+            value_lists.append(v)
+        names: set[str] = set()
+        for combo in itertools.product(
+            *(range(len(vl)) for vl in value_lists)
+        ):
+            comps = []
+            for j, k in enumerate(keys):
+                val = value_lists[j][combo[j]]
+                if isinstance(val, (dict, list)):
+                    comps.append(f"{k}{combo[j]}")
+                else:
+                    comps.append(str(val))
+            names.add(f"{base}@{'-'.join(comps)}")
+        return names
+    foreach = yaml_stage.get("foreach")
+    if isinstance(foreach, list):
+        return {
+            f"{base}@{v if not isinstance(v, (dict, list)) else i}"
+            for i, v in enumerate(foreach)
+        }
+    if isinstance(foreach, dict):
+        return {f"{base}@{k}" for k in foreach}
+    return None
+
+
+def _current_expansions(
+    yaml_stages: dict, lock_stages: dict
+) -> dict[str, set[str]]:
+    """Map each matrix/foreach base to the set of ``@`` stage names the current
+    pipeline produces.
+
+    Lets the staleness check drop leftover ``base@...`` lock entries -- old
+    matrix combinations (or an older naming scheme) whose objects were later
+    gc'd, which would otherwise be wrongly flagged stale. Only bases whose
+    computed names actually appear in the lock are returned, so a naming
+    mismatch (e.g. a DVC version change) never causes us to hide a real stage.
+    """
+    lock_names = set(lock_stages)
+    result: dict[str, set[str]] = {}
+    for base, st in yaml_stages.items():
+        if not isinstance(st, dict) or base.startswith("_"):
+            continue
+        if "matrix" not in st and "foreach" not in st:
+            continue
+        names = _expansion_at_names(base, st)
+        if names and (names & lock_names):
+            result[base] = names
+    return result
 
 
 def compute_stage_statuses(
@@ -271,6 +347,21 @@ def compute_stage_statuses(
     presence = _precompute_storage_presence(
         dvc_lock, owner_name, project_name, fs
     )
+    # DVC outputs that calkit stores as a zip live under .calkit/zip/, not at
+    # the standard files/md5 object path, so the md5 presence check above can't
+    # find them. Treat any output whose workspace path is zip-mapped as present
+    # so zip-stored stages aren't wrongly flagged stale (calkit status sees the
+    # real files locally, so it reports them up to date).
+    zip_workspace_paths: set[str] = set()
+    try:
+        if tree.is_file(".calkit/zip/paths.json"):
+            zip_map = (
+                json.loads(tree.read_bytes(".calkit/zip/paths.json")) or {}
+            )
+            zip_workspace_paths = {k.rstrip("/") for k in zip_map}
+    except Exception as e:
+        logger.warning(f"Failed to read .calkit/zip/paths.json: {e}")
+    current_expansions = _current_expansions(yaml_stages, lock_stages)
     result: dict[str, StageStatus] = {}
     locked_bases = {_base_stage_name(n) for n in lock_stages.keys()}
     for stage_name in yaml_stages.keys():
@@ -282,7 +373,34 @@ def compute_stage_statuses(
         base = _base_stage_name(stage_name)
         if base.startswith("_"):
             continue
-        yaml_stage = yaml_stages.get(base) or {}
+        yaml_stage = yaml_stages.get(base)
+        if yaml_stage is None:
+            # Stale lock entry for a stage no longer in dvc.yaml (renamed or
+            # removed, or a bare entry left from before a stage became a
+            # matrix). It's not part of the current pipeline, so don't report
+            # it -- dvc/calkit status ignore it too.
+            continue
+        if (
+            isinstance(yaml_stage, dict)
+            and ("matrix" in yaml_stage or "foreach" in yaml_stage)
+            and "@" not in stage_name
+        ):
+            # A matrix/foreach stage exists in dvc.lock only as ``name@...``
+            # expansions; a bare ``name`` entry is stale cruft from before it
+            # was expanded, often with outdated deps. Only the expansions are
+            # real stages.
+            continue
+        if (
+            base in current_expansions
+            and stage_name not in current_expansions[base]
+        ):
+            # Drop leftover matrix/foreach expansions: ``base@...`` entries from
+            # old matrix combinations (or an older DVC naming scheme, e.g.
+            # ``@1-3-1`` vs the current ``@_arg01``) that aren't in the current
+            # pipeline. Their objects are often gc'd, so the cloud would wrongly
+            # flag them stale even though a current entry produces the same
+            # output. lock files drift into this state easily, so guard for it.
+            continue
         modified_command = False
         modified_inputs: list[str] = []
         modified_outputs: list[str] = []
@@ -340,8 +458,9 @@ def compute_stage_statuses(
             lock_md5 = out.get("md5") or out.get("hash")
             if not out_path:
                 continue
+            zip_stored = out_path.rstrip("/") in zip_workspace_paths
             if _is_dir_md5(lock_md5):
-                if presence.get(lock_md5, False):
+                if presence.get(lock_md5, False) or zip_stored:
                     continue
                 if not tree.exists(out_path):
                     missing_outputs.append(out_path)
@@ -354,7 +473,7 @@ def compute_stage_statuses(
                 if ptr is not None:
                     available_md5 = ptr
             if available_md5 is None:
-                if presence.get(lock_md5, False):
+                if presence.get(lock_md5, False) or zip_stored:
                     continue
                 missing_outputs.append(out_path)
             elif lock_md5 is not None and available_md5 != lock_md5:
