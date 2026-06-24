@@ -259,12 +259,17 @@ services:
       - traefik.http.routers.${STACK_NAME?Variable not set}-frontend-https.entrypoints=https
       - traefik.http.routers.${STACK_NAME?Variable not set}-frontend-https.tls=true
       - traefik.http.routers.${STACK_NAME?Variable not set}-frontend-https.tls.certresolver=le
-      # Gate the frontend behind the Anubis proof-of-work bot wall (challenges
-      # browsers, lets verified good bots through), then apply www redirection.
-      # Only the frontend is protected: the API (api.) must stay challenge-free
-      # so the SPA's XHR calls and programmatic clients (calkit CLI, DVC, git)
-      # are unaffected, since Anubis serves an HTML interstitial those can't solve.
-      - traefik.http.routers.${STACK_NAME?Variable not set}-frontend-https.middlewares=anubis@docker,${STACK_NAME?Variable not set}-www-redirect
+      # Serve the frontend through the Anubis proof-of-work bot wall, which
+      # runs as an inline reverse proxy (challenges browsers, lets verified
+      # good bots through, forwards cleared traffic to this container). Both
+      # public routers point at the anubis service rather than the frontend
+      # directly. Only the frontend is gated: the API (api.) stays
+      # challenge-free so the SPA's XHR calls and programmatic clients (calkit
+      # CLI, DVC, git) are unaffected, since Anubis serves an HTML interstitial
+      # those can't solve.
+      - traefik.http.routers.${STACK_NAME?Variable not set}-frontend-https.service=${STACK_NAME?Variable not set}-anubis
+      - traefik.http.routers.${STACK_NAME?Variable not set}-frontend-http.service=${STACK_NAME?Variable not set}-anubis
+      - traefik.http.routers.${STACK_NAME?Variable not set}-frontend-https.middlewares=${STACK_NAME?Variable not set}-www-redirect
       - traefik.http.routers.${STACK_NAME?Variable not set}-frontend-http.middlewares=https-redirect,${STACK_NAME?Variable not set}-www-redirect
 
   anubis:
@@ -273,33 +278,26 @@ services:
     networks:
       - traefik-public
       - default
+    depends_on:
+      - frontend
     environment:
-      # Run in forwardauth mode: an empty TARGET (note the trailing space)
-      # tells Anubis to act as an auth checker rather than proxy upstream.
+      # Inline reverse-proxy mode: Anubis challenges browsers and forwards
+      # cleared requests to the frontend container. Serving the challenge on
+      # the frontend's own host avoids the cross-domain post-challenge
+      # redirect failure of forwardauth mode ("Redirect domain not allowed",
+      # Anubis issue #970), and needs no dedicated anubis.${DOMAIN} record.
       - BIND=:8080
-      - "TARGET= "
-      - PUBLIC_URL=https://anubis.${DOMAIN?Variable not set}
+      - TARGET=http://frontend:80
       # Scope the clearance cookie to the apex so it covers www and apex alike.
       - COOKIE_DOMAIN=${DOMAIN?Variable not set}
-      # Domains Anubis is allowed to redirect back to after a challenge.
-      - REDIRECT_DOMAINS=${DOMAIN?Variable not set},www.${DOMAIN?Variable not set}
     labels:
+      # traefik.enable + a service definition registers the anubis upstream so
+      # the frontend routers above can target it. Anubis has no router of its
+      # own; it is only reached via those routers.
       - traefik.enable=true
       - traefik.docker.network=traefik-public
       - traefik.constraint-label=traefik-public
       - traefik.http.services.${STACK_NAME?Variable not set}-anubis.loadbalancer.server.port=8080
-      # The forwardauth middleware referenced by the frontend router above.
-      - traefik.http.middlewares.anubis.forwardauth.address=http://anubis:8080/.within.website/x/cmd/anubis/api/check
-      # Public router so browsers can reach the challenge page (needs an
-      # anubis.${DOMAIN} DNS record pointing at this host).
-      - traefik.http.routers.${STACK_NAME?Variable not set}-anubis-http.rule=Host(`anubis.${DOMAIN?Variable not set}`)
-      - traefik.http.routers.${STACK_NAME?Variable not set}-anubis-http.entrypoints=http
-      - traefik.http.routers.${STACK_NAME?Variable not set}-anubis-http.middlewares=https-redirect
-      - traefik.http.routers.${STACK_NAME?Variable not set}-anubis-https.rule=Host(`anubis.${DOMAIN?Variable not set}`)
-      - traefik.http.routers.${STACK_NAME?Variable not set}-anubis-https.entrypoints=https
-      - traefik.http.routers.${STACK_NAME?Variable not set}-anubis-https.tls=true
-      - traefik.http.routers.${STACK_NAME?Variable not set}-anubis-https.tls.certresolver=le
-      - traefik.http.routers.${STACK_NAME?Variable not set}-anubis-https.service=${STACK_NAME?Variable not set}-anubis
 
   minio:
     image: minio/minio:RELEASE.2025-05-24T17-08-30Z
