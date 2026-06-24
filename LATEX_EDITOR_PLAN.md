@@ -695,27 +695,35 @@ join and start editing.
 
 Goal: open a publication, edit its `.tex`, compile-preview in-browser, save via auto-commit.
 
-**Frontend**
-- [ ] Add deps: `codemirror` (v6) + LaTeX language support; reuse `pdfjs-dist`. Package the
-      BusyTeX engine artifact (lazy-loaded only when the editor opens).
-- [ ] Scaffold `src/components/Publications/LatexEditor/`: full-screen Chakra `Modal`
-      (`size="full"`, closable, unsaved-changes guard) following `ArtifactCompareModal` /
-      `FileViewModal` precedent.
-- [ ] **Edit** button on the publications page
-      (`src/routes/_layout/$accountName/$projectName/_layout/publications.tsx`), gated on
-      Write permission.
-- [ ] On open: fetch the publication's `.tex` (+ sibling `.bib`) via
-      `ProjectsService.getProjectContents()` into the worker's virtual FS.
-- [ ] CodeMirror editor pane | PDF preview pane; manual + debounced auto compile through the
-      §8.1 worker; collapsible log/error panel. **View-only preview, no download** (§3.1).
-- [ ] Save via `putProjectContents()` (per-file) with debounce + save-on-close; auto-commit
-      handled by the backend.
-- [ ] Feature-flag the whole entry point.
+**Frontend — first slice landed (tsc + biome clean; engine verified in-app).**
+- [x] ~~Deps + engine packaging.~~ Added `codemirror` v6 + `@codemirror/legacy-modes` (stex
+      LaTeX mode). Engine served from `frontend/public/tex/` — MIT glue
+      (`busytex_worker.js`, `busytex_pipeline.js`) committed; the ~130 MB binaries are
+      gitignored + fetched via `scripts/download-tex-engine.sh`. Base URL is configurable via
+      `VITE_TEX_ENGINE_URL` (default `/tex`) for a CDN in prod. **Confirmed: no COOP/COEP
+      needed** (busytex runs without cross-origin isolation — verified).
+- [x] ~~Compiler wrapper.~~ `src/lib/latexCompiler.ts` — our own `LatexCompiler` class around
+      the MIT worker (lazy `init()`, `compile()`, `terminate()`).
+- [x] ~~Editor modal.~~ `components/Publications/LatexEditor.tsx`: full-screen Chakra modal,
+      CodeMirror pane | **pdf.js** preview (`PdfDocumentViewer` — no download, §3.1) |
+      collapsible log panel, "Draft preview — not the published PDF" label,
+      unsaved-changes guard.
+- [x] ~~**Edit** button.~~ On the publications `PubInfo` panel, gated on `userHasWriteAccess`.
+      Source `.tex` derived from the publication output path (`paper.pdf`→`paper.tex`) —
+      Phase-1 heuristic; later resolve from the stage deps.
+- [x] ~~Load `.tex`~~ via `getProjectContents` (base64→UTF-8) and ~~save~~ via
+      `putProjectContents` (auto-commit) with an unsaved guard.
+- [x] **Engine verified in the app origin** (headless): assets serve at `/tex/`, worker
+      compiles a sample → 31 KB PDF, exit 0, ~2.8 s cold.
+- [ ] Manual/debounced **auto-compile** (currently a manual "Compile preview" button).
+- [ ] Feature flag (currently always-on for write users — gate before shipping).
+- [ ] Full UI E2E (click Edit → type → compile → see PDF) — needs an authed project +
+      publication fixture; engine path already proven in-app.
+- [ ] Smarter `.tex` resolution (multi-file `\input`/figures/bib is Phase 2).
 
 **Backend**
-- [ ] Likely no new endpoints — reuse `PUT contents`
-      (`backend/app/api/routes/projects/core.py` ~lines 1138–1185). Confirm `.tex` round-trips
-      as raw text and re-check the 1 MB file-size limit for typical sources.
+- [x] No new endpoints — reuses `PUT contents` (auto-commit). `.tex` round-trips as raw text.
+      *(Still verify the 1 MB limit is comfortable for large sources.)*
 
 - **Exit:** edit a real paper's `.tex`, compile to PDF in-browser, save, and see the
   auto-commit land + push to GitHub — as a non-GitHub user who joined via an invite link.

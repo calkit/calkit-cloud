@@ -40,6 +40,7 @@ import { ArtifactCompareModal } from "../../../../../components/Common/ArtifactC
 import LoadingSpinner from "../../../../../components/Common/LoadingSpinner"
 import PageMenu from "../../../../../components/Common/PageMenu"
 import ImportOverleaf from "../../../../../components/Publications/ImportOverleaf"
+import LatexEditor from "../../../../../components/Publications/LatexEditor"
 import NewPublication from "../../../../../components/Publications/NewPublication"
 import PdfAnnotator, {
   CommentList,
@@ -86,6 +87,13 @@ function PubInfo({
   const secBgColor = useColorModeValue("ui.secondary", "ui.darkSlate")
   const showToast = useCustomToast()
   const queryClient = useQueryClient()
+  const latexEditor = useDisclosure()
+  // Derive the LaTeX source path from the publication output path
+  // (e.g. paper.pdf -> paper.tex). Phase-1 heuristic; a later version can
+  // resolve the source from the publication's pipeline-stage deps.
+  const texPath = publication.path
+    ? publication.path.replace(/\.[^/.]+$/, ".tex")
+    : null
 
   const overleafSyncMutation = useMutation({
     mutationFn: () =>
@@ -121,6 +129,28 @@ function PubInfo({
       <Heading size="sm" mb={2}>
         Info
       </Heading>
+      {userHasWriteAccess && texPath && (
+        <>
+          <Button
+            size="sm"
+            variant="primary"
+            mb={3}
+            width="full"
+            onClick={latexEditor.onOpen}
+          >
+            Edit LaTeX
+          </Button>
+          {latexEditor.isOpen && (
+            <LatexEditor
+              isOpen={latexEditor.isOpen}
+              onClose={latexEditor.onClose}
+              ownerName={ownerName}
+              projectName={projectName}
+              texPath={texPath}
+            />
+          )}
+        </>
+      )}
       <Text fontSize="sm" mb={1}>
         <Text as="span" fontWeight="semibold">
           Title:
