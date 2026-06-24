@@ -485,8 +485,11 @@ def compute_stage_statuses(
             or missing_outputs
         )
         # A stage compiled with ``always_changed: true`` (calkit's
-        # ``always_run``) re-executes every time by design. When that's its
-        # only "change", it isn't really stale -- surface it distinctly.
+        # ``always_run``) re-executes every time by design, so its dependency
+        # and output staleness is moot -- it always regenerates, and its
+        # outputs are often ephemeral / not pushed to the cloud. Always surface
+        # it as ``always-run`` rather than letting a missing/changed output
+        # flag it stale.
         always_changed = bool(
             isinstance(yaml_stage, dict) and yaml_stage.get("always_changed")
         )
@@ -497,10 +500,10 @@ def compute_stage_statuses(
         )
         if frozen:
             status: StatusLiteral = "frozen"
-        elif is_stale:
-            status = "stale"
         elif always_changed:
             status = "always-run"
+        elif is_stale:
+            status = "stale"
         else:
             status = "up-to-date"
         result[stage_name] = StageStatus(

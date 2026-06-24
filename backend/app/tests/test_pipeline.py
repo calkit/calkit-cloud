@@ -599,8 +599,10 @@ def test_always_run_stage_is_not_stale(tmp_path):
     assert overall_pipeline_status(statuses) == "up-to-date"
 
 
-def test_always_run_stage_with_real_change_is_stale(tmp_path):
-    """always_changed doesn't mask a genuine change (here, a modified cmd)."""
+def test_always_run_stage_stays_always_run_despite_changes(tmp_path):
+    """An always_run stage re-runs every time, so its staleness is moot: even a
+    modified cmd and missing outputs read as ``always-run``, not stale (these
+    stages often produce ephemeral outputs that aren't pushed to the cloud)."""
     repo = _init_repo(tmp_path / "repo")
     script = "print('hi')\n"
     _commit(repo, {"script.py": script, "out.txt": "result\n"}, "init")
@@ -610,7 +612,7 @@ def test_always_run_stage_with_real_change_is_stale(tmp_path):
             "run": {
                 "cmd": "python script.py --new-flag",
                 "deps": ["script.py"],
-                "outs": ["out.txt"],
+                "outs": ["data/out"],
                 "always_changed": True,
             }
         }
@@ -620,14 +622,15 @@ def test_always_run_stage_with_real_change_is_stale(tmp_path):
             "run": {
                 "cmd": "python script.py",
                 "deps": [{"path": "script.py", "md5": _md5(script)}],
-                "outs": [{"path": "out.txt", "md5": _md5("result\n")}],
+                # output not in git, not in (empty) storage -> would be missing
+                "outs": [{"path": "data/out", "md5": f"{_md5('c')}.dir"}],
             }
         }
     }
     statuses = compute_stage_statuses(
         dvc_yaml, dvc_lock, tree, "o", "p", FakeFS()
     )
-    assert statuses["run"].status == "stale"
+    assert statuses["run"].status == "always-run"
 
 
 def test_frozen_stage_with_real_change_is_not_stale(tmp_path):
