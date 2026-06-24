@@ -13,6 +13,7 @@ import {
   VStack,
   useColorModeValue,
 } from "@chakra-ui/react"
+import { TOOLTIP_OPEN_DELAY } from "../../../../../lib/core"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   Link as RouterLink,
@@ -230,7 +231,7 @@ function Presentations() {
                 <Tooltip
                   key={pres.path}
                   label={pres.title}
-                  openDelay={600}
+                  openDelay={TOOLTIP_OPEN_DELAY}
                   placement="right"
                 >
                   <HStack

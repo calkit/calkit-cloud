@@ -9,6 +9,11 @@ import uuid
 from types import SimpleNamespace
 from unittest.mock import patch
 
+from app.api.routes.releases import (
+    _arxiv_id_from_url,
+    _doi_from_url,
+    _parse_release_url,
+)
 from app.config import settings
 from app.models import ReleaseStaleness
 from app.pipeline import StageStatus
@@ -96,6 +101,49 @@ def test_import_github_releases_requires_auth(client: TestClient) -> None:
         "/projects/test-owner/test-project/releases/import-github"
     )
     assert resp.status_code == 401
+
+
+def test_parse_release_url_requires_auth(client: TestClient) -> None:
+    resp = client.post(
+        f"{settings.API_V1_STR}"
+        "/projects/test-owner/test-project/releases/parse-url",
+        json={"url": "https://arxiv.org/abs/1706.03762"},
+    )
+    assert resp.status_code == 401
+
+
+def test_arxiv_id_from_url() -> None:
+    assert (
+        _arxiv_id_from_url("https://arxiv.org/abs/1706.03762") == "1706.03762"
+    )
+    assert _arxiv_id_from_url("https://arxiv.org/pdf/2401.12345v2") == (
+        "2401.12345v2"
+    )
+    assert _arxiv_id_from_url("arXiv:2401.12345") == "2401.12345"
+    assert _arxiv_id_from_url("https://arxiv.org/abs/math.GT/0309136") == (
+        "math.GT/0309136"
+    )
+    # Not arXiv -- a DOI URL must not be misread as an arXiv id.
+    assert _arxiv_id_from_url("https://doi.org/10.1038/nature12373") is None
+
+
+def test_doi_from_url() -> None:
+    assert _doi_from_url("https://doi.org/10.1038/nature12373") == (
+        "10.1038/nature12373"
+    )
+    assert _doi_from_url("10.5281/zenodo.3509134") == "10.5281/zenodo.3509134"
+    # Trailing punctuation from a paste is trimmed.
+    assert _doi_from_url("(10.1038/nature12373).") == "10.1038/nature12373"
+    # A Zenodo record page URL has no DOI but the DOI is derivable.
+    assert _doi_from_url("https://zenodo.org/records/3509134") == (
+        "10.5281/zenodo.3509134"
+    )
+    assert _doi_from_url("https://example.com/whatever") is None
+
+
+def test_parse_release_url_unrecognized_returns_none() -> None:
+    # No DOI or arXiv id present, so no network call is made.
+    assert _parse_release_url("https://example.com/some/page") is None
 
 
 def test_get_project_releases_unknown_project_returns_404(

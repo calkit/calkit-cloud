@@ -11,6 +11,7 @@ import {
   Button,
   Tooltip,
 } from "@chakra-ui/react"
+import { TOOLTIP_OPEN_DELAY } from "../../../../../lib/core"
 import { useQuery } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 import { useNavigate } from "@tanstack/react-router"
@@ -221,7 +222,7 @@ function Notebooks() {
                   <Tooltip
                     key={nb.path}
                     label={nb.title ?? nb.path}
-                    openDelay={600}
+                    openDelay={TOOLTIP_OPEN_DELAY}
                     placement="right"
                   >
                     <HStack

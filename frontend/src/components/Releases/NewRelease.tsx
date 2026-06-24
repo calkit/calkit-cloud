@@ -5,15 +5,19 @@ import {
   AlertTitle,
   Box,
   Button,
+  ButtonGroup,
   Checkbox,
   Code,
   FormControl,
   FormErrorMessage,
   FormHelperText,
   FormLabel,
+  HStack,
+  Icon,
   Input,
   InputGroup,
   InputRightElement,
+  Link,
   Modal,
   ModalBody,
   ModalCloseButton,
@@ -21,19 +25,23 @@ import {
   ModalFooter,
   ModalHeader,
   ModalOverlay,
-  Radio,
-  RadioGroup,
-  Stack,
   Switch,
   Text,
   Textarea,
+  Tooltip,
   useClipboard,
 } from "@chakra-ui/react"
+import { TOOLTIP_OPEN_DELAY } from "../../lib/core"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useEffect, useState } from "react"
 import { type SubmitHandler, useForm } from "react-hook-form"
+import { FiExternalLink, FiThumbsUp } from "react-icons/fi"
 
-import { type ReleasePublic, ReleasesService } from "../../client"
+import {
+  FeatureVotesService,
+  type ReleasePublic,
+  ReleasesService,
+} from "../../client"
 import type { ApiError } from "../../client/core/ApiError"
 import useCustomToast from "../../hooks/useCustomToast"
 import { handleError } from "../../lib/errors"
@@ -49,30 +57,33 @@ interface NewReleaseProps {
   defaultPath?: string
   // Calkit release kind; defaults to "publication".
   kind?: string
-  // When provided, an internal release skips the link-success screen and hands
-  // the created release back to the caller (e.g., to immediately open Share).
+  // When provided, a created internal release skips the link-success screen and
+  // is handed back to the caller (e.g., to immediately open Share).
   onCreated?: (release: ReleasePublic) => void
 }
 
-type Destination = "internal" | "external"
+// Create a new internal release, or import an already-published external one.
+type Mode = "create" | "import"
 
 interface NewReleaseForm {
-  // Where the release lives: hosted on Calkit (internal) or published to an
-  // external venue.
-  destination: Destination
   name: string
   path: string
   description: string
-  // "internal" destination
+  // "create" mode
   comments_enabled: boolean
   // Acknowledgement required when the producing stage is stale.
   acknowledge: boolean
-  // "external" destination
+  // "import" mode
+  lookupUrl: string
   publisher: string
   url: string
   doi: string
   date: string
 }
+
+// Feature users can vote for: creating external (published) releases from
+// within Calkit instead of the CLI. Must match VOTABLE_FEATURES on the backend.
+const EXTERNAL_RELEASE_FEATURE = "external-releases-in-app"
 
 const NewRelease = ({
   isOpen,
@@ -85,10 +96,14 @@ const NewRelease = ({
 }: NewReleaseProps) => {
   const queryClient = useQueryClient()
   const showToast = useCustomToast()
-  // Two success shapes: a hosted link release returns a record (with a secret
-  // link); an external declaration just commits to calkit.yaml.
+  const [mode, setMode] = useState<Mode>("create")
+  // A created internal release returns a record with its hosted page link.
   const [created, setCreated] = useState<ReleasePublic | null>(null)
-  const [externalDone, setExternalDone] = useState(false)
+  const [importDone, setImportDone] = useState(false)
+  // Whether metadata has been fetched for the pasted URL (gates Import).
+  const [fetched, setFetched] = useState(false)
+  // Release kind from the parsed URL (e.g., dataset vs publication).
+  const [importKind, setImportKind] = useState(kind)
   const link = created
     ? releasePageUrl(ownerName, projectName, created.name)
     : ""
@@ -103,12 +118,12 @@ const NewRelease = ({
   } = useForm<NewReleaseForm>({
     mode: "onBlur",
     defaultValues: {
-      destination: "internal",
       name: "",
       path: defaultPath ?? "",
       description: "",
       comments_enabled: true,
       acknowledge: false,
+      lookupUrl: "",
       publisher: "",
       url: "",
       doi: "",
@@ -122,9 +137,9 @@ const NewRelease = ({
       reset((prev) => ({ ...prev, path: defaultPath ?? "" }))
     }
   }, [isOpen, defaultPath, reset])
-  const destination = watch("destination")
   const path = watch("path")
   const acknowledged = watch("acknowledge")
+  const lookupUrl = watch("lookupUrl")
   // Debounce the staleness lookup so we don't hit the repo on every keystroke.
   // Releases always pin to the latest commit, so staleness is checked there.
   const [stalenessPath, setStalenessPath] = useState("")
@@ -136,9 +151,9 @@ const NewRelease = ({
     }, 500)
     return () => clearTimeout(handle)
   }, [path, setValue])
-  // Only internal releases of a specific path can be gated on staleness.
+  // Only an internal release of a specific path can be gated on staleness.
   const stalenessEnabled =
-    isOpen && destination === "internal" && stalenessPath.length > 0
+    isOpen && mode === "create" && stalenessPath.length > 0
   const { data: staleness } = useQuery({
     queryKey: [
       "projects",
@@ -158,6 +173,31 @@ const NewRelease = ({
   })
   const isStale = stalenessEnabled && staleness?.up_to_date === false
   const needsAck = isStale && !acknowledged
+  // Demand signal for creating external releases from within Calkit.
+  const { data: voteStatus } = useQuery({
+    queryKey: ["feature-votes", EXTERNAL_RELEASE_FEATURE],
+    queryFn: () =>
+      FeatureVotesService.getFeatureVoteStatus({
+        feature: EXTERNAL_RELEASE_FEATURE,
+      }),
+    enabled: isOpen,
+  })
+  const voteMutation = useMutation({
+    mutationFn: (voted: boolean) =>
+      voted
+        ? FeatureVotesService.removeFeatureVote({
+            feature: EXTERNAL_RELEASE_FEATURE,
+          })
+        : FeatureVotesService.castFeatureVote({
+            feature: EXTERNAL_RELEASE_FEATURE,
+          }),
+    onSuccess: (data) =>
+      queryClient.setQueryData(
+        ["feature-votes", EXTERNAL_RELEASE_FEATURE],
+        data,
+      ),
+    onError: (err: ApiError) => handleError(err, showToast),
+  })
   // Per-field opt-out for password managers (Dashlane especially keeps trying
   // to autofill even with a form-level opt-out), spread onto each text input.
   const noAutofill = {
@@ -172,7 +212,32 @@ const NewRelease = ({
       queryKey: ["projects", ownerName, projectName, "releases"],
     })
 
-  const internalMutation = useMutation({
+  const parseMutation = useMutation({
+    mutationFn: (url: string) =>
+      ReleasesService.parseReleaseUrl({
+        ownerName,
+        projectName,
+        requestBody: { url },
+      }),
+    onSuccess: (meta) => {
+      // Pre-fill the editable form from the looked-up metadata. The fetched
+      // title becomes the release name (no separate title field); the user can
+      // shorten it. git_rev isn't knowable from a URL, so it's left unset.
+      if (meta.title) {
+        setValue("name", meta.title)
+      }
+      setValue("publisher", meta.publisher ?? "")
+      setValue("url", meta.url ?? "")
+      setValue("doi", meta.doi ?? "")
+      setValue("date", meta.date ?? "")
+      setValue("description", meta.description ?? "")
+      setImportKind(meta.kind ?? kind)
+      setFetched(true)
+    },
+    onError: (err: ApiError) => handleError(err, showToast),
+  })
+
+  const createMutation = useMutation({
     mutationFn: (data: NewReleaseForm) =>
       ReleasesService.postProjectRelease({
         ownerName,
@@ -202,14 +267,14 @@ const NewRelease = ({
     onSettled: invalidate,
   })
 
-  const externalMutation = useMutation({
+  const importMutation = useMutation({
     mutationFn: (data: NewReleaseForm) =>
       ReleasesService.postExternalRelease({
         ownerName,
         projectName,
         requestBody: {
           name: data.name,
-          kind,
+          kind: importKind,
           path: data.path.trim() || null,
           publisher: data.publisher || null,
           url: data.url || null,
@@ -220,32 +285,47 @@ const NewRelease = ({
         },
       }),
     onSuccess: () => {
-      setExternalDone(true)
+      setImportDone(true)
       reset()
     },
     onError: (err: ApiError) => handleError(err, showToast),
     onSettled: invalidate,
   })
 
-  const isPending = internalMutation.isPending || externalMutation.isPending
   const onSubmit: SubmitHandler<NewReleaseForm> = (data) => {
-    if (data.destination === "external") {
-      externalMutation.mutate(data)
+    if (mode === "import") {
+      if (!fetched) {
+        return
+      }
+      importMutation.mutate(data)
     } else {
-      internalMutation.mutate(data)
+      createMutation.mutate(data)
     }
+  }
+
+  const switchMode = (next: Mode) => {
+    setMode(next)
+    setFetched(false)
   }
 
   const handleClose = () => {
     setCreated(null)
-    setExternalDone(false)
+    setImportDone(false)
+    setFetched(false)
+    setMode("create")
     reset()
     onClose()
   }
 
-  const renderSuccess = () => {
-    if (created) {
-      return (
+  return (
+    <Modal
+      isOpen={isOpen}
+      onClose={handleClose}
+      size={{ base: "sm", md: "md" }}
+      isCentered
+    >
+      <ModalOverlay />
+      {created ? (
         <ModalContent>
           <ModalHeader>Release created</ModalHeader>
           <ModalCloseButton />
@@ -275,37 +355,23 @@ const NewRelease = ({
             </Button>
           </ModalFooter>
         </ModalContent>
-      )
-    }
-    return (
-      <ModalContent>
-        <ModalHeader>Release created</ModalHeader>
-        <ModalCloseButton />
-        <ModalBody pb={6}>
-          <Text>
-            Recorded in <Code>calkit.yaml</Code> and pushed. It will appear in
-            your project's releases.
-          </Text>
-        </ModalBody>
-        <ModalFooter>
-          <Button variant="primary" onClick={handleClose}>
-            Done
-          </Button>
-        </ModalFooter>
-      </ModalContent>
-    )
-  }
-
-  return (
-    <Modal
-      isOpen={isOpen}
-      onClose={handleClose}
-      size={{ base: "sm", md: "md" }}
-      isCentered
-    >
-      <ModalOverlay />
-      {created || externalDone ? (
-        renderSuccess()
+      ) : importDone ? (
+        <ModalContent>
+          <ModalHeader>Release imported</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody pb={6}>
+            <Text>
+              Recorded in <Code>calkit.yaml</Code> and pushed. It will appear in
+              your project's releases. If the producing commit is known, you can
+              set its Git revision in <Code>calkit.yaml</Code> later.
+            </Text>
+          </ModalBody>
+          <ModalFooter>
+            <Button variant="primary" onClick={handleClose}>
+              Done
+            </Button>
+          </ModalFooter>
+        </ModalContent>
       ) : (
         <ModalContent
           as="form"
@@ -317,54 +383,95 @@ const NewRelease = ({
           data-1p-ignore
           data-lpignore="true"
         >
-          <ModalHeader>Create release</ModalHeader>
+          <ModalHeader>New release</ModalHeader>
           <ModalCloseButton />
           <ModalBody pb={6}>
-            <FormControl>
-              <FormLabel>Where</FormLabel>
-              <RadioGroup
-                value={destination}
-                onChange={(v) => setValue("destination", v as Destination)}
+            <ButtonGroup isAttached variant="outline" size="sm" mb={4}>
+              <Button
+                type="button"
+                isActive={mode === "create"}
+                onClick={() => switchMode("create")}
               >
-                <Stack direction="column" spacing={1}>
-                  <Radio value="internal">
-                    Internal — share via a link (hosted on Calkit)
-                  </Radio>
-                  <Radio value="external">
-                    External — already published (arXiv, Zenodo, a journal, …)
-                  </Radio>
-                </Stack>
-              </RadioGroup>
-            </FormControl>
-            <FormControl mt={4} isRequired isInvalid={!!errors.name}>
-              <FormLabel htmlFor="name">Name (tag)</FormLabel>
-              <Input
-                id="name"
-                placeholder="Ex: v1.0"
-                {...register("name", { required: "Name is required" })}
-                {...noAutofill}
-              />
-              {errors.name && (
-                <FormErrorMessage>{errors.name.message}</FormErrorMessage>
-              )}
-            </FormControl>
-            <FormControl mt={4}>
-              <FormLabel htmlFor="path">Path</FormLabel>
-              <input type="hidden" {...register("path")} />
-              <PathPicker
-                ownerName={ownerName}
-                projectName={projectName}
-                value={path}
-                onChange={(p) => setValue("path", p, { shouldDirty: true })}
-              />
-              <FormHelperText>
-                Pick a file to release, or release the whole project.
-              </FormHelperText>
-            </FormControl>
+                Create
+              </Button>
+              <Button
+                type="button"
+                isActive={mode === "import"}
+                onClick={() => switchMode("import")}
+              >
+                Import from URL
+              </Button>
+            </ButtonGroup>
 
-            {destination === "internal" ? (
+            {mode === "create" ? (
+              <Text fontSize="sm" color="gray.600" mb={4}>
+                Snapshot the project (or a single artifact) at its latest commit
+                and host it on Calkit, so you can share it for review.
+              </Text>
+            ) : (
+              <Text fontSize="sm" color="gray.600" mb={4}>
+                Record a release that's already published elsewhere. Paste its
+                DOI or link (Zenodo, a journal, arXiv, …) and we'll look up the
+                details.
+              </Text>
+            )}
+
+            {mode === "import" && (
+              <FormControl mb={4}>
+                <FormLabel htmlFor="lookupUrl">URL or DOI</FormLabel>
+                <HStack>
+                  <Input
+                    id="lookupUrl"
+                    placeholder="https://doi.org/… or arXiv link"
+                    {...register("lookupUrl")}
+                    {...noAutofill}
+                  />
+                  <Button
+                    type="button"
+                    onClick={() => parseMutation.mutate(lookupUrl.trim())}
+                    isLoading={parseMutation.isPending}
+                    isDisabled={!lookupUrl.trim()}
+                  >
+                    Look up
+                  </Button>
+                </HStack>
+                <FormHelperText>
+                  Supported: DOIs (Zenodo, journals, …) and arXiv links.
+                </FormHelperText>
+              </FormControl>
+            )}
+
+            {(mode === "create" || fetched) && (
               <>
-                {isStale && (
+                <FormControl isRequired isInvalid={!!errors.name}>
+                  <FormLabel htmlFor="name">
+                    {mode === "import" ? "Name" : "Name (tag)"}
+                  </FormLabel>
+                  <Input
+                    id="name"
+                    placeholder="Ex: v1.0"
+                    {...register("name", { required: "Name is required" })}
+                    {...noAutofill}
+                  />
+                  {errors.name && (
+                    <FormErrorMessage>{errors.name.message}</FormErrorMessage>
+                  )}
+                </FormControl>
+                <FormControl mt={4}>
+                  <FormLabel htmlFor="path">Path</FormLabel>
+                  <input type="hidden" {...register("path")} />
+                  <PathPicker
+                    ownerName={ownerName}
+                    projectName={projectName}
+                    value={path}
+                    onChange={(p) => setValue("path", p, { shouldDirty: true })}
+                  />
+                  <FormHelperText>
+                    Pick a file to release, or release the whole project.
+                  </FormHelperText>
+                </FormControl>
+
+                {mode === "create" && isStale && (
                   <Alert
                     status="warning"
                     mt={4}
@@ -398,78 +505,127 @@ const NewRelease = ({
                     </Checkbox>
                   </Alert>
                 )}
-              </>
-            ) : (
-              <>
+
+                {mode === "import" && (
+                  <>
+                    <FormControl mt={4}>
+                      <FormLabel htmlFor="publisher">
+                        Publisher / venue
+                      </FormLabel>
+                      <Input
+                        id="publisher"
+                        {...register("publisher")}
+                        {...noAutofill}
+                      />
+                    </FormControl>
+                    <FormControl mt={4}>
+                      <FormLabel htmlFor="url">URL</FormLabel>
+                      <Input id="url" {...register("url")} {...noAutofill} />
+                    </FormControl>
+                    <FormControl mt={4}>
+                      <FormLabel htmlFor="doi">DOI</FormLabel>
+                      <Input id="doi" {...register("doi")} {...noAutofill} />
+                    </FormControl>
+                    <FormControl mt={4}>
+                      <FormLabel htmlFor="date">Date</FormLabel>
+                      <Input id="date" type="date" {...register("date")} />
+                    </FormControl>
+                  </>
+                )}
+
                 <FormControl mt={4}>
-                  <FormLabel htmlFor="publisher">Publisher / venue</FormLabel>
-                  <Input
-                    id="publisher"
-                    placeholder="e.g., arxiv, zenodo, or a journal name"
-                    {...register("publisher")}
+                  <FormLabel htmlFor="description">Description</FormLabel>
+                  <Textarea
+                    id="description"
+                    placeholder="Optional (Markdown supported)"
+                    {...register("description")}
                     {...noAutofill}
                   />
                 </FormControl>
-                <FormControl mt={4}>
-                  <FormLabel htmlFor="url">URL</FormLabel>
-                  <Input
-                    id="url"
-                    placeholder="https://…"
-                    {...register("url")}
-                    {...noAutofill}
-                  />
-                </FormControl>
-                <FormControl mt={4}>
-                  <FormLabel htmlFor="doi">DOI</FormLabel>
-                  <Input
-                    id="doi"
-                    placeholder="10.…"
-                    {...register("doi")}
-                    {...noAutofill}
-                  />
-                </FormControl>
-                <FormControl mt={4}>
-                  <FormLabel htmlFor="date">Date</FormLabel>
-                  <Input id="date" type="date" {...register("date")} />
-                  <FormHelperText>
-                    Defaults to today if left blank.
-                  </FormHelperText>
-                </FormControl>
+
+                {mode === "create" && (
+                  <FormControl mt={4} display="flex" alignItems="center">
+                    <Switch
+                      id="comments_enabled"
+                      {...register("comments_enabled")}
+                    />
+                    <FormLabel htmlFor="comments_enabled" mb={0} ml={2}>
+                      Allow comments
+                    </FormLabel>
+                  </FormControl>
+                )}
               </>
             )}
 
-            <FormControl mt={4}>
-              <FormLabel htmlFor="description">Description</FormLabel>
-              <Textarea
-                id="description"
-                placeholder="Optional (Markdown supported)"
-                {...register("description")}
-                {...noAutofill}
-              />
-            </FormControl>
-
-            {destination === "internal" && (
-              <FormControl mt={4} display="flex" alignItems="center">
-                <Switch
-                  id="comments_enabled"
-                  {...register("comments_enabled")}
-                />
-                <FormLabel htmlFor="comments_enabled" mb={0} ml={2}>
-                  Allow comments
-                </FormLabel>
-              </FormControl>
+            {mode === "create" && (
+              <Box mt={6} pt={4} borderTopWidth="1px">
+                <Text fontSize="sm" color="gray.600">
+                  Want to <b>publish</b> to an external venue (Zenodo, arXiv, a
+                  journal, …), not just record one? Create that release from the
+                  CLI with <Code>calkit new release</Code>.{" "}
+                  <Link
+                    isExternal
+                    variant="blue"
+                    href="https://docs.calkit.org/releases/"
+                  >
+                    Learn how
+                    <Icon as={FiExternalLink} mb="-2px" ml={1} />
+                  </Link>
+                </Text>
+                <HStack mt={3} spacing={3}>
+                  <Tooltip
+                    label={
+                      voteStatus?.has_voted ? "Click to remove your vote" : ""
+                    }
+                    isDisabled={!voteStatus?.has_voted}
+                    openDelay={TOOLTIP_OPEN_DELAY}
+                  >
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={voteStatus?.has_voted ? "solid" : "outline"}
+                      colorScheme={voteStatus?.has_voted ? "green" : "gray"}
+                      leftIcon={<FiThumbsUp />}
+                      onClick={() =>
+                        voteMutation.mutate(voteStatus?.has_voted ?? false)
+                      }
+                      isLoading={voteMutation.isPending}
+                      isDisabled={voteStatus == null}
+                    >
+                      {voteStatus?.has_voted
+                        ? "Voted to do this in Calkit"
+                        : "Vote to do this in Calkit"}
+                    </Button>
+                  </Tooltip>
+                  {voteStatus != null && (
+                    <Text fontSize="sm" color="gray.500">
+                      {voteStatus.count}{" "}
+                      {voteStatus.count === 1 ? "vote" : "votes"}
+                    </Text>
+                  )}
+                </HStack>
+              </Box>
             )}
           </ModalBody>
           <ModalFooter gap={3}>
             <Button
               variant="primary"
               type="submit"
-              isLoading={isSubmitting || isPending}
-              isDisabled={needsAck}
+              isLoading={
+                isSubmitting ||
+                createMutation.isPending ||
+                importMutation.isPending
+              }
+              isDisabled={
+                (mode === "create" && needsAck) ||
+                (mode === "import" && !fetched)
+              }
             >
-              Save
+              {mode === "import" ? "Import" : "Save"}
             </Button>
-            <Button onClick={handleClose}>Cancel</Button>
+            <Button type="button" onClick={handleClose}>
+              Cancel
+            </Button>
           </ModalFooter>
         </ModalContent>
       )}

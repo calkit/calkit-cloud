@@ -1154,6 +1154,32 @@ class ExternalReleasePost(SQLModel):
     public: bool = True
 
 
+class ReleaseUrlImport(SQLModel):
+    """Request to look up an already-published release from a URL or DOI."""
+
+    url: str = Field(min_length=1, max_length=2048)
+
+
+class ReleaseUrlMetadata(SQLModel):
+    """Metadata parsed from an external release URL/DOI.
+
+    Returned by the parse-url lookup so the create modal can pre-fill the
+    declare-external form. The user reviews/edits it, then submits via the
+    external release endpoint. ``git_rev`` is intentionally absent -- imports
+    can't know the producing commit, so it's left for the user to set later.
+    """
+
+    publisher: str | None = None
+    title: str | None = None
+    doi: str | None = None
+    url: str | None = None
+    # ISO date string (YYYY-MM-DD) when available.
+    date: str | None = None
+    description: str | None = None
+    # Best-guess calkit release kind (e.g., "publication" for a preprint).
+    kind: str = "publication"
+
+
 class DatasetBase(SQLModel):
     path: str = Field(primary_key=True)
     # Full path to origin project and dataset, if this is imported
@@ -1335,6 +1361,33 @@ class Notebook(BaseModel):
     url: str | None = None
     content: str | None = None
     storage: Literal["git", "dvc", "dvc-zip"] | None = None
+
+
+class FeatureVote(SQLModel, table=True):
+    """A single user's vote for a not-yet-built feature.
+
+    Used to gauge demand for features we haven't committed to building (e.g.,
+    creating external releases from within Calkit rather than the CLI). One row
+    per user per ``feature`` -- the unique constraint makes voting idempotent.
+    """
+
+    __table_args__ = (
+        sqlalchemy.UniqueConstraint(
+            "user_id", "feature", name="featurevote_user_id_feature_key"
+        ),
+    )
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="user.id")
+    feature: str = Field(index=True, max_length=64)
+    created: datetime = Field(default_factory=utcnow)
+
+
+class FeatureVoteStatus(SQLModel):
+    """Vote tally for a feature plus whether the current user has voted."""
+
+    feature: str
+    count: int
+    has_voted: bool
 
 
 class GitRef(BaseModel):

@@ -18,7 +18,9 @@ shared via the secret link without granting repo access.
 import hashlib
 import logging
 import os
+import re
 import secrets
+import xml.etree.ElementTree as ET
 from datetime import date
 
 import requests
@@ -51,6 +53,8 @@ from app.models import (
     ReleaseShareTokenPost,
     ReleaseShareTokenPublic,
     ReleaseStaleness,
+    ReleaseUrlImport,
+    ReleaseUrlMetadata,
     ReleaseView,
     User,
 )
@@ -586,6 +590,210 @@ def post_external_release(
         },
     )
     return Message(message="success")
+
+
+# External lookups time out rather than hang the request on a slow venue.
+URL_LOOKUP_TIMEOUT = 10
+DOI_RE = re.compile(r"10\.\d{4,9}/[^\s\"'<>]+", re.IGNORECASE)
+ARXIV_ID_RE = re.compile(
+    r"(\d{4}\.\d{4,5}(?:v\d+)?|[a-z-]+(?:\.[A-Z]{2})?/\d{7})", re.IGNORECASE
+)
+# CSL-JSON resource types mapped to calkit release kinds.
+CSL_KIND_MAP = {
+    "dataset": "dataset",
+    "article-journal": "publication",
+    "article": "publication",
+    "posted-content": "publication",
+    "paper-conference": "publication",
+    "report": "publication",
+    "software": "publication",
+}
+
+
+def _arxiv_id_from_url(url: str) -> str | None:
+    lower = url.lower()
+    if "arxiv.org" not in lower and "arxiv:" not in lower:
+        return None
+    m = ARXIV_ID_RE.search(url)
+    return m.group(1) if m else None
+
+
+def _doi_from_url(url: str) -> str | None:
+    m = DOI_RE.search(url)
+    if m:
+        # Trim trailing punctuation that often rides along in a pasted URL.
+        return m.group(0).rstrip(".,);]\"'")
+    # A Zenodo record page URL has no DOI in it, but the DOI is derivable from
+    # the numeric record id.
+    zm = re.search(r"zenodo\.org/records?/(\d+)", url, re.IGNORECASE)
+    if zm:
+        return f"10.5281/zenodo.{zm.group(1)}"
+    return None
+
+
+def _fetch_arxiv(arxiv_id: str) -> ReleaseUrlMetadata | None:
+    # Strip the version for the query but keep it in the canonical abs URL.
+    base_id = re.sub(r"v\d+$", "", arxiv_id)
+    resp = requests.get(
+        "http://export.arxiv.org/api/query",
+        params={"id_list": base_id},
+        timeout=URL_LOOKUP_TIMEOUT,
+    )
+    if resp.status_code >= 400:
+        return None
+    try:
+        root = ET.fromstring(resp.content)
+    except ET.ParseError:
+        return None
+    ns = {
+        "a": "http://www.w3.org/2005/Atom",
+        "arxiv": "http://arxiv.org/schemas/atom",
+    }
+    entry = root.find("a:entry", ns)
+    if entry is None:
+        return None
+    # An unknown id still returns an <entry>, but with an error id and no title.
+    id_el = entry.find("a:id", ns)
+    if id_el is not None and "api/errors" in (id_el.text or ""):
+        return None
+    title_el = entry.find("a:title", ns)
+    title = (title_el.text or "").strip() if title_el is not None else None
+    if not title:
+        return None
+    published_el = entry.find("a:published", ns)
+    date_str = (
+        published_el.text[:10]
+        if published_el is not None and published_el.text
+        else None
+    )
+    summary_el = entry.find("a:summary", ns)
+    description = (
+        " ".join((summary_el.text or "").split())
+        if summary_el is not None
+        else None
+    )
+    # Prefer a journal DOI the authors registered (arxiv:doi); otherwise fall
+    # back to the DOI arXiv mints for every paper (10.48550/arXiv.<id>).
+    doi_el = entry.find("arxiv:doi", ns)
+    doi = (
+        (doi_el.text or "").strip()
+        if doi_el is not None and doi_el.text
+        else f"10.48550/arXiv.{base_id}"
+    )
+    return ReleaseUrlMetadata(
+        publisher="arxiv",
+        title=title,
+        doi=doi,
+        url=f"https://arxiv.org/abs/{arxiv_id}",
+        date=date_str,
+        description=description or None,
+        kind="publication",
+    )
+
+
+def _fetch_doi(doi: str) -> ReleaseUrlMetadata | None:
+    resp = requests.get(
+        f"https://doi.org/{doi}",
+        headers={"Accept": "application/vnd.citationstyles.csl+json"},
+        timeout=URL_LOOKUP_TIMEOUT,
+    )
+    if resp.status_code >= 400:
+        return None
+    try:
+        data = resp.json()
+    except ValueError:
+        return None
+    if not isinstance(data, dict):
+        return None
+    title = data.get("title")
+    if isinstance(title, list):
+        title = title[0] if title else None
+    # issued.date-parts looks like [[YYYY, MM, DD]] (month/day optional).
+    date_str = None
+    issued = data.get("issued")
+    parts = issued.get("date-parts") if isinstance(issued, dict) else None
+    if isinstance(parts, list) and parts and isinstance(parts[0], list):
+        date_str = "-".join(
+            f"{int(x):02d}" if i else str(int(x))
+            for i, x in enumerate(parts[0])
+        )
+    description = data.get("abstract")
+    return ReleaseUrlMetadata(
+        publisher=data.get("publisher") or None,
+        title=title.strip() if isinstance(title, str) else None,
+        doi=data.get("DOI") or doi,
+        url=data.get("URL") or f"https://doi.org/{doi}",
+        date=date_str,
+        description=(
+            description.strip() if isinstance(description, str) else None
+        ),
+        kind=CSL_KIND_MAP.get(str(data.get("type") or ""), "publication"),
+    )
+
+
+def _parse_release_url(url: str) -> ReleaseUrlMetadata | None:
+    """Recognize a release URL/DOI and fetch its metadata, or None.
+
+    arXiv is checked before DOI because arXiv DOIs (``10.48550/arXiv.*``) would
+    otherwise resolve to a less useful generic record.
+    """
+    url = url.strip()
+    arxiv_id = _arxiv_id_from_url(url)
+    if arxiv_id:
+        return _fetch_arxiv(arxiv_id)
+    doi = _doi_from_url(url)
+    if doi:
+        return _fetch_doi(doi)
+    return None
+
+
+@router.post("/projects/{owner_name}/{project_name}/releases/parse-url")
+def parse_release_url(
+    owner_name: str,
+    project_name: str,
+    req: ReleaseUrlImport,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> ReleaseUrlMetadata:
+    """Look up an already-published release from a URL or DOI.
+
+    Recognizes DOIs (resolved via doi.org content negotiation, which covers
+    Zenodo, CaltechDATA, journals, and more) and arXiv links/IDs, fetching
+    metadata to pre-fill the declare-external form. Fails if we can't recognize
+    or fetch the URL -- the user can still declare the release manually.
+    """
+    app.projects.get_project(
+        session=session,
+        owner_name=owner_name,
+        project_name=project_name,
+        current_user=current_user,
+        min_access_level="write",
+    )
+    try:
+        meta = _parse_release_url(req.url)
+    except Exception:
+        # A lookup should never 500 -- a flaky venue or an unexpected response
+        # shape just means we couldn't resolve it.
+        logger.warning(
+            "Failed to parse release URL %r", req.url, exc_info=True
+        )
+        meta = None
+    if meta is None:
+        raise HTTPException(
+            422,
+            "Couldn't recognize or fetch metadata from that URL. Supported: "
+            "DOIs (Zenodo, journals, …) and arXiv links.",
+        )
+    mixpanel.track(
+        current_user,
+        "Parsed release URL",
+        {
+            "owner_name": owner_name,
+            "project_name": project_name,
+            "publisher": meta.publisher,
+        },
+    )
+    return meta
 
 
 @router.post("/projects/{owner_name}/{project_name}/releases/import-github")

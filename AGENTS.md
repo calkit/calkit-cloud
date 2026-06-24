@@ -48,6 +48,9 @@ Key points:
 - Run frontend tests: `make test-frontend`
 - Run backend tests: `make test-backend`
 
+These use an isolated test database inside containers. Don't try to run tests
+out on the system.
+
 ## Common Patterns
 
 ### Modifying API Contracts
@@ -79,3 +82,5 @@ Key points:
   should typically be part of query params so a link will show a similar state.
 - Tooltips should always have the same hover delay site-wide.
 - Always put a comma after "i.e." and "e.g.".
+- Let humans write prose.
+- Don't use many em-dashes.

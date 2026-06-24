@@ -15,6 +15,7 @@ import {
   Tooltip,
   Tr,
 } from "@chakra-ui/react"
+import { TOOLTIP_OPEN_DELAY } from "../../lib/core"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   createFileRoute,
@@ -125,7 +126,10 @@ function PublicDatasetsTable() {
                       as={RouterLink}
                       to={`/${dataset.project.owner_account_name}/${dataset.project.name}/datasets`}
                     >
-                      <Tooltip openDelay={600} label={dataset.project.title}>
+                      <Tooltip
+                        openDelay={TOOLTIP_OPEN_DELAY}
+                        label={dataset.project.title}
+                      >
                         <Text isTruncated>{dataset.project.title}</Text>
                       </Tooltip>
                     </Link>
@@ -135,7 +139,10 @@ function PublicDatasetsTable() {
                       as={RouterLink}
                       to={`/${dataset.project.owner_account_name}/${dataset.project.name}/datasets`}
                     >
-                      <Tooltip label={dataset.path} openDelay={600}>
+                      <Tooltip
+                        label={dataset.path}
+                        openDelay={TOOLTIP_OPEN_DELAY}
+                      >
                         <Text isTruncated>{dataset.path}</Text>
                       </Tooltip>
                     </Link>
@@ -154,7 +161,10 @@ function PublicDatasetsTable() {
                     maxWidth="250px"
                   >
                     {dataset.description ? (
-                      <Tooltip openDelay={600} label={dataset.description}>
+                      <Tooltip
+                        openDelay={TOOLTIP_OPEN_DELAY}
+                        label={dataset.description}
+                      >
                         <Text isTruncated>{dataset.description}</Text>
                       </Tooltip>
                     ) : (

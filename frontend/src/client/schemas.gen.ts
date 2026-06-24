@@ -1562,6 +1562,28 @@ export const ExternalTokenResponseSchema = {
   title: "ExternalTokenResponse",
 } as const
 
+export const FeatureVoteStatusSchema = {
+  properties: {
+    feature: {
+      type: "string",
+      title: "Feature",
+    },
+    count: {
+      type: "integer",
+      title: "Count",
+    },
+    has_voted: {
+      type: "boolean",
+      title: "Has Voted",
+    },
+  },
+  type: "object",
+  required: ["feature", "count", "has_voted"],
+  title: "FeatureVoteStatus",
+  description:
+    "Vote tally for a feature plus whether the current user has voted.",
+} as const
+
 export const FigureSchema = {
   properties: {
     path: {
@@ -5562,6 +5584,106 @@ export const ReleaseStalenessSchema = {
 Used to warn before creating a release of a possibly non-reproducible
 artifact. \`\`stage\`\` is None when the path isn't produced by any pipeline
 stage (staleness doesn't apply), in which case \`\`up_to_date\`\` stays True.`,
+} as const
+
+export const ReleaseUrlImportSchema = {
+  properties: {
+    url: {
+      type: "string",
+      maxLength: 2048,
+      minLength: 1,
+      title: "Url",
+    },
+  },
+  type: "object",
+  required: ["url"],
+  title: "ReleaseUrlImport",
+  description:
+    "Request to look up an already-published release from a URL or DOI.",
+} as const
+
+export const ReleaseUrlMetadataSchema = {
+  properties: {
+    publisher: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Publisher",
+    },
+    title: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Title",
+    },
+    doi: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Doi",
+    },
+    url: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Url",
+    },
+    date: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Date",
+    },
+    description: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Description",
+    },
+    kind: {
+      type: "string",
+      title: "Kind",
+      default: "publication",
+    },
+  },
+  type: "object",
+  title: "ReleaseUrlMetadata",
+  description: `Metadata parsed from an external release URL/DOI.
+
+Returned by the parse-url lookup so the create modal can pre-fill the
+declare-external form. The user reviews/edits it, then submits via the
+external release endpoint. \`\`git_rev\`\` is intentionally absent -- imports
+can't know the producing commit, so it's left for the user to set later.`,
 } as const
 
 export const ReleaseViewSchema = {

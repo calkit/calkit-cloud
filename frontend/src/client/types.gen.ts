@@ -364,6 +364,15 @@ export type ExternalTokenResponse = {
   access_token: string
 }
 
+/**
+ * Vote tally for a feature plus whether the current user has voted.
+ */
+export type FeatureVoteStatus = {
+  feature: string
+  count: number
+  has_voted: boolean
+}
+
 export type Figure = {
   path: string
   title: string
@@ -1148,6 +1157,31 @@ export type ReleaseStaleness = {
 }
 
 /**
+ * Request to look up an already-published release from a URL or DOI.
+ */
+export type ReleaseUrlImport = {
+  url: string
+}
+
+/**
+ * Metadata parsed from an external release URL/DOI.
+ *
+ * Returned by the parse-url lookup so the create modal can pre-fill the
+ * declare-external form. The user reviews/edits it, then submits via the
+ * external release endpoint. ``git_rev`` is intentionally absent -- imports
+ * can't know the producing commit, so it's left for the user to set later.
+ */
+export type ReleaseUrlMetadata = {
+  publisher?: string | null
+  title?: string | null
+  doi?: string | null
+  url?: string | null
+  date?: string | null
+  description?: string | null
+  kind?: string
+}
+
+/**
  * Release as rendered on its page, for a member or a share-token holder.
  *
  * Deliberately omits internal identifiers; exposes only what the viewer page
@@ -1465,6 +1499,24 @@ export type GetDatasetsData = {
 export type GetDatasetsResponse = DatasetsResponse
 
 export type MetricsResponse = unknown
+
+export type GetFeatureVoteStatusData = {
+  feature: string
+}
+
+export type GetFeatureVoteStatusResponse = FeatureVoteStatus
+
+export type CastFeatureVoteData = {
+  feature: string
+}
+
+export type CastFeatureVoteResponse = FeatureVoteStatus
+
+export type RemoveFeatureVoteData = {
+  feature: string
+}
+
+export type RemoveFeatureVoteResponse = FeatureVoteStatus
 
 export type LoginAccessTokenData = {
   formData: Body_login_login_access_token
@@ -2212,6 +2264,14 @@ export type PostExternalReleaseData = {
 }
 
 export type PostExternalReleaseResponse = Message
+
+export type ParseReleaseUrlData = {
+  ownerName: string
+  projectName: string
+  requestBody: ReleaseUrlImport
+}
+
+export type ParseReleaseUrlResponse = ReleaseUrlMetadata
 
 export type ImportGithubReleasesData = {
   ownerName: string

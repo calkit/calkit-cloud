@@ -9,6 +9,12 @@ import type {
   GetDatasetsData,
   GetDatasetsResponse,
   MetricsResponse,
+  GetFeatureVoteStatusData,
+  GetFeatureVoteStatusResponse,
+  CastFeatureVoteData,
+  CastFeatureVoteResponse,
+  RemoveFeatureVoteData,
+  RemoveFeatureVoteResponse,
   LoginAccessTokenData,
   LoginAccessTokenResponse,
   TestTokenResponse,
@@ -193,6 +199,8 @@ import type {
   GetProjectReleasesResponse,
   PostExternalReleaseData,
   PostExternalReleaseResponse,
+  ParseReleaseUrlData,
+  ParseReleaseUrlResponse,
   ImportGithubReleasesData,
   ImportGithubReleasesResponse,
   GetReleaseStalenessData,
@@ -326,6 +334,76 @@ export class DefaultService {
     return __request(OpenAPI, {
       method: "GET",
       url: "/metrics",
+    })
+  }
+}
+
+export class FeatureVotesService {
+  /**
+   * Get Feature Vote Status
+   * @param data The data for the request.
+   * @param data.feature
+   * @returns FeatureVoteStatus Successful Response
+   * @throws ApiError
+   */
+  public static getFeatureVoteStatus(
+    data: GetFeatureVoteStatusData,
+  ): CancelablePromise<GetFeatureVoteStatusResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/feature-votes/{feature}",
+      path: {
+        feature: data.feature,
+      },
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Cast Feature Vote
+   * Record the current user's vote for a feature. Idempotent.
+   * @param data The data for the request.
+   * @param data.feature
+   * @returns FeatureVoteStatus Successful Response
+   * @throws ApiError
+   */
+  public static castFeatureVote(
+    data: CastFeatureVoteData,
+  ): CancelablePromise<CastFeatureVoteResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/feature-votes/{feature}",
+      path: {
+        feature: data.feature,
+      },
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Remove Feature Vote
+   * Remove the current user's vote for a feature. Idempotent.
+   * @param data The data for the request.
+   * @param data.feature
+   * @returns FeatureVoteStatus Successful Response
+   * @throws ApiError
+   */
+  public static removeFeatureVote(
+    data: RemoveFeatureVoteData,
+  ): CancelablePromise<RemoveFeatureVoteResponse> {
+    return __request(OpenAPI, {
+      method: "DELETE",
+      url: "/feature-votes/{feature}",
+      path: {
+        feature: data.feature,
+      },
+      errors: {
+        422: "Validation Error",
+      },
     })
   }
 }
@@ -2901,6 +2979,39 @@ export class ReleasesService {
     return __request(OpenAPI, {
       method: "POST",
       url: "/projects/{owner_name}/{project_name}/releases/external",
+      path: {
+        owner_name: data.ownerName,
+        project_name: data.projectName,
+      },
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Parse Release Url
+   * Look up an already-published release from a URL or DOI.
+   *
+   * Recognizes DOIs (resolved via doi.org content negotiation, which covers
+   * Zenodo, CaltechDATA, journals, and more) and arXiv links/IDs, fetching
+   * metadata to pre-fill the declare-external form. Fails if we can't recognize
+   * or fetch the URL -- the user can still declare the release manually.
+   * @param data The data for the request.
+   * @param data.ownerName
+   * @param data.projectName
+   * @param data.requestBody
+   * @returns ReleaseUrlMetadata Successful Response
+   * @throws ApiError
+   */
+  public static parseReleaseUrl(
+    data: ParseReleaseUrlData,
+  ): CancelablePromise<ParseReleaseUrlResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/projects/{owner_name}/{project_name}/releases/parse-url",
       path: {
         owner_name: data.ownerName,
         project_name: data.projectName,

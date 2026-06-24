@@ -20,6 +20,7 @@ import {
   useColorModeValue,
   useDisclosure,
 } from "@chakra-ui/react"
+import { TOOLTIP_OPEN_DELAY } from "../../../../../lib/core"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   Link as RouterLink,
@@ -390,7 +391,7 @@ function Publications() {
                 <Tooltip
                   key={pub.path}
                   label={pub.title}
-                  openDelay={600}
+                  openDelay={TOOLTIP_OPEN_DELAY}
                   placement="right"
                 >
                   <HStack

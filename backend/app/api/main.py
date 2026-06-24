@@ -1,5 +1,6 @@
 from app.api.routes import (
     accounts,
+    feature_votes,
     login,
     misc,
     projects,
@@ -19,3 +20,4 @@ api_router.include_router(projects.router, tags=["projects"])
 api_router.include_router(releases.router, tags=["releases"])
 api_router.include_router(orgs.router, tags=["orgs"])
 api_router.include_router(datasets.router, tags=["datasets"])
+api_router.include_router(feature_votes.router, tags=["feature_votes"])
