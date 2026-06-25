@@ -368,6 +368,10 @@ function ProjectView() {
             </Flex>
             {releasesRequest.isPending ? (
               <LoadingSpinner height="100px" />
+            ) : releasesRequest.isError ? (
+              <Text fontSize="sm" color="red.500">
+                Failed to load releases.
+              </Text>
             ) : topReleases.length > 0 ? (
               <>
                 <Table size="sm" variant="simple">

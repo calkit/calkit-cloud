@@ -146,6 +146,10 @@ const ArtifactReleasesPanel = ({
       </Flex>
       {releasesQuery.isPending ? (
         <Spinner size="sm" color="ui.main" />
+      ) : releasesQuery.isError ? (
+        <Text fontSize="sm" color="red.500">
+          Failed to load releases.
+        </Text>
       ) : matching.length === 0 ? (
         <Text fontSize="sm" color="gray.500">
           None yet

@@ -22,7 +22,9 @@ def render_email_template(
     template_str = (
         Path(__file__).parent / "email-templates" / "build" / template_name
     ).read_text()
-    html_content = Template(template_str).render(context)
+    # autoescape so user-controlled context values (e.g. a release note or
+    # name) can't inject HTML into outbound emails.
+    html_content = Template(template_str, autoescape=True).render(context)
     return html_content
 
 

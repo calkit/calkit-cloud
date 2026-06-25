@@ -15,7 +15,8 @@ export const Route = createFileRoute(
 // Reached via a share link or a release name in a table. Presented as a
 // near-full-screen, closeable modal over a dimmed backdrop (not edge-to-edge
 // full screen). Lives outside the project shell so no-signup share-link
-// viewers aren't gated by project access; closing returns where you came from.
+// viewers aren't gated by project access; closing navigates to the project
+// (or the home page for share-link viewers) -- see `close` below.
 function ReleasePage() {
   const { accountName, projectName, releaseName } = Route.useParams()
   const { token } = Route.useSearch()

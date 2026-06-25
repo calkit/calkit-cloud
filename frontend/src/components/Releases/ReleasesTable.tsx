@@ -246,6 +246,10 @@ const ReleasesTable = ({
       </Flex>
       {releasesQuery.isPending ? (
         <LoadingSpinner height="200px" />
+      ) : releasesQuery.isError ? (
+        <Flex align="center" justify="center" h="160px" color="red.500">
+          <Text>Failed to load releases. Try refreshing.</Text>
+        </Flex>
       ) : releases.length === 0 ? (
         <Flex align="center" justify="center" h="160px" color="gray.500">
           <Text>

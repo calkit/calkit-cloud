@@ -22,6 +22,7 @@ import re
 import secrets
 import xml.etree.ElementTree as ET
 from datetime import date
+from urllib.parse import quote
 
 import requests
 import sqlalchemy
@@ -221,7 +222,7 @@ def _send_share_email(
     app_base = settings.frontend_host.rstrip("/")
     link = (
         f"{app_base}/{project.owner_account_name}/{project.name}"
-        f"/releases/{release.name}?token={raw_token}"
+        f"/releases/{quote(release.name, safe='')}?token={raw_token}"
     )
     inviter = inviter_user.full_name or inviter_user.email
     email_data = messaging.generate_release_share_email(
@@ -1501,7 +1502,7 @@ def _try_create_release_github_issue(
     app_base = settings.frontend_host.rstrip("/")
     link = (
         f"{app_base}/{project.owner_account_name}/{project.name}"
-        f"/releases/{release.name}"
+        f"/releases/{quote(release.name, safe='')}"
     )
     author = comment.author_name or comment.author_email or "Anonymous"
     title = f"Feedback on release {release.name}"
