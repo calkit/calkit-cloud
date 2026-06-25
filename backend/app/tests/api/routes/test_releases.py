@@ -9,13 +9,15 @@ import uuid
 from types import SimpleNamespace
 from unittest.mock import patch
 
+import requests
 from app.api.routes.releases import (
     _arxiv_id_from_url,
     _doi_from_url,
+    _fetch_arxiv,
     _parse_release_url,
 )
 from app.config import settings
-from app.models import ReleaseStaleness
+from app.models import ReleaseStaleness, ReleaseUrlMetadata
 from app.pipeline import StageStatus
 from fastapi.testclient import TestClient
 
@@ -144,6 +146,59 @@ def test_doi_from_url() -> None:
 def test_parse_release_url_unrecognized_returns_none() -> None:
     # No DOI or arXiv id present, so no network call is made.
     assert _parse_release_url("https://example.com/some/page") is None
+
+
+def test_fetch_arxiv_falls_back_to_datacite_on_timeout() -> None:
+    """When arXiv's API times out, resolve the minted DOI via DataCite."""
+    datacite = ReleaseUrlMetadata(
+        publisher="arXiv",
+        title="Some Paper",
+        doi="10.48550/ARXIV.2606.23755",
+        url="http://arxiv.org/abs/2606.23755",
+        date="2026",
+    )
+    with (
+        patch(
+            "app.api.routes.releases._fetch_arxiv_atom",
+            side_effect=requests.exceptions.ReadTimeout("slow"),
+        ),
+        patch(
+            "app.api.routes.releases._fetch_doi", return_value=datacite
+        ) as fetch_doi,
+    ):
+        meta = _fetch_arxiv("2606.23755v2")
+    fetch_doi.assert_called_once_with("10.48550/arXiv.2606.23755")
+    assert meta is not None
+    assert meta.title == "Some Paper"
+    # arXiv identity is normalized regardless of the source that answered.
+    assert meta.publisher == "arxiv"
+    assert meta.url == "https://arxiv.org/abs/2606.23755v2"
+
+
+def test_fetch_arxiv_minimal_when_all_unreachable() -> None:
+    """If both arXiv and DataCite are unreachable, derive URL + DOI offline."""
+    with (
+        patch(
+            "app.api.routes.releases._fetch_arxiv_atom",
+            side_effect=requests.exceptions.ConnectTimeout("down"),
+        ),
+        patch(
+            "app.api.routes.releases._fetch_doi",
+            side_effect=requests.exceptions.ConnectTimeout("down"),
+        ),
+    ):
+        meta = _fetch_arxiv("2606.23755")
+    assert meta is not None
+    assert meta.title is None
+    assert meta.publisher == "arxiv"
+    assert meta.doi == "10.48550/arXiv.2606.23755"
+    assert meta.url == "https://arxiv.org/abs/2606.23755"
+
+
+def test_fetch_arxiv_not_found_returns_none() -> None:
+    """A definitive not-found from the API (no network error) fails honestly."""
+    with patch("app.api.routes.releases._fetch_arxiv_atom", return_value=None):
+        assert _fetch_arxiv("9999.99999") is None
 
 
 def test_get_project_releases_unknown_project_returns_404(

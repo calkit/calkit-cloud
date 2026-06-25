@@ -631,7 +631,13 @@ def _doi_from_url(url: str) -> str | None:
     return None
 
 
-def _fetch_arxiv(arxiv_id: str) -> ReleaseUrlMetadata | None:
+def _fetch_arxiv_atom(arxiv_id: str) -> ReleaseUrlMetadata | None:
+    """Fetch arXiv metadata from the Atom API.
+
+    Returns None when the API responds but the id isn't a real paper. Network
+    errors (timeouts, etc.) propagate -- the caller decides how to degrade,
+    since arXiv's API is rate-limited and intermittently slow.
+    """
     # Strip the version for the query but keep it in the canonical abs URL.
     base_id = re.sub(r"v\d+$", "", arxiv_id)
     resp = requests.get(
@@ -689,6 +695,37 @@ def _fetch_arxiv(arxiv_id: str) -> ReleaseUrlMetadata | None:
         description=description or None,
         kind="publication",
     )
+
+
+def _fetch_arxiv(arxiv_id: str) -> ReleaseUrlMetadata | None:
+    """Resolve arXiv metadata, resilient to arXiv's flaky API.
+
+    Tries arXiv's Atom API for the richest metadata. If that API is unreachable
+    (timeout/rate-limit), falls back to DataCite via the DOI arXiv mints for
+    every paper, and finally to just the URL + DOI derived from the id -- so a
+    valid arXiv link never hard-fails over a slow upstream. A definitive
+    "not found" from the API still returns None so typos fail honestly.
+    """
+    base_id = re.sub(r"v\d+$", "", arxiv_id)
+    abs_url = f"https://arxiv.org/abs/{arxiv_id}"
+    arxiv_doi = f"10.48550/arXiv.{base_id}"
+    try:
+        meta = _fetch_arxiv_atom(arxiv_id)
+    except requests.RequestException:
+        meta = None
+        try:
+            meta = _fetch_doi(arxiv_doi)
+        except requests.RequestException:
+            meta = None
+        if meta is None:
+            meta = ReleaseUrlMetadata(kind="publication")
+    if meta is None:
+        return None
+    # Present arXiv identity consistently regardless of which source answered.
+    meta.publisher = "arxiv"
+    meta.url = abs_url
+    meta.doi = meta.doi or arxiv_doi
+    return meta
 
 
 def _fetch_doi(doi: str) -> ReleaseUrlMetadata | None:
