@@ -728,5 +728,33 @@ Goal: open a publication, edit its `.tex`, compile-preview in-browser, save via 
 - **Exit:** edit a real paper's `.tex`, compile to PDF in-browser, save, and see the
   auto-commit land + push to GitHub — as a non-GitHub user who joined via an invite link.
 
+### 8.5 Editor Phase 2 — multi-file, figures, bib (in progress)
+
+First slice landed; engine capabilities verified headless in the app origin.
+
+- [x] ~~**Multi-file project loading.**~~ `src/lib/latexProject.ts` lists the publication's
+      directory (recursive, depth/count-capped) and fetches all text sources (`.tex/.bib/
+      .cls/.sty/.bst/…`) + images (`.png/.jpg/.pdf/.eps/…`) — text via base64, DVC figures via
+      signed URL. Seeds them all into the compile.
+- [x] ~~**File tree + multi-buffer editing.**~~ `LatexEditor` rewritten: left file-tree
+      column, per-file CodeMirror buffers, dirty tracking, **batch save** of all changed
+      files, unsaved-changes guard.
+- [x] ~~**`\input`/`\include` + figures verified.**~~ Engine compiles a real multi-file doc
+      (`\input` + `\includegraphics` of a valid PNG) → PDF, exit 0 (headless, app origin).
+- [x] **Production build green** (`npm run build`) — editor + CodeMirror + worker bundle.
+- [ ] ⚠️ **Bibliography is an engine limitation.** busytex reuses one WASM module across the
+      bibtex multi-pass, so pdftex asserts on the 2nd run (`pdfinitmapfile`); XeTeX driver
+      also fails. **Worked around** by forcing a single pdflatex pass (`bibtex: false`) so a
+      preview always renders — but **citations stay unresolved** (`[?]`). Real fix needs a
+      patched/newer build or per-pass module recreation (or running bibtex across separate
+      `compile()` calls while persisting the FS). Tracked for a follow-up.
+- [ ] **Not yet verified end-to-end through the UI** (loader against the live API + the full
+      Edit→tree→compile→save flow) — needs an authed project + publication fixture; the
+      engine multi-file path itself is proven.
+- [ ] SyncTeX (forward/inverse search) and the **TeX Live package proxy** (self-hosted cached
+      packages) remain for later in Phase 2.
+- [ ] Smarter `.tex`/dependency resolution (parse `\input`/`\includegraphics` vs. loading the
+      whole dir) and a size/count budget surfaced to the user.
+
 **All open questions resolved.** Remaining follow-ups are verification tasks, not decisions:
 confirm the BusyTeX + SwiftLaTeX engine artifact licenses fit Path 1 before Phase 1 ships.

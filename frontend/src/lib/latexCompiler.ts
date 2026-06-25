@@ -113,7 +113,12 @@ export class LatexCompiler {
       this.worker?.postMessage({
         files,
         main_tex_path: mainTexPath,
-        bibtex: null,
+        // Force a single pdflatex pass. The bibtex multi-pass reuses one WASM
+        // module instance, which makes pdftex assert on the 2nd run
+        // (pdfinitmapfile). Single-pass means a preview always renders;
+        // bibliography citations stay unresolved until we have a build that
+        // supports multi-pass (or per-pass module recreation). Preview-only.
+        bibtex: false,
         verbose: "silent",
         driver: DRIVER,
         data_packages_js: DATA_PACKAGES.map((p) => `${ENGINE_BASE}/${p}`),

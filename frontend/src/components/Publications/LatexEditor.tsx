@@ -11,6 +11,7 @@ import {
   ModalOverlay,
   Spinner,
   Text,
+  VStack,
   useDisclosure,
 } from "@chakra-ui/react"
 import { StreamLanguage } from "@codemirror/language"
@@ -22,7 +23,8 @@ import { type MutableRefObject, useEffect, useRef, useState } from "react"
 import { ProjectsService } from "../../client"
 import type { ApiError } from "../../client/core/ApiError"
 import useCustomToast from "../../hooks/useCustomToast"
-import { LatexCompiler } from "../../lib/latexCompiler"
+import { LatexCompiler, type LatexFile } from "../../lib/latexCompiler"
+import { loadLatexProject } from "../../lib/latexProject"
 import { handleError } from "../../lib/errors"
 import PdfDocumentViewer from "../Common/PdfDocumentViewer"
 
@@ -34,12 +36,6 @@ interface LatexEditorProps {
   texPath: string
 }
 
-function decodeBase64Utf8(b64: string): string {
-  const bin = atob(b64)
-  const bytes = Uint8Array.from(bin, (c) => c.charCodeAt(0))
-  return new TextDecoder().decode(bytes)
-}
-
 function EditorPane({
   initialDoc,
   viewRef,
@@ -47,7 +43,7 @@ function EditorPane({
 }: {
   initialDoc: string
   viewRef: MutableRefObject<EditorView | null>
-  onChange: () => void
+  onChange: (text: string) => void
 }) {
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -62,7 +58,7 @@ function EditorPane({
         EditorView.lineWrapping,
         EditorView.updateListener.of((u) => {
           if (u.docChanged) {
-            onChange()
+            onChange(u.state.doc.toString())
           }
         }),
       ],
@@ -84,29 +80,54 @@ const LatexEditor = ({
   projectName,
   texPath,
 }: LatexEditorProps) => {
+  const baseDir = texPath.includes("/")
+    ? texPath.slice(0, texPath.lastIndexOf("/"))
+    : ""
+  const mainRelPath = baseDir ? texPath.slice(baseDir.length + 1) : texPath
+
   const viewRef = useRef<EditorView | null>(null)
   const compilerRef = useRef<LatexCompiler | null>(null)
+  const buffersRef = useRef<Map<string, string>>(new Map())
+  const binariesRef = useRef<Map<string, Uint8Array>>(new Map())
+  const initializedRef = useRef(false)
   const showToast = useCustomToast()
   const queryClient = useQueryClient()
   const logPanel = useDisclosure()
+  const [textPaths, setTextPaths] = useState<string[]>([])
+  const [activePath, setActivePath] = useState<string>(mainRelPath)
+  const [dirty, setDirty] = useState<Set<string>>(new Set())
   const [log, setLog] = useState("")
   const [status, setStatus] = useState("")
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
   const [compiling, setCompiling] = useState(false)
-  const [dirty, setDirty] = useState(false)
-  const mainName = texPath.split("/").pop() || texPath
 
-  const { data: contents, isLoading } = useQuery({
-    queryKey: ["projects", ownerName, projectName, "contents", texPath],
-    queryFn: () =>
-      ProjectsService.getProjectContents({
-        ownerName,
-        projectName,
-        path: texPath,
-      }),
+  const { data: projectFiles, isLoading } = useQuery({
+    queryKey: ["projects", ownerName, projectName, "latex-project", baseDir],
+    queryFn: () => loadLatexProject(ownerName, projectName, baseDir),
     enabled: isOpen,
     staleTime: 0,
   })
+
+  useEffect(() => {
+    if (!projectFiles || initializedRef.current) {
+      return
+    }
+    initializedRef.current = true
+    const texts: string[] = []
+    for (const f of projectFiles) {
+      if (f.kind === "text") {
+        buffersRef.current.set(f.relPath, f.text ?? "")
+        texts.push(f.relPath)
+      } else if (f.bytes) {
+        binariesRef.current.set(f.relPath, f.bytes)
+      }
+    }
+    texts.sort()
+    setTextPaths(texts)
+    setActivePath(
+      texts.includes(mainRelPath) ? mainRelPath : texts[0] ?? mainRelPath,
+    )
+  }, [projectFiles, mainRelPath])
 
   useEffect(() => {
     return () => {
@@ -118,11 +139,12 @@ const LatexEditor = ({
     }
   }, [])
 
+  const markDirty = (path: string, text: string) => {
+    buffersRef.current.set(path, text)
+    setDirty((d) => (d.has(path) ? d : new Set(d).add(path)))
+  }
+
   const compile = async () => {
-    const view = viewRef.current
-    if (!view) {
-      return
-    }
     setCompiling(true)
     setLog("")
     setStatus("Loading engine & compiling…")
@@ -132,11 +154,14 @@ const LatexEditor = ({
           onLog: (line) => setLog((l) => `${l}${line}\n`),
         })
       }
-      const source = view.state.doc.toString()
-      const result = await compilerRef.current.compile(
-        [{ path: mainName, contents: source }],
-        mainName,
-      )
+      const files: LatexFile[] = []
+      for (const [path, text] of buffersRef.current) {
+        files.push({ path, contents: text })
+      }
+      for (const [path, bytes] of binariesRef.current) {
+        files.push({ path, contents: bytes })
+      }
+      const result = await compilerRef.current.compile(files, mainRelPath)
       if (result.exitCode === 0 && result.pdf) {
         const blob = new Blob([result.pdf], { type: "application/pdf" })
         setPdfUrl((prev) => {
@@ -162,18 +187,23 @@ const LatexEditor = ({
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      const source = viewRef.current?.state.doc.toString() ?? ""
-      const file = new File([source], mainName, { type: "text/plain" })
-      return ProjectsService.putProjectContents({
-        ownerName,
-        projectName,
-        path: texPath,
-        contentLength: file.size,
-        formData: { file },
-      })
+      for (const rel of dirty) {
+        const text = buffersRef.current.get(rel) ?? ""
+        const repoPath = baseDir ? `${baseDir}/${rel}` : rel
+        const file = new File([text], rel.split("/").pop() || rel, {
+          type: "text/plain",
+        })
+        await ProjectsService.putProjectContents({
+          ownerName,
+          projectName,
+          path: repoPath,
+          contentLength: file.size,
+          formData: { file },
+        })
+      }
     },
     onSuccess: () => {
-      setDirty(false)
+      setDirty(new Set())
       showToast("Saved", "Your changes were committed.", "success")
       queryClient.invalidateQueries({
         queryKey: ["projects", ownerName, projectName],
@@ -185,7 +215,7 @@ const LatexEditor = ({
   })
 
   const handleClose = () => {
-    if (dirty && !window.confirm("Discard unsaved changes?")) {
+    if (dirty.size > 0 && !window.confirm("Discard unsaved changes?")) {
       return
     }
     onClose()
@@ -196,10 +226,10 @@ const LatexEditor = ({
       <ModalOverlay />
       <ModalContent>
         <Flex align="center" gap={3} px={4} py={2} borderBottomWidth="1px">
-          <Text fontWeight="bold">{mainName}</Text>
-          {dirty && (
+          <Text fontWeight="bold">{activePath || mainRelPath}</Text>
+          {dirty.size > 0 && (
             <Badge colorScheme="orange" variant="subtle">
-              Unsaved
+              {dirty.size} unsaved
             </Badge>
           )}
           <Button
@@ -207,6 +237,7 @@ const LatexEditor = ({
             variant="primary"
             onClick={compile}
             isLoading={compiling}
+            isDisabled={isLoading}
           >
             Compile preview
           </Button>
@@ -214,7 +245,7 @@ const LatexEditor = ({
             size="sm"
             onClick={() => saveMutation.mutate()}
             isLoading={saveMutation.isPending}
-            isDisabled={!dirty}
+            isDisabled={dirty.size === 0}
           >
             Save
           </Button>
@@ -231,60 +262,97 @@ const LatexEditor = ({
           <ModalCloseButton position="static" />
         </Flex>
         <ModalBody p={0} overflow="hidden">
-          <Flex height="calc(100vh - 49px)">
-            <Box flex="1" borderRightWidth="1px" minW={0}>
-              {isLoading ? (
-                <Flex height="100%" align="center" justify="center">
-                  <Spinner />
-                </Flex>
-              ) : (
+          {isLoading ? (
+            <Flex height="calc(100vh - 49px)" align="center" justify="center">
+              <Spinner />
+            </Flex>
+          ) : (
+            <Flex height="calc(100vh - 49px)">
+              <Box
+                width="220px"
+                borderRightWidth="1px"
+                overflowY="auto"
+                p={2}
+                flexShrink={0}
+              >
+                <Text fontSize="xs" color="ui.dim" mb={1} px={1}>
+                  Files
+                </Text>
+                <VStack align="stretch" spacing={0}>
+                  {textPaths.map((p) => (
+                    <Button
+                      key={p}
+                      size="xs"
+                      variant={p === activePath ? "solid" : "ghost"}
+                      justifyContent="flex-start"
+                      fontWeight={p === mainRelPath ? "bold" : "normal"}
+                      onClick={() => setActivePath(p)}
+                    >
+                      {dirty.has(p) ? "• " : ""}
+                      {p}
+                    </Button>
+                  ))}
+                  {[...binariesRef.current.keys()].sort().map((p) => (
+                    <Text
+                      key={p}
+                      fontSize="xs"
+                      color="ui.dim"
+                      px={3}
+                      py={1}
+                      isTruncated
+                    >
+                      {p}
+                    </Text>
+                  ))}
+                </VStack>
+              </Box>
+              <Box flex="1" borderRightWidth="1px" minW={0}>
                 <EditorPane
-                  initialDoc={
-                    contents?.content ? decodeBase64Utf8(contents.content) : ""
-                  }
+                  key={activePath}
+                  initialDoc={buffersRef.current.get(activePath) ?? ""}
                   viewRef={viewRef}
-                  onChange={() => setDirty(true)}
+                  onChange={(text) => markDirty(activePath, text)}
                 />
-              )}
-            </Box>
-            <Box flex="1" minW={0} position="relative" bg="blackAlpha.50">
-              {pdfUrl ? (
-                <PdfDocumentViewer url={pdfUrl} />
-              ) : (
-                <Flex
-                  height="100%"
-                  align="center"
-                  justify="center"
-                  direction="column"
-                  gap={2}
-                  color="ui.dim"
-                >
-                  <Text>No preview yet.</Text>
-                  <Text fontSize="sm">
-                    Click "Compile preview" to render the PDF.
-                  </Text>
-                </Flex>
-              )}
-              <Collapse in={logPanel.isOpen}>
-                <Box
-                  position="absolute"
-                  bottom={0}
-                  left={0}
-                  right={0}
-                  maxH="40%"
-                  overflowY="auto"
-                  bg="gray.900"
-                  color="gray.100"
-                  fontFamily="mono"
-                  fontSize="xs"
-                  whiteSpace="pre-wrap"
-                  p={2}
-                >
-                  {log || "(no output)"}
-                </Box>
-              </Collapse>
-            </Box>
-          </Flex>
+              </Box>
+              <Box flex="1" minW={0} position="relative" bg="blackAlpha.50">
+                {pdfUrl ? (
+                  <PdfDocumentViewer url={pdfUrl} />
+                ) : (
+                  <Flex
+                    height="100%"
+                    align="center"
+                    justify="center"
+                    direction="column"
+                    gap={2}
+                    color="ui.dim"
+                  >
+                    <Text>No preview yet.</Text>
+                    <Text fontSize="sm">
+                      Click "Compile preview" to render the PDF.
+                    </Text>
+                  </Flex>
+                )}
+                <Collapse in={logPanel.isOpen}>
+                  <Box
+                    position="absolute"
+                    bottom={0}
+                    left={0}
+                    right={0}
+                    maxH="40%"
+                    overflowY="auto"
+                    bg="gray.900"
+                    color="gray.100"
+                    fontFamily="mono"
+                    fontSize="xs"
+                    whiteSpace="pre-wrap"
+                    p={2}
+                  >
+                    {log || "(no output)"}
+                  </Box>
+                </Collapse>
+              </Box>
+            </Flex>
+          )}
         </ModalBody>
       </ModalContent>
     </Modal>
