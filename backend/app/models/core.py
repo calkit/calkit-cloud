@@ -868,6 +868,9 @@ class Release(ReleaseBase, table=True):
     share_tokens: list["ReleaseShareToken"] = Relationship(
         back_populates="release", cascade_delete=True
     )
+    viewers: list["ReleaseViewer"] = Relationship(
+        back_populates="release", cascade_delete=True
+    )
 
     @computed_field
     @property
@@ -1065,6 +1068,40 @@ class ReleaseShareToken(SQLModel, table=True):
     created_by: User = Relationship()
 
 
+class ReleaseViewer(SQLModel, table=True):
+    """A distinct viewer of a release, so ``view_count`` counts unique viewers.
+
+    A viewer is either a logged-in member (``user_id``) or an anonymous
+    share-link visitor (``share_token_id``); exactly one is set per row. The
+    release's ``view_count`` is bumped only when a new row is inserted, so
+    repeat visits by the same viewer don't inflate it. Anonymous visitors with
+    no share token (e.g., a public project viewed while logged out) can't be
+    identified, so they aren't counted.
+    """
+
+    __table_args__ = (
+        sqlalchemy.UniqueConstraint(
+            "release_id", "user_id", name="uq_releaseviewer_release_user"
+        ),
+        sqlalchemy.UniqueConstraint(
+            "release_id",
+            "share_token_id",
+            name="uq_releaseviewer_release_token",
+        ),
+    )
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    release_id: uuid.UUID = Field(foreign_key="release.id", ondelete="CASCADE")
+    user_id: uuid.UUID | None = Field(
+        default=None, foreign_key="user.id", ondelete="CASCADE"
+    )
+    share_token_id: uuid.UUID | None = Field(
+        default=None, foreign_key="releasesharetoken.id", ondelete="SET NULL"
+    )
+    created: datetime = Field(default_factory=utcnow)
+    # Relationships
+    release: Release = Relationship(back_populates="viewers")
+
+
 class ReleaseShareTokenPost(SQLModel):
     email: str | None = None
     permission: ReleaseSharePermission = "comment"
@@ -1132,6 +1169,15 @@ class ReleaseListItem(BaseModel):
     comment_count: int | None = None
     # Number of active (non-revoked) share links, for cloud releases.
     share_count: int | None = None
+
+
+class ReleaseGithubResult(BaseModel):
+    """Result of creating (or finding) a GitHub release for a Calkit release."""
+
+    url: str
+    # False when a GitHub release already existed for the tag and we returned
+    # its link instead of creating a duplicate.
+    created: bool
 
 
 class ExternalReleasePost(SQLModel):

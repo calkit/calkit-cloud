@@ -1031,6 +1031,14 @@ export type ReleaseCommentPublic = {
 }
 
 /**
+ * Result of creating (or finding) a GitHub release for a Calkit release.
+ */
+export type ReleaseGithubResult = {
+  url: string
+  created: boolean
+}
+
+/**
  * A release row for the project releases page.
  *
  * Merges two sources: ``calkit`` releases declared in ``calkit.yaml`` (the
@@ -2305,6 +2313,14 @@ export type DeleteProjectReleaseData = {
 }
 
 export type DeleteProjectReleaseResponse = Message
+
+export type CreateReleaseGithubReleaseData = {
+  ownerName: string
+  projectName: string
+  releaseName: string
+}
+
+export type CreateReleaseGithubReleaseResponse = ReleaseGithubResult
 
 export type CreateReleaseShareData = {
   ownerName: string

@@ -15,6 +15,7 @@ from app.api.routes.releases import (
     _doi_from_url,
     _fetch_arxiv,
     _parse_release_url,
+    _stored_release_filename,
 )
 from app.config import settings
 from app.models import ReleaseStaleness, ReleaseUrlMetadata
@@ -101,6 +102,16 @@ def test_import_github_releases_requires_auth(client: TestClient) -> None:
     resp = client.post(
         f"{settings.API_V1_STR}"
         "/projects/test-owner/test-project/releases/import-github"
+    )
+    assert resp.status_code == 401
+
+
+def test_create_release_github_release_requires_auth(
+    client: TestClient,
+) -> None:
+    resp = client.post(
+        f"{settings.API_V1_STR}"
+        "/projects/test-owner/test-project/releases/v1/github"
     )
     assert resp.status_code == 401
 
@@ -193,6 +204,19 @@ def test_fetch_arxiv_minimal_when_all_unreachable() -> None:
     assert meta.publisher == "arxiv"
     assert meta.doi == "10.48550/arXiv.2606.23755"
     assert meta.url == "https://arxiv.org/abs/2606.23755"
+
+
+def test_stored_release_filename() -> None:
+    # {project}-{stem}-{name}{ext}, matching calkit new release --internal.
+    assert (
+        _stored_release_filename("myproj", "figures/plot.png", "v1.0")
+        == "myproj-plot-v1.0.png"
+    )
+    # No extension is handled.
+    assert (
+        _stored_release_filename("p", "paper/manuscript", "rev2")
+        == "p-manuscript-rev2"
+    )
 
 
 def test_fetch_arxiv_not_found_returns_none() -> None:

@@ -25,6 +25,7 @@ import {
   Tooltip,
   Tr,
   useDisclosure,
+  useToast,
 } from "@chakra-ui/react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link as RouterLink } from "@tanstack/react-router"
@@ -88,6 +89,9 @@ interface ReleasesTableProps {
   onSortChange?: (sort: ReleaseSort) => void
   // Case-insensitive substring filter across name/path/title/publisher.
   filter?: string
+  // Controlled "New release" modal open state, so it can live in URL params.
+  newReleaseOpen?: boolean
+  onNewReleaseOpenChange?: (open: boolean) => void
 }
 
 const ReleasesTable = ({
@@ -97,10 +101,24 @@ const ReleasesTable = ({
   sort: sortProp,
   onSortChange,
   filter,
+  newReleaseOpen,
+  onNewReleaseOpenChange,
 }: ReleasesTableProps) => {
   const queryClient = useQueryClient()
   const showToast = useCustomToast()
+  // Used directly (not via useCustomToast) so the result can link to GitHub.
+  const toast = useToast()
+  // Falls back to internal disclosure when used uncontrolled.
   const newReleaseModal = useDisclosure()
+  const newReleaseIsOpen = newReleaseOpen ?? newReleaseModal.isOpen
+  const openNewRelease = () =>
+    onNewReleaseOpenChange
+      ? onNewReleaseOpenChange(true)
+      : newReleaseModal.onOpen()
+  const closeNewRelease = () =>
+    onNewReleaseOpenChange
+      ? onNewReleaseOpenChange(false)
+      : newReleaseModal.onClose()
   const confirmDelete = useDisclosure()
   const shareModal = useDisclosure()
   const [toDelete, setToDelete] = useState<ReleaseListItem | null>(null)
@@ -161,6 +179,30 @@ const ReleasesTable = ({
         queryKey: ["projects", ownerName, projectName, "releases"],
       })
     },
+  })
+  const githubMutation = useMutation({
+    mutationFn: (releaseName: string) =>
+      ReleasesService.createReleaseGithubRelease({
+        ownerName,
+        projectName,
+        releaseName,
+      }),
+    onSuccess: (data) => {
+      toast({
+        title: data.created
+          ? "Released to GitHub"
+          : "GitHub release already exists",
+        description: (
+          <Link href={data.url} isExternal textDecoration="underline">
+            View the release on GitHub
+          </Link>
+        ),
+        status: "success",
+        isClosable: true,
+        position: "bottom-right",
+      })
+    },
+    onError: (err: ApiError) => handleError(err, showToast),
   })
   const filterLower = (filter ?? "").trim().toLowerCase()
   const releases = (releasesQuery.data ?? []).filter(
@@ -228,7 +270,7 @@ const ReleasesTable = ({
               size="sm"
               ml={4}
               leftIcon={<Icon as={FaPlus} />}
-              onClick={newReleaseModal.onOpen}
+              onClick={openNewRelease}
             >
               New release
             </Button>
@@ -349,6 +391,19 @@ const ReleasesTable = ({
                     <Td>
                       {r.source === "cloud" && (
                         <HStack spacing={0} justify="flex-end">
+                          <Tooltip label="Release to GitHub">
+                            <IconButton
+                              aria-label="Release to GitHub"
+                              icon={<FaGithub />}
+                              size="xs"
+                              variant="ghost"
+                              isLoading={
+                                githubMutation.isPending &&
+                                githubMutation.variables === r.name
+                              }
+                              onClick={() => githubMutation.mutate(r.name)}
+                            />
+                          </Tooltip>
                           <Tooltip
                             label={
                               r.share_count
@@ -388,8 +443,8 @@ const ReleasesTable = ({
         </Box>
       )}
       <NewRelease
-        isOpen={newReleaseModal.isOpen}
-        onClose={newReleaseModal.onClose}
+        isOpen={newReleaseIsOpen}
+        onClose={closeNewRelease}
         ownerName={ownerName}
         projectName={projectName}
       />

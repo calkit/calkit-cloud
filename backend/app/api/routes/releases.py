@@ -46,6 +46,7 @@ from app.models import (
     ReleaseComment,
     ReleaseCommentPost,
     ReleaseCommentPublic,
+    ReleaseGithubResult,
     ReleaseListItem,
     ReleasePost,
     ReleasePublic,
@@ -57,6 +58,7 @@ from app.models import (
     ReleaseUrlImport,
     ReleaseUrlMetadata,
     ReleaseView,
+    ReleaseViewer,
     User,
 )
 from app.pipeline import compute_stage_statuses, find_stage_for_path
@@ -325,8 +327,86 @@ def _to_view(
     )
 
 
+def _stored_release_filename(project_name: str, path: str, name: str) -> str:
+    """Frozen-copy filename for a single-file internal release.
+
+    Mirrors calkit-python's ``calkit new release --internal``:
+    ``{project}-{stem}-{name}{ext}``.
+    """
+    stem, ext = os.path.splitext(os.path.basename(path))
+    return f"{project_name}-{stem}-{name}{ext}"
+
+
+def _store_internal_release_copy(
+    repo, project: Project, release_in: ReleasePost, git_rev: str
+) -> str | None:
+    """Save a frozen copy of a single-file artifact under ``.calkit/releases``.
+
+    Mirrors ``calkit new release --internal`` for single files so cloud and CLI
+    releases are consistent. Returns the stored path (recorded in calkit.yaml),
+    or None when no copy is made: whole-project and folder releases (made with
+    the CLI, which zips), or a path missing at the pinned commit.
+
+    DVC-tracked artifacts are content-addressed, so the copy reuses the existing
+    md5 -- only a ``.dvc`` pointer is written, no bytes are moved (the working
+    clone here doesn't even hold DVC content). Git-tracked files are read from
+    the pinned tree and written into the release dir.
+    """
+    path = (release_in.path or ".").strip()
+    if not path or path == ".":
+        return None
+    tree = get_repo_tree_for_ref(repo, git_rev)
+    _, dvc_lock_outs, _ = app.projects.get_ck_info_and_dvc_outs_from_tree(
+        project, tree
+    )
+    dvc_out = dvc_lock_outs.get(path)
+    if dvc_out is None and tree.is_file(path + ".dvc"):
+        dvc_out = ryaml.load(tree.read_text(path + ".dvc"))["outs"][0]
+    # Only single files are stored in the cloud; directories (incl. whole
+    # project) are zipped, which is a CLI feature for now.
+    if dvc_out is not None and str(dvc_out.get("md5", "")).endswith(".dir"):
+        return None
+    if dvc_out is None and not tree.is_file(path):
+        return None
+    stored_filename = _stored_release_filename(
+        project.name, path, release_in.name
+    )
+    release_dir = f".calkit/releases/{release_in.name}"
+    stored_rel = f"{release_dir}/{stored_filename}"
+    os.makedirs(os.path.join(repo.working_dir, release_dir), exist_ok=True)
+    if dvc_out is not None:
+        # Reuse the existing DVC content by md5; write only a pointer plus a
+        # gitignore for the (absent) stored file, matching DVC's layout.
+        pointer = {
+            "outs": [
+                {
+                    "md5": dvc_out.get("md5"),
+                    "size": dvc_out.get("size"),
+                    "hash": "md5",
+                    "path": stored_filename,
+                }
+            ]
+        }
+        with open(
+            os.path.join(repo.working_dir, stored_rel + ".dvc"), "w"
+        ) as f:
+            ryaml.dump(pointer, f)
+        with open(
+            os.path.join(repo.working_dir, release_dir, ".gitignore"), "a"
+        ) as f:
+            f.write(f"/{stored_filename}\n")
+        repo.git.add(stored_rel + ".dvc")
+        repo.git.add(f"{release_dir}/.gitignore")
+    else:
+        # Git-tracked: copy the bytes at the pinned commit into the release dir.
+        with open(os.path.join(repo.working_dir, stored_rel), "wb") as f:
+            f.write(tree.read_bytes(path))
+        repo.git.add(stored_rel)
+    return stored_rel
+
+
 def _record_internal_release_in_calkit_yaml(
-    repo, release_in: ReleasePost, git_rev: str
+    repo, project: Project, release_in: ReleasePost, git_rev: str
 ) -> None:
     """Write an ``internal: true`` entry to ``calkit.yaml`` and push it.
 
@@ -347,6 +427,12 @@ def _record_internal_release_in_calkit_yaml(
             f"A release named '{release_in.name}' already exists "
             "in calkit.yaml",
         )
+    # Save a frozen copy of the artifact (single files only for now) under
+    # .calkit/releases, matching the CLI; whole-project/folder zips are a CLI
+    # feature. The stored path is recorded so the entry matches a CLI release.
+    stored_path = _store_internal_release_copy(
+        repo, project, release_in, git_rev
+    )
     # An internal release is pinned to a commit and hosted for review rather
     # than published, so it carries no publisher or DOI. Serialize through
     # calkit's Release model so the entry always matches the canonical schema.
@@ -357,6 +443,7 @@ def _record_internal_release_in_calkit_yaml(
         git_rev=git_rev,
         date=date.today().isoformat(),
         description=release_in.description or None,
+        stored_path=stored_path,
     ).model_dump(exclude_none=True, exclude_defaults=True)
     releases[release_in.name] = entry
     ck_info["releases"] = releases
@@ -368,6 +455,8 @@ def _record_internal_release_in_calkit_yaml(
         repo.git.push(["origin", repo.active_branch.name])
     except GitCommandError as e:
         repo.git.reset(["--hard", "origin/" + repo.active_branch.name])
+        # Drop any stored-copy files we staged so the clone starts clean.
+        repo.git.clean(["-fd"])
         logger.warning(f"Failed to push internal release to calkit.yaml: {e}")
         raise HTTPException(
             502,
@@ -518,7 +607,9 @@ def post_project_release(
     # the project's portable source of truth; roll back the DB row if the push
     # fails so the two stores stay consistent.
     try:
-        _record_internal_release_in_calkit_yaml(repo, release_in, git_rev)
+        _record_internal_release_in_calkit_yaml(
+            repo, project, release_in, git_rev
+        )
     except Exception:
         session.rollback()
         raise
@@ -1127,10 +1218,19 @@ def delete_project_release(
             ryaml.dump(ck_info, f)
         try:
             repo.git.add("calkit.yaml")
+            # Remove the stored copy we saved (no-op if there wasn't one).
+            repo.git.rm(
+                [
+                    "-r",
+                    "--ignore-unmatch",
+                    f".calkit/releases/{release_name}",
+                ]
+            )
             repo.git.commit(["-m", f"Remove internal release {release_name}"])
             repo.git.push(["origin", repo.active_branch.name])
         except GitCommandError as e:
             repo.git.reset(["--hard", "origin/" + repo.active_branch.name])
+            repo.git.clean(["-fd"])
             logger.warning(f"Failed to push release removal: {e}")
             raise HTTPException(
                 502,
@@ -1139,7 +1239,121 @@ def delete_project_release(
             )
     session.delete(release)
     session.commit()
+    mixpanel.track(
+        current_user,
+        "Deleted release",
+        {
+            "owner_name": owner_name,
+            "project_name": project_name,
+            "release_name": release_name,
+        },
+    )
     return Message(message="success")
+
+
+@router.post(
+    "/projects/{owner_name}/{project_name}/releases/{release_name}/github"
+)
+def create_release_github_release(
+    owner_name: str,
+    project_name: str,
+    release_name: str,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> ReleaseGithubResult:
+    """Publish a Calkit release as a GitHub release, linking back to Calkit.
+
+    Creates a GitHub release for the cloud release's tag at its pinned commit,
+    with a body that points back to the Calkit release page. If a GitHub release
+    already exists for the tag, its URL is returned instead of creating a
+    duplicate.
+    """
+    project = app.projects.get_project(
+        session=session,
+        owner_name=owner_name,
+        project_name=project_name,
+        current_user=current_user,
+        min_access_level="write",
+    )
+    release = session.exec(
+        select(Release)
+        .where(Release.project_id == project.id)
+        .where(Release.name == release_name)
+    ).first()
+    if release is None:
+        raise HTTPException(404, "Release not found")
+    if not project.github_repo:
+        raise HTTPException(
+            400, "This project isn't connected to a GitHub repository."
+        )
+    if not release.git_rev:
+        raise HTTPException(
+            400,
+            "This release isn't pinned to a commit, so it can't be released "
+            "to GitHub.",
+        )
+    token = users.get_github_token(session=session, user=current_user)
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/vnd.github+json",
+    }
+    api_base = f"https://api.github.com/repos/{project.github_repo}/releases"
+    # Reuse an existing release for this tag rather than erroring on a duplicate.
+    existing = requests.get(
+        f"{api_base}/tags/{quote(release.name, safe='')}",
+        headers=headers,
+        timeout=10,
+    )
+    if existing.ok:
+        return ReleaseGithubResult(
+            url=existing.json().get("html_url"), created=False
+        )
+    app_base = settings.frontend_host.rstrip("/")
+    link = (
+        f"{app_base}/{project.owner_account_name}/{project.name}"
+        f"/releases/{quote(release.name, safe='')}"
+    )
+    body_parts = []
+    if release.description:
+        body_parts.append(release.description)
+    body_parts.append(f"View this release on Calkit: {link}")
+    try:
+        resp = requests.post(
+            api_base,
+            json={
+                "tag_name": release.name,
+                "target_commitish": release.git_rev,
+                "name": release.name,
+                "body": "\n\n".join(body_parts),
+            },
+            headers=headers,
+            timeout=10,
+        )
+    except Exception as exc:
+        logger.warning(f"GitHub release creation failed: {exc}")
+        raise HTTPException(
+            502, "Couldn't reach GitHub to create the release."
+        )
+    if not resp.ok:
+        logger.warning(
+            f"GitHub release creation failed for {project.github_repo}: "
+            f"{resp.status_code} {resp.text}"
+        )
+        raise HTTPException(
+            502,
+            "Couldn't create the GitHub release. Check that you have push "
+            "access to the repository.",
+        )
+    mixpanel.track(
+        current_user,
+        "Released to GitHub",
+        {
+            "owner_name": owner_name,
+            "project_name": project_name,
+            "release_name": release_name,
+        },
+    )
+    return ReleaseGithubResult(url=resp.json().get("html_url"), created=True)
 
 
 # --- Share token management (project members with write access) -------------
@@ -1192,6 +1406,18 @@ def create_release_share(
     session.refresh(token)
     email_sent = _send_share_email(
         project, release, token, raw_token, current_user
+    )
+    mixpanel.track(
+        current_user,
+        "Created release share link",
+        {
+            "owner_name": owner_name,
+            "project_name": project_name,
+            "release_name": release_name,
+            "permission": token.permission,
+            "has_email": token.email is not None,
+            "email_sent": email_sent,
+        },
     )
     return ReleaseShareTokenCreated(
         id=token.id,
@@ -1295,9 +1521,30 @@ def get_release_view(
     release, permission, share_token = _authorize_release(
         session, owner_name, project_name, release_name, token, current_user
     )
-    # Count the visit. Kept simple (every GET counts); a good enough signal.
-    release.view_count += 1
-    session.add(release)
+    # Count a unique viewer once: a logged-in member (by user) or an anonymous
+    # share-link visitor (by token). Repeat visits and unidentifiable anonymous
+    # viewers (public project viewed while logged out, no token) don't bump it.
+    viewer_user_id = current_user.id if current_user is not None else None
+    viewer_token_id = share_token.id if share_token is not None else None
+    if viewer_user_id is not None or viewer_token_id is not None:
+        already_viewed = session.exec(
+            select(ReleaseViewer).where(
+                ReleaseViewer.release_id == release.id,
+                ReleaseViewer.user_id == viewer_user_id,
+                ReleaseViewer.share_token_id == viewer_token_id,
+            )
+        ).first()
+        if already_viewed is None:
+            session.add(
+                ReleaseViewer(
+                    release_id=release.id,
+                    user_id=viewer_user_id,
+                    share_token_id=viewer_token_id,
+                )
+            )
+            release.view_count += 1
+            session.add(release)
+    # The per-link counter tracks raw opens, so it bumps on every visit.
     if share_token is not None:
         share_token.view_count += 1
         session.add(share_token)
@@ -1481,6 +1728,30 @@ def post_release_comment(
         comment.external_url = external_url
     session.commit()
     session.refresh(comment)
+    # Track usage, including anonymous share-link reviewers (a key use case), so
+    # we can tell whether release commenting is actually used. Anonymous events
+    # are keyed by the share token rather than a user.
+    event_props = {
+        "owner_name": owner_name,
+        "project_name": project_name,
+        "release_name": release_name,
+        "anonymous": current_user is None,
+        "via_share_link": share_token is not None,
+        "opened_github_issue": comment.external_url is not None,
+    }
+    if current_user is not None:
+        mixpanel.track(current_user, "Posted release comment", event_props)
+    else:
+        distinct_id = (
+            f"share-token:{share_token.id}"
+            if share_token is not None
+            else "anonymous-release-commenter"
+        )
+        mixpanel.mp.track(
+            distinct_id,
+            event_name="Posted release comment",
+            properties=event_props,
+        )
     return ReleaseCommentPublic(
         id=comment.id,
         author_name=comment.author_name,

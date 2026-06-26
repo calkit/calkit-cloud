@@ -4912,6 +4912,24 @@ export const ReleaseCommentPublicSchema = {
   title: "ReleaseCommentPublic",
 } as const
 
+export const ReleaseGithubResultSchema = {
+  properties: {
+    url: {
+      type: "string",
+      title: "Url",
+    },
+    created: {
+      type: "boolean",
+      title: "Created",
+    },
+  },
+  type: "object",
+  required: ["url", "created"],
+  title: "ReleaseGithubResult",
+  description:
+    "Result of creating (or finding) a GitHub release for a Calkit release.",
+} as const
+
 export const ReleaseListItemSchema = {
   properties: {
     source: {

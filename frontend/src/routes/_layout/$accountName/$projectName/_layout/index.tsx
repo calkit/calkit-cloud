@@ -30,6 +30,7 @@ import {
 } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
 import { useState } from "react"
+import { z } from "zod"
 import { FaPlus } from "react-icons/fa"
 import { MdEdit } from "react-icons/md"
 import { ExternalLinkIcon } from "@chakra-ui/icons"
@@ -58,6 +59,13 @@ export const Route = createFileRoute(
   "/_layout/$accountName/$projectName/_layout/",
 )({
   component: Project,
+  validateSearch: (search) =>
+    z
+      .object({
+        // Whole-project "New release" modal open state, so a link reopens it.
+        new_release: z.boolean().optional(),
+      })
+      .parse(search),
 })
 
 function ProjectView() {
@@ -128,9 +136,15 @@ function ProjectView() {
   }
   const newIssueModal = useDisclosure()
   const newQuestionModal = useDisclosure()
-  const newReleaseModal = useDisclosure()
   const newPubTemplateModal = useDisclosure()
   const overleafImportModal = useDisclosure()
+  // New release modal open state lives in the URL so a link can reopen it.
+  const navigate = Route.useNavigate()
+  const { new_release: newReleaseOpen } = Route.useSearch()
+  const setNewReleaseOpen = (open: boolean) =>
+    navigate({
+      search: (prev) => ({ ...prev, new_release: open || undefined }),
+    })
 
   return (
     <>
@@ -232,14 +246,18 @@ function ProjectView() {
             </Flex>
             {questionsRequest.isPending ? (
               <LoadingSpinner height="100px" />
-            ) : (
+            ) : questionsRequest.data?.length ? (
               <OrderedList>
-                {questionsRequest.data?.map((question) => (
+                {questionsRequest.data.map((question) => (
                   <ListItem key={question.question}>
                     {question.question}
                   </ListItem>
                 ))}
               </OrderedList>
+            ) : (
+              <Text fontSize="sm" color="gray.500">
+                No research questions defined yet.
+              </Text>
             )}
           </Box>
           {/* To-dos (issues) */}
@@ -352,11 +370,11 @@ function ProjectView() {
                     ml={1.5}
                     icon={<FaPlus />}
                     size={"xs"}
-                    onClick={newReleaseModal.onOpen}
+                    onClick={() => setNewReleaseOpen(true)}
                   />
                   <NewRelease
-                    isOpen={newReleaseModal.isOpen}
-                    onClose={newReleaseModal.onClose}
+                    isOpen={Boolean(newReleaseOpen)}
+                    onClose={() => setNewReleaseOpen(false)}
                     ownerName={accountName}
                     projectName={projectName}
                     kind="project"

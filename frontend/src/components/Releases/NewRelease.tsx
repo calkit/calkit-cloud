@@ -48,6 +48,7 @@ import useCustomToast from "../../hooks/useCustomToast"
 import { handleError } from "../../lib/errors"
 import { releasePagePath, releasePageUrl } from "../../lib/releases"
 import PathPicker from "./PathPicker"
+import ShareDialog from "./ShareDialog"
 
 interface NewReleaseProps {
   isOpen: boolean
@@ -100,6 +101,8 @@ const NewRelease = ({
   const [mode, setMode] = useState<Mode>("create")
   // A created internal release returns a record with its hosted page link.
   const [created, setCreated] = useState<ReleasePublic | null>(null)
+  // Whether the share dialog is stacked over the success screen.
+  const [sharing, setSharing] = useState(false)
   const [importDone, setImportDone] = useState(false)
   // Whether metadata has been fetched for the pasted URL (gates Import).
   const [fetched, setFetched] = useState(false)
@@ -311,6 +314,7 @@ const NewRelease = ({
 
   const handleClose = () => {
     setCreated(null)
+    setSharing(false)
     setImportDone(false)
     setFetched(false)
     setMode("create")
@@ -363,6 +367,7 @@ const NewRelease = ({
             <Button variant="primary" onClick={openRelease}>
               Open release
             </Button>
+            <Button onClick={() => setSharing(true)}>Create share link</Button>
             <Button onClick={handleClose}>Done</Button>
           </ModalFooter>
         </ModalContent>
@@ -481,6 +486,22 @@ const NewRelease = ({
                     Pick a file to release, or release the whole project.
                   </FormHelperText>
                 </FormControl>
+
+                {mode === "create" && !path.trim() && (
+                  <Text mt={2} fontSize="sm" color="gray.500">
+                    Releasing the whole project here pins it for review. To
+                    create a downloadable archive snapshot, use the CLI:{" "}
+                    <Code>calkit new release --internal</Code>.{" "}
+                    <Link
+                      isExternal
+                      variant="blue"
+                      href="https://docs.calkit.org/releases/"
+                    >
+                      Learn how
+                      <Icon as={FiExternalLink} mb="-2px" ml={1} />
+                    </Link>
+                  </Text>
+                )}
 
                 {mode === "create" && isStale && (
                   <Alert
@@ -639,6 +660,15 @@ const NewRelease = ({
             </Button>
           </ModalFooter>
         </ModalContent>
+      )}
+      {created && (
+        <ShareDialog
+          isOpen={sharing}
+          onClose={() => setSharing(false)}
+          ownerName={ownerName}
+          projectName={projectName}
+          releaseName={created.name}
+        />
       )}
     </Modal>
   )

@@ -209,6 +209,8 @@ import type {
   GetReleaseStalenessResponse,
   DeleteProjectReleaseData,
   DeleteProjectReleaseResponse,
+  CreateReleaseGithubReleaseData,
+  CreateReleaseGithubReleaseResponse,
   CreateReleaseShareData,
   CreateReleaseShareResponse,
   ListReleaseSharesData,
@@ -3140,6 +3142,38 @@ export class ReleasesService {
     return __request(OpenAPI, {
       method: "DELETE",
       url: "/projects/{owner_name}/{project_name}/releases/{release_name}",
+      path: {
+        owner_name: data.ownerName,
+        project_name: data.projectName,
+        release_name: data.releaseName,
+      },
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Create Release Github Release
+   * Publish a Calkit release as a GitHub release, linking back to Calkit.
+   *
+   * Creates a GitHub release for the cloud release's tag at its pinned commit,
+   * with a body that points back to the Calkit release page. If a GitHub release
+   * already exists for the tag, its URL is returned instead of creating a
+   * duplicate.
+   * @param data The data for the request.
+   * @param data.ownerName
+   * @param data.projectName
+   * @param data.releaseName
+   * @returns ReleaseGithubResult Successful Response
+   * @throws ApiError
+   */
+  public static createReleaseGithubRelease(
+    data: CreateReleaseGithubReleaseData,
+  ): CancelablePromise<CreateReleaseGithubReleaseResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/projects/{owner_name}/{project_name}/releases/{release_name}/github",
       path: {
         owner_name: data.ownerName,
         project_name: data.projectName,

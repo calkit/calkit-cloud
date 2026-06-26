@@ -30,6 +30,8 @@ const releasesSearchSchema = z.object({
   // Table sort, persisted in the URL so it survives navigation/refresh.
   sort: z.enum(SORT_KEYS).optional(),
   dir: z.enum(["asc", "desc"]).optional(),
+  // New release modal open state, so a link can reopen it.
+  new_release: z.boolean().optional(),
 })
 
 export const Route = createFileRoute(
@@ -89,6 +91,12 @@ function Releases() {
         sort={sort}
         onSortChange={setSort}
         filter={query}
+        newReleaseOpen={Boolean(search.new_release)}
+        onNewReleaseOpenChange={(open) =>
+          navigate({
+            search: (prev) => ({ ...prev, new_release: open || undefined }),
+          })
+        }
       />
     </Box>
   )
