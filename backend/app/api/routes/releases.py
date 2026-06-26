@@ -46,6 +46,7 @@ from app.models import (
     ReleaseComment,
     ReleaseCommentPost,
     ReleaseCommentPublic,
+    ReleaseCommentsResolvePost,
     ReleaseGithubResult,
     ReleaseListItem,
     ReleasePost,
@@ -317,6 +318,7 @@ def _to_view(
         public=release.public,
         comments_enabled=release.comments_enabled,
         comment_count=release.comment_count,
+        comments_resolved=release.comments_resolved,
         created=release.created,
         owner_account_name=project.owner_account_name,
         owner_account_display_name=project.owner_account_display_name,
@@ -1548,6 +1550,9 @@ def get_release_view(
     if share_token is not None:
         share_token.view_count += 1
         session.add(share_token)
+    # Keep the thread's resolved state in sync with its GitHub issue, so closing
+    # the issue on GitHub shows as resolved here (and reopening unresolves).
+    _sync_release_issue_resolution(session, release)
     session.commit()
     session.refresh(release)
     return _to_view(release, permission, share_token)
@@ -1867,3 +1872,134 @@ def _mirror_release_comment_to_github(
         )
         return release.github_issue_url
     return resp.json().get("html_url") or release.github_issue_url
+
+
+def _release_issue_ref(url: str) -> tuple[str, int] | None:
+    """Parse ``(repo, issue_number)`` from a GitHub issue URL, or None."""
+    try:
+        parts = url.rstrip("/").split("/")
+        return f"{parts[-4]}/{parts[-3]}", int(parts[-1])
+    except Exception:
+        return None
+
+
+def _sync_release_issue_resolution(
+    session: SessionDep, release: Release
+) -> None:
+    """Reflect the release issue's open/closed state onto ``comments_resolved``.
+
+    The release's single GitHub issue is the source of truth: a closed issue
+    marks the thread resolved, an open one unresolves it -- so resolving on
+    GitHub shows up here too. Uses the release creator's token (anonymous
+    viewers have none). Never raises.
+    """
+    if not release.github_issue_url:
+        return
+    ref = _release_issue_ref(release.github_issue_url)
+    if ref is None:
+        return
+    repo, issue_number = ref
+    try:
+        token = users.get_github_token(session, release.created_by)
+    except Exception:
+        return
+    try:
+        resp = requests.get(
+            f"https://api.github.com/repos/{repo}/issues/{issue_number}",
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Accept": "application/vnd.github+json",
+            },
+            timeout=5,
+        )
+    except Exception as exc:
+        logger.debug(f"Release issue resolution sync failed: {exc}")
+        return
+    if resp.status_code != 200:
+        return
+    closed = resp.json().get("state") == "closed"
+    if closed and release.comments_resolved is None:
+        release.comments_resolved = utcnow()
+        session.add(release)
+    elif not closed and release.comments_resolved is not None:
+        release.comments_resolved = None
+        session.add(release)
+
+
+def _set_release_issue_state(
+    session: SessionDep, release: Release, user: User, closed: bool
+) -> None:
+    """Close or reopen the release's GitHub issue. Best-effort; never raises."""
+    if not release.github_issue_url:
+        return
+    ref = _release_issue_ref(release.github_issue_url)
+    if ref is None:
+        return
+    repo, issue_number = ref
+    try:
+        token = users.get_github_token(session, user)
+    except Exception:
+        logger.debug("Skipping release issue state change: no token")
+        return
+    try:
+        resp = requests.patch(
+            f"https://api.github.com/repos/{repo}/issues/{issue_number}",
+            json={"state": "closed" if closed else "open"},
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Accept": "application/vnd.github+json",
+            },
+            timeout=10,
+        )
+        if not resp.ok:
+            logger.warning(
+                f"Release issue state change failed for {repo}: "
+                f"{resp.status_code} {resp.text}"
+            )
+    except Exception as exc:
+        logger.debug(f"Release issue state change failed: {exc}")
+
+
+@router.post(
+    "/projects/{owner_name}/{project_name}/releases/{release_name}"
+    "/resolve-comments"
+)
+def resolve_release_comments(
+    owner_name: str,
+    project_name: str,
+    release_name: str,
+    body: ReleaseCommentsResolvePost,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> ReleaseView:
+    """Resolve or reopen a release's comment thread (project members only).
+
+    Mirrors the state to the release's GitHub issue (closed when resolved), so
+    it stays in sync with what ``_sync_release_issue_resolution`` reads back.
+    """
+    release, permission, _share = _authorize_release(
+        session, owner_name, project_name, release_name, None, current_user
+    )
+    if permission != "manage":
+        raise HTTPException(
+            403, "Only project members can resolve release comments"
+        )
+    release.comments_resolved = utcnow() if body.resolved else None
+    session.add(release)
+    session.commit()
+    session.refresh(release)
+    _set_release_issue_state(
+        session, release, current_user, closed=body.resolved
+    )
+    mixpanel.track(
+        current_user,
+        "Resolved release comments"
+        if body.resolved
+        else "Reopened release comments",
+        {
+            "owner_name": owner_name,
+            "project_name": project_name,
+            "release_name": release_name,
+        },
+    )
+    return _to_view(release, permission, None)

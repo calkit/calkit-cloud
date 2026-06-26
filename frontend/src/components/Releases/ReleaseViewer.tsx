@@ -26,7 +26,14 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link as RouterLink } from "@tanstack/react-router"
 import { type ReactNode, useState } from "react"
-import { FaFile, FaFolder, FaGithub, FaReply } from "react-icons/fa"
+import {
+  FaCheck,
+  FaFile,
+  FaFolder,
+  FaGithub,
+  FaReply,
+  FaUndo,
+} from "react-icons/fa"
 import {
   FiArrowUp,
   FiDownload,
@@ -241,9 +248,36 @@ function CommentsPanel({
     },
     onError: (err: ApiError) => handleError(err, showToast),
   })
+  const viewKey = [
+    "releases",
+    loc.ownerName,
+    loc.projectName,
+    loc.releaseName,
+    loc.token,
+  ]
+  const resolveMutation = useMutation({
+    mutationFn: (resolved: boolean) =>
+      ReleasesService.resolveReleaseComments({
+        ownerName: loc.ownerName,
+        projectName: loc.projectName,
+        releaseName: loc.releaseName,
+        requestBody: { resolved },
+      }),
+    onSuccess: (_data, resolved) => {
+      showToast(
+        "Success!",
+        resolved ? "Thread resolved." : "Thread reopened.",
+        "success",
+      )
+      queryClient.invalidateQueries({ queryKey: viewKey })
+    },
+    onError: (err: ApiError) => handleError(err, showToast),
+  })
   // The page payload already encodes whether this viewer may comment.
   const canComment =
     release.permission === "comment" || release.permission === "manage"
+  const canManage = release.permission === "manage"
+  const isResolved = !!release.comments_resolved
   // A token bound to an email identifies the commenter; only truly anonymous
   // viewers (no login, no token email) need to type a name.
   const needsName = !user && !release.viewer_email
@@ -300,9 +334,28 @@ function CommentsPanel({
 
   return (
     <Flex direction="column" h="100%">
-      <Heading size="sm" mb={3}>
-        Comments ({comments.length})
-      </Heading>
+      <Flex align="center" gap={2} mb={3}>
+        <Heading size="sm">Comments ({comments.length})</Heading>
+        {isResolved && (
+          <Badge colorScheme="green" display="flex" alignItems="center" gap={1}>
+            <Icon as={FaCheck} boxSize={2.5} />
+            Resolved
+          </Badge>
+        )}
+        {canManage && comments.length > 0 && (
+          <Button
+            ml="auto"
+            size="xs"
+            variant="ghost"
+            leftIcon={<Icon as={isResolved ? FaUndo : FaCheck} />}
+            colorScheme={isResolved ? "gray" : "green"}
+            isLoading={resolveMutation.isPending}
+            onClick={() => resolveMutation.mutate(!isResolved)}
+          >
+            {isResolved ? "Reopen" : "Resolve"}
+          </Button>
+        )}
+      </Flex>
       <VStack align="stretch" spacing={2} flex={1} overflowY="auto" mb={3}>
         {commentsQuery.isPending ? (
           <LoadingSpinner height="80px" />

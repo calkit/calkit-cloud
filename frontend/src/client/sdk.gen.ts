@@ -227,6 +227,8 @@ import type {
   GetReleaseCommentsResponse,
   PostReleaseCommentData,
   PostReleaseCommentResponse,
+  ResolveReleaseCommentsData,
+  ResolveReleaseCommentsResponse,
   ReadUsersData,
   ReadUsersResponse,
   CreateUserData,
@@ -3425,6 +3427,39 @@ export class ReleasesService {
       },
       query: {
         token: data.token,
+      },
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Resolve Release Comments
+   * Resolve or reopen a release's comment thread (project members only).
+   *
+   * Mirrors the state to the release's GitHub issue (closed when resolved), so
+   * it stays in sync with what ``_sync_release_issue_resolution`` reads back.
+   * @param data The data for the request.
+   * @param data.ownerName
+   * @param data.projectName
+   * @param data.releaseName
+   * @param data.requestBody
+   * @returns ReleaseView Successful Response
+   * @throws ApiError
+   */
+  public static resolveReleaseComments(
+    data: ResolveReleaseCommentsData,
+  ): CancelablePromise<ResolveReleaseCommentsResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/projects/{owner_name}/{project_name}/releases/{release_name}/resolve-comments",
+      path: {
+        owner_name: data.ownerName,
+        project_name: data.projectName,
+        release_name: data.releaseName,
       },
       body: data.requestBody,
       mediaType: "application/json",

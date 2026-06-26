@@ -4936,6 +4936,18 @@ export const ReleaseCommentPublicSchema = {
   title: "ReleaseCommentPublic",
 } as const
 
+export const ReleaseCommentsResolvePostSchema = {
+  properties: {
+    resolved: {
+      type: "boolean",
+      title: "Resolved",
+    },
+  },
+  type: "object",
+  required: ["resolved"],
+  title: "ReleaseCommentsResolvePost",
+} as const
+
 export const ReleaseGithubResultSchema = {
   properties: {
     url: {
@@ -5793,6 +5805,18 @@ export const ReleaseViewSchema = {
     comment_count: {
       type: "integer",
       title: "Comment Count",
+    },
+    comments_resolved: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Comments Resolved",
     },
     created: {
       type: "string",

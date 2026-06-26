@@ -1032,6 +1032,10 @@ export type ReleaseCommentPublic = {
   created: string
 }
 
+export type ReleaseCommentsResolvePost = {
+  resolved: boolean
+}
+
 /**
  * Result of creating (or finding) a GitHub release for a Calkit release.
  */
@@ -1209,6 +1213,7 @@ export type ReleaseView = {
   public: boolean
   comments_enabled: boolean
   comment_count: number
+  comments_resolved?: string | null
   created: string
   owner_account_name: string
   owner_account_display_name: string
@@ -2396,6 +2401,15 @@ export type PostReleaseCommentData = {
 }
 
 export type PostReleaseCommentResponse = ReleaseCommentPublic
+
+export type ResolveReleaseCommentsData = {
+  ownerName: string
+  projectName: string
+  releaseName: string
+  requestBody: ReleaseCommentsResolvePost
+}
+
+export type ResolveReleaseCommentsResponse = ReleaseView
 
 export type ReadUsersData = {
   limit?: number

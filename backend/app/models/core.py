@@ -862,6 +862,9 @@ class Release(ReleaseBase, table=True):
     # created lazily on the first comment. All later comments and replies are
     # posted to it rather than opening a new issue per comment.
     github_issue_url: str | None = Field(default=None, max_length=2048)
+    # When the comment thread was resolved (its GitHub issue closed). Kept in
+    # sync with the issue state, and toggleable from the release page.
+    comments_resolved: datetime | None = Field(default=None)
     created: datetime = Field(default_factory=utcnow)
     # Relationships
     project: Project = Relationship(back_populates="releases")
@@ -957,6 +960,8 @@ class ReleaseView(SQLModel):
     public: bool
     comments_enabled: bool
     comment_count: int
+    # Set when the comment thread is resolved (its GitHub issue is closed).
+    comments_resolved: datetime | None = None
     created: datetime
     owner_account_name: str
     owner_account_display_name: str
@@ -1031,6 +1036,10 @@ class ReleaseCommentPost(SQLModel):
     highlight: CommentHighlight | None = None
     # When set, this comment is a reply to the given top-level comment.
     parent_id: uuid.UUID | None = None
+
+
+class ReleaseCommentsResolvePost(SQLModel):
+    resolved: bool
 
 
 class ReleaseCommentPublic(SQLModel):
