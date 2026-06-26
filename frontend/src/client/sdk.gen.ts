@@ -101,6 +101,8 @@ import type {
   PutProjectContentsResponse,
   PatchProjectContentsData,
   PatchProjectContentsResponse,
+  GetProjectContentPathsData,
+  GetProjectContentPathsResponse,
   GetProjectQuestionsData,
   GetProjectQuestionsResponse,
   PostProjectQuestionData,
@@ -1584,6 +1586,41 @@ export class ProjectsService {
       },
       body: data.requestBody,
       mediaType: "application/json",
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Get Project Content Paths
+   * Flat list of all selectable file paths in the project.
+   *
+   * Powers fuzzy path search (e.g., the release path picker) without walking the
+   * tree one directory at a time. Includes Git-tracked files and DVC-tracked
+   * outputs, preferring an output's real path over its ``.dvc`` pointer file.
+   * @param data The data for the request.
+   * @param data.ownerName
+   * @param data.projectName
+   * @param data.ref
+   * @param data.ttl
+   * @returns string Successful Response
+   * @throws ApiError
+   */
+  public static getProjectContentPaths(
+    data: GetProjectContentPathsData,
+  ): CancelablePromise<GetProjectContentPathsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/projects/{owner_name}/{project_name}/contents-paths",
+      path: {
+        owner_name: data.ownerName,
+        project_name: data.projectName,
+      },
+      query: {
+        ref: data.ref,
+        ttl: data.ttl,
+      },
       errors: {
         422: "Validation Error",
       },

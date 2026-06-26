@@ -1861,6 +1861,15 @@ export type PatchProjectContentsResponse = {
   [key: string]: unknown
 } | null
 
+export type GetProjectContentPathsData = {
+  ownerName: string
+  projectName: string
+  ref?: string | null
+  ttl?: number | null
+}
+
+export type GetProjectContentPathsResponse = Array<string>
+
 export type GetProjectQuestionsData = {
   ownerName: string
   projectName: string

@@ -1134,6 +1134,49 @@ def get_project_contents(
     )
 
 
+@router.get("/projects/{owner_name}/{project_name}/contents-paths")
+def get_project_content_paths(
+    owner_name: str,
+    project_name: str,
+    session: SessionDep,
+    current_user: CurrentUserOptional,
+    ref: str | None = None,
+    ttl: int | None = DEFAULT_REPO_TTL,
+) -> list[str]:
+    """Flat list of all selectable file paths in the project.
+
+    Powers fuzzy path search (e.g., the release path picker) without walking the
+    tree one directory at a time. Includes Git-tracked files and DVC-tracked
+    outputs, preferring an output's real path over its ``.dvc`` pointer file.
+    """
+    project = app.projects.get_project(
+        owner_name=owner_name,
+        project_name=project_name,
+        session=session,
+        current_user=current_user,
+        min_access_level="read",
+    )
+    repo = get_repo(
+        project=project, user=current_user, session=session, ttl=ttl, ref=ref
+    )
+    tree = app.projects.get_repo_tree_for_ref(repo, ref)
+    _, dvc_lock_outs, _ = app.projects.get_ck_info_and_dvc_outs_from_tree(
+        project=project, tree=tree
+    )
+    dvc_files = {
+        p for p, obj in dvc_lock_outs.items() if obj.get("type") != "dir"
+    }
+    paths = set(dvc_files)
+    for f in repo.git.ls_files().split("\n"):
+        if not f or f.startswith(".dvc/"):
+            continue
+        # Prefer a DVC output's real path over its tracked ``.dvc`` pointer.
+        if f.endswith(".dvc") and f[:-4] in dvc_files:
+            continue
+        paths.add(f)
+    return sorted(paths)
+
+
 def _valid_file_size(content_length: int = Header(lt=1_000_000)):
     """Check content length header.
 

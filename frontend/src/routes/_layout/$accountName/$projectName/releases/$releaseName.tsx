@@ -1,5 +1,9 @@
 import { Modal, ModalContent, ModalOverlay } from "@chakra-ui/react"
-import { createFileRoute, useRouter } from "@tanstack/react-router"
+import {
+  createFileRoute,
+  useCanGoBack,
+  useRouter,
+} from "@tanstack/react-router"
 
 import ReleaseViewer from "../../../../../components/Releases/ReleaseViewer"
 
@@ -15,23 +19,27 @@ export const Route = createFileRoute(
 // Reached via a share link or a release name in a table. Presented as a
 // near-full-screen, closeable modal over a dimmed backdrop (not edge-to-edge
 // full screen). Lives outside the project shell so no-signup share-link
-// viewers aren't gated by project access; closing navigates to the project
-// (or the home page for share-link viewers) -- see `close` below.
+// viewers aren't gated by project access; closing returns to wherever the user
+// came from -- see `close` below.
 function ReleasePage() {
   const { accountName, projectName, releaseName } = Route.useParams()
   const { token } = Route.useSearch()
   const router = useRouter()
-  // Decks embedded in the showcase (e.g. reveal.js) push a slide fragment onto
-  // the shared session history per slide, so router.history.back() can land on
-  // a previous slide instead of leaving the release. Navigate away explicitly
-  // so the close button always closes. Share-link viewers aren't members, so
-  // send them to the home page rather than into the (gated) project shell.
+  const canGoBack = useCanGoBack()
+  // Go back to the page the modal was opened from (e.g. the releases list).
+  // Embedded decks (reveal.js) run in a sandboxed iframe with no top
+  // navigation, so they can't push slide entries onto our history -- back() is
+  // safe. When there's nowhere to go back to (opened directly, e.g. a fresh tab
+  // from a share link), fall back: members to the project, share-link viewers
+  // to the home page (the gated project shell would 404 them).
   const close = () => {
-    if (token) {
-      router.navigate({ to: "/" as any })
+    if (canGoBack) {
+      router.history.back()
       return
     }
-    router.navigate({ to: `/${accountName}/${projectName}` as any })
+    router.navigate({
+      to: (token ? "/" : `/${accountName}/${projectName}`) as any,
+    })
   }
   return (
     <Modal isOpen onClose={close} isCentered scrollBehavior="inside">

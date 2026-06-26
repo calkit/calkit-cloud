@@ -46,6 +46,7 @@ import type { ApiError } from "../../client/core/ApiError"
 import useAuth from "../../hooks/useAuth"
 import useCustomToast from "../../hooks/useCustomToast"
 import { handleError } from "../../lib/errors"
+import { submitOnCmdEnter } from "../../lib/keyboard"
 import { releaseLocation, releaseDownloadName } from "../../lib/releases"
 import LoadingSpinner from "../Common/LoadingSpinner"
 import Markdown from "../Common/Markdown"
@@ -223,7 +224,7 @@ function CommentsPanel({
       }),
     onSuccess: () => {
       setComment("")
-      showToast("Thanks!", "Your comment was posted.", "success")
+      showToast("Success!", "Your comment was posted.", "success")
       queryClient.invalidateQueries({ queryKey: commentsKey })
     },
     onError: (err: ApiError) => handleError(err, showToast),
@@ -313,6 +314,9 @@ function CommentsPanel({
             size="sm"
             value={comment}
             onChange={(e) => setComment(e.target.value)}
+            onKeyDown={submitOnCmdEnter(() => {
+              if (comment.trim() && !mutation.isPending) mutation.mutate()
+            })}
             placeholder="Leave a comment"
             mb={2}
           />
@@ -384,7 +388,7 @@ function MemberCommentsPanel({
       }),
     onSuccess: () => {
       setComment("")
-      showToast("Thanks!", "Your comment was posted.", "success")
+      showToast("Success!", "Your comment was posted.", "success")
       queryClient.invalidateQueries({ queryKey: commentsKey })
     },
     onError: (err: ApiError) => handleError(err, showToast),
@@ -450,6 +454,9 @@ function MemberCommentsPanel({
             size="sm"
             value={comment}
             onChange={(e) => setComment(e.target.value)}
+            onKeyDown={submitOnCmdEnter(() => {
+              if (comment.trim() && !mutation.isPending) mutation.mutate()
+            })}
             placeholder="Leave a comment"
             mb={2}
           />

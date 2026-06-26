@@ -32,6 +32,7 @@ import {
   useClipboard,
 } from "@chakra-ui/react"
 import { TOOLTIP_OPEN_DELAY } from "../../lib/core"
+import { useNavigate } from "@tanstack/react-router"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useEffect, useState } from "react"
 import { type SubmitHandler, useForm } from "react-hook-form"
@@ -45,7 +46,7 @@ import {
 import type { ApiError } from "../../client/core/ApiError"
 import useCustomToast from "../../hooks/useCustomToast"
 import { handleError } from "../../lib/errors"
-import { releasePageUrl } from "../../lib/releases"
+import { releasePagePath, releasePageUrl } from "../../lib/releases"
 import PathPicker from "./PathPicker"
 
 interface NewReleaseProps {
@@ -317,6 +318,15 @@ const NewRelease = ({
     onClose()
   }
 
+  const navigate = useNavigate()
+  const openRelease = () => {
+    if (!created) return
+    handleClose()
+    navigate({
+      to: releasePagePath(ownerName, projectName, created.name) as any,
+    })
+  }
+
   return (
     <Modal
       isOpen={isOpen}
@@ -349,10 +359,11 @@ const NewRelease = ({
               link.
             </Text>
           </ModalBody>
-          <ModalFooter>
-            <Button variant="primary" onClick={handleClose}>
-              Done
+          <ModalFooter gap={3}>
+            <Button variant="primary" onClick={openRelease}>
+              Open release
             </Button>
+            <Button onClick={handleClose}>Done</Button>
           </ModalFooter>
         </ModalContent>
       ) : importDone ? (

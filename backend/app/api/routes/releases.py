@@ -458,7 +458,17 @@ def post_project_release(
     if os.path.exists(ck_path):
         with open(ck_path) as f:
             existing_ck = ryaml.load(f) or {}
-        for rname, rel in (existing_ck.get("releases") or {}).items():
+        existing_releases = existing_ck.get("releases") or {}
+        # The cloud-table check above only covers cloud releases. A name used by
+        # a release that lives only in calkit.yaml (CLI/external/imported, with
+        # no cloud row) must also fail rather than be silently overwritten.
+        if release_in.name in existing_releases:
+            raise HTTPException(
+                409,
+                f"A release named '{release_in.name}' already exists "
+                "in calkit.yaml",
+            )
+        for rname, rel in existing_releases.items():
             if not isinstance(rel, dict):
                 continue
             rrev = rel.get("git_rev")

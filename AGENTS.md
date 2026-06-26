@@ -84,3 +84,4 @@ out on the system.
 - Always put a comma after "i.e." and "e.g.".
 - Let humans write prose.
 - Don't use many em-dashes.
+- Modal open state should be a query param.
