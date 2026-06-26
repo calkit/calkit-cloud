@@ -26,7 +26,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link as RouterLink } from "@tanstack/react-router"
 import { type ReactNode, useState } from "react"
-import { FaFile, FaFolder, FaGithub } from "react-icons/fa"
+import { FaFile, FaFolder, FaGithub, FaReply } from "react-icons/fa"
 import {
   FiArrowUp,
   FiDownload,
@@ -196,6 +196,9 @@ function CommentsPanel({
   const borderColor = useColorModeValue("gray.200", "gray.600")
   const [comment, setComment] = useState("")
   const [authorName, setAuthorName] = useState("")
+  // The top-level comment being replied to (only one reply box open at a time).
+  const [replyTo, setReplyTo] = useState<string | null>(null)
+  const [replyText, setReplyText] = useState("")
   const commentsKey = [
     "releases",
     loc.ownerName,
@@ -214,16 +217,25 @@ function CommentsPanel({
       }),
   })
   const mutation = useMutation({
-    mutationFn: () =>
+    mutationFn: (vars: { body: string; parentId?: string }) =>
       ReleasesService.postReleaseComment({
         ownerName: loc.ownerName,
         projectName: loc.projectName,
         releaseName: loc.releaseName,
         token: loc.token,
-        requestBody: { comment, author_name: authorName || null },
+        requestBody: {
+          comment: vars.body,
+          author_name: authorName || null,
+          parent_id: vars.parentId ?? null,
+        },
       }),
-    onSuccess: () => {
-      setComment("")
+    onSuccess: (_data, vars) => {
+      if (vars.parentId) {
+        setReplyText("")
+        setReplyTo(null)
+      } else {
+        setComment("")
+      }
       showToast("Success!", "Your comment was posted.", "success")
       queryClient.invalidateQueries({ queryKey: commentsKey })
     },
@@ -236,6 +248,55 @@ function CommentsPanel({
   // viewers (no login, no token email) need to type a name.
   const needsName = !user && !release.viewer_email
   const comments = commentsQuery.data ?? []
+  // Flat one-level threading: top-level comments with their replies grouped
+  // under them, matching how the backend records ``parent_id``.
+  const topLevel = comments.filter((c) => !c.parent_id)
+  const repliesByParent = comments.reduce(
+    (acc, c) => {
+      if (c.parent_id) {
+        ;(acc[c.parent_id] ??= []).push(c)
+      }
+      return acc
+    },
+    {} as Record<string, typeof comments>,
+  )
+  const renderBubble = (c: (typeof comments)[number]) => (
+    <Flex gap={2}>
+      <Avatar
+        name={c.author_name ?? undefined}
+        size="xs"
+        mt={0.5}
+        flexShrink={0}
+      />
+      <Box
+        flex={1}
+        borderWidth={1}
+        borderColor={borderColor}
+        borderRadius="md"
+        p={3}
+      >
+        <Flex align="center" gap={1} mb={1} wrap="wrap">
+          <Text fontSize="xs" fontWeight="bold" mr={1}>
+            {c.author_name || "Anonymous"}
+          </Text>
+          <Text fontSize="xs" color="gray.500" mr="auto">
+            {new Date(c.created).toLocaleDateString()}
+          </Text>
+          {c.external_url && (
+            <Link href={c.external_url} isExternal color="gray.500">
+              <Flex align="center" gap={0.5}>
+                <Icon as={FaGithub} boxSize={3} />
+                <ExternalLinkIcon boxSize={2.5} />
+              </Flex>
+            </Link>
+          )}
+        </Flex>
+        <Text fontSize="sm" whiteSpace="pre-wrap">
+          {c.comment}
+        </Text>
+      </Box>
+    </Flex>
+  )
 
   return (
     <Flex direction="column" h="100%">
@@ -250,42 +311,76 @@ function CommentsPanel({
             No comments yet. Be the first to leave feedback.
           </Text>
         ) : (
-          comments.map((c) => (
-            <Flex key={c.id} gap={2}>
-              <Avatar
-                name={c.author_name ?? undefined}
-                size="xs"
-                mt={0.5}
-                flexShrink={0}
-              />
-              <Box
-                flex={1}
-                borderWidth={1}
-                borderColor={borderColor}
-                borderRadius="md"
-                p={3}
-              >
-                <Flex align="center" gap={1} mb={1} wrap="wrap">
-                  <Text fontSize="xs" fontWeight="bold" mr={1}>
-                    {c.author_name || "Anonymous"}
-                  </Text>
-                  <Text fontSize="xs" color="gray.500" mr="auto">
-                    {new Date(c.created).toLocaleDateString()}
-                  </Text>
-                  {c.external_url && (
-                    <Link href={c.external_url} isExternal color="gray.500">
-                      <Flex align="center" gap={0.5}>
-                        <Icon as={FaGithub} boxSize={3} />
-                        <ExternalLinkIcon boxSize={2.5} />
+          topLevel.map((c) => (
+            <Box key={c.id}>
+              {renderBubble(c)}
+              {(repliesByParent[c.id] ?? []).length > 0 && (
+                <VStack align="stretch" spacing={1} mt={1} ml={6}>
+                  {repliesByParent[c.id].map((r) => (
+                    <Box key={r.id}>{renderBubble(r)}</Box>
+                  ))}
+                </VStack>
+              )}
+              {canComment && (
+                <Box mt={1} ml={6}>
+                  {replyTo === c.id ? (
+                    <Box>
+                      <Textarea
+                        size="xs"
+                        value={replyText}
+                        onChange={(e) => setReplyText(e.target.value)}
+                        onKeyDown={submitOnCmdEnter(() => {
+                          if (replyText.trim() && !mutation.isPending)
+                            mutation.mutate({ body: replyText, parentId: c.id })
+                        })}
+                        placeholder="Add a reply…"
+                        rows={2}
+                        mb={1}
+                        autoFocus
+                      />
+                      <Flex align="center" gap={3} mb={2}>
+                        <Button
+                          size="xs"
+                          variant="primary"
+                          isDisabled={!replyText.trim()}
+                          isLoading={
+                            mutation.isPending &&
+                            mutation.variables?.parentId === c.id
+                          }
+                          onClick={() =>
+                            mutation.mutate({ body: replyText, parentId: c.id })
+                          }
+                        >
+                          Post
+                        </Button>
+                        <Button
+                          size="xs"
+                          variant="ghost"
+                          onClick={() => {
+                            setReplyTo(null)
+                            setReplyText("")
+                          }}
+                        >
+                          Cancel
+                        </Button>
                       </Flex>
-                    </Link>
+                    </Box>
+                  ) : (
+                    <Button
+                      size="xs"
+                      variant="ghost"
+                      leftIcon={<Icon as={FaReply} />}
+                      onClick={() => {
+                        setReplyTo(c.id)
+                        setReplyText("")
+                      }}
+                    >
+                      Reply
+                    </Button>
                   )}
-                </Flex>
-                <Text fontSize="sm" whiteSpace="pre-wrap">
-                  {c.comment}
-                </Text>
-              </Box>
-            </Flex>
+                </Box>
+              )}
+            </Box>
           ))
         )}
       </VStack>
@@ -315,7 +410,8 @@ function CommentsPanel({
             value={comment}
             onChange={(e) => setComment(e.target.value)}
             onKeyDown={submitOnCmdEnter(() => {
-              if (comment.trim() && !mutation.isPending) mutation.mutate()
+              if (comment.trim() && !mutation.isPending)
+                mutation.mutate({ body: comment })
             })}
             placeholder="Leave a comment"
             mb={2}
@@ -324,8 +420,8 @@ function CommentsPanel({
             size="sm"
             variant="primary"
             isDisabled={!comment.trim()}
-            isLoading={mutation.isPending}
-            onClick={() => mutation.mutate()}
+            isLoading={mutation.isPending && !mutation.variables?.parentId}
+            onClick={() => mutation.mutate({ body: comment })}
           >
             Post comment
           </Button>
@@ -393,7 +489,66 @@ function MemberCommentsPanel({
     },
     onError: (err: ApiError) => handleError(err, showToast),
   })
+  const [replyingToId, setReplyingToId] = useState<string | null>(null)
+  const [replyDraft, setReplyDraft] = useState("")
+  const replyMutation = useMutation({
+    mutationFn: (vars: { commentId: string; body: string }) =>
+      ProjectsService.postProjectCommentReply({
+        ownerName: loc.ownerName,
+        projectName: loc.projectName,
+        commentId: vars.commentId,
+        requestBody: { body: vars.body },
+      }),
+    onSuccess: () => {
+      setReplyingToId(null)
+      setReplyDraft("")
+      showToast("Success!", "Your reply was posted.", "success")
+      queryClient.invalidateQueries({ queryKey: commentsKey })
+    },
+    onError: (err: ApiError) => handleError(err, showToast),
+  })
   const comments = commentsQuery.data ?? []
+  // Flat one-level threading, matching the project-comment system.
+  const topLevel = comments.filter((c) => !c.parent_id)
+  const repliesFor = (parentId: string) =>
+    comments.filter((c) => c.parent_id === parentId)
+  const renderCard = (c: (typeof comments)[number]) => (
+    <Flex gap={2}>
+      <Avatar
+        name={c.user_full_name ?? c.user_github_username ?? undefined}
+        size="xs"
+        mt={0.5}
+        flexShrink={0}
+      />
+      <Box
+        flex={1}
+        borderWidth={1}
+        borderColor={borderColor}
+        borderRadius="md"
+        p={3}
+      >
+        <Flex align="center" gap={1} mb={1} wrap="wrap">
+          <Text fontSize="xs" fontWeight="bold" mr={1}>
+            {c.user_full_name ?? c.user_github_username}
+          </Text>
+          <Text fontSize="xs" color="gray.500" mr="auto">
+            {c.created ? new Date(c.created).toLocaleDateString() : ""}
+          </Text>
+          {c.external_url && (
+            <Link href={c.external_url} isExternal color="gray.500">
+              <Flex align="center" gap={0.5}>
+                <Icon as={FaGithub} boxSize={3} />
+                <ExternalLinkIcon boxSize={2.5} />
+              </Flex>
+            </Link>
+          )}
+        </Flex>
+        <Text fontSize="sm" whiteSpace="pre-wrap">
+          {c.comment}
+        </Text>
+      </Box>
+    </Flex>
+  )
 
   return (
     <Flex direction="column" h="100%">
@@ -408,43 +563,86 @@ function MemberCommentsPanel({
             No comments yet.
           </Text>
         ) : (
-          comments.map((c) => (
-            <Flex key={c.id} gap={2}>
-              <Avatar
-                name={c.user_full_name ?? c.user_github_username ?? undefined}
-                size="xs"
-                mt={0.5}
-                flexShrink={0}
-              />
-              <Box
-                flex={1}
-                borderWidth={1}
-                borderColor={borderColor}
-                borderRadius="md"
-                p={3}
-              >
-                <Flex align="center" gap={1} mb={1} wrap="wrap">
-                  <Text fontSize="xs" fontWeight="bold" mr={1}>
-                    {c.user_full_name ?? c.user_github_username}
-                  </Text>
-                  <Text fontSize="xs" color="gray.500" mr="auto">
-                    {c.created ? new Date(c.created).toLocaleDateString() : ""}
-                  </Text>
-                  {c.external_url && (
-                    <Link href={c.external_url} isExternal color="gray.500">
-                      <Flex align="center" gap={0.5}>
-                        <Icon as={FaGithub} boxSize={3} />
-                        <ExternalLinkIcon boxSize={2.5} />
-                      </Flex>
-                    </Link>
-                  )}
-                </Flex>
-                <Text fontSize="sm" whiteSpace="pre-wrap">
-                  {c.comment}
-                </Text>
+          topLevel.map((c) => {
+            const id = c.id ?? ""
+            return (
+              <Box key={id}>
+                {renderCard(c)}
+                {repliesFor(id).length > 0 && (
+                  <VStack align="stretch" spacing={1} mt={1} ml={6}>
+                    {repliesFor(id).map((r) => (
+                      <Box key={r.id}>{renderCard(r)}</Box>
+                    ))}
+                  </VStack>
+                )}
+                {user && id && (
+                  <Box mt={1} ml={6}>
+                    {replyingToId === id ? (
+                      <Box>
+                        <Textarea
+                          size="xs"
+                          value={replyDraft}
+                          onChange={(e) => setReplyDraft(e.target.value)}
+                          onKeyDown={submitOnCmdEnter(() => {
+                            if (replyDraft.trim() && !replyMutation.isPending)
+                              replyMutation.mutate({
+                                commentId: id,
+                                body: replyDraft,
+                              })
+                          })}
+                          placeholder="Add a reply…"
+                          rows={2}
+                          mb={1}
+                          autoFocus
+                        />
+                        <Flex align="center" gap={3} mb={2}>
+                          <Button
+                            size="xs"
+                            variant="primary"
+                            isDisabled={!replyDraft.trim()}
+                            isLoading={
+                              replyMutation.isPending &&
+                              replyMutation.variables?.commentId === id
+                            }
+                            onClick={() =>
+                              replyMutation.mutate({
+                                commentId: id,
+                                body: replyDraft,
+                              })
+                            }
+                          >
+                            Post
+                          </Button>
+                          <Button
+                            size="xs"
+                            variant="ghost"
+                            onClick={() => {
+                              setReplyingToId(null)
+                              setReplyDraft("")
+                            }}
+                          >
+                            Cancel
+                          </Button>
+                        </Flex>
+                      </Box>
+                    ) : (
+                      <Button
+                        size="xs"
+                        variant="ghost"
+                        leftIcon={<Icon as={FaReply} />}
+                        onClick={() => {
+                          setReplyingToId(id)
+                          setReplyDraft("")
+                        }}
+                      >
+                        Reply
+                      </Button>
+                    )}
+                  </Box>
+                )}
               </Box>
-            </Flex>
-          ))
+            )
+          })
         )}
       </VStack>
       <Divider mb={3} />
@@ -649,13 +847,34 @@ interface ReleaseViewerProps {
   onClose?: () => void
 }
 
-function ReleaseUnavailable() {
+function ReleaseUnavailable({
+  onClose,
+  isLoggedIn,
+}: {
+  onClose?: () => void
+  isLoggedIn: boolean
+}) {
   return (
-    <Flex align="center" justify="center" h="100%" p={4}>
-      <Alert status="error" borderRadius="lg" maxW="md">
-        <AlertIcon />
-        This release is unavailable, or you need a valid share link to view it.
-      </Alert>
+    <Flex direction="column" h="100%">
+      {onClose && (
+        <Flex justify="flex-end" p={2}>
+          <IconButton
+            aria-label="Close"
+            icon={<FiX />}
+            size="sm"
+            variant="ghost"
+            onClick={onClose}
+          />
+        </Flex>
+      )}
+      <Flex align="center" justify="center" flex={1} p={4}>
+        <Alert status="error" borderRadius="lg" maxW="md">
+          <AlertIcon />
+          {isLoggedIn
+            ? "This release couldn't be loaded. It may have been deleted, or you may not have access to it."
+            : "This release is unavailable, or you need a valid share link to view it."}
+        </Alert>
+      </Flex>
     </Flex>
   )
 }
@@ -665,6 +884,7 @@ function ReleaseUnavailable() {
 // declared in calkit.yaml (published to an external venue, or a CLI-made
 // snapshot) shown as metadata with a link to browse the project at its commit.
 export default function ReleaseViewer({ loc, onClose }: ReleaseViewerProps) {
+  const { user } = useAuth()
   const viewQuery = useQuery({
     queryKey: [
       "releases",
@@ -680,7 +900,12 @@ export default function ReleaseViewer({ loc, onClose }: ReleaseViewerProps) {
         releaseName: loc.releaseName,
         token: loc.token,
       }),
-    retry: false,
+    // A 404 means there's no cloud release for this name; fall back to the
+    // calkit.yaml listing immediately. Other errors (transient 5xx/network)
+    // are worth retrying, so a member viewing their own release doesn't get
+    // bounced to the "unavailable" screen by a one-off hiccup.
+    retry: (failureCount, error: ApiError) =>
+      error?.status !== 404 && failureCount < 2,
   })
   // calkit.yaml releases have no cloud row, so getReleaseView 404s; fall back
   // to their metadata from the project's releases listing.
@@ -712,7 +937,7 @@ export default function ReleaseViewer({ loc, onClose }: ReleaseViewerProps) {
   )
   if (calkit)
     return <CalkitReleaseView loc={loc} release={calkit} onClose={onClose} />
-  return <ReleaseUnavailable />
+  return <ReleaseUnavailable onClose={onClose} isLoggedIn={!!user} />
 }
 
 // Header button that opens the project's Files view at the release's commit.

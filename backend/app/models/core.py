@@ -858,6 +858,10 @@ class Release(ReleaseBase, table=True):
     project_id: uuid.UUID = Field(foreign_key="project.id")
     created_by_user_id: uuid.UUID = Field(foreign_key="user.id")
     view_count: int = Field(default=0)
+    # The single GitHub issue that mirrors this release's comment thread,
+    # created lazily on the first comment. All later comments and replies are
+    # posted to it rather than opening a new issue per comment.
+    github_issue_url: str | None = Field(default=None, max_length=2048)
     created: datetime = Field(default_factory=utcnow)
     # Relationships
     project: Project = Relationship(back_populates="releases")
@@ -1008,8 +1012,14 @@ class ReleaseComment(SQLModel, table=True):
         default=None,
         sa_column=sqlalchemy.Column(sqlalchemy.JSON, nullable=True),
     )
-    # GitHub issue URL, if the comment was mirrored to an issue.
+    # GitHub URL the comment was mirrored to (the release's issue, or the
+    # specific issue-comment anchor for replies/later comments).
     external_url: str | None = Field(default=None, max_length=2048)
+    # Parent comment for flat one-level threading: replies point to the
+    # top-level comment, mirroring ProjectComment.parent_id.
+    parent_id: uuid.UUID | None = Field(
+        default=None, foreign_key="releasecomment.id"
+    )
     created: datetime = Field(default_factory=utcnow)
     # Relationships
     release: Release = Relationship(back_populates="comments")
@@ -1019,6 +1029,8 @@ class ReleaseCommentPost(SQLModel):
     comment: str = Field(min_length=1)
     author_name: str | None = None
     highlight: CommentHighlight | None = None
+    # When set, this comment is a reply to the given top-level comment.
+    parent_id: uuid.UUID | None = None
 
 
 class ReleaseCommentPublic(SQLModel):
@@ -1027,6 +1039,7 @@ class ReleaseCommentPublic(SQLModel):
     comment: str
     highlight: dict | None = None
     external_url: str | None
+    parent_id: uuid.UUID | None = None
     created: datetime
 
 

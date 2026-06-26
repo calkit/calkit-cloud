@@ -1665,6 +1665,7 @@ def get_release_comments(
             comment=c.comment,
             highlight=c.highlight,
             external_url=c.external_url,
+            parent_id=c.parent_id,
             created=c.created,
         )
         for c in comments
@@ -1690,6 +1691,14 @@ def post_release_comment(
         raise HTTPException(403, "Comments are disabled for this release")
     if permission not in ("comment", "manage"):
         raise HTTPException(403, "This link is view-only")
+    # Resolve the reply target, flattening to one level: a reply to a reply
+    # attaches to the thread's top-level comment (mirrors ProjectComment).
+    parent_id = comment_in.parent_id
+    if parent_id is not None:
+        parent = session.get(ReleaseComment, parent_id)
+        if parent is None or parent.release_id != release.id:
+            raise HTTPException(404, "Parent comment not found")
+        parent_id = parent.parent_id or parent.id
     # Identity is attribution only. Prefer the logged-in user, then the share
     # token's recipient email, then a name typed by an anonymous commenter.
     author_email = None
@@ -1711,6 +1720,7 @@ def post_release_comment(
         author_email=author_email,
         git_rev=release.git_rev,
         comment=comment_in.comment,
+        parent_id=parent_id,
         highlight=(
             comment_in.highlight.model_dump()
             if comment_in.highlight is not None
@@ -1719,10 +1729,13 @@ def post_release_comment(
     )
     session.add(comment)
     session.flush()
-    # Mirror the comment to a GitHub issue using the release creator's token,
-    # since anonymous commenters have none. Failures never block the comment.
-    external_url = _try_create_release_github_issue(
-        session=session, release=release, comment=comment
+    # Mirror to the release's single GitHub issue (created lazily on the first
+    # comment). Failures never block the comment.
+    external_url = _mirror_release_comment_to_github(
+        session=session,
+        release=release,
+        comment=comment,
+        is_reply=parent_id is not None,
     )
     if external_url:
         comment.external_url = external_url
@@ -1758,16 +1771,26 @@ def post_release_comment(
         comment=comment.comment,
         highlight=comment.highlight,
         external_url=comment.external_url,
+        parent_id=comment.parent_id,
         created=comment.created,
     )
 
 
-def _try_create_release_github_issue(
-    session: SessionDep, release: Release, comment: ReleaseComment
+def _mirror_release_comment_to_github(
+    session: SessionDep,
+    release: Release,
+    comment: ReleaseComment,
+    is_reply: bool,
 ) -> str | None:
-    """Open a GitHub issue for a release comment, using the creator's token.
+    """Mirror a release comment to the release's single GitHub issue.
 
-    Returns None (and never raises) if there's no GitHub repo or token.
+    The first comment opens an issue (titled for the release, linking back to
+    the Calkit release page) and records it on ``release.github_issue_url``;
+    every later comment and reply is posted to that same issue rather than
+    opening a new one. Returns the GitHub URL for the comment -- the issue for
+    the first, the specific issue-comment anchor afterward -- or None if there's
+    no GitHub repo or token. Uses the release creator's token, since anonymous
+    commenters have none. Never raises.
     """
     project = release.project
     github_repo = project.github_repo
@@ -1776,43 +1799,71 @@ def _try_create_release_github_issue(
     try:
         token = users.get_github_token(session, release.created_by)
     except Exception:
-        logger.info("Skipping release issue creation: no GitHub token")
+        logger.info("Skipping release comment mirror: no GitHub token")
         return None
-    import requests
-
-    app_base = settings.frontend_host.rstrip("/")
-    link = (
-        f"{app_base}/{project.owner_account_name}/{project.name}"
-        f"/releases/{quote(release.name, safe='')}"
-    )
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/vnd.github+json",
+    }
     author = comment.author_name or comment.author_email or "Anonymous"
-    title = f"Feedback on release {release.name}"
-    if release.path:
-        title += f" ({release.path})"
-    body = "\n".join(
-        [
-            f"Comment from **{author}** on [release {release.name}]({link}):",
-            "",
-            comment.comment,
-        ]
-    )
+    # First comment: open the issue and remember it on the release.
+    if not release.github_issue_url:
+        app_base = settings.frontend_host.rstrip("/")
+        link = (
+            f"{app_base}/{project.owner_account_name}/{project.name}"
+            f"/releases/{quote(release.name, safe='')}"
+        )
+        title = f"Feedback on release {release.name}"
+        if release.path:
+            title += f" ({release.path})"
+        body = "\n".join(
+            [
+                f"Comment from **{author}** on "
+                f"[release {release.name}]({link}):",
+                "",
+                comment.comment,
+            ]
+        )
+        try:
+            resp = requests.post(
+                f"https://api.github.com/repos/{github_repo}/issues",
+                json={"title": title, "body": body},
+                headers=headers,
+                timeout=10,
+            )
+        except Exception as exc:
+            logger.warning(f"Release issue creation failed: {exc}")
+            return None
+        if not resp.ok:
+            logger.warning(
+                f"Release issue creation failed for {github_repo}: "
+                f"{resp.status_code} {resp.text}"
+            )
+            return None
+        release.github_issue_url = resp.json().get("html_url")
+        return release.github_issue_url
+    # Later comments and replies: post to the existing issue.
+    try:
+        issue_number = int(release.github_issue_url.rstrip("/").split("/")[-1])
+    except Exception:
+        return release.github_issue_url
+    lead = "Reply" if is_reply else "Comment"
+    body = "\n".join([f"{lead} from **{author}**:", "", comment.comment])
     try:
         resp = requests.post(
-            f"https://api.github.com/repos/{github_repo}/issues",
-            json={"title": title, "body": body},
-            headers={
-                "Authorization": f"Bearer {token}",
-                "Accept": "application/vnd.github+json",
-            },
+            f"https://api.github.com/repos/{github_repo}"
+            f"/issues/{issue_number}/comments",
+            json={"body": body},
+            headers=headers,
             timeout=10,
         )
     except Exception as exc:
-        logger.warning(f"Release issue creation failed: {exc}")
-        return None
+        logger.warning(f"Release issue comment failed: {exc}")
+        return release.github_issue_url
     if not resp.ok:
         logger.warning(
-            f"Release issue creation failed for {github_repo}: "
+            f"Release issue comment failed for {github_repo}: "
             f"{resp.status_code} {resp.text}"
         )
-        return None
-    return resp.json().get("html_url")
+        return release.github_issue_url
+    return resp.json().get("html_url") or release.github_issue_url

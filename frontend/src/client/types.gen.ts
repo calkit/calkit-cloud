@@ -1017,6 +1017,7 @@ export type ReleaseCommentPost = {
   comment: string
   author_name?: string | null
   highlight?: CommentHighlight | null
+  parent_id?: string | null
 }
 
 export type ReleaseCommentPublic = {
@@ -1027,6 +1028,7 @@ export type ReleaseCommentPublic = {
     [key: string]: unknown
   } | null
   external_url: string | null
+  parent_id?: string | null
   created: string
 }
 

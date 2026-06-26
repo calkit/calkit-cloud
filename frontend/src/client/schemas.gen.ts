@@ -4850,6 +4850,18 @@ export const ReleaseCommentPostSchema = {
         },
       ],
     },
+    parent_id: {
+      anyOf: [
+        {
+          type: "string",
+          format: "uuid",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Parent Id",
+    },
   },
   type: "object",
   required: ["comment"],
@@ -4900,6 +4912,18 @@ export const ReleaseCommentPublicSchema = {
         },
       ],
       title: "External Url",
+    },
+    parent_id: {
+      anyOf: [
+        {
+          type: "string",
+          format: "uuid",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Parent Id",
     },
     created: {
       type: "string",
