@@ -18,6 +18,16 @@ gh release download "$REL" --repo "$REPO" --dir "$DIR" --clobber \
   --pattern busytex.wasm \
   --pattern busytex.js \
   --pattern texlive-basic.data \
-  --pattern texlive-basic.js
+  --pattern texlive-basic.js \
+  --pattern "ubuntu-texlive-latex-base.data" \
+  --pattern "ubuntu-texlive-latex-base.js" \
+  --pattern "ubuntu-texlive-latex-recommended.data" \
+  --pattern "ubuntu-texlive-latex-recommended.js" \
+  --pattern "ubuntu-texlive-latex-extra.data" \
+  --pattern "ubuntu-texlive-latex-extra.js" \
+  --pattern "ubuntu-texlive-science.data" \
+  --pattern "ubuntu-texlive-science.js" \
+  --pattern "ubuntu-texlive-fonts-recommended.data" \
+  --pattern "ubuntu-texlive-fonts-recommended.js"
 
 echo "Done."

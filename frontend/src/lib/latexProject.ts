@@ -1,6 +1,8 @@
-// Load a publication's whole directory of LaTeX sources + figures so the
-// in-browser engine can compile a real multi-file project (\input, figures,
-// .bib). Text files become editable buffers; images are seeded read-only.
+// Load the files a publication needs to compile in the browser. Driven by the
+// publication's pipeline-stage deps when available (the authoritative list,
+// including figures outside the .tex's own directory and DVC-tracked outputs),
+// falling back to scanning the .tex's directory. Files are seeded at their full
+// repo paths so relative refs like \includegraphics{../figures/x.png} resolve.
 import { ProjectsService } from "../client"
 import { decodeBase64Utf8 } from "./strings"
 
@@ -17,12 +19,12 @@ const TEXT_EXT = new Set([
   "cfg",
 ])
 const IMG_EXT = new Set(["png", "jpg", "jpeg", "pdf", "eps", "gif"])
-const MAX_FILES = 100
-const MAX_DEPTH = 4
+const SKIP_PREFIXES = [".calkit/", ".git/", ".dvc/"]
+const MAX_FILES = 150
+const MAX_DEPTH = 5
 
 export interface ProjectFile {
-  repoPath: string
-  relPath: string
+  path: string
   kind: "text" | "binary"
   text?: string
   bytes?: Uint8Array
@@ -31,6 +33,11 @@ export interface ProjectFile {
 function ext(p: string): string {
   const i = p.lastIndexOf(".")
   return i < 0 ? "" : p.slice(i + 1).toLowerCase()
+}
+
+function relevant(name: string): boolean {
+  const e = ext(name)
+  return TEXT_EXT.has(e) || IMG_EXT.has(e)
 }
 
 function base64ToBytes(b64: string): Uint8Array {
@@ -42,55 +49,83 @@ function base64ToBytes(b64: string): Uint8Array {
   return out
 }
 
-async function listRelevantPaths(
+async function listDir(
   ownerName: string,
   projectName: string,
   dir: string,
   depth: number,
-  acc: string[],
+  acc: Set<string>,
 ): Promise<void> {
-  if (depth > MAX_DEPTH || acc.length >= MAX_FILES) {
+  if (depth > MAX_DEPTH || acc.size >= MAX_FILES) {
     return
   }
-  const res = await ProjectsService.getProjectContents({
-    ownerName,
-    projectName,
-    path: dir || undefined,
-  })
+  let res: Awaited<ReturnType<typeof ProjectsService.getProjectContents>>
+  try {
+    res = await ProjectsService.getProjectContents({
+      ownerName,
+      projectName,
+      path: dir || undefined,
+    })
+  } catch {
+    return
+  }
   for (const item of res.dir_items ?? []) {
-    if (acc.length >= MAX_FILES) {
+    if (acc.size >= MAX_FILES) {
       break
     }
     if (item.type === "dir") {
-      await listRelevantPaths(ownerName, projectName, item.path, depth + 1, acc)
-    } else if (TEXT_EXT.has(ext(item.name)) || IMG_EXT.has(ext(item.name))) {
-      acc.push(item.path)
+      await listDir(ownerName, projectName, item.path, depth + 1, acc)
+    } else if (relevant(item.name)) {
+      acc.add(item.path)
     }
   }
 }
 
-function toRel(repoPath: string, baseDir: string): string {
-  return baseDir && repoPath.startsWith(`${baseDir}/`)
-    ? repoPath.slice(baseDir.length + 1)
-    : repoPath
+// Expand a pipeline-stage dep (a file or a directory) into concrete file paths.
+async function expandDep(
+  ownerName: string,
+  projectName: string,
+  dep: string,
+  acc: Set<string>,
+): Promise<void> {
+  if (SKIP_PREFIXES.some((p) => dep.startsWith(p)) || dep.startsWith(".")) {
+    return
+  }
+  let res: Awaited<ReturnType<typeof ProjectsService.getProjectContents>>
+  try {
+    res = await ProjectsService.getProjectContents({
+      ownerName,
+      projectName,
+      path: dep,
+    })
+  } catch {
+    return
+  }
+  if (res.type === "dir") {
+    await listDir(ownerName, projectName, dep, 0, acc)
+  } else if (relevant(dep)) {
+    acc.add(dep)
+  }
 }
 
 async function fetchOne(
   ownerName: string,
   projectName: string,
-  repoPath: string,
-  baseDir: string,
+  path: string,
 ): Promise<ProjectFile | null> {
-  const relPath = toRel(repoPath, baseDir)
-  const res = await ProjectsService.getProjectContents({
-    ownerName,
-    projectName,
-    path: repoPath,
-  })
-  if (TEXT_EXT.has(ext(repoPath))) {
+  let res: Awaited<ReturnType<typeof ProjectsService.getProjectContents>>
+  try {
+    res = await ProjectsService.getProjectContents({
+      ownerName,
+      projectName,
+      path,
+    })
+  } catch {
+    return null
+  }
+  if (TEXT_EXT.has(ext(path))) {
     return {
-      repoPath,
-      relPath,
+      path,
       kind: "text",
       text: res.content ? decodeBase64Utf8(res.content) : "",
     }
@@ -99,25 +134,34 @@ async function fetchOne(
   if (res.content) {
     bytes = base64ToBytes(res.content)
   } else if (res.url) {
-    const buf = await (await fetch(res.url)).arrayBuffer()
-    bytes = new Uint8Array(buf)
+    bytes = new Uint8Array(await (await fetch(res.url)).arrayBuffer())
   }
   if (!bytes) {
     return null
   }
-  return { repoPath, relPath, kind: "binary", bytes }
+  return { path, kind: "binary", bytes }
 }
 
 export async function loadLatexProject(
   ownerName: string,
   projectName: string,
-  baseDir: string,
+  texPath: string,
+  deps?: string[] | null,
 ): Promise<ProjectFile[]> {
-  const paths: string[] = []
-  await listRelevantPaths(ownerName, projectName, baseDir, 0, paths)
+  const paths = new Set<string>([texPath])
+  if (deps && deps.length > 0) {
+    for (const dep of deps) {
+      await expandDep(ownerName, projectName, dep, paths)
+    }
+  } else {
+    const dir = texPath.includes("/")
+      ? texPath.slice(0, texPath.lastIndexOf("/"))
+      : ""
+    await listDir(ownerName, projectName, dir, 0, paths)
+  }
   const files = await Promise.all(
-    paths.map((p) =>
-      fetchOne(ownerName, projectName, p, baseDir).catch(() => null),
+    [...paths].map((p) =>
+      fetchOne(ownerName, projectName, p).catch(() => null),
     ),
   )
   return files.filter((f): f is ProjectFile => f !== null)

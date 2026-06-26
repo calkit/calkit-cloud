@@ -1,5 +1,8 @@
-# Large busytex engine binaries — not committed. Fetch with scripts/download-tex-engine.sh
+# Large busytex engine binaries + TeX Live bundles — not committed.
+# Fetch with scripts/download-tex-engine.sh. The small MIT glue
+# (busytex_worker.js, busytex_pipeline.js) IS committed.
+*.data
+*.wasm
 busytex.js
-busytex.wasm
 texlive-basic.js
-texlive-basic.data
+ubuntu-texlive-*.js

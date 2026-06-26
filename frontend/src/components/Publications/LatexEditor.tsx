@@ -23,7 +23,11 @@ import { type MutableRefObject, useEffect, useRef, useState } from "react"
 import { ProjectsService } from "../../client"
 import type { ApiError } from "../../client/core/ApiError"
 import useCustomToast from "../../hooks/useCustomToast"
-import { LatexCompiler, type LatexFile } from "../../lib/latexCompiler"
+import {
+  LatexCompiler,
+  type LatexFile,
+  findMissingPackages,
+} from "../../lib/latexCompiler"
 import { loadLatexProject } from "../../lib/latexProject"
 import { handleError } from "../../lib/errors"
 import PdfDocumentViewer from "../Common/PdfDocumentViewer"
@@ -34,6 +38,25 @@ interface LatexEditorProps {
   ownerName: string
   projectName: string
   texPath: string
+  // The publication's pipeline-stage deps, if any — used to load figures and
+  // other inputs that live outside the .tex's own directory.
+  deps?: string[] | null
+}
+
+// Display a repo path relative to the main file's directory, surfacing `../`
+// for files that live above the paper directory.
+function relativeTo(fromDir: string, to: string): string {
+  const fromParts = fromDir ? fromDir.split("/") : []
+  const toParts = to.split("/")
+  let i = 0
+  while (
+    i < fromParts.length &&
+    i < toParts.length - 1 &&
+    fromParts[i] === toParts[i]
+  ) {
+    i++
+  }
+  return "../".repeat(fromParts.length - i) + toParts.slice(i).join("/")
 }
 
 function EditorPane({
@@ -79,12 +102,10 @@ const LatexEditor = ({
   ownerName,
   projectName,
   texPath,
+  deps,
 }: LatexEditorProps) => {
-  const baseDir = texPath.includes("/")
-    ? texPath.slice(0, texPath.lastIndexOf("/"))
-    : ""
-  const mainRelPath = baseDir ? texPath.slice(baseDir.length + 1) : texPath
-
+  // Files are keyed by their full repo path so relative refs (e.g.
+  // \includegraphics{../figures/x.png}) resolve against the real layout.
   const viewRef = useRef<EditorView | null>(null)
   const compilerRef = useRef<LatexCompiler | null>(null)
   const buffersRef = useRef<Map<string, string>>(new Map())
@@ -94,16 +115,18 @@ const LatexEditor = ({
   const queryClient = useQueryClient()
   const logPanel = useDisclosure()
   const [textPaths, setTextPaths] = useState<string[]>([])
-  const [activePath, setActivePath] = useState<string>(mainRelPath)
+  const [activePath, setActivePath] = useState<string>(texPath)
+  const [mainPath, setMainPath] = useState<string>(texPath)
+  const [ready, setReady] = useState(false)
   const [dirty, setDirty] = useState<Set<string>>(new Set())
   const [log, setLog] = useState("")
   const [status, setStatus] = useState("")
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
   const [compiling, setCompiling] = useState(false)
 
-  const { data: projectFiles, isLoading } = useQuery({
-    queryKey: ["projects", ownerName, projectName, "latex-project", baseDir],
-    queryFn: () => loadLatexProject(ownerName, projectName, baseDir),
+  const { data: projectFiles } = useQuery({
+    queryKey: ["projects", ownerName, projectName, "latex-project", texPath],
+    queryFn: () => loadLatexProject(ownerName, projectName, texPath, deps),
     enabled: isOpen,
     staleTime: 0,
   })
@@ -116,18 +139,27 @@ const LatexEditor = ({
     const texts: string[] = []
     for (const f of projectFiles) {
       if (f.kind === "text") {
-        buffersRef.current.set(f.relPath, f.text ?? "")
-        texts.push(f.relPath)
+        buffersRef.current.set(f.path, f.text ?? "")
+        texts.push(f.path)
       } else if (f.bytes) {
-        binariesRef.current.set(f.relPath, f.bytes)
+        binariesRef.current.set(f.path, f.bytes)
       }
     }
     texts.sort()
+    // Resolve the main file robustly: prefer the publication's path if it
+    // exists and looks like a root document, else the first .tex with
+    // \documentclass (handles main.tex etc.).
+    const looksMain = (p: string) =>
+      (buffersRef.current.get(p) ?? "").includes("\\documentclass")
+    let main = texPath
+    if (!texts.includes(main) || !looksMain(main)) {
+      main = texts.find(looksMain) ?? texts[0] ?? texPath
+    }
     setTextPaths(texts)
-    setActivePath(
-      texts.includes(mainRelPath) ? mainRelPath : texts[0] ?? mainRelPath,
-    )
-  }, [projectFiles, mainRelPath])
+    setMainPath(main)
+    setActivePath(main)
+    setReady(true)
+  }, [projectFiles, texPath])
 
   useEffect(() => {
     return () => {
@@ -161,7 +193,7 @@ const LatexEditor = ({
       for (const [path, bytes] of binariesRef.current) {
         files.push({ path, contents: bytes })
       }
-      const result = await compilerRef.current.compile(files, mainRelPath)
+      const result = await compilerRef.current.compile(files, mainPath)
       if (result.exitCode === 0 && result.pdf) {
         const blob = new Blob([result.pdf], { type: "application/pdf" })
         setPdfUrl((prev) => {
@@ -172,7 +204,12 @@ const LatexEditor = ({
         })
         setStatus("Compiled ✓")
       } else {
-        setStatus(`Compile failed (exit ${result.exitCode})`)
+        const missing = findMissingPackages(result.log)
+        setStatus(
+          missing.length > 0
+            ? `Missing from the in-browser TeX bundle: ${missing.join(", ")}`
+            : `Compile failed (exit ${result.exitCode})`,
+        )
         setLog(result.log)
         logPanel.onOpen()
       }
@@ -187,10 +224,9 @@ const LatexEditor = ({
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      for (const rel of dirty) {
-        const text = buffersRef.current.get(rel) ?? ""
-        const repoPath = baseDir ? `${baseDir}/${rel}` : rel
-        const file = new File([text], rel.split("/").pop() || rel, {
+      for (const repoPath of dirty) {
+        const text = buffersRef.current.get(repoPath) ?? ""
+        const file = new File([text], repoPath.split("/").pop() || repoPath, {
           type: "text/plain",
         })
         await ProjectsService.putProjectContents({
@@ -221,12 +257,17 @@ const LatexEditor = ({
     onClose()
   }
 
+  const mainDir = mainPath.includes("/")
+    ? mainPath.slice(0, mainPath.lastIndexOf("/"))
+    : ""
+  const displayPath = (p: string) => relativeTo(mainDir, p)
+
   return (
     <Modal isOpen={isOpen} onClose={handleClose} size="full">
       <ModalOverlay />
       <ModalContent>
         <Flex align="center" gap={3} px={4} py={2} borderBottomWidth="1px">
-          <Text fontWeight="bold">{activePath || mainRelPath}</Text>
+          <Text fontWeight="bold">{displayPath(activePath || mainPath)}</Text>
           {dirty.size > 0 && (
             <Badge colorScheme="orange" variant="subtle">
               {dirty.size} unsaved
@@ -237,7 +278,7 @@ const LatexEditor = ({
             variant="primary"
             onClick={compile}
             isLoading={compiling}
-            isDisabled={isLoading}
+            isDisabled={!ready}
           >
             Compile preview
           </Button>
@@ -262,7 +303,7 @@ const LatexEditor = ({
           <ModalCloseButton position="static" />
         </Flex>
         <ModalBody p={0} overflow="hidden">
-          {isLoading ? (
+          {!ready ? (
             <Flex height="calc(100vh - 49px)" align="center" justify="center">
               <Spinner />
             </Flex>
@@ -285,11 +326,11 @@ const LatexEditor = ({
                       size="xs"
                       variant={p === activePath ? "solid" : "ghost"}
                       justifyContent="flex-start"
-                      fontWeight={p === mainRelPath ? "bold" : "normal"}
+                      fontWeight={p === mainPath ? "bold" : "normal"}
                       onClick={() => setActivePath(p)}
                     >
                       {dirty.has(p) ? "• " : ""}
-                      {p}
+                      {displayPath(p)}
                     </Button>
                   ))}
                   {[...binariesRef.current.keys()].sort().map((p) => (
@@ -301,7 +342,7 @@ const LatexEditor = ({
                       py={1}
                       isTruncated
                     >
-                      {p}
+                      {displayPath(p)}
                     </Text>
                   ))}
                 </VStack>

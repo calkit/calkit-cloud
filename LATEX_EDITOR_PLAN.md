@@ -742,19 +742,81 @@ First slice landed; engine capabilities verified headless in the app origin.
 - [x] ~~**`\input`/`\include` + figures verified.**~~ Engine compiles a real multi-file doc
       (`\input` + `\includegraphics` of a valid PNG) → PDF, exit 0 (headless, app origin).
 - [x] **Production build green** (`npm run build`) — editor + CodeMirror + worker bundle.
+- [x] ~~**Render-timing bug fixed**~~ (reported: "source tex doesn't load"). `EditorPane`
+      was mounting before `buffersRef` was populated and never remounting (the initial
+      `activePath` already equalled the main file, so its `key` never changed) → the main
+      `.tex` showed blank. Added a `ready` gate (mount only after the project loads) + robust
+      main-file detection (prefer the `\documentclass` file, not just the basename heuristic).
+      Verified: the main file content shows immediately on open.
+- [x] ~~**Broader package coverage**~~ (reported: `sectsty.sty not found`). Now serve all
+      available bundles (`texlive-basic` + `ubuntu-texlive-latex-base/recommended/extra/
+      science/fonts-recommended`); the engine resolves `\usepackage` names against them and
+      loads the needed `.data` **on demand** (preload only the base). Verified: a `booktabs`
+      doc (in the recommended bundle, not basic) loads that bundle on demand and compiles.
+      Missing packages now surface a clear "Missing from the in-browser TeX bundle: X" message.
+- [ ] ⚠️ **Package coverage is bundle-limited (no on-demand `.sty` fetch).** busytex only
+      has the *bundled* TeX Live subset; packages absent from all bundles (e.g. **`sectsty`**,
+      which `example-basic` uses, and `siunitx`) **cannot** be fetched — busytex has no
+      package server (unlike SwiftLaTeX). So some real papers still won't fully compile. Real
+      fix = a **package proxy** (fetch missing `.sty`+deps on demand into the FS), a
+      self-built **fuller busytex bundle**, or revisiting the engine. This is the headline
+      Phase 2 risk for "real papers compile."
 - [ ] ⚠️ **Bibliography is an engine limitation.** busytex reuses one WASM module across the
       bibtex multi-pass, so pdftex asserts on the 2nd run (`pdfinitmapfile`); XeTeX driver
       also fails. **Worked around** by forcing a single pdflatex pass (`bibtex: false`) so a
       preview always renders — but **citations stay unresolved** (`[?]`). Real fix needs a
       patched/newer build or per-pass module recreation (or running bibtex across separate
       `compile()` calls while persisting the FS). Tracked for a follow-up.
-- [ ] **Not yet verified end-to-end through the UI** (loader against the live API + the full
-      Edit→tree→compile→save flow) — needs an authed project + publication fixture; the
-      engine multi-file path itself is proven.
+- [x] ~~**Verified end-to-end through the UI**~~ (headless, mocked contents API): open
+      editor → loader builds the file tree → main file loads → real-engine compile of a
+      multi-file doc (`\input` + on-demand `booktabs` + figure) → PDF renders. Loader contract
+      also checked against the **real** API (dir listing + base64 file content) on a live
+      project. Still TODO: a true end-to-end against a real git repo (clone + commit on save).
+- [x] ~~**Dependency-driven loading (cross-dir figures + DVC)**~~ (reported: a figure at
+      `\includegraphics{../figures/voltage-time-series.png}` not found). The loader now drives
+      the file set from the publication's **pipeline-stage `deps`** (`stage_info.deps`),
+      expanding directory deps (e.g. `figures`) and skipping `.calkit/…`, and fetches
+      DVC-tracked figures (via base64 `content` or signed `url`). Files are seeded at their
+      **full repo path**, so relative refs like `../figures/x.png` resolve against the real
+      layout. Falls back to scanning the `.tex`'s directory when there's no stage. Verified
+      end-to-end (mocked): a paper in `paper/` with a figure in a sibling `figures/` dir loads
+      the figure and **compiles ✓**.
 - [ ] SyncTeX (forward/inverse search) and the **TeX Live package proxy** (self-hosted cached
       packages) remain for later in Phase 2.
-- [ ] Smarter `.tex`/dependency resolution (parse `\input`/`\includegraphics` vs. loading the
-      whole dir) and a size/count budget surfaced to the user.
+- [ ] A size/count budget surfaced to the user when a dep dir is large.
 
 **All open questions resolved.** Remaining follow-ups are verification tasks, not decisions:
 confirm the BusyTeX + SwiftLaTeX engine artifact licenses fit Path 1 before Phase 1 ships.
+
+---
+
+## 9. Future ideas & open product questions (from `TODO.md`)
+
+Captured from Pete's `TODO.md` — product direction beyond the core editor.
+
+- **Editor open-state in the URL.** Make the editor's open/closed state (and active file) a
+  search/route param so a session is shareable and restorable by URL — instead of local
+  component state. Fits the TanStack Router search-param pattern already used on the
+  publications page.
+- **External files: `map-paths` stage vs. show-in-place — LEANING show-in-place.** When a
+  paper references results/figures from the broader project (outside the paper dir), do we
+  (a) encourage a `map-paths`/copy stage that brings them into the paper directory, or
+  (b) surface them in the editor in place (e.g. `../figures/whatever.png`)? The Phase-2
+  dependency-driven loader (§8.5) already does **(b)** — it loads pipeline-stage deps at
+  their real repo paths, so `../figures/x.png` just works. A `map-paths` stage could still be
+  offered for users who want a self-contained paper dir, but it's no longer required to
+  compile.
+- **Mapping results into the text (no copy/paste).** Make it easy to reference computed
+  numerical results and tables from the pipeline inside the LaTeX (so authors don't paste
+  stale numbers). E.g. a stage that emits `\newcommand`/`.tex` snippets or a `siunitx`-style
+  values file the paper `\input`s, surfaced in the editor. Product + pipeline design needed.
+- **Figure provenance on hover.** Hovering a figure (in the editor or PDF preview) shows a
+  link to the pipeline stage that produced it — leveraging the same `stage_info`/deps data
+  the loader now uses.
+- **User-attached compute for real builds (follow-on PR).** Let users connect a local
+  workspace or another machine to run pipeline stages and serve back produced files (their
+  workspace commits + pushes, we pull). Complex; keep it for later. **Design implication
+  now:** keep the in-browser LaTeX compilation **modular** so this compute path can slot in
+  later — and it dovetails with §3.1's "provenance-perfect builds with user compute" (the
+  only sanctioned way to promote a compile to a real artifact; the WASM path stays
+  preview-only).

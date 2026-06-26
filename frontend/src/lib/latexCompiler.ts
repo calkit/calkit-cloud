@@ -16,7 +16,20 @@ export interface CompileResult {
 
 // busytex drivers: pdftex_bibtex8 | xetex_bibtex8_dvipdfmx | luahbtex_bibtex8
 const DRIVER = "pdftex_bibtex8"
-const DATA_PACKAGES = ["texlive-basic.js"]
+// Eagerly loaded base filesystem.
+const PRELOAD_PACKAGES = ["texlive-basic.js"]
+// All available bundles; the engine resolves \usepackage names against these
+// and loads the needed .data on demand. NOTE: these bundles are still a subset
+// of full TeX Live — packages they don't contain (e.g. sectsty) cannot be
+// fetched on demand (busytex has no package server). See LATEX_EDITOR_PLAN.md.
+const DATA_PACKAGES = [
+  "texlive-basic.js",
+  "ubuntu-texlive-latex-base.js",
+  "ubuntu-texlive-latex-recommended.js",
+  "ubuntu-texlive-latex-extra.js",
+  "ubuntu-texlive-science.js",
+  "ubuntu-texlive-fonts-recommended.js",
+]
 
 const ENGINE_BASE = (import.meta.env.VITE_TEX_ENGINE_URL || "/tex").replace(
   /\/$/,
@@ -26,6 +39,19 @@ const ENGINE_BASE = (import.meta.env.VITE_TEX_ENGINE_URL || "/tex").replace(
 type Pending = {
   resolve: (r: CompileResult) => void
   reject: (e: Error) => void
+}
+
+// Pull "File `foo.sty' not found" package names out of a TeX log so the UI can
+// explain that a package isn't in the in-browser bundle.
+export function findMissingPackages(log: string): string[] {
+  const out = new Set<string>()
+  const re = /File `([^']+\.(?:sty|cls))' not found/g
+  let m = re.exec(log)
+  while (m !== null) {
+    out.add(m[1])
+    m = re.exec(log)
+  }
+  return [...out]
 }
 
 export class LatexCompiler {
@@ -89,7 +115,7 @@ export class LatexCompiler {
       worker.postMessage({
         busytex_wasm: `${ENGINE_BASE}/busytex.wasm`,
         busytex_js: `${ENGINE_BASE}/busytex.js`,
-        preload_data_packages_js: DATA_PACKAGES.map(
+        preload_data_packages_js: PRELOAD_PACKAGES.map(
           (p) => `${ENGINE_BASE}/${p}`,
         ),
         data_packages_js: DATA_PACKAGES.map((p) => `${ENGINE_BASE}/${p}`),

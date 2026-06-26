@@ -147,6 +147,7 @@ function PubInfo({
               ownerName={ownerName}
               projectName={projectName}
               texPath={texPath}
+              deps={publication.stage_info?.deps ?? undefined}
             />
           )}
         </>
