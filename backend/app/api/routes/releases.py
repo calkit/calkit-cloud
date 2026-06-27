@@ -543,10 +543,30 @@ def post_project_release(
                     404,
                     f"Path '{release_in.path}' not found at the given ref",
                 )
-    # Don't re-release the same artifact at the same commit. Every release
-    # (cloud, CLI, or external) is recorded in calkit.yaml, so it's the single
-    # place to check; a release at a newer commit is fine (it's a new version).
+    # Don't re-release the same artifact at the same commit (a duplicate); a
+    # release at a different commit is a new version and is allowed. Cloud
+    # releases are authoritative in the DB, so check it directly first (a
+    # whole-project release stores path as NULL or "."); CLI/external releases
+    # live only in calkit.yaml, checked below.
     new_path = release_in.path or "."
+    dup_query = (
+        select(Release)
+        .where(Release.project_id == project.id)
+        .where(Release.git_rev == git_rev)
+    )
+    if new_path == ".":
+        dup_query = dup_query.where(
+            sqlalchemy.or_(Release.path.is_(None), Release.path == ".")
+        )
+    else:
+        dup_query = dup_query.where(Release.path == new_path)
+    dup = session.exec(dup_query).first()
+    if dup is not None:
+        where = "The project" if new_path == "." else f"'{new_path}'"
+        raise HTTPException(
+            409,
+            f"{where} at this commit is already released as '{dup.name}'.",
+        )
     ck_path = os.path.join(repo.working_dir, "calkit.yaml")
     if os.path.exists(ck_path):
         with open(ck_path) as f:
