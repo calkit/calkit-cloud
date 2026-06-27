@@ -427,8 +427,8 @@ const NewRelease = ({
             ) : (
               <Text fontSize="sm" color="gray.600" mb={4}>
                 Record a release that's already published elsewhere. Paste its
-                DOI or link (Zenodo, a journal, arXiv, …) and we'll look up the
-                details.
+                DOI or link (Zenodo, a journal, arXiv, OSF, …) and we'll look up
+                the details.
               </Text>
             )}
 
@@ -452,7 +452,8 @@ const NewRelease = ({
                   </Button>
                 </HStack>
                 <FormHelperText>
-                  Supported: DOIs (Zenodo, journals, …) and arXiv links.
+                  Supported: DOIs (Zenodo, journals, …), arXiv links, and OSF
+                  pages.
                 </FormHelperText>
               </FormControl>
             )}

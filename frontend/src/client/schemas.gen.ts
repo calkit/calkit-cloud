@@ -5130,6 +5130,17 @@ export const ReleaseListItemSchema = {
       ],
       title: "Share Count",
     },
+    github_release_url: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Github Release Url",
+    },
   },
   type: "object",
   required: ["source", "name"],

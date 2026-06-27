@@ -38,6 +38,7 @@ def upgrade():
     sa.Column('view_count', sa.Integer(), nullable=False),
     sa.Column('github_issue_url', sqlmodel.sql.sqltypes.AutoString(length=2048), nullable=True),
     sa.Column('comments_resolved', sa.DateTime(), nullable=True),
+    sa.Column('github_release_url', sqlmodel.sql.sqltypes.AutoString(length=2048), nullable=True),
     sa.Column('created', sa.DateTime(), nullable=False),
     sa.ForeignKeyConstraint(['created_by_user_id'], ['user.id'], ),
     sa.ForeignKeyConstraint(['project_id'], ['project.id'], ),

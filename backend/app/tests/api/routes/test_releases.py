@@ -14,6 +14,8 @@ from app.api.routes.releases import (
     _arxiv_id_from_url,
     _doi_from_url,
     _fetch_arxiv,
+    _fetch_osf,
+    _osf_guid_from_url,
     _parse_release_url,
     _stored_release_filename,
 )
@@ -161,6 +163,65 @@ def test_doi_from_url() -> None:
         "10.5281/zenodo.3509134"
     )
     assert _doi_from_url("https://example.com/whatever") is None
+
+
+def test_osf_guid_from_url() -> None:
+    assert _osf_guid_from_url("https://osf.io/ab3cd/") == "ab3cd"
+    assert _osf_guid_from_url("https://osf.io/ab3cd/files/osfstorage") == (
+        "ab3cd"
+    )
+    assert _osf_guid_from_url("http://osf.io/AB3CD") == "ab3cd"
+    # App routes are not project guids.
+    assert _osf_guid_from_url("https://osf.io/dashboard") is None
+    assert _osf_guid_from_url("https://example.com/ab3cd") is None
+
+
+def test_fetch_osf_registration_derives_doi() -> None:
+    payload = {
+        "data": {
+            "id": "ab3cd",
+            "type": "registrations",
+            "attributes": {
+                "title": "My Registered Study",
+                "description": "  A study.  ",
+                "date_registered": "2026-02-03T12:00:00.000000Z",
+            },
+            "links": {"html": "https://osf.io/ab3cd/"},
+        }
+    }
+    with patch(
+        "app.api.routes.releases.requests.get",
+        return_value=SimpleNamespace(status_code=200, json=lambda: payload),
+    ):
+        meta = _fetch_osf("ab3cd")
+    assert meta is not None
+    assert meta.publisher == "osf"
+    assert meta.title == "My Registered Study"
+    assert meta.doi == "10.17605/OSF.IO/AB3CD"
+    assert meta.url == "https://osf.io/ab3cd/"
+    assert meta.date == "2026-02-03"
+    assert meta.description == "A study."
+
+
+def test_fetch_osf_project_has_no_doi() -> None:
+    payload = {
+        "data": {
+            "id": "ab3cd",
+            "type": "nodes",
+            "attributes": {
+                "title": "My Project",
+                "date_created": "2025-11-09T08:00:00.000000Z",
+            },
+        }
+    }
+    with patch(
+        "app.api.routes.releases.requests.get",
+        return_value=SimpleNamespace(status_code=200, json=lambda: payload),
+    ):
+        meta = _fetch_osf("ab3cd")
+    assert meta is not None
+    assert meta.doi is None
+    assert meta.date == "2025-11-09"
 
 
 def test_parse_release_url_unrecognized_returns_none() -> None:

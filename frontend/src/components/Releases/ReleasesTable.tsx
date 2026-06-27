@@ -31,6 +31,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link as RouterLink } from "@tanstack/react-router"
 import { useState } from "react"
 import {
+  FaCheck,
   FaGithub,
   FaPlus,
   FaSort,
@@ -201,6 +202,11 @@ const ReleasesTable = ({
       })
     },
     onError: (err: ApiError) => handleError(err, showToast),
+    onSettled: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["projects", ownerName, projectName, "releases"],
+      })
+    },
   })
   const filterLower = (filter ?? "").trim().toLowerCase()
   const releases = (releasesQuery.data ?? []).filter(
@@ -311,6 +317,7 @@ const ReleasesTable = ({
                 <SortableTh label="Views" sortKey="views" isNumeric />
                 <SortableTh label="Comments" sortKey="comments" isNumeric />
                 <Th>Location</Th>
+                <Th>GitHub</Th>
                 {userHasWriteAccess && <Th />}
               </Tr>
             </Thead>
@@ -385,10 +392,29 @@ const ReleasesTable = ({
                       )
                     })()}
                   </Td>
-                  {userHasWriteAccess && (
-                    <Td>
-                      {r.source === "cloud" && (
-                        <HStack spacing={0} justify="flex-end">
+                  <Td>
+                    {(() => {
+                      const githubUrl =
+                        r.github_release_url ??
+                        (r.publisher === "github" ? r.url : null)
+                      if (githubUrl)
+                        return (
+                          <Tooltip label="View release on GitHub">
+                            <Link
+                              href={githubUrl}
+                              isExternal
+                              color="green.500"
+                              display="inline-flex"
+                              alignItems="center"
+                              gap={1}
+                            >
+                              <Icon as={FaCheck} />
+                              <Icon as={FiExternalLink} />
+                            </Link>
+                          </Tooltip>
+                        )
+                      if (r.source === "cloud" && userHasWriteAccess)
+                        return (
                           <Tooltip label="Release to GitHub">
                             <IconButton
                               aria-label="Release to GitHub"
@@ -402,6 +428,18 @@ const ReleasesTable = ({
                               onClick={() => githubMutation.mutate(r.name)}
                             />
                           </Tooltip>
+                        )
+                      return (
+                        <Text color="gray.400" fontSize="sm">
+                          —
+                        </Text>
+                      )
+                    })()}
+                  </Td>
+                  {userHasWriteAccess && (
+                    <Td>
+                      {r.source === "cloud" && (
+                        <HStack spacing={0} justify="flex-end">
                           <Tooltip
                             label={
                               r.share_count

@@ -899,11 +899,90 @@ def _fetch_doi(doi: str) -> ReleaseUrlMetadata | None:
     )
 
 
+# OSF object pages are osf.io/<guid> (guids are short base-32 strings). These
+# reserved first path segments are app routes, not project guids.
+OSF_RESERVED = {
+    "dashboard",
+    "myprojects",
+    "search",
+    "settings",
+    "support",
+    "explore",
+    "preprints",
+    "registries",
+    "institutions",
+}
+
+
+def _osf_guid_from_url(url: str) -> str | None:
+    m = re.search(r"osf\.io/([a-z0-9]{5,})", url, re.IGNORECASE)
+    if not m:
+        return None
+    guid = m.group(1).lower()
+    return None if guid in OSF_RESERVED else guid
+
+
+def _fetch_osf(guid: str) -> ReleaseUrlMetadata | None:
+    """Fetch metadata for an OSF project/registration/file via the OSF API.
+
+    The ``guids`` endpoint resolves to whichever object the guid refers to
+    (node, registration, or file). Returns None on a network/API error or an
+    unknown guid so a typo fails honestly.
+    """
+    resp = requests.get(
+        f"https://api.osf.io/v2/guids/{guid}/",
+        headers={"Accept": "application/vnd.api+json"},
+        timeout=URL_LOOKUP_TIMEOUT,
+    )
+    if resp.status_code >= 400:
+        return None
+    try:
+        data = resp.json().get("data")
+    except ValueError:
+        return None
+    if not isinstance(data, dict):
+        return None
+    attrs = data.get("attributes") or {}
+    osf_type = data.get("type") or ""
+    # Nodes/registrations carry ``title``; files carry ``name``.
+    title = attrs.get("title") or attrs.get("name")
+    if not isinstance(title, str) or not title.strip():
+        return None
+    raw_date = (
+        attrs.get("date_registered")
+        or attrs.get("date_created")
+        or attrs.get("date_modified")
+    )
+    date_str = raw_date[:10] if isinstance(raw_date, str) else None
+    description = attrs.get("description")
+    # OSF registrations mint a DataCite DOI of the form 10.17605/OSF.IO/<GUID>;
+    # plain projects don't have one, so leave it for the user to fill in.
+    doi = (
+        f"10.17605/OSF.IO/{guid.upper()}"
+        if osf_type == "registrations"
+        else None
+    )
+    html = (data.get("links") or {}).get("html") or f"https://osf.io/{guid}/"
+    return ReleaseUrlMetadata(
+        publisher="osf",
+        title=title.strip(),
+        doi=doi,
+        url=html,
+        date=date_str,
+        description=(
+            description.strip() if isinstance(description, str) else None
+        ),
+        kind="dataset" if osf_type == "files" else "publication",
+    )
+
+
 def _parse_release_url(url: str) -> ReleaseUrlMetadata | None:
     """Recognize a release URL/DOI and fetch its metadata, or None.
 
     arXiv is checked before DOI because arXiv DOIs (``10.48550/arXiv.*``) would
-    otherwise resolve to a less useful generic record.
+    otherwise resolve to a less useful generic record. An OSF DOI URL
+    (``10.17605/OSF.IO/*``) resolves fine via DataCite, so OSF is only needed
+    for the plain ``osf.io/<guid>`` page form, checked last.
     """
     url = url.strip()
     arxiv_id = _arxiv_id_from_url(url)
@@ -912,6 +991,9 @@ def _parse_release_url(url: str) -> ReleaseUrlMetadata | None:
     doi = _doi_from_url(url)
     if doi:
         return _fetch_doi(doi)
+    osf_guid = _osf_guid_from_url(url)
+    if osf_guid:
+        return _fetch_osf(osf_guid)
     return None
 
 
@@ -926,9 +1008,10 @@ def parse_release_url(
     """Look up an already-published release from a URL or DOI.
 
     Recognizes DOIs (resolved via doi.org content negotiation, which covers
-    Zenodo, CaltechDATA, journals, and more) and arXiv links/IDs, fetching
-    metadata to pre-fill the declare-external form. Fails if we can't recognize
-    or fetch the URL -- the user can still declare the release manually.
+    Zenodo, CaltechDATA, journals, OSF registrations, and more), arXiv
+    links/IDs, and OSF project pages (osf.io/<guid>), fetching metadata to
+    pre-fill the declare-external form. Fails if we can't recognize or fetch
+    the URL -- the user can still declare the release manually.
     """
     app.projects.get_project(
         session=session,
@@ -950,7 +1033,7 @@ def parse_release_url(
         raise HTTPException(
             422,
             "Couldn't recognize or fetch metadata from that URL. Supported: "
-            "DOIs (Zenodo, journals, …) and arXiv links.",
+            "DOIs (Zenodo, journals, …), arXiv links, and OSF pages.",
         )
     mixpanel.track(
         current_user,
@@ -1117,6 +1200,7 @@ def get_project_releases(
                     view_count=r.view_count,
                     comment_count=r.comment_count,
                     share_count=active_shares,
+                    github_release_url=r.github_release_url,
                 )
             )
     # Releases declared in calkit.yaml at the requested ref.
@@ -1331,9 +1415,11 @@ def create_release_github_release(
         timeout=10,
     )
     if existing.ok:
-        return ReleaseGithubResult(
-            url=existing.json().get("html_url"), created=False
-        )
+        existing_url = existing.json().get("html_url")
+        release.github_release_url = existing_url
+        session.add(release)
+        session.commit()
+        return ReleaseGithubResult(url=existing_url, created=False)
     app_base = settings.frontend_host.rstrip("/")
     link = (
         f"{app_base}/{project.owner_account_name}/{project.name}"
@@ -1370,6 +1456,10 @@ def create_release_github_release(
             "Couldn't create the GitHub release. Check that you have push "
             "access to the repository.",
         )
+    release_url = resp.json().get("html_url")
+    release.github_release_url = release_url
+    session.add(release)
+    session.commit()
     mixpanel.track(
         current_user,
         "Released to GitHub",
@@ -1379,7 +1469,7 @@ def create_release_github_release(
             "release_name": release_name,
         },
     )
-    return ReleaseGithubResult(url=resp.json().get("html_url"), created=True)
+    return ReleaseGithubResult(url=release_url, created=True)
 
 
 # --- Share token management (project members with write access) -------------

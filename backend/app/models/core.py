@@ -865,6 +865,10 @@ class Release(ReleaseBase, table=True):
     # When the comment thread was resolved (its GitHub issue closed). Kept in
     # sync with the issue state, and toggleable from the release page.
     comments_resolved: datetime | None = Field(default=None)
+    # The GitHub release this Calkit release was published to, if any. Set when
+    # the release is pushed to GitHub (or an existing GitHub release for the tag
+    # is found), so the releases table can show its "released to GitHub" status.
+    github_release_url: str | None = Field(default=None, max_length=2048)
     created: datetime = Field(default_factory=utcnow)
     # Relationships
     project: Project = Relationship(back_populates="releases")
@@ -1191,6 +1195,10 @@ class ReleaseListItem(BaseModel):
     comment_count: int | None = None
     # Number of active (non-revoked) share links, for cloud releases.
     share_count: int | None = None
+    # The GitHub release URL when this release has been published to GitHub. For
+    # cloud releases this is stored; for calkit.yaml releases imported from
+    # GitHub it's the release's ``url``. ``None`` means not on GitHub (yet).
+    github_release_url: str | None = None
 
 
 class ReleaseGithubResult(BaseModel):

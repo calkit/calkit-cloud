@@ -3037,9 +3037,10 @@ export class ReleasesService {
    * Look up an already-published release from a URL or DOI.
    *
    * Recognizes DOIs (resolved via doi.org content negotiation, which covers
-   * Zenodo, CaltechDATA, journals, and more) and arXiv links/IDs, fetching
-   * metadata to pre-fill the declare-external form. Fails if we can't recognize
-   * or fetch the URL -- the user can still declare the release manually.
+   * Zenodo, CaltechDATA, journals, OSF registrations, and more), arXiv
+   * links/IDs, and OSF project pages (osf.io/<guid>), fetching metadata to
+   * pre-fill the declare-external form. Fails if we can't recognize or fetch
+   * the URL -- the user can still declare the release manually.
    * @param data The data for the request.
    * @param data.ownerName
    * @param data.projectName

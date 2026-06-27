@@ -1070,6 +1070,7 @@ export type ReleaseListItem = {
   view_count?: number | null
   comment_count?: number | null
   share_count?: number | null
+  github_release_url?: string | null
 }
 
 export type source = "cloud" | "calkit"
