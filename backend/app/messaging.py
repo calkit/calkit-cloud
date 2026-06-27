@@ -23,7 +23,12 @@ def render_email_template(
         Path(__file__).parent / "email-templates" / "build" / template_name
     ).read_text()
     # autoescape so user-controlled context values (e.g. a release note or
-    # name) can't inject HTML into outbound emails.
+    # name) can't inject HTML into outbound emails. Keep this on: it is also
+    # what makes values rendered as visible text (e.g. the password in
+    # new_account.html) display and copy correctly when they contain HTML
+    # characters like '<' -- without escaping, '<' would be parsed as a tag and
+    # the value would be corrupted on screen. Rendered HTML still copies the
+    # decoded value, so escaping does not change what the recipient pastes.
     html_content = Template(template_str, autoescape=True).render(context)
     return html_content
 

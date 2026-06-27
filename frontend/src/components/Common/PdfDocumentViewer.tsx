@@ -257,7 +257,26 @@ export default function PdfDocumentViewer({
       sx={highlightSx}
     >
       {pdfReady && (
-        <PdfLoader url={url} beforeLoad={<Spinner color="ui.main" />}>
+        <PdfLoader
+          url={url}
+          beforeLoad={<Spinner color="ui.main" />}
+          errorMessage={
+            // Without this, a PDF that can't be fetched or parsed (e.g. an
+            // external, CORS-blocked, or auth-gated URL) would hang on the
+            // spinner forever. Show a message and, for http(s) sources, a way
+            // to open it directly.
+            <Box p={4} textAlign="center">
+              <Text fontSize="sm" color="gray.500" mb={2}>
+                Couldn't load this PDF.
+              </Text>
+              {/^https?:/.test(url) && (
+                <Link href={url} isExternal color="blue.500" fontSize="sm">
+                  Open it in a new tab
+                </Link>
+              )}
+            </Box>
+          }
+        >
           {(pdfDocument) => (
             <PdfViewerInner
               key={url}

@@ -44,7 +44,11 @@ import { type ReleaseListItem, ReleasesService } from "../../client"
 import type { ApiError } from "../../client/core/ApiError"
 import useCustomToast from "../../hooks/useCustomToast"
 import { handleError } from "../../lib/errors"
-import { releaseLocation, releasePagePath } from "../../lib/releases"
+import {
+  formatReleaseDate,
+  releaseLocation,
+  releasePagePath,
+} from "../../lib/releases"
 import LoadingSpinner from "../Common/LoadingSpinner"
 import NewRelease from "./NewRelease"
 import ShareDialog from "./ShareDialog"
@@ -53,12 +57,6 @@ import {
   type ReleaseSort,
   type SortKey,
 } from "./releaseSort"
-
-const formatDate = (date: string | null | undefined): string => {
-  if (!date) return "—"
-  const d = new Date(date)
-  return Number.isNaN(d.getTime()) ? date : d.toLocaleDateString()
-}
 
 // Columns that read most naturally as descending on first click.
 const DESC_FIRST: Set<SortKey> = new Set(["date", "views", "comments"])
@@ -348,7 +346,7 @@ const ReleasesTable = ({
                       {r.git_ref ?? r.git_rev_abbrev ?? "—"}
                     </Code>
                   </Td>
-                  <Td whiteSpace="nowrap">{formatDate(r.date)}</Td>
+                  <Td whiteSpace="nowrap">{formatReleaseDate(r.date)}</Td>
                   <Td isNumeric>{r.view_count != null ? r.view_count : "—"}</Td>
                   <Td isNumeric>
                     {r.comment_count != null ? r.comment_count : "—"}

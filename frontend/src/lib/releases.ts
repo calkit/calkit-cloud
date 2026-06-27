@@ -90,10 +90,26 @@ export const releaseExternalLink = (
 // carry a plain YYYY-MM-DD, which is shown as a date only.
 export const formatReleaseDate = (date?: string | null): string => {
   if (!date) return "—"
+  const hasTime = /[T ]\d{2}:\d{2}/.test(date)
+  // A plain YYYY-MM-DD carries no time or zone; parse it as a local calendar
+  // date so it isn't shifted a day for users west of UTC. (new Date("2026-06-24")
+  // is UTC midnight, which toLocaleDateString() would render as the prior day.)
+  if (!hasTime) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date.trim())
+    if (m) {
+      return new Date(
+        Number(m[1]),
+        Number(m[2]) - 1,
+        Number(m[3]),
+      ).toLocaleDateString()
+    }
+    const dateOnly = new Date(date)
+    return Number.isNaN(dateOnly.getTime())
+      ? date
+      : dateOnly.toLocaleDateString()
+  }
   const d = new Date(date)
   if (Number.isNaN(d.getTime())) return date
-  const hasTime = /[T ]\d{2}:\d{2}/.test(date)
-  if (!hasTime) return d.toLocaleDateString()
   const rounded = new Date(Math.round(d.getTime() / 60000) * 60000)
   return rounded.toLocaleString(undefined, {
     dateStyle: "medium",

@@ -29,6 +29,7 @@ import sqlalchemy
 from calkit.models import Release as CkRelease
 from fastapi import APIRouter, HTTPException
 from git.exc import GitCommandError
+from sqlalchemy.orm import selectinload
 from sqlmodel import select
 
 import app.projects
@@ -36,7 +37,7 @@ from app import messaging, mixpanel, users
 from app.api.deps import CurrentUser, CurrentUserOptional, SessionDep
 from app.config import settings
 from app.core import ryaml, utcnow
-from app.git import get_repo, get_repo_tree_for_ref
+from app.git import get_repo, get_repo_tree_for_ref, resolve_commit_sha
 from app.models import (
     ContentsItem,
     ExternalReleasePost,
@@ -90,21 +91,6 @@ def _commit_date(repo, rev: str | None) -> str | None:
         return None
     try:
         return repo.commit(rev).committed_datetime.date().isoformat()
-    except Exception:
-        return None
-
-
-def _resolve_rev(repo, rev: str | None) -> str | None:
-    """Resolve a ref (tag, branch, or SHA) to a full commit SHA, or None.
-
-    Lets a release keyed only by its tag (e.g. an imported GitHub release)
-    expose the exact commit it points at, so it can be browsed at that version.
-    Never raises.
-    """
-    if not rev:
-        return None
-    try:
-        return repo.commit(rev).hexsha
     except Exception:
         return None
 
@@ -407,6 +393,32 @@ def _store_internal_release_copy(
     return stored_rel
 
 
+def _commit_calkit_change(
+    repo, message: str, *, error_detail: str, rm: list[str] | None = None
+) -> None:
+    """Stage calkit.yaml, commit, and push; reset the clone and 502 on failure.
+
+    Any other files (e.g. stored release copies) must already be staged by the
+    caller. ``rm`` paths are removed with ``git rm -r --ignore-unmatch`` before
+    committing. On any git failure the cached clone is hard-reset to origin and
+    cleaned so the next request starts from a clean state, then a 502 carrying
+    ``error_detail`` is raised. This is the single recovery path the release
+    write endpoints share (and that the external-release path was missing).
+    """
+    branch = repo.active_branch.name
+    try:
+        repo.git.add("calkit.yaml")
+        for path in rm or []:
+            repo.git.rm(["-r", "--ignore-unmatch", path])
+        repo.git.commit(["-m", message])
+        repo.git.push(["origin", branch])
+    except GitCommandError as e:
+        repo.git.reset(["--hard", f"origin/{branch}"])
+        repo.git.clean(["-fd"])
+        logger.warning(f"Failed to push calkit.yaml change: {e}")
+        raise HTTPException(502, error_detail)
+
+
 def _record_internal_release_in_calkit_yaml(
     repo, project: Project, release_in: ReleasePost, git_rev: str
 ) -> None:
@@ -451,20 +463,14 @@ def _record_internal_release_in_calkit_yaml(
     ck_info["releases"] = releases
     with open(ck_path, "w") as f:
         ryaml.dump(ck_info, f)
-    try:
-        repo.git.add("calkit.yaml")
-        repo.git.commit(["-m", f"Add internal release {release_in.name}"])
-        repo.git.push(["origin", repo.active_branch.name])
-    except GitCommandError as e:
-        repo.git.reset(["--hard", "origin/" + repo.active_branch.name])
-        # Drop any stored-copy files we staged so the clone starts clean.
-        repo.git.clean(["-fd"])
-        logger.warning(f"Failed to push internal release to calkit.yaml: {e}")
-        raise HTTPException(
-            502,
+    _commit_calkit_change(
+        repo,
+        f"Add internal release {release_in.name}",
+        error_detail=(
             "Couldn't record the release in calkit.yaml. Check that you have "
-            "push access to the repository.",
-        )
+            "push access to the repository."
+        ),
+    )
 
 
 @router.post("/projects/{owner_name}/{project_name}/releases")
@@ -498,12 +504,8 @@ def post_project_release(
     )
     # Resolve the requested ref to a concrete commit. With no ref, pin to the
     # current default-branch HEAD.
-    try:
-        if release_in.git_ref:
-            git_rev = repo.commit(release_in.git_ref).hexsha
-        else:
-            git_rev = repo.head.commit.hexsha
-    except Exception:
+    git_rev = resolve_commit_sha(repo, release_in.git_ref)
+    if git_rev is None:
         raise HTTPException(
             400, f"Could not resolve Git ref '{release_in.git_ref}'"
         )
@@ -680,9 +682,14 @@ def post_external_release(
     ck_info["releases"] = releases
     with open(ck_path, "w") as f:
         ryaml.dump(ck_info, f)
-    repo.git.add("calkit.yaml")
-    repo.git.commit(["-m", f"Declare release {release_in.name}"])
-    repo.git.push(["origin", repo.active_branch.name])
+    _commit_calkit_change(
+        repo,
+        f"Declare release {release_in.name}",
+        error_detail=(
+            "Couldn't declare the release in calkit.yaml. Check that you have "
+            "push access to the repository."
+        ),
+    )
     mixpanel.track(
         current_user,
         "Declared external release",
@@ -961,12 +968,25 @@ def import_github_releases(
     )
     token = users.get_github_token(session=session, user=current_user)
     gh_url = f"https://api.github.com/repos/{project.github_repo}/releases"
-    resp = requests.get(gh_url, headers={"Authorization": f"Bearer {token}"})
-    if resp.status_code >= 400:
-        raise HTTPException(400, "Failed to fetch GitHub releases")
-    gh_releases = resp.json()
-    if not isinstance(gh_releases, list):
-        raise HTTPException(502, "Unexpected response from GitHub")
+    # Page through all releases (the default page size is 30, so a repo with
+    # more would silently lose the older ones), with a timeout so a slow GitHub
+    # can't hang the worker. The page cap bounds the loop at 5000 releases.
+    gh_releases: list[dict] = []
+    for page in range(1, 51):
+        resp = requests.get(
+            gh_url,
+            headers={"Authorization": f"Bearer {token}"},
+            params={"per_page": 100, "page": page},
+            timeout=10,
+        )
+        if resp.status_code >= 400:
+            raise HTTPException(400, "Failed to fetch GitHub releases")
+        page_items = resp.json()
+        if not isinstance(page_items, list):
+            raise HTTPException(502, "Unexpected response from GitHub")
+        gh_releases.extend(page_items)
+        if len(page_items) < 100:
+            break
     repo = get_repo(
         project=project, user=current_user, session=session, ttl=None
     )
@@ -997,23 +1017,16 @@ def import_github_releases(
     ck_info["releases"] = releases
     with open(ck_path, "w") as f:
         ryaml.dump(ck_info, f)
-    try:
-        repo.git.add("calkit.yaml")
-        repo.git.commit(
-            ["-m", f"Import {len(imported)} release(s) from GitHub"]
-        )
-        repo.git.push(["origin", repo.active_branch.name])
-    except GitCommandError as e:
-        # Leave the cached clone clean for the next request and surface a
-        # meaningful error instead of an opaque 500 (e.g. the user has Calkit
-        # write access but not GitHub push access to the repo).
-        repo.git.reset(["--hard", "origin/" + repo.active_branch.name])
-        logger.warning(f"Failed to commit/push imported releases: {e}")
-        raise HTTPException(
-            502,
+    # A clear error instead of an opaque 500 when the user has Calkit write
+    # access but not GitHub push access to the repo.
+    _commit_calkit_change(
+        repo,
+        f"Import {len(imported)} release(s) from GitHub",
+        error_detail=(
             "Imported the releases, but couldn't push to GitHub. Check that "
-            "you have push access to the repository.",
-        )
+            "you have push access to the repository."
+        ),
+    )
     mixpanel.track(
         current_user,
         "Imported GitHub releases",
@@ -1055,6 +1068,12 @@ def get_project_releases(
         cloud = session.exec(
             select(Release)
             .where(Release.project_id == project.id)
+            # Eager-load the relationships the loop reads per row (active share
+            # count and comment_count) to avoid an N+1 query per release.
+            .options(
+                selectinload(Release.share_tokens),
+                selectinload(Release.comments),
+            )
             .order_by(Release.created.desc())
         ).all()
         for r in cloud:
@@ -1106,7 +1125,7 @@ def get_project_releases(
         # release name) to its commit so the release can be browsed at its exact
         # version, and surface the tag as the human-readable ref.
         if not git_rev:
-            resolved = _resolve_rev(repo, name)
+            resolved = resolve_commit_sha(repo, name)
             if resolved:
                 git_rev = resolved
                 git_ref = git_ref or name
@@ -1166,12 +1185,8 @@ def get_release_staleness(
         session=session,
         ttl=RELEASES_REPO_TTL,
     )
-    try:
-        if git_ref:
-            git_rev = repo.commit(git_ref).hexsha
-        else:
-            git_rev = repo.head.commit.hexsha
-    except Exception:
+    git_rev = resolve_commit_sha(repo, git_ref)
+    if git_rev is None:
         raise HTTPException(400, f"Could not resolve Git ref '{git_ref}'")
     return _path_staleness(
         repo, git_rev, path, project.owner_account_name, project.name
@@ -1218,27 +1233,16 @@ def delete_project_release(
         ck_info["releases"] = releases
         with open(ck_path, "w") as f:
             ryaml.dump(ck_info, f)
-        try:
-            repo.git.add("calkit.yaml")
+        _commit_calkit_change(
+            repo,
+            f"Remove internal release {release_name}",
             # Remove the stored copy we saved (no-op if there wasn't one).
-            repo.git.rm(
-                [
-                    "-r",
-                    "--ignore-unmatch",
-                    f".calkit/releases/{release_name}",
-                ]
-            )
-            repo.git.commit(["-m", f"Remove internal release {release_name}"])
-            repo.git.push(["origin", repo.active_branch.name])
-        except GitCommandError as e:
-            repo.git.reset(["--hard", "origin/" + repo.active_branch.name])
-            repo.git.clean(["-fd"])
-            logger.warning(f"Failed to push release removal: {e}")
-            raise HTTPException(
-                502,
+            rm=[f".calkit/releases/{release_name}"],
+            error_detail=(
                 "Couldn't remove the release from calkit.yaml. Check that you "
-                "have push access to the repository.",
-            )
+                "have push access to the repository."
+            ),
+        )
     session.delete(release)
     session.commit()
     mixpanel.track(
@@ -1462,6 +1466,7 @@ def list_release_shares(
     tokens = session.exec(
         select(ReleaseShareToken)
         .where(ReleaseShareToken.release_id == release.id)
+        .where(ReleaseShareToken.revoked.is_(False))
         .order_by(ReleaseShareToken.created.desc())
     ).all()
     return list(tokens)
@@ -1500,7 +1505,11 @@ def delete_release_share(
     ).first()
     if token is None:
         raise HTTPException(404, "Share link not found")
-    session.delete(token)
+    # Soft-delete: revoking keeps the row so its view_count and the link from
+    # any comment posted through it (ReleaseComment.share_token_id) survive,
+    # and _valid_share_token's revoked check actually has something to reject.
+    token.revoked = True
+    session.add(token)
     session.commit()
     return Message(message="success")
 

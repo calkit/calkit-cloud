@@ -407,16 +407,18 @@ function History() {
   })
   const releases = releasesQuery.data ?? []
   // A release matches a commit when its (possibly abbreviated) git_rev is a
-  // prefix of the commit's full hash.
+  // prefix of the commit's full hash. Require at least an abbreviated-SHA
+  // length so a stray 1-2 char rev can't prefix-match unrelated commits.
+  const matchesRev = (hash: string, rev: string | null | undefined) =>
+    !!rev && rev.length >= 7 && hash.startsWith(rev)
   const releasesForCommit = (hash: string) =>
-    releases.filter((r) => r.git_rev && hash.startsWith(r.git_rev))
+    releases.filter((r) => matchesRev(hash, r.git_rev))
   // A release matches a tag when it shares its name or points at the tagged
   // commit.
   const releasesForTag = (tag: GitRef) =>
     releases.filter(
       (r) =>
-        r.name === tag.name ||
-        (r.git_rev && tag.hash && tag.hash.startsWith(r.git_rev)),
+        r.name === tag.name || (tag.hash && matchesRev(tag.hash, r.git_rev)),
     )
 
   const selectRef = (name: string) => {

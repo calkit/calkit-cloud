@@ -54,7 +54,11 @@ import useAuth from "../../hooks/useAuth"
 import useCustomToast from "../../hooks/useCustomToast"
 import { handleError } from "../../lib/errors"
 import { submitOnCmdEnter } from "../../lib/keyboard"
-import { releaseLocation, releaseDownloadName } from "../../lib/releases"
+import {
+  formatReleaseDate,
+  releaseDownloadName,
+  releaseLocation,
+} from "../../lib/releases"
 import LoadingSpinner from "../Common/LoadingSpinner"
 import Markdown from "../Common/Markdown"
 import PdfDocumentViewer from "../Common/PdfDocumentViewer"
@@ -1218,9 +1222,7 @@ function CalkitReleaseView({
                   >
                     Released
                   </Text>
-                  <Text fontSize="sm">
-                    {new Date(release.date).toLocaleDateString()}
-                  </Text>
+                  <Text fontSize="sm">{formatReleaseDate(release.date)}</Text>
                 </Box>
               )}
               {release.description && (

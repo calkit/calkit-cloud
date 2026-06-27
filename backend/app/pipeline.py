@@ -514,7 +514,15 @@ def compute_stage_statuses(
             missing_outputs=missing_outputs,
         )
     if cache_key is not None:
-        _stage_status_cache_put(cache_key, result)
+        # Don't cache a result whose staleness comes from outputs missing in
+        # object storage. Pushing that content makes the stage up-to-date
+        # without changing the cache_token (the commit/tree SHA), so a cached
+        # "stale" would otherwise linger for the full TTL after the artifact is
+        # pushed -- blocking a release the user just made reproducible. Results
+        # with no missing outputs are pinned by the SHA and safe to cache.
+        storage_dependent = any(s.missing_outputs for s in result.values())
+        if not storage_dependent:
+            _stage_status_cache_put(cache_key, result)
     return result
 
 
