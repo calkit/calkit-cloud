@@ -227,8 +227,8 @@ import type {
   GetReleaseCommentsResponse,
   PostReleaseCommentData,
   PostReleaseCommentResponse,
-  ResolveReleaseCommentsData,
-  ResolveReleaseCommentsResponse,
+  ResolveReleaseCommentData,
+  ResolveReleaseCommentResponse,
   ReadUsersData,
   ReadUsersResponse,
   CreateUserData,
@@ -3438,29 +3438,32 @@ export class ReleasesService {
   }
 
   /**
-   * Resolve Release Comments
-   * Resolve or reopen a release's comment thread (project members only).
+   * Resolve Release Comment
+   * Resolve or reopen a single comment thread (project members only).
    *
-   * Mirrors the state to the release's GitHub issue (closed when resolved), so
-   * it stays in sync with what ``_sync_release_issue_resolution`` reads back.
+   * The given comment is normalized to its top-level comment, then it and all
+   * its replies are marked (un)resolved and its GitHub issue closed/reopened,
+   * so the state stays in sync with ``_sync_release_comment_resolutions``.
    * @param data The data for the request.
    * @param data.ownerName
    * @param data.projectName
    * @param data.releaseName
+   * @param data.commentId
    * @param data.requestBody
-   * @returns ReleaseView Successful Response
+   * @returns ReleaseCommentPublic Successful Response
    * @throws ApiError
    */
-  public static resolveReleaseComments(
-    data: ResolveReleaseCommentsData,
-  ): CancelablePromise<ResolveReleaseCommentsResponse> {
+  public static resolveReleaseComment(
+    data: ResolveReleaseCommentData,
+  ): CancelablePromise<ResolveReleaseCommentResponse> {
     return __request(OpenAPI, {
       method: "POST",
-      url: "/projects/{owner_name}/{project_name}/releases/{release_name}/resolve-comments",
+      url: "/projects/{owner_name}/{project_name}/releases/{release_name}/comments/{comment_id}/resolve",
       path: {
         owner_name: data.ownerName,
         project_name: data.projectName,
         release_name: data.releaseName,
+        comment_id: data.commentId,
       },
       body: data.requestBody,
       mediaType: "application/json",

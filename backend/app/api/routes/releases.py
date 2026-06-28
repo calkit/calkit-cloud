@@ -20,8 +20,9 @@ import logging
 import os
 import re
 import secrets
+import uuid
 import xml.etree.ElementTree as ET
-from datetime import date
+from datetime import date, datetime
 from urllib.parse import quote
 
 import requests
@@ -47,7 +48,7 @@ from app.models import (
     ReleaseComment,
     ReleaseCommentPost,
     ReleaseCommentPublic,
-    ReleaseCommentsResolvePost,
+    ReleaseCommentResolvePost,
     ReleaseGithubResult,
     ReleaseListItem,
     ReleasePost,
@@ -304,7 +305,6 @@ def _to_view(
         public=release.public,
         comments_enabled=release.comments_enabled,
         comment_count=release.comment_count,
-        comments_resolved=release.comments_resolved,
         created=release.created,
         owner_account_name=project.owner_account_name,
         owner_account_display_name=project.owner_account_display_name,
@@ -1669,9 +1669,6 @@ def get_release_view(
     if share_token is not None:
         share_token.view_count += 1
         session.add(share_token)
-    # Keep the thread's resolved state in sync with its GitHub issue, so closing
-    # the issue on GitHub shows as resolved here (and reopening unresolves).
-    _sync_release_issue_resolution(session, release)
     session.commit()
     session.refresh(release)
     return _to_view(release, permission, share_token)
@@ -1777,11 +1774,14 @@ def get_release_comments(
     release, _permission, _share = _authorize_release(
         session, owner_name, project_name, release_name, token, current_user
     )
-    comments = session.exec(
-        select(ReleaseComment)
-        .where(ReleaseComment.release_id == release.id)
-        .order_by(ReleaseComment.created.asc())
-    ).all()
+    comments = list(
+        session.exec(
+            select(ReleaseComment)
+            .where(ReleaseComment.release_id == release.id)
+            .order_by(ReleaseComment.created.asc())
+        ).all()
+    )
+    _sync_release_comment_resolutions(session, release, comments)
     return [
         ReleaseCommentPublic(
             id=c.id,
@@ -1790,6 +1790,7 @@ def get_release_comments(
             highlight=c.highlight,
             external_url=c.external_url,
             parent_id=c.parent_id,
+            resolved=c.resolved,
             created=c.created,
         )
         for c in comments
@@ -1818,11 +1819,13 @@ def post_release_comment(
     # Resolve the reply target, flattening to one level: a reply to a reply
     # attaches to the thread's top-level comment (mirrors ProjectComment).
     parent_id = comment_in.parent_id
+    top_parent: ReleaseComment | None = None
     if parent_id is not None:
         parent = session.get(ReleaseComment, parent_id)
         if parent is None or parent.release_id != release.id:
             raise HTTPException(404, "Parent comment not found")
         parent_id = parent.parent_id or parent.id
+        top_parent = session.get(ReleaseComment, parent_id)
     # Identity is attribution only. Prefer the logged-in user, then the share
     # token's recipient email, then a name typed by an anonymous commenter.
     author_email = None
@@ -1853,13 +1856,13 @@ def post_release_comment(
     )
     session.add(comment)
     session.flush()
-    # Mirror to the release's single GitHub issue (created lazily on the first
-    # comment). Failures never block the comment.
+    # Mirror to GitHub: a top-level comment opens its own issue; a reply is
+    # posted to its thread's issue. Failures never block the comment.
     external_url = _mirror_release_comment_to_github(
         session=session,
         release=release,
         comment=comment,
-        is_reply=parent_id is not None,
+        parent=top_parent,
     )
     if external_url:
         comment.external_url = external_url
@@ -1904,17 +1907,16 @@ def _mirror_release_comment_to_github(
     session: SessionDep,
     release: Release,
     comment: ReleaseComment,
-    is_reply: bool,
+    parent: ReleaseComment | None,
 ) -> str | None:
-    """Mirror a release comment to the release's single GitHub issue.
+    """Mirror a release comment to GitHub, one issue per thread.
 
-    The first comment opens an issue (titled for the release, linking back to
-    the Calkit release page) and records it on ``release.github_issue_url``;
-    every later comment and reply is posted to that same issue rather than
-    opening a new one. Returns the GitHub URL for the comment -- the issue for
-    the first, the specific issue-comment anchor afterward -- or None if there's
-    no GitHub repo or token. Uses the release creator's token, since anonymous
-    commenters have none. Never raises.
+    A top-level comment (``parent`` is None) opens its own issue, titled from
+    the comment and linking back to the Calkit release page. A reply is posted
+    as an issue-comment on its thread's issue (``parent.external_url``). Returns
+    the new issue URL or issue-comment anchor, or None if there's no GitHub
+    repo, no token, or the thread has no issue. Uses the release creator's
+    token, since anonymous commenters have none. Never raises.
     """
     project = release.project
     github_repo = project.github_repo
@@ -1930,67 +1932,66 @@ def _mirror_release_comment_to_github(
         "Accept": "application/vnd.github+json",
     }
     author = comment.author_name or comment.author_email or "Anonymous"
-    # First comment: open the issue and remember it on the release.
-    if not release.github_issue_url:
-        app_base = settings.frontend_host.rstrip("/")
-        link = (
-            f"{app_base}/{project.owner_account_name}/{project.name}"
-            f"/releases/{quote(release.name, safe='')}"
-        )
-        title = f"Feedback on release {release.name}"
-        if release.path:
-            title += f" ({release.path})"
-        body = "\n".join(
-            [
-                f"Comment from **{author}** on "
-                f"[release {release.name}]({link}):",
-                "",
-                comment.comment,
-            ]
-        )
+    # A reply: post to the thread's existing issue.
+    if parent is not None:
+        if not parent.external_url:
+            return None
+        ref = _release_issue_ref(parent.external_url)
+        if ref is None:
+            return None
+        repo, issue_number = ref
+        body = "\n".join([f"Reply from **{author}**:", "", comment.comment])
         try:
             resp = requests.post(
-                f"https://api.github.com/repos/{github_repo}/issues",
-                json={"title": title, "body": body},
+                f"https://api.github.com/repos/{repo}"
+                f"/issues/{issue_number}/comments",
+                json={"body": body},
                 headers=headers,
                 timeout=10,
             )
         except Exception as exc:
-            logger.warning(f"Release issue creation failed: {exc}")
+            logger.warning(f"Release issue comment failed: {exc}")
             return None
         if not resp.ok:
             logger.warning(
-                f"Release issue creation failed for {github_repo}: "
+                f"Release issue comment failed for {repo}: "
                 f"{resp.status_code} {resp.text}"
             )
             return None
-        release.github_issue_url = resp.json().get("html_url")
-        return release.github_issue_url
-    # Later comments and replies: post to the existing issue.
-    try:
-        issue_number = int(release.github_issue_url.rstrip("/").split("/")[-1])
-    except Exception:
-        return release.github_issue_url
-    lead = "Reply" if is_reply else "Comment"
-    body = "\n".join([f"{lead} from **{author}**:", "", comment.comment])
+        return resp.json().get("html_url")
+    # A top-level comment: open a new issue for the thread.
+    app_base = settings.frontend_host.rstrip("/")
+    link = (
+        f"{app_base}/{project.owner_account_name}/{project.name}"
+        f"/releases/{quote(release.name, safe='')}"
+    )
+    title = f"Feedback on release {release.name}"
+    if release.path:
+        title += f" ({release.path})"
+    body = "\n".join(
+        [
+            f"Comment from **{author}** on [release {release.name}]({link}):",
+            "",
+            comment.comment,
+        ]
+    )
     try:
         resp = requests.post(
-            f"https://api.github.com/repos/{github_repo}"
-            f"/issues/{issue_number}/comments",
-            json={"body": body},
+            f"https://api.github.com/repos/{github_repo}/issues",
+            json={"title": title, "body": body},
             headers=headers,
             timeout=10,
         )
     except Exception as exc:
-        logger.warning(f"Release issue comment failed: {exc}")
-        return release.github_issue_url
+        logger.warning(f"Release issue creation failed: {exc}")
+        return None
     if not resp.ok:
         logger.warning(
-            f"Release issue comment failed for {github_repo}: "
+            f"Release issue creation failed for {github_repo}: "
             f"{resp.status_code} {resp.text}"
         )
-        return release.github_issue_url
-    return resp.json().get("html_url") or release.github_issue_url
+        return None
+    return resp.json().get("html_url")
 
 
 def _release_issue_ref(url: str) -> tuple[str, int] | None:
@@ -2002,56 +2003,85 @@ def _release_issue_ref(url: str) -> tuple[str, int] | None:
         return None
 
 
-def _sync_release_issue_resolution(
-    session: SessionDep, release: Release
+def _resolve_thread(
+    session: SessionDep,
+    top: ReleaseComment,
+    resolved_at: datetime | None,
 ) -> None:
-    """Reflect the release issue's open/closed state onto ``comments_resolved``.
+    """Set ``resolved`` on a top-level comment and all of its replies."""
+    top.resolved = resolved_at
+    session.add(top)
+    replies = session.exec(
+        select(ReleaseComment).where(ReleaseComment.parent_id == top.id)
+    ).all()
+    for reply in replies:
+        reply.resolved = resolved_at
+        session.add(reply)
 
-    The release's single GitHub issue is the source of truth: a closed issue
-    marks the thread resolved, an open one unresolves it -- so resolving on
+
+def _sync_release_comment_resolutions(
+    session: SessionDep,
+    release: Release,
+    comments: list[ReleaseComment],
+) -> None:
+    """Reflect each thread's GitHub issue state onto its ``resolved`` field.
+
+    For every top-level comment with a mirrored issue, a closed issue marks the
+    thread resolved and an open one unresolves it -- so closing the issue on
     GitHub shows up here too. Uses the release creator's token (anonymous
-    viewers have none). Never raises.
+    viewers have none), falling back to unauthenticated requests. Never raises.
     """
-    if not release.github_issue_url:
+    tops = [c for c in comments if c.parent_id is None and c.external_url]
+    if not tops:
         return
-    ref = _release_issue_ref(release.github_issue_url)
-    if ref is None:
-        return
-    repo, issue_number = ref
+    token: str | None = None
     try:
         token = users.get_github_token(session, release.created_by)
     except Exception:
-        return
-    try:
-        resp = requests.get(
-            f"https://api.github.com/repos/{repo}/issues/{issue_number}",
-            headers={
-                "Authorization": f"Bearer {token}",
-                "Accept": "application/vnd.github+json",
-            },
-            timeout=5,
-        )
-    except Exception as exc:
-        logger.debug(f"Release issue resolution sync failed: {exc}")
-        return
-    if resp.status_code != 200:
-        return
-    closed = resp.json().get("state") == "closed"
-    if closed and release.comments_resolved is None:
-        release.comments_resolved = utcnow()
-        session.add(release)
-    elif not closed and release.comments_resolved is not None:
-        release.comments_resolved = None
-        session.add(release)
+        pass
+    headers = {"Accept": "application/vnd.github+json"}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    changed = False
+    for top in tops:
+        ref = _release_issue_ref(str(top.external_url))
+        if ref is None:
+            continue
+        repo, issue_number = ref
+        try:
+            resp = requests.get(
+                f"https://api.github.com/repos/{repo}/issues/{issue_number}",
+                headers=headers,
+                timeout=5,
+            )
+        except Exception as exc:
+            logger.debug(f"Release comment resolution sync failed: {exc}")
+            continue
+        if resp.status_code != 200:
+            continue
+        closed = resp.json().get("state") == "closed"
+        if closed and top.resolved is None:
+            _resolve_thread(session, top, utcnow())
+            changed = True
+        elif not closed and top.resolved is not None:
+            _resolve_thread(session, top, None)
+            changed = True
+    if changed:
+        session.commit()
+        for c in comments:
+            session.refresh(c)
 
 
-def _set_release_issue_state(
-    session: SessionDep, release: Release, user: User, closed: bool
+def _set_release_comment_issue_state(
+    session: SessionDep,
+    comment: ReleaseComment,
+    user: User,
+    closed: bool,
 ) -> None:
-    """Close or reopen the release's GitHub issue. Best-effort; never raises."""
-    if not release.github_issue_url:
+    """Close or reopen a thread's GitHub issue. Best-effort; never raises."""
+    if not comment.external_url:
         return
-    ref = _release_issue_ref(release.github_issue_url)
+    ref = _release_issue_ref(comment.external_url)
     if ref is None:
         return
     repo, issue_number = ref
@@ -2081,20 +2111,22 @@ def _set_release_issue_state(
 
 @router.post(
     "/projects/{owner_name}/{project_name}/releases/{release_name}"
-    "/resolve-comments"
+    "/comments/{comment_id}/resolve"
 )
-def resolve_release_comments(
+def resolve_release_comment(
     owner_name: str,
     project_name: str,
     release_name: str,
-    body: ReleaseCommentsResolvePost,
+    comment_id: uuid.UUID,
+    body: ReleaseCommentResolvePost,
     current_user: CurrentUser,
     session: SessionDep,
-) -> ReleaseView:
-    """Resolve or reopen a release's comment thread (project members only).
+) -> ReleaseCommentPublic:
+    """Resolve or reopen a single comment thread (project members only).
 
-    Mirrors the state to the release's GitHub issue (closed when resolved), so
-    it stays in sync with what ``_sync_release_issue_resolution`` reads back.
+    The given comment is normalized to its top-level comment, then it and all
+    its replies are marked (un)resolved and its GitHub issue closed/reopened,
+    so the state stays in sync with ``_sync_release_comment_resolutions``.
     """
     release, permission, _share = _authorize_release(
         session, owner_name, project_name, release_name, None, current_user
@@ -2103,22 +2135,37 @@ def resolve_release_comments(
         raise HTTPException(
             403, "Only project members can resolve release comments"
         )
-    release.comments_resolved = utcnow() if body.resolved else None
-    session.add(release)
+    comment = session.get(ReleaseComment, comment_id)
+    if comment is None or comment.release_id != release.id:
+        raise HTTPException(404, "Comment not found")
+    top = comment
+    if comment.parent_id is not None:
+        top = session.get(ReleaseComment, comment.parent_id) or comment
+    resolved_at = utcnow() if body.resolved else None
+    _resolve_thread(session, top, resolved_at)
     session.commit()
-    session.refresh(release)
-    _set_release_issue_state(
-        session, release, current_user, closed=body.resolved
+    session.refresh(top)
+    _set_release_comment_issue_state(
+        session, top, current_user, closed=body.resolved
     )
     mixpanel.track(
         current_user,
-        "Resolved release comments"
+        "Resolved release comment"
         if body.resolved
-        else "Reopened release comments",
+        else "Reopened release comment",
         {
             "owner_name": owner_name,
             "project_name": project_name,
             "release_name": release_name,
         },
     )
-    return _to_view(release, permission, None)
+    return ReleaseCommentPublic(
+        id=top.id,
+        author_name=top.author_name,
+        comment=top.comment,
+        highlight=top.highlight,
+        external_url=top.external_url,
+        parent_id=top.parent_id,
+        resolved=top.resolved,
+        created=top.created,
+    )

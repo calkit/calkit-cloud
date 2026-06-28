@@ -1029,10 +1029,11 @@ export type ReleaseCommentPublic = {
   } | null
   external_url: string | null
   parent_id?: string | null
+  resolved?: string | null
   created: string
 }
 
-export type ReleaseCommentsResolvePost = {
+export type ReleaseCommentResolvePost = {
   resolved: boolean
 }
 
@@ -1214,7 +1215,6 @@ export type ReleaseView = {
   public: boolean
   comments_enabled: boolean
   comment_count: number
-  comments_resolved?: string | null
   created: string
   owner_account_name: string
   owner_account_display_name: string
@@ -2403,14 +2403,15 @@ export type PostReleaseCommentData = {
 
 export type PostReleaseCommentResponse = ReleaseCommentPublic
 
-export type ResolveReleaseCommentsData = {
+export type ResolveReleaseCommentData = {
+  commentId: string
   ownerName: string
   projectName: string
   releaseName: string
-  requestBody: ReleaseCommentsResolvePost
+  requestBody: ReleaseCommentResolvePost
 }
 
-export type ResolveReleaseCommentsResponse = ReleaseView
+export type ResolveReleaseCommentResponse = ReleaseCommentPublic
 
 export type ReadUsersData = {
   limit?: number

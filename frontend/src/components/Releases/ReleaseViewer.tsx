@@ -1,39 +1,23 @@
-import { ExternalLinkIcon } from "@chakra-ui/icons"
 import {
   Alert,
   AlertIcon,
-  Avatar,
   Badge,
   Box,
   Button,
-  Checkbox,
-  Divider,
   Flex,
-  FormControl,
-  FormLabel,
   HStack,
   Heading,
   Icon,
   IconButton,
   Image,
-  Input,
   Link,
   Text,
-  Textarea,
   VStack,
-  useColorModeValue,
 } from "@chakra-ui/react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link as RouterLink } from "@tanstack/react-router"
 import { type ReactNode, useState } from "react"
-import {
-  FaCheck,
-  FaFile,
-  FaFolder,
-  FaGithub,
-  FaReply,
-  FaUndo,
-} from "react-icons/fa"
+import { FaFile, FaFolder } from "react-icons/fa"
 import {
   FiArrowUp,
   FiDownload,
@@ -53,12 +37,12 @@ import type { ApiError } from "../../client/core/ApiError"
 import useAuth from "../../hooks/useAuth"
 import useCustomToast from "../../hooks/useCustomToast"
 import { handleError } from "../../lib/errors"
-import { submitOnCmdEnter } from "../../lib/keyboard"
 import {
   formatReleaseDate,
   releaseDownloadName,
   releaseLocation,
 } from "../../lib/releases"
+import SharedCommentsPanel, { type PanelComment } from "../Common/CommentsPanel"
 import LoadingSpinner from "../Common/LoadingSpinner"
 import Markdown from "../Common/Markdown"
 import PdfDocumentViewer from "../Common/PdfDocumentViewer"
@@ -204,12 +188,7 @@ function CommentsPanel({
   const queryClient = useQueryClient()
   const showToast = useCustomToast()
   const { user } = useAuth()
-  const borderColor = useColorModeValue("gray.200", "gray.600")
-  const [comment, setComment] = useState("")
-  const [authorName, setAuthorName] = useState("")
-  // The top-level comment being replied to (only one reply box open at a time).
-  const [replyTo, setReplyTo] = useState<string | null>(null)
-  const [replyText, setReplyText] = useState("")
+  const [showResolved, setShowResolved] = useState(false)
   const commentsKey = [
     "releases",
     loc.ownerName,
@@ -227,8 +206,12 @@ function CommentsPanel({
         token: loc.token,
       }),
   })
-  const mutation = useMutation({
-    mutationFn: (vars: { body: string; parentId?: string }) =>
+  const postMutation = useMutation({
+    mutationFn: (vars: {
+      body: string
+      parentId?: string
+      authorName: string | null
+    }) =>
       ReleasesService.postReleaseComment({
         ownerName: loc.ownerName,
         projectName: loc.projectName,
@@ -236,44 +219,32 @@ function CommentsPanel({
         token: loc.token,
         requestBody: {
           comment: vars.body,
-          author_name: authorName || null,
+          author_name: vars.authorName,
           parent_id: vars.parentId ?? null,
         },
       }),
-    onSuccess: (_data, vars) => {
-      if (vars.parentId) {
-        setReplyText("")
-        setReplyTo(null)
-      } else {
-        setComment("")
-      }
+    onSuccess: () => {
       showToast("Success!", "Your comment was posted.", "success")
       queryClient.invalidateQueries({ queryKey: commentsKey })
     },
     onError: (err: ApiError) => handleError(err, showToast),
   })
-  const viewKey = [
-    "releases",
-    loc.ownerName,
-    loc.projectName,
-    loc.releaseName,
-    loc.token,
-  ]
   const resolveMutation = useMutation({
-    mutationFn: (resolved: boolean) =>
-      ReleasesService.resolveReleaseComments({
+    mutationFn: (vars: { id: string; resolved: boolean }) =>
+      ReleasesService.resolveReleaseComment({
         ownerName: loc.ownerName,
         projectName: loc.projectName,
         releaseName: loc.releaseName,
-        requestBody: { resolved },
+        commentId: vars.id,
+        requestBody: { resolved: vars.resolved },
       }),
-    onSuccess: (_data, resolved) => {
+    onSuccess: (_data, vars) => {
       showToast(
         "Success!",
-        resolved ? "Thread resolved." : "Thread reopened.",
+        vars.resolved ? "Thread resolved." : "Thread reopened.",
         "success",
       )
-      queryClient.invalidateQueries({ queryKey: viewKey })
+      queryClient.invalidateQueries({ queryKey: commentsKey })
     },
     onError: (err: ApiError) => handleError(err, showToast),
   })
@@ -281,214 +252,53 @@ function CommentsPanel({
   const canComment =
     release.permission === "comment" || release.permission === "manage"
   const canManage = release.permission === "manage"
-  const isResolved = !!release.comments_resolved
   // A token bound to an email identifies the commenter; only truly anonymous
   // viewers (no login, no token email) need to type a name.
   const needsName = !user && !release.viewer_email
-  const comments = commentsQuery.data ?? []
-  // Flat one-level threading: top-level comments with their replies grouped
-  // under them, matching how the backend records ``parent_id``.
-  const topLevel = comments.filter((c) => !c.parent_id)
-  const repliesByParent = comments.reduce(
-    (acc, c) => {
-      if (c.parent_id) {
-        ;(acc[c.parent_id] ??= []).push(c)
-      }
-      return acc
-    },
-    {} as Record<string, typeof comments>,
-  )
-  const renderBubble = (c: (typeof comments)[number]) => (
-    <Flex gap={2}>
-      <Avatar
-        name={c.author_name ?? undefined}
-        size="xs"
-        mt={0.5}
-        flexShrink={0}
-      />
-      <Box
-        flex={1}
-        borderWidth={1}
-        borderColor={borderColor}
-        borderRadius="md"
-        p={3}
-      >
-        <Flex align="center" gap={1} mb={1} wrap="wrap">
-          <Text fontSize="xs" fontWeight="bold" mr={1}>
-            {c.author_name || "Anonymous"}
-          </Text>
-          <Text fontSize="xs" color="gray.500" mr="auto">
-            {new Date(c.created).toLocaleDateString()}
-          </Text>
-          {c.external_url && (
-            <Link href={c.external_url} isExternal color="gray.500">
-              <Flex align="center" gap={0.5}>
-                <Icon as={FaGithub} boxSize={3} />
-                <ExternalLinkIcon boxSize={2.5} />
-              </Flex>
-            </Link>
-          )}
-        </Flex>
-        <Text fontSize="sm" whiteSpace="pre-wrap">
-          {c.comment}
-        </Text>
-      </Box>
-    </Flex>
-  )
-
+  const comments: PanelComment[] = (commentsQuery.data ?? []).map((c) => ({
+    id: c.id,
+    parentId: c.parent_id ?? null,
+    authorName: c.author_name ?? null,
+    comment: c.comment,
+    created: c.created,
+    resolved: c.resolved ?? null,
+    externalUrl: c.external_url ?? null,
+  }))
   return (
-    <Flex direction="column" h="100%">
-      <Flex align="center" gap={2} mb={3}>
-        <Heading size="sm">Comments ({comments.length})</Heading>
-        {isResolved && (
-          <Badge colorScheme="green" display="flex" alignItems="center" gap={1}>
-            <Icon as={FaCheck} boxSize={2.5} />
-            Resolved
-          </Badge>
-        )}
-        {canManage && comments.length > 0 && (
-          <Button
-            ml="auto"
-            size="xs"
-            variant="ghost"
-            leftIcon={<Icon as={isResolved ? FaUndo : FaCheck} />}
-            colorScheme={isResolved ? "gray" : "green"}
-            isLoading={resolveMutation.isPending}
-            onClick={() => resolveMutation.mutate(!isResolved)}
-          >
-            {isResolved ? "Reopen" : "Resolve"}
-          </Button>
-        )}
-      </Flex>
-      <VStack align="stretch" spacing={2} flex={1} overflowY="auto" mb={3}>
-        {commentsQuery.isPending ? (
-          <LoadingSpinner height="80px" />
-        ) : comments.length === 0 ? (
-          <Text fontSize="sm" color="gray.500">
-            No comments yet. Be the first to leave feedback.
-          </Text>
-        ) : (
-          topLevel.map((c) => (
-            <Box key={c.id}>
-              {renderBubble(c)}
-              {(repliesByParent[c.id] ?? []).length > 0 && (
-                <VStack align="stretch" spacing={1} mt={1} ml={6}>
-                  {repliesByParent[c.id].map((r) => (
-                    <Box key={r.id}>{renderBubble(r)}</Box>
-                  ))}
-                </VStack>
-              )}
-              {canComment && (
-                <Box mt={1} ml={6}>
-                  {replyTo === c.id ? (
-                    <Box>
-                      <Textarea
-                        size="xs"
-                        value={replyText}
-                        onChange={(e) => setReplyText(e.target.value)}
-                        onKeyDown={submitOnCmdEnter(() => {
-                          if (replyText.trim() && !mutation.isPending)
-                            mutation.mutate({ body: replyText, parentId: c.id })
-                        })}
-                        placeholder="Add a reply…"
-                        rows={2}
-                        mb={1}
-                        autoFocus
-                      />
-                      <Flex align="center" gap={3} mb={2}>
-                        <Button
-                          size="xs"
-                          variant="primary"
-                          isDisabled={!replyText.trim()}
-                          isLoading={
-                            mutation.isPending &&
-                            mutation.variables?.parentId === c.id
-                          }
-                          onClick={() =>
-                            mutation.mutate({ body: replyText, parentId: c.id })
-                          }
-                        >
-                          Post
-                        </Button>
-                        <Button
-                          size="xs"
-                          variant="ghost"
-                          onClick={() => {
-                            setReplyTo(null)
-                            setReplyText("")
-                          }}
-                        >
-                          Cancel
-                        </Button>
-                      </Flex>
-                    </Box>
-                  ) : (
-                    <Button
-                      size="xs"
-                      variant="ghost"
-                      leftIcon={<Icon as={FaReply} />}
-                      onClick={() => {
-                        setReplyTo(c.id)
-                        setReplyText("")
-                      }}
-                    >
-                      Reply
-                    </Button>
-                  )}
-                </Box>
-              )}
-            </Box>
-          ))
-        )}
-      </VStack>
-      <Divider mb={3} />
-      {canComment ? (
-        <Box>
-          {release.viewer_email && (
-            <Text fontSize="xs" color="gray.500" mb={2}>
-              Commenting as {release.viewer_email}
-            </Text>
-          )}
-          {needsName && (
-            <FormControl mb={2}>
-              <FormLabel fontSize="sm" mb={1}>
-                Name (optional)
-              </FormLabel>
-              <Input
-                size="sm"
-                value={authorName}
-                onChange={(e) => setAuthorName(e.target.value)}
-                placeholder="Your name"
-              />
-            </FormControl>
-          )}
-          <Textarea
-            size="sm"
-            value={comment}
-            onChange={(e) => setComment(e.target.value)}
-            onKeyDown={submitOnCmdEnter(() => {
-              if (comment.trim() && !mutation.isPending)
-                mutation.mutate({ body: comment })
-            })}
-            placeholder="Leave a comment"
-            mb={2}
-          />
-          <Button
-            size="sm"
-            variant="primary"
-            isDisabled={!comment.trim()}
-            isLoading={mutation.isPending && !mutation.variables?.parentId}
-            onClick={() => mutation.mutate({ body: comment })}
-          >
-            Post comment
-          </Button>
-        </Box>
-      ) : (
-        <Text fontSize="sm" color="gray.500">
-          This link is view-only.
-        </Text>
-      )}
-    </Flex>
+    <SharedCommentsPanel
+      comments={comments}
+      isLoading={commentsQuery.isPending}
+      fillHeight
+      canComment={canComment}
+      canResolve={canManage}
+      showResolved={showResolved}
+      onShowResolvedChange={setShowResolved}
+      askAuthorName={needsName}
+      commentingAsLabel={release.viewer_email ?? null}
+      emptyText="No comments yet. Be the first to leave feedback."
+      postLabel="Post comment"
+      viewOnlyText="This link is view-only."
+      onPostComment={(body, opts) =>
+        postMutation.mutateAsync({ body, authorName: opts.authorName })
+      }
+      postingComment={
+        postMutation.isPending && !postMutation.variables?.parentId
+      }
+      onPostReply={(parentId, body, opts) =>
+        postMutation.mutateAsync({
+          body,
+          parentId,
+          authorName: opts.authorName,
+        })
+      }
+      postingReplyForId={
+        postMutation.isPending ? postMutation.variables?.parentId ?? null : null
+      }
+      onResolve={(id, resolved) => resolveMutation.mutate({ id, resolved })}
+      resolvingId={
+        resolveMutation.isPending ? resolveMutation.variables?.id ?? null : null
+      }
+    />
   )
 }
 
@@ -505,9 +315,7 @@ function MemberCommentsPanel({
   const queryClient = useQueryClient()
   const showToast = useCustomToast()
   const { user } = useAuth()
-  const borderColor = useColorModeValue("gray.200", "gray.600")
-  const [comment, setComment] = useState("")
-  const [createIssue, setCreateIssue] = useState(true)
+  const [showResolved, setShowResolved] = useState(false)
   const commentsKey = [
     "projects",
     loc.ownerName,
@@ -526,224 +334,99 @@ function MemberCommentsPanel({
         artifactPath: release.name,
       }),
   })
-  const mutation = useMutation({
-    mutationFn: () =>
-      ProjectsService.postProjectComment({
-        ownerName: loc.ownerName,
-        projectName: loc.projectName,
-        requestBody: {
-          comment,
-          artifact_type: "release",
-          artifact_path: release.name,
-          git_ref: release.git_rev ?? release.git_rev_abbrev ?? null,
-          create_github_issue: createIssue,
-        },
-      }),
+  const postMutation = useMutation({
+    mutationFn: (vars: {
+      body: string
+      parentId?: string
+      createIssue: boolean
+    }) =>
+      vars.parentId
+        ? ProjectsService.postProjectCommentReply({
+            ownerName: loc.ownerName,
+            projectName: loc.projectName,
+            commentId: vars.parentId,
+            requestBody: { body: vars.body },
+          })
+        : ProjectsService.postProjectComment({
+            ownerName: loc.ownerName,
+            projectName: loc.projectName,
+            requestBody: {
+              comment: vars.body,
+              artifact_type: "release",
+              artifact_path: release.name,
+              git_ref: release.git_rev ?? release.git_rev_abbrev ?? null,
+              create_github_issue: vars.createIssue,
+            },
+          }),
     onSuccess: () => {
-      setComment("")
       showToast("Success!", "Your comment was posted.", "success")
       queryClient.invalidateQueries({ queryKey: commentsKey })
     },
     onError: (err: ApiError) => handleError(err, showToast),
   })
-  const [replyingToId, setReplyingToId] = useState<string | null>(null)
-  const [replyDraft, setReplyDraft] = useState("")
-  const replyMutation = useMutation({
-    mutationFn: (vars: { commentId: string; body: string }) =>
-      ProjectsService.postProjectCommentReply({
+  const resolveMutation = useMutation({
+    mutationFn: (vars: { id: string; resolved: boolean }) =>
+      ProjectsService.patchProjectComment({
         ownerName: loc.ownerName,
         projectName: loc.projectName,
-        commentId: vars.commentId,
-        requestBody: { body: vars.body },
+        commentId: vars.id,
+        requestBody: { resolved: vars.resolved },
       }),
     onSuccess: () => {
-      setReplyingToId(null)
-      setReplyDraft("")
-      showToast("Success!", "Your reply was posted.", "success")
       queryClient.invalidateQueries({ queryKey: commentsKey })
     },
     onError: (err: ApiError) => handleError(err, showToast),
   })
-  const comments = commentsQuery.data ?? []
-  // Flat one-level threading, matching the project-comment system.
-  const topLevel = comments.filter((c) => !c.parent_id)
-  const repliesFor = (parentId: string) =>
-    comments.filter((c) => c.parent_id === parentId)
-  const renderCard = (c: (typeof comments)[number]) => (
-    <Flex gap={2}>
-      <Avatar
-        name={c.user_full_name ?? c.user_github_username ?? undefined}
-        size="xs"
-        mt={0.5}
-        flexShrink={0}
-      />
-      <Box
-        flex={1}
-        borderWidth={1}
-        borderColor={borderColor}
-        borderRadius="md"
-        p={3}
-      >
-        <Flex align="center" gap={1} mb={1} wrap="wrap">
-          <Text fontSize="xs" fontWeight="bold" mr={1}>
-            {c.user_full_name ?? c.user_github_username}
-          </Text>
-          <Text fontSize="xs" color="gray.500" mr="auto">
-            {c.created ? new Date(c.created).toLocaleDateString() : ""}
-          </Text>
-          {c.external_url && (
-            <Link href={c.external_url} isExternal color="gray.500">
-              <Flex align="center" gap={0.5}>
-                <Icon as={FaGithub} boxSize={3} />
-                <ExternalLinkIcon boxSize={2.5} />
-              </Flex>
-            </Link>
-          )}
-        </Flex>
-        <Text fontSize="sm" whiteSpace="pre-wrap">
-          {c.comment}
-        </Text>
-      </Box>
-    </Flex>
-  )
-
+  const comments: PanelComment[] = (commentsQuery.data ?? []).map((c) => ({
+    id: c.id ?? "",
+    parentId: c.parent_id ?? null,
+    authorName: c.user_full_name ?? c.user_github_username ?? null,
+    comment: c.comment,
+    created: c.created ?? null,
+    resolved: c.resolved ?? null,
+    externalUrl: c.external_url ?? null,
+    hasHighlight: !!c.highlight,
+    highlightText:
+      (c.highlight as { content?: { text?: string } } | null)?.content?.text ??
+      null,
+  }))
   return (
-    <Flex direction="column" h="100%">
-      <Heading size="sm" mb={3}>
-        Comments ({comments.length})
-      </Heading>
-      <VStack align="stretch" spacing={2} flex={1} overflowY="auto" mb={3}>
-        {commentsQuery.isPending ? (
-          <LoadingSpinner height="80px" />
-        ) : comments.length === 0 ? (
-          <Text fontSize="sm" color="gray.500">
-            No comments yet.
-          </Text>
-        ) : (
-          topLevel.map((c) => {
-            const id = c.id ?? ""
-            return (
-              <Box key={id}>
-                {renderCard(c)}
-                {repliesFor(id).length > 0 && (
-                  <VStack align="stretch" spacing={1} mt={1} ml={6}>
-                    {repliesFor(id).map((r) => (
-                      <Box key={r.id}>{renderCard(r)}</Box>
-                    ))}
-                  </VStack>
-                )}
-                {user && id && (
-                  <Box mt={1} ml={6}>
-                    {replyingToId === id ? (
-                      <Box>
-                        <Textarea
-                          size="xs"
-                          value={replyDraft}
-                          onChange={(e) => setReplyDraft(e.target.value)}
-                          onKeyDown={submitOnCmdEnter(() => {
-                            if (replyDraft.trim() && !replyMutation.isPending)
-                              replyMutation.mutate({
-                                commentId: id,
-                                body: replyDraft,
-                              })
-                          })}
-                          placeholder="Add a reply…"
-                          rows={2}
-                          mb={1}
-                          autoFocus
-                        />
-                        <Flex align="center" gap={3} mb={2}>
-                          <Button
-                            size="xs"
-                            variant="primary"
-                            isDisabled={!replyDraft.trim()}
-                            isLoading={
-                              replyMutation.isPending &&
-                              replyMutation.variables?.commentId === id
-                            }
-                            onClick={() =>
-                              replyMutation.mutate({
-                                commentId: id,
-                                body: replyDraft,
-                              })
-                            }
-                          >
-                            Post
-                          </Button>
-                          <Button
-                            size="xs"
-                            variant="ghost"
-                            onClick={() => {
-                              setReplyingToId(null)
-                              setReplyDraft("")
-                            }}
-                          >
-                            Cancel
-                          </Button>
-                        </Flex>
-                      </Box>
-                    ) : (
-                      <Button
-                        size="xs"
-                        variant="ghost"
-                        leftIcon={<Icon as={FaReply} />}
-                        onClick={() => {
-                          setReplyingToId(id)
-                          setReplyDraft("")
-                        }}
-                      >
-                        Reply
-                      </Button>
-                    )}
-                  </Box>
-                )}
-              </Box>
-            )
-          })
-        )}
-      </VStack>
-      <Divider mb={3} />
-      {user ? (
-        <Box>
-          <Textarea
-            size="sm"
-            value={comment}
-            onChange={(e) => setComment(e.target.value)}
-            onKeyDown={submitOnCmdEnter(() => {
-              if (comment.trim() && !mutation.isPending) mutation.mutate()
-            })}
-            placeholder="Leave a comment"
-            mb={2}
-          />
-          <Flex align="center" gap={3} mb={2}>
-            <Checkbox
-              size="sm"
-              isChecked={createIssue}
-              onChange={(e) => setCreateIssue(e.target.checked)}
-            >
-              Create GitHub issue
-            </Checkbox>
-            <Button
-              size="sm"
-              variant="primary"
-              ml="auto"
-              isDisabled={!comment.trim()}
-              isLoading={mutation.isPending}
-              onClick={() => mutation.mutate()}
-            >
-              Post
-            </Button>
-          </Flex>
-        </Box>
-      ) : (
-        <Text fontSize="sm" color="gray.500">
+    <SharedCommentsPanel
+      comments={comments}
+      isLoading={commentsQuery.isPending}
+      fillHeight
+      canComment={!!user}
+      canResolve={!!user}
+      showResolved={showResolved}
+      onShowResolvedChange={setShowResolved}
+      showCreateIssueCheckbox
+      emptyText="No comments yet."
+      postLabel="Post"
+      viewOnlyText={
+        <>
           <Link href="/login" color="blue.500">
             Log in
           </Link>{" "}
           to leave a comment.
-        </Text>
-      )}
-    </Flex>
+        </>
+      }
+      onPostComment={(body, opts) =>
+        postMutation.mutateAsync({ body, createIssue: opts.createIssue })
+      }
+      postingComment={
+        postMutation.isPending && !postMutation.variables?.parentId
+      }
+      onPostReply={(parentId, body) =>
+        postMutation.mutateAsync({ body, parentId, createIssue: false })
+      }
+      postingReplyForId={
+        postMutation.isPending ? postMutation.variables?.parentId ?? null : null
+      }
+      onResolve={(id, resolved) => resolveMutation.mutate({ id, resolved })}
+      resolvingId={
+        resolveMutation.isPending ? resolveMutation.variables?.id ?? null : null
+      }
+    />
   )
 }
 

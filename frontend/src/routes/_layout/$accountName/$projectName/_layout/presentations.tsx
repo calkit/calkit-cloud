@@ -31,10 +31,12 @@ import LoadingSpinner from "../../../../../components/Common/LoadingSpinner"
 import PageMenu from "../../../../../components/Common/PageMenu"
 import PresentationView from "../../../../../components/Presentations/PresentationView"
 import PdfAnnotator, {
-  CommentList,
   commentToHighlight,
   type AnnotationHighlight,
 } from "../../../../../components/Publications/PdfAnnotator"
+import CommentsPanel, {
+  projectCommentToPanelComment,
+} from "../../../../../components/Common/CommentsPanel"
 import useAuth from "../../../../../hooks/useAuth"
 import useProject, {
   useProjectPresentations,
@@ -181,6 +183,17 @@ function Presentations() {
     enabled: !!selectedPres,
   })
 
+  const invalidateComments = () =>
+    queryClient.invalidateQueries({
+      queryKey: [
+        "projects",
+        accountName,
+        projectName,
+        "comments",
+        "presentation",
+        selectedPres?.path,
+      ],
+    })
   const resolveCommentMutation = useMutation({
     mutationFn: ({
       commentId,
@@ -195,18 +208,32 @@ function Presentations() {
         commentId,
         requestBody: { resolved },
       }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: [
-          "projects",
-          accountName,
-          projectName,
-          "comments",
-          "presentation",
-          selectedPres?.path,
-        ],
-      })
-    },
+    onSuccess: invalidateComments,
+  })
+  const postCommentMutation = useMutation({
+    mutationFn: (vars: { body: string; createIssue: boolean }) =>
+      ProjectsService.postProjectComment({
+        ownerName: accountName,
+        projectName,
+        requestBody: {
+          artifact_path: selectedPres!.path,
+          artifact_type: "presentation",
+          comment: vars.body,
+          create_github_issue: vars.createIssue,
+          git_ref: ref ?? null,
+        },
+      }),
+    onSuccess: invalidateComments,
+  })
+  const replyCommentMutation = useMutation({
+    mutationFn: (vars: { commentId: string; body: string }) =>
+      ProjectsService.postProjectCommentReply({
+        ownerName: accountName,
+        projectName,
+        commentId: vars.commentId,
+        requestBody: { body: vars.body },
+      }),
+    onSuccess: invalidateComments,
   })
 
   const comments = commentsQuery.data ?? []
@@ -304,29 +331,47 @@ function Presentations() {
                     />
                   </Box>
                 )}
-                <CommentList
-                  comments={comments}
-                  highlights={highlights}
-                  scrollToHighlight={(h) => pdfScrollRef.current(h)}
+                <CommentsPanel
+                  comments={comments.map(projectCommentToPanelComment)}
+                  isLoading={commentsQuery.isPending}
+                  canComment={!!user}
+                  canResolve={!!user}
                   showResolved={showResolved}
                   onShowResolvedChange={setShowResolved}
-                  currentUserId={user?.id}
-                  ownerName={accountName}
-                  projectName={projectName}
-                  publicationPath={selectedPres.path}
-                  artifactType="presentation"
-                  gitRef={ref}
-                  isLoading={commentsQuery.isPending}
-                  resolvingId={
-                    resolveCommentMutation.isPending
-                      ? resolveCommentMutation.variables?.commentId
-                      : undefined
+                  showCreateIssueCheckbox
+                  emptyText="Select text in the PDF or use the button below to add a comment."
+                  onHighlightClick={(c) => {
+                    const h = highlights.find((x) => x.dbId === c.id)
+                    if (h) pdfScrollRef.current(h)
+                  }}
+                  onPostComment={(body, opts) =>
+                    postCommentMutation.mutateAsync({
+                      body,
+                      createIssue: opts.createIssue,
+                    })
+                  }
+                  postingComment={postCommentMutation.isPending}
+                  onPostReply={(parentId, body) =>
+                    replyCommentMutation.mutateAsync({
+                      commentId: parentId,
+                      body,
+                    })
+                  }
+                  postingReplyForId={
+                    replyCommentMutation.isPending
+                      ? replyCommentMutation.variables?.commentId ?? null
+                      : null
                   }
                   onResolve={(id, resolved) =>
                     resolveCommentMutation.mutate({
                       commentId: id,
                       resolved,
                     })
+                  }
+                  resolvingId={
+                    resolveCommentMutation.isPending
+                      ? resolveCommentMutation.variables?.commentId ?? null
+                      : null
                   }
                 />
               </VStack>

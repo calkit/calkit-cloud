@@ -118,10 +118,11 @@ def test_create_release_github_release_requires_auth(
     assert resp.status_code == 401
 
 
-def test_resolve_release_comments_requires_auth(client: TestClient) -> None:
+def test_resolve_release_comment_requires_auth(client: TestClient) -> None:
     resp = client.post(
         f"{settings.API_V1_STR}"
-        "/projects/test-owner/test-project/releases/v1/resolve-comments",
+        "/projects/test-owner/test-project/releases/v1/comments/"
+        f"{uuid.uuid4()}/resolve",
         json={"resolved": True},
     )
     assert resp.status_code == 401

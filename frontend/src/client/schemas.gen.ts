@@ -4925,6 +4925,18 @@ export const ReleaseCommentPublicSchema = {
       ],
       title: "Parent Id",
     },
+    resolved: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Resolved",
+    },
     created: {
       type: "string",
       format: "date-time",
@@ -4936,7 +4948,7 @@ export const ReleaseCommentPublicSchema = {
   title: "ReleaseCommentPublic",
 } as const
 
-export const ReleaseCommentsResolvePostSchema = {
+export const ReleaseCommentResolvePostSchema = {
   properties: {
     resolved: {
       type: "boolean",
@@ -4945,7 +4957,7 @@ export const ReleaseCommentsResolvePostSchema = {
   },
   type: "object",
   required: ["resolved"],
-  title: "ReleaseCommentsResolvePost",
+  title: "ReleaseCommentResolvePost",
 } as const
 
 export const ReleaseGithubResultSchema = {
@@ -5816,18 +5828,6 @@ export const ReleaseViewSchema = {
     comment_count: {
       type: "integer",
       title: "Comment Count",
-    },
-    comments_resolved: {
-      anyOf: [
-        {
-          type: "string",
-          format: "date-time",
-        },
-        {
-          type: "null",
-        },
-      ],
-      title: "Comments Resolved",
     },
     created: {
       type: "string",

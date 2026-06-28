@@ -858,13 +858,6 @@ class Release(ReleaseBase, table=True):
     project_id: uuid.UUID = Field(foreign_key="project.id")
     created_by_user_id: uuid.UUID = Field(foreign_key="user.id")
     view_count: int = Field(default=0)
-    # The single GitHub issue that mirrors this release's comment thread,
-    # created lazily on the first comment. All later comments and replies are
-    # posted to it rather than opening a new issue per comment.
-    github_issue_url: str | None = Field(default=None, max_length=2048)
-    # When the comment thread was resolved (its GitHub issue closed). Kept in
-    # sync with the issue state, and toggleable from the release page.
-    comments_resolved: datetime | None = Field(default=None)
     # The GitHub release this Calkit release was published to, if any. Set when
     # the release is pushed to GitHub (or an existing GitHub release for the tag
     # is found), so the releases table can show its "released to GitHub" status.
@@ -964,8 +957,6 @@ class ReleaseView(SQLModel):
     public: bool
     comments_enabled: bool
     comment_count: int
-    # Set when the comment thread is resolved (its GitHub issue is closed).
-    comments_resolved: datetime | None = None
     created: datetime
     owner_account_name: str
     owner_account_display_name: str
@@ -1021,14 +1012,18 @@ class ReleaseComment(SQLModel, table=True):
         default=None,
         sa_column=sqlalchemy.Column(sqlalchemy.JSON, nullable=True),
     )
-    # GitHub URL the comment was mirrored to (the release's issue, or the
-    # specific issue-comment anchor for replies/later comments).
+    # GitHub URL the comment was mirrored to: the thread's own issue for a
+    # top-level comment, or the issue-comment anchor for a reply, mirroring
+    # ProjectComment.external_url (one issue per thread, not per release).
     external_url: str | None = Field(default=None, max_length=2048)
     # Parent comment for flat one-level threading: replies point to the
     # top-level comment, mirroring ProjectComment.parent_id.
     parent_id: uuid.UUID | None = Field(
         default=None, foreign_key="releasecomment.id"
     )
+    # When the thread was resolved (its GitHub issue closed). Set on the
+    # top-level comment and cascaded to its replies, mirroring ProjectComment.
+    resolved: datetime | None = Field(default=None)
     created: datetime = Field(default_factory=utcnow)
     # Relationships
     release: Release = Relationship(back_populates="comments")
@@ -1042,7 +1037,7 @@ class ReleaseCommentPost(SQLModel):
     parent_id: uuid.UUID | None = None
 
 
-class ReleaseCommentsResolvePost(SQLModel):
+class ReleaseCommentResolvePost(SQLModel):
     resolved: bool
 
 
@@ -1053,6 +1048,8 @@ class ReleaseCommentPublic(SQLModel):
     highlight: dict | None = None
     external_url: str | None
     parent_id: uuid.UUID | None = None
+    # When set, this comment's thread is resolved (its GitHub issue closed).
+    resolved: datetime | None = None
     created: datetime
 
 
