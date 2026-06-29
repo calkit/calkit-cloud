@@ -23,9 +23,9 @@ import {
   RadioGroup,
   Stack,
   Text,
-  Tooltip,
   useClipboard,
 } from "@chakra-ui/react"
+import Tooltip from "../Common/Tooltip"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useState } from "react"
 import { FaTrash } from "react-icons/fa"

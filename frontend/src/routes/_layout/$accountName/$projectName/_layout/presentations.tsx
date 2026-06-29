@@ -9,11 +9,10 @@ import {
   Icon,
   Link,
   Text,
-  Tooltip,
   VStack,
   useColorModeValue,
 } from "@chakra-ui/react"
-import { TOOLTIP_OPEN_DELAY } from "../../../../../lib/core"
+import Tooltip from "../../../../../components/Common/Tooltip"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   Link as RouterLink,
@@ -255,12 +254,7 @@ function Presentations() {
             {presentationsRequest.data?.map((pres) => {
               const isSelected = pres.path === selectedPres?.path
               return (
-                <Tooltip
-                  key={pres.path}
-                  label={pres.title}
-                  openDelay={TOOLTIP_OPEN_DELAY}
-                  placement="right"
-                >
+                <Tooltip key={pres.path} label={pres.title} placement="right">
                   <HStack
                     px={1}
                     py={0.5}

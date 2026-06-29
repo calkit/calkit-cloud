@@ -22,11 +22,11 @@ import {
   Text,
   Th,
   Thead,
-  Tooltip,
   Tr,
   useDisclosure,
   useToast,
 } from "@chakra-ui/react"
+import Tooltip from "../Common/Tooltip"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link as RouterLink } from "@tanstack/react-router"
 import { useState } from "react"

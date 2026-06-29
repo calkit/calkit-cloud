@@ -28,10 +28,9 @@ import {
   Switch,
   Text,
   Textarea,
-  Tooltip,
   useClipboard,
 } from "@chakra-ui/react"
-import { TOOLTIP_OPEN_DELAY } from "../../lib/core"
+import Tooltip from "../Common/Tooltip"
 import { useNavigate } from "@tanstack/react-router"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useEffect, useState } from "react"
@@ -611,7 +610,6 @@ const NewRelease = ({
                       voteStatus?.has_voted ? "Click to remove your vote" : ""
                     }
                     isDisabled={!voteStatus?.has_voted}
-                    openDelay={TOOLTIP_OPEN_DELAY}
                   >
                     <Button
                       type="button"

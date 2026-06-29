@@ -19,10 +19,9 @@ import {
   Link,
   Spinner,
   Text,
-  Tooltip,
   useColorModeValue,
 } from "@chakra-ui/react"
-import { TOOLTIP_OPEN_DELAY } from "../../lib/core"
+import Tooltip from "./Tooltip"
 import mixpanel from "mixpanel-browser"
 import type { PDFDocumentProxy } from "pdfjs-dist"
 import {
@@ -906,7 +905,7 @@ function PdfViewerInner({
         flexShrink={0}
       >
         {outline.length > 0 && (
-          <Tooltip label="Sections" openDelay={TOOLTIP_OPEN_DELAY}>
+          <Tooltip label="Sections">
             <IconButton
               aria-label="Toggle sections"
               icon={<FiList />}
@@ -977,7 +976,7 @@ function PdfViewerInner({
             variant="ghost"
             onClick={() => zoomBy(0.2)}
           />
-          <Tooltip label="Fit width" openDelay={TOOLTIP_OPEN_DELAY}>
+          <Tooltip label="Fit width">
             <IconButton
               aria-label="Fit width"
               icon={<FiMaximize />}
@@ -1048,7 +1047,7 @@ function PdfViewerInner({
         )}
 
         <Flex align="center" gap={0.5} ml="auto">
-          <Tooltip label="Search" openDelay={TOOLTIP_OPEN_DELAY}>
+          <Tooltip label="Search">
             <IconButton
               aria-label="Search"
               icon={<FiSearch />}
@@ -1057,7 +1056,7 @@ function PdfViewerInner({
               onClick={() => (searchOpen ? closeSearch() : setSearchOpen(true))}
             />
           </Tooltip>
-          <Tooltip label="Print" openDelay={TOOLTIP_OPEN_DELAY}>
+          <Tooltip label="Print">
             <IconButton
               aria-label="Print"
               icon={<FiPrinter />}
@@ -1066,7 +1065,7 @@ function PdfViewerInner({
               onClick={handlePrint}
             />
           </Tooltip>
-          <Tooltip label="Open in new tab" openDelay={TOOLTIP_OPEN_DELAY}>
+          <Tooltip label="Open in new tab">
             <IconButton
               as={Link}
               href={url}
@@ -1080,7 +1079,7 @@ function PdfViewerInner({
               }
             />
           </Tooltip>
-          <Tooltip label="Download" openDelay={TOOLTIP_OPEN_DELAY}>
+          <Tooltip label="Download">
             <IconButton
               as={Link}
               href={url}

@@ -12,10 +12,10 @@ import {
   MenuList,
   Spinner,
   Text,
-  Tooltip,
   useClipboard,
   useDisclosure,
 } from "@chakra-ui/react"
+import Tooltip from "../Common/Tooltip"
 import { useQuery } from "@tanstack/react-query"
 import { Link as RouterLink } from "@tanstack/react-router"
 import { useState } from "react"

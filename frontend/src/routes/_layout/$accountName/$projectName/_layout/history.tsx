@@ -20,8 +20,8 @@ import {
   HStack,
   Icon,
   Collapse,
-  Tooltip,
 } from "@chakra-ui/react"
+import Tooltip from "../../../../../components/Common/Tooltip"
 import { useQuery } from "@tanstack/react-query"
 import {
   Link as RouterLink,

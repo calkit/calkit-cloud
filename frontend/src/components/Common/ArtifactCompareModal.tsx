@@ -28,10 +28,10 @@ import {
   TabPanels,
   Tabs,
   Text,
-  Tooltip,
   VStack,
   useColorModeValue,
 } from "@chakra-ui/react"
+import Tooltip from "./Tooltip"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link as RouterLink } from "@tanstack/react-router"
 import { Suspense, lazy, useEffect, useState } from "react"

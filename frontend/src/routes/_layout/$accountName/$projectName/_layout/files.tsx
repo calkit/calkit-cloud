@@ -12,9 +12,8 @@ import {
   useDisclosure,
   IconButton,
   useColorModeValue,
-  Tooltip,
 } from "@chakra-ui/react"
-import { TOOLTIP_OPEN_DELAY } from "../../../../../lib/core"
+import Tooltip from "../../../../../components/Common/Tooltip"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { FiFolder, FiFile, FiDatabase } from "react-icons/fi"
 import { FaMarkdown, FaPlus, FaLock } from "react-icons/fa6"
@@ -179,11 +178,7 @@ function Item({ item, level, selectedPath, setSelectedPath }: ItemProps) {
 
   return (
     <>
-      <Tooltip
-        label={item.path}
-        openDelay={TOOLTIP_OPEN_DELAY}
-        placement="right"
-      >
+      <Tooltip label={item.path} placement="right">
         <Flex
           cursor="pointer"
           onClick={handleClick}

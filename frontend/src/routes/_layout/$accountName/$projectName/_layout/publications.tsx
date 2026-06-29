@@ -15,12 +15,11 @@ import {
   MenuList,
   Portal,
   Text,
-  Tooltip,
   VStack,
   useColorModeValue,
   useDisclosure,
 } from "@chakra-ui/react"
-import { TOOLTIP_OPEN_DELAY } from "../../../../../lib/core"
+import Tooltip from "../../../../../components/Common/Tooltip"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   Link as RouterLink,
@@ -415,12 +414,7 @@ function Publications() {
             {publicationsRequest.data?.map((pub) => {
               const isSelected = pub.path === selectedPub?.path
               return (
-                <Tooltip
-                  key={pub.path}
-                  label={pub.title}
-                  openDelay={TOOLTIP_OPEN_DELAY}
-                  placement="right"
-                >
+                <Tooltip key={pub.path} label={pub.title} placement="right">
                   <HStack
                     px={1}
                     py={0.5}
