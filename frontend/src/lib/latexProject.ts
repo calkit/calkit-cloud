@@ -124,11 +124,15 @@ async function fetchOne(
     return null
   }
   if (TEXT_EXT.has(ext(path))) {
-    return {
-      path,
-      kind: "text",
-      text: res.content ? decodeBase64Utf8(res.content) : "",
+    // Files over the API's inline-content size limit come back as a signed
+    // URL with no `content` — fetch the text so large sources aren't empty.
+    let text = ""
+    if (res.content) {
+      text = decodeBase64Utf8(res.content)
+    } else if (res.url) {
+      text = await (await fetch(res.url)).text()
     }
+    return { path, kind: "text", text }
   }
   let bytes: Uint8Array | null = null
   if (res.content) {

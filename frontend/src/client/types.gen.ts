@@ -106,6 +106,7 @@ export type kind3 =
 
 export type Body_projects_put_project_contents = {
   file: Blob | File
+  message?: string | null
 }
 
 export type Collaborator = {

@@ -754,13 +754,33 @@ First slice landed; engine capabilities verified headless in the app origin.
       loads the needed `.data` **on demand** (preload only the base). Verified: a `booktabs`
       doc (in the recommended bundle, not basic) loads that bundle on demand and compiles.
       Missing packages now surface a clear "Missing from the in-browser TeX bundle: X" message.
-- [ ] ⚠️ **Package coverage is bundle-limited (no on-demand `.sty` fetch).** busytex only
-      has the *bundled* TeX Live subset; packages absent from all bundles (e.g. **`sectsty`**,
-      which `example-basic` uses, and `siunitx`) **cannot** be fetched — busytex has no
-      package server (unlike SwiftLaTeX). So some real papers still won't fully compile. Real
-      fix = a **package proxy** (fetch missing `.sty`+deps on demand into the FS), a
-      self-built **fuller busytex bundle**, or revisiting the engine. This is the headline
-      Phase 2 risk for "real papers compile."
+- [ ] ⚠️ **Package/class coverage is bundle-limited (no on-demand fetch) — the headline
+      Phase 2 risk.** busytex only has the *bundled* TeX Live subset; anything absent from all
+      bundles cannot be fetched (busytex has no package server, unlike SwiftLaTeX). Confirmed
+      real-world gaps:
+      - **`sectsty`** (used by `example-basic`) and **`siunitx`** — not in any bundle.
+      - **Journal document classes**: `petebachant/boom-paper` uses **`aastex631`** (AAS
+        astronomy class). The repo vendors `aastex631.cls`, it loads, but the document
+        produces **"No pages of output"** even with **all** bundles loaded (~340 MB) — it
+        warns *"Please update your system to include revtex4-1.cls"* and the needed
+        revtex/support simply isn't in TeX Live 2023's subset here. Verified it's **not** a
+        loading bug: the full 79 KB `main.tex` reaches the engine intact. Many real users
+        (astronomy: aastex; physics: revtex; Elsevier: elsarticle; etc.) will hit this.
+      Real fix = a **package/file proxy** (fetch missing `.cls`/`.sty` + their deps on demand
+      into the FS), a self-built **fuller busytex bundle** (full TeX Live), or revisiting the
+      engine. This is now clearly the **critical** next investment for "real papers compile."
+- [x] ~~**Package-proxy spike — DONE**~~ (`spikes/latex-package-proxy/`). Validated the
+      concept end-to-end: a self-hosted **texmf proxy** (`texlive/texlive` + `kpsewhich`, the
+      Texlive-Ondemand model — the public `texlive.swiftlatex.com` is dead) serves any TeX
+      file by name, and on-demand fetching resolved a **deep real tree** — **~94 files**
+      (`revtex4-1` + 8 society `.rtx` + the whole `tikz`/`pgf` core) — driving boom-paper from
+      "no output" deep into a real compile. **Conclusion:** coverage is *solvable* and the
+      file source is easy; the iterative "scan log → fetch → recompile" delivery is the
+      **wrong mechanism** (O(N) recompiles = minutes; TeX's many missing-file error formats
+      are whack-a-mole). **Recommended path:** an **in-engine kpathsea hook** (what SwiftLaTeX
+      does) — the engine requests the *exact* missing file from our self-hosted proxy and
+      continues in **one** compile. Needs patching busytex's kpathsea or switching to
+      SwiftLaTeX's engine (re-check §0 licensing). See `spikes/latex-package-proxy/README.md`.
 - [ ] ⚠️ **Bibliography is an engine limitation.** busytex reuses one WASM module across the
       bibtex multi-pass, so pdftex asserts on the 2nd run (`pdfinitmapfile`); XeTeX driver
       also fails. **Worked around** by forcing a single pdflatex pass (`bibtex: false`) so a

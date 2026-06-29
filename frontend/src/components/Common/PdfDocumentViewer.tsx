@@ -252,7 +252,15 @@ export default function PdfDocumentViewer({
       sx={highlightSx}
     >
       {pdfReady && (
-        <PdfLoader url={url} beforeLoad={<Spinner color="ui.main" />}>
+        <PdfLoader
+          url={url}
+          beforeLoad={<Spinner color="ui.main" />}
+          errorMessage={
+            <Box p={4} color="ui.danger">
+              Could not render this PDF.
+            </Box>
+          }
+        >
           {(pdfDocument) => (
             <PdfViewerInner
               key={url}

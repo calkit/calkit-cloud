@@ -4,12 +4,18 @@ import {
   Button,
   Collapse,
   Flex,
+  FormLabel,
+  HStack,
+  Input,
   Modal,
   ModalBody,
   ModalCloseButton,
   ModalContent,
+  ModalFooter,
+  ModalHeader,
   ModalOverlay,
   Spinner,
+  Switch,
   Text,
   VStack,
   useDisclosure,
@@ -111,18 +117,26 @@ const LatexEditor = ({
   const buffersRef = useRef<Map<string, string>>(new Map())
   const binariesRef = useRef<Map<string, Uint8Array>>(new Map())
   const initializedRef = useRef(false)
+  const compilingRef = useRef(false)
+  const pendingCompileRef = useRef(false)
+  const compileTimerRef = useRef<number | null>(null)
   const showToast = useCustomToast()
   const queryClient = useQueryClient()
   const logPanel = useDisclosure()
+  const commitModal = useDisclosure()
   const [textPaths, setTextPaths] = useState<string[]>([])
   const [activePath, setActivePath] = useState<string>(texPath)
   const [mainPath, setMainPath] = useState<string>(texPath)
   const [ready, setReady] = useState(false)
   const [dirty, setDirty] = useState<Set<string>>(new Set())
+  const dirtyRef = useRef(dirty)
+  dirtyRef.current = dirty
   const [log, setLog] = useState("")
   const [status, setStatus] = useState("")
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
   const [compiling, setCompiling] = useState(false)
+  const [autoCompile, setAutoCompile] = useState(true)
+  const [commitMessage, setCommitMessage] = useState("")
 
   const { data: projectFiles } = useQuery({
     queryKey: ["projects", ownerName, projectName, "latex-project", texPath],
@@ -146,11 +160,13 @@ const LatexEditor = ({
       }
     }
     texts.sort()
-    // Resolve the main file robustly: prefer the publication's path if it
-    // exists and looks like a root document, else the first .tex with
-    // \documentclass (handles main.tex etc.).
-    const looksMain = (p: string) =>
-      (buffersRef.current.get(p) ?? "").includes("\\documentclass")
+    // Resolve the main file robustly: prefer the publication's path if it is a
+    // real root document (has both \documentclass and \begin{document}, so a
+    // short stub/wrapper isn't picked), else the first such .tex.
+    const looksMain = (p: string) => {
+      const c = buffersRef.current.get(p) ?? ""
+      return c.includes("\\documentclass") && c.includes("\\begin{document}")
+    }
     let main = texPath
     if (!texts.includes(main) || !looksMain(main)) {
       main = texts.find(looksMain) ?? texts[0] ?? texPath
@@ -163,6 +179,9 @@ const LatexEditor = ({
 
   useEffect(() => {
     return () => {
+      if (compileTimerRef.current) {
+        window.clearTimeout(compileTimerRef.current)
+      }
       compilerRef.current?.terminate()
       compilerRef.current = null
       if (pdfUrl) {
@@ -171,12 +190,14 @@ const LatexEditor = ({
     }
   }, [])
 
-  const markDirty = (path: string, text: string) => {
-    buffersRef.current.set(path, text)
-    setDirty((d) => (d.has(path) ? d : new Set(d).add(path)))
-  }
-
   const compile = async () => {
+    // Serialize compiles; if one is requested while another runs, recompile
+    // once it finishes (so the preview reflects the latest edits).
+    if (compilingRef.current) {
+      pendingCompileRef.current = true
+      return
+    }
+    compilingRef.current = true
     setCompiling(true)
     setLog("")
     setStatus("Loading engine & compiling…")
@@ -194,7 +215,9 @@ const LatexEditor = ({
         files.push({ path, contents: bytes })
       }
       const result = await compilerRef.current.compile(files, mainPath)
-      if (result.exitCode === 0 && result.pdf) {
+      // exit_code can be 0 with an empty PDF (busytex returns an empty array
+      // when no PDF was written) — treat that as a failure, not a blank preview.
+      if (result.exitCode === 0 && result.pdf && result.pdf.byteLength > 0) {
         const blob = new Blob([result.pdf], { type: "application/pdf" })
         setPdfUrl((prev) => {
           if (prev) {
@@ -208,7 +231,9 @@ const LatexEditor = ({
         setStatus(
           missing.length > 0
             ? `Missing from the in-browser TeX bundle: ${missing.join(", ")}`
-            : `Compile failed (exit ${result.exitCode})`,
+            : result.exitCode === 0
+              ? "Compiled, but no PDF was produced — see log"
+              : `Compile failed (exit ${result.exitCode})`,
         )
         setLog(result.log)
         logPanel.onOpen()
@@ -218,13 +243,34 @@ const LatexEditor = ({
       setLog(String(e))
       logPanel.onOpen()
     } finally {
+      compilingRef.current = false
       setCompiling(false)
+      if (pendingCompileRef.current) {
+        pendingCompileRef.current = false
+        compile()
+      }
     }
   }
 
+  const scheduleCompile = () => {
+    if (!autoCompile) {
+      return
+    }
+    if (compileTimerRef.current) {
+      window.clearTimeout(compileTimerRef.current)
+    }
+    compileTimerRef.current = window.setTimeout(() => compile(), 1500)
+  }
+
+  const markDirty = (path: string, text: string) => {
+    buffersRef.current.set(path, text)
+    setDirty((d) => (d.has(path) ? d : new Set(d).add(path)))
+    scheduleCompile()
+  }
+
   const saveMutation = useMutation({
-    mutationFn: async () => {
-      for (const repoPath of dirty) {
+    mutationFn: async (message: string) => {
+      for (const repoPath of dirtyRef.current) {
         const text = buffersRef.current.get(repoPath) ?? ""
         const file = new File([text], repoPath.split("/").pop() || repoPath, {
           type: "text/plain",
@@ -234,12 +280,14 @@ const LatexEditor = ({
           projectName,
           path: repoPath,
           contentLength: file.size,
-          formData: { file },
+          formData: { file, message: message || null },
         })
       }
     },
     onSuccess: () => {
       setDirty(new Set())
+      setCommitMessage("")
+      commitModal.onClose()
       showToast("Saved", "Your changes were committed.", "success")
       queryClient.invalidateQueries({
         queryKey: ["projects", ownerName, projectName],
@@ -249,6 +297,36 @@ const LatexEditor = ({
       handleError(err, showToast)
     },
   })
+
+  // Ctrl/Cmd+S (and the Save button) ask for a commit message before saving.
+  const requestSave = () => {
+    if (dirtyRef.current.size > 0) {
+      commitModal.onOpen()
+    }
+  }
+
+  useEffect(() => {
+    if (ready && autoCompile) {
+      compile()
+    }
+    // Compile once on launch when auto-compile is on.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready])
+
+  useEffect(() => {
+    if (!isOpen) {
+      return
+    }
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
+        e.preventDefault()
+        requestSave()
+      }
+    }
+    document.addEventListener("keydown", handler, true)
+    return () => document.removeEventListener("keydown", handler, true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen])
 
   const handleClose = () => {
     if (dirty.size > 0 && !window.confirm("Discard unsaved changes?")) {
@@ -263,140 +341,189 @@ const LatexEditor = ({
   const displayPath = (p: string) => relativeTo(mainDir, p)
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} size="full">
-      <ModalOverlay />
-      <ModalContent>
-        <Flex align="center" gap={3} px={4} py={2} borderBottomWidth="1px">
-          <Text fontWeight="bold">{displayPath(activePath || mainPath)}</Text>
-          {dirty.size > 0 && (
-            <Badge colorScheme="orange" variant="subtle">
-              {dirty.size} unsaved
-            </Badge>
-          )}
-          <Button
-            size="sm"
-            variant="primary"
-            onClick={compile}
-            isLoading={compiling}
-            isDisabled={!ready}
-          >
-            Compile preview
-          </Button>
-          <Button
-            size="sm"
-            onClick={() => saveMutation.mutate()}
-            isLoading={saveMutation.isPending}
-            isDisabled={dirty.size === 0}
-          >
-            Save
-          </Button>
-          <Button size="sm" variant="ghost" onClick={logPanel.onToggle}>
-            {logPanel.isOpen ? "Hide log" : "Show log"}
-          </Button>
-          <Text fontSize="sm" color="ui.dim">
-            {status}
-          </Text>
-          <Box flex="1" />
-          <Text fontSize="xs" color="ui.dim">
-            Draft preview — not the published PDF
-          </Text>
-          <ModalCloseButton position="static" />
-        </Flex>
-        <ModalBody p={0} overflow="hidden">
-          {!ready ? (
-            <Flex height="calc(100vh - 49px)" align="center" justify="center">
-              <Spinner />
-            </Flex>
-          ) : (
-            <Flex height="calc(100vh - 49px)">
-              <Box
-                width="220px"
-                borderRightWidth="1px"
-                overflowY="auto"
-                p={2}
-                flexShrink={0}
-              >
-                <Text fontSize="xs" color="ui.dim" mb={1} px={1}>
-                  Files
-                </Text>
-                <VStack align="stretch" spacing={0}>
-                  {textPaths.map((p) => (
-                    <Button
-                      key={p}
-                      size="xs"
-                      variant={p === activePath ? "solid" : "ghost"}
-                      justifyContent="flex-start"
-                      fontWeight={p === mainPath ? "bold" : "normal"}
-                      onClick={() => setActivePath(p)}
-                    >
-                      {dirty.has(p) ? "• " : ""}
-                      {displayPath(p)}
-                    </Button>
-                  ))}
-                  {[...binariesRef.current.keys()].sort().map((p) => (
-                    <Text
-                      key={p}
-                      fontSize="xs"
+    <>
+      <Modal isOpen={isOpen} onClose={handleClose} size="full">
+        <ModalOverlay />
+        <ModalContent>
+          <Flex align="center" gap={3} px={4} py={2} borderBottomWidth="1px">
+            <Text fontWeight="bold">{displayPath(activePath || mainPath)}</Text>
+            {dirty.size > 0 && (
+              <Badge colorScheme="orange" variant="subtle">
+                {dirty.size} unsaved
+              </Badge>
+            )}
+            <Button
+              size="sm"
+              variant="primary"
+              onClick={compile}
+              isLoading={compiling}
+              isDisabled={!ready}
+            >
+              Compile preview
+            </Button>
+            <HStack spacing={1}>
+              <Switch
+                id="auto-compile"
+                size="sm"
+                isChecked={autoCompile}
+                onChange={(e) => setAutoCompile(e.target.checked)}
+              />
+              <FormLabel htmlFor="auto-compile" m={0} fontSize="sm">
+                Auto
+              </FormLabel>
+            </HStack>
+            <Button
+              size="sm"
+              onClick={requestSave}
+              isLoading={saveMutation.isPending}
+              isDisabled={dirty.size === 0}
+            >
+              Save
+            </Button>
+            <Button size="sm" variant="ghost" onClick={logPanel.onToggle}>
+              {logPanel.isOpen ? "Hide log" : "Show log"}
+            </Button>
+            <Text fontSize="sm" color="ui.dim">
+              {status}
+            </Text>
+            <Box flex="1" />
+            <Text fontSize="xs" color="ui.dim">
+              Draft preview — not the published PDF
+            </Text>
+            <ModalCloseButton position="static" />
+          </Flex>
+          <ModalBody p={0} overflow="hidden">
+            {!ready ? (
+              <Flex height="calc(100vh - 49px)" align="center" justify="center">
+                <Spinner />
+              </Flex>
+            ) : (
+              <Flex height="calc(100vh - 49px)">
+                <Box
+                  width="220px"
+                  borderRightWidth="1px"
+                  overflowY="auto"
+                  p={2}
+                  flexShrink={0}
+                >
+                  <Text fontSize="xs" color="ui.dim" mb={1} px={1}>
+                    Files
+                  </Text>
+                  <VStack align="stretch" spacing={0}>
+                    {textPaths.map((p) => (
+                      <Button
+                        key={p}
+                        size="xs"
+                        variant={p === activePath ? "solid" : "ghost"}
+                        justifyContent="flex-start"
+                        fontWeight={p === mainPath ? "bold" : "normal"}
+                        onClick={() => setActivePath(p)}
+                      >
+                        {dirty.has(p) ? "• " : ""}
+                        {displayPath(p)}
+                      </Button>
+                    ))}
+                    {[...binariesRef.current.keys()].sort().map((p) => (
+                      <Text
+                        key={p}
+                        fontSize="xs"
+                        color="ui.dim"
+                        px={3}
+                        py={1}
+                        isTruncated
+                      >
+                        {displayPath(p)}
+                      </Text>
+                    ))}
+                  </VStack>
+                </Box>
+                <Box flex="1" borderRightWidth="1px" minW={0}>
+                  <EditorPane
+                    key={activePath}
+                    initialDoc={buffersRef.current.get(activePath) ?? ""}
+                    viewRef={viewRef}
+                    onChange={(text) => markDirty(activePath, text)}
+                  />
+                </Box>
+                <Box flex="1" minW={0} position="relative" bg="blackAlpha.50">
+                  {pdfUrl ? (
+                    <PdfDocumentViewer url={pdfUrl} />
+                  ) : (
+                    <Flex
+                      height="100%"
+                      align="center"
+                      justify="center"
+                      direction="column"
+                      gap={2}
                       color="ui.dim"
-                      px={3}
-                      py={1}
-                      isTruncated
                     >
-                      {displayPath(p)}
-                    </Text>
-                  ))}
-                </VStack>
-              </Box>
-              <Box flex="1" borderRightWidth="1px" minW={0}>
-                <EditorPane
-                  key={activePath}
-                  initialDoc={buffersRef.current.get(activePath) ?? ""}
-                  viewRef={viewRef}
-                  onChange={(text) => markDirty(activePath, text)}
-                />
-              </Box>
-              <Box flex="1" minW={0} position="relative" bg="blackAlpha.50">
-                {pdfUrl ? (
-                  <PdfDocumentViewer url={pdfUrl} />
-                ) : (
-                  <Flex
-                    height="100%"
-                    align="center"
-                    justify="center"
-                    direction="column"
-                    gap={2}
-                    color="ui.dim"
-                  >
-                    <Text>No preview yet.</Text>
-                    <Text fontSize="sm">
-                      Click "Compile preview" to render the PDF.
-                    </Text>
-                  </Flex>
-                )}
-                <Collapse in={logPanel.isOpen}>
-                  <Box
-                    position="absolute"
-                    bottom={0}
-                    left={0}
-                    right={0}
-                    maxH="40%"
-                    overflowY="auto"
-                    bg="gray.900"
-                    color="gray.100"
-                    fontFamily="mono"
-                    fontSize="xs"
-                    whiteSpace="pre-wrap"
-                    p={2}
-                  >
-                    {log || "(no output)"}
-                  </Box>
-                </Collapse>
-              </Box>
-            </Flex>
-          )}
-        </ModalBody>
-      </ModalContent>
-    </Modal>
+                      <Text>No preview yet.</Text>
+                      <Text fontSize="sm">
+                        Click "Compile preview" to render the PDF.
+                      </Text>
+                    </Flex>
+                  )}
+                  <Collapse in={logPanel.isOpen}>
+                    <Box
+                      position="absolute"
+                      bottom={0}
+                      left={0}
+                      right={0}
+                      maxH="40%"
+                      overflowY="auto"
+                      bg="gray.900"
+                      color="gray.100"
+                      fontFamily="mono"
+                      fontSize="xs"
+                      whiteSpace="pre-wrap"
+                      p={2}
+                    >
+                      {log || "(no output)"}
+                    </Box>
+                  </Collapse>
+                </Box>
+              </Flex>
+            )}
+          </ModalBody>
+        </ModalContent>
+      </Modal>
+      <Modal
+        isOpen={commitModal.isOpen}
+        onClose={commitModal.onClose}
+        size={{ base: "sm", md: "md" }}
+        isCentered
+      >
+        <ModalOverlay />
+        <ModalContent
+          as="form"
+          onSubmit={(e) => {
+            e.preventDefault()
+            saveMutation.mutate(commitMessage)
+          }}
+        >
+          <ModalHeader>Describe your change</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <Input
+              autoFocus
+              value={commitMessage}
+              onChange={(e) => setCommitMessage(e.target.value)}
+              placeholder="Ex: Add paragraph about the boundary conditions"
+            />
+          </ModalBody>
+          <ModalFooter gap={3}>
+            <Button
+              variant="primary"
+              type="submit"
+              isLoading={saveMutation.isPending}
+            >
+              Save
+            </Button>
+            <Button onClick={commitModal.onClose}>Cancel</Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+    </>
   )
 }
 

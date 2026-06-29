@@ -379,6 +379,17 @@ export const Body_projects_put_project_contentsSchema = {
       format: "binary",
       title: "File",
     },
+    message: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Message",
+    },
   },
   type: "object",
   required: ["file"],

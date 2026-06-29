@@ -1161,6 +1161,7 @@ def put_project_contents(
     file: Annotated[UploadFile, File()],
     session: SessionDep,
     current_user: CurrentUser,
+    message: Annotated[str | None, Form()] = None,
 ) -> ContentsItem:
     project = app.projects.get_project(
         owner_name=owner_name,
@@ -1181,7 +1182,8 @@ def put_project_contents(
         f.write(file.file.read())
     repo.git.add(path)
     if repo.git.diff(["--staged", path]):
-        repo.git.commit(["-m", f"Upload {path} from web"])
+        commit_message = message or f"Upload {path} from web"
+        repo.git.commit(["-m", commit_message])
         repo.git.push(["origin", repo.active_branch.name])
     else:
         raise HTTPException(
