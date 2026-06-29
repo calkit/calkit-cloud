@@ -1,0 +1,34 @@
+Calkit: remote-fetch fallback in kpathsea's public find-file entry point.
+
+When the normal local search returns NULL (file not in the bundled texmf),
+fall back to kpse_remote_fetch() (remote_fetch.c), which pulls the file from
+the texmf proxy into MEMFS and returns its path. This is the single function
+TeX uses to locate .tex/.sty/.cls/etc., so it covers the on-demand case.
+
+Target: texlive-source (TeX Live 2023) texk/kpathsea/tex-file.c
+Apply from the texlive source root:  patch -p1 --fuzz=3 < tex-file.patch
+(build.sh also ships a Python fallback that inserts by matching the function,
+in case line offsets drift between TeX Live point releases.)
+
+--- a/texk/kpathsea/tex-file.c
++++ b/texk/kpathsea/tex-file.c
+@@ -987,6 +987,12 @@
+    thing for clients to call.  */
+
++/* Calkit: defined in remote_fetch.c. On a local miss, fetch the file from the
++   remote texmf proxy into MEMFS and return its path (or NULL). */
++extern string kpse_remote_fetch (const_string name,
++                                 kpse_file_format_type format);
++
+ string
+ kpathsea_find_file (kpathsea kpse, const_string name,
+                     kpse_file_format_type format, boolean must_exist)
+ {
+   string *ret_list = kpathsea_find_file_generic (kpse, name, format,
+                                                  must_exist, false);
+   string ret = *ret_list;
+   free (ret_list);
++  if (ret == NULL)
++    ret = kpse_remote_fetch (name, format);
+   return ret;
+ }

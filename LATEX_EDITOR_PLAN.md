@@ -777,10 +777,26 @@ First slice landed; engine capabilities verified headless in the app origin.
       "no output" deep into a real compile. **Conclusion:** coverage is *solvable* and the
       file source is easy; the iterative "scan log → fetch → recompile" delivery is the
       **wrong mechanism** (O(N) recompiles = minutes; TeX's many missing-file error formats
-      are whack-a-mole). **Recommended path:** an **in-engine kpathsea hook** (what SwiftLaTeX
-      does) — the engine requests the *exact* missing file from our self-hosted proxy and
-      continues in **one** compile. Needs patching busytex's kpathsea or switching to
-      SwiftLaTeX's engine (re-check §0 licensing). See `spikes/latex-package-proxy/README.md`.
+      are whack-a-mole). **Recommended path:** an **in-engine kpathsea hook** — the engine
+      requests the *exact* missing file from our self-hosted proxy and continues in **one**
+      compile. See `spikes/latex-package-proxy/README.md`.
+- [x] ~~**Engine-hook decision (assessed)**~~ — **patch busytex with our own MIT kpathsea
+      hook.** SwiftLaTeX's engine already has the hook but is **AGPL-3.0** (the hook *is*
+      their AGPL code) → rejected for our MIT editor (would force AGPL on Calkit). busytex is
+      MIT + TeX Live 2023 and already builds via Emscripten + source patches, so a clean-room
+      kpathsea patch keeps licensing clean. Pure-JS FS hooks won't do — kpathsea decides a
+      file is absent *before* `fopen`, so the search logic needs patching + a wasm rebuild.
+      **Cost:** a one-time engine build (Emscripten/cmake/Docker) + a small focused patch +
+      sync-fetch glue (sync XHR in the worker, or Asyncify). **Fallback for the heaviest
+      papers:** an opt-in **server-side compile** with full TeX Live (simplest coverage,
+      at the cost of per-session server compute; ties to §3.1 user-compute builds).
+- [x] ~~**Build scaffold + draft patch drafted**~~ (`spikes/busytex-remote-fetch/`). The
+      kpathsea patch targets `kpathsea_find_file` (the single public lookup entry) → calls a
+      clean-room `kpse_remote_fetch` EM_JS hook (sync XHR → MEMFS, cached). `apply_patch.py`
+      is **validated against the real TeX Live 2023 kpathsea** (applies cleanly, idempotent);
+      `build.sh` is grounded in busytex's real Makefile. Remaining: run the (multi-hour) build,
+      confirm the unpack target, verify boom-paper end-to-end, then swap the engine in
+      `frontend/public/tex/` and set `Module.calkitTexmfEndpoint` in `latexCompiler.ts`.
 - [ ] ⚠️ **Bibliography is an engine limitation.** busytex reuses one WASM module across the
       bibtex multi-pass, so pdftex asserts on the 2nd run (`pdfinitmapfile`); XeTeX driver
       also fails. **Worked around** by forcing a single pdflatex pass (`bibtex: false`) so a
