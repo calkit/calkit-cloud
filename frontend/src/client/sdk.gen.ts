@@ -11,10 +11,10 @@ import type {
   MetricsResponse,
   GetFeatureVoteStatusData,
   GetFeatureVoteStatusResponse,
-  CastFeatureVoteData,
-  CastFeatureVoteResponse,
-  RemoveFeatureVoteData,
-  RemoveFeatureVoteResponse,
+  PostFeatureVoteData,
+  PostFeatureVoteResponse,
+  DeleteFeatureVoteData,
+  DeleteFeatureVoteResponse,
   LoginAccessTokenData,
   LoginAccessTokenResponse,
   TestTokenResponse,
@@ -368,16 +368,16 @@ export class FeatureVotesService {
   }
 
   /**
-   * Cast Feature Vote
+   * Post Feature Vote
    * Record the current user's vote for a feature. Idempotent.
    * @param data The data for the request.
    * @param data.feature
    * @returns FeatureVoteStatus Successful Response
    * @throws ApiError
    */
-  public static castFeatureVote(
-    data: CastFeatureVoteData,
-  ): CancelablePromise<CastFeatureVoteResponse> {
+  public static postFeatureVote(
+    data: PostFeatureVoteData,
+  ): CancelablePromise<PostFeatureVoteResponse> {
     return __request(OpenAPI, {
       method: "POST",
       url: "/feature-votes/{feature}",
@@ -391,16 +391,16 @@ export class FeatureVotesService {
   }
 
   /**
-   * Remove Feature Vote
+   * Delete Feature Vote
    * Remove the current user's vote for a feature. Idempotent.
    * @param data The data for the request.
    * @param data.feature
    * @returns FeatureVoteStatus Successful Response
    * @throws ApiError
    */
-  public static removeFeatureVote(
-    data: RemoveFeatureVoteData,
-  ): CancelablePromise<RemoveFeatureVoteResponse> {
+  public static deleteFeatureVote(
+    data: DeleteFeatureVoteData,
+  ): CancelablePromise<DeleteFeatureVoteResponse> {
     return __request(OpenAPI, {
       method: "DELETE",
       url: "/feature-votes/{feature}",

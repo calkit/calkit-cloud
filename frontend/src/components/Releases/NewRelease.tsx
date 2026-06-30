@@ -188,10 +188,10 @@ const NewRelease = ({
   const voteMutation = useMutation({
     mutationFn: (voted: boolean) =>
       voted
-        ? FeatureVotesService.removeFeatureVote({
+        ? FeatureVotesService.deleteFeatureVote({
             feature: EXTERNAL_RELEASE_FEATURE,
           })
-        : FeatureVotesService.castFeatureVote({
+        : FeatureVotesService.postFeatureVote({
             feature: EXTERNAL_RELEASE_FEATURE,
           }),
     onSuccess: (data) =>

@@ -1522,17 +1522,17 @@ export type GetFeatureVoteStatusData = {
 
 export type GetFeatureVoteStatusResponse = FeatureVoteStatus
 
-export type CastFeatureVoteData = {
+export type PostFeatureVoteData = {
   feature: string
 }
 
-export type CastFeatureVoteResponse = FeatureVoteStatus
+export type PostFeatureVoteResponse = FeatureVoteStatus
 
-export type RemoveFeatureVoteData = {
+export type DeleteFeatureVoteData = {
   feature: string
 }
 
-export type RemoveFeatureVoteResponse = FeatureVoteStatus
+export type DeleteFeatureVoteResponse = FeatureVoteStatus
 
 export type LoginAccessTokenData = {
   formData: Body_login_login_access_token

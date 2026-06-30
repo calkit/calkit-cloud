@@ -1,4 +1,4 @@
-"""Tests for app.api.routes.releases endpoints.
+"""Tests for app.api.routes.projects.releases endpoints.
 
 These exercise the wiring end to end (routing, models, the new tables, and
 auth) against the migrated database. The authenticated create/view/comment
@@ -10,7 +10,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 import requests
-from app.api.routes.releases import (
+from app.api.routes.projects.releases import (
     _arxiv_id_from_url,
     _doi_from_url,
     _fetch_arxiv,
@@ -191,7 +191,7 @@ def test_fetch_osf_registration_derives_doi() -> None:
         }
     }
     with patch(
-        "app.api.routes.releases.requests.get",
+        "app.api.routes.projects.releases.requests.get",
         return_value=SimpleNamespace(status_code=200, json=lambda: payload),
     ):
         meta = _fetch_osf("ab3cd")
@@ -216,7 +216,7 @@ def test_fetch_osf_project_has_no_doi() -> None:
         }
     }
     with patch(
-        "app.api.routes.releases.requests.get",
+        "app.api.routes.projects.releases.requests.get",
         return_value=SimpleNamespace(status_code=200, json=lambda: payload),
     ):
         meta = _fetch_osf("ab3cd")
@@ -241,11 +241,12 @@ def test_fetch_arxiv_falls_back_to_datacite_on_timeout() -> None:
     )
     with (
         patch(
-            "app.api.routes.releases._fetch_arxiv_atom",
+            "app.api.routes.projects.releases._fetch_arxiv_atom",
             side_effect=requests.exceptions.ReadTimeout("slow"),
         ),
         patch(
-            "app.api.routes.releases._fetch_doi", return_value=datacite
+            "app.api.routes.projects.releases._fetch_doi",
+            return_value=datacite,
         ) as fetch_doi,
     ):
         meta = _fetch_arxiv("2606.23755v2")
@@ -261,11 +262,11 @@ def test_fetch_arxiv_minimal_when_all_unreachable() -> None:
     """If both arXiv and DataCite are unreachable, derive URL + DOI offline."""
     with (
         patch(
-            "app.api.routes.releases._fetch_arxiv_atom",
+            "app.api.routes.projects.releases._fetch_arxiv_atom",
             side_effect=requests.exceptions.ConnectTimeout("down"),
         ),
         patch(
-            "app.api.routes.releases._fetch_doi",
+            "app.api.routes.projects.releases._fetch_doi",
             side_effect=requests.exceptions.ConnectTimeout("down"),
         ),
     ):
@@ -292,7 +293,9 @@ def test_stored_release_filename() -> None:
 
 def test_fetch_arxiv_not_found_returns_none() -> None:
     """A definitive not-found from the API (no network error) fails honestly."""
-    with patch("app.api.routes.releases._fetch_arxiv_atom", return_value=None):
+    with patch(
+        "app.api.routes.projects.releases._fetch_arxiv_atom", return_value=None
+    ):
         assert _fetch_arxiv("9999.99999") is None
 
 
@@ -326,15 +329,15 @@ def test_get_project_releases_includes_calkit_yaml(
     }
     with (
         patch(
-            "app.api.routes.releases.app.projects.get_project",
+            "app.api.routes.projects.releases.app.projects.get_project",
             return_value=fake_project,
         ),
         patch(
-            "app.api.routes.releases.get_repo",
+            "app.api.routes.projects.releases.get_repo",
             return_value=SimpleNamespace(),
         ),
         patch(
-            "app.api.routes.releases.app.projects.get_ck_info_for_ref",
+            "app.api.routes.projects.releases.app.projects.get_ck_info_for_ref",
             return_value=ck_info,
         ),
     ):
@@ -364,7 +367,7 @@ def test_get_release_staleness_requires_auth(client: TestClient) -> None:
 
 def test_path_staleness_whole_project_not_gated() -> None:
     """Whole-project releases aren't evaluated for stage staleness."""
-    from app.api.routes import releases
+    from app.api.routes.projects import releases
 
     res = releases._path_staleness(SimpleNamespace(), "abc123", ".", "o", "p")
     assert res.up_to_date is True
@@ -373,7 +376,7 @@ def test_path_staleness_whole_project_not_gated() -> None:
 
 def test_path_staleness_no_producing_stage_not_gated() -> None:
     """A path no pipeline stage produces can't be stale -> not gated."""
-    from app.api.routes import releases
+    from app.api.routes.projects import releases
 
     fake_tree = SimpleNamespace(
         is_file=lambda p: p == "dvc.lock",
@@ -381,11 +384,12 @@ def test_path_staleness_no_producing_stage_not_gated() -> None:
     )
     with (
         patch(
-            "app.api.routes.releases.get_repo_tree_for_ref",
+            "app.api.routes.projects.releases.get_repo_tree_for_ref",
             return_value=fake_tree,
         ),
         patch(
-            "app.api.routes.releases.find_stage_for_path", return_value=None
+            "app.api.routes.projects.releases.find_stage_for_path",
+            return_value=None,
         ),
     ):
         res = releases._path_staleness(
@@ -396,7 +400,7 @@ def test_path_staleness_no_producing_stage_not_gated() -> None:
 
 
 def test_path_staleness_stale_stage_flags_not_up_to_date() -> None:
-    from app.api.routes import releases
+    from app.api.routes.projects import releases
 
     fake_tree = SimpleNamespace(
         is_file=lambda p: True, read_bytes=lambda p: b"stages: {}"
@@ -408,18 +412,20 @@ def test_path_staleness_stale_stage_flags_not_up_to_date() -> None:
     }
     with (
         patch(
-            "app.api.routes.releases.get_repo_tree_for_ref",
+            "app.api.routes.projects.releases.get_repo_tree_for_ref",
             return_value=fake_tree,
         ),
         patch(
-            "app.api.routes.releases.find_stage_for_path",
+            "app.api.routes.projects.releases.find_stage_for_path",
             return_value="build-paper",
         ),
         patch(
-            "app.api.routes.releases.compute_stage_statuses",
+            "app.api.routes.projects.releases.compute_stage_statuses",
             return_value=statuses,
         ),
-        patch("app.api.routes.releases.get_object_fs", return_value=None),
+        patch(
+            "app.api.routes.projects.releases.get_object_fs", return_value=None
+        ),
     ):
         res = releases._path_staleness(
             SimpleNamespace(), "abc123", "paper/paper.pdf", "o", "p"
@@ -434,7 +440,7 @@ def test_hash_share_token_is_sha256_and_not_identity() -> None:
     """Share tokens are stored as a SHA-256 hash, never in the clear."""
     import hashlib
 
-    from app.api.routes import releases
+    from app.api.routes.projects import releases
 
     raw = "super-secret-token"
     hashed = releases._hash_share_token(raw)
@@ -457,12 +463,12 @@ def _share_email_fixtures():
 
 def test_send_share_email_skips_when_not_configured() -> None:
     """No SMTP config -> no send, returns False, creation still succeeds."""
-    from app.api.routes import releases
+    from app.api.routes.projects import releases
 
     project, release, token, user = _share_email_fixtures()
     with (
         patch.object(settings, "SMTP_HOST", None),
-        patch("app.api.routes.releases.messaging.send_email") as send,
+        patch("app.api.routes.projects.releases.messaging.send_email") as send,
     ):
         sent = releases._send_share_email(project, release, token, "RAW", user)
     assert sent is False
@@ -471,14 +477,14 @@ def test_send_share_email_skips_when_not_configured() -> None:
 
 def test_send_share_email_skips_without_recipient() -> None:
     """A link with no recipient email is never emailed, even if configured."""
-    from app.api.routes import releases
+    from app.api.routes.projects import releases
 
     project, release, token, user = _share_email_fixtures()
     token.email = None
     with (
         patch.object(settings, "SMTP_HOST", "smtp.example.com"),
         patch.object(settings, "EMAILS_FROM_EMAIL", "from@example.com"),
-        patch("app.api.routes.releases.messaging.send_email") as send,
+        patch("app.api.routes.projects.releases.messaging.send_email") as send,
     ):
         sent = releases._send_share_email(project, release, token, "RAW", user)
     assert sent is False
@@ -487,13 +493,13 @@ def test_send_share_email_skips_without_recipient() -> None:
 
 def test_send_share_email_sends_link_with_token() -> None:
     """When configured, the invite is sent and embeds the token link."""
-    from app.api.routes import releases
+    from app.api.routes.projects import releases
 
     project, release, token, user = _share_email_fixtures()
     with (
         patch.object(settings, "SMTP_HOST", "smtp.example.com"),
         patch.object(settings, "EMAILS_FROM_EMAIL", "from@example.com"),
-        patch("app.api.routes.releases.messaging.send_email") as send,
+        patch("app.api.routes.projects.releases.messaging.send_email") as send,
     ):
         sent = releases._send_share_email(project, release, token, "RAW", user)
     assert sent is True
@@ -506,14 +512,14 @@ def test_send_share_email_sends_link_with_token() -> None:
 
 def test_send_share_email_swallows_send_failure() -> None:
     """A transport error doesn't fail share creation -- it returns False."""
-    from app.api.routes import releases
+    from app.api.routes.projects import releases
 
     project, release, token, user = _share_email_fixtures()
     with (
         patch.object(settings, "SMTP_HOST", "smtp.example.com"),
         patch.object(settings, "EMAILS_FROM_EMAIL", "from@example.com"),
         patch(
-            "app.api.routes.releases.messaging.send_email",
+            "app.api.routes.projects.releases.messaging.send_email",
             side_effect=RuntimeError("smtp down"),
         ),
     ):
@@ -552,11 +558,16 @@ def test_post_project_release_blocks_non_reproducible(
     )
     with (
         patch(
-            "app.api.routes.releases.app.projects.get_project",
+            "app.api.routes.projects.releases.app.projects.get_project",
             return_value=fake_project,
         ),
-        patch("app.api.routes.releases.get_repo", return_value=fake_repo),
-        patch("app.api.routes.releases._path_staleness", return_value=stale),
+        patch(
+            "app.api.routes.projects.releases.get_repo", return_value=fake_repo
+        ),
+        patch(
+            "app.api.routes.projects.releases._path_staleness",
+            return_value=stale,
+        ),
     ):
         resp = client.post(
             f"{settings.API_V1_STR}/projects/test-owner/test-project/releases",

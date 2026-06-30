@@ -1,18 +1,16 @@
 """Routes for project releases.
 
-Two groups of endpoints live here:
+All endpoints are project-scoped under
+``/projects/{owner_name}/{project_name}/releases``. Most require write access;
+the per-release view/content/comment endpoints also accept a ``?token=`` share
+link so a non-member holding the link can view the released artifact and
+(optionally) comment without access to the rest of the project.
 
-* Project-scoped, authenticated CRUD under
-  ``/projects/{owner_name}/{project_name}/releases`` for users with write
-  access to manage releases.
-* Public, secret-link endpoints under ``/releases/{secret_token}`` that let
-  anyone holding the link view the released artifact and (optionally) comment,
-  without needing access to the rest of the project.
-
-For this MVP the cloud database is the source of truth for releases; nothing is
-written to ``calkit.yaml``. Content for the viewer is fetched at the release's
-pinned commit using the release creator's GitHub token, so private repos can be
-shared via the secret link without granting repo access.
+Internal (Calkit-hosted) releases are recorded both in the cloud database and as
+entries in the repo's ``calkit.yaml`` (the portable source of truth). Content
+for the viewer is fetched at the release's pinned commit using the release
+creator's GitHub token, so private repos can be shared via a link without
+granting repo access.
 """
 
 import hashlib
@@ -76,7 +74,8 @@ SECRET_TOKEN_BYTES = 32
 RELEASES_REPO_TTL = 60
 
 
-def _abbrev(git_rev: str | None) -> str | None:
+def _abbreviate_git_rev(git_rev: str | None) -> str | None:
+    """Shorten a commit SHA to its 7-character abbreviation, or None."""
     if not git_rev:
         return None
     return git_rev[:7] if len(git_rev) > 7 else git_rev
@@ -1249,7 +1248,7 @@ def get_project_releases(
                 description=rel.get("description"),
                 git_ref=git_ref,
                 git_rev=git_rev,
-                git_rev_abbrev=_abbrev(git_rev),
+                git_rev_abbrev=_abbreviate_git_rev(git_rev),
                 # A missing ``public`` key means public. Visibility is separate
                 # from where it was released (internal vs an external venue).
                 public=rel.get("public", True),

@@ -18,7 +18,7 @@ router = APIRouter()
 VOTABLE_FEATURES = {"external-releases-in-app"}
 
 
-def _status(
+def _build_feature_vote_status(
     *, session: SessionDep, feature: str, user: CurrentUser
 ) -> FeatureVoteStatus:
     count = session.exec(
@@ -43,11 +43,13 @@ def get_feature_vote_status(
 ) -> FeatureVoteStatus:
     if feature not in VOTABLE_FEATURES:
         raise HTTPException(404, "Unknown feature")
-    return _status(session=session, feature=feature, user=current_user)
+    return _build_feature_vote_status(
+        session=session, feature=feature, user=current_user
+    )
 
 
 @router.post("/feature-votes/{feature}")
-def cast_feature_vote(
+def post_feature_vote(
     feature: str, current_user: CurrentUser, session: SessionDep
 ) -> FeatureVoteStatus:
     """Record the current user's vote for a feature. Idempotent."""
@@ -63,11 +65,13 @@ def cast_feature_vote(
         session.add(FeatureVote(feature=feature, user_id=current_user.id))
         session.commit()
         mixpanel.track(current_user, "Voted for feature", {"feature": feature})
-    return _status(session=session, feature=feature, user=current_user)
+    return _build_feature_vote_status(
+        session=session, feature=feature, user=current_user
+    )
 
 
 @router.delete("/feature-votes/{feature}")
-def remove_feature_vote(
+def delete_feature_vote(
     feature: str, current_user: CurrentUser, session: SessionDep
 ) -> FeatureVoteStatus:
     """Remove the current user's vote for a feature. Idempotent."""
@@ -85,4 +89,6 @@ def remove_feature_vote(
         mixpanel.track(
             current_user, "Unvoted for feature", {"feature": feature}
         )
-    return _status(session=session, feature=feature, user=current_user)
+    return _build_feature_vote_status(
+        session=session, feature=feature, user=current_user
+    )

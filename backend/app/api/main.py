@@ -4,11 +4,11 @@ from app.api.routes import (
     login,
     misc,
     projects,
-    releases,
     users,
     orgs,
     datasets,
 )
+from app.api.routes.projects import releases
 from fastapi import APIRouter
 
 api_router = APIRouter()
