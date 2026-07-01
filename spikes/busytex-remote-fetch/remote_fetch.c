@@ -1,23 +1,30 @@
-/* Calkit remote texmf fetch hook for busytex (clean-room, MIT).
+/* Calkit remote texmf fetch (clean-room, MIT) — ENGINE side.
  *
- * When kpathsea cannot find a file locally, the patch in tex-file.patch calls
- * kpse_remote_fetch(); this fetches the file from the remote texmf proxy
- * (Module.calkitTexmfEndpoint), writes it into MEMFS, and returns its path so
- * TeX can open it. ONE compile, exact filenames, no log-parsing.
+ * This snippet is appended to busytex's own busytex.c, so it is linked ONLY
+ * into the final busytex engine, never into the standalone applets (kpsewhich,
+ * bibtex8, ...). That matters: EM_JS defines a JS-import symbol, and several of
+ * busytex's standalone applet link steps reject an undefined/JS-import symbol
+ * pulled in transitively via libkpathsea. Keeping the EM_JS here — plus a
+ * pure-C indirection in kpathsea (see apply_patch.py) — means every binary
+ * links cleanly and only the engine carries the browser fetch.
  *
- * Mechanism: a *synchronous* XHR. busytex runs in a Web Worker, where sync XHR
- * is permitted, so no Emscripten Asyncify is required. Binary files use the
- * classic "x-user-defined" charset trick to read bytes via responseText.
+ * Mechanism: kpathsea, on a local miss, calls its kpse_remote_fetch(), which
+ * delegates through kpse_remote_fetch_hook. The constructor below installs
+ * calkit_remote_fetch_js into that hook at engine startup. The fetch is a
+ * *synchronous* XHR — busytex runs in a Web Worker where sync XHR is permitted,
+ * so no Emscripten Asyncify is required. Binary files are read byte-exact via
+ * the classic "x-user-defined" charset trick. Hits AND misses are memoised on
+ * Module.__calkitCache so a package's many \IfFileExists probes don't hammer
+ * the proxy. Clean-room reimplementation of the SwiftLaTeX technique; none of
+ * their (AGPL) code is used, so the result stays MIT.
  *
- * Caching: results (hit *and* miss) are memoised on Module.__calkitCache so a
- * package's many \IfFileExists probes don't hammer the proxy.
- *
- * This is a clean-room reimplementation of the technique SwiftLaTeX uses; none
- * of their (AGPL) code is used, so the result stays MIT.
+ * Set Module.calkitTexmfEndpoint (e.g. the latex-package-proxy) before init.
  */
 #include <emscripten.h>
 
-EM_JS(char *, kpse_remote_fetch, (const char *name_ptr, int format), {
+extern char *(*kpse_remote_fetch_hook) (const char *name, int format);
+
+EM_JS(char *, calkit_remote_fetch_js, (const char *name_ptr, int format), {
   var name = UTF8ToString(name_ptr);
   /* Only basename lookups; reject path traversal. */
   if (!name || name.indexOf("..") >= 0 || name.indexOf("/") >= 0) return 0;
@@ -29,9 +36,9 @@ EM_JS(char *, kpse_remote_fetch, (const char *name_ptr, int format), {
   if (cached === undefined) {
     path = null;
     try {
-      var url =
-        Module.calkitTexmfEndpoint.replace(/\/$/, "") +
-        "/f/" + encodeURIComponent(name);
+      var ep = Module.calkitTexmfEndpoint;
+      if (ep.charAt(ep.length - 1) === "/") ep = ep.substr(0, ep.length - 1);
+      var url = ep + "/f/" + encodeURIComponent(name);
       var xhr = new XMLHttpRequest();
       xhr.open("GET", url, false);          /* synchronous */
       xhr.overrideMimeType("text/plain; charset=x-user-defined");
@@ -58,3 +65,10 @@ EM_JS(char *, kpse_remote_fetch, (const char *name_ptr, int format), {
   stringToUTF8(path, ptr, len);
   return ptr;                               /* TeX frees / owns this string */
 });
+
+/* Install the hook into kpathsea at engine startup. */
+__attribute__((constructor))
+static void calkit_install_remote_fetch(void)
+{
+  kpse_remote_fetch_hook = calkit_remote_fetch_js;
+}

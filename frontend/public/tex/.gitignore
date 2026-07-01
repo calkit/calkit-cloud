@@ -4,5 +4,6 @@
 *.data
 *.wasm
 busytex.js
+busytex.patched.js
 texlive-basic.js
 ubuntu-texlive-*.js

@@ -7,22 +7,52 @@ proxy — in **one** compile, with exact filenames and no log-parsing. SwiftLaTe
 engine has this hook but is **AGPL-3.0**; this is a clean-room reimplementation,
 so the result stays MIT.
 
+## Status: BUILT ✅
+
+`build.sh` ran green under `emscripten/emsdk:3.1.43` and produced a working
+engine — **`busytex.js` (~297 KB) + `busytex.wasm` (~30 MB)** — with our hook
+embedded (`calkitTexmfEndpoint` / `__calkitCache` in the JS, `_malloc` /
+`stringToUTF8` / `lengthBytesUTF8` / `UTF8ToString` exported). Remaining:
+copy the binaries into `frontend/public/tex/`, set `Module.calkitTexmfEndpoint`,
+and test end-to-end against boom-paper (single-pass on-demand fetch).
+
+## Design: pure-C kpathsea + EM_JS only in the engine
+
+The hook is split in two so **every** binary links, not just the engine:
+
+- **kpathsea stays pure C.** `apply_patch.py` adds, in `tex-file.c`: (1) the
+  call inside `kpathsea_find_file` on a local miss, and (2) a real, always-defined
+  `kpse_remote_fetch` that just delegates through a function pointer
+  `kpse_remote_fetch_hook` (default `NULL`). No EM_JS here.
+- **The browser fetch (EM_JS) lives only in `busytex.c`** (`remote_fetch.c` is
+  appended to it), and a `constructor` installs it into the hook pointer at
+  engine startup.
+
+Why: `EM_JS` makes a symbol a JS *import*. busytex builds ~6 **standalone applet
+executables** (kpsewhich, bibtex8, …) whose link steps pull in `libkpathsea` and
+**reject** a JS-import symbol. Keeping kpathsea pure C makes `kpse_remote_fetch`
+a real defined wasm symbol everywhere; the applets get a NULL-pointer no-op
+(stock behaviour), and only the engine carries the fetch. This was the crux —
+an earlier `#include "remote_fetch.c"` into `busytex.c` (def only in the engine)
+and a later EM_JS-in-kpathsea both failed applet links; the indirection fixes it.
+
 ## Files
 
 | File | What it is | Status |
 |---|---|---|
-| `tex-file.patch` | kpathsea patch: on a local miss in `kpathsea_find_file`, call `kpse_remote_fetch()` | reference diff |
-| `apply_patch.py` | robust inserter for the patch (matches the function, survives line drift) | **validated** against real TeX Live 2023 kpathsea |
-| `remote_fetch.c` | the `kpse_remote_fetch` EM_JS hook: sync-XHR a file from the proxy into MEMFS, return its path | written, not yet built |
-| `build.sh` | clone busytex → patch → add glue → extend Emscripten exports → build the wasm | **scaffold** (build not run here) |
+| `apply_patch.py` | kpathsea patch: call site + pure-C hook-pointer indirection in `tex-file.c` | **validated**, idempotent; produced the built engine |
+| `remote_fetch.c` | engine-side EM_JS fetch + constructor (appended to `busytex.c`) | **built into the engine** |
+| `build.sh` | clone busytex → download-native → unpack → patch → append hook → extend exports → `make wasm` | **ran green** |
+| `tex-file.patch` | reference call-site diff (human-readable); `apply_patch.py` is authoritative | reference only |
 
 ## How it works
 
 1. TeX asks kpathsea for a file (e.g. `revtex4-1.cls`). The normal local search
    (`kpathsea_find_file` → `kpathsea_find_file_generic`) returns `NULL` because
    it's not in the bundled texmf.
-2. The patch calls `kpse_remote_fetch(name, format)`.
-3. `remote_fetch.c` (EM_JS) does a **synchronous** `XMLHttpRequest` to
+2. The patched `kpathsea_find_file` calls `kpse_remote_fetch(name, format)`,
+   which delegates to `kpse_remote_fetch_hook` (installed by the engine).
+3. The engine hook (EM_JS) does a **synchronous** `XMLHttpRequest` to
    `Module.calkitTexmfEndpoint + "/f/<name>"`, writes the bytes into MEMFS at
    `/calkit-remote/<name>`, and returns that path. Sync XHR is allowed because
    busytex runs in a Web Worker → **no Asyncify needed**. Hits and misses are
@@ -33,15 +63,19 @@ so the result stays MIT.
 ## Build (needs the busytex toolchain; multi-hour TeX Live compile)
 
 ```sh
-# deps: wget cmake gperf p7zip-full emscripten python3
-./build.sh            # -> build/wasm/busytex.{js,wasm} under the work dir
+# Inside the pinned Emscripten image (amd64):
+docker run --rm --platform linux/amd64 \
+  -v "$PWD:/scaffold:ro" -v /tmp/busytex-remote-build:/work \
+  emscripten/emsdk:3.1.43 \
+  bash -c 'SCAFFOLD=/scaffold /scaffold/build.sh /work'
+# -> /tmp/busytex-remote-build/busytex/build/wasm/busytex.{js,wasm}
 ```
 
-`build.sh` is grounded in busytex's real Makefile (TeX Live 2023 source;
-kpathsea at `texk/kpathsea/tex-file.c`; final link `OPTS_BUSYTEX_LINK_wasm` with
-`EXPORTED_RUNTIME_METHODS=[…,"FS",…]`). The one step to **confirm on first run**
-is the TeX Live *unpack* target name (`make source/texlive`) — find it with
-`make -pn | grep texlive`.
+Notes learned the hard way: install `file` (needed by `make download-native`);
+build via `make wasm` (not the final-link target alone — it needs the applet
+prerequisites); and **redirect `make` output to a file** — piping its very large
+output through `docker logs` can break the pipe (`make: write error: stdout`)
+and abort an otherwise-successful build.
 
 ## Wiring into the frontend (after a successful build)
 

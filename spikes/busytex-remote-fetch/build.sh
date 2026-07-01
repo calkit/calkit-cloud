@@ -1,42 +1,53 @@
 #!/usr/bin/env bash
-# Scaffold: build a busytex WASM engine patched with the Calkit remote-fetch
-# kpathsea hook. Produces build/wasm/busytex.{js,wasm} that fetches missing TeX
-# files on demand from a texmf proxy (set Module.calkitTexmfEndpoint at init).
+# Build a busytex WASM engine patched with the Calkit remote-fetch kpathsea hook.
+# Produces build/wasm/busytex.{js,wasm} that fetches missing TeX files on demand
+# from a texmf proxy (set Module.calkitTexmfEndpoint before init).
 #
-# STATUS: scaffold. The patch + glue + Makefile edits below are validated
-# (apply_patch.py runs against the real TeX Live 2023 kpathsea), but a full
-# build has NOT been run here — it needs the busytex toolchain (Emscripten,
-# cmake, gperf, p7zip) and a multi-hour TeX Live compile. Steps marked CONFIRM
-# need a check against busytex's current Makefile target graph on first run.
+# STATUS: RAN GREEN. This is the exact sequence that produced a working
+# busytex.js (~297 KB) + busytex.wasm (~30 MB) with our hook embedded, under
+# emscripten/emsdk:3.1.43 (amd64). Design: kpathsea stays pure C with a NULL
+# function pointer (apply_patch.py); the EM_JS browser fetch lives only in
+# busytex.c (remote_fetch.c) and is installed into that pointer at engine
+# startup — so every standalone applet (kpsewhich, bibtex8, ...) links cleanly.
 #
-# Deps (from busytex README): wget cmake gperf p7zip-full emscripten python3
+# Toolchain: run inside `emscripten/emsdk:3.1.43`. Extra apt deps below.
+#   docker run --rm --platform linux/amd64 -v "$PWD:/scaffold:ro" -v /tmp/bt:/work \
+#     emscripten/emsdk:3.1.43 bash -c 'SCAFFOLD=/scaffold /scaffold/build.sh /work'
 set -euo pipefail
-HERE="$(cd "$(dirname "$0")" && pwd)"
+HERE="${SCAFFOLD:-$(cd "$(dirname "$0")" && pwd)}"
 WORK="${1:-/tmp/busytex-remote-build}"
-mkdir -p "$WORK"
-cd "$WORK"
+# Pinned busytex native-binary release (kpathsea/web2c helpers used during the
+# WASM build). Matches the tree this recipe was validated against.
+NATIVE="build_native_ff0318af379bd80fb72b9b928d4744b5d9c9077d_12853073565_1"
+
+mkdir -p "$WORK"; cd "$WORK"
+
+# 0. Build deps (Debian/emsdk image). `file` is needed by make download-native.
+if command -v apt-get >/dev/null 2>&1; then
+  export DEBIAN_FRONTEND=noninteractive
+  apt-get update -qq
+  apt-get install -y -qq gperf p7zip-full icu-devtools wget git python3 ca-certificates file >/dev/null
+fi
 
 # 1. busytex source (MIT). TeX Live 2023 is downloaded by its Makefile.
 [ -d busytex ] || git clone --depth 1 https://github.com/busytex/busytex
 cd busytex
 
-# 2. Extract the TeX Live source so kpathsea can be patched before it compiles.
-#    CONFIRM the exact target: busytex downloads URL_texlive and unpacks under
-#    source/texlive. Inspect `make -pn` for the unpack target if this differs.
-make source/texlive 2>/dev/null || {
-  echo ">> CONFIRM: 'make source/texlive' is not the unpack target on this"
-  echo ">> busytex revision. Find it with: make -pn | grep texlive | head"
-  exit 2
-}
+# 2. Prebuilt native helpers (ctangle/otangle/web2c/...), then unpack + prep the
+#    TeX Live source tree so kpathsea can be patched before it compiles.
+echo "=== [1/4] download native binaries ==="
+make URLRELEASE="https://github.com/busytex/busytex/releases/download/$NATIVE" download-native
+echo "=== [2/4] fetch + prepare TeX Live source ==="
+make source/texlive.txt build/versions.txt
 
-# 3. Patch kpathsea's public find-file entry point (idempotent).
+# 3. Patch kpathsea (pure-C indirection: call site + hook-pointer delegator).
+echo "=== [3/4] apply Calkit patch + engine hook ==="
 python3 "$HERE/apply_patch.py" source/texlive/texk/kpathsea/tex-file.c
 
-# 4. Compile the EM_JS hook into the engine (simplest: #include into busytex.c).
-cp "$HERE/remote_fetch.c" .
-grep -q 'remote_fetch.c' busytex.c || printf '\n#include "remote_fetch.c"\n' >> busytex.c
+# 4. Append the EM_JS fetch + constructor to busytex.c (engine-only TU).
+grep -q 'calkit_remote_fetch_js' busytex.c || { printf '\n'; cat "$HERE/remote_fetch.c"; } >> busytex.c
 
-# 5. Export the runtime helpers the hook needs (FS is already exported).
+# 5. Export the runtime helpers the EM_JS hook needs (FS is already exported).
 python3 - <<'PY'
 mk = open("Makefile").read()
 mk = mk.replace(
@@ -52,9 +63,13 @@ open("Makefile", "w").write(mk)
 print("Makefile: exports extended for the remote-fetch hook")
 PY
 
-# 6. Build the wasm engine (long — compiles TeX Live).
-make build/wasm/busytex.js
+# 6. Build the wasm engine (long — compiles TeX Live). Redirect to a FILE:
+#    make floods stdout, and piping it through docker logs can break the pipe
+#    ('make: write error: stdout') and abort an otherwise-fine build.
+echo "=== [4/4] make wasm (log: $WORK/busytex/build-wasm.log) ==="
+make MAKEFLAGS=-j4 wasm > build-wasm.log 2>&1
 
+ls -la build/wasm/busytex.js build/wasm/busytex.wasm
 echo "Done. Engine: $WORK/busytex/build/wasm/busytex.{js,wasm}"
 echo "Wire-up: set Module.calkitTexmfEndpoint to the texmf proxy before init;"
 echo "no iterative loop needed — missing files resolve in a single compile."

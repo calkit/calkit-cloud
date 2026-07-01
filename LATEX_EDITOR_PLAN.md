@@ -790,13 +790,20 @@ First slice landed; engine capabilities verified headless in the app origin.
       sync-fetch glue (sync XHR in the worker, or Asyncify). **Fallback for the heaviest
       papers:** an opt-in **server-side compile** with full TeX Live (simplest coverage,
       at the cost of per-session server compute; ties to §3.1 user-compute builds).
-- [x] ~~**Build scaffold + draft patch drafted**~~ (`spikes/busytex-remote-fetch/`). The
-      kpathsea patch targets `kpathsea_find_file` (the single public lookup entry) → calls a
-      clean-room `kpse_remote_fetch` EM_JS hook (sync XHR → MEMFS, cached). `apply_patch.py`
-      is **validated against the real TeX Live 2023 kpathsea** (applies cleanly, idempotent);
-      `build.sh` is grounded in busytex's real Makefile. Remaining: run the (multi-hour) build,
-      confirm the unpack target, verify boom-paper end-to-end, then swap the engine in
-      `frontend/public/tex/` and set `Module.calkitTexmfEndpoint` in `latexCompiler.ts`.
+- [x] ~~**Patched engine BUILT**~~ (`spikes/busytex-remote-fetch/`). `build.sh` ran green under
+      `emscripten/emsdk:3.1.43` → **`busytex.js` (~297 KB) + `busytex.wasm` (~30 MB)** with our
+      hook embedded (verified: `calkitTexmfEndpoint`/`__calkitCache` in the JS; `_malloc`/
+      `stringToUTF8`/`lengthBytesUTF8`/`UTF8ToString` exported). Staged at
+      `frontend/public/tex/busytex.patched.{js,wasm}` (gitignored). **Design that worked:**
+      kpathsea stays **pure C** — `apply_patch.py` patches `kpathsea_find_file` to call a real,
+      always-defined `kpse_remote_fetch` that delegates through a NULL-default function pointer;
+      the **EM_JS** browser fetch lives only in `busytex.c` (from `remote_fetch.c`) and a
+      constructor installs it into the pointer at engine startup. This was the crux: `EM_JS`
+      symbols are JS imports, and busytex's ~6 **standalone applet** links (kpsewhich, bibtex8, …)
+      reject a JS-import symbol pulled in via `libkpathsea`; the indirection makes every binary
+      link (applets get a no-op) while only the engine carries the fetch. Remaining: wire the
+      engine into `latexCompiler.ts` (swap binaries + set `Module.calkitTexmfEndpoint` to the
+      `latex-package-proxy`), then verify boom-paper end-to-end (single-pass on-demand fetch).
 - [ ] ⚠️ **Bibliography is an engine limitation.** busytex reuses one WASM module across the
       bibtex multi-pass, so pdftex asserts on the 2nd run (`pdfinitmapfile`); XeTeX driver
       also fails. **Worked around** by forcing a single pdflatex pass (`bibtex: false`) so a
