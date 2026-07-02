@@ -14,7 +14,7 @@ from fnmatch import fnmatch
 from io import StringIO
 from pathlib import Path
 from typing import Annotated, Literal, Optional, cast
-from urllib.parse import urlparse
+from urllib.parse import quote, urlparse
 
 import bibtexparser
 import calkit
@@ -60,14 +60,21 @@ from app.dvc import (
     make_mermaid_diagram,
     output_from_pipeline,
 )
+from app.pipeline import (
+    color_mermaid_by_status,
+    compute_stage_statuses,
+    find_stage_for_path,
+    calc_overall_pipeline_status,
+)
 from app.git import (
     get_ck_info,
     get_ck_info_from_repo,
     get_commit_history,
-    get_dvc_pipeline_from_repo,
     get_file_history,
     get_overleaf_repo,
     get_repo,
+    get_zip_path_map_from_repo,
+    resolve_commit_sha,
     search_refs,
 )
 from app.models import (
@@ -76,23 +83,24 @@ from app.models import (
     Dataset,
     DatasetForImport,
     Figure,
-    Notification,
-    ProjectComment,
-    ProjectCommentPatch,
-    ProjectCommentPost,
     FileLock,
+    GitRef,
     Message,
     Notebook,
+    Notification,
     Org,
     OrgSubscription,
     Pipeline,
     Project,
+    ProjectComment,
+    ProjectCommentPatch,
+    ProjectCommentPost,
     ProjectPost,
     ProjectPublic,
     ProjectsPublic,
+    Presentation,
     Publication,
     Question,
-    GitRef,
     User,
     UserOrgMembership,
     UserProjectAccess,
@@ -127,8 +135,20 @@ router = APIRouter()
 DEFAULT_REPO_TTL = 60  # Seconds
 FULL_HISTORY_REPO_TTL = 10 * 60  # Seconds; history changes infrequently
 
-FIGURE_EXTS = {".png", ".jpg", ".jpeg", ".svg", ".gif"}
+FIGURE_EXTS = {".png", ".jpg", ".jpeg", ".svg", ".gif", ".pdf"}
 FIGURE_DIRS = {"figures", "figure", "figs", "fig", "plots", "images"}
+
+PRESENTATION_EXTS = {".pdf", ".pptx", ".ppt", ".key", ".odp"}
+PRESENTATION_DIRS = {
+    "slides",
+    "slide",
+    "presentation",
+    "presentations",
+    "talks",
+    "talk",
+    "decks",
+    "deck",
+}
 
 
 @router.get("/projects")
@@ -508,16 +528,7 @@ def post_project(
             ["dvc", "config", "core.autostage", "true"], cwd=repo.working_dir
         )
         logger.info("Setting up default DVC remote")
-        base_url = "https://api.calkit.io"
-        remote_url = f"{base_url}/projects/{owner_name}/{project.name}/dvc"
-        subprocess.call(
-            ["dvc", "remote", "add", "-d", "-f", "calkit", remote_url],
-            cwd=repo.working_dir,
-        )
-        subprocess.call(
-            ["dvc", "remote", "modify", "calkit", "auth", "custom"],
-            cwd=repo.working_dir,
-        )
+        calkit.dvc.configure_remote(wdir=str(repo.working_dir), use_ck=True)
         repo.git.add(".dvc")
         if project_in.template is not None:
             commit_msg = f"Create new project from {project_in.template}"
@@ -641,7 +652,12 @@ def get_project(
             ttl=DEFAULT_REPO_TTL,
             ref=ref,
         )
-        ck_info = get_ck_info_from_repo(repo=repo)
+        # Read at the requested ref. get_repo only fetches a ref, it does
+        # not check it out, so get_ck_info_from_repo (working tree) would
+        # report the default branch's calkit.yaml keys instead.
+        ck_info = app.projects.get_ck_info_for_ref(
+            project=project, repo=repo, ref=ref
+        )
         resp.calkit_info_keys = list(ck_info.keys())
         # Read status if present
         status_fpath = os.path.join(repo.working_dir, ".calkit", "status.csv")
@@ -819,7 +835,9 @@ def get_project_history(
     project_name: str,
     session: SessionDep,
     current_user: CurrentUserOptional,
-    limit: int = Query(50, description="Max number of commits to return"),
+    limit: int = Query(
+        50, le=200, description="Max number of commits to return"
+    ),
     offset: int = Query(0, description="Number of commits to skip"),
     ref: Optional[str] = Query(
         None, description="Branch, tag, or commit to read history from"
@@ -985,7 +1003,9 @@ def get_project_file_history(
     path: str,
     session: SessionDep,
     current_user: CurrentUserOptional,
-    limit: int = Query(100, description="Max number of commits to return"),
+    limit: int = Query(
+        100, le=200, description="Max number of commits to return"
+    ),
     storage: Optional[Literal["git", "dvc", "dvc-zip"]] = Query(
         None,
         description=(
@@ -1112,6 +1132,49 @@ def get_project_contents(
         path=path,
         ref=ref,
     )
+
+
+@router.get("/projects/{owner_name}/{project_name}/contents-paths")
+def get_project_content_paths(
+    owner_name: str,
+    project_name: str,
+    session: SessionDep,
+    current_user: CurrentUserOptional,
+    ref: str | None = None,
+    ttl: int | None = DEFAULT_REPO_TTL,
+) -> list[str]:
+    """Flat list of all selectable file paths in the project.
+
+    Powers fuzzy path search (e.g., the release path picker) without walking the
+    tree one directory at a time. Includes Git-tracked files and DVC-tracked
+    outputs, preferring an output's real path over its ``.dvc`` pointer file.
+    """
+    project = app.projects.get_project(
+        owner_name=owner_name,
+        project_name=project_name,
+        session=session,
+        current_user=current_user,
+        min_access_level="read",
+    )
+    repo = get_repo(
+        project=project, user=current_user, session=session, ttl=ttl, ref=ref
+    )
+    tree = app.projects.get_repo_tree_for_ref(repo, ref)
+    _, dvc_lock_outs, _ = app.projects.get_ck_info_and_dvc_outs_from_tree(
+        project=project, tree=tree
+    )
+    dvc_files = {
+        p for p, obj in dvc_lock_outs.items() if obj.get("type") != "dir"
+    }
+    paths = set(dvc_files)
+    for f in repo.git.ls_files().split("\n"):
+        if not f or f.startswith(".dvc/"):
+            continue
+        # Prefer a DVC output's real path over its tracked ``.dvc`` pointer.
+        if f.endswith(".dvc") and f[:-4] in dvc_files:
+            continue
+        paths.add(f)
+    return sorted(paths)
 
 
 def _valid_file_size(content_length: int = Header(lt=1_000_000)):
@@ -1313,12 +1376,18 @@ def get_project_questions(
         current_user=current_user,
         min_access_level="read",
     )
-    ck_info = get_ck_info(
+    # Read at the requested ref. get_ck_info reads the working tree, which
+    # get_repo never checks out to the ref, so it would return the default
+    # branch's questions instead.
+    repo = get_repo(
         project=project,
         user=current_user,
         session=session,
         ttl=DEFAULT_REPO_TTL,
         ref=ref,
+    )
+    ck_info = app.projects.get_ck_info_for_ref(
+        project=project, repo=repo, ref=ref
     )
     project = _sync_questions_with_db(
         ck_info=ck_info, project=project, session=session
@@ -1395,33 +1464,89 @@ def get_project_figures(
         ref=ref,
     )
     figures = ck_info.get("figures", [])
+
+    def _title_from_path(path: str) -> str:
+        """Derive a human-readable figure title from its file name."""
+        return (
+            path.split("/")[-1]
+            .rsplit(".", 1)[0]
+            .replace("_", " ")
+            .replace("-", " ")
+            .capitalize()
+        )
+
+    # Declared figures (from calkit.yaml) may omit a title; fill one in so
+    # they validate against the Figure model.
+    for fig in figures:
+        if not fig.get("title"):
+            fig["title"] = _title_from_path(fig["path"])
     declared_paths = {fig["path"] for fig in figures}
+
+    def _maybe_add_figure(path: str) -> None:
+        """Add `path` to figures if it looks like a figure and is not yet
+        known.
+        """
+        parts = path.split("/")
+        if any(p.startswith(".") for p in parts):
+            return
+        ext = "." + parts[-1].rsplit(".", 1)[-1] if "." in parts[-1] else ""
+        dir_parts = [p.lower() for p in parts[:-1]]
+        if ext.lower() in FIGURE_EXTS and any(
+            d in FIGURE_DIRS for d in dir_parts
+        ):
+            if path not in declared_paths:
+                figures.append({"path": path, "title": _title_from_path(path)})
+                declared_paths.add(path)
+
     # Auto-detect figures from the repo tree
     try:
         commit = repo.commit(ref) if ref else repo.head.commit
         for blob in commit.tree.traverse():
             if blob.type != "blob":  # type: ignore[union-attr]
                 continue
-            parts = blob.path.split("/")  # type: ignore[union-attr]
-            # Skip hidden folders like .calkit
-            if any(p.startswith(".") for p in parts):
-                continue
-            ext = (
-                "." + parts[-1].rsplit(".", 1)[-1] if "." in parts[-1] else ""
-            )
-            parent_dir = parts[-2].lower() if len(parts) > 1 else ""
-            if ext.lower() in FIGURE_EXTS and parent_dir in FIGURE_DIRS:
-                if blob.path not in declared_paths:  # type: ignore[union-attr]
-                    stem = (
-                        parts[-1]
-                        .rsplit(".", 1)[0]
-                        .replace("_", " ")
-                        .replace("-", " ")
-                        .title()
+            blob_path: str = blob.path  # type: ignore[union-attr]
+            _maybe_add_figure(blob_path)
+            # Also detect figures stored via standalone .dvc pointer files
+            # (tracked with `dvc add`, not via a DVC pipeline stage).
+            if blob_path.endswith(".dvc"):
+                try:
+                    dvc_data = yaml.safe_load(blob.data_stream.read())  # type: ignore[union-attr]
+                    outs = (
+                        dvc_data.get("outs")
+                        if isinstance(dvc_data, dict)
+                        else None
                     )
-                    figures.append({"path": blob.path, "title": stem})  # type: ignore[union-attr]
+                    out = outs[0] if isinstance(outs, list) and outs else None
+                    out_path = (
+                        out.get("path") if isinstance(out, dict) else None
+                    )
+                    if isinstance(out_path, str) and out_path:
+                        actual_path = os.path.normpath(
+                            os.path.join(os.path.dirname(blob_path), out_path)
+                        )
+                    else:
+                        actual_path = blob_path[:-4]
+                    if actual_path:
+                        _maybe_add_figure(actual_path)
+                except Exception:
+                    actual_path = blob_path[:-4]
+                    if actual_path:
+                        _maybe_add_figure(actual_path)
     except Exception:
         pass
+    # Pre-compute calkit.yaml / dvc.lock metadata once for the tree so we
+    # don't re-read and re-expand on every iteration.
+    tree = app.projects.get_repo_tree_for_ref(repo, ref)
+    (
+        ck_info_full,
+        dvc_lock_outs,
+        zip_path_map,
+    ) = app.projects.get_ck_info_and_dvc_outs_from_tree(project, tree)
+    # Also auto-detect figures from DVC lock outs (files stored with DVC)
+    for dvc_path, dvc_out in dvc_lock_outs.items():
+        if dvc_out.get("type") == "dir":
+            continue
+        _maybe_add_figure(dvc_path)
     if not figures:
         return []
     # Build comment count map from DB
@@ -1438,12 +1563,26 @@ def get_project_figures(
         ).all()
     )
     # Get the figure content and base64 encode it.
-    # Pre-compute calkit.yaml / dvc.lock metadata once for the tree so we
-    # don't re-read and re-expand on every iteration.
-    tree = app.projects.get_repo_tree_for_ref(repo, ref)
-    ck_info_full, dvc_lock_outs, zip_path_map = (
-        app.projects.get_ck_info_and_dvc_outs_from_tree(project, tree)
-    )
+    # Staleness is best-effort: never let it block the figure listing.
+    dvc_lock: dict = {}
+    stage_statuses = {}
+    try:
+        if tree.is_file("dvc.lock"):
+            dvc_lock = ryaml.load(tree.read_bytes("dvc.lock").decode()) or {}
+        dvc_yaml: dict = {}
+        if tree.is_file("dvc.yaml"):
+            dvc_yaml = ryaml.load(tree.read_bytes("dvc.yaml").decode()) or {}
+        stage_statuses = compute_stage_statuses(
+            dvc_yaml=dvc_yaml,
+            dvc_lock=dvc_lock,
+            tree=tree,
+            owner_name=project.owner_account_name,
+            project_name=project.name,
+            fs=get_object_fs(),
+            cache_token=resolve_commit_sha(repo, ref),
+        )
+    except Exception as e:
+        logger.warning(f"Failed to compute pipeline status for figures: {e}")
     for fig in figures:
         item = app.projects.get_contents_from_tree(
             project=project,
@@ -1456,6 +1595,12 @@ def get_project_figures(
         fig["content"] = item.content
         fig["url"] = item.url
         fig["comment_count"] = comment_counts.get(fig["path"], 0)
+        if not fig.get("stage"):
+            auto_stage = find_stage_for_path(fig["path"], dvc_lock)
+            if auto_stage is not None:
+                fig["stage"] = auto_stage
+        if fig.get("stage") and fig["stage"] in stage_statuses:
+            fig["stage_status"] = stage_statuses[fig["stage"]].model_dump()
         fig["storage"] = item.storage
     return [Figure.model_validate(fig) for fig in figures]
 
@@ -1656,6 +1801,33 @@ def get_project_comments(
     return comments
 
 
+def _make_comment_artifact_link(
+    owner_name: str,
+    project_name: str,
+    artifact_type: str | None,
+    artifact_path: str,
+) -> str:
+    """Frontend-relative deep link to the artifact a comment is about.
+
+    Releases live at a path segment (``/releases/{name}``); other artifacts use
+    a ``?path=`` query on their section page.
+    """
+    base = f"/{owner_name}/{project_name}"
+    # Encode so paths/names with spaces, #, ?, /, etc. don't break the link.
+    encoded = quote(artifact_path, safe="")
+    if artifact_type == "release":
+        return f"{base}/releases/{encoded}"
+    route_map = {
+        "figure": "figures",
+        "publication": "publications",
+        "presentation": "presentations",
+        "notebook": "notebooks",
+        "file": "files",
+    }
+    route = route_map.get(artifact_type or "", "files")
+    return f"{base}/{route}?path={encoded}"
+
+
 @router.post("/projects/{owner_name}/{project_name}/comments")
 def post_project_comment(
     owner_name: str,
@@ -1715,16 +1887,11 @@ def post_project_comment(
     session.flush()
     if comment_in.create_github_issue and comment_in.artifact_path:
         app_base = settings.frontend_host.rstrip("/")
-        route_map = {
-            "figure": "figures",
-            "publication": "publications",
-            "notebook": "notebooks",
-            "file": "files",
-        }
-        route = route_map.get(comment_in.artifact_type or "", "files")
-        artifact_link = (
-            f"{app_base}/{owner_name}/{project_name}/{route}"
-            f"?path={comment_in.artifact_path}"
+        artifact_link = app_base + _make_comment_artifact_link(
+            owner_name,
+            project_name,
+            comment_in.artifact_type,
+            comment_in.artifact_path,
         )
         body_lines = [
             f"Comment on [{comment_in.artifact_path}]({artifact_link}):",
@@ -1746,21 +1913,16 @@ def post_project_comment(
             comment.external_url = issue_url
     commenter_name = current_user.full_name or current_user.account.github_name
     if comment_in.artifact_path:
-        route_map = {
-            "figure": "figures",
-            "publication": "publications",
-            "notebook": "notebooks",
-            "file": "files",
-        }
-        route = route_map.get(comment_in.artifact_type or "", "files")
         _fan_out_notifications(
             session=session,
             project=project,
             commenter_id=current_user.id,
             message=f"{commenter_name} commented on {comment_in.artifact_path}",
-            link=(
-                f"/{owner_name}/{project_name}/{route}"
-                f"?path={comment_in.artifact_path}"
+            link=_make_comment_artifact_link(
+                owner_name,
+                project_name,
+                comment_in.artifact_type,
+                comment_in.artifact_path,
             ),
         )
     session.commit()
@@ -2453,7 +2615,7 @@ def post_project_dataset_label(
     if req.path in ds_paths:
         raise HTTPException(400, "Dataset already exists")
     local_path = os.path.join(repo.working_dir, req.path)
-    zip_path_map = app.projects.get_zip_path_map_from_repo(repo=repo)
+    zip_path_map = get_zip_path_map_from_repo(repo=repo)
     if not req.imported_from and not (
         os.path.isfile(local_path)
         or os.path.isdir(local_path)
@@ -2620,20 +2782,52 @@ def get_project_publications(
         ttl=DEFAULT_REPO_TTL,
         ref=ref,
     )
-    ck_info = get_ck_info_from_repo(repo)
-    pipeline = get_dvc_pipeline_from_repo(repo)
+    # Read declared metadata at the requested ref. get_repo only fetches a
+    # ref, it does not check it out, so reading the working tree would return
+    # the default branch's publications/pipeline.
+    ck_info = app.projects.get_ck_info_for_ref(
+        project=project, repo=repo, ref=ref
+    )
+    pipeline = app.projects.get_dvc_pipeline_for_ref(repo, ref)
     publications = ck_info.get("publications", [])
     overleaf_info = calkit.overleaf.get_sync_info(
         wdir=repo.working_dir, ck_info=ck_info, fix_legacy=False
     )
     resp = []
     tree = app.projects.get_repo_tree_for_ref(repo, ref)
-    ck_info_full, dvc_lock_outs, zip_path_map = (
-        app.projects.get_ck_info_and_dvc_outs_from_tree(project, tree)
-    )
+    (
+        ck_info_full,
+        dvc_lock_outs,
+        zip_path_map,
+    ) = app.projects.get_ck_info_and_dvc_outs_from_tree(project, tree)
+    # Staleness is best-effort: never let it block the publication listing.
+    dvc_lock: dict = {}
+    stage_statuses = {}
+    try:
+        if tree.is_file("dvc.lock"):
+            dvc_lock = ryaml.load(tree.read_bytes("dvc.lock").decode()) or {}
+        stage_statuses = compute_stage_statuses(
+            dvc_yaml=pipeline,
+            dvc_lock=dvc_lock,
+            tree=tree,
+            owner_name=project.owner_account_name,
+            project_name=project.name,
+            fs=get_object_fs(),
+            cache_token=resolve_commit_sha(repo, ref),
+        )
+    except Exception as e:
+        logger.warning(
+            f"Failed to compute pipeline status for publications: {e}"
+        )
     for pub in publications:
-        if "stage" in pub:
+        if not pub.get("stage") and pub.get("path"):
+            auto_stage = find_stage_for_path(pub["path"], dvc_lock)
+            if auto_stage is not None:
+                pub["stage"] = auto_stage
+        if pub.get("stage"):
             pub["stage_info"] = pipeline.get("stages", {}).get(pub["stage"])
+            if pub["stage"] in stage_statuses:
+                pub["stage_status"] = stage_statuses[pub["stage"]].model_dump()
         # See if we can fetch the content for this publication
         if "path" in pub:
             try:
@@ -2662,6 +2856,202 @@ def get_project_publications(
                     f"Failed to get publication at path {pub['path']}: {e}"
                 )
         resp.append(Publication.model_validate(pub))
+    return resp
+
+
+@router.get("/projects/{owner_name}/{project_name}/presentations")
+def get_project_presentations(
+    owner_name: str,
+    project_name: str,
+    current_user: CurrentUserOptional,
+    session: SessionDep,
+    ref: str | None = None,
+) -> list[Presentation]:
+    project = app.projects.get_project(
+        owner_name=owner_name,
+        project_name=project_name,
+        session=session,
+        current_user=current_user,
+        min_access_level="read",
+    )
+    repo = get_repo(
+        project=project,
+        user=current_user,
+        session=session,
+        ttl=DEFAULT_REPO_TTL,
+        ref=ref,
+    )
+    # Read declared metadata at the requested ref. get_repo only fetches a
+    # ref, it does not check it out, so reading the working tree would return
+    # the default branch's presentations/pipeline.
+    ck_info = app.projects.get_ck_info_for_ref(
+        project=project, repo=repo, ref=ref
+    )
+    pipeline = app.projects.get_dvc_pipeline_for_ref(repo, ref)
+    presentations = ck_info.get("presentations", [])
+    # Paths explicitly declared under ``presentations`` in calkit.yaml. These
+    # are always respected (like figures/publications): they're never
+    # filtered by the auto-detect heuristics or the PDF/source dedup below.
+    declared_paths = {p["path"] for p in presentations if "path" in p}
+    explicit_paths = set(declared_paths)
+
+    def _maybe_add_presentation(path: str) -> None:
+        """Add ``path`` if it looks like a presentation and isn't declared."""
+        parts = path.split("/")
+        if any(p.startswith(".") for p in parts):
+            return
+        ext = "." + parts[-1].rsplit(".", 1)[-1] if "." in parts[-1] else ""
+        dir_parts = [p.lower() for p in parts[:-1]]
+        if ext.lower() in PRESENTATION_EXTS and any(
+            d in PRESENTATION_DIRS for d in dir_parts
+        ):
+            if path not in declared_paths:
+                stem = (
+                    parts[-1]
+                    .rsplit(".", 1)[0]
+                    .replace("_", " ")
+                    .replace("-", " ")
+                    .capitalize()
+                )
+                presentations.append({"path": path, "title": stem})
+                declared_paths.add(path)
+
+    # Auto-detect presentations from the repo tree
+    try:
+        commit = repo.commit(ref) if ref else repo.head.commit
+        for blob in commit.tree.traverse():
+            if blob.type != "blob":  # type: ignore[union-attr]
+                continue
+            blob_path: str = blob.path  # type: ignore[union-attr]
+            _maybe_add_presentation(blob_path)
+            # Also detect presentations stored via standalone .dvc pointer
+            # files (tracked with `dvc add`, not via a DVC pipeline stage).
+            if blob_path.endswith(".dvc"):
+                try:
+                    dvc_data = yaml.safe_load(blob.data_stream.read())  # type: ignore[union-attr]
+                    outs = (
+                        dvc_data.get("outs")
+                        if isinstance(dvc_data, dict)
+                        else None
+                    )
+                    out = outs[0] if isinstance(outs, list) and outs else None
+                    out_path = (
+                        out.get("path") if isinstance(out, dict) else None
+                    )
+                    if isinstance(out_path, str) and out_path:
+                        actual_path = os.path.normpath(
+                            os.path.join(os.path.dirname(blob_path), out_path)
+                        )
+                    else:
+                        actual_path = blob_path[:-4]
+                    if actual_path:
+                        _maybe_add_presentation(actual_path)
+                except Exception:
+                    actual_path = blob_path[:-4]
+                    if actual_path:
+                        _maybe_add_presentation(actual_path)
+    except Exception:
+        pass
+    tree = app.projects.get_repo_tree_for_ref(repo, ref)
+    (
+        ck_info_full,
+        dvc_lock_outs,
+        zip_path_map,
+    ) = app.projects.get_ck_info_and_dvc_outs_from_tree(project, tree)
+    # Also auto-detect presentations from DVC lock outs
+    for dvc_path, dvc_out in dvc_lock_outs.items():
+        if dvc_out.get("type") == "dir":
+            continue
+        _maybe_add_presentation(dvc_path)
+    # Deduplicate auto-detected presentations that exist as both a PDF and a
+    # source format (e.g. slides.pptx exported to slides.pdf). Keep the PDF,
+    # since it renders and annotates natively, and drop the non-PDF sibling
+    # sharing the same path stem. Explicitly declared presentations are
+    # always kept.
+    pdf_stems = {
+        os.path.splitext(p["path"])[0].lower()
+        for p in presentations
+        if p.get("path", "").lower().endswith(".pdf")
+    }
+    presentations = [
+        p
+        for p in presentations
+        if p.get("path", "") in explicit_paths
+        or p.get("path", "").lower().endswith(".pdf")
+        or os.path.splitext(p.get("path", ""))[0].lower() not in pdf_stems
+    ]
+
+    # Map each pipeline output path to the stage that produces it, so
+    # auto-detected presentations (which aren't declared in calkit.yaml with
+    # an explicit ``stage``) can still be associated with their pipeline
+    # stage. We read both calkit.yaml's ``pipeline.stages`` (authoritative,
+    # uses ``outputs``) and the generated dvc.yaml (uses ``outs``), since the
+    # latter may be absent or stale. Output entries can be plain strings or
+    # dicts ({path: {...}} in dvc.yaml, {path: ..., storage: ...} in
+    # calkit.yaml); templated paths (iterate_over) are skipped.
+    def _register_outs(stages: dict, key: str, dest: dict[str, str]) -> None:
+        for stage_name, stage_def in (stages or {}).items():
+            if not isinstance(stage_def, dict):
+                continue
+            for out in stage_def.get(key, []) or []:
+                if isinstance(out, dict):
+                    # dvc.yaml: {path: {...}}; calkit.yaml: {path: <str>}
+                    out_paths = (
+                        [out["path"]]
+                        if "path" in out and isinstance(out["path"], str)
+                        else list(out.keys())
+                    )
+                else:
+                    out_paths = [out]
+                for out_path in out_paths:
+                    if not isinstance(out_path, str) or "{" in out_path:
+                        continue
+                    norm = os.path.normpath(out_path)
+                    dest.setdefault(norm, stage_name)
+
+    out_path_to_stage: dict[str, str] = {}
+    _register_outs(
+        (ck_info.get("pipeline") or {}).get("stages") or {},
+        "outputs",
+        out_path_to_stage,
+    )
+    _register_outs(pipeline.get("stages") or {}, "outs", out_path_to_stage)
+
+    resp = []
+    for pres in presentations:
+        if "stage" not in pres and "path" in pres:
+            # Match the path directly, or any ancestor directory (a stage may
+            # declare a directory output containing the presentation file).
+            norm_path = os.path.normpath(pres["path"])
+            stage_name = out_path_to_stage.get(norm_path)
+            while stage_name is None and norm_path not in (".", "/", ""):
+                norm_path = os.path.dirname(norm_path)
+                if not norm_path:
+                    break
+                stage_name = out_path_to_stage.get(norm_path)
+            if stage_name is not None:
+                pres["stage"] = stage_name
+        if "stage" in pres:
+            pres["stage_info"] = pipeline.get("stages", {}).get(pres["stage"])
+        if "path" in pres:
+            try:
+                item = app.projects.get_contents_from_tree(
+                    project=project,
+                    tree=tree,
+                    path=pres["path"],
+                    ck_info=ck_info_full,
+                    dvc_lock_outs=dvc_lock_outs,
+                    zip_path_map=zip_path_map,
+                )
+                pres["content"] = item.content
+                pres["storage"] = item.storage
+                if "url" not in pres:
+                    pres["url"] = item.url
+            except HTTPException as e:
+                logger.warning(
+                    f"Failed to get presentation at path {pres['path']}: {e}"
+                )
+        resp.append(Presentation.model_validate(pres))
     return resp
 
 
@@ -3317,20 +3707,20 @@ def get_project_pipeline(
         ttl=DEFAULT_REPO_TTL,
         ref=ref,
     )
-    fpath = os.path.join(repo.working_dir, "dvc.yaml")
-    if not os.path.isfile(fpath):
+    # Read files at the requested ref rather than the live checkout, which
+    # always reflects the default branch (get_repo only fetches a ref, it
+    # does not check it out).
+    tree = app.projects.get_repo_tree_for_ref(repo, ref)
+    if not tree.is_file("dvc.yaml"):
         return
-    with open(fpath) as f:
-        dvc_content = f.read()
+    dvc_content = tree.read_text("dvc.yaml")
     dvc_pipeline = ryaml.load(dvc_content)
     # Pop off any private stages
     for stage_name in list(dvc_pipeline.get("stages", {}).keys()):
         if stage_name.startswith("_"):
             dvc_pipeline["stages"].pop(stage_name)
-    params_fpath = os.path.join(repo.working_dir, "params.yaml")
-    if os.path.isfile(params_fpath):
-        with open(params_fpath) as f:
-            params = ryaml.load(f)
+    if tree.is_file("params.yaml"):
+        params = ryaml.load(tree.read_text("params.yaml"))
     else:
         params = None
     # Generate Mermaid diagram
@@ -3339,20 +3729,39 @@ def get_project_pipeline(
         f"Created Mermaid diagram for {owner_name}/{project_name}:\n{mermaid}"
     )
     # See if we can read a Calkit pipeline
-    ck_fpath = os.path.join(repo.working_dir, "calkit.yaml")
     calkit_content = None
-    if os.path.isfile(ck_fpath):
-        with open(ck_fpath) as f:
-            ck_info = ryaml.load(f)
+    if tree.is_file("calkit.yaml"):
+        ck_info = ryaml.load(tree.read_text("calkit.yaml"))
         if "pipeline" in ck_info:
             stream = io.StringIO()
             ryaml.dump({"pipeline": ck_info["pipeline"]}, stream)
             calkit_content = stream.getvalue()
+    # Compute per-stage staleness against the committed dvc.lock
+    stage_statuses: dict = {}
+    overall_status = "unknown"
+    try:
+        dvc_lock: dict = {}
+        if tree.is_file("dvc.lock"):
+            dvc_lock = ryaml.load(tree.read_bytes("dvc.lock").decode()) or {}
+        stage_statuses = compute_stage_statuses(
+            dvc_yaml=dvc_pipeline,
+            dvc_lock=dvc_lock,
+            tree=tree,
+            owner_name=project.owner_account_name,
+            project_name=project.name,
+            cache_token=resolve_commit_sha(repo, ref),
+        )
+        overall_status = calc_overall_pipeline_status(stage_statuses)
+        mermaid = color_mermaid_by_status(mermaid, stage_statuses)
+    except Exception as e:
+        logger.warning(f"Failed to compute pipeline status: {e}")
     return Pipeline(
         dvc_stages=dvc_pipeline["stages"],
         mermaid=mermaid,
         dvc_yaml=dvc_content,
         calkit_yaml=calkit_content,
+        stage_statuses=stage_statuses,
+        status=overall_status,
     )
 
 
@@ -4080,9 +4489,11 @@ def get_project_notebooks(
             nb["stage"] = nb_path_to_stage_name[nb_path]
     # Get the notebook content and base64 encode it
     tree = app.projects.get_repo_tree_for_ref(repo, ref)
-    ck_info_full, dvc_lock_outs, zip_path_map = (
-        app.projects.get_ck_info_and_dvc_outs_from_tree(project, tree)
-    )
+    (
+        ck_info_full,
+        dvc_lock_outs,
+        zip_path_map,
+    ) = app.projects.get_ck_info_and_dvc_outs_from_tree(project, tree)
     for notebook in notebooks:
         try:
             item = app.projects.get_contents_from_tree(

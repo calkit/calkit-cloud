@@ -35,8 +35,8 @@ class Settings(BaseSettings):
     # Optional comma-separated list of keys for decryption fallback.
     # First key is treated as the active key for encryption.
     FERNET_KEYS: str | None = None
-    # 60 minutes * 24 hours * 8 days = 8 days
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8
+    # Access token TTL; kept short because refresh tokens handle re-issuance.
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
     DOMAIN: str = "localhost"
     ENVIRONMENT: Literal["local", "staging", "production"] = "local"
     FRONTEND_HOST: str | None = None

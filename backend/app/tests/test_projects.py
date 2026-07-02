@@ -121,6 +121,51 @@ def test_get_project_with_caps_in_account_name(db: Session) -> None:
         db.commit()
 
 
+def test_get_project_logged_in_without_min_access_level(db: Session) -> None:
+    """A logged-in member can fetch a project with no min access level.
+
+    Regression: the min_access_level check ran unconditionally for
+    authenticated users, so the default ``min_access_level=None`` did
+    ``access_levels[None]`` and raised KeyError. That broke release viewing for
+    project members (the owner saw "release unavailable" for their own release).
+    """
+    from app import users
+    from app.models import UserCreate
+
+    suffix = uuid.uuid4().hex[:8]
+    name = f"member-{suffix}"
+    owner = users.create_user(
+        session=db,
+        user_create=UserCreate(
+            email=f"{name}@example.com",
+            password="MemberPassword123",
+            account_name=name,
+            github_username=name,
+        ),
+    )
+    project = Project(
+        name="member-view-project",
+        title="Member View Project",
+        git_repo_url=f"https://github.com/{name}/member-view-project",
+        owner_account_id=owner.account.id,
+    )
+    db.add(project)
+    db.commit()
+    try:
+        found = app.projects.get_project(
+            session=db,
+            owner_name=name,
+            project_name="member-view-project",
+            current_user=owner,
+            min_access_level=None,
+        )
+        assert found.current_user_access == "owner"
+    finally:
+        db.delete(project)
+        db.delete(owner)
+        db.commit()
+
+
 def test_get_contents_from_repo_at_given_ref(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -157,3 +202,129 @@ def test_get_contents_from_repo_at_given_ref(
     )
     v1_names = {item.name for item in (root_v1.dir_items or [])}
     assert "new-file.txt" not in v1_names
+
+
+def test_get_contents_dvc_pointer_files_shown(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Files tracked by standalone .dvc pointer files appear in directory
+    listings with storage='dvc', and their .dvc pointer sibling remains
+    visible as a git-tracked file.
+    """
+    monkeypatch.setattr(
+        app.projects, "expand_dvc_lock_outs", lambda *a, **k: {}
+    )
+    project = _make_project()
+    repo_dir = tmp_path / "repo"
+    repo = git.Repo.init(repo_dir)
+    repo.git.config(["user.name", "CI Test"])
+    repo.git.config(["user.email", "ci-test@example.com"])
+    # Create a .dvc pointer file for a file in a subdirectory
+    figures_dir = repo_dir / "figures"
+    figures_dir.mkdir()
+    dvc_pointer = figures_dir / "plot.png.dvc"
+    dvc_pointer.write_text(
+        "outs:\n"
+        "- md5: abc123def456abc123def456abc12345\n"
+        "  size: 42000\n"
+        "  path: plot.png\n"
+    )
+    # Also add a regular git-tracked file
+    (repo_dir / "README.md").write_text("# Project\n")
+    repo.git.add(["."])
+    repo.git.commit(["-m", "Add files"])
+    # Root listing: figures/ dir should appear
+    root_item = app.projects.get_contents_from_repo(project=project, repo=repo)
+    root_names = {item.name for item in (root_item.dir_items or [])}
+    assert "figures" in root_names
+    assert "README.md" in root_names
+    # figures/ listing: both plot.png (DVC) and plot.png.dvc (git) appear
+    figures_item = app.projects.get_contents_from_repo(
+        project=project, repo=repo, path="figures"
+    )
+    figures_by_name = {
+        item.name: item for item in (figures_item.dir_items or [])
+    }
+    assert "plot.png" in figures_by_name, (
+        "DVC-tracked file should appear without .dvc suffix"
+    )
+    assert "plot.png.dvc" in figures_by_name, (
+        ".dvc pointer file should still appear as a git-tracked entry"
+    )
+    dvc_entry = figures_by_name["plot.png"]
+    assert dvc_entry.storage == "dvc"
+    assert dvc_entry.size == 42000
+    assert dvc_entry.type == "file"
+    git_entry = figures_by_name["plot.png.dvc"]
+    assert git_entry.storage == "git"
+
+
+def test_get_contents_dvc_pointer_renamed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A .dvc pointer whose filename differs from outs[0].path is resolved correctly."""
+    monkeypatch.setattr(
+        app.projects, "expand_dvc_lock_outs", lambda *a, **k: {}
+    )
+    project = _make_project()
+    repo_dir = tmp_path / "repo"
+    repo = git.Repo.init(repo_dir)
+    repo.git.config(["user.name", "CI Test"])
+    repo.git.config(["user.email", "ci-test@example.com"])
+    figures_dir = repo_dir / "figures"
+    figures_dir.mkdir()
+    # Pointer filename (old_plot.png.dvc) differs from the tracked path (plot.png)
+    dvc_pointer = figures_dir / "old_plot.png.dvc"
+    dvc_pointer.write_text(
+        "outs:\n"
+        "- md5: abc123def456abc123def456abc12345\n"
+        "  size: 7777\n"
+        "  path: plot.png\n"
+    )
+    repo.git.add(["."])
+    repo.git.commit(["-m", "Add renamed pointer"])
+    figures_item = app.projects.get_contents_from_repo(
+        project=project, repo=repo, path="figures"
+    )
+    figures_by_name = {
+        item.name: item for item in (figures_item.dir_items or [])
+    }
+    assert "plot.png" in figures_by_name, (
+        "DVC-tracked path from outs[0].path should appear, not stripped pointer name"
+    )
+    assert figures_by_name["plot.png"].storage == "dvc"
+    assert figures_by_name["plot.png"].size == 7777
+
+
+def test_get_contents_dvc_pointer_dir_shown(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A .dvc pointer file whose md5 ends in '.dir' produces a dir entry."""
+    monkeypatch.setattr(
+        app.projects, "expand_dvc_lock_outs", lambda *a, **k: {}
+    )
+    project = _make_project()
+    repo_dir = tmp_path / "repo"
+    repo = git.Repo.init(repo_dir)
+    repo.git.config(["user.name", "CI Test"])
+    repo.git.config(["user.email", "ci-test@example.com"])
+    # .dvc pointer for a directory (md5 ends with .dir)
+    dvc_pointer = repo_dir / "data.dvc"
+    dvc_pointer.write_text(
+        "outs:\n"
+        "- md5: abc123def456abc123def456abc12345.dir\n"
+        "  size: 99999\n"
+        "  nfiles: 5\n"
+        "  path: data\n"
+    )
+    repo.git.add(["data.dvc"])
+    repo.git.commit(["-m", "Add data.dvc pointer"])
+    root_item = app.projects.get_contents_from_repo(project=project, repo=repo)
+    items_by_name = {item.name: item for item in (root_item.dir_items or [])}
+    assert "data" in items_by_name, (
+        "DVC-tracked directory should appear without .dvc suffix"
+    )
+    data_entry = items_by_name["data"]
+    assert data_entry.storage == "dvc"
+    assert data_entry.type == "dir"
+    assert data_entry.size == 99999

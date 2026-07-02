@@ -21,13 +21,14 @@ env:
   SECRET_KEY: test-secret-key-for-ci
   FERNET_KEY: test-fernet-key-for-ci
   FERNET_KEYS: test-fernet-key-for-ci
+  GRAFANA_ADMIN_PASSWORD: test-grafana-admin-password-for-ci
 
 jobs:
   backend:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - run: cp .env.example .env
       - run: docker compose build backend
       - run: docker compose down -v --remove-orphans
@@ -44,19 +45,37 @@ jobs:
           name: coverage-html
           path: backend/htmlcov
 
+  frontend-unit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "20.19.5"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+        working-directory: frontend
+      - name: Run unit tests
+        run: npm run test:unit
+        working-directory: frontend
+
   end-to-end:
+    needs: [frontend-unit]
     timeout-minutes: 60
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - uses: actions/setup-node@v6
         with:
           node-version: "20.19.5"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - name: Cache Playwright browsers
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-playwright-${{ hashFiles('frontend/package-lock.json') }}

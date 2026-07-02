@@ -6,9 +6,13 @@ jobs:
   format:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Install uv
         uses: astral-sh/setup-uv@v7
+      - name: Install prek
+        run: |
+          uv tool install prek
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
@@ -16,7 +20,8 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
         working-directory: frontend
-      - name: Check format
+      - name: Format
         run: make format
       - name: Fail if any files were reformatted
+        if: always()
         run: git diff --exit-code

@@ -6,4 +6,6 @@ node_modules/
 /playwright/.cache/
 .env
 .DS_Store
-config
+TODO.md
+AGENTS_files/
+CLAUDE.md

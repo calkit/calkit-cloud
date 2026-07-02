@@ -5,64 +5,60 @@
  * select two commits to compare side-by-side.
  */
 import {
+  Badge,
+  Box,
+  Button,
+  Code,
+  Divider,
+  Flex,
+  Heading,
+  Icon,
+  IconButton,
+  Link,
   Modal,
-  ModalOverlay,
+  ModalBody,
+  ModalCloseButton,
   ModalContent,
   ModalHeader,
-  ModalCloseButton,
-  ModalBody,
-  Flex,
-  Box,
-  Text,
-  Heading,
+  ModalOverlay,
   Spinner,
-  Badge,
-  Code,
-  Button,
-  VStack,
-  Divider,
-  useColorModeValue,
-  IconButton,
-  Tooltip,
-  Link,
-  Textarea,
-  Avatar,
-  Tabs,
-  TabList,
   Tab,
-  TabPanels,
+  TabList,
   TabPanel,
-  Icon,
-  Checkbox,
-  Switch,
+  TabPanels,
+  Tabs,
+  Text,
+  VStack,
+  useColorModeValue,
 } from "@chakra-ui/react"
+import Tooltip from "./Tooltip"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { Link as RouterLink } from "@tanstack/react-router"
+import { Suspense, lazy, useEffect, useState } from "react"
+import ReactDiffViewer, { DiffMethod } from "react-diff-viewer-continued"
 import {
-  FaCheck,
   FaChevronLeft,
   FaChevronRight,
   FaCodeBranch,
-  FaGithub,
   FaLink,
-  FaUndo,
-  FaReply,
 } from "react-icons/fa"
-import { ExternalLinkIcon } from "@chakra-ui/icons"
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { useState, useEffect, lazy, Suspense } from "react"
-import ReactDiffViewer, { DiffMethod } from "react-diff-viewer-continued"
 
-import FigureView from "../Figures/FigureView"
-import PdfCanvas from "./PdfCanvas"
-import FileContent from "../Files/FileContent"
 import {
+  type ContentsItem,
   type Figure,
   type GitRef,
-  type Publication,
   type Notebook,
-  type ContentsItem,
   ProjectsService,
+  type Publication,
 } from "../../client"
 import useAuth from "../../hooks/useAuth"
+import FigureView from "../Figures/FigureView"
+import FileContent from "../Files/FileContent"
+import SharedCommentsPanel, {
+  projectCommentToPanelComment,
+} from "./CommentsPanel"
+import PdfCanvas from "./PdfCanvas"
+import PdfDocumentViewer from "./PdfDocumentViewer"
 const IpynbRenderer = lazy(() =>
   import("react-ipynb-renderer").then(async (m) => {
     await import("react-ipynb-renderer/dist/styles/monokai.css")
@@ -132,7 +128,7 @@ function ArtifactContent({
     }
     return (
       <Box height="100%" width="100%">
-        <FigureView figure={fig} />
+        <FigureView figure={fig} fillHeight />
       </Box>
     )
   }
@@ -144,12 +140,7 @@ function ArtifactContent({
     if (path.endsWith(".pdf") || pub.url?.includes(".pdf")) {
       return (
         <Box height="75vh" width="100%">
-          <embed
-            height="100%"
-            width="100%"
-            type="application/pdf"
-            src={pub.url}
-          />
+          <PdfDocumentViewer url={pub.url} source="compare" />
         </Box>
       )
     }
@@ -288,6 +279,81 @@ function useArtifactAtRef(
   })
 }
 
+/** Info panel for a figure, mirroring the publications page layout. */
+function FigureInfo({
+  figure,
+  ownerName,
+  projectName,
+}: {
+  figure: Figure
+  ownerName: string
+  projectName: string
+}) {
+  const secBgColor = useColorModeValue("ui.secondary", "ui.darkSlate")
+  // Typed as plain string so the router's typed `to` prop accepts them.
+  const filesTo: string = `/${ownerName}/${projectName}/files`
+  const pipelineTo: string = `/${ownerName}/${projectName}/pipeline`
+  return (
+    <Box bg={secBgColor} borderRadius="lg" p={3} mb={3} h="fit-content">
+      <Heading size="sm" mb={2}>
+        Info
+      </Heading>
+      {figure.title && (
+        <Text fontSize="sm" mb={1}>
+          <Text as="span" fontWeight="semibold">
+            Title:
+          </Text>{" "}
+          <Text as="span" color="gray.500">
+            {figure.title}
+          </Text>
+        </Text>
+      )}
+      {figure.description && (
+        <Text fontSize="sm" mb={1}>
+          <Text as="span" fontWeight="semibold">
+            Description:
+          </Text>{" "}
+          <Text as="span" color="gray.500">
+            {figure.description}
+          </Text>
+        </Text>
+      )}
+      <Text fontSize="sm" mb={1}>
+        <Text as="span" fontWeight="semibold">
+          Path:
+        </Text>{" "}
+        <Link
+          as={RouterLink}
+          to={filesTo}
+          search={{ path: figure.path } as any}
+        >
+          {figure.path}
+        </Link>
+      </Text>
+      <Text fontSize="sm" mb={1}>
+        <Text as="span" fontWeight="semibold">
+          Pipeline stage:
+        </Text>{" "}
+        {figure.stage ? (
+          <Link
+            as={RouterLink}
+            to={pipelineTo}
+            search={{ stage: figure.stage } as any}
+          >
+            <Code fontSize="xs" cursor="pointer">
+              {figure.stage}
+            </Code>
+          </Link>
+        ) : (
+          <Text as="span" color="red.500">
+            Not in pipeline
+          </Text>
+        )}
+      </Text>
+    </Box>
+  )
+}
+
 function FigureComments({
   ownerName,
   projectName,
@@ -301,36 +367,22 @@ function FigureComments({
 }) {
   const { user } = useAuth()
   const queryClient = useQueryClient()
-  const borderColor = useColorModeValue("gray.200", "gray.600")
-  const [draft, setDraft] = useState("")
-  const [createIssue, setCreateIssue] = useState(true)
-  const [replyingToId, setReplyingToId] = useState<string | null>(null)
-  const [replyDraft, setReplyDraft] = useState("")
-
-  const replyMutation = useMutation({
-    mutationFn: ({ commentId, body }: { commentId: string; body: string }) =>
-      ProjectsService.postProjectCommentReply({
+  const [showResolved, setShowResolved] = useState(false)
+  const invalidate = () => {
+    queryClient.invalidateQueries({
+      queryKey: [
+        "projects",
         ownerName,
         projectName,
-        commentId,
-        requestBody: { body },
-      }),
-    onSuccess: () => {
-      setReplyingToId(null)
-      setReplyDraft("")
-      queryClient.invalidateQueries({
-        queryKey: [
-          "projects",
-          ownerName,
-          projectName,
-          "comments",
-          "figure",
-          path,
-        ],
-      })
-    },
-  })
-
+        "comments",
+        "figure",
+        path,
+      ],
+    })
+    queryClient.invalidateQueries({
+      queryKey: ["projects", ownerName, projectName, "figures"],
+    })
+  }
   const commentsQuery = useQuery({
     queryKey: ["projects", ownerName, projectName, "comments", "figure", path],
     queryFn: () =>
@@ -341,303 +393,72 @@ function FigureComments({
         artifactPath: path,
       }),
   })
-
-  const [showResolved, setShowResolved] = useState(false)
-
   const postMutation = useMutation({
-    mutationFn: () =>
+    mutationFn: (vars: { body: string; createIssue: boolean }) =>
       ProjectsService.postProjectComment({
         ownerName,
         projectName,
         requestBody: {
           artifact_path: path,
           artifact_type: "figure",
-          comment: draft,
-          create_github_issue: createIssue,
+          comment: vars.body,
+          create_github_issue: vars.createIssue,
           git_ref: gitRef ?? null,
         },
       }),
-    onSuccess: () => {
-      setDraft("")
-      queryClient.invalidateQueries({
-        queryKey: [
-          "projects",
-          ownerName,
-          projectName,
-          "comments",
-          "figure",
-          path,
-        ],
-      })
-      queryClient.invalidateQueries({
-        queryKey: ["projects", ownerName, projectName, "figures"],
-      })
-    },
+    onSuccess: invalidate,
   })
-
+  const replyMutation = useMutation({
+    mutationFn: (vars: { commentId: string; body: string }) =>
+      ProjectsService.postProjectCommentReply({
+        ownerName,
+        projectName,
+        commentId: vars.commentId,
+        requestBody: { body: vars.body },
+      }),
+    onSuccess: invalidate,
+  })
   const resolveMutation = useMutation({
-    mutationFn: ({
-      commentId,
-      resolved,
-    }: {
-      commentId: string
-      resolved: boolean
-    }) =>
+    mutationFn: (vars: { commentId: string; resolved: boolean }) =>
       ProjectsService.patchProjectComment({
         ownerName,
         projectName,
-        commentId,
-        requestBody: { resolved },
+        commentId: vars.commentId,
+        requestBody: { resolved: vars.resolved },
       }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: [
-          "projects",
-          ownerName,
-          projectName,
-          "comments",
-          "figure",
-          path,
-        ],
-      })
-      queryClient.invalidateQueries({
-        queryKey: ["projects", ownerName, projectName, "figures"],
-      })
-    },
+    onSuccess: invalidate,
   })
-
-  const allComments = commentsQuery.data ?? []
-  const topLevel = allComments.filter((c) => !(c as any).parent_id)
-  const repliesFor = (parentId: string) =>
-    allComments.filter((c) => (c as any).parent_id === parentId)
-  const displayedTopLevel = showResolved
-    ? topLevel
-    : topLevel.filter((c) => !c.resolved)
-
-  // Renders a single comment card without reply UI.
-  const renderCommentCard = (c: (typeof allComments)[0], isReply = false) => {
-    const isResolved = !!c.resolved
-    return (
-      <Flex key={c.id} gap={2}>
-        <Avatar
-          name={c.user_github_username}
-          size="xs"
-          mt={0.5}
-          flexShrink={0}
-        />
-        <Box
-          flex={1}
-          borderWidth={1}
-          borderColor={isResolved ? "green.200" : borderColor}
-          borderRadius="md"
-          p={2}
-          opacity={isResolved ? 0.7 : 1}
-        >
-          <Flex align="center" gap={1} mb={1} wrap="wrap">
-            <Text fontSize="xs" fontWeight="bold" mr={1}>
-              {c.user_github_username}
-            </Text>
-            <Text fontSize="xs" color="gray.500" mr="auto">
-              {c.created ? new Date(c.created).toLocaleDateString() : ""}
-            </Text>
-            {c.external_url && (
-              <Link href={c.external_url} isExternal color="gray.500">
-                <Flex align="center" gap={0.5}>
-                  <Icon as={FaGithub} boxSize={3} />
-                  <ExternalLinkIcon boxSize={2.5} />
-                </Flex>
-              </Link>
-            )}
-            {user &&
-              !isReply &&
-              (resolveMutation.isPending &&
-              resolveMutation.variables?.commentId === c.id ? (
-                <Spinner size="xs" color="ui.main" />
-              ) : (
-                <IconButton
-                  aria-label={isResolved ? "Unresolve" : "Resolve"}
-                  icon={
-                    isResolved ? <Icon as={FaUndo} /> : <Icon as={FaCheck} />
-                  }
-                  size="xs"
-                  variant="ghost"
-                  colorScheme={isResolved ? "gray" : "green"}
-                  onClick={() =>
-                    c.id &&
-                    resolveMutation.mutate({
-                      commentId: c.id,
-                      resolved: !isResolved,
-                    })
-                  }
-                />
-              ))}
-          </Flex>
-          <Text fontSize="sm" whiteSpace="pre-wrap">
-            {c.comment}
-          </Text>
-        </Box>
-      </Flex>
-    )
-  }
-
-  // Renders a top-level comment with its flat reply thread.
-  // Replies are one level deep; the reply input targets the top-level comment.
-  const renderComment = (c: (typeof allComments)[0]) => {
-    const replies = c.id ? repliesFor(c.id) : []
-    const threadId = c.id ?? null
-    return (
-      <Box key={c.id}>
-        {renderCommentCard(c, false)}
-        {replies.length > 0 && (
-          <VStack align="stretch" spacing={1} mt={1} ml={6}>
-            {replies.map((r) => renderCommentCard(r, true))}
-          </VStack>
-        )}
-        {user && (
-          <Box mt={1} ml={6}>
-            {replyingToId !== threadId ? (
-              <Button
-                size="xs"
-                variant="ghost"
-                leftIcon={<Icon as={FaReply} />}
-                onClick={() => {
-                  setReplyingToId(threadId)
-                  setReplyDraft("")
-                }}
-              >
-                Reply
-              </Button>
-            ) : (
-              <Box>
-                <Textarea
-                  size="xs"
-                  placeholder="Add a reply…"
-                  value={replyDraft}
-                  autoFocus
-                  onChange={(e) => setReplyDraft(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (
-                      e.key === "Enter" &&
-                      (e.metaKey || e.ctrlKey) &&
-                      replyDraft.trim() &&
-                      threadId
-                    ) {
-                      e.preventDefault()
-                      replyMutation.mutate({
-                        commentId: threadId,
-                        body: replyDraft.trim(),
-                      })
-                    }
-                  }}
-                  rows={2}
-                  mb={1}
-                />
-                <Flex align="center" gap={3} mb={2}>
-                  <Button
-                    size="xs"
-                    variant="primary"
-                    isDisabled={!replyDraft.trim()}
-                    isLoading={
-                      replyMutation.isPending &&
-                      replyMutation.variables?.commentId === threadId
-                    }
-                    onClick={() =>
-                      threadId &&
-                      replyMutation.mutate({
-                        commentId: threadId,
-                        body: replyDraft.trim(),
-                      })
-                    }
-                  >
-                    Post
-                  </Button>
-                  <Button
-                    size="xs"
-                    variant="ghost"
-                    onClick={() => setReplyingToId(null)}
-                  >
-                    Cancel
-                  </Button>
-                </Flex>
-              </Box>
-            )}
-          </Box>
-        )}
-      </Box>
-    )
-  }
-
+  const comments = commentsQuery.data ?? []
   return (
-    <Box>
-      <Flex align="center" justify="space-between" mb={3}>
-        <Heading size="xs">
-          Comments ({topLevel.filter((c) => !c.resolved).length} open)
-        </Heading>
-        <Flex align="center" gap={1}>
-          <Text fontSize="xs" color="gray.500">
-            Resolved
-          </Text>
-          <Switch
-            size="sm"
-            isChecked={showResolved}
-            onChange={(e) => setShowResolved(e.target.checked)}
-          />
-        </Flex>
-      </Flex>
-      {commentsQuery.isPending ? (
-        <Flex justify="center" py={2}>
-          <Spinner size="sm" color="ui.main" />
-        </Flex>
-      ) : displayedTopLevel.length === 0 ? (
-        <Text fontSize="xs" color="gray.500" mb={3}>
-          {allComments.length === 0 ? "No comments yet." : "No open comments."}
-        </Text>
-      ) : (
-        <VStack align="stretch" spacing={3} mb={4}>
-          {displayedTopLevel.map((c) => renderComment(c))}
-        </VStack>
-      )}
-      {user && (
-        <Box>
-          <Textarea
-            placeholder="Add a comment…"
-            size="sm"
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => {
-              if (
-                e.key === "Enter" &&
-                (e.metaKey || e.ctrlKey) &&
-                draft.trim()
-              ) {
-                e.preventDefault()
-                postMutation.mutate()
-              }
-            }}
-            rows={3}
-            mb={2}
-          />
-          <Flex align="center" gap={3} mb={2}>
-            <Checkbox
-              size="sm"
-              isChecked={createIssue}
-              onChange={(e) => setCreateIssue(e.target.checked)}
-            >
-              Create GitHub issue
-            </Checkbox>
-            <Button
-              size="xs"
-              variant="primary"
-              isDisabled={!draft.trim()}
-              isLoading={postMutation.isPending}
-              onClick={() => postMutation.mutate()}
-            >
-              Post
-            </Button>
-          </Flex>
-        </Box>
-      )}
-    </Box>
+    <SharedCommentsPanel
+      comments={comments.map(projectCommentToPanelComment)}
+      isLoading={commentsQuery.isPending}
+      canComment={!!user}
+      canResolve={!!user}
+      showResolved={showResolved}
+      onShowResolvedChange={setShowResolved}
+      showCreateIssueCheckbox
+      onPostComment={(body, opts) =>
+        postMutation.mutateAsync({ body, createIssue: opts.createIssue })
+      }
+      postingComment={postMutation.isPending}
+      onPostReply={(parentId, body) =>
+        replyMutation.mutateAsync({ commentId: parentId, body })
+      }
+      postingReplyForId={
+        replyMutation.isPending
+          ? replyMutation.variables?.commentId ?? null
+          : null
+      }
+      onResolve={(id, resolved) =>
+        resolveMutation.mutate({ commentId: id, resolved })
+      }
+      resolvingId={
+        resolveMutation.isPending
+          ? resolveMutation.variables?.commentId ?? null
+          : null
+      }
+    />
   )
 }
 
@@ -755,6 +576,14 @@ export function ArtifactCompareModal({
       : false
 
   const isComparing = Boolean(ref2)
+
+  // Figure metadata (title/description/stage) for the info panel, sourced from
+  // the figure at the displayed ref, falling back to the one we opened with.
+  const figureInfo =
+    kind === "figure"
+      ? (displayData1 as Figure | undefined) ??
+        (initialArtifact as Figure | undefined)
+      : undefined
 
   const getShareUrl = () => {
     const url = new URL(window.location.href)
@@ -1149,6 +978,13 @@ export function ArtifactCompareModal({
                 pl={3}
                 overflowY="auto"
               >
+                {figureInfo && (
+                  <FigureInfo
+                    figure={figureInfo}
+                    ownerName={ownerName}
+                    projectName={projectName}
+                  />
+                )}
                 <FigureComments
                   ownerName={ownerName}
                   projectName={projectName}

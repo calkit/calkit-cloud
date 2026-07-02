@@ -7,15 +7,15 @@ import mixpanel from "mixpanel-browser"
 import { FaGithub } from "react-icons/fa"
 
 import Logo from "/assets/images/calkit-no-bg.svg"
-import useAuth, { isLoggedIn } from "../hooks/useAuth"
-import { popPostLoginRedirect } from "../lib/auth"
+import useAuth, { isLoggedIn } from "../../hooks/useAuth"
+import { popPostLoginRedirect } from "../../lib/auth"
 
 const githubAuthParamsSchema = z.object({
   code: z.string().optional(),
   state: z.string().optional(),
 })
 
-export const Route = createFileRoute("/login")({
+export const Route = createFileRoute("/login/")({
   component: Login,
   beforeLoad: async () => {
     if (isLoggedIn()) {

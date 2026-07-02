@@ -2,39 +2,57 @@ import { Box, Image } from "@chakra-ui/react"
 import SyntaxHighlighter from "react-syntax-highlighter"
 import { atomOneDark } from "react-syntax-highlighter/dist/esm/styles/hljs"
 
-import Markdown from "../Common/Markdown"
-import { type ContentsItem } from "../../client"
+import type { ContentsItem } from "../../client"
 import { decodeBase64Utf8 } from "../../lib/strings"
+import Markdown from "../Common/Markdown"
+import PdfDocumentViewer from "../Common/PdfDocumentViewer"
+import PresentationView from "../Presentations/PresentationView"
 
 interface FileContentProps {
   item: ContentsItem
 }
 
-function getLanguage(name: string): string {
-  if (name.endsWith(".py")) return "python"
-  if (name.endsWith(".ts") || name.endsWith(".tsx")) return "typescript"
-  if (name.endsWith(".js") || name.endsWith(".jsx")) return "javascript"
-  if (name.endsWith(".yaml") || name.endsWith(".yml") || name === "dvc.lock")
+// Render a Quarto/R Markdown source as Markdown while keeping the leading
+// YAML front matter block verbatim (shown as a fenced code block rather than
+// being parsed/consumed by the Markdown renderer).
+export function qmdToMarkdown(src: string): string {
+  const match = src.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/)
+  if (!match) return src
+  const frontMatter = match[1]
+  const body = src.slice(match[0].length)
+  return `\`\`\`yaml\n${frontMatter}\n\`\`\`\n\n${body}`
+}
+
+export function getLanguage(name: string): string {
+  // Compare case-insensitively so all-caps names map to the right language.
+  const n = name.toLowerCase()
+  if (n.endsWith(".py")) return "python"
+  if (n.endsWith(".ts") || n.endsWith(".tsx")) return "typescript"
+  if (n.endsWith(".js") || n.endsWith(".jsx")) return "javascript"
+  if (n.endsWith(".yaml") || n.endsWith(".yml") || n === "dvc.lock")
     return "yaml"
-  if (name.endsWith(".json")) return "json"
-  if (name.endsWith(".sh") || name.endsWith(".bash")) return "bash"
-  if (name.endsWith(".r") || name.endsWith(".R")) return "r"
-  if (name.endsWith(".toml")) return "ini"
-  if (name === "Dockerfile") return "dockerfile"
-  if (name.endsWith(".cpp") || name.endsWith(".cc")) return "cpp"
-  if (name.endsWith(".c")) return "c"
-  if (name.endsWith(".go")) return "go"
-  if (name.endsWith(".java")) return "java"
-  if (name.endsWith(".rs")) return "rust"
-  if (name.endsWith(".css")) return "css"
-  if (name.endsWith(".html")) return "html"
-  if (name.endsWith(".tex")) return "latex"
+  if (n.endsWith(".json")) return "json"
+  if (n.endsWith(".sh") || n.endsWith(".bash")) return "bash"
+  if (n.endsWith(".r")) return "r"
+  if (n.endsWith(".toml")) return "ini"
+  if (n === "dockerfile") return "dockerfile"
+  if (n.endsWith(".cpp") || n.endsWith(".cc")) return "cpp"
+  if (n.endsWith(".c")) return "c"
+  if (n.endsWith(".go")) return "go"
+  if (n.endsWith(".java")) return "java"
+  if (n.endsWith(".rs")) return "rust"
+  if (n.endsWith(".css")) return "css"
+  if (n.endsWith(".html")) return "html"
+  if (n.endsWith(".tex")) return "latex"
   return "text"
 }
 
 function FileContent({ item }: FileContentProps) {
   const { name, content, url } = item
-  if (name.endsWith(".png")) {
+  // Match extensions case-insensitively so all-caps names (FOO.PDF, IMG.PNG,
+  // SLIDES.PPTX, …) render the same as their lowercase equivalents.
+  const lowerName = name.toLowerCase()
+  if (lowerName.endsWith(".png")) {
     return (
       <Image
         src={content ? `data:image/png;base64,${content}` : String(url)}
@@ -42,7 +60,7 @@ function FileContent({ item }: FileContentProps) {
       />
     )
   }
-  if (name.endsWith(".jpg") || name.endsWith(".jpeg")) {
+  if (lowerName.endsWith(".jpg") || lowerName.endsWith(".jpeg")) {
     return (
       <Image
         src={content ? `data:image/jpeg;base64,${content}` : String(url)}
@@ -50,7 +68,15 @@ function FileContent({ item }: FileContentProps) {
       />
     )
   }
-  if (name.endsWith(".pdf")) {
+  if (lowerName.endsWith(".svg")) {
+    return (
+      <Image
+        src={content ? `data:image/svg+xml;base64,${content}` : String(url)}
+        width={"100%"}
+      />
+    )
+  }
+  if (lowerName.endsWith(".pdf")) {
     return (
       <Box
         height="calc(100vh - 160px)"
@@ -58,16 +84,34 @@ function FileContent({ item }: FileContentProps) {
         borderRadius="lg"
         overflow="hidden"
       >
-        <embed
-          height="100%"
-          width="100%"
-          type="application/pdf"
-          src={content ? `data:application/pdf;base64,${content}` : String(url)}
+        <PdfDocumentViewer
+          url={content ? `data:application/pdf;base64,${content}` : String(url)}
+          source="file"
         />
       </Box>
     )
   }
-  if (name.endsWith(".md") && content) {
+  if (lowerName.endsWith(".pptx") || lowerName.endsWith(".ppt")) {
+    return (
+      <Box
+        height="calc(100vh - 160px)"
+        width="100%"
+        borderRadius="lg"
+        overflow="hidden"
+      >
+        <PresentationView
+          presentation={{
+            path: item.path,
+            title: name,
+            content: content ?? null,
+            url: url ?? null,
+          }}
+        />
+      </Box>
+    )
+  }
+  if ((lowerName.endsWith(".md") || lowerName.endsWith(".qmd")) && content) {
+    const decoded = decodeBase64Utf8(content)
     return (
       <Box
         height="calc(100vh - 160px)"
@@ -76,7 +120,9 @@ function FileContent({ item }: FileContentProps) {
         py={2}
         px={4}
       >
-        <Markdown>{decodeBase64Utf8(content)}</Markdown>
+        <Markdown>
+          {lowerName.endsWith(".qmd") ? qmdToMarkdown(decoded) : decoded}
+        </Markdown>
       </Box>
     )
   }

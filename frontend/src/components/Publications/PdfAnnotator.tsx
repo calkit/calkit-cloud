@@ -13,46 +13,37 @@ import {
   Button,
   Checkbox,
   Flex,
-  Heading,
   Icon,
   IconButton,
   Link,
   Spinner,
-  Switch,
   Text,
   Textarea,
   useColorModeValue,
-  VStack,
 } from "@chakra-ui/react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import {
-  useRef,
-  useState,
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  type MutableRefObject,
-} from "react"
+import { type MutableRefObject, useCallback, useMemo, useState } from "react"
 import {
   AreaHighlight,
   Highlight,
-  PdfHighlighter,
-  PdfLoader,
-  Popup,
   type IHighlight,
   type NewHighlight,
+  Popup,
 } from "react-pdf-highlighter"
 import "react-pdf-highlighter/dist/style.css"
-import { FaCheck, FaUndo, FaGithub, FaReply } from "react-icons/fa"
 import { ExternalLinkIcon } from "@chakra-ui/icons"
+import { FaCheck, FaGithub, FaUndo } from "react-icons/fa"
 
 import {
-  ProjectsService,
-  type ProjectComment,
   type CommentHighlight,
+  type ProjectComment,
+  ProjectsService,
 } from "../../client"
 import useAuth from "../../hooks/useAuth"
+import PdfDocumentViewer, {
+  type HighlightTransform,
+  type OnSelectionFinished,
+} from "../Common/PdfDocumentViewer"
 
 // ---------------------------------------------------------------------------
 // Highlight shape that extends IHighlight with our DB id / comment body
@@ -92,12 +83,16 @@ export function commentToHighlight(
 // ---------------------------------------------------------------------------
 // Inline tip shown when user finishes selecting text
 // ---------------------------------------------------------------------------
-function AddCommentTip({
+export function AddCommentTip({
   onConfirm,
   onCancel,
+  hideIssueCheckbox = false,
 }: {
   onConfirm: (text: string, createIssue: boolean) => void
   onCancel: () => void
+  // Hide the "Create GitHub issue" checkbox (e.g. for release review, where
+  // issue mirroring is handled server-side and isn't a reviewer choice).
+  hideIssueCheckbox?: boolean
 }) {
   const [text, setText] = useState("")
   const [createIssue, setCreateIssue] = useState(true)
@@ -130,14 +125,16 @@ function AddCommentTip({
         }}
         mb={2}
       />
-      <Checkbox
-        size="sm"
-        mb={2}
-        isChecked={createIssue}
-        onChange={(e) => setCreateIssue(e.target.checked)}
-      >
-        Create GitHub issue
-      </Checkbox>
+      {!hideIssueCheckbox && (
+        <Checkbox
+          size="sm"
+          mb={2}
+          isChecked={createIssue}
+          onChange={(e) => setCreateIssue(e.target.checked)}
+        >
+          Create GitHub issue
+        </Checkbox>
+      )}
       <Flex gap={2}>
         <Button
           size="xs"
@@ -158,7 +155,7 @@ function AddCommentTip({
 // ---------------------------------------------------------------------------
 // Popup shown when hovering / clicking an existing highlight
 // ---------------------------------------------------------------------------
-function HighlightPopup({
+export function HighlightPopup({
   highlight,
   canResolve,
   isResolved,
@@ -242,405 +239,6 @@ function HighlightPopup({
 }
 
 // ---------------------------------------------------------------------------
-// Comment list panel
-// ---------------------------------------------------------------------------
-export function CommentList({
-  comments,
-  highlights,
-  scrollToHighlight,
-  showResolved,
-  onShowResolvedChange,
-  currentUserId,
-  onResolve,
-  resolvingId,
-  ownerName,
-  projectName,
-  publicationPath,
-  gitRef,
-  isLoading,
-}: {
-  comments: ProjectComment[]
-  highlights: AnnotationHighlight[]
-  scrollToHighlight: (h: AnnotationHighlight) => void
-  showResolved: boolean
-  onShowResolvedChange: (showResolved: boolean) => void
-  currentUserId: string | undefined
-  onResolve: (id: string, resolved: boolean) => void
-  resolvingId?: string
-  ownerName: string
-  projectName: string
-  publicationPath?: string
-  gitRef?: string | null
-  isLoading?: boolean
-}) {
-  const bg = useColorModeValue("ui.secondary", "ui.darkSlate")
-  const borderColor = useColorModeValue("gray.200", "gray.600")
-  const [replyingToId, setReplyingToId] = useState<string | null>(null)
-  const [replyDraft, setReplyDraft] = useState("")
-  const [addingComment, setAddingComment] = useState(false)
-  const [newCommentDraft, setNewCommentDraft] = useState("")
-  const [newCommentCreateIssue, setNewCommentCreateIssue] = useState(true)
-  const queryClient = useQueryClient()
-
-  const addCommentMutation = useMutation({
-    mutationFn: ({
-      body,
-      createIssue,
-    }: { body: string; createIssue: boolean }) =>
-      ProjectsService.postProjectComment({
-        ownerName,
-        projectName,
-        requestBody: {
-          artifact_path: publicationPath ?? "",
-          artifact_type: "publication",
-          comment: body,
-          create_github_issue: createIssue,
-          git_ref: gitRef ?? null,
-        },
-      }),
-    onSuccess: () => {
-      setAddingComment(false)
-      setNewCommentDraft("")
-      setNewCommentCreateIssue(true)
-      queryClient.invalidateQueries({
-        queryKey: [
-          "projects",
-          ownerName,
-          projectName,
-          "comments",
-          "publication",
-          publicationPath,
-        ],
-      })
-    },
-  })
-
-  const replyMutation = useMutation({
-    mutationFn: ({ commentId, body }: { commentId: string; body: string }) =>
-      ProjectsService.postProjectCommentReply({
-        ownerName,
-        projectName,
-        commentId,
-        requestBody: { body },
-      }),
-    onSuccess: () => {
-      setReplyingToId(null)
-      setReplyDraft("")
-      queryClient.invalidateQueries({
-        queryKey: [
-          "projects",
-          ownerName,
-          projectName,
-          "comments",
-          "publication",
-          publicationPath,
-        ],
-      })
-    },
-  })
-
-  // Only show top-level comments (no parent) at the top level
-  const topLevel = comments.filter((c) => !(c as any).parent_id)
-  const repliesFor = (parentId: string) =>
-    comments.filter((c) => (c as any).parent_id === parentId)
-
-  const filtered = showResolved ? topLevel : topLevel.filter((c) => !c.resolved)
-
-  const withHighlight = filtered.filter((c) => c.highlight)
-  const withoutHighlight = filtered.filter((c) => !c.highlight)
-
-  // Renders a single comment card (no reply UI — that lives at the thread level).
-  // Uses avatar-outside-bubble layout: avatar floated left, content in a bordered box.
-  const renderCommentCard = (c: ProjectComment, isReply = false) => {
-    const hl = highlights.find((h) => h.dbId === c.id)
-    const isResolved = !!c.resolved
-    return (
-      <Flex key={c.id} gap={2}>
-        <Avatar
-          name={c.user_full_name ?? c.user_github_username ?? undefined}
-          size="xs"
-          mt={0.5}
-          flexShrink={0}
-        />
-        <Box
-          flex={1}
-          borderWidth={1}
-          borderColor={isResolved ? "green.200" : borderColor}
-          borderRadius="md"
-          p={isReply ? 2 : 3}
-          opacity={isResolved ? 0.7 : 1}
-          cursor={hl ? "pointer" : "default"}
-          _hover={hl ? { borderColor: "yellow.400" } : undefined}
-          onClick={() => hl && scrollToHighlight(hl)}
-        >
-          <Flex align="center" gap={1} mb={1} wrap="wrap">
-            <Text fontSize="xs" fontWeight="bold" mr={1}>
-              {c.user_full_name ?? c.user_github_username}
-            </Text>
-            <Text fontSize="xs" color="gray.500" mr="auto">
-              {c.created ? new Date(c.created).toLocaleDateString() : ""}
-            </Text>
-            {c.external_url && (
-              <Link
-                href={c.external_url}
-                isExternal
-                color="gray.500"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <Flex align="center" gap={0.5}>
-                  <Icon as={FaGithub} boxSize={3} />
-                  <ExternalLinkIcon boxSize={2.5} />
-                </Flex>
-              </Link>
-            )}
-            {!!currentUserId &&
-              !isReply &&
-              (resolvingId === c.id ? (
-                <Spinner size="xs" color="ui.main" />
-              ) : (
-                <IconButton
-                  aria-label={isResolved ? "Unresolve" : "Resolve"}
-                  icon={isResolved ? <FaUndo /> : <FaCheck />}
-                  size="xs"
-                  variant="ghost"
-                  colorScheme={isResolved ? "gray" : "green"}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    if (c.id) onResolve(c.id, !isResolved)
-                  }}
-                />
-              ))}
-          </Flex>
-          {c.highlight &&
-            (c.highlight as { content?: { text?: string } }).content?.text && (
-              <Box
-                mb={1}
-                pl={2}
-                borderLeftWidth={2}
-                borderColor="yellow.400"
-                fontSize="xs"
-                color="gray.500"
-                fontStyle="italic"
-                noOfLines={2}
-              >
-                {
-                  (c.highlight as unknown as { content: { text: string } })
-                    .content.text
-                }
-              </Box>
-            )}
-          <Text fontSize="sm" whiteSpace="pre-wrap">
-            {c.comment}
-          </Text>
-        </Box>
-      </Flex>
-    )
-  }
-
-  // Renders a top-level comment together with its flat reply thread.
-  // Replies are one level deep only — the reply input always targets the
-  // top-level comment, matching Google Docs threading style.
-  const renderComment = (c: ProjectComment) => {
-    const replies = c.id ? repliesFor(c.id) : []
-    const threadId = c.id ?? null
-    return (
-      <Box key={c.id}>
-        {renderCommentCard(c, false)}
-        {replies.length > 0 && (
-          <VStack align="stretch" spacing={1} mt={1} ml={4}>
-            {replies.map((r) => renderCommentCard(r, true))}
-          </VStack>
-        )}
-        {!!currentUserId && (
-          <Box mt={1} ml={4}>
-            {replyingToId !== threadId ? (
-              <Button
-                size="xs"
-                variant="ghost"
-                leftIcon={<Icon as={FaReply} />}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  setReplyingToId(threadId)
-                  setReplyDraft("")
-                }}
-              >
-                Reply
-              </Button>
-            ) : (
-              <Box onClick={(e) => e.stopPropagation()}>
-                <Textarea
-                  size="xs"
-                  placeholder="Add a reply…"
-                  value={replyDraft}
-                  autoFocus
-                  onChange={(e) => setReplyDraft(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (
-                      e.key === "Enter" &&
-                      (e.metaKey || e.ctrlKey) &&
-                      replyDraft.trim() &&
-                      threadId
-                    ) {
-                      e.preventDefault()
-                      replyMutation.mutate({
-                        commentId: threadId,
-                        body: replyDraft.trim(),
-                      })
-                    }
-                  }}
-                  rows={2}
-                  mb={1}
-                />
-                <Flex align="center" gap={3} mb={2}>
-                  <Button
-                    size="xs"
-                    variant="primary"
-                    isDisabled={!replyDraft.trim()}
-                    isLoading={
-                      replyMutation.isPending &&
-                      replyMutation.variables?.commentId === threadId
-                    }
-                    onClick={() =>
-                      threadId &&
-                      replyMutation.mutate({
-                        commentId: threadId,
-                        body: replyDraft.trim(),
-                      })
-                    }
-                  >
-                    Post
-                  </Button>
-                  <Button
-                    size="xs"
-                    variant="ghost"
-                    onClick={() => setReplyingToId(null)}
-                  >
-                    Cancel
-                  </Button>
-                </Flex>
-              </Box>
-            )}
-          </Box>
-        )}
-      </Box>
-    )
-  }
-
-  return (
-    <Box bg={bg} borderRadius="lg" p={3}>
-      <Flex align="center" justify="space-between" mb={3}>
-        <Heading size="sm">
-          Comments ({comments.filter((c) => !c.resolved).length} open)
-        </Heading>
-        <Flex align="center" gap={1}>
-          <Text fontSize="xs" color="gray.500">
-            Resolved
-          </Text>
-          <Switch
-            size="sm"
-            isChecked={showResolved}
-            onChange={(e) => onShowResolvedChange(e.target.checked)}
-          />
-        </Flex>
-      </Flex>
-      {isLoading ? (
-        <Flex justify="center" py={2}>
-          <Spinner size="sm" color="ui.main" />
-        </Flex>
-      ) : filtered.length === 0 ? (
-        <Text fontSize="sm" color="gray.500">
-          {comments.length === 0
-            ? "Select text in the PDF or use the button below to add a comment."
-            : "No open comments."}
-        </Text>
-      ) : (
-        <VStack align="stretch" spacing={2}>
-          {withHighlight.map((c) => renderComment(c))}
-          {withoutHighlight.length > 0 && withHighlight.length > 0 && (
-            <Text fontSize="xs" color="gray.500" pt={1}>
-              General comments
-            </Text>
-          )}
-          {withoutHighlight.map((c) => renderComment(c))}
-        </VStack>
-      )}
-      {!!currentUserId && publicationPath && (
-        <Box mt={3}>
-          {!addingComment ? (
-            <Button
-              size="xs"
-              variant="ghost"
-              w="100%"
-              onClick={() => setAddingComment(true)}
-            >
-              + Add comment
-            </Button>
-          ) : (
-            <Box>
-              <Textarea
-                size="xs"
-                placeholder="Add a comment…"
-                value={newCommentDraft}
-                onChange={(e) => setNewCommentDraft(e.target.value)}
-                onKeyDown={(e) => {
-                  if (
-                    e.key === "Enter" &&
-                    (e.metaKey || e.ctrlKey) &&
-                    newCommentDraft.trim()
-                  ) {
-                    e.preventDefault()
-                    addCommentMutation.mutate({
-                      body: newCommentDraft.trim(),
-                      createIssue: newCommentCreateIssue,
-                    })
-                  }
-                }}
-                rows={3}
-                mb={2}
-                autoFocus
-              />
-              <Flex align="center" gap={3} mb={2}>
-                <Checkbox
-                  size="sm"
-                  isChecked={newCommentCreateIssue}
-                  onChange={(e) => setNewCommentCreateIssue(e.target.checked)}
-                >
-                  Create GitHub issue
-                </Checkbox>
-                <Button
-                  size="xs"
-                  variant="primary"
-                  isDisabled={!newCommentDraft.trim()}
-                  isLoading={addCommentMutation.isPending}
-                  onClick={() =>
-                    addCommentMutation.mutate({
-                      body: newCommentDraft.trim(),
-                      createIssue: newCommentCreateIssue,
-                    })
-                  }
-                >
-                  Post
-                </Button>
-                <Button
-                  size="xs"
-                  variant="ghost"
-                  onClick={() => {
-                    setAddingComment(false)
-                    setNewCommentDraft("")
-                  }}
-                >
-                  Cancel
-                </Button>
-              </Flex>
-            </Box>
-          )}
-        </Box>
-      )}
-    </Box>
-  )
-}
-
-// ---------------------------------------------------------------------------
 // Main component
 // ---------------------------------------------------------------------------
 interface PdfAnnotatorProps {
@@ -648,8 +246,12 @@ interface PdfAnnotatorProps {
   ownerName: string
   projectName: string
   publicationPath: string
+  artifactType?: "publication" | "presentation"
   gitRef?: string | null
   showResolved?: boolean
+  // When true, render page-by-page navigation (prev/next arrows + arrow keys)
+  // like a slide carousel. Used for presentation PDFs; off for publications.
+  pagedNav?: boolean
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   externalScrollRef?: MutableRefObject<(h: any) => void>
 }
@@ -659,99 +261,14 @@ export default function PdfAnnotator({
   ownerName,
   projectName,
   publicationPath,
+  artifactType = "publication",
   gitRef,
   showResolved = false,
+  pagedNav = false,
   externalScrollRef,
 }: PdfAnnotatorProps) {
   const { user } = useAuth()
   const queryClient = useQueryClient()
-  const containerRef = useRef<HTMLDivElement>(null)
-  // Gate rendering until the next animation frame. In React StrictMode dev,
-  // the throwaway mount is torn down before RAF, so PdfLoader/PdfHighlighter
-  // initialize only once on the real mount and avoid duplicate page nodes.
-  const [pdfReady, setPdfReady] = useState(false)
-  const [highlightsKey, setHighlightsKey] = useState(0)
-  useLayoutEffect(() => {
-    let rafId: number | null = requestAnimationFrame(() => {
-      setPdfReady(true)
-    })
-    return () => {
-      if (rafId !== null) {
-        cancelAnimationFrame(rafId)
-      }
-      setPdfReady(false)
-    }
-  }, [url])
-
-  // Remove duplicate rendered PDF pages and re-trigger highlight rendering
-  // once pages are actually ready.
-  useEffect(() => {
-    if (!pdfReady || !containerRef.current) return
-    const root = containerRef.current
-    let textLayerBumpDone = false
-    // Track the first page's rendered height. PdfHighlighter's internal
-    // ResizeObserver fires handleScaleValue (debounced 500 ms) which corrects
-    // the PDF.js viewport scale, causing pages to re-render at a different
-    // height. We detect that change and re-bump highlightsKey so
-    // renderHighlightLayers() uses the corrected viewport — otherwise
-    // scaledToViewport produces wrong pixel positions until the first click.
-    let lastPageHeight = 0
-
-    const dedupeAndSync = () => {
-      const pages = Array.from(
-        root.querySelectorAll<HTMLElement>(
-          ".pdfViewer .page[data-page-number]",
-        ),
-      )
-      if (pages.length === 0) return
-
-      // Keep the LAST occurrence of each page number. PDF.js renders into the
-      // most-recently created page divs (from the latest setDocument call), so
-      // removing the earlier duplicates is correct.
-      const seen = new Map<string, HTMLElement>()
-      let removed = false
-      for (const page of pages) {
-        const pageNumber = page.dataset.pageNumber
-        if (!pageNumber) continue
-        if (seen.has(pageNumber)) {
-          seen.get(pageNumber)!.remove()
-          removed = true
-        }
-        seen.set(pageNumber, page)
-      }
-      // Re-bump after deduplication so renderHighlightLayers() uses the
-      // surviving page set.
-      if (removed) setHighlightsKey((k) => k + 1)
-
-      // Only proceed with highlight sync once text layers exist — that is when
-      // renderHighlightLayers() has real DOM targets to work with.
-      if (!root.querySelector(".pdfViewer .page .textLayer")) return
-
-      const firstPage = root.querySelector<HTMLElement>(
-        ".pdfViewer .page[data-page-number]",
-      )
-      const currentHeight = firstPage?.clientHeight ?? 0
-
-      if (!textLayerBumpDone) {
-        // Initial bump: text layers just appeared.
-        textLayerBumpDone = true
-        lastPageHeight = currentHeight
-        setHighlightsKey((k) => k + 1)
-      } else if (currentHeight > 0 && currentHeight !== lastPageHeight) {
-        // Page height changed — PDF.js re-rendered at a corrected scale.
-        // Re-bump so renderHighlightLayers() uses the updated viewport.
-        lastPageHeight = currentHeight
-        setHighlightsKey((k) => k + 1)
-      }
-    }
-
-    dedupeAndSync()
-    const observer = new MutationObserver(dedupeAndSync)
-    observer.observe(root, { childList: true, subtree: true })
-    return () => observer.disconnect()
-  }, [pdfReady, url])
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const scrollRef = useRef<(h: any) => void>(() => {})
 
   const commentsQuery = useQuery({
     queryKey: [
@@ -759,14 +276,14 @@ export default function PdfAnnotator({
       ownerName,
       projectName,
       "comments",
-      "publication",
+      artifactType,
       publicationPath,
     ],
     queryFn: () =>
       ProjectsService.getProjectComments({
         ownerName,
         projectName,
-        artifactType: "publication",
+        artifactType,
         artifactPath: publicationPath,
       }),
   })
@@ -782,7 +299,7 @@ export default function PdfAnnotator({
         projectName,
         requestBody: {
           artifact_path: publicationPath,
-          artifact_type: "publication",
+          artifact_type: artifactType,
           comment: data.comment,
           highlight: data.highlight,
           create_github_issue: data.create_github_issue,
@@ -796,7 +313,7 @@ export default function PdfAnnotator({
           ownerName,
           projectName,
           "comments",
-          "publication",
+          artifactType,
           publicationPath,
         ],
       })
@@ -821,7 +338,7 @@ export default function PdfAnnotator({
           ownerName,
           projectName,
           "comments",
-          "publication",
+          artifactType,
           publicationPath,
         ],
       })
@@ -836,11 +353,8 @@ export default function PdfAnnotator({
       visibleComments
         .map(commentToHighlight)
         .filter((h): h is AnnotationHighlight => h !== null),
-    // highlightsKey increments after deduplication removes stale page nodes,
-    // giving PdfHighlighter a new array reference so componentDidUpdate fires
-    // and calls renderHighlightLayers() against the surviving pages.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [visibleComments, highlightsKey],
+    [visibleComments],
   )
 
   const handleAddHighlight = useCallback(
@@ -857,115 +371,96 @@ export default function PdfAnnotator({
     [postMutation],
   )
 
-  return (
-    <Box
-      ref={containerRef}
-      position="relative"
-      height="100%"
-      overflow="hidden"
-      sx={{
-        ".Highlight__part": {
-          opacity: 0.45,
-          background: "rgba(246, 224, 94, 0.85)",
-        },
-      }}
-    >
-      {pdfReady && (
-        <PdfLoader url={url} beforeLoad={<Spinner color="ui.main" />}>
-          {(pdfDocument) => (
-            <PdfHighlighter
-              key={url}
-              pdfDocument={pdfDocument}
-              enableAreaSelection={(e) => e.altKey}
-              onScrollChange={() => {}}
-              scrollRef={(fn) => {
-                scrollRef.current = fn
-                if (externalScrollRef) externalScrollRef.current = fn
+  const onSelectionFinished: OnSelectionFinished = useCallback(
+    (position, content, hideTip, transformSelection) => {
+      // transformSelection sets ghostHighlight on PdfHighlighter so the yellow
+      // selection remains visible while the user types in the comment box
+      // (typing clears document.getSelection(), which otherwise makes
+      // isCollapsed=true and drops the visual selection).
+      transformSelection()
+      return user ? (
+        <AddCommentTip
+          onConfirm={(text, createIssue) => {
+            handleAddHighlight(
+              { position, content, comment: { text, emoji: "" } },
+              text,
+              createIssue,
+            )
+            hideTip()
+          }}
+          onCancel={hideTip}
+        />
+      ) : null
+    },
+    [user, handleAddHighlight],
+  )
+
+  const highlightTransform: HighlightTransform = useCallback(
+    (
+      highlight,
+      _index,
+      setTip,
+      hideTip,
+      _viewportToScaled,
+      _screenshot,
+      isScrolledTo,
+    ) => {
+      const annotHL = highlight as unknown as AnnotationHighlight
+      const isArea = Boolean(highlight.content?.image)
+      const component = isArea ? (
+        <AreaHighlight
+          isScrolledTo={isScrolledTo}
+          highlight={highlight}
+          onChange={() => {}}
+        />
+      ) : (
+        <Highlight
+          isScrolledTo={isScrolledTo}
+          position={highlight.position}
+          comment={highlight.comment}
+        />
+      )
+      return (
+        <Popup
+          popupContent={
+            <HighlightPopup
+              highlight={annotHL}
+              canResolve={!!user}
+              isResolved={annotHL.resolved}
+              isResolving={
+                resolveMutation.isPending &&
+                resolveMutation.variables?.commentId === annotHL.dbId
+              }
+              onResolve={(resolved) => {
+                resolveMutation.mutate({
+                  commentId: annotHL.dbId,
+                  resolved,
+                })
+                hideTip()
               }}
-              onSelectionFinished={(
-                position,
-                content,
-                hideTip,
-                transformSelection,
-              ) => {
-                // transformSelection sets ghostHighlight on PdfHighlighter so
-                // the yellow selection remains visible while the user types in
-                // the comment box (typing clears document.getSelection(), which
-                // otherwise makes isCollapsed=true and drops the visual selection).
-                transformSelection()
-                return user ? (
-                  <AddCommentTip
-                    onConfirm={(text, createIssue) => {
-                      handleAddHighlight(
-                        { position, content, comment: { text, emoji: "" } },
-                        text,
-                        createIssue,
-                      )
-                      hideTip()
-                    }}
-                    onCancel={hideTip}
-                  />
-                ) : null
-              }}
-              highlightTransform={(
-                highlight,
-                _index,
-                setTip,
-                hideTip,
-                _viewportToScaled,
-                _screenshot,
-                isScrolledTo,
-              ) => {
-                const annotHL = highlight as unknown as AnnotationHighlight
-                const isArea = Boolean(highlight.content?.image)
-                const component = isArea ? (
-                  <AreaHighlight
-                    isScrolledTo={isScrolledTo}
-                    highlight={highlight}
-                    onChange={() => {}}
-                  />
-                ) : (
-                  <Highlight
-                    isScrolledTo={isScrolledTo}
-                    position={highlight.position}
-                    comment={highlight.comment}
-                  />
-                )
-                return (
-                  <Popup
-                    popupContent={
-                      <HighlightPopup
-                        highlight={annotHL}
-                        canResolve={!!user}
-                        isResolved={annotHL.resolved}
-                        isResolving={
-                          resolveMutation.isPending &&
-                          resolveMutation.variables?.commentId === annotHL.dbId
-                        }
-                        onResolve={(resolved) => {
-                          resolveMutation.mutate({
-                            commentId: annotHL.dbId,
-                            resolved,
-                          })
-                          hideTip()
-                        }}
-                      />
-                    }
-                    onMouseOver={(popupContent) =>
-                      setTip(highlight, () => popupContent)
-                    }
-                    onMouseOut={hideTip}
-                    key={highlight.id}
-                  >
-                    {component}
-                  </Popup>
-                )
-              }}
-              highlights={highlights}
             />
-          )}
-        </PdfLoader>
-      )}
-    </Box>
+          }
+          onMouseOver={(popupContent) => setTip(highlight, () => popupContent)}
+          onMouseOut={hideTip}
+          key={highlight.id}
+        >
+          {component}
+        </Popup>
+      )
+    },
+    [user, resolveMutation],
+  )
+
+  return (
+    <PdfDocumentViewer
+      url={url}
+      highlights={highlights}
+      highlightTransform={highlightTransform}
+      onSelectionFinished={onSelectionFinished}
+      enableAreaSelection={(e) => e.altKey}
+      externalScrollRef={externalScrollRef}
+      pagedNav={pagedNav}
+      source={artifactType}
+    />
   )
 }

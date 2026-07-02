@@ -1,6 +1,7 @@
-import { Image, Alert, AlertIcon } from "@chakra-ui/react"
+import { Alert, AlertIcon, Image } from "@chakra-ui/react"
 
-import { type Publication } from "../../client"
+import type { Publication } from "../../client"
+import PdfDocumentViewer from "../Common/PdfDocumentViewer"
 
 interface PubViewProps {
   publication: Publication
@@ -13,15 +14,14 @@ function PublicationView({ publication }: PubViewProps) {
     (publication.content || publication.url)
   ) {
     contentView = (
-      <embed
-        height="100%"
-        width="100%"
-        type="application/pdf"
-        src={
+      <PdfDocumentViewer
+        url={
           publication.content
             ? `data:application/pdf;base64,${publication.content}`
             : String(publication.url)
         }
+        source="showcase"
+        defaultScale="page-width"
       />
     )
   } else if (
@@ -29,10 +29,14 @@ function PublicationView({ publication }: PubViewProps) {
     (publication.content || publication.url)
   ) {
     contentView = (
-      <embed
-        height="100%"
-        width="100%"
-        type="text/html"
+      // Sandboxed so an embedded deck (e.g. reveal.js) can't read or navigate
+      // the host page. allow-same-origin and allow-top-navigation are both
+      // omitted so the content runs in an opaque origin and can't reach the
+      // parent (it also can't pollute the surrounding modal's history).
+      <iframe
+        title={publication.title || publication.path}
+        style={{ height: "100%", width: "100%", border: "none" }}
+        sandbox="allow-scripts allow-popups"
         src={
           publication.url
             ? String(publication.url)

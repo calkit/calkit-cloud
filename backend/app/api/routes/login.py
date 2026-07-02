@@ -7,28 +7,41 @@ from typing import Annotated, Any
 
 import jwt
 import requests
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException, Response
 from fastapi.responses import HTMLResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from jwt.algorithms import RSAAlgorithm
 from jwt.exceptions import InvalidTokenError
 from pydantic import BaseModel
+from sqlalchemy import delete
+from sqlmodel import select
 
 from app import mixpanel, security, users
-from app.api.deps import CurrentUser, SessionDep, get_current_active_superuser
+from app.api.deps import (
+    CurrentUser,
+    SessionDep,
+    get_current_active_superuser,
+)
 from app.config import settings
+from app.core import utcnow
 from app.github import token_resp_text_to_dict
 from app.messaging import generate_reset_password_email, send_email
 from app.models import (
+    DeviceAuth,
     Message,
     NewPassword,
+    RefreshToken,
+    RefreshTokenRequest,
     Token,
+    User,
     UserCreate,
     UserPublic,
 )
 from app.security import (
     generate_password_reset_token,
+    generate_refresh_token,
     get_password_hash,
+    hash_refresh_token,
     verify_password_reset_token,
 )
 
@@ -36,6 +49,29 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+# Access token TTL from settings; refresh token lasts 90 days
+ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
+REFRESH_TOKEN_EXPIRE_DAYS = 90
+
+
+def _make_tokens(
+    user_id, description: str | None = None
+) -> tuple[str, str, RefreshToken]:
+    """Create a paired short-lived access token and long-lived refresh token."""
+    access_token = security.create_access_token(
+        subject=user_id,
+        expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
+    )
+    raw_refresh = generate_refresh_token()
+    token_hash = hash_refresh_token(raw_refresh)
+    refresh_db = RefreshToken(
+        user_id=user_id,
+        token_hash=token_hash,
+        expires=utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS),
+        description=description,
+    )
+    return access_token, raw_refresh, refresh_db
 
 
 @router.post("/login/access-token")
@@ -53,20 +89,67 @@ def login_access_token(
         )
     elif not user.is_active:
         raise HTTPException(status_code=400, detail="Inactive user")
-    access_token_expires = timedelta(
-        minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
+    access_token, raw_refresh, refresh_db = _make_tokens(
+        user.id, description="password login"
     )
+    session.add(refresh_db)
+    session.commit()
     return Token(
-        access_token=security.create_access_token(
-            subject=user.id, expires_delta=access_token_expires
-        )
+        access_token=access_token,
+        expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        refresh_token=raw_refresh,
     )
 
 
 @router.post("/login/test-token")
 def test_token(current_user: CurrentUser) -> UserPublic:
     """Test access token."""
-    return current_user
+    return current_user  # type: ignore
+
+
+@router.post("/login/refresh")
+def refresh_access_token(
+    session: SessionDep,
+    body: RefreshTokenRequest,
+) -> Token:
+    """Exchange a refresh token for a new access token and rotated refresh
+    token.
+
+    The old refresh token is invalidated on use (refresh token rotation).
+    """
+    token_hash = hash_refresh_token(body.refresh_token)
+    refresh_db = session.exec(
+        select(RefreshToken)
+        .where(RefreshToken.token_hash == token_hash)
+        .with_for_update()
+    ).first()
+    if refresh_db is None or not refresh_db.is_active:
+        raise HTTPException(401, "Invalid refresh token")
+    if refresh_db.expired:
+        raise HTTPException(401, "Refresh token has expired")
+
+    user = session.get(User, refresh_db.user_id)
+    if user is None or not user.is_active:
+        # Disable the refresh token if the user is missing/inactive.
+        refresh_db.is_active = False
+        session.add(refresh_db)
+        session.commit()
+        raise HTTPException(401, "User is not active")
+
+    # Rotate: deactivate old token
+    refresh_db.is_active = False
+    session.add(refresh_db)
+    # Issue new pair
+    access_token, raw_refresh, new_refresh_db = _make_tokens(
+        user.id, description=refresh_db.description
+    )
+    session.add(new_refresh_db)
+    session.commit()
+    return Token(
+        access_token=access_token,
+        expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        refresh_token=raw_refresh,
+    )
 
 
 @router.post("/password-recovery/{email}")
@@ -233,13 +316,15 @@ def login_with_github(req: OAuthCodeExchange, session: SessionDep) -> Token:
     users.save_github_token(session=session, user=user, github_resp=out)
     # Lastly, generate an access token for this user
     mixpanel.user_logged_in(user)
+    access_token, raw_refresh, refresh_db = _make_tokens(
+        user.id, description="GitHub login"
+    )
+    session.add(refresh_db)
+    session.commit()
     return Token(
-        access_token=security.create_access_token(
-            subject=user.id,
-            expires_delta=timedelta(
-                minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
-            ),
-        )
+        access_token=access_token,
+        expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        refresh_token=raw_refresh,
     )
 
 
@@ -440,4 +525,145 @@ def login_with_github_token(
             subject=user.id,
             expires_delta=access_token_expires,
         )
+    )
+
+
+# Device authorization flow (RFC 8628-inspired)
+CLI_AUTH_EXPIRES_MINUTES = 15
+CLI_AUTH_POLL_INTERVAL_SECONDS = 5
+
+
+class DeviceAuthRequest(BaseModel):
+    hostname: str | None = None
+
+
+class DeviceAuthResponse(BaseModel):
+    device_code: str
+    verification_uri: str
+    expires_in: int
+    interval: int
+
+
+class DeviceTokenRequest(BaseModel):
+    device_code: str
+
+
+class DeviceTokenPendingResponse(BaseModel):
+    detail: str
+
+
+class DeviceAuthorizeRequest(BaseModel):
+    device_code: str
+
+
+@router.post("/login/device")
+def post_login_device(
+    session: SessionDep,
+    req: DeviceAuthRequest | None = None,
+) -> DeviceAuthResponse:
+    """Initiate a CLI device authorization flow.
+
+    The CLI calls this endpoint, which returns a device_code and a URL for
+    the user to visit in their browser to authorize the CLI. The CLI then
+    polls ``/login/device/token`` with the device_code to receive the access
+    token once the user has authorized it.
+    """
+    if req is None:
+        req = DeviceAuthRequest()
+    device_code = secrets.token_urlsafe(32)
+    expires = utcnow() + timedelta(minutes=CLI_AUTH_EXPIRES_MINUTES)
+    # Clean up expired auth requests with a single bulk delete
+    session.exec(delete(DeviceAuth).where(DeviceAuth.expires < utcnow()))  # type: ignore
+    auth_request = DeviceAuth(
+        device_code=device_code,
+        expires=expires,
+        hostname=req.hostname,
+    )
+    session.add(auth_request)
+    session.commit()
+    verification_uri = (
+        f"{settings.frontend_host}/login/device?device_code={device_code}"
+    )
+    return DeviceAuthResponse(
+        device_code=device_code,
+        verification_uri=verification_uri,
+        expires_in=CLI_AUTH_EXPIRES_MINUTES * 60,
+        interval=CLI_AUTH_POLL_INTERVAL_SECONDS,
+    )
+
+
+@router.post("/login/device/authorize")
+def post_login_device_authorize(
+    session: SessionDep,
+    current_user: CurrentUser,
+    req: DeviceAuthorizeRequest,
+) -> Message:
+    """Authorize a pending CLI device auth request.
+
+    The user must be authenticated. This endpoint is called by the frontend
+    after the user has logged in and clicked "Authorize".
+    """
+    auth_request = session.exec(
+        select(DeviceAuth).where(DeviceAuth.device_code == req.device_code)
+    ).first()
+    if auth_request is None:
+        raise HTTPException(404, "Device code not found")
+    if auth_request.expired:
+        raise HTTPException(400, "Device code has expired")
+    if auth_request.user_id is not None:
+        raise HTTPException(400, "Device code already authorized")
+    auth_request.user_id = current_user.id
+    session.add(auth_request)
+    session.commit()
+    logger.info(
+        f"User {current_user.email} authorized CLI device code "
+        f"(hostname: {auth_request.hostname})"
+    )
+    return Message(message="CLI access authorized")
+
+
+@router.post(
+    "/login/device/token",
+    responses={202: {"model": DeviceTokenPendingResponse}},
+)
+def post_login_device_token(
+    session: SessionDep,
+    req: DeviceTokenRequest,
+    response: Response,
+) -> Token | DeviceTokenPendingResponse:
+    """Poll for a CLI access token after device authorization.
+
+    The CLI calls this endpoint repeatedly until it receives a token or
+    the request expires. Returns 202 while authorization is still pending.
+    """
+    auth_request = session.exec(
+        select(DeviceAuth)
+        .where(DeviceAuth.device_code == req.device_code)
+        .with_for_update()
+    ).first()
+    if auth_request is None:
+        raise HTTPException(404, "Device code not found")
+    if auth_request.expired:
+        raise HTTPException(400, "Device code has expired")
+    if auth_request.user_id is None:
+        response.status_code = 202
+        return DeviceTokenPendingResponse(
+            detail="Authorization pending",
+        )
+    # Authorization confirmed — issue short-lived access + refresh token pair
+    user_id = auth_request.user_id
+    hostname = auth_request.hostname
+    description = "CLI login"
+    if hostname:
+        description = f"CLI login from {hostname}"
+    access_token, raw_refresh, refresh_db = _make_tokens(
+        user_id, description=description
+    )
+    session.add(refresh_db)
+    session.delete(auth_request)
+    session.commit()
+    return Token(
+        access_token=access_token,
+        expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        refresh_token=raw_refresh,
     )
