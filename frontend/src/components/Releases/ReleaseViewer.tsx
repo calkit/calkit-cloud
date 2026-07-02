@@ -28,7 +28,9 @@ import {
 
 import {
   type ContentsItem,
+  type ProjectComment,
   ProjectsService,
+  type ReleaseCommentPublic,
   type ReleaseListItem,
   type ReleaseView,
   ReleasesService,
@@ -223,9 +225,15 @@ function CommentsPanel({
           parent_id: vars.parentId ?? null,
         },
       }),
-    onSuccess: () => {
+    // Write the server's comment straight into the cache instead of
+    // invalidating, so the posted comment appears the moment the request
+    // returns (and the composer closes) with no refetch gap in between.
+    onSuccess: (data) => {
       showToast("Success!", "Your comment was posted.", "success")
-      queryClient.invalidateQueries({ queryKey: commentsKey })
+      queryClient.setQueryData<ReleaseCommentPublic[]>(commentsKey, (old) => [
+        ...(old ?? []),
+        data,
+      ])
     },
     onError: (err: ApiError) => handleError(err, showToast),
   })
@@ -238,13 +246,23 @@ function CommentsPanel({
         commentId: vars.id,
         requestBody: { resolved: vars.resolved },
       }),
-    onSuccess: (_data, vars) => {
+    onSuccess: (data, vars) => {
       showToast(
         "Success!",
         vars.resolved ? "Thread resolved." : "Thread reopened.",
         "success",
       )
-      queryClient.invalidateQueries({ queryKey: commentsKey })
+      // Reflect the returned state without a refetch; the backend cascades
+      // resolve to replies, so mirror that onto this thread's replies too.
+      queryClient.setQueryData<ReleaseCommentPublic[]>(commentsKey, (old) =>
+        (old ?? []).map((c) =>
+          c.id === data.id
+            ? data
+            : c.parent_id === vars.id
+              ? { ...c, resolved: data.resolved }
+              : c,
+        ),
+      )
     },
     onError: (err: ApiError) => handleError(err, showToast),
   })
@@ -358,9 +376,15 @@ function MemberCommentsPanel({
               create_github_issue: vars.createIssue,
             },
           }),
-    onSuccess: () => {
+    // Write the server's comment straight into the cache instead of
+    // invalidating, so it appears the moment the request returns (and the
+    // composer closes) with no refetch gap in between.
+    onSuccess: (data) => {
       showToast("Success!", "Your comment was posted.", "success")
-      queryClient.invalidateQueries({ queryKey: commentsKey })
+      queryClient.setQueryData<ProjectComment[]>(commentsKey, (old) => [
+        ...(old ?? []),
+        data,
+      ])
     },
     onError: (err: ApiError) => handleError(err, showToast),
   })
@@ -372,8 +396,18 @@ function MemberCommentsPanel({
         commentId: vars.id,
         requestBody: { resolved: vars.resolved },
       }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: commentsKey })
+    onSuccess: (data, vars) => {
+      // Reflect the returned state without a refetch; the backend cascades
+      // resolve to replies, so mirror that onto this thread's replies too.
+      queryClient.setQueryData<ProjectComment[]>(commentsKey, (old) =>
+        (old ?? []).map((c) =>
+          c.id === data.id
+            ? data
+            : c.parent_id === vars.id
+              ? { ...c, resolved: data.resolved }
+              : c,
+        ),
+      )
     },
     onError: (err: ApiError) => handleError(err, showToast),
   })

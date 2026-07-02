@@ -102,7 +102,15 @@ export default function ReleasePdfAnnotator({
         token,
         requestBody: { comment: data.comment, highlight: data.highlight },
       }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: commentsKey }),
+    // Write the server's comment straight into the cache instead of
+    // invalidating, so the highlight renders the moment the request returns
+    // with no refetch gap in between.
+    onSuccess: (data) => {
+      queryClient.setQueryData<ReleaseCommentPublic[]>(commentsKey, (old) => [
+        ...(old ?? []),
+        data,
+      ])
+    },
   })
   const comments = commentsQuery.data ?? []
   const highlights: AnnotationHighlight[] = useMemo(
