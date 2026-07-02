@@ -1083,7 +1083,6 @@ export type ReleasePost = {
   description?: string | null
   git_ref?: string | null
   public?: boolean
-  comments_enabled?: boolean
   acknowledge_non_reproducible?: boolean
 }
 
@@ -1098,7 +1097,6 @@ export type ReleasePublic = {
   git_ref?: string | null
   git_rev?: string | null
   public?: boolean
-  comments_enabled?: boolean
   url?: string | null
   doi?: string | null
   id: string
@@ -1213,7 +1211,6 @@ export type ReleaseView = {
   git_ref: string | null
   git_rev_abbrev: string | null
   public: boolean
-  comments_enabled: boolean
   comment_count: number
   created: string
   owner_account_name: string

@@ -980,9 +980,10 @@ function CloudReleaseView({
     (release.path ?? "").toLowerCase().endsWith(".pdf") &&
     release.kind !== "presentation"
   const pdfSrc = item && isPdfArtifact ? dataUri(item, "application/pdf") : null
+  // Every release accepts comments; whether this viewer may post is decided by
+  // their permission (share-link view/comment scope, or membership).
   const canComment =
-    release.comments_enabled &&
-    (release.permission === "comment" || release.permission === "manage")
+    release.permission === "comment" || release.permission === "manage"
 
   return (
     <Flex direction="column" h="100%">
@@ -1068,17 +1069,15 @@ function CloudReleaseView({
             </Flex>
           )}
         </Box>
-        {release.comments_enabled && (
-          <Box
-            w="340px"
-            flexShrink={0}
-            borderLeftWidth="1px"
-            p={4}
-            overflowY="auto"
-          >
-            <CommentsPanel loc={loc} release={release} />
-          </Box>
-        )}
+        <Box
+          w="340px"
+          flexShrink={0}
+          borderLeftWidth="1px"
+          p={4}
+          overflowY="auto"
+        >
+          <CommentsPanel loc={loc} release={release} />
+        </Box>
       </Flex>
     </Flex>
   )

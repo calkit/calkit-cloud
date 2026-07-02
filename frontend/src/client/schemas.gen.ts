@@ -5216,11 +5216,6 @@ export const ReleasePostSchema = {
       title: "Public",
       default: false,
     },
-    comments_enabled: {
-      type: "boolean",
-      title: "Comments Enabled",
-      default: true,
-    },
     acknowledge_non_reproducible: {
       type: "boolean",
       title: "Acknowledge Non Reproducible",
@@ -5298,11 +5293,6 @@ export const ReleasePublicSchema = {
       type: "boolean",
       title: "Public",
       default: false,
-    },
-    comments_enabled: {
-      type: "boolean",
-      title: "Comments Enabled",
-      default: true,
     },
     url: {
       anyOf: [
@@ -5821,10 +5811,6 @@ export const ReleaseViewSchema = {
       type: "boolean",
       title: "Public",
     },
-    comments_enabled: {
-      type: "boolean",
-      title: "Comments Enabled",
-    },
     comment_count: {
       type: "integer",
       title: "Comment Count",
@@ -5876,7 +5862,6 @@ export const ReleaseViewSchema = {
     "git_ref",
     "git_rev_abbrev",
     "public",
-    "comments_enabled",
     "comment_count",
     "created",
     "owner_account_name",

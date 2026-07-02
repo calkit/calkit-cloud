@@ -25,7 +25,6 @@ import {
   ModalFooter,
   ModalHeader,
   ModalOverlay,
-  Switch,
   Text,
   Textarea,
   useClipboard,
@@ -70,8 +69,6 @@ interface NewReleaseForm {
   name: string
   path: string
   description: string
-  // "create" mode
-  comments_enabled: boolean
   // Acknowledgement required when the producing stage is stale.
   acknowledge: boolean
   // "import" mode
@@ -124,7 +121,6 @@ const NewRelease = ({
       name: "",
       path: defaultPath ?? "",
       description: "",
-      comments_enabled: true,
       acknowledge: false,
       lookupUrl: "",
       publisher: "",
@@ -253,7 +249,6 @@ const NewRelease = ({
           // Pinned to the latest commit; private link by default (share it,
           // or make it public, afterward).
           public: false,
-          comments_enabled: data.comments_enabled,
           acknowledge_non_reproducible: data.acknowledge,
         },
       }),
@@ -574,18 +569,6 @@ const NewRelease = ({
                     {...noAutofill}
                   />
                 </FormControl>
-
-                {mode === "create" && (
-                  <FormControl mt={4} display="flex" alignItems="center">
-                    <Switch
-                      id="comments_enabled"
-                      {...register("comments_enabled")}
-                    />
-                    <FormLabel htmlFor="comments_enabled" mb={0} ml={2}>
-                      Allow comments
-                    </FormLabel>
-                  </FormControl>
-                )}
               </>
             )}
 

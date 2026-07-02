@@ -297,7 +297,6 @@ def _build_release_view(
         git_ref=release.git_ref,
         git_rev_abbrev=release.git_rev_abbrev,
         public=release.public,
-        comments_enabled=release.comments_enabled,
         comment_count=release.comment_count,
         created=release.created,
         owner_account_name=project.owner_account_name,
@@ -623,7 +622,6 @@ def post_project_release(
         git_ref=git_ref,
         git_rev=git_rev,
         public=release_in.public,
-        comments_enabled=release_in.comments_enabled,
     )
     session.add(release)
     session.flush()
@@ -1812,8 +1810,8 @@ def post_release_comment(
     release, permission, share_token = _authorize_release(
         session, owner_name, project_name, release_name, token, current_user
     )
-    if not release.comments_enabled:
-        raise HTTPException(403, "Comments are disabled for this release")
+    # Every release accepts comments; whether this caller may post is governed
+    # by their permission (a share token's view/comment scope, or membership).
     if permission not in ("comment", "manage"):
         raise HTTPException(403, "This link is view-only")
     # Resolve the reply target, flattening to one level: a reply to a reply

@@ -36,10 +36,6 @@ class ReleaseBase(SQLModel):
     # Full commit SHA the content is pinned to.
     git_rev: str | None = Field(default=None, max_length=40)
     public: bool = Field(default=False)
-    # Master switch for the release's comment thread. Who may actually comment
-    # is governed per-share-token (a token's ``permission``) or by project
-    # membership, not by a global anonymous flag.
-    comments_enabled: bool = Field(default=True)
     # Populated for public releases (e.g., Zenodo); unused for private ones.
     url: str | None = Field(default=None, max_length=2048)
     doi: str | None = Field(default=None, max_length=255)
@@ -92,7 +88,6 @@ class ReleasePost(SQLModel):
     # If None, defaults to the project's default branch HEAD.
     git_ref: str | None = None
     public: bool = False
-    comments_enabled: bool = True
     # Set True to release even when the producing pipeline stage is stale, i.e.
     # the user has acknowledged the artifact may not be reproducible.
     acknowledge_non_reproducible: bool = False
@@ -152,7 +147,6 @@ class ReleaseView(SQLModel):
     git_ref: str | None
     git_rev_abbrev: str | None
     public: bool
-    comments_enabled: bool
     comment_count: int
     created: datetime
     owner_account_name: str
