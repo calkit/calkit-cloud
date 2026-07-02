@@ -395,7 +395,11 @@ function ProjectLayout() {
 
   const titleSize = "lg"
   const onClickHelp = () => {
-    mixpanel.track("Clicked project help button")
+    // Record which page's help was opened (home, releases, pipeline, …) so we
+    // can see which concepts users look up.
+    const lastSeg = location.pathname.split("/").filter(Boolean).pop()
+    const helpPage = !lastSeg || lastSeg === projectName ? "home" : lastSeg
+    mixpanel.track("Clicked project help button", { page: helpPage })
     helpDrawer.onOpen()
   }
   const projectStatusModal = useDisclosure()

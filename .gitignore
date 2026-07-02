@@ -7,5 +7,5 @@ node_modules/
 .env
 .DS_Store
 TODO.md
-AGENTS_files
+AGENTS_files/
 CLAUDE.md

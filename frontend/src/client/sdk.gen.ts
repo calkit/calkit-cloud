@@ -9,6 +9,12 @@ import type {
   GetDatasetsData,
   GetDatasetsResponse,
   MetricsResponse,
+  GetFeatureVoteStatusData,
+  GetFeatureVoteStatusResponse,
+  PostFeatureVoteData,
+  PostFeatureVoteResponse,
+  DeleteFeatureVoteData,
+  DeleteFeatureVoteResponse,
   LoginAccessTokenData,
   LoginAccessTokenResponse,
   TestTokenResponse,
@@ -95,6 +101,8 @@ import type {
   PutProjectContentsResponse,
   PatchProjectContentsData,
   PatchProjectContentsResponse,
+  GetProjectContentPathsData,
+  GetProjectContentPathsResponse,
   GetProjectQuestionsData,
   GetProjectQuestionsResponse,
   PostProjectQuestionData,
@@ -195,6 +203,40 @@ import type {
   PostProjectFsOpResponse,
   PostProjectFsBatchOpData,
   PostProjectFsBatchOpResponse,
+  PostProjectReleaseData,
+  PostProjectReleaseResponse,
+  GetProjectReleasesData,
+  GetProjectReleasesResponse,
+  PostExternalReleaseData,
+  PostExternalReleaseResponse,
+  ParseReleaseUrlData,
+  ParseReleaseUrlResponse,
+  ImportGithubReleasesData,
+  ImportGithubReleasesResponse,
+  GetReleaseStalenessData,
+  GetReleaseStalenessResponse,
+  DeleteProjectReleaseData,
+  DeleteProjectReleaseResponse,
+  CreateReleaseGithubReleaseData,
+  CreateReleaseGithubReleaseResponse,
+  CreateReleaseShareData,
+  CreateReleaseShareResponse,
+  ListReleaseSharesData,
+  ListReleaseSharesResponse,
+  DeleteReleaseShareData,
+  DeleteReleaseShareResponse,
+  GetReleaseViewData,
+  GetReleaseViewResponse,
+  GetReleaseContentData,
+  GetReleaseContentResponse,
+  GetReleaseContentsData,
+  GetReleaseContentsResponse,
+  GetReleaseCommentsData,
+  GetReleaseCommentsResponse,
+  PostReleaseCommentData,
+  PostReleaseCommentResponse,
+  ResolveReleaseCommentData,
+  ResolveReleaseCommentResponse,
   ReadUsersData,
   ReadUsersResponse,
   CreateUserData,
@@ -306,6 +348,76 @@ export class DefaultService {
     return __request(OpenAPI, {
       method: "GET",
       url: "/metrics",
+    })
+  }
+}
+
+export class FeatureVotesService {
+  /**
+   * Get Feature Vote Status
+   * @param data The data for the request.
+   * @param data.feature
+   * @returns FeatureVoteStatus Successful Response
+   * @throws ApiError
+   */
+  public static getFeatureVoteStatus(
+    data: GetFeatureVoteStatusData,
+  ): CancelablePromise<GetFeatureVoteStatusResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/feature-votes/{feature}",
+      path: {
+        feature: data.feature,
+      },
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Post Feature Vote
+   * Record the current user's vote for a feature. Idempotent.
+   * @param data The data for the request.
+   * @param data.feature
+   * @returns FeatureVoteStatus Successful Response
+   * @throws ApiError
+   */
+  public static postFeatureVote(
+    data: PostFeatureVoteData,
+  ): CancelablePromise<PostFeatureVoteResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/feature-votes/{feature}",
+      path: {
+        feature: data.feature,
+      },
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Delete Feature Vote
+   * Remove the current user's vote for a feature. Idempotent.
+   * @param data The data for the request.
+   * @param data.feature
+   * @returns FeatureVoteStatus Successful Response
+   * @throws ApiError
+   */
+  public static deleteFeatureVote(
+    data: DeleteFeatureVoteData,
+  ): CancelablePromise<DeleteFeatureVoteResponse> {
+    return __request(OpenAPI, {
+      method: "DELETE",
+      url: "/feature-votes/{feature}",
+      path: {
+        feature: data.feature,
+      },
+      errors: {
+        422: "Validation Error",
+      },
     })
   }
 }
@@ -1486,6 +1598,41 @@ export class ProjectsService {
       },
       body: data.requestBody,
       mediaType: "application/json",
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Get Project Content Paths
+   * Flat list of all selectable file paths in the project.
+   *
+   * Powers fuzzy path search (e.g., the release path picker) without walking the
+   * tree one directory at a time. Includes Git-tracked files and DVC-tracked
+   * outputs, preferring an output's real path over its ``.dvc`` pointer file.
+   * @param data The data for the request.
+   * @param data.ownerName
+   * @param data.projectName
+   * @param data.ref
+   * @param data.ttl
+   * @returns string Successful Response
+   * @throws ApiError
+   */
+  public static getProjectContentPaths(
+    data: GetProjectContentPathsData,
+  ): CancelablePromise<GetProjectContentPathsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/projects/{owner_name}/{project_name}/contents-paths",
+      path: {
+        owner_name: data.ownerName,
+        project_name: data.projectName,
+      },
+      query: {
+        ref: data.ref,
+        ttl: data.ttl,
+      },
       errors: {
         422: "Validation Error",
       },
@@ -2895,6 +3042,540 @@ export class ProjectsService {
       path: {
         owner_name: data.ownerName,
         project_name: data.projectName,
+      },
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+}
+
+export class ReleasesService {
+  /**
+   * Post Project Release
+   * @param data The data for the request.
+   * @param data.ownerName
+   * @param data.projectName
+   * @param data.requestBody
+   * @returns ReleasePublic Successful Response
+   * @throws ApiError
+   */
+  public static postProjectRelease(
+    data: PostProjectReleaseData,
+  ): CancelablePromise<PostProjectReleaseResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/projects/{owner_name}/{project_name}/releases",
+      path: {
+        owner_name: data.ownerName,
+        project_name: data.projectName,
+      },
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Get Project Releases
+   * List a project's releases.
+   *
+   * Merges releases declared in ``calkit.yaml`` (public, DOI-bearing) with the
+   * hosted review releases stored in this database. The latter are only
+   * included for users with write access, since they carry share-link counts.
+   * @param data The data for the request.
+   * @param data.ownerName
+   * @param data.projectName
+   * @param data.ref
+   * @returns ReleaseListItem Successful Response
+   * @throws ApiError
+   */
+  public static getProjectReleases(
+    data: GetProjectReleasesData,
+  ): CancelablePromise<GetProjectReleasesResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/projects/{owner_name}/{project_name}/releases",
+      path: {
+        owner_name: data.ownerName,
+        project_name: data.projectName,
+      },
+      query: {
+        ref: data.ref,
+      },
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Post External Release
+   * Declare a release published to an external venue.
+   *
+   * Recorded as an entry in ``calkit.yaml`` (committed and pushed); not hosted
+   * by Calkit. Loosely coupled -- we only track the metadata.
+   * @param data The data for the request.
+   * @param data.ownerName
+   * @param data.projectName
+   * @param data.requestBody
+   * @returns Message Successful Response
+   * @throws ApiError
+   */
+  public static postExternalRelease(
+    data: PostExternalReleaseData,
+  ): CancelablePromise<PostExternalReleaseResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/projects/{owner_name}/{project_name}/releases/external",
+      path: {
+        owner_name: data.ownerName,
+        project_name: data.projectName,
+      },
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Parse Release Url
+   * Look up an already-published release from a URL or DOI.
+   *
+   * Recognizes DOIs (resolved via doi.org content negotiation, which covers
+   * Zenodo, CaltechDATA, journals, OSF registrations, and more), arXiv
+   * links/IDs, and OSF project pages (osf.io/<guid>), fetching metadata to
+   * pre-fill the declare-external form. Fails if we can't recognize or fetch
+   * the URL -- the user can still declare the release manually.
+   * @param data The data for the request.
+   * @param data.ownerName
+   * @param data.projectName
+   * @param data.requestBody
+   * @returns ReleaseUrlMetadata Successful Response
+   * @throws ApiError
+   */
+  public static parseReleaseUrl(
+    data: ParseReleaseUrlData,
+  ): CancelablePromise<ParseReleaseUrlResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/projects/{owner_name}/{project_name}/releases/parse-url",
+      path: {
+        owner_name: data.ownerName,
+        project_name: data.projectName,
+      },
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Import Github Releases
+   * Import GitHub releases not yet recorded in ``calkit.yaml``.
+   *
+   * A one-way import: ``calkit.yaml`` is the portable source of truth for
+   * project releases, so this pulls any GitHub releases that aren't already
+   * declared there (keyed by tag name) and records them with a link back to the
+   * GitHub release. Existing entries are left untouched. Commits and pushes once
+   * if anything changed.
+   * @param data The data for the request.
+   * @param data.ownerName
+   * @param data.projectName
+   * @returns Message Successful Response
+   * @throws ApiError
+   */
+  public static importGithubReleases(
+    data: ImportGithubReleasesData,
+  ): CancelablePromise<ImportGithubReleasesResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/projects/{owner_name}/{project_name}/releases/import-github",
+      path: {
+        owner_name: data.ownerName,
+        project_name: data.projectName,
+      },
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Get Release Staleness
+   * Report whether the artifact at *path* is up-to-date with its pipeline
+   * stage, so the New Release form can warn before releasing something that may
+   * not be reproducible.
+   * @param data The data for the request.
+   * @param data.ownerName
+   * @param data.projectName
+   * @param data.path
+   * @param data.gitRef
+   * @returns ReleaseStaleness Successful Response
+   * @throws ApiError
+   */
+  public static getReleaseStaleness(
+    data: GetReleaseStalenessData,
+  ): CancelablePromise<GetReleaseStalenessResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/projects/{owner_name}/{project_name}/releases/staleness",
+      path: {
+        owner_name: data.ownerName,
+        project_name: data.projectName,
+      },
+      query: {
+        path: data.path,
+        git_ref: data.gitRef,
+      },
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Delete Project Release
+   * @param data The data for the request.
+   * @param data.ownerName
+   * @param data.projectName
+   * @param data.releaseName
+   * @returns Message Successful Response
+   * @throws ApiError
+   */
+  public static deleteProjectRelease(
+    data: DeleteProjectReleaseData,
+  ): CancelablePromise<DeleteProjectReleaseResponse> {
+    return __request(OpenAPI, {
+      method: "DELETE",
+      url: "/projects/{owner_name}/{project_name}/releases/{release_name}",
+      path: {
+        owner_name: data.ownerName,
+        project_name: data.projectName,
+        release_name: data.releaseName,
+      },
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Create Release Github Release
+   * Publish a Calkit release as a GitHub release, linking back to Calkit.
+   *
+   * Creates a GitHub release for the cloud release's tag at its pinned commit,
+   * with a body that points back to the Calkit release page. If a GitHub release
+   * already exists for the tag, its URL is returned instead of creating a
+   * duplicate.
+   * @param data The data for the request.
+   * @param data.ownerName
+   * @param data.projectName
+   * @param data.releaseName
+   * @returns ReleaseGithubResult Successful Response
+   * @throws ApiError
+   */
+  public static createReleaseGithubRelease(
+    data: CreateReleaseGithubReleaseData,
+  ): CancelablePromise<CreateReleaseGithubReleaseResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/projects/{owner_name}/{project_name}/releases/{release_name}/github",
+      path: {
+        owner_name: data.ownerName,
+        project_name: data.projectName,
+        release_name: data.releaseName,
+      },
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Create Release Share
+   * Mint a share link for a release, optionally scoped to an email.
+   *
+   * The raw token is returned only here, once -- afterwards only its hash is
+   * stored, so it can't be recovered from the manage list.
+   * @param data The data for the request.
+   * @param data.ownerName
+   * @param data.projectName
+   * @param data.releaseName
+   * @param data.requestBody
+   * @returns ReleaseShareTokenCreated Successful Response
+   * @throws ApiError
+   */
+  public static createReleaseShare(
+    data: CreateReleaseShareData,
+  ): CancelablePromise<CreateReleaseShareResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/projects/{owner_name}/{project_name}/releases/{release_name}/shares",
+      path: {
+        owner_name: data.ownerName,
+        project_name: data.projectName,
+        release_name: data.releaseName,
+      },
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * List Release Shares
+   * @param data The data for the request.
+   * @param data.ownerName
+   * @param data.projectName
+   * @param data.releaseName
+   * @returns ReleaseShareTokenPublic Successful Response
+   * @throws ApiError
+   */
+  public static listReleaseShares(
+    data: ListReleaseSharesData,
+  ): CancelablePromise<ListReleaseSharesResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/projects/{owner_name}/{project_name}/releases/{release_name}/shares",
+      path: {
+        owner_name: data.ownerName,
+        project_name: data.projectName,
+        release_name: data.releaseName,
+      },
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Delete Release Share
+   * @param data The data for the request.
+   * @param data.ownerName
+   * @param data.projectName
+   * @param data.releaseName
+   * @param data.tokenId
+   * @returns Message Successful Response
+   * @throws ApiError
+   */
+  public static deleteReleaseShare(
+    data: DeleteReleaseShareData,
+  ): CancelablePromise<DeleteReleaseShareResponse> {
+    return __request(OpenAPI, {
+      method: "DELETE",
+      url: "/projects/{owner_name}/{project_name}/releases/{release_name}/shares/{token_id}",
+      path: {
+        owner_name: data.ownerName,
+        project_name: data.projectName,
+        release_name: data.releaseName,
+        token_id: data.tokenId,
+      },
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Get Release View
+   * The release page payload, for a member or a share-token holder.
+   * @param data The data for the request.
+   * @param data.ownerName
+   * @param data.projectName
+   * @param data.releaseName
+   * @param data.token
+   * @returns ReleaseView Successful Response
+   * @throws ApiError
+   */
+  public static getReleaseView(
+    data: GetReleaseViewData,
+  ): CancelablePromise<GetReleaseViewResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/projects/{owner_name}/{project_name}/releases/{release_name}/view",
+      path: {
+        owner_name: data.ownerName,
+        project_name: data.projectName,
+        release_name: data.releaseName,
+      },
+      query: {
+        token: data.token,
+      },
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Get Release Content
+   * @param data The data for the request.
+   * @param data.ownerName
+   * @param data.projectName
+   * @param data.releaseName
+   * @param data.token
+   * @returns ContentsItem Successful Response
+   * @throws ApiError
+   */
+  public static getReleaseContent(
+    data: GetReleaseContentData,
+  ): CancelablePromise<GetReleaseContentResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/projects/{owner_name}/{project_name}/releases/{release_name}/content",
+      path: {
+        owner_name: data.ownerName,
+        project_name: data.projectName,
+        release_name: data.releaseName,
+      },
+      query: {
+        token: data.token,
+      },
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Get Release Contents
+   * Browse the project's files at the release's ref.
+   *
+   * Read-only and pinned to the release's commit -- fetched with the creator's
+   * GitHub token so private repos can be browsed without granting repo access.
+   * Restricted to whole-project releases; single-artifact releases must not
+   * expose the rest of the repo, so they 403 here (use ``/content`` instead).
+   * @param data The data for the request.
+   * @param data.ownerName
+   * @param data.projectName
+   * @param data.releaseName
+   * @param data.path
+   * @param data.token
+   * @returns ContentsItem Successful Response
+   * @throws ApiError
+   */
+  public static getReleaseContents(
+    data: GetReleaseContentsData,
+  ): CancelablePromise<GetReleaseContentsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/projects/{owner_name}/{project_name}/releases/{release_name}/contents",
+      path: {
+        owner_name: data.ownerName,
+        project_name: data.projectName,
+        release_name: data.releaseName,
+      },
+      query: {
+        path: data.path,
+        token: data.token,
+      },
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Get Release Comments
+   * @param data The data for the request.
+   * @param data.ownerName
+   * @param data.projectName
+   * @param data.releaseName
+   * @param data.token
+   * @returns ReleaseCommentPublic Successful Response
+   * @throws ApiError
+   */
+  public static getReleaseComments(
+    data: GetReleaseCommentsData,
+  ): CancelablePromise<GetReleaseCommentsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/projects/{owner_name}/{project_name}/releases/{release_name}/comments",
+      path: {
+        owner_name: data.ownerName,
+        project_name: data.projectName,
+        release_name: data.releaseName,
+      },
+      query: {
+        token: data.token,
+      },
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Post Release Comment
+   * @param data The data for the request.
+   * @param data.ownerName
+   * @param data.projectName
+   * @param data.releaseName
+   * @param data.requestBody
+   * @param data.token
+   * @returns ReleaseCommentPublic Successful Response
+   * @throws ApiError
+   */
+  public static postReleaseComment(
+    data: PostReleaseCommentData,
+  ): CancelablePromise<PostReleaseCommentResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/projects/{owner_name}/{project_name}/releases/{release_name}/comments",
+      path: {
+        owner_name: data.ownerName,
+        project_name: data.projectName,
+        release_name: data.releaseName,
+      },
+      query: {
+        token: data.token,
+      },
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Resolve Release Comment
+   * Resolve or reopen a single comment thread (project members only).
+   *
+   * The given comment is normalized to its top-level comment, then it and all
+   * its replies are marked (un)resolved and its GitHub issue closed/reopened,
+   * so the state stays in sync with ``_sync_release_comment_resolutions``.
+   * @param data The data for the request.
+   * @param data.ownerName
+   * @param data.projectName
+   * @param data.releaseName
+   * @param data.commentId
+   * @param data.requestBody
+   * @returns ReleaseCommentPublic Successful Response
+   * @throws ApiError
+   */
+  public static resolveReleaseComment(
+    data: ResolveReleaseCommentData,
+  ): CancelablePromise<ResolveReleaseCommentResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/projects/{owner_name}/{project_name}/releases/{release_name}/comments/{comment_id}/resolve",
+      path: {
+        owner_name: data.ownerName,
+        project_name: data.projectName,
+        release_name: data.releaseName,
+        comment_id: data.commentId,
       },
       body: data.requestBody,
       mediaType: "application/json",

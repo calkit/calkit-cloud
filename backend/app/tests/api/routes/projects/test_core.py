@@ -72,6 +72,52 @@ def test_get_project_contents_forwards_ref(client: TestClient) -> None:
     assert contents_call["ref"] == "v1.2.3"
 
 
+def test_get_project_content_paths_merges_git_and_dvc(
+    client: TestClient,
+) -> None:
+    fake_project = SimpleNamespace()
+    fake_repo = SimpleNamespace(
+        git=SimpleNamespace(
+            ls_files=lambda: (
+                "README.md\nfigs/plot.png.dvc\n.dvc/config\nscripts/run.py"
+            )
+        )
+    )
+    dvc_outs = {"figs/plot.png": {"type": "file"}, "data": {"type": "dir"}}
+    with (
+        patch(
+            "app.api.routes.projects.core.app.projects.get_project",
+            return_value=fake_project,
+        ),
+        patch("app.api.routes.projects.core.get_repo", return_value=fake_repo),
+        patch(
+            "app.api.routes.projects.core.app.projects.get_repo_tree_for_ref",
+            return_value=SimpleNamespace(),
+        ),
+        patch(
+            "app.api.routes.projects.core.app.projects"
+            ".get_ck_info_and_dvc_outs_from_tree",
+            return_value=({}, dvc_outs, {}),
+        ),
+    ):
+        response = client.get(
+            f"{settings.API_V1_STR}"
+            "/projects/test-owner/test-project/contents-paths"
+        )
+    assert response.status_code == 200
+    paths = response.json()
+    # DVC output's real path is included; its .dvc pointer is dropped.
+    assert "figs/plot.png" in paths
+    assert "figs/plot.png.dvc" not in paths
+    # .dvc internals and DVC dir outputs are excluded; plain git files kept.
+    assert ".dvc/config" not in paths
+    assert "data" not in paths
+    assert "README.md" in paths
+    assert "scripts/run.py" in paths
+    # Sorted for stable display.
+    assert paths == sorted(paths)
+
+
 def test_get_project_file_history_endpoint(client: TestClient) -> None:
     fake_project = SimpleNamespace()
     fake_repo = SimpleNamespace()

@@ -1473,6 +1473,101 @@ export const ExistsResultSchema = {
   title: "ExistsResult",
 } as const
 
+export const ExternalReleasePostSchema = {
+  properties: {
+    name: {
+      type: "string",
+      maxLength: 255,
+      minLength: 1,
+      title: "Name",
+    },
+    kind: {
+      type: "string",
+      title: "Kind",
+      default: "publication",
+    },
+    path: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Path",
+    },
+    publisher: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Publisher",
+    },
+    url: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Url",
+    },
+    doi: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Doi",
+    },
+    date: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Date",
+    },
+    description: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Description",
+    },
+    public: {
+      type: "boolean",
+      title: "Public",
+      default: true,
+    },
+  },
+  type: "object",
+  required: ["name"],
+  title: "ExternalReleasePost",
+  description: `A release declared as published to an external venue.
+
+Recorded loosely in \`\`calkit.yaml\`\` (not hosted by Calkit); used to track
+that an artifact was, e.g., posted to arXiv or published in a journal. The
+\`\`publisher\`\` key matches what Zenodo releases already write.`,
+} as const
+
 export const ExternalTokenResponseSchema = {
   properties: {
     access_token: {
@@ -1483,6 +1578,28 @@ export const ExternalTokenResponseSchema = {
   type: "object",
   required: ["access_token"],
   title: "ExternalTokenResponse",
+} as const
+
+export const FeatureVoteStatusSchema = {
+  properties: {
+    feature: {
+      type: "string",
+      title: "Feature",
+    },
+    count: {
+      type: "integer",
+      title: "Count",
+    },
+    has_voted: {
+      type: "boolean",
+      title: "Has Voted",
+    },
+  },
+  type: "object",
+  required: ["feature", "count", "has_voted"],
+  title: "FeatureVoteStatus",
+  description:
+    "Vote tally for a feature plus whether the current user has voted.",
 } as const
 
 export const FigureSchema = {
@@ -1516,6 +1633,16 @@ export const FigureSchema = {
         },
       ],
       title: "Stage",
+    },
+    stage_status: {
+      anyOf: [
+        {
+          $ref: "#/components/schemas/StageStatus",
+        },
+        {
+          type: "null",
+        },
+      ],
     },
     dataset: {
       anyOf: [
@@ -3124,6 +3251,19 @@ export const PipelineSchema = {
       ],
       title: "Calkit Yaml",
     },
+    stage_statuses: {
+      additionalProperties: {
+        $ref: "#/components/schemas/StageStatus",
+      },
+      type: "object",
+      title: "Stage Statuses",
+    },
+    status: {
+      type: "string",
+      enum: ["up-to-date", "stale", "unknown"],
+      title: "Status",
+      default: "unknown",
+    },
   },
   type: "object",
   required: ["mermaid", "dvc_stages", "dvc_yaml", "calkit_yaml"],
@@ -4603,6 +4743,16 @@ export const PublicationSchema = {
       ],
       title: "Stage",
     },
+    stage_status: {
+      anyOf: [
+        {
+          $ref: "#/components/schemas/StageStatus",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
     content: {
       anyOf: [
         {
@@ -4892,6 +5042,1063 @@ export const RefreshTokenRequestSchema = {
   type: "object",
   required: ["refresh_token"],
   title: "RefreshTokenRequest",
+} as const
+
+export const ReleaseCommentPostSchema = {
+  properties: {
+    comment: {
+      type: "string",
+      minLength: 1,
+      title: "Comment",
+    },
+    author_name: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Author Name",
+    },
+    highlight: {
+      anyOf: [
+        {
+          $ref: "#/components/schemas/CommentHighlight",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    parent_id: {
+      anyOf: [
+        {
+          type: "string",
+          format: "uuid",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Parent Id",
+    },
+  },
+  type: "object",
+  required: ["comment"],
+  title: "ReleaseCommentPost",
+} as const
+
+export const ReleaseCommentPublicSchema = {
+  properties: {
+    id: {
+      type: "string",
+      format: "uuid",
+      title: "Id",
+    },
+    author_name: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Author Name",
+    },
+    comment: {
+      type: "string",
+      title: "Comment",
+    },
+    highlight: {
+      anyOf: [
+        {
+          additionalProperties: true,
+          type: "object",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Highlight",
+    },
+    external_url: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "External Url",
+    },
+    parent_id: {
+      anyOf: [
+        {
+          type: "string",
+          format: "uuid",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Parent Id",
+    },
+    resolved: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Resolved",
+    },
+    created: {
+      type: "string",
+      format: "date-time",
+      title: "Created",
+    },
+  },
+  type: "object",
+  required: ["id", "author_name", "comment", "external_url", "created"],
+  title: "ReleaseCommentPublic",
+} as const
+
+export const ReleaseCommentResolvePostSchema = {
+  properties: {
+    resolved: {
+      type: "boolean",
+      title: "Resolved",
+    },
+  },
+  type: "object",
+  required: ["resolved"],
+  title: "ReleaseCommentResolvePost",
+} as const
+
+export const ReleaseGithubResultSchema = {
+  properties: {
+    url: {
+      type: "string",
+      title: "Url",
+    },
+    created: {
+      type: "boolean",
+      title: "Created",
+    },
+  },
+  type: "object",
+  required: ["url", "created"],
+  title: "ReleaseGithubResult",
+  description:
+    "Result of creating (or finding) a GitHub release for a Calkit release.",
+} as const
+
+export const ReleaseListItemSchema = {
+  properties: {
+    source: {
+      type: "string",
+      enum: ["cloud", "calkit"],
+      title: "Source",
+    },
+    name: {
+      type: "string",
+      title: "Name",
+    },
+    kind: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Kind",
+    },
+    path: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Path",
+    },
+    description: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Description",
+    },
+    git_ref: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Git Ref",
+    },
+    git_rev: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Git Rev",
+    },
+    git_rev_abbrev: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Git Rev Abbrev",
+    },
+    public: {
+      type: "boolean",
+      title: "Public",
+      default: true,
+    },
+    url: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Url",
+    },
+    doi: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Doi",
+    },
+    publisher: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Publisher",
+    },
+    date: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Date",
+    },
+    internal: {
+      type: "boolean",
+      title: "Internal",
+      default: false,
+    },
+    view_count: {
+      anyOf: [
+        {
+          type: "integer",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "View Count",
+    },
+    comment_count: {
+      anyOf: [
+        {
+          type: "integer",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Comment Count",
+    },
+    share_count: {
+      anyOf: [
+        {
+          type: "integer",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Share Count",
+    },
+    github_release_url: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Github Release Url",
+    },
+  },
+  type: "object",
+  required: ["source", "name"],
+  title: "ReleaseListItem",
+  description: `A release row for the project releases page.
+
+Merges two sources: \`\`calkit\`\` releases declared in \`\`calkit.yaml\`\` (the
+public, DOI-bearing ones produced via the CLI/Zenodo) and \`\`cloud\`\`
+releases stored in this database (the private, secret-link ones). Fields
+that only apply to one source are optional.`,
+} as const
+
+export const ReleasePostSchema = {
+  properties: {
+    name: {
+      type: "string",
+      maxLength: 255,
+      minLength: 1,
+      title: "Name",
+    },
+    kind: {
+      type: "string",
+      title: "Kind",
+      default: "publication",
+    },
+    path: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Path",
+    },
+    description: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Description",
+    },
+    git_ref: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Git Ref",
+    },
+    public: {
+      type: "boolean",
+      title: "Public",
+      default: false,
+    },
+    acknowledge_non_reproducible: {
+      type: "boolean",
+      title: "Acknowledge Non Reproducible",
+      default: false,
+    },
+  },
+  type: "object",
+  required: ["name"],
+  title: "ReleasePost",
+} as const
+
+export const ReleasePublicSchema = {
+  properties: {
+    name: {
+      type: "string",
+      maxLength: 255,
+      minLength: 1,
+      title: "Name",
+    },
+    kind: {
+      type: "string",
+      maxLength: 32,
+      title: "Kind",
+      default: "publication",
+    },
+    path: {
+      anyOf: [
+        {
+          type: "string",
+          maxLength: 512,
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Path",
+    },
+    description: {
+      anyOf: [
+        {
+          type: "string",
+          maxLength: 2048,
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Description",
+    },
+    git_ref: {
+      anyOf: [
+        {
+          type: "string",
+          maxLength: 256,
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Git Ref",
+    },
+    git_rev: {
+      anyOf: [
+        {
+          type: "string",
+          maxLength: 40,
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Git Rev",
+    },
+    public: {
+      type: "boolean",
+      title: "Public",
+      default: false,
+    },
+    url: {
+      anyOf: [
+        {
+          type: "string",
+          maxLength: 2048,
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Url",
+    },
+    doi: {
+      anyOf: [
+        {
+          type: "string",
+          maxLength: 255,
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Doi",
+    },
+    id: {
+      type: "string",
+      format: "uuid",
+      title: "Id",
+    },
+    project_id: {
+      type: "string",
+      format: "uuid",
+      title: "Project Id",
+    },
+    view_count: {
+      type: "integer",
+      title: "View Count",
+    },
+    comment_count: {
+      type: "integer",
+      title: "Comment Count",
+    },
+    git_rev_abbrev: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Git Rev Abbrev",
+    },
+    created: {
+      type: "string",
+      format: "date-time",
+      title: "Created",
+    },
+  },
+  type: "object",
+  required: [
+    "name",
+    "id",
+    "project_id",
+    "view_count",
+    "comment_count",
+    "git_rev_abbrev",
+    "created",
+  ],
+  title: "ReleasePublic",
+  description: "Release as seen by a user with write access.",
+} as const
+
+export const ReleaseShareTokenCreatedSchema = {
+  properties: {
+    id: {
+      type: "string",
+      format: "uuid",
+      title: "Id",
+    },
+    email: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Email",
+    },
+    permission: {
+      type: "string",
+      title: "Permission",
+    },
+    note: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Note",
+    },
+    expires_at: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Expires At",
+    },
+    revoked: {
+      type: "boolean",
+      title: "Revoked",
+    },
+    view_count: {
+      type: "integer",
+      title: "View Count",
+    },
+    created: {
+      type: "string",
+      format: "date-time",
+      title: "Created",
+    },
+    token: {
+      type: "string",
+      title: "Token",
+    },
+    email_sent: {
+      type: "boolean",
+      title: "Email Sent",
+      default: false,
+    },
+  },
+  type: "object",
+  required: [
+    "id",
+    "email",
+    "permission",
+    "note",
+    "expires_at",
+    "revoked",
+    "view_count",
+    "created",
+    "token",
+  ],
+  title: "ReleaseShareTokenCreated",
+  description:
+    "Returned once when a token is minted; carries the raw token to share.",
+} as const
+
+export const ReleaseShareTokenPostSchema = {
+  properties: {
+    email: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Email",
+    },
+    permission: {
+      type: "string",
+      enum: ["view", "comment"],
+      title: "Permission",
+      default: "comment",
+    },
+    note: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Note",
+    },
+    expires_at: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Expires At",
+    },
+  },
+  type: "object",
+  title: "ReleaseShareTokenPost",
+} as const
+
+export const ReleaseShareTokenPublicSchema = {
+  properties: {
+    id: {
+      type: "string",
+      format: "uuid",
+      title: "Id",
+    },
+    email: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Email",
+    },
+    permission: {
+      type: "string",
+      title: "Permission",
+    },
+    note: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Note",
+    },
+    expires_at: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Expires At",
+    },
+    revoked: {
+      type: "boolean",
+      title: "Revoked",
+    },
+    view_count: {
+      type: "integer",
+      title: "View Count",
+    },
+    created: {
+      type: "string",
+      format: "date-time",
+      title: "Created",
+    },
+  },
+  type: "object",
+  required: [
+    "id",
+    "email",
+    "permission",
+    "note",
+    "expires_at",
+    "revoked",
+    "view_count",
+    "created",
+  ],
+  title: "ReleaseShareTokenPublic",
+  description:
+    "A share token as shown in the manage list -- never includes the secret.",
+} as const
+
+export const ReleaseStalenessSchema = {
+  properties: {
+    path: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Path",
+    },
+    stage: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Stage",
+    },
+    status: {
+      anyOf: [
+        {
+          type: "string",
+          enum: [
+            "up-to-date",
+            "stale",
+            "not-run",
+            "unknown",
+            "always-run",
+            "frozen",
+          ],
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Status",
+    },
+    up_to_date: {
+      type: "boolean",
+      title: "Up To Date",
+      default: true,
+    },
+    modified_inputs: {
+      items: {
+        type: "string",
+      },
+      type: "array",
+      title: "Modified Inputs",
+    },
+    modified_outputs: {
+      items: {
+        type: "string",
+      },
+      type: "array",
+      title: "Modified Outputs",
+    },
+    missing_outputs: {
+      items: {
+        type: "string",
+      },
+      type: "array",
+      title: "Missing Outputs",
+    },
+  },
+  type: "object",
+  title: "ReleaseStaleness",
+  description: `Whether the pipeline stage that produces a release path is up-to-date.
+
+Used to warn before creating a release of a possibly non-reproducible
+artifact. \`\`stage\`\` is None when the path isn't produced by any pipeline
+stage (staleness doesn't apply), in which case \`\`up_to_date\`\` stays True.`,
+} as const
+
+export const ReleaseUrlImportSchema = {
+  properties: {
+    url: {
+      type: "string",
+      maxLength: 2048,
+      minLength: 1,
+      title: "Url",
+    },
+  },
+  type: "object",
+  required: ["url"],
+  title: "ReleaseUrlImport",
+  description:
+    "Request to look up an already-published release from a URL or DOI.",
+} as const
+
+export const ReleaseUrlMetadataSchema = {
+  properties: {
+    publisher: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Publisher",
+    },
+    title: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Title",
+    },
+    doi: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Doi",
+    },
+    url: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Url",
+    },
+    date: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Date",
+    },
+    description: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Description",
+    },
+    kind: {
+      type: "string",
+      title: "Kind",
+      default: "publication",
+    },
+  },
+  type: "object",
+  title: "ReleaseUrlMetadata",
+  description: `Metadata parsed from an external release URL/DOI.
+
+Returned by the parse-url lookup so the create modal can pre-fill the
+declare-external form. The user reviews/edits it, then submits via the
+external release endpoint. \`\`git_rev\`\` is intentionally absent -- imports
+can't know the producing commit, so it's left for the user to set later.`,
+} as const
+
+export const ReleaseViewSchema = {
+  properties: {
+    name: {
+      type: "string",
+      title: "Name",
+    },
+    kind: {
+      type: "string",
+      title: "Kind",
+    },
+    path: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Path",
+    },
+    description: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Description",
+    },
+    git_ref: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Git Ref",
+    },
+    git_rev_abbrev: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Git Rev Abbrev",
+    },
+    public: {
+      type: "boolean",
+      title: "Public",
+    },
+    comment_count: {
+      type: "integer",
+      title: "Comment Count",
+    },
+    created: {
+      type: "string",
+      format: "date-time",
+      title: "Created",
+    },
+    owner_account_name: {
+      type: "string",
+      title: "Owner Account Name",
+    },
+    owner_account_display_name: {
+      type: "string",
+      title: "Owner Account Display Name",
+    },
+    project_name: {
+      type: "string",
+      title: "Project Name",
+    },
+    project_title: {
+      type: "string",
+      title: "Project Title",
+    },
+    permission: {
+      type: "string",
+      enum: ["view", "comment", "manage"],
+      title: "Permission",
+    },
+    viewer_email: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Viewer Email",
+    },
+  },
+  type: "object",
+  required: [
+    "name",
+    "kind",
+    "path",
+    "description",
+    "git_ref",
+    "git_rev_abbrev",
+    "public",
+    "comment_count",
+    "created",
+    "owner_account_name",
+    "owner_account_display_name",
+    "project_name",
+    "project_title",
+    "permission",
+  ],
+  title: "ReleaseView",
+  description: `Release as rendered on its page, for a member or a share-token holder.
+
+Deliberately omits internal identifiers; exposes only what the viewer page
+needs to render the artifact, the provenance note, and comments. The
+viewer's effective \`\`permission\`\` says whether they may comment or manage
+the release, so the UI can adapt without leaking the share tokens.`,
 } as const
 
 export const ReproCheckSchema = {
@@ -5327,6 +6534,52 @@ export const SoftwareItemSchema = {
   type: "object",
   required: ["title", "path"],
   title: "SoftwareItem",
+} as const
+
+export const StageStatusSchema = {
+  properties: {
+    status: {
+      type: "string",
+      enum: [
+        "up-to-date",
+        "stale",
+        "not-run",
+        "unknown",
+        "always-run",
+        "frozen",
+      ],
+      title: "Status",
+    },
+    modified_command: {
+      type: "boolean",
+      title: "Modified Command",
+      default: false,
+    },
+    modified_inputs: {
+      items: {
+        type: "string",
+      },
+      type: "array",
+      title: "Modified Inputs",
+    },
+    modified_outputs: {
+      items: {
+        type: "string",
+      },
+      type: "array",
+      title: "Modified Outputs",
+    },
+    missing_outputs: {
+      items: {
+        type: "string",
+      },
+      type: "array",
+      title: "Missing Outputs",
+    },
+  },
+  type: "object",
+  required: ["status"],
+  title: "StageStatus",
 } as const
 
 export const StorageUsageSchema = {

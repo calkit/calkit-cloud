@@ -15,7 +15,7 @@ interface FileContentProps {
 // Render a Quarto/R Markdown source as Markdown while keeping the leading
 // YAML front matter block verbatim (shown as a fenced code block rather than
 // being parsed/consumed by the Markdown renderer).
-function qmdToMarkdown(src: string): string {
+export function qmdToMarkdown(src: string): string {
   const match = src.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/)
   if (!match) return src
   const frontMatter = match[1]
@@ -23,7 +23,7 @@ function qmdToMarkdown(src: string): string {
   return `\`\`\`yaml\n${frontMatter}\n\`\`\`\n\n${body}`
 }
 
-function getLanguage(name: string): string {
+export function getLanguage(name: string): string {
   // Compare case-insensitively so all-caps names map to the right language.
   const n = name.toLowerCase()
   if (n.endsWith(".py")) return "python"

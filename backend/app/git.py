@@ -18,6 +18,7 @@ import git
 from fastapi import HTTPException
 from filelock import FileLock, Timeout
 from git.exc import GitCommandError
+from ruamel.yaml import YAMLError
 from sqlmodel import Session
 
 from app import github, users
@@ -384,9 +385,18 @@ def get_zip_path_map_from_repo(repo: git.Repo) -> dict:
 
 
 def get_ck_info_from_repo(repo: git.Repo, process_includes=False) -> dict:
-    ck_info = calkit.load_calkit_info(
-        wdir=repo.working_dir, process_includes=process_includes
-    )
+    try:
+        ck_info = calkit.load_calkit_info(
+            wdir=repo.working_dir, process_includes=process_includes
+        )
+    except YAMLError as e:
+        # A user's calkit.yaml can be malformed (e.g., multiple YAML documents
+        # in a single file). That's bad data in their repo, not a server
+        # error, so treat it as empty rather than letting it 500 the project.
+        logger.warning(
+            f"Failed to parse calkit.yaml in {repo.working_dir}: {e}"
+        )
+        return {}
     if ck_info is None:
         ck_info = {}
     return ck_info
@@ -1243,6 +1253,20 @@ def _resolve_commit(repo: git.Repo, ref: str) -> git.Commit:
         except Exception:
             continue
     raise HTTPException(404, f"Git ref '{ref}' was not found")
+
+
+def resolve_commit_sha(repo: git.Repo, ref: str | None) -> str | None:
+    """Resolve *ref* (or HEAD when None) to a full commit SHA, or None.
+
+    Used as a content token for caching: the SHA changes whenever any tracked
+    file does. Never raises -- returns None when the ref can't be resolved.
+    """
+    try:
+        if ref:
+            return _resolve_commit(repo, ref).hexsha
+        return repo.head.commit.hexsha
+    except Exception:
+        return None
 
 
 def get_repo_tree_for_ref(repo: git.Repo, ref: str | None) -> RepoTree:

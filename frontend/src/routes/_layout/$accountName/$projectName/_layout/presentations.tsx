@@ -9,10 +9,10 @@ import {
   Icon,
   Link,
   Text,
-  Tooltip,
   VStack,
   useColorModeValue,
 } from "@chakra-ui/react"
+import Tooltip from "../../../../../components/Common/Tooltip"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   Link as RouterLink,
@@ -30,12 +30,17 @@ import LoadingSpinner from "../../../../../components/Common/LoadingSpinner"
 import PageMenu from "../../../../../components/Common/PageMenu"
 import PresentationView from "../../../../../components/Presentations/PresentationView"
 import PdfAnnotator, {
-  CommentList,
   commentToHighlight,
   type AnnotationHighlight,
 } from "../../../../../components/Publications/PdfAnnotator"
+import CommentsPanel, {
+  projectCommentToPanelComment,
+} from "../../../../../components/Common/CommentsPanel"
 import useAuth from "../../../../../hooks/useAuth"
-import { useProjectPresentations } from "../../../../../hooks/useProject"
+import useProject, {
+  useProjectPresentations,
+} from "../../../../../hooks/useProject"
+import ArtifactReleasesPanel from "../../../../../components/Releases/ArtifactReleasesPanel"
 
 const presSearchSchema = z.object({
   path: z.string().optional(),
@@ -135,6 +140,8 @@ function Presentations() {
     strict: false,
   }) as any
   const ref: string | undefined = layoutSearch?.ref
+  const secBgColor = useColorModeValue("ui.secondary", "ui.darkSlate")
+  const { userHasWriteAccess } = useProject(accountName, projectName)
   const { presentationsRequest } = useProjectPresentations(
     accountName,
     projectName,
@@ -175,6 +182,17 @@ function Presentations() {
     enabled: !!selectedPres,
   })
 
+  const invalidateComments = () =>
+    queryClient.invalidateQueries({
+      queryKey: [
+        "projects",
+        accountName,
+        projectName,
+        "comments",
+        "presentation",
+        selectedPres?.path,
+      ],
+    })
   const resolveCommentMutation = useMutation({
     mutationFn: ({
       commentId,
@@ -189,18 +207,32 @@ function Presentations() {
         commentId,
         requestBody: { resolved },
       }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: [
-          "projects",
-          accountName,
-          projectName,
-          "comments",
-          "presentation",
-          selectedPres?.path,
-        ],
-      })
-    },
+    onSuccess: invalidateComments,
+  })
+  const postCommentMutation = useMutation({
+    mutationFn: (vars: { body: string; createIssue: boolean }) =>
+      ProjectsService.postProjectComment({
+        ownerName: accountName,
+        projectName,
+        requestBody: {
+          artifact_path: selectedPres!.path,
+          artifact_type: "presentation",
+          comment: vars.body,
+          create_github_issue: vars.createIssue,
+          git_ref: ref ?? null,
+        },
+      }),
+    onSuccess: invalidateComments,
+  })
+  const replyCommentMutation = useMutation({
+    mutationFn: (vars: { commentId: string; body: string }) =>
+      ProjectsService.postProjectCommentReply({
+        ownerName: accountName,
+        projectName,
+        commentId: vars.commentId,
+        requestBody: { body: vars.body },
+      }),
+    onSuccess: invalidateComments,
   })
 
   const comments = commentsQuery.data ?? []
@@ -222,12 +254,7 @@ function Presentations() {
             {presentationsRequest.data?.map((pres) => {
               const isSelected = pres.path === selectedPres?.path
               return (
-                <Tooltip
-                  key={pres.path}
-                  label={pres.title}
-                  openDelay={600}
-                  placement="right"
-                >
+                <Tooltip key={pres.path} label={pres.title} placement="right">
                   <HStack
                     px={1}
                     py={0.5}
@@ -287,29 +314,58 @@ function Presentations() {
             <Box w="280px" flexShrink={0} overflowY="auto">
               <VStack align="stretch" spacing={3}>
                 <PresInfo presentation={selectedPres} />
-                <CommentList
-                  comments={comments}
-                  highlights={highlights}
-                  scrollToHighlight={(h) => pdfScrollRef.current(h)}
+                {selectedPres.path && (
+                  <Box bg={secBgColor} borderRadius="lg" p={3}>
+                    <ArtifactReleasesPanel
+                      ownerName={accountName}
+                      projectName={projectName}
+                      path={selectedPres.path}
+                      userHasWriteAccess={userHasWriteAccess}
+                      kind="presentation"
+                    />
+                  </Box>
+                )}
+                <CommentsPanel
+                  comments={comments.map(projectCommentToPanelComment)}
+                  isLoading={commentsQuery.isPending}
+                  canComment={!!user}
+                  canResolve={!!user}
                   showResolved={showResolved}
                   onShowResolvedChange={setShowResolved}
-                  currentUserId={user?.id}
-                  ownerName={accountName}
-                  projectName={projectName}
-                  publicationPath={selectedPres.path}
-                  artifactType="presentation"
-                  gitRef={ref}
-                  isLoading={commentsQuery.isPending}
-                  resolvingId={
-                    resolveCommentMutation.isPending
-                      ? resolveCommentMutation.variables?.commentId
-                      : undefined
+                  showCreateIssueCheckbox
+                  emptyText="Select text in the PDF or use the button below to add a comment."
+                  onHighlightClick={(c) => {
+                    const h = highlights.find((x) => x.dbId === c.id)
+                    if (h) pdfScrollRef.current(h)
+                  }}
+                  onPostComment={(body, opts) =>
+                    postCommentMutation.mutateAsync({
+                      body,
+                      createIssue: opts.createIssue,
+                    })
+                  }
+                  postingComment={postCommentMutation.isPending}
+                  onPostReply={(parentId, body) =>
+                    replyCommentMutation.mutateAsync({
+                      commentId: parentId,
+                      body,
+                    })
+                  }
+                  postingReplyForId={
+                    replyCommentMutation.isPending
+                      ? replyCommentMutation.variables?.commentId ?? null
+                      : null
                   }
                   onResolve={(id, resolved) =>
                     resolveCommentMutation.mutate({
                       commentId: id,
                       resolved,
                     })
+                  }
+                  resolvingId={
+                    resolveCommentMutation.isPending
+                      ? resolveCommentMutation.variables?.commentId ?? null
+                      : null
                   }
                 />
               </VStack>

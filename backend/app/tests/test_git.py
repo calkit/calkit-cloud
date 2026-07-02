@@ -174,3 +174,28 @@ def test_get_app_installation_token_no_installation(monkeypatch) -> None:
     with pytest.raises(HTTPException) as exc:
         app.github.get_app_installation_token("owner", "repo")
     assert exc.value.status_code == 502
+
+
+def test_get_ck_info_from_repo_valid(tmp_path):
+    """A well-formed calkit.yaml is loaded into a dict."""
+    repo, _ = _init_repo(tmp_path / "repo")
+    (tmp_path / "repo" / "calkit.yaml").write_text(
+        "owner: someone\nname: proj\n"
+    )
+    ck_info = app.git.get_ck_info_from_repo(repo)
+    assert ck_info["name"] == "proj"
+
+
+def test_get_ck_info_from_repo_malformed_yaml(tmp_path):
+    """A malformed calkit.yaml degrades to an empty dict rather than raising.
+
+    A user repo with multiple YAML documents in one calkit.yaml previously
+    raised a ruamel ComposerError that bubbled up as a 500 on the project
+    page. It should be treated as empty instead.
+    """
+    repo, _ = _init_repo(tmp_path / "repo")
+    # Two YAML documents in a single file triggers a ComposerError.
+    (tmp_path / "repo" / "calkit.yaml").write_text(
+        "owner: someone\n---\nname: proj\n"
+    )
+    assert app.git.get_ck_info_from_repo(repo) == {}

@@ -22,7 +22,14 @@ def render_email_template(
     template_str = (
         Path(__file__).parent / "email-templates" / "build" / template_name
     ).read_text()
-    html_content = Template(template_str).render(context)
+    # autoescape so user-controlled context values (e.g. a release note or
+    # name) can't inject HTML into outbound emails. Keep this on: it is also
+    # what makes values rendered as visible text (e.g. the password in
+    # new_account.html) display and copy correctly when they contain HTML
+    # characters like '<' -- without escaping, '<' would be parsed as a tag and
+    # the value would be corrupted on screen. Rendered HTML still copies the
+    # decoded value, so escaping does not change what the recipient pastes.
+    html_content = Template(template_str, autoescape=True).render(context)
     return html_content
 
 
@@ -76,6 +83,32 @@ def generate_reset_password_email(
             "username": email,
             "email": email_to,
             "valid_hours": settings.EMAIL_RESET_TOKEN_EXPIRE_HOURS,
+            "link": link,
+        },
+    )
+    return EmailData(html_content=html_content, subject=subject)
+
+
+def generate_release_share_email(
+    email_to: str,
+    project_name: str,
+    release_name: str,
+    link: str,
+    inviter: str,
+    permission: str,
+    note: str | None = None,
+) -> EmailData:
+    subject = f"{inviter} shared {project_name} ({release_name}) with you"
+    action = "view and comment on" if permission == "comment" else "view"
+    html_content = render_email_template(
+        template_name="release_share.html",
+        context={
+            "project_name": settings.PROJECT_NAME,
+            "shared_project": project_name,
+            "release_name": release_name,
+            "inviter": inviter,
+            "action": action,
+            "note": note,
             "link": link,
         },
     )

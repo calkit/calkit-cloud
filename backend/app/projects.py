@@ -5,6 +5,7 @@ import hashlib
 import json
 import logging
 import os
+import threading
 import time
 from collections import OrderedDict
 from typing import Literal
@@ -76,6 +77,9 @@ _CK_DVC_CACHE_TTL_S = 600
 _ck_dvc_cache: OrderedDict[str, tuple[float, tuple[dict, dict, dict]]] = (
     OrderedDict()
 )
+# Sync endpoints run in a threadpool, so guard the (cheap) cache read/write
+# sections; the expensive expansion between them runs unlocked.
+_ck_dvc_cache_lock = threading.Lock()
 
 
 def _resolve_github_collaborator_access(
@@ -204,14 +208,17 @@ def get_project(
             project.current_user_access = "read"
         if project.current_user_access is None:
             raise HTTPException(403)
-        access_levels = {
-            level: n
-            for (n, level) in enumerate(["read", "write", "admin", "owner"])
-        }
-        user_has_level = access_levels[project.current_user_access]
-        min_level = access_levels[min_access_level]
-        if user_has_level < min_level:
-            raise HTTPException(403)
+        if min_access_level is not None:
+            access_levels = {
+                level: n
+                for (n, level) in enumerate(
+                    ["read", "write", "admin", "owner"]
+                )
+            }
+            user_has_level = access_levels[project.current_user_access]
+            min_level = access_levels[min_access_level]
+            if user_has_level < min_level:
+                raise HTTPException(403)
     return project
 
 
@@ -270,17 +277,22 @@ def get_ck_info_and_dvc_outs_from_tree(
     h.update(hashlib.sha1(zip_bytes).digest())
     cache_key = h.hexdigest()
     now = time.monotonic()
-    cached = _ck_dvc_cache.get(cache_key)
-    if cached is not None:
-        cached_at, value = cached
-        if now - cached_at <= _CK_DVC_CACHE_TTL_S:
-            _ck_dvc_cache.move_to_end(cache_key)
-            logger.info(
-                f"ck/dvc cache hit for {owner_name}/{project_name} "
-                f"(read {t_read * 1000:.0f}ms)"
-            )
-            return value
-        del _ck_dvc_cache[cache_key]
+    with _ck_dvc_cache_lock:
+        cached = _ck_dvc_cache.get(cache_key)
+        hit_value = None
+        if cached is not None:
+            cached_at, value = cached
+            if now - cached_at <= _CK_DVC_CACHE_TTL_S:
+                _ck_dvc_cache.move_to_end(cache_key)
+                hit_value = value
+            else:
+                del _ck_dvc_cache[cache_key]
+    if hit_value is not None:
+        logger.info(
+            f"ck/dvc cache hit for {owner_name}/{project_name} "
+            f"(read {t_read * 1000:.0f}ms)"
+        )
+        return hit_value
     logger.info(
         f"ck/dvc cache miss for {owner_name}/{project_name} "
         f"(read {t_read * 1000:.0f}ms)"
@@ -304,9 +316,10 @@ def get_ck_info_and_dvc_outs_from_tree(
         except Exception:
             logger.warning("Failed to parse .calkit/zip/paths.json")
     result = (ck_info, dvc_lock_outs, zip_path_map)
-    _ck_dvc_cache[cache_key] = (now, result)
-    if len(_ck_dvc_cache) > _CK_DVC_CACHE_MAX:
-        _ck_dvc_cache.popitem(last=False)
+    with _ck_dvc_cache_lock:
+        _ck_dvc_cache[cache_key] = (now, result)
+        if len(_ck_dvc_cache) > _CK_DVC_CACHE_MAX:
+            _ck_dvc_cache.popitem(last=False)
     return result
 
 
@@ -415,6 +428,11 @@ def get_contents_from_tree(
         dvc_pointer_outs: dict[str, dict] = {}
         for p in paths:
             if not p.endswith(".dvc"):
+                continue
+            # The DVC config directory is literally named ".dvc", which also
+            # matches the suffix above. Skip directories so we only try to
+            # read actual ".dvc" pointer files.
+            if tree.is_dir(p):
                 continue
             try:
                 dvc_file_data = yaml.safe_load(tree.read_text(p))

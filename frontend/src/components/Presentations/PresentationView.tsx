@@ -13,6 +13,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { FiChevronLeft, FiChevronRight } from "react-icons/fi"
 
 import type { Presentation } from "../../client"
+import PdfDocumentViewer from "../Common/PdfDocumentViewer"
 
 interface PresentationViewProps {
   presentation: Presentation
@@ -274,16 +275,17 @@ function PresentationView({ presentation }: PresentationViewProps) {
     return <PptxView presentation={presentation} />
   }
   if (path.endsWith(".pdf") && hasContent) {
+    // Render slide-by-slide (prev/next arrows + arrow keys) with the internal
+    // PDF viewer rather than a scrolling document embed.
     return (
-      <embed
-        height="100%"
-        width="100%"
-        type="application/pdf"
-        src={
+      <PdfDocumentViewer
+        url={
           presentation.content
             ? `data:application/pdf;base64,${presentation.content}`
             : String(presentation.url)
         }
+        pagedNav
+        source="presentation"
       />
     )
   }

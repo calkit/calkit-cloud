@@ -14,7 +14,7 @@ from fnmatch import fnmatch
 from io import StringIO
 from pathlib import Path
 from typing import Annotated, Literal, Optional, cast
-from urllib.parse import urlparse
+from urllib.parse import quote, urlparse
 
 import bibtexparser
 import calkit
@@ -61,6 +61,12 @@ from app.dvc import (
     make_mermaid_diagram,
     output_from_pipeline,
 )
+from app.pipeline import (
+    color_mermaid_by_status,
+    compute_stage_statuses,
+    find_stage_for_path,
+    calc_overall_pipeline_status,
+)
 from app.git import (
     get_ck_info,
     get_ck_info_from_repo,
@@ -69,6 +75,7 @@ from app.git import (
     get_overleaf_repo,
     get_repo,
     get_zip_path_map_from_repo,
+    resolve_commit_sha,
     search_refs,
 )
 from app.models import (
@@ -1142,6 +1149,49 @@ def get_project_contents(
     )
 
 
+@router.get("/projects/{owner_name}/{project_name}/contents-paths")
+def get_project_content_paths(
+    owner_name: str,
+    project_name: str,
+    session: SessionDep,
+    current_user: CurrentUserOptional,
+    ref: str | None = None,
+    ttl: int | None = DEFAULT_REPO_TTL,
+) -> list[str]:
+    """Flat list of all selectable file paths in the project.
+
+    Powers fuzzy path search (e.g., the release path picker) without walking the
+    tree one directory at a time. Includes Git-tracked files and DVC-tracked
+    outputs, preferring an output's real path over its ``.dvc`` pointer file.
+    """
+    project = app.projects.get_project(
+        owner_name=owner_name,
+        project_name=project_name,
+        session=session,
+        current_user=current_user,
+        min_access_level="read",
+    )
+    repo = get_repo(
+        project=project, user=current_user, session=session, ttl=ttl, ref=ref
+    )
+    tree = app.projects.get_repo_tree_for_ref(repo, ref)
+    _, dvc_lock_outs, _ = app.projects.get_ck_info_and_dvc_outs_from_tree(
+        project=project, tree=tree
+    )
+    dvc_files = {
+        p for p, obj in dvc_lock_outs.items() if obj.get("type") != "dir"
+    }
+    paths = set(dvc_files)
+    for f in repo.git.ls_files().split("\n"):
+        if not f or f.startswith(".dvc/"):
+            continue
+        # Prefer a DVC output's real path over its tracked ``.dvc`` pointer.
+        if f.endswith(".dvc") and f[:-4] in dvc_files:
+            continue
+        paths.add(f)
+    return sorted(paths)
+
+
 def _valid_file_size(content_length: int = Header(lt=1_000_000)):
     """Check content length header.
 
@@ -1504,9 +1554,11 @@ def get_project_figures(
     # Pre-compute calkit.yaml / dvc.lock metadata once for the tree so we
     # don't re-read and re-expand on every iteration.
     tree = app.projects.get_repo_tree_for_ref(repo, ref)
-    ck_info_full, dvc_lock_outs, zip_path_map = (
-        app.projects.get_ck_info_and_dvc_outs_from_tree(project, tree)
-    )
+    (
+        ck_info_full,
+        dvc_lock_outs,
+        zip_path_map,
+    ) = app.projects.get_ck_info_and_dvc_outs_from_tree(project, tree)
     # Also auto-detect figures from DVC lock outs (files stored with DVC)
     for dvc_path, dvc_out in dvc_lock_outs.items():
         if dvc_out.get("type") == "dir":
@@ -1528,6 +1580,26 @@ def get_project_figures(
         ).all()
     )
     # Get the figure content and base64 encode it.
+    # Staleness is best-effort: never let it block the figure listing.
+    dvc_lock: dict = {}
+    stage_statuses = {}
+    try:
+        if tree.is_file("dvc.lock"):
+            dvc_lock = ryaml.load(tree.read_bytes("dvc.lock").decode()) or {}
+        dvc_yaml: dict = {}
+        if tree.is_file("dvc.yaml"):
+            dvc_yaml = ryaml.load(tree.read_bytes("dvc.yaml").decode()) or {}
+        stage_statuses = compute_stage_statuses(
+            dvc_yaml=dvc_yaml,
+            dvc_lock=dvc_lock,
+            tree=tree,
+            owner_name=project.owner_account_name,
+            project_name=project.name,
+            fs=get_object_fs(),
+            cache_token=resolve_commit_sha(repo, ref),
+        )
+    except Exception as e:
+        logger.warning(f"Failed to compute pipeline status for figures: {e}")
     for fig in figures:
         item = app.projects.get_contents_from_tree(
             project=project,
@@ -1540,6 +1612,12 @@ def get_project_figures(
         fig["content"] = item.content
         fig["url"] = item.url
         fig["comment_count"] = comment_counts.get(fig["path"], 0)
+        if not fig.get("stage"):
+            auto_stage = find_stage_for_path(fig["path"], dvc_lock)
+            if auto_stage is not None:
+                fig["stage"] = auto_stage
+        if fig.get("stage") and fig["stage"] in stage_statuses:
+            fig["stage_status"] = stage_statuses[fig["stage"]].model_dump()
         fig["storage"] = item.storage
     return [Figure.model_validate(fig) for fig in figures]
 
@@ -1740,6 +1818,33 @@ def get_project_comments(
     return comments
 
 
+def _make_comment_artifact_link(
+    owner_name: str,
+    project_name: str,
+    artifact_type: str | None,
+    artifact_path: str,
+) -> str:
+    """Frontend-relative deep link to the artifact a comment is about.
+
+    Releases live at a path segment (``/releases/{name}``); other artifacts use
+    a ``?path=`` query on their section page.
+    """
+    base = f"/{owner_name}/{project_name}"
+    # Encode so paths/names with spaces, #, ?, /, etc. don't break the link.
+    encoded = quote(artifact_path, safe="")
+    if artifact_type == "release":
+        return f"{base}/releases/{encoded}"
+    route_map = {
+        "figure": "figures",
+        "publication": "publications",
+        "presentation": "presentations",
+        "notebook": "notebooks",
+        "file": "files",
+    }
+    route = route_map.get(artifact_type or "", "files")
+    return f"{base}/{route}?path={encoded}"
+
+
 @router.post("/projects/{owner_name}/{project_name}/comments")
 def post_project_comment(
     owner_name: str,
@@ -1799,17 +1904,11 @@ def post_project_comment(
     session.flush()
     if comment_in.create_github_issue and comment_in.artifact_path:
         app_base = settings.frontend_host.rstrip("/")
-        route_map = {
-            "figure": "figures",
-            "publication": "publications",
-            "presentation": "presentations",
-            "notebook": "notebooks",
-            "file": "files",
-        }
-        route = route_map.get(comment_in.artifact_type or "", "files")
-        artifact_link = (
-            f"{app_base}/{owner_name}/{project_name}/{route}"
-            f"?path={comment_in.artifact_path}"
+        artifact_link = app_base + _make_comment_artifact_link(
+            owner_name,
+            project_name,
+            comment_in.artifact_type,
+            comment_in.artifact_path,
         )
         body_lines = [
             f"Comment on [{comment_in.artifact_path}]({artifact_link}):",
@@ -1831,22 +1930,16 @@ def post_project_comment(
             comment.external_url = issue_url
     commenter_name = current_user.full_name or current_user.account.github_name
     if comment_in.artifact_path:
-        route_map = {
-            "figure": "figures",
-            "publication": "publications",
-            "presentation": "presentations",
-            "notebook": "notebooks",
-            "file": "files",
-        }
-        route = route_map.get(comment_in.artifact_type or "", "files")
         _fan_out_notifications(
             session=session,
             project=project,
             commenter_id=current_user.id,
             message=f"{commenter_name} commented on {comment_in.artifact_path}",
-            link=(
-                f"/{owner_name}/{project_name}/{route}"
-                f"?path={comment_in.artifact_path}"
+            link=_make_comment_artifact_link(
+                owner_name,
+                project_name,
+                comment_in.artifact_type,
+                comment_in.artifact_path,
             ),
         )
     session.commit()
@@ -2719,12 +2812,39 @@ def get_project_publications(
     )
     resp = []
     tree = app.projects.get_repo_tree_for_ref(repo, ref)
-    ck_info_full, dvc_lock_outs, zip_path_map = (
-        app.projects.get_ck_info_and_dvc_outs_from_tree(project, tree)
-    )
+    (
+        ck_info_full,
+        dvc_lock_outs,
+        zip_path_map,
+    ) = app.projects.get_ck_info_and_dvc_outs_from_tree(project, tree)
+    # Staleness is best-effort: never let it block the publication listing.
+    dvc_lock: dict = {}
+    stage_statuses = {}
+    try:
+        if tree.is_file("dvc.lock"):
+            dvc_lock = ryaml.load(tree.read_bytes("dvc.lock").decode()) or {}
+        stage_statuses = compute_stage_statuses(
+            dvc_yaml=pipeline,
+            dvc_lock=dvc_lock,
+            tree=tree,
+            owner_name=project.owner_account_name,
+            project_name=project.name,
+            fs=get_object_fs(),
+            cache_token=resolve_commit_sha(repo, ref),
+        )
+    except Exception as e:
+        logger.warning(
+            f"Failed to compute pipeline status for publications: {e}"
+        )
     for pub in publications:
-        if "stage" in pub:
+        if not pub.get("stage") and pub.get("path"):
+            auto_stage = find_stage_for_path(pub["path"], dvc_lock)
+            if auto_stage is not None:
+                pub["stage"] = auto_stage
+        if pub.get("stage"):
             pub["stage_info"] = pipeline.get("stages", {}).get(pub["stage"])
+            if pub["stage"] in stage_statuses:
+                pub["stage_status"] = stage_statuses[pub["stage"]].model_dump()
         # See if we can fetch the content for this publication
         if "path" in pub:
             try:
@@ -2850,9 +2970,11 @@ def get_project_presentations(
     except Exception:
         pass
     tree = app.projects.get_repo_tree_for_ref(repo, ref)
-    ck_info_full, dvc_lock_outs, zip_path_map = (
-        app.projects.get_ck_info_and_dvc_outs_from_tree(project, tree)
-    )
+    (
+        ck_info_full,
+        dvc_lock_outs,
+        zip_path_map,
+    ) = app.projects.get_ck_info_and_dvc_outs_from_tree(project, tree)
     # Also auto-detect presentations from DVC lock outs
     for dvc_path, dvc_out in dvc_lock_outs.items():
         if dvc_out.get("type") == "dir":
@@ -3631,11 +3753,32 @@ def get_project_pipeline(
             stream = io.StringIO()
             ryaml.dump({"pipeline": ck_info["pipeline"]}, stream)
             calkit_content = stream.getvalue()
+    # Compute per-stage staleness against the committed dvc.lock
+    stage_statuses: dict = {}
+    overall_status = "unknown"
+    try:
+        dvc_lock: dict = {}
+        if tree.is_file("dvc.lock"):
+            dvc_lock = ryaml.load(tree.read_bytes("dvc.lock").decode()) or {}
+        stage_statuses = compute_stage_statuses(
+            dvc_yaml=dvc_pipeline,
+            dvc_lock=dvc_lock,
+            tree=tree,
+            owner_name=project.owner_account_name,
+            project_name=project.name,
+            cache_token=resolve_commit_sha(repo, ref),
+        )
+        overall_status = calc_overall_pipeline_status(stage_statuses)
+        mermaid = color_mermaid_by_status(mermaid, stage_statuses)
+    except Exception as e:
+        logger.warning(f"Failed to compute pipeline status: {e}")
     return Pipeline(
         dvc_stages=dvc_pipeline["stages"],
         mermaid=mermaid,
         dvc_yaml=dvc_content,
         calkit_yaml=calkit_content,
+        stage_statuses=stage_statuses,
+        status=overall_status,
     )
 
 
@@ -4516,9 +4659,11 @@ def get_project_notebooks(
             nb["stage"] = nb_path_to_stage_name[nb_path]
     # Get the notebook content and base64 encode it
     tree = app.projects.get_repo_tree_for_ref(repo, ref)
-    ck_info_full, dvc_lock_outs, zip_path_map = (
-        app.projects.get_ck_info_and_dvc_outs_from_tree(project, tree)
-    )
+    (
+        ck_info_full,
+        dvc_lock_outs,
+        zip_path_map,
+    ) = app.projects.get_ck_info_and_dvc_outs_from_tree(project, tree)
     for notebook in notebooks:
         try:
             item = app.projects.get_contents_from_tree(
