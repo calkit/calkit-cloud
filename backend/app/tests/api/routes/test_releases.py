@@ -11,13 +11,13 @@ from unittest.mock import patch
 
 import requests
 from app.api.routes.projects.releases import (
-    _arxiv_id_from_url,
-    _doi_from_url,
+    _parse_arxiv_id_from_url,
+    _parse_doi_from_url,
     _fetch_arxiv,
     _fetch_osf,
-    _osf_guid_from_url,
+    _parse_osf_guid_from_url,
     _parse_release_url,
-    _stored_release_filename,
+    _build_stored_release_filename,
 )
 from app.config import settings
 from app.models import ReleaseStaleness, ReleaseUrlMetadata
@@ -139,42 +139,50 @@ def test_parse_release_url_requires_auth(client: TestClient) -> None:
 
 def test_arxiv_id_from_url() -> None:
     assert (
-        _arxiv_id_from_url("https://arxiv.org/abs/1706.03762") == "1706.03762"
+        _parse_arxiv_id_from_url("https://arxiv.org/abs/1706.03762")
+        == "1706.03762"
     )
-    assert _arxiv_id_from_url("https://arxiv.org/pdf/2401.12345v2") == (
+    assert _parse_arxiv_id_from_url("https://arxiv.org/pdf/2401.12345v2") == (
         "2401.12345v2"
     )
-    assert _arxiv_id_from_url("arXiv:2401.12345") == "2401.12345"
-    assert _arxiv_id_from_url("https://arxiv.org/abs/math.GT/0309136") == (
-        "math.GT/0309136"
-    )
+    assert _parse_arxiv_id_from_url("arXiv:2401.12345") == "2401.12345"
+    assert _parse_arxiv_id_from_url(
+        "https://arxiv.org/abs/math.GT/0309136"
+    ) == ("math.GT/0309136")
     # Not arXiv -- a DOI URL must not be misread as an arXiv id.
-    assert _arxiv_id_from_url("https://doi.org/10.1038/nature12373") is None
+    assert (
+        _parse_arxiv_id_from_url("https://doi.org/10.1038/nature12373") is None
+    )
 
 
 def test_doi_from_url() -> None:
-    assert _doi_from_url("https://doi.org/10.1038/nature12373") == (
+    assert _parse_doi_from_url("https://doi.org/10.1038/nature12373") == (
         "10.1038/nature12373"
     )
-    assert _doi_from_url("10.5281/zenodo.3509134") == "10.5281/zenodo.3509134"
+    assert (
+        _parse_doi_from_url("10.5281/zenodo.3509134")
+        == "10.5281/zenodo.3509134"
+    )
     # Trailing punctuation from a paste is trimmed.
-    assert _doi_from_url("(10.1038/nature12373).") == "10.1038/nature12373"
+    assert (
+        _parse_doi_from_url("(10.1038/nature12373).") == "10.1038/nature12373"
+    )
     # A Zenodo record page URL has no DOI but the DOI is derivable.
-    assert _doi_from_url("https://zenodo.org/records/3509134") == (
+    assert _parse_doi_from_url("https://zenodo.org/records/3509134") == (
         "10.5281/zenodo.3509134"
     )
-    assert _doi_from_url("https://example.com/whatever") is None
+    assert _parse_doi_from_url("https://example.com/whatever") is None
 
 
 def test_osf_guid_from_url() -> None:
-    assert _osf_guid_from_url("https://osf.io/ab3cd/") == "ab3cd"
-    assert _osf_guid_from_url("https://osf.io/ab3cd/files/osfstorage") == (
-        "ab3cd"
-    )
-    assert _osf_guid_from_url("http://osf.io/AB3CD") == "ab3cd"
+    assert _parse_osf_guid_from_url("https://osf.io/ab3cd/") == "ab3cd"
+    assert _parse_osf_guid_from_url(
+        "https://osf.io/ab3cd/files/osfstorage"
+    ) == ("ab3cd")
+    assert _parse_osf_guid_from_url("http://osf.io/AB3CD") == "ab3cd"
     # App routes are not project guids.
-    assert _osf_guid_from_url("https://osf.io/dashboard") is None
-    assert _osf_guid_from_url("https://example.com/ab3cd") is None
+    assert _parse_osf_guid_from_url("https://osf.io/dashboard") is None
+    assert _parse_osf_guid_from_url("https://example.com/ab3cd") is None
 
 
 def test_fetch_osf_registration_derives_doi() -> None:
@@ -281,12 +289,12 @@ def test_fetch_arxiv_minimal_when_all_unreachable() -> None:
 def test_stored_release_filename() -> None:
     # {project}-{stem}-{name}{ext}, matching calkit new release --internal.
     assert (
-        _stored_release_filename("myproj", "figures/plot.png", "v1.0")
+        _build_stored_release_filename("myproj", "figures/plot.png", "v1.0")
         == "myproj-plot-v1.0.png"
     )
     # No extension is handled.
     assert (
-        _stored_release_filename("p", "paper/manuscript", "rev2")
+        _build_stored_release_filename("p", "paper/manuscript", "rev2")
         == "p-manuscript-rev2"
     )
 
@@ -369,7 +377,9 @@ def test_path_staleness_whole_project_not_gated() -> None:
     """Whole-project releases aren't evaluated for stage staleness."""
     from app.api.routes.projects import releases
 
-    res = releases._path_staleness(SimpleNamespace(), "abc123", ".", "o", "p")
+    res = releases._get_pipeline_output_staleness(
+        SimpleNamespace(), "abc123", ".", "o", "p"
+    )
     assert res.up_to_date is True
     assert res.stage is None
 
@@ -392,7 +402,7 @@ def test_path_staleness_no_producing_stage_not_gated() -> None:
             return_value=None,
         ),
     ):
-        res = releases._path_staleness(
+        res = releases._get_pipeline_output_staleness(
             SimpleNamespace(), "abc123", "figs/x.png", "o", "p"
         )
     assert res.up_to_date is True
@@ -423,11 +433,8 @@ def test_path_staleness_stale_stage_flags_not_up_to_date() -> None:
             "app.api.routes.projects.releases.compute_stage_statuses",
             return_value=statuses,
         ),
-        patch(
-            "app.api.routes.projects.releases.get_object_fs", return_value=None
-        ),
     ):
-        res = releases._path_staleness(
+        res = releases._get_pipeline_output_staleness(
             SimpleNamespace(), "abc123", "paper/paper.pdf", "o", "p"
         )
     assert res.up_to_date is False
@@ -565,7 +572,7 @@ def test_post_project_release_blocks_non_reproducible(
             "app.api.routes.projects.releases.get_repo", return_value=fake_repo
         ),
         patch(
-            "app.api.routes.projects.releases._path_staleness",
+            "app.api.routes.projects.releases._get_pipeline_output_staleness",
             return_value=stale,
         ),
     ):

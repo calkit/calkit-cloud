@@ -8,7 +8,7 @@ from app.git import get_repo_tree_for_ref
 from app.pipeline import (
     compute_stage_statuses,
     find_stage_for_path,
-    overall_pipeline_status,
+    calc_overall_pipeline_status,
 )
 
 
@@ -81,7 +81,7 @@ def test_up_to_date_stage(tmp_path):
         dvc_yaml, dvc_lock, tree, "o", "p", FakeFS()
     )
     assert statuses["run"].status == "up-to-date"
-    assert overall_pipeline_status(statuses) == "up-to-date"
+    assert calc_overall_pipeline_status(statuses) == "up-to-date"
 
 
 def test_modified_command(tmp_path):
@@ -453,7 +453,7 @@ def test_not_run_stage(tmp_path):
         dvc_yaml, dvc_lock, tree, "o", "p", FakeFS()
     )
     assert statuses["run"].status == "not-run"
-    assert overall_pipeline_status(statuses) == "stale"
+    assert calc_overall_pipeline_status(statuses) == "stale"
 
 
 def test_find_stage_for_path():
@@ -596,7 +596,7 @@ def test_always_run_stage_is_not_stale(tmp_path):
         dvc_yaml, dvc_lock, tree, "o", "p", FakeFS()
     )
     assert statuses["run"].status == "always-run"
-    assert overall_pipeline_status(statuses) == "up-to-date"
+    assert calc_overall_pipeline_status(statuses) == "up-to-date"
 
 
 def test_always_run_stage_stays_always_run_despite_changes(tmp_path):

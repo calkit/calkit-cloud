@@ -66,7 +66,7 @@ class StageStatus(BaseModel):
     missing_outputs: list[str] = Field(default_factory=list)
 
 
-def _base_stage_name(name: str) -> str:
+def _get_base_stage_name(name: str) -> str:
     return name.split("@")[0]
 
 
@@ -96,7 +96,7 @@ def _read_dvc_pointer_md5(tree: RepoTree, path: str) -> str | None:
     return outs[0].get("md5")
 
 
-def _tree_file_md5(tree: RepoTree, path: str) -> str | None:
+def _hash_tree_file(tree: RepoTree, path: str) -> str | None:
     if not tree.is_file(path):
         return None
     try:
@@ -158,7 +158,7 @@ def _precompute_storage_presence(
     return presence
 
 
-def _stage_status_cache_key(
+def _build_stage_status_cache_key(
     owner_name: str, project_name: str, cache_token: str | None
 ) -> str | None:
     if not cache_token:
@@ -223,7 +223,7 @@ def _resolve_current_dep_md5(
     if ptr is not None:
         return ptr
     if tree.is_file(path):
-        return _tree_file_md5(tree, path)
+        return _hash_tree_file(tree, path)
     if path in outs_index:
         return outs_index[path]
     return None
@@ -246,7 +246,7 @@ def _normalize_cmd(cmd) -> str | None:
     return str(cmd).strip()
 
 
-def _expansion_at_names(base: str, yaml_stage: dict) -> set[str] | None:
+def _compute_expansion_names(base: str, yaml_stage: dict) -> set[str] | None:
     """The ``base@...`` stage names DVC generates for a matrix/foreach stage.
 
     Mirrors DVC's naming: each matrix combination is named by joining its
@@ -288,7 +288,7 @@ def _expansion_at_names(base: str, yaml_stage: dict) -> set[str] | None:
     return None
 
 
-def _current_expansions(
+def _compute_current_expansions(
     yaml_stages: dict, lock_stages: dict
 ) -> dict[str, set[str]]:
     """Map each matrix/foreach base to the set of ``@`` stage names the current
@@ -307,7 +307,7 @@ def _current_expansions(
             continue
         if "matrix" not in st and "foreach" not in st:
             continue
-        names = _expansion_at_names(base, st)
+        names = _compute_expansion_names(base, st)
         if names and (names & lock_names):
             result[base] = names
     return result
@@ -319,7 +319,7 @@ def compute_stage_statuses(
     tree: RepoTree,
     owner_name: str,
     project_name: str,
-    fs,
+    fs=None,
     cache_token: str | None = None,
 ) -> dict[str, StageStatus]:
     """Compute per-stage status for a pipeline.
@@ -335,12 +335,21 @@ def compute_stage_statuses(
     token must change whenever any tracked file does -- a commit/tree SHA does,
     the ``dvc.lock`` bytes alone do NOT (a dep can change while the lock stays
     the same, which is exactly what staleness detects).
+
+    ``fs`` is the object-storage filesystem used to check output presence;
+    when omitted it defaults to ``get_object_fs()``.
     """
-    cache_key = _stage_status_cache_key(owner_name, project_name, cache_token)
+    cache_key = _build_stage_status_cache_key(
+        owner_name, project_name, cache_token
+    )
     if cache_key is not None:
         hit = _stage_status_cache_get(cache_key)
         if hit is not None:
             return hit
+    if fs is None:
+        from app.storage import get_object_fs
+
+        fs = get_object_fs()
     lock_stages = dvc_lock.get("stages") or {}
     yaml_stages = dvc_yaml.get("stages") or {}
     outs_index = _build_outs_index(dvc_lock)
@@ -361,16 +370,16 @@ def compute_stage_statuses(
             zip_workspace_paths = {k.rstrip("/") for k in zip_map}
     except Exception as e:
         logger.warning(f"Failed to read .calkit/zip/paths.json: {e}")
-    current_expansions = _current_expansions(yaml_stages, lock_stages)
+    current_expansions = _compute_current_expansions(yaml_stages, lock_stages)
     result: dict[str, StageStatus] = {}
-    locked_bases = {_base_stage_name(n) for n in lock_stages.keys()}
+    locked_bases = {_get_base_stage_name(n) for n in lock_stages.keys()}
     for stage_name in yaml_stages.keys():
         if stage_name.startswith("_"):
             continue
         if stage_name not in locked_bases:
             result[stage_name] = StageStatus(status="not-run")
     for stage_name, lock_stage in lock_stages.items():
-        base = _base_stage_name(stage_name)
+        base = _get_base_stage_name(stage_name)
         if base.startswith("_"):
             continue
         yaml_stage = yaml_stages.get(base)
@@ -467,7 +476,7 @@ def compute_stage_statuses(
                 continue
             available_md5: str | None = None
             if tree.is_file(out_path):
-                available_md5 = _tree_file_md5(tree, out_path)
+                available_md5 = _hash_tree_file(tree, out_path)
             else:
                 ptr = _read_dvc_pointer_md5(tree, out_path)
                 if ptr is not None:
@@ -526,7 +535,7 @@ def compute_stage_statuses(
     return result
 
 
-def overall_pipeline_status(
+def calc_overall_pipeline_status(
     stage_statuses: dict[str, StageStatus],
 ) -> OverallStatusLiteral:
     if not stage_statuses:

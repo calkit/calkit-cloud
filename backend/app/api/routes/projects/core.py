@@ -64,7 +64,7 @@ from app.pipeline import (
     color_mermaid_by_status,
     compute_stage_statuses,
     find_stage_for_path,
-    overall_pipeline_status,
+    calc_overall_pipeline_status,
 )
 from app.git import (
     get_ck_info,
@@ -1801,7 +1801,7 @@ def get_project_comments(
     return comments
 
 
-def _comment_artifact_link(
+def _make_comment_artifact_link(
     owner_name: str,
     project_name: str,
     artifact_type: str | None,
@@ -1887,7 +1887,7 @@ def post_project_comment(
     session.flush()
     if comment_in.create_github_issue and comment_in.artifact_path:
         app_base = settings.frontend_host.rstrip("/")
-        artifact_link = app_base + _comment_artifact_link(
+        artifact_link = app_base + _make_comment_artifact_link(
             owner_name,
             project_name,
             comment_in.artifact_type,
@@ -1918,7 +1918,7 @@ def post_project_comment(
             project=project,
             commenter_id=current_user.id,
             message=f"{commenter_name} commented on {comment_in.artifact_path}",
-            link=_comment_artifact_link(
+            link=_make_comment_artifact_link(
                 owner_name,
                 project_name,
                 comment_in.artifact_type,
@@ -3743,17 +3743,15 @@ def get_project_pipeline(
         dvc_lock: dict = {}
         if tree.is_file("dvc.lock"):
             dvc_lock = ryaml.load(tree.read_bytes("dvc.lock").decode()) or {}
-        fs = get_object_fs()
         stage_statuses = compute_stage_statuses(
             dvc_yaml=dvc_pipeline,
             dvc_lock=dvc_lock,
             tree=tree,
             owner_name=project.owner_account_name,
             project_name=project.name,
-            fs=fs,
             cache_token=resolve_commit_sha(repo, ref),
         )
-        overall_status = overall_pipeline_status(stage_statuses)
+        overall_status = calc_overall_pipeline_status(stage_statuses)
         mermaid = color_mermaid_by_status(mermaid, stage_statuses)
     except Exception as e:
         logger.warning(f"Failed to compute pipeline status: {e}")

@@ -63,7 +63,6 @@ from app.models import (
     User,
 )
 from app.pipeline import compute_stage_statuses, find_stage_for_path
-from app.storage import get_object_fs
 
 logger = logging.getLogger("uvicorn")
 
@@ -81,7 +80,7 @@ def _abbreviate_git_rev(git_rev: str | None) -> str | None:
     return git_rev[:7] if len(git_rev) > 7 else git_rev
 
 
-def _commit_date(repo, rev: str | None) -> str | None:
+def _get_commit_date(repo, rev: str | None) -> str | None:
     """Return the ISO date of a commit or tag, or None if it can't resolve.
 
     Used to give calkit.yaml releases a date when one isn't declared. ``rev``
@@ -95,7 +94,7 @@ def _commit_date(repo, rev: str | None) -> str | None:
         return None
 
 
-def _path_staleness(
+def _get_pipeline_output_staleness(
     repo,
     git_rev: str | None,
     path: str | None,
@@ -128,7 +127,6 @@ def _path_staleness(
             tree=tree,
             owner_name=owner_name,
             project_name=project_name,
-            fs=get_object_fs(),
             cache_token=git_rev,
         )
         ss = statuses.get(stage)
@@ -145,26 +143,7 @@ def _path_staleness(
     return result
 
 
-def _get_project_unchecked(
-    session: SessionDep, owner_name: str, project_name: str
-) -> Project:
-    """Look up a project without enforcing the caller's access level.
-
-    Used on the share-link paths, where authorization comes from a valid share
-    token rather than project membership, so we can't go through
-    ``get_project`` (which 403s a logged-in non-member of a private project).
-    """
-    project = session.exec(
-        select(Project)
-        .where(Project.owner_account.has(name=owner_name.lower()))
-        .where(sqlalchemy.func.lower(Project.name) == project_name.lower())
-    ).first()
-    if project is None:
-        raise HTTPException(404, "Project not found")
-    return project
-
-
-def _member_access(
+def _get_member_access(
     session: SessionDep, project: Project, current_user: User | None
 ) -> str | None:
     """The caller's project access level, or None if they aren't a member.
@@ -235,7 +214,7 @@ def _send_share_email(
         return False
 
 
-def _valid_share_token(
+def _get_valid_share_token(
     session: SessionDep, release: Release, token: str | None
 ) -> ReleaseShareToken | None:
     """Return the live (non-revoked, non-expired) share token for a release."""
@@ -268,7 +247,17 @@ def _authorize_release(
     project member with read access. Raises 404 if the release doesn't exist
     and 403 when the caller has neither membership nor a valid token.
     """
-    project = _get_project_unchecked(session, owner_name, project_name)
+    # Look up the project without enforcing access: on the share-link paths
+    # authorization comes from a valid share token rather than membership, so we
+    # can't go through get_project (which 403s a logged-in non-member of a
+    # private project).
+    project = session.exec(
+        select(Project)
+        .where(Project.owner_account.has(name=owner_name.lower()))
+        .where(sqlalchemy.func.lower(Project.name) == project_name.lower())
+    ).first()
+    if project is None:
+        raise HTTPException(404, "Project not found")
     release = session.exec(
         select(Release)
         .where(Release.project_id == project.id)
@@ -276,10 +265,10 @@ def _authorize_release(
     ).first()
     if release is None:
         raise HTTPException(404, "Release not found")
-    access = _member_access(session, project, current_user)
+    access = _get_member_access(session, project, current_user)
     if access in ("write", "admin", "owner"):
         return release, "manage", None
-    st = _valid_share_token(session, release, token)
+    st = _get_valid_share_token(session, release, token)
     if st is not None:
         permission = st.permission if st.permission == "comment" else "view"
         return release, permission, st
@@ -288,11 +277,17 @@ def _authorize_release(
     raise HTTPException(403, "A valid share link is required to view this")
 
 
-def _to_view(
+def _build_release_view(
     release: Release,
     permission: str,
     share_token: ReleaseShareToken | None,
 ) -> ReleaseView:
+    """Build the ReleaseView payload for the release page.
+
+    Flattens the release plus its project into the public shape the viewer
+    needs, tagging it with the caller's effective ``permission`` and (for a
+    share-link visitor) the email the link was scoped to.
+    """
     project = release.project
     return ReleaseView(
         name=release.name,
@@ -314,7 +309,9 @@ def _to_view(
     )
 
 
-def _stored_release_filename(project_name: str, path: str, name: str) -> str:
+def _build_stored_release_filename(
+    project_name: str, path: str, name: str
+) -> str:
     """Frozen-copy filename for a single-file internal release.
 
     Mirrors calkit-python's ``calkit new release --internal``:
@@ -338,6 +335,10 @@ def _store_internal_release_copy(
     md5 -- only a ``.dvc`` pointer is written, no bytes are moved (the working
     clone here doesn't even hold DVC content). Git-tracked files are read from
     the pinned tree and written into the release dir.
+
+    Only stages the files in the working clone (via ``repo.git.add``); the
+    caller commits and pushes them alongside calkit.yaml through
+    ``_commit_calkit_change``.
     """
     path = (release_in.path or ".").strip()
     if not path or path == ".":
@@ -355,7 +356,7 @@ def _store_internal_release_copy(
         return None
     if dvc_out is None and not tree.is_file(path):
         return None
-    stored_filename = _stored_release_filename(
+    stored_filename = _build_stored_release_filename(
         project.name, path, release_in.name
     )
     release_dir = f".calkit/releases/{release_in.name}"
@@ -598,7 +599,7 @@ def post_project_release(
     # Block releasing a possibly non-reproducible artifact unless the user has
     # acknowledged it. Staleness is checked against the pinned commit.
     if not release_in.acknowledge_non_reproducible:
-        staleness = _path_staleness(
+        staleness = _get_pipeline_output_staleness(
             repo,
             git_rev,
             release_in.path,
@@ -740,7 +741,7 @@ CSL_KIND_MAP = {
 }
 
 
-def _arxiv_id_from_url(url: str) -> str | None:
+def _parse_arxiv_id_from_url(url: str) -> str | None:
     lower = url.lower()
     if "arxiv.org" not in lower and "arxiv:" not in lower:
         return None
@@ -748,7 +749,7 @@ def _arxiv_id_from_url(url: str) -> str | None:
     return m.group(1) if m else None
 
 
-def _doi_from_url(url: str) -> str | None:
+def _parse_doi_from_url(url: str) -> str | None:
     m = DOI_RE.search(url)
     if m:
         # Trim trailing punctuation that often rides along in a pasted URL.
@@ -913,7 +914,7 @@ OSF_RESERVED = {
 }
 
 
-def _osf_guid_from_url(url: str) -> str | None:
+def _parse_osf_guid_from_url(url: str) -> str | None:
     m = re.search(r"osf\.io/([a-z0-9]{5,})", url, re.IGNORECASE)
     if not m:
         return None
@@ -984,13 +985,13 @@ def _parse_release_url(url: str) -> ReleaseUrlMetadata | None:
     for the plain ``osf.io/<guid>`` page form, checked last.
     """
     url = url.strip()
-    arxiv_id = _arxiv_id_from_url(url)
+    arxiv_id = _parse_arxiv_id_from_url(url)
     if arxiv_id:
         return _fetch_arxiv(arxiv_id)
-    doi = _doi_from_url(url)
+    doi = _parse_doi_from_url(url)
     if doi:
         return _fetch_doi(doi)
-    osf_guid = _osf_guid_from_url(url)
+    osf_guid = _parse_osf_guid_from_url(url)
     if osf_guid:
         return _fetch_osf(osf_guid)
     return None
@@ -1236,7 +1237,7 @@ def get_project_releases(
         # commit date (or its tag's commit), so every release shows a date.
         release_date = str(rel["date"]) if rel.get("date") else None
         if release_date is None:
-            release_date = _commit_date(repo, git_rev) or _commit_date(
+            release_date = _get_commit_date(repo, git_rev) or _get_commit_date(
                 repo, name
             )
         items.append(
@@ -1291,7 +1292,7 @@ def get_release_staleness(
     git_rev = resolve_commit_sha(repo, git_ref)
     if git_rev is None:
         raise HTTPException(400, f"Could not resolve Git ref '{git_ref}'")
-    return _path_staleness(
+    return _get_pipeline_output_staleness(
         repo, git_rev, path, project.owner_account_name, project.name
     )
 
@@ -1616,7 +1617,7 @@ def delete_release_share(
         raise HTTPException(404, "Share link not found")
     # Soft-delete: revoking keeps the row so its view_count and the link from
     # any comment posted through it (ReleaseComment.share_token_id) survive,
-    # and _valid_share_token's revoked check actually has something to reject.
+    # and _get_valid_share_token's revoked check actually has something to reject.
     token.revoked = True
     session.add(token)
     session.commit()
@@ -1670,7 +1671,7 @@ def get_release_view(
         session.add(share_token)
     session.commit()
     session.refresh(release)
-    return _to_view(release, permission, share_token)
+    return _build_release_view(release, permission, share_token)
 
 
 @router.get(
@@ -1935,7 +1936,7 @@ def _mirror_release_comment_to_github(
     if parent is not None:
         if not parent.external_url:
             return None
-        ref = _release_issue_ref(parent.external_url)
+        ref = _parse_release_issue_ref(parent.external_url)
         if ref is None:
             return None
         repo, issue_number = ref
@@ -1993,7 +1994,7 @@ def _mirror_release_comment_to_github(
     return resp.json().get("html_url")
 
 
-def _release_issue_ref(url: str) -> tuple[str, int] | None:
+def _parse_release_issue_ref(url: str) -> tuple[str, int] | None:
     """Parse ``(repo, issue_number)`` from a GitHub issue URL, or None."""
     try:
         parts = url.rstrip("/").split("/")
@@ -2043,7 +2044,7 @@ def _sync_release_comment_resolutions(
         headers["Authorization"] = f"Bearer {token}"
     changed = False
     for top in tops:
-        ref = _release_issue_ref(str(top.external_url))
+        ref = _parse_release_issue_ref(str(top.external_url))
         if ref is None:
             continue
         repo, issue_number = ref
@@ -2080,7 +2081,7 @@ def _set_release_comment_issue_state(
     """Close or reopen a thread's GitHub issue. Best-effort; never raises."""
     if not comment.external_url:
         return
-    ref = _release_issue_ref(comment.external_url)
+    ref = _parse_release_issue_ref(comment.external_url)
     if ref is None:
         return
     repo, issue_number = ref
