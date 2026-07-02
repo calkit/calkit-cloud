@@ -19,9 +19,9 @@ import {
   Link,
   Spinner,
   Text,
-  Tooltip,
   useColorModeValue,
 } from "@chakra-ui/react"
+import Tooltip from "./Tooltip"
 import mixpanel from "mixpanel-browser"
 import type { PDFDocumentProxy } from "pdfjs-dist"
 import {
@@ -206,6 +206,9 @@ interface PdfDocumentViewerProps {
   // Where the viewer is used (e.g. "publication", "presentation", "file").
   // Sent along with analytics events.
   source?: string
+  // Initial zoom (a pdf.js scale value, e.g. "auto", "page-width",
+  // "page-fit", or a number). Defaults to "auto".
+  defaultScale?: string
 }
 
 const highlightSx = {
@@ -227,6 +230,7 @@ export default function PdfDocumentViewer({
   externalScrollRef,
   pagedNav = false,
   source = "pdf",
+  defaultScale = "auto",
 }: PdfDocumentViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   // Gate rendering until the next animation frame. In React StrictMode dev,
@@ -252,7 +256,26 @@ export default function PdfDocumentViewer({
       sx={highlightSx}
     >
       {pdfReady && (
-        <PdfLoader url={url} beforeLoad={<Spinner color="ui.main" />}>
+        <PdfLoader
+          url={url}
+          beforeLoad={<Spinner color="ui.main" />}
+          errorMessage={
+            // Without this, a PDF that can't be fetched or parsed (e.g. an
+            // external, CORS-blocked, or auth-gated URL) would hang on the
+            // spinner forever. Show a message and, for http(s) sources, a way
+            // to open it directly.
+            <Box p={4} textAlign="center">
+              <Text fontSize="sm" color="gray.500" mb={2}>
+                Couldn't load this PDF.
+              </Text>
+              {/^https?:/.test(url) && (
+                <Link href={url} isExternal color="blue.500" fontSize="sm">
+                  Open it in a new tab
+                </Link>
+              )}
+            </Box>
+          }
+        >
           {(pdfDocument) => (
             <PdfViewerInner
               key={url}
@@ -266,6 +289,7 @@ export default function PdfDocumentViewer({
               externalScrollRef={externalScrollRef}
               pagedNav={pagedNav}
               source={source}
+              defaultScale={defaultScale}
             />
           )}
         </PdfLoader>
@@ -293,6 +317,7 @@ function PdfViewerInner({
   externalScrollRef,
   pagedNav = false,
   source = "pdf",
+  defaultScale = "auto",
 }: PdfViewerInnerProps) {
   const toolbarBg = useColorModeValue("ui.secondary", "ui.darkSlate")
   const borderColor = useColorModeValue("gray.200", "gray.600")
@@ -302,7 +327,7 @@ function PdfViewerInner({
   const [highlightsKey, setHighlightsKey] = useState(0)
 
   // Toolbar state.
-  const [scaleValue, setScaleValue] = useState<string>("auto")
+  const [scaleValue, setScaleValue] = useState<string>(defaultScale)
   const [outline, setOutline] = useState<OutlineNode[]>([])
   const [outlineOpen, setOutlineOpen] = useState(false)
   const [pageNav, setPageNav] = useState({
@@ -880,7 +905,7 @@ function PdfViewerInner({
         flexShrink={0}
       >
         {outline.length > 0 && (
-          <Tooltip label="Sections" openDelay={400}>
+          <Tooltip label="Sections">
             <IconButton
               aria-label="Toggle sections"
               icon={<FiList />}
@@ -951,7 +976,7 @@ function PdfViewerInner({
             variant="ghost"
             onClick={() => zoomBy(0.2)}
           />
-          <Tooltip label="Fit width" openDelay={400}>
+          <Tooltip label="Fit width">
             <IconButton
               aria-label="Fit width"
               icon={<FiMaximize />}
@@ -1022,7 +1047,7 @@ function PdfViewerInner({
         )}
 
         <Flex align="center" gap={0.5} ml="auto">
-          <Tooltip label="Search" openDelay={400}>
+          <Tooltip label="Search">
             <IconButton
               aria-label="Search"
               icon={<FiSearch />}
@@ -1031,7 +1056,7 @@ function PdfViewerInner({
               onClick={() => (searchOpen ? closeSearch() : setSearchOpen(true))}
             />
           </Tooltip>
-          <Tooltip label="Print" openDelay={400}>
+          <Tooltip label="Print">
             <IconButton
               aria-label="Print"
               icon={<FiPrinter />}
@@ -1040,7 +1065,7 @@ function PdfViewerInner({
               onClick={handlePrint}
             />
           </Tooltip>
-          <Tooltip label="Open in new tab" openDelay={400}>
+          <Tooltip label="Open in new tab">
             <IconButton
               as={Link}
               href={url}
@@ -1054,7 +1079,7 @@ function PdfViewerInner({
               }
             />
           </Tooltip>
-          <Tooltip label="Download" openDelay={400}>
+          <Tooltip label="Download">
             <IconButton
               as={Link}
               href={url}

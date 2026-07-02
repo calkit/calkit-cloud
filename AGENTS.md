@@ -34,6 +34,7 @@ Key points:
 - Generate migrations with: `docker compose exec backend alembic revision --autogenerate -m "Description"`
 - Apply migrations with: `docker compose exec backend alembic upgrade head`
 - Check current version with: `alembic current` (from `backend/` directory)
+- Squash into one per branch/PR
 
 ## Development Environment
 
@@ -46,6 +47,9 @@ Key points:
 
 - Run frontend tests: `make test-frontend`
 - Run backend tests: `make test-backend`
+
+These use an isolated test database inside containers. Don't try to run tests
+out on the system.
 
 ## Common Patterns
 
@@ -71,5 +75,13 @@ Key points:
 
 ## Misc rules
 
-- Version control operations are for humans, not agents.
+- Git committing and pushing is for humans, not agents.
 - No blank lines in functions.
+- Search inputs should always be clearable.
+- Changes to the UI state, e.g., a selected tab or a modal open,
+  should typically be part of query params so a link will show a similar state.
+- Tooltips should always have the same hover delay site-wide.
+- Always put a comma after "i.e." and "e.g.".
+- Let humans write prose.
+- Don't use many em-dashes.
+- Modal open state should be a query param.

@@ -341,8 +341,36 @@ export type ExistsResult = {
   exists: boolean
 }
 
+/**
+ * A release declared as published to an external venue.
+ *
+ * Recorded loosely in ``calkit.yaml`` (not hosted by Calkit); used to track
+ * that an artifact was, e.g., posted to arXiv or published in a journal. The
+ * ``publisher`` key matches what Zenodo releases already write.
+ */
+export type ExternalReleasePost = {
+  name: string
+  kind?: string
+  path?: string | null
+  publisher?: string | null
+  url?: string | null
+  doi?: string | null
+  date?: string | null
+  description?: string | null
+  public?: boolean
+}
+
 export type ExternalTokenResponse = {
   access_token: string
+}
+
+/**
+ * Vote tally for a feature plus whether the current user has voted.
+ */
+export type FeatureVoteStatus = {
+  feature: string
+  count: number
+  has_voted: boolean
 }
 
 export type Figure = {
@@ -350,6 +378,7 @@ export type Figure = {
   title: string
   description?: string | null
   stage?: string | null
+  stage_status?: StageStatus | null
   dataset?: string | null
   content?: string | null
   url?: string | null
@@ -708,7 +737,13 @@ export type Pipeline = {
   }
   dvc_yaml: string
   calkit_yaml: string | null
+  stage_statuses?: {
+    [key: string]: StageStatus
+  }
+  status?: "up-to-date" | "stale" | "unknown"
 }
+
+export type status = "up-to-date" | "stale" | "unknown"
 
 export type Presentation = {
   path: string
@@ -903,7 +938,7 @@ export type ProjectStatus = {
   message?: string | null
 }
 
-export type status = "in-progress" | "on-hold" | "completed"
+export type status2 = "in-progress" | "on-hold" | "completed"
 
 export type ProjectStatusPost = {
   status: "in-progress" | "on-hold" | "completed"
@@ -923,6 +958,7 @@ export type Publication = {
     | "book"
     | null
   stage?: string | null
+  stage_status?: StageStatus | null
   content?: string | null
   stage_info?: DvcPipelineStage | null
   url?: string | null
@@ -976,6 +1012,216 @@ export type References = {
 export type RefreshTokenRequest = {
   refresh_token: string
 }
+
+export type ReleaseCommentPost = {
+  comment: string
+  author_name?: string | null
+  highlight?: CommentHighlight | null
+  parent_id?: string | null
+}
+
+export type ReleaseCommentPublic = {
+  id: string
+  author_name: string | null
+  comment: string
+  highlight?: {
+    [key: string]: unknown
+  } | null
+  external_url: string | null
+  parent_id?: string | null
+  resolved?: string | null
+  created: string
+}
+
+export type ReleaseCommentResolvePost = {
+  resolved: boolean
+}
+
+/**
+ * Result of creating (or finding) a GitHub release for a Calkit release.
+ */
+export type ReleaseGithubResult = {
+  url: string
+  created: boolean
+}
+
+/**
+ * A release row for the project releases page.
+ *
+ * Merges two sources: ``calkit`` releases declared in ``calkit.yaml`` (the
+ * public, DOI-bearing ones produced via the CLI/Zenodo) and ``cloud``
+ * releases stored in this database (the private, secret-link ones). Fields
+ * that only apply to one source are optional.
+ */
+export type ReleaseListItem = {
+  source: "cloud" | "calkit"
+  name: string
+  kind?: string | null
+  path?: string | null
+  description?: string | null
+  git_ref?: string | null
+  git_rev?: string | null
+  git_rev_abbrev?: string | null
+  public?: boolean
+  url?: string | null
+  doi?: string | null
+  publisher?: string | null
+  date?: string | null
+  internal?: boolean
+  view_count?: number | null
+  comment_count?: number | null
+  share_count?: number | null
+  github_release_url?: string | null
+}
+
+export type source = "cloud" | "calkit"
+
+export type ReleasePost = {
+  name: string
+  kind?: string
+  path?: string | null
+  description?: string | null
+  git_ref?: string | null
+  public?: boolean
+  acknowledge_non_reproducible?: boolean
+}
+
+/**
+ * Release as seen by a user with write access.
+ */
+export type ReleasePublic = {
+  name: string
+  kind?: string
+  path?: string | null
+  description?: string | null
+  git_ref?: string | null
+  git_rev?: string | null
+  public?: boolean
+  url?: string | null
+  doi?: string | null
+  id: string
+  project_id: string
+  view_count: number
+  comment_count: number
+  git_rev_abbrev: string | null
+  created: string
+}
+
+/**
+ * Returned once when a token is minted; carries the raw token to share.
+ */
+export type ReleaseShareTokenCreated = {
+  id: string
+  email: string | null
+  permission: string
+  note: string | null
+  expires_at: string | null
+  revoked: boolean
+  view_count: number
+  created: string
+  token: string
+  email_sent?: boolean
+}
+
+export type ReleaseShareTokenPost = {
+  email?: string | null
+  permission?: "view" | "comment"
+  note?: string | null
+  expires_at?: string | null
+}
+
+export type permission = "view" | "comment"
+
+/**
+ * A share token as shown in the manage list -- never includes the secret.
+ */
+export type ReleaseShareTokenPublic = {
+  id: string
+  email: string | null
+  permission: string
+  note: string | null
+  expires_at: string | null
+  revoked: boolean
+  view_count: number
+  created: string
+}
+
+/**
+ * Whether the pipeline stage that produces a release path is up-to-date.
+ *
+ * Used to warn before creating a release of a possibly non-reproducible
+ * artifact. ``stage`` is None when the path isn't produced by any pipeline
+ * stage (staleness doesn't apply), in which case ``up_to_date`` stays True.
+ */
+export type ReleaseStaleness = {
+  path?: string | null
+  stage?: string | null
+  status?:
+    | "up-to-date"
+    | "stale"
+    | "not-run"
+    | "unknown"
+    | "always-run"
+    | "frozen"
+    | null
+  up_to_date?: boolean
+  modified_inputs?: Array<string>
+  modified_outputs?: Array<string>
+  missing_outputs?: Array<string>
+}
+
+/**
+ * Request to look up an already-published release from a URL or DOI.
+ */
+export type ReleaseUrlImport = {
+  url: string
+}
+
+/**
+ * Metadata parsed from an external release URL/DOI.
+ *
+ * Returned by the parse-url lookup so the create modal can pre-fill the
+ * declare-external form. The user reviews/edits it, then submits via the
+ * external release endpoint. ``git_rev`` is intentionally absent -- imports
+ * can't know the producing commit, so it's left for the user to set later.
+ */
+export type ReleaseUrlMetadata = {
+  publisher?: string | null
+  title?: string | null
+  doi?: string | null
+  url?: string | null
+  date?: string | null
+  description?: string | null
+  kind?: string
+}
+
+/**
+ * Release as rendered on its page, for a member or a share-token holder.
+ *
+ * Deliberately omits internal identifiers; exposes only what the viewer page
+ * needs to render the artifact, the provenance note, and comments. The
+ * viewer's effective ``permission`` says whether they may comment or manage
+ * the release, so the UI can adapt without leaking the share tokens.
+ */
+export type ReleaseView = {
+  name: string
+  kind: string
+  path: string | null
+  description: string | null
+  git_ref: string | null
+  git_rev_abbrev: string | null
+  public: boolean
+  comment_count: number
+  created: string
+  owner_account_name: string
+  owner_account_display_name: string
+  project_name: string
+  project_title: string
+  permission: "view" | "comment" | "manage"
+  viewer_email?: string | null
+}
+
+export type permission2 = "view" | "comment" | "manage"
 
 export type ReproCheck = {
   has_pipeline: boolean
@@ -1077,6 +1323,28 @@ export type SoftwareItem = {
   path: string
   description?: string | null
 }
+
+export type StageStatus = {
+  status:
+    | "up-to-date"
+    | "stale"
+    | "not-run"
+    | "unknown"
+    | "always-run"
+    | "frozen"
+  modified_command?: boolean
+  modified_inputs?: Array<string>
+  modified_outputs?: Array<string>
+  missing_outputs?: Array<string>
+}
+
+export type status3 =
+  | "up-to-date"
+  | "stale"
+  | "not-run"
+  | "unknown"
+  | "always-run"
+  | "frozen"
 
 export type StorageUsage = {
   limit_gb: number
@@ -1244,6 +1512,24 @@ export type GetDatasetsData = {
 export type GetDatasetsResponse = DatasetsResponse
 
 export type MetricsResponse = unknown
+
+export type GetFeatureVoteStatusData = {
+  feature: string
+}
+
+export type GetFeatureVoteStatusResponse = FeatureVoteStatus
+
+export type PostFeatureVoteData = {
+  feature: string
+}
+
+export type PostFeatureVoteResponse = FeatureVoteStatus
+
+export type DeleteFeatureVoteData = {
+  feature: string
+}
+
+export type DeleteFeatureVoteResponse = FeatureVoteStatus
 
 export type LoginAccessTokenData = {
   formData: Body_login_login_access_token
@@ -1587,6 +1873,15 @@ export type PatchProjectContentsData = {
 export type PatchProjectContentsResponse = {
   [key: string]: unknown
 } | null
+
+export type GetProjectContentPathsData = {
+  ownerName: string
+  projectName: string
+  ref?: string | null
+  ttl?: number | null
+}
+
+export type GetProjectContentPathsResponse = Array<string>
 
 export type GetProjectQuestionsData = {
   ownerName: string
@@ -1967,6 +2262,153 @@ export type PostProjectFsBatchOpData = {
 }
 
 export type PostProjectFsBatchOpResponse = FsOpBatchResponse
+
+export type PostProjectReleaseData = {
+  ownerName: string
+  projectName: string
+  requestBody: ReleasePost
+}
+
+export type PostProjectReleaseResponse = ReleasePublic
+
+export type GetProjectReleasesData = {
+  ownerName: string
+  projectName: string
+  ref?: string | null
+}
+
+export type GetProjectReleasesResponse = Array<ReleaseListItem>
+
+export type PostExternalReleaseData = {
+  ownerName: string
+  projectName: string
+  requestBody: ExternalReleasePost
+}
+
+export type PostExternalReleaseResponse = Message
+
+export type ParseReleaseUrlData = {
+  ownerName: string
+  projectName: string
+  requestBody: ReleaseUrlImport
+}
+
+export type ParseReleaseUrlResponse = ReleaseUrlMetadata
+
+export type ImportGithubReleasesData = {
+  ownerName: string
+  projectName: string
+}
+
+export type ImportGithubReleasesResponse = Message
+
+export type GetReleaseStalenessData = {
+  gitRef?: string | null
+  ownerName: string
+  path?: string | null
+  projectName: string
+}
+
+export type GetReleaseStalenessResponse = ReleaseStaleness
+
+export type DeleteProjectReleaseData = {
+  ownerName: string
+  projectName: string
+  releaseName: string
+}
+
+export type DeleteProjectReleaseResponse = Message
+
+export type CreateReleaseGithubReleaseData = {
+  ownerName: string
+  projectName: string
+  releaseName: string
+}
+
+export type CreateReleaseGithubReleaseResponse = ReleaseGithubResult
+
+export type CreateReleaseShareData = {
+  ownerName: string
+  projectName: string
+  releaseName: string
+  requestBody: ReleaseShareTokenPost
+}
+
+export type CreateReleaseShareResponse = ReleaseShareTokenCreated
+
+export type ListReleaseSharesData = {
+  ownerName: string
+  projectName: string
+  releaseName: string
+}
+
+export type ListReleaseSharesResponse = Array<ReleaseShareTokenPublic>
+
+export type DeleteReleaseShareData = {
+  ownerName: string
+  projectName: string
+  releaseName: string
+  tokenId: string
+}
+
+export type DeleteReleaseShareResponse = Message
+
+export type GetReleaseViewData = {
+  ownerName: string
+  projectName: string
+  releaseName: string
+  token?: string | null
+}
+
+export type GetReleaseViewResponse = ReleaseView
+
+export type GetReleaseContentData = {
+  ownerName: string
+  projectName: string
+  releaseName: string
+  token?: string | null
+}
+
+export type GetReleaseContentResponse = ContentsItem
+
+export type GetReleaseContentsData = {
+  ownerName: string
+  path?: string | null
+  projectName: string
+  releaseName: string
+  token?: string | null
+}
+
+export type GetReleaseContentsResponse = ContentsItem
+
+export type GetReleaseCommentsData = {
+  ownerName: string
+  projectName: string
+  releaseName: string
+  token?: string | null
+}
+
+export type GetReleaseCommentsResponse = Array<ReleaseCommentPublic>
+
+export type PostReleaseCommentData = {
+  ownerName: string
+  projectName: string
+  releaseName: string
+  requestBody: ReleaseCommentPost
+  token?: string | null
+}
+
+export type PostReleaseCommentResponse = ReleaseCommentPublic
+
+export type ResolveReleaseCommentData = {
+  commentId: string
+  ownerName: string
+  projectName: string
+  releaseName: string
+  requestBody: ReleaseCommentResolvePost
+}
+
+export type ResolveReleaseCommentResponse = ReleaseCommentPublic
 
 export type ReadUsersData = {
   limit?: number

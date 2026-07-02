@@ -29,7 +29,9 @@ import { Route as LayoutAdminRouteImport } from './routes/_layout/admin'
 import { Route as LayoutAccountNameIndexRouteImport } from './routes/_layout/$accountName/index'
 import { Route as LayoutAccountNameProjectNameLayoutRouteImport } from './routes/_layout/$accountName/$projectName/_layout'
 import { Route as LayoutAccountNameProjectNameLayoutIndexRouteImport } from './routes/_layout/$accountName/$projectName/_layout/index'
+import { Route as LayoutAccountNameProjectNameReleasesReleaseNameRouteImport } from './routes/_layout/$accountName/$projectName/releases/$releaseName'
 import { Route as LayoutAccountNameProjectNameLayoutSoftwareRouteImport } from './routes/_layout/$accountName/$projectName/_layout/software'
+import { Route as LayoutAccountNameProjectNameLayoutReleasesRouteImport } from './routes/_layout/$accountName/$projectName/_layout/releases'
 import { Route as LayoutAccountNameProjectNameLayoutReferencesRouteImport } from './routes/_layout/$accountName/$projectName/_layout/references'
 import { Route as LayoutAccountNameProjectNameLayoutPublicationsRouteImport } from './routes/_layout/$accountName/$projectName/_layout/publications'
 import { Route as LayoutAccountNameProjectNameLayoutPresentationsRouteImport } from './routes/_layout/$accountName/$projectName/_layout/presentations'
@@ -144,10 +146,22 @@ const LayoutAccountNameProjectNameLayoutIndexRoute =
     path: '/',
     getParentRoute: () => LayoutAccountNameProjectNameLayoutRoute,
   } as any)
+const LayoutAccountNameProjectNameReleasesReleaseNameRoute =
+  LayoutAccountNameProjectNameReleasesReleaseNameRouteImport.update({
+    id: '/releases/$releaseName',
+    path: '/releases/$releaseName',
+    getParentRoute: () => LayoutAccountNameProjectNameRoute,
+  } as any)
 const LayoutAccountNameProjectNameLayoutSoftwareRoute =
   LayoutAccountNameProjectNameLayoutSoftwareRouteImport.update({
     id: '/software',
     path: '/software',
+    getParentRoute: () => LayoutAccountNameProjectNameLayoutRoute,
+  } as any)
+const LayoutAccountNameProjectNameLayoutReleasesRoute =
+  LayoutAccountNameProjectNameLayoutReleasesRouteImport.update({
+    id: '/releases',
+    path: '/releases',
     getParentRoute: () => LayoutAccountNameProjectNameLayoutRoute,
   } as any)
 const LayoutAccountNameProjectNameLayoutReferencesRoute =
@@ -259,7 +273,9 @@ export interface FileRoutesByFullPath {
   '/$accountName/$projectName/presentations': typeof LayoutAccountNameProjectNameLayoutPresentationsRoute
   '/$accountName/$projectName/publications': typeof LayoutAccountNameProjectNameLayoutPublicationsRoute
   '/$accountName/$projectName/references': typeof LayoutAccountNameProjectNameLayoutReferencesRoute
+  '/$accountName/$projectName/releases': typeof LayoutAccountNameProjectNameLayoutReleasesRoute
   '/$accountName/$projectName/software': typeof LayoutAccountNameProjectNameLayoutSoftwareRoute
+  '/$accountName/$projectName/releases/$releaseName': typeof LayoutAccountNameProjectNameReleasesReleaseNameRoute
   '/$accountName/$projectName/': typeof LayoutAccountNameProjectNameLayoutIndexRoute
 }
 export interface FileRoutesByTo {
@@ -292,7 +308,9 @@ export interface FileRoutesByTo {
   '/$accountName/$projectName/presentations': typeof LayoutAccountNameProjectNameLayoutPresentationsRoute
   '/$accountName/$projectName/publications': typeof LayoutAccountNameProjectNameLayoutPublicationsRoute
   '/$accountName/$projectName/references': typeof LayoutAccountNameProjectNameLayoutReferencesRoute
+  '/$accountName/$projectName/releases': typeof LayoutAccountNameProjectNameLayoutReleasesRoute
   '/$accountName/$projectName/software': typeof LayoutAccountNameProjectNameLayoutSoftwareRoute
+  '/$accountName/$projectName/releases/$releaseName': typeof LayoutAccountNameProjectNameReleasesReleaseNameRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -327,7 +345,9 @@ export interface FileRoutesById {
   '/_layout/$accountName/$projectName/_layout/presentations': typeof LayoutAccountNameProjectNameLayoutPresentationsRoute
   '/_layout/$accountName/$projectName/_layout/publications': typeof LayoutAccountNameProjectNameLayoutPublicationsRoute
   '/_layout/$accountName/$projectName/_layout/references': typeof LayoutAccountNameProjectNameLayoutReferencesRoute
+  '/_layout/$accountName/$projectName/_layout/releases': typeof LayoutAccountNameProjectNameLayoutReleasesRoute
   '/_layout/$accountName/$projectName/_layout/software': typeof LayoutAccountNameProjectNameLayoutSoftwareRoute
+  '/_layout/$accountName/$projectName/releases/$releaseName': typeof LayoutAccountNameProjectNameReleasesReleaseNameRoute
   '/_layout/$accountName/$projectName/_layout/': typeof LayoutAccountNameProjectNameLayoutIndexRoute
 }
 export interface FileRouteTypes {
@@ -362,7 +382,9 @@ export interface FileRouteTypes {
     | '/$accountName/$projectName/presentations'
     | '/$accountName/$projectName/publications'
     | '/$accountName/$projectName/references'
+    | '/$accountName/$projectName/releases'
     | '/$accountName/$projectName/software'
+    | '/$accountName/$projectName/releases/$releaseName'
     | '/$accountName/$projectName/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -395,7 +417,9 @@ export interface FileRouteTypes {
     | '/$accountName/$projectName/presentations'
     | '/$accountName/$projectName/publications'
     | '/$accountName/$projectName/references'
+    | '/$accountName/$projectName/releases'
     | '/$accountName/$projectName/software'
+    | '/$accountName/$projectName/releases/$releaseName'
   id:
     | '__root__'
     | '/_layout'
@@ -429,7 +453,9 @@ export interface FileRouteTypes {
     | '/_layout/$accountName/$projectName/_layout/presentations'
     | '/_layout/$accountName/$projectName/_layout/publications'
     | '/_layout/$accountName/$projectName/_layout/references'
+    | '/_layout/$accountName/$projectName/_layout/releases'
     | '/_layout/$accountName/$projectName/_layout/software'
+    | '/_layout/$accountName/$projectName/releases/$releaseName'
     | '/_layout/$accountName/$projectName/_layout/'
   fileRoutesById: FileRoutesById
 }
@@ -579,11 +605,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LayoutAccountNameProjectNameLayoutIndexRouteImport
       parentRoute: typeof LayoutAccountNameProjectNameLayoutRoute
     }
+    '/_layout/$accountName/$projectName/releases/$releaseName': {
+      id: '/_layout/$accountName/$projectName/releases/$releaseName'
+      path: '/releases/$releaseName'
+      fullPath: '/$accountName/$projectName/releases/$releaseName'
+      preLoaderRoute: typeof LayoutAccountNameProjectNameReleasesReleaseNameRouteImport
+      parentRoute: typeof LayoutAccountNameProjectNameRoute
+    }
     '/_layout/$accountName/$projectName/_layout/software': {
       id: '/_layout/$accountName/$projectName/_layout/software'
       path: '/software'
       fullPath: '/$accountName/$projectName/software'
       preLoaderRoute: typeof LayoutAccountNameProjectNameLayoutSoftwareRouteImport
+      parentRoute: typeof LayoutAccountNameProjectNameLayoutRoute
+    }
+    '/_layout/$accountName/$projectName/_layout/releases': {
+      id: '/_layout/$accountName/$projectName/_layout/releases'
+      path: '/releases'
+      fullPath: '/$accountName/$projectName/releases'
+      preLoaderRoute: typeof LayoutAccountNameProjectNameLayoutReleasesRouteImport
       parentRoute: typeof LayoutAccountNameProjectNameLayoutRoute
     }
     '/_layout/$accountName/$projectName/_layout/references': {
@@ -694,6 +734,7 @@ interface LayoutAccountNameProjectNameLayoutRouteChildren {
   LayoutAccountNameProjectNameLayoutPresentationsRoute: typeof LayoutAccountNameProjectNameLayoutPresentationsRoute
   LayoutAccountNameProjectNameLayoutPublicationsRoute: typeof LayoutAccountNameProjectNameLayoutPublicationsRoute
   LayoutAccountNameProjectNameLayoutReferencesRoute: typeof LayoutAccountNameProjectNameLayoutReferencesRoute
+  LayoutAccountNameProjectNameLayoutReleasesRoute: typeof LayoutAccountNameProjectNameLayoutReleasesRoute
   LayoutAccountNameProjectNameLayoutSoftwareRoute: typeof LayoutAccountNameProjectNameLayoutSoftwareRoute
   LayoutAccountNameProjectNameLayoutIndexRoute: typeof LayoutAccountNameProjectNameLayoutIndexRoute
 }
@@ -726,6 +767,8 @@ const LayoutAccountNameProjectNameLayoutRouteChildren: LayoutAccountNameProjectN
       LayoutAccountNameProjectNameLayoutPublicationsRoute,
     LayoutAccountNameProjectNameLayoutReferencesRoute:
       LayoutAccountNameProjectNameLayoutReferencesRoute,
+    LayoutAccountNameProjectNameLayoutReleasesRoute:
+      LayoutAccountNameProjectNameLayoutReleasesRoute,
     LayoutAccountNameProjectNameLayoutSoftwareRoute:
       LayoutAccountNameProjectNameLayoutSoftwareRoute,
     LayoutAccountNameProjectNameLayoutIndexRoute:
@@ -739,12 +782,15 @@ const LayoutAccountNameProjectNameLayoutRouteWithChildren =
 
 interface LayoutAccountNameProjectNameRouteChildren {
   LayoutAccountNameProjectNameLayoutRoute: typeof LayoutAccountNameProjectNameLayoutRouteWithChildren
+  LayoutAccountNameProjectNameReleasesReleaseNameRoute: typeof LayoutAccountNameProjectNameReleasesReleaseNameRoute
 }
 
 const LayoutAccountNameProjectNameRouteChildren: LayoutAccountNameProjectNameRouteChildren =
   {
     LayoutAccountNameProjectNameLayoutRoute:
       LayoutAccountNameProjectNameLayoutRouteWithChildren,
+    LayoutAccountNameProjectNameReleasesReleaseNameRoute:
+      LayoutAccountNameProjectNameReleasesReleaseNameRoute,
   }
 
 const LayoutAccountNameProjectNameRouteWithChildren =

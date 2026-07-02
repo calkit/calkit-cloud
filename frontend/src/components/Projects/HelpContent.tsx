@@ -1,8 +1,53 @@
-import { Link, Text, Code } from "@chakra-ui/react"
+import { Box, Flex, Link, Text, Code, Heading } from "@chakra-ui/react"
 import { Link as RouterLink, getRouteApi } from "@tanstack/react-router"
+
+// Stage status colors -- must match _MERMAID_STYLES (backend app/pipeline.py)
+// so the legend matches the diagram.
+const PIPELINE_LEGEND: { color: string; label: string; desc: string }[] = [
+  {
+    color: "#1f5a1f",
+    label: "Up to date",
+    desc: "outputs match the current inputs and code",
+  },
+  {
+    color: "#8a6a00",
+    label: "Stale",
+    desc: "inputs or code changed since it last ran; re-run to refresh",
+  },
+  {
+    color: "#3a3a3a",
+    label: "Not run",
+    desc: "has never produced its outputs",
+  },
+  {
+    color: "#1a4f7a",
+    label: "Always run",
+    desc: "re-executes every time by design",
+  },
+  {
+    color: "#5e7d8a",
+    label: "Frozen",
+    desc: "is not re-run even if inputs change",
+  },
+]
 
 interface HelpContentProps {
   userHasWriteAccess: boolean
+}
+
+// Shown on both the project home and the Releases page so the concept is
+// discoverable from either help drawer.
+function ReleasesHelp({ mb }: { mb: number }) {
+  return (
+    <Text mb={mb}>
+      When you want to share part or all of your project with the outside world,
+      create a release. These can be internal, which means they remain in Calkit
+      only (useful for sharing with collaborators who mainly act as reviewers),
+      or they can be external, uploaded to a permanent archival service like
+      Figshare, Zenodo, or CaltechDATA. You can also list releases to journals
+      or arXiv here to keep track of which exact versions made it where.
+    </Text>
+  )
 }
 
 function HelpContent({ userHasWriteAccess }: HelpContentProps) {
@@ -51,18 +96,18 @@ function HelpContent({ userHasWriteAccess }: HelpContentProps) {
       </>
     )
   }
+  // Publications help
   if (page === "publications") {
     return (
       <>
         <Text mb={mb}>
-          Publications are artifacts created as part of project such as journal
-          articles, presentations or slide decks, technical reports, etc.
-          Ideally these should be produced as part of the pipeline, but for
-          users of non-text-based tools like Microsoft Office and Google
-          Workspace these can be uploaded and updated manually. However, it is
-          recommended to export them to PDF. The source files, e.g., a{" "}
-          <Code>*.docx</Code> file, can be added as a dependency, but should
-          most likely not be the artifact itself.
+          Publications are used to provide a summary of the project and its
+          findings. Typically these are the "interface" that others will
+          interact with first before diving deeper into the rest of the
+          project's artifacts. It's typically a good idea to share a publication
+          PDF as a released artifact so it's clear exactly what snapshot of the
+          project produced it, so other can trace back through the pipeline to
+          see how all of the evidence (e.g., figures) was generated.
         </Text>
       </>
     )
@@ -156,6 +201,23 @@ function HelpContent({ userHasWriteAccess }: HelpContentProps) {
           </Link>
           .
         </Text>
+        <Text mb={2}>In the diagram, each stage is colored by its status:</Text>
+        <Box mb={mb}>
+          {PIPELINE_LEGEND.map((item) => (
+            <Flex key={item.label} align="baseline" gap={2} mb={1}>
+              <Box
+                boxSize={3}
+                borderRadius="sm"
+                bg={item.color}
+                flexShrink={0}
+                transform="translateY(1px)"
+              />
+              <Text fontSize="sm">
+                <b>{item.label}</b>: {item.desc}.
+              </Text>
+            </Flex>
+          ))}
+        </Box>
       </>
     )
   }
@@ -197,6 +259,22 @@ function HelpContent({ userHasWriteAccess }: HelpContentProps) {
       </>
     )
   }
+  if (page === "presentations") {
+    return (
+      <>
+        <Text mb={mb}>
+          Presentations are artifacts used to support interactive discussions on
+          the project's findings. These can be produced with LaTeX (Beamer),
+          Quarto, or PowerPoint. It's usually a good idea to share the PDF of
+          these as part of a release so it's clear exactly what snapshot of
+          files produced it.
+        </Text>
+      </>
+    )
+  }
+  if (page === "releases") {
+    return <ReleasesHelp mb={mb} />
+  }
   if (page === "software") {
     return (
       <>
@@ -231,6 +309,7 @@ function HelpContent({ userHasWriteAccess }: HelpContentProps) {
       </>
     )
   }
+  // Default project home help content
   return (
     <>
       {userHasWriteAccess ? (
@@ -257,6 +336,20 @@ function HelpContent({ userHasWriteAccess }: HelpContentProps) {
       <Code whiteSpace="pre" overflow="auto" mb={mb} width="100%" p={2}>
         calkit clone {accountName}/{projectName}
       </Code>
+      {/* Questions help */}
+      <Heading size="md" mb={mb / 2}>
+        Questions
+      </Heading>
+      <Text mb={mb}>
+        Research projects are typically driven by one or more questions. Add
+        these to the questions section and then tie back outputs as evidence to
+        support answers to them.
+      </Text>
+      {/* Releases help */}
+      <Heading size="md" mb={mb / 2}>
+        Releases
+      </Heading>
+      <ReleasesHelp mb={mb} />
     </>
   )
 }

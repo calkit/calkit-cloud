@@ -1237,6 +1237,20 @@ def _resolve_commit(repo: git.Repo, ref: str) -> git.Commit:
     raise HTTPException(404, f"Git ref '{ref}' was not found")
 
 
+def resolve_commit_sha(repo: git.Repo, ref: str | None) -> str | None:
+    """Resolve *ref* (or HEAD when None) to a full commit SHA, or None.
+
+    Used as a content token for caching: the SHA changes whenever any tracked
+    file does. Never raises -- returns None when the ref can't be resolved.
+    """
+    try:
+        if ref:
+            return _resolve_commit(repo, ref).hexsha
+        return repo.head.commit.hexsha
+    except Exception:
+        return None
+
+
 def get_repo_tree_for_ref(repo: git.Repo, ref: str | None) -> RepoTree:
     """Return a ``RepoTree`` for *ref*.
 

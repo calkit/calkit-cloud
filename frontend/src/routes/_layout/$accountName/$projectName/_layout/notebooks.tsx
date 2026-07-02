@@ -9,8 +9,8 @@ import {
   Code,
   HStack,
   Button,
-  Tooltip,
 } from "@chakra-ui/react"
+import Tooltip from "../../../../../components/Common/Tooltip"
 import { useQuery } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 import { useNavigate } from "@tanstack/react-router"
@@ -221,7 +221,6 @@ function Notebooks() {
                   <Tooltip
                     key={nb.path}
                     label={nb.title ?? nb.path}
-                    openDelay={600}
                     placement="right"
                   >
                     <HStack

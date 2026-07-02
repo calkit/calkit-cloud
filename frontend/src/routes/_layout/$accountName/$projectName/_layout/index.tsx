@@ -16,22 +16,37 @@ import {
   IconButton,
   Link,
   Icon,
+  Table,
+  Thead,
+  Tbody,
+  Tr,
+  Th,
+  Td,
 } from "@chakra-ui/react"
 import {
   createFileRoute,
   Link as RouterLink,
   useSearch,
 } from "@tanstack/react-router"
+import { useQuery } from "@tanstack/react-query"
 import { useState } from "react"
+import { z } from "zod"
 import { FaPlus } from "react-icons/fa"
 import { MdEdit } from "react-icons/md"
 import { ExternalLinkIcon } from "@chakra-ui/icons"
 
 import Markdown from "../../../../../components/Common/Markdown"
+import { ReleasesService } from "../../../../../client"
 import { decodeBase64Utf8 } from "../../../../../lib/strings"
+import {
+  formatReleaseDate,
+  releaseLocation,
+  releasePagePath,
+} from "../../../../../lib/releases"
 import CreateIssue from "../../../../../components/Projects/CreateIssue"
 import CreateQuestion from "../../../../../components/Projects/CreateQuestion"
 import NewPublication from "../../../../../components/Publications/NewPublication"
+import NewRelease from "../../../../../components/Releases/NewRelease"
 import useProject, {
   useProjectIssues,
   useProjectQuestions,
@@ -44,6 +59,13 @@ export const Route = createFileRoute(
   "/_layout/$accountName/$projectName/_layout/",
 )({
   component: Project,
+  validateSearch: (search) =>
+    z
+      .object({
+        // Whole-project "New release" modal open state, so a link reopens it.
+        new_release: z.boolean().optional(),
+      })
+      .parse(search),
 })
 
 function ProjectView() {
@@ -71,6 +93,23 @@ function ProjectView() {
     projectName,
     ref,
   )
+  // Shares its cache with the History page's Releases tab (same query key), so
+  // creating a release refreshes both.
+  const releasesRequest = useQuery({
+    queryKey: ["projects", accountName, projectName, "releases", undefined],
+    queryFn: () =>
+      ReleasesService.getProjectReleases({
+        ownerName: accountName,
+        projectName,
+      }),
+  })
+  // Newest first (ISO dates sort lexically); show only the latest few on the
+  // home page and link to the full list on the History page.
+  const HOME_RELEASES_LIMIT = 5
+  const sortedReleases = [...(releasesRequest.data ?? [])].sort((a, b) =>
+    (b.date ?? "").localeCompare(a.date ?? ""),
+  )
+  const topReleases = sortedReleases.slice(0, HOME_RELEASES_LIMIT)
   const gitRepoUrl = projectRequest.data?.git_repo_url
   const codespacesUrl =
     String(gitRepoUrl).replace("://github.com/", "://codespaces.new/") +
@@ -99,11 +138,18 @@ function ProjectView() {
   const newQuestionModal = useDisclosure()
   const newPubTemplateModal = useDisclosure()
   const overleafImportModal = useDisclosure()
+  // New release modal open state lives in the URL so a link can reopen it.
+  const navigate = Route.useNavigate()
+  const { new_release: newReleaseOpen } = Route.useSearch()
+  const setNewReleaseOpen = (open: boolean) =>
+    navigate({
+      search: (prev) => ({ ...prev, new_release: open || undefined }),
+    })
 
   return (
     <>
       <Flex mt={1}>
-        <Box width="60%" mr={8}>
+        <Box width="65%" mr={8}>
           {/* Showcase */}
           <Box py={4} px={6} mb={4} borderRadius="lg" bg={secBgColor}>
             <Flex alignItems="center">
@@ -171,7 +217,7 @@ function ProjectView() {
             )}
           </Box>
         </Box>
-        <Box width={"40%"}>
+        <Box width={"35%"}>
           {/* Questions  */}
           <Box py={4} px={6} mb={4} borderRadius="lg" bg={secBgColor}>
             <Flex>
@@ -200,14 +246,18 @@ function ProjectView() {
             </Flex>
             {questionsRequest.isPending ? (
               <LoadingSpinner height="100px" />
-            ) : (
+            ) : questionsRequest.data?.length ? (
               <OrderedList>
-                {questionsRequest.data?.map((question) => (
+                {questionsRequest.data.map((question) => (
                   <ListItem key={question.question}>
                     {question.question}
                   </ListItem>
                 ))}
               </OrderedList>
+            ) : (
+              <Text fontSize="sm" color="gray.500">
+                No research questions defined yet.
+              </Text>
             )}
           </Box>
           {/* To-dos (issues) */}
@@ -298,6 +348,139 @@ function ProjectView() {
                   )
                 })}
               </>
+            )}
+          </Box>
+          {/* Releases */}
+          <Box py={4} px={6} mb={4} borderRadius="lg" bg={secBgColor}>
+            <Flex>
+              <Heading size="md" mb={2}>
+                <Link
+                  as={RouterLink}
+                  to={`/${accountName}/${projectName}/releases`}
+                >
+                  Releases
+                </Link>
+              </Heading>
+              {userHasWriteAccess ? (
+                <>
+                  <IconButton
+                    aria-label="Add release"
+                    height="25px"
+                    width="28px"
+                    ml={1.5}
+                    icon={<FaPlus />}
+                    size={"xs"}
+                    onClick={() => setNewReleaseOpen(true)}
+                  />
+                  <NewRelease
+                    isOpen={Boolean(newReleaseOpen)}
+                    onClose={() => setNewReleaseOpen(false)}
+                    ownerName={accountName}
+                    projectName={projectName}
+                    kind="project"
+                  />
+                </>
+              ) : (
+                ""
+              )}
+            </Flex>
+            {releasesRequest.isPending ? (
+              <LoadingSpinner height="100px" />
+            ) : releasesRequest.isError ? (
+              <Text fontSize="sm" color="red.500">
+                Failed to load releases.
+              </Text>
+            ) : topReleases.length > 0 ? (
+              <>
+                <Table size="sm" variant="simple">
+                  <Thead>
+                    <Tr>
+                      <Th px={2}>Name</Th>
+                      <Th px={2}>Path</Th>
+                      <Th px={2}>Date</Th>
+                      <Th px={2}>Location</Th>
+                    </Tr>
+                  </Thead>
+                  <Tbody>
+                    {topReleases.map((release) => {
+                      const dest = releaseLocation(release)
+                      const pathLabel = release.path || "."
+                      return (
+                        <Tr key={`${release.source}-${release.name}`}>
+                          <Td px={2}>
+                            <Link
+                              as={RouterLink}
+                              to={
+                                releasePagePath(
+                                  accountName,
+                                  projectName,
+                                  release.name,
+                                ) as any
+                              }
+                              color="blue.500"
+                            >
+                              {release.name}
+                            </Link>
+                          </Td>
+                          <Td px={2} fontSize="sm">
+                            <Link
+                              as={RouterLink}
+                              to={
+                                releasePagePath(
+                                  accountName,
+                                  projectName,
+                                  release.name,
+                                ) as any
+                              }
+                              color="blue.500"
+                            >
+                              {pathLabel}
+                            </Link>
+                          </Td>
+                          <Td px={2} fontSize="sm" color="gray.500">
+                            {formatReleaseDate(release.date)}
+                          </Td>
+                          <Td px={2} fontSize="sm">
+                            {dest.href ? (
+                              <Link
+                                href={dest.href}
+                                isExternal
+                                color="blue.500"
+                                display="inline-flex"
+                                alignItems="center"
+                                gap={1}
+                                aria-label={`Open ${dest.label}`}
+                              >
+                                {dest.label}
+                                <Icon as={ExternalLinkIcon} />
+                              </Link>
+                            ) : (
+                              <Text as="span" color="gray.500">
+                                {dest.label}
+                              </Text>
+                            )}
+                          </Td>
+                        </Tr>
+                      )
+                    })}
+                  </Tbody>
+                </Table>
+                {sortedReleases.length > topReleases.length ? (
+                  <Link
+                    as={RouterLink}
+                    to={`/${accountName}/${projectName}/releases`}
+                    fontSize="sm"
+                  >
+                    View all {sortedReleases.length} releases →
+                  </Link>
+                ) : (
+                  ""
+                )}
+              </>
+            ) : (
+              <Text fontSize="sm" color="gray.500">
+                No releases yet.
+              </Text>
             )}
           </Box>
           {/* Quick actions */}

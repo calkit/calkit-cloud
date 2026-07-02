@@ -21,6 +21,7 @@ function PublicationView({ publication }: PubViewProps) {
             : String(publication.url)
         }
         source="showcase"
+        defaultScale="page-width"
       />
     )
   } else if (
@@ -28,10 +29,14 @@ function PublicationView({ publication }: PubViewProps) {
     (publication.content || publication.url)
   ) {
     contentView = (
-      <embed
-        height="100%"
-        width="100%"
-        type="text/html"
+      // Sandboxed so an embedded deck (e.g. reveal.js) can't read or navigate
+      // the host page. allow-same-origin and allow-top-navigation are both
+      // omitted so the content runs in an opaque origin and can't reach the
+      // parent (it also can't pollute the surrounding modal's history).
+      <iframe
+        title={publication.title || publication.path}
+        style={{ height: "100%", width: "100%", border: "none" }}
+        sandbox="allow-scripts allow-popups"
         src={
           publication.url
             ? String(publication.url)

@@ -15,11 +15,11 @@ import {
   MenuList,
   Portal,
   Text,
-  Tooltip,
   VStack,
   useColorModeValue,
   useDisclosure,
 } from "@chakra-ui/react"
+import Tooltip from "../../../../../components/Common/Tooltip"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   Link as RouterLink,
@@ -37,16 +37,19 @@ import type { Publication } from "../../../../../client"
 import { ProjectsService } from "../../../../../client"
 import type { ApiError } from "../../../../../client/core/ApiError"
 import { ArtifactCompareModal } from "../../../../../components/Common/ArtifactCompareModal"
+import CommentsPanel, {
+  projectCommentToPanelComment,
+} from "../../../../../components/Common/CommentsPanel"
 import LoadingSpinner from "../../../../../components/Common/LoadingSpinner"
 import PageMenu from "../../../../../components/Common/PageMenu"
 import ImportOverleaf from "../../../../../components/Publications/ImportOverleaf"
 import NewPublication from "../../../../../components/Publications/NewPublication"
 import PdfAnnotator, {
-  CommentList,
   commentToHighlight,
   type AnnotationHighlight,
 } from "../../../../../components/Publications/PdfAnnotator"
 import PublicationView from "../../../../../components/Publications/PublicationView"
+import ArtifactReleasesPanel from "../../../../../components/Releases/ArtifactReleasesPanel"
 import useAuth from "../../../../../hooks/useAuth"
 import useCustomToast from "../../../../../hooks/useCustomToast"
 import useProject, {
@@ -226,6 +229,7 @@ function Publications() {
     strict: false,
   }) as any
   const ref: string | undefined = layoutSearch?.ref
+  const secBgColor = useColorModeValue("ui.secondary", "ui.darkSlate")
   const { userHasWriteAccess } = useProject(accountName, projectName)
   const { publicationsRequest } = useProjectPublications(
     accountName,
@@ -287,6 +291,17 @@ function Publications() {
     enabled: !!selectedPub,
   })
 
+  const invalidateComments = () =>
+    queryClient.invalidateQueries({
+      queryKey: [
+        "projects",
+        accountName,
+        projectName,
+        "comments",
+        "publication",
+        selectedPub?.path,
+      ],
+    })
   const resolvePubCommentMutation = useMutation({
     mutationFn: ({
       commentId,
@@ -301,18 +316,32 @@ function Publications() {
         commentId,
         requestBody: { resolved },
       }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: [
-          "projects",
-          accountName,
-          projectName,
-          "comments",
-          "publication",
-          selectedPub?.path,
-        ],
-      })
-    },
+    onSuccess: invalidateComments,
+  })
+  const postCommentMutation = useMutation({
+    mutationFn: (vars: { body: string; createIssue: boolean }) =>
+      ProjectsService.postProjectComment({
+        ownerName: accountName,
+        projectName,
+        requestBody: {
+          artifact_path: selectedPub!.path,
+          artifact_type: "publication",
+          comment: vars.body,
+          create_github_issue: vars.createIssue,
+          git_ref: ref ?? null,
+        },
+      }),
+    onSuccess: invalidateComments,
+  })
+  const replyCommentMutation = useMutation({
+    mutationFn: (vars: { commentId: string; body: string }) =>
+      ProjectsService.postProjectCommentReply({
+        ownerName: accountName,
+        projectName,
+        commentId: vars.commentId,
+        requestBody: { body: vars.body },
+      }),
+    onSuccess: invalidateComments,
   })
 
   const pdfComments = commentsQuery.data ?? []
@@ -385,12 +414,7 @@ function Publications() {
             {publicationsRequest.data?.map((pub) => {
               const isSelected = pub.path === selectedPub?.path
               return (
-                <Tooltip
-                  key={pub.path}
-                  label={pub.title}
-                  openDelay={600}
-                  placement="right"
-                >
+                <Tooltip key={pub.path} label={pub.title} placement="right">
                   <HStack
                     px={1}
                     py={0.5}
@@ -476,29 +500,59 @@ function Publications() {
                     })
                   }
                 />
+                {selectedPub.path && (
+                  <Box bg={secBgColor} borderRadius="lg" p={3}>
+                    <ArtifactReleasesPanel
+                      ownerName={accountName}
+                      projectName={projectName}
+                      path={selectedPub.path}
+                      userHasWriteAccess={userHasWriteAccess}
+                      kind="publication"
+                    />
+                  </Box>
+                )}
                 {selectedPub && (
-                  <CommentList
-                    comments={pdfComments}
-                    highlights={pdfHighlights}
-                    scrollToHighlight={(h) => pdfScrollRef.current(h)}
+                  <CommentsPanel
+                    comments={pdfComments.map(projectCommentToPanelComment)}
+                    isLoading={commentsQuery.isPending}
+                    canComment={!!user}
+                    canResolve={!!user}
                     showResolved={showResolved}
                     onShowResolvedChange={setShowResolved}
-                    currentUserId={user?.id}
-                    ownerName={accountName}
-                    projectName={projectName}
-                    publicationPath={selectedPub.path}
-                    gitRef={ref}
-                    isLoading={commentsQuery.isPending}
-                    resolvingId={
-                      resolvePubCommentMutation.isPending
-                        ? resolvePubCommentMutation.variables?.commentId
-                        : undefined
+                    showCreateIssueCheckbox
+                    emptyText="Select text in the PDF or use the button below to add a comment."
+                    onHighlightClick={(c) => {
+                      const h = pdfHighlights.find((x) => x.dbId === c.id)
+                      if (h) pdfScrollRef.current(h)
+                    }}
+                    onPostComment={(body, opts) =>
+                      postCommentMutation.mutateAsync({
+                        body,
+                        createIssue: opts.createIssue,
+                      })
+                    }
+                    postingComment={postCommentMutation.isPending}
+                    onPostReply={(parentId, body) =>
+                      replyCommentMutation.mutateAsync({
+                        commentId: parentId,
+                        body,
+                      })
+                    }
+                    postingReplyForId={
+                      replyCommentMutation.isPending
+                        ? replyCommentMutation.variables?.commentId ?? null
+                        : null
                     }
                     onResolve={(id, resolved) =>
                       resolvePubCommentMutation.mutate({
                         commentId: id,
                         resolved,
                       })
+                    }
+                    resolvingId={
+                      resolvePubCommentMutation.isPending
+                        ? resolvePubCommentMutation.variables?.commentId ?? null
+                        : null
                     }
                   />
                 )}

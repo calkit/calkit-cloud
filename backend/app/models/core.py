@@ -2,10 +2,17 @@
 
 import uuid
 from datetime import datetime
-from typing import Any, Literal, Union
+from typing import TYPE_CHECKING, Any, Literal, Union
 
 import sqlalchemy
 from app import utcnow
+
+if TYPE_CHECKING:
+    # Release lives in app.models.releases (imported into the app.models
+    # namespace via __init__); this guarded import resolves the "Release"
+    # forward reference in Project.releases for type checkers without creating
+    # a runtime circular import.
+    from app.models.releases import Release
 from app.subscriptions import (
     PLAN_IDS,
     PLAN_NAMES,
@@ -548,6 +555,9 @@ class Project(ProjectBase, table=True):
     notifications: list["Notification"] = Relationship(
         back_populates="project", cascade_delete=True
     )
+    releases: list["Release"] = Relationship(
+        back_populates="project", cascade_delete=True
+    )
 
     @computed_field
     @property
@@ -656,11 +666,23 @@ class DvcForeachStage(SQLModel):
     do: DvcPipelineStage
 
 
+class StageStatus(SQLModel):
+    status: Literal[
+        "up-to-date", "stale", "not-run", "unknown", "always-run", "frozen"
+    ]
+    modified_command: bool = False
+    modified_inputs: list[str] = Field(default_factory=list)
+    modified_outputs: list[str] = Field(default_factory=list)
+    missing_outputs: list[str] = Field(default_factory=list)
+
+
 class Pipeline(SQLModel):
     mermaid: str
     dvc_stages: dict[str, DvcPipelineStage | DvcForeachStage]
     dvc_yaml: str
     calkit_yaml: str | None
+    stage_statuses: dict[str, StageStatus] = Field(default_factory=dict)
+    status: Literal["up-to-date", "stale", "unknown"] = "unknown"
 
 
 class Question(SQLModel, table=True):
@@ -677,6 +699,7 @@ class Figure(SQLModel):
     title: str
     description: str | None = None
     stage: str | None = None
+    stage_status: "StageStatus | None" = None
     dataset: str | None = None
     content: str | None = None  # Base64 encoded
     url: str | None = None
@@ -803,6 +826,11 @@ class Notification(SQLModel, table=True):
     # Relationships
     user: User = Relationship(back_populates="notifications")
     project: Project = Relationship(back_populates="notifications")
+
+
+# Release-related models live in ``app.models.releases`` (imported into the
+# ``app.models`` namespace via ``__init__``); ``Project.releases`` above refers
+# to ``Release`` there by its registered name.
 
 
 class DatasetBase(SQLModel):
@@ -950,6 +978,7 @@ class Publication(BaseModel):
         | None
     ) = None
     stage: str | None = None
+    stage_status: "StageStatus | None" = None
     content: str | None = None
     stage_info: DvcPipelineStage | None = None
     url: str | None = None
@@ -985,6 +1014,33 @@ class Notebook(BaseModel):
     url: str | None = None
     content: str | None = None
     storage: Literal["git", "dvc", "dvc-zip"] | None = None
+
+
+class FeatureVote(SQLModel, table=True):
+    """A single user's vote for a not-yet-built feature.
+
+    Used to gauge demand for features we haven't committed to building (e.g.,
+    creating external releases from within Calkit rather than the CLI). One row
+    per user per ``feature`` -- the unique constraint makes voting idempotent.
+    """
+
+    __table_args__ = (
+        sqlalchemy.UniqueConstraint(
+            "user_id", "feature", name="featurevote_user_id_feature_key"
+        ),
+    )
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="user.id")
+    feature: str = Field(index=True, max_length=64)
+    created: datetime = Field(default_factory=utcnow)
+
+
+class FeatureVoteStatus(SQLModel):
+    """Vote tally for a feature plus whether the current user has voted."""
+
+    feature: str
+    count: int
+    has_voted: bool
 
 
 class GitRef(BaseModel):
