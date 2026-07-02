@@ -94,6 +94,9 @@ export const formatReleaseDate = (date?: string | null): string => {
   // A plain YYYY-MM-DD carries no time or zone; parse it as a local calendar
   // date so it isn't shifted a day for users west of UTC. (new Date("2026-06-24")
   // is UTC midnight, which toLocaleDateString() would render as the prior day.)
+  // Match the date portion of the timestamped case below (dateStyle: "medium")
+  // so tag/calkit.yaml releases and cloud releases read the same, just without
+  // a time.
   if (!hasTime) {
     const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date.trim())
     if (m) {
@@ -101,12 +104,12 @@ export const formatReleaseDate = (date?: string | null): string => {
         Number(m[1]),
         Number(m[2]) - 1,
         Number(m[3]),
-      ).toLocaleDateString()
+      ).toLocaleDateString(undefined, { dateStyle: "medium" })
     }
     const dateOnly = new Date(date)
     return Number.isNaN(dateOnly.getTime())
       ? date
-      : dateOnly.toLocaleDateString()
+      : dateOnly.toLocaleDateString(undefined, { dateStyle: "medium" })
   }
   const d = new Date(date)
   if (Number.isNaN(d.getTime())) return date
