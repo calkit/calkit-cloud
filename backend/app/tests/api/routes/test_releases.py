@@ -9,6 +9,7 @@ import uuid
 from types import SimpleNamespace
 from unittest.mock import patch
 
+import pytest
 import requests
 from app.api.routes.projects.releases import (
     _parse_arxiv_id_from_url,
@@ -297,6 +298,42 @@ def test_stored_release_filename() -> None:
         _build_stored_release_filename("p", "paper/manuscript", "rev2")
         == "p-manuscript-rev2"
     )
+
+
+def test_validate_release_name_accepts_and_rejects_git_tags() -> None:
+    from app.models.releases import validate_release_name
+
+    for ok in ["v1.0", "v0.1.2", "release-1", "2026.06", "feature/x"]:
+        assert validate_release_name(ok) == ok
+    # Leading/trailing whitespace is stripped.
+    assert validate_release_name("  v1.0  ") == "v1.0"
+    for bad in [
+        "v 1.0",
+        "has space",
+        "v1..0",
+        "-lead",
+        "end.",
+        ".start",
+        "a.lock",
+        "tag~1",
+        "@",
+        "x//y",
+        "a\\b",
+        "q?",
+    ]:
+        with pytest.raises(ValueError):
+            validate_release_name(bad)
+
+
+def test_post_project_release_rejects_invalid_name(
+    client: TestClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    resp = client.post(
+        f"{settings.API_V1_STR}/projects/test-owner/test-project/releases",
+        json={"name": "not a tag"},
+        headers=normal_user_token_headers,
+    )
+    assert resp.status_code == 422
 
 
 def test_fetch_arxiv_not_found_returns_none() -> None:

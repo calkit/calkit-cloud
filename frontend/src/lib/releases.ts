@@ -2,6 +2,30 @@
 
 import type { ReleaseListItem } from "../client"
 
+// Validate a release name as a Git tag name (a release becomes a Git tag and a
+// calkit.yaml key), following Git's check-ref-format rules. Returns an error
+// message, or undefined when valid, matching react-hook-form's validate API.
+// Keep in sync with validate_release_name on the backend.
+// biome-ignore lint/suspicious/noControlCharactersInRegex: matching Git's rule
+const GIT_REF_FORBIDDEN = /[\s~^:?*[\\\x00-\x1f\x7f]/
+export const validateReleaseName = (name: string): string | undefined => {
+  const n = name.trim()
+  if (!n) return "Name is required."
+  if (GIT_REF_FORBIDDEN.test(n))
+    return "Can't contain spaces or any of: ~ ^ : ? * [ \\"
+  if (n === "@") return "Can't be '@'."
+  if (n.startsWith("-")) return "Can't start with '-'."
+  if (n.startsWith("/") || n.endsWith("/") || n.includes("//"))
+    return "Can't start or end with '/' or contain '//'."
+  if (n.endsWith(".")) return "Can't end with '.'."
+  if (n.includes("..") || n.includes("@{")) return "Can't contain '..' or '@{'."
+  for (const part of n.split("/")) {
+    if (part.startsWith(".") || part.endsWith(".lock"))
+      return "No part can start with '.' or end with '.lock'."
+  }
+  return undefined
+}
+
 // Build the in-app path to a release's page. Project members open it directly;
 // a share recipient appends their ?token=... to view (and maybe comment)
 // without signing up.

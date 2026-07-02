@@ -15,13 +15,54 @@ from typing import Literal
 import sqlalchemy
 from app import utcnow
 from app.models.core import CommentHighlight, Project, User
-from pydantic import BaseModel, computed_field
+from pydantic import BaseModel, computed_field, field_validator
 from sqlmodel import Field, Relationship, SQLModel
 
 # Release ``kind`` mirrors calkit's release schema (the ``releases`` map in
 # calkit.yaml is keyed by tag). For this cloud feature the DB is the source of
 # truth; private releases are not written to calkit.yaml.
 ReleaseKind = Literal["project", "publication", "dataset", "model", "figure"]
+
+# Characters Git forbids anywhere in a ref name (plus space and DEL); the rest
+# of the rules are positional and handled in validate_release_name.
+_GIT_REF_FORBIDDEN = set(" \x7f~^:?*[\\")
+
+
+def validate_release_name(name: str) -> str:
+    """Validate a release name as a Git tag name, returning it unchanged.
+
+    A release becomes a Git tag (and a calkit.yaml key), so its name must
+    satisfy Git's ``check-ref-format`` rules. Raises ``ValueError`` with a
+    user-facing message when it doesn't, so the API responds with a 422. Keep
+    this in sync with ``validateReleaseName`` in the frontend.
+    """
+    name = name.strip()
+    if not name:
+        raise ValueError("Release name is required.")
+    if any(c in _GIT_REF_FORBIDDEN or ord(c) < 0x20 for c in name):
+        raise ValueError(
+            "Release name can't contain spaces or any of: ~ ^ : ? * [ \\"
+        )
+    if name in ("@",):
+        raise ValueError("Release name can't be '@'.")
+    if name.startswith("-"):
+        raise ValueError("Release name can't start with '-'.")
+    if name.startswith("/") or name.endswith("/") or "//" in name:
+        raise ValueError(
+            "Release name can't start or end with '/' or contain '//'."
+        )
+    if name.endswith("."):
+        raise ValueError("Release name can't end with '.'.")
+    if ".." in name or "@{" in name:
+        raise ValueError("Release name can't contain '..' or '@{'.")
+    # Per-component (slash-separated) Git rules.
+    for part in name.split("/"):
+        if part.startswith(".") or part.endswith(".lock"):
+            raise ValueError(
+                "No part of the release name can start with '.' or end with "
+                "'.lock'."
+            )
+    return name
 
 
 class ReleaseBase(SQLModel):
@@ -91,6 +132,11 @@ class ReleasePost(SQLModel):
     # Set True to release even when the producing pipeline stage is stale, i.e.
     # the user has acknowledged the artifact may not be reproducible.
     acknowledge_non_reproducible: bool = False
+
+    @field_validator("name")
+    @classmethod
+    def _validate_name(cls, v: str) -> str:
+        return validate_release_name(v)
 
 
 class ReleaseStaleness(SQLModel):
@@ -416,6 +462,11 @@ class ExternalReleasePost(SQLModel):
     date: str | None = None
     description: str | None = None
     public: bool = True
+
+    @field_validator("name")
+    @classmethod
+    def _validate_name(cls, v: str) -> str:
+        return validate_release_name(v)
 
 
 class ReleaseUrlImport(SQLModel):

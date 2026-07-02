@@ -44,7 +44,11 @@ import {
 import type { ApiError } from "../../client/core/ApiError"
 import useCustomToast from "../../hooks/useCustomToast"
 import { handleError } from "../../lib/errors"
-import { releasePagePath, releasePageUrl } from "../../lib/releases"
+import {
+  releasePagePath,
+  releasePageUrl,
+  validateReleaseName,
+} from "../../lib/releases"
 import PathPicker from "./PathPicker"
 import ShareDialog from "./ShareDialog"
 
@@ -460,11 +464,18 @@ const NewRelease = ({
                   <Input
                     id="name"
                     placeholder="Ex: v1.0"
-                    {...register("name", { required: "Name is required" })}
+                    {...register("name", {
+                      required: "Name is required",
+                      validate: (v) => validateReleaseName(v) ?? true,
+                    })}
                     {...noAutofill}
                   />
-                  {errors.name && (
+                  {errors.name ? (
                     <FormErrorMessage>{errors.name.message}</FormErrorMessage>
+                  ) : (
+                    <FormHelperText>
+                      Used as a Git tag: no spaces or ~ ^ : ? * [ \ etc.
+                    </FormHelperText>
                   )}
                 </FormControl>
                 <FormControl mt={4}>
