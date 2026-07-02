@@ -214,11 +214,14 @@ class BusytexPipeline
         return promise;
     }
 
-    constructor(busytex_js, busytex_wasm, data_packages_js, preload_data_packages_js, texmf_local, print, on_initialized, preload, script_loader)
+    constructor(busytex_js, busytex_wasm, data_packages_js, preload_data_packages_js, texmf_local, print, on_initialized, preload, script_loader, calkit_texmf_endpoint)
     {
         this.print =  text => {console.log(text); print(text); };
         this.preload = preload;
         this.script_loader = script_loader;
+        // Calkit: on a local kpathsea miss the patched engine fetches the file
+        // from this texmf proxy (empty => hook no-ops, stock behaviour).
+        this.calkit_texmf_endpoint = calkit_texmf_endpoint || '';
         
         this.project_dir = '/home/web_user/project_dir';
         this.bin_busytex = '/bin/busytex';
@@ -363,6 +366,8 @@ class BusytexPipeline
             preRuns : [],
             data_packages_js : data_packages_js,
             pre_run_packages : pre_run_packages,
+            // Calkit: read by the patched engine's kpse_remote_fetch hook.
+            calkitTexmfEndpoint : this.calkit_texmf_endpoint,
             
             preRun : [() => { Object.assign(Module.ENV, env); Module.FS.mkdir(project_dir); self.LZ4 = Module.LZ4; }, () => pre_run_packages(Module)()],
 

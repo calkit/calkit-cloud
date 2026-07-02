@@ -40,9 +40,10 @@ make URLRELEASE="https://github.com/busytex/busytex/releases/download/$NATIVE" d
 echo "=== [2/4] fetch + prepare TeX Live source ==="
 make source/texlive.txt build/versions.txt
 
-# 3. Patch kpathsea (pure-C indirection: call site + hook-pointer delegator).
+# 3. Patch kpathsea: tex-file.c (file lookups, pure-C indirection) AND
+#    tex-make.c (font/metric generation -> remote fetch instead of fork).
 echo "=== [3/4] apply Calkit patch + engine hook ==="
-python3 "$HERE/apply_patch.py" source/texlive/texk/kpathsea/tex-file.c
+python3 "$HERE/apply_patch.py" source/texlive/texk/kpathsea
 
 # 4. Append the EM_JS fetch + constructor to busytex.c (engine-only TU).
 grep -q 'calkit_remote_fetch_js' busytex.c || { printf '\n'; cat "$HERE/remote_fetch.c"; } >> busytex.c

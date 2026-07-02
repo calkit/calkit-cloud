@@ -28,6 +28,20 @@ The hook is split in two so **every** binary links, not just the engine:
   appended to it), and a `constructor` installs it into the hook pointer at
   engine startup.
 
+### Fonts: intercept `mktex*` before it forks
+
+Bitmap-font (PK) and metric (TFM) lookups do **not** go through
+`kpathsea_find_file` — they use `kpathsea_path_search`, and on a miss kpathsea
+tries to **generate** the file by forking a `mktexpk`/`mktextfm` script. WASM has
+no `fork()`, so this is fatal (e.g. boom-paper's `tctt1000` TS1 font:
+`Font tctt1000 at 600 not found`). So `apply_patch.py` also patches
+`tex-make.c`: `kpathsea_make_tex()` first tries `kpse_remote_fetch()` for the
+file the script *would* produce (`<base>.<dpi>pk`, `<base>.tfm`, …) and only
+falls back to the (doomed) fork if that misses. The **proxy** generates these on
+demand — `proxy-server.py` runs `kpsewhich -mktex=pk -mktex=tfm`, where `fork()`
+works. Verified: the previously-fatal `tctt1000.600pk` is fetched and the doc
+compiles.
+
 Why: `EM_JS` makes a symbol a JS *import*. busytex builds ~6 **standalone applet
 executables** (kpsewhich, bibtex8, …) whose link steps pull in `libkpathsea` and
 **reject** a JS-import symbol. Keeping kpathsea pure C makes `kpse_remote_fetch`
@@ -40,7 +54,7 @@ and a later EM_JS-in-kpathsea both failed applet links; the indirection fixes it
 
 | File | What it is | Status |
 |---|---|---|
-| `apply_patch.py` | kpathsea patch: call site + pure-C hook-pointer indirection in `tex-file.c` | **validated**, idempotent; produced the built engine |
+| `apply_patch.py` | kpathsea patch: `tex-file.c` (call site + pure-C indirection) **and** `tex-make.c` (font/metric gen → remote fetch). Takes the kpathsea dir. | **validated**, idempotent; produced the built engine |
 | `remote_fetch.c` | engine-side EM_JS fetch + constructor (appended to `busytex.c`) | **built into the engine** |
 | `build.sh` | clone busytex → download-native → unpack → patch → append hook → extend exports → `make wasm` | **ran green** |
 | `tex-file.patch` | reference call-site diff (human-readable); `apply_patch.py` is authoritative | reference only |

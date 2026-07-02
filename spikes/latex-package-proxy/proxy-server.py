@@ -19,10 +19,14 @@ PORT = 8771
 def kpse(name: str) -> bytes | None:
     name = name.replace("/", "").replace("..", "")
     try:
+        # -mktex=pk/tfm: generate bitmap fonts + metrics on demand. The WASM
+        # engine can't (mktexpk needs fork()), so it relies on us to produce
+        # them here (full TeX Live, fork works) and hand back the bytes.
         path = subprocess.check_output(
-            ["docker", "exec", CONTAINER, "kpsewhich", name],
+            ["docker", "exec", CONTAINER, "kpsewhich",
+             "-mktex=pk", "-mktex=tfm", name],
             text=True,
-            timeout=15,
+            timeout=60,
         ).strip()
     except subprocess.CalledProcessError:
         return None
@@ -92,8 +96,9 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
-    def log_message(self, *a):
-        pass
+    def log_message(self, fmt, *args):
+        # Log every request so on-demand fetches are visible during testing.
+        print(f"{self.command} {self.path}", flush=True)
 
 
 if __name__ == "__main__":

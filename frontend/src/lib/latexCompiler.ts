@@ -19,9 +19,10 @@ const DRIVER = "pdftex_bibtex8"
 // Eagerly loaded base filesystem.
 const PRELOAD_PACKAGES = ["texlive-basic.js"]
 // All available bundles; the engine resolves \usepackage names against these
-// and loads the needed .data on demand. NOTE: these bundles are still a subset
-// of full TeX Live — packages they don't contain (e.g. sectsty) cannot be
-// fetched on demand (busytex has no package server). See LATEX_EDITOR_PLAN.md.
+// and loads the needed .data on demand. Bundles are a subset of full TeX Live;
+// anything absent (e.g. sectsty, revtex) is fetched on demand from the texmf
+// proxy by the patched engine when VITE_TEXMF_PROXY is set. See
+// spikes/busytex-remote-fetch and LATEX_EDITOR_PLAN.md.
 const DATA_PACKAGES = [
   "texlive-basic.js",
   "ubuntu-texlive-latex-base.js",
@@ -35,6 +36,19 @@ const ENGINE_BASE = (import.meta.env.VITE_TEX_ENGINE_URL || "/tex").replace(
   /\/$/,
   "",
 )
+
+// Bump when the engine binaries or worker glue change. The ~30 MB busytex.wasm
+// is aggressively cached by the browser; without a version query, a rebuilt
+// engine (e.g. the remote-fetch/font patches) won't be picked up until a hard
+// refresh. Appended to the worker + engine URLs to bust the HTTP cache.
+const ENGINE_VERSION = "2026-07-02-remote-fetch"
+const V = `?v=${ENGINE_VERSION}`
+
+// Self-hosted texmf proxy. When set, the patched busytex engine fetches any TeX
+// file missing from the bundled subset on demand (one compile, exact filenames),
+// giving full TeX Live coverage. Empty => engine falls back to stock behaviour
+// (missing package => friendly error). See spikes/busytex-remote-fetch.
+const TEXMF_PROXY = (import.meta.env.VITE_TEXMF_PROXY || "").replace(/\/$/, "")
 
 type Pending = {
   resolve: (r: CompileResult) => void
@@ -70,7 +84,7 @@ export class LatexCompiler {
       return this.ready
     }
     this.ready = new Promise<void>((resolve, reject) => {
-      const worker = new Worker(`${ENGINE_BASE}/busytex_worker.js`)
+      const worker = new Worker(`${ENGINE_BASE}/busytex_worker.js${V}`)
       this.worker = worker
       worker.onmessage = ({ data }) => {
         if (data.print !== undefined) {
@@ -113,14 +127,15 @@ export class LatexCompiler {
       // Data-package and wasm paths are resolved relative to the worker's
       // location unless absolute, so pass absolute engine URLs.
       worker.postMessage({
-        busytex_wasm: `${ENGINE_BASE}/busytex.wasm`,
-        busytex_js: `${ENGINE_BASE}/busytex.js`,
+        busytex_wasm: `${ENGINE_BASE}/busytex.wasm${V}`,
+        busytex_js: `${ENGINE_BASE}/busytex.js${V}`,
         preload_data_packages_js: PRELOAD_PACKAGES.map(
           (p) => `${ENGINE_BASE}/${p}`,
         ),
         data_packages_js: DATA_PACKAGES.map((p) => `${ENGINE_BASE}/${p}`),
         texmf_local: [],
         preload: true,
+        calkit_texmf_endpoint: TEXMF_PROXY,
       })
     })
     return this.ready

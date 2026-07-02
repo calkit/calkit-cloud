@@ -478,6 +478,34 @@ const LatexEditor = ({
                       whiteSpace="pre-wrap"
                       p={2}
                     >
+                      <Button
+                        size="xs"
+                        position="sticky"
+                        top={0}
+                        float="right"
+                        ml={2}
+                        onClick={() => {
+                          navigator.clipboard
+                            .writeText(log)
+                            .then(() =>
+                              showToast(
+                                "Copied",
+                                "Compile log copied to clipboard.",
+                                "success",
+                              ),
+                            )
+                            .catch(() =>
+                              showToast(
+                                "Copy failed",
+                                "Could not access the clipboard.",
+                                "error",
+                              ),
+                            )
+                        }}
+                        isDisabled={!log}
+                      >
+                        Copy log
+                      </Button>
                       {log || "(no output)"}
                     </Box>
                   </Collapse>

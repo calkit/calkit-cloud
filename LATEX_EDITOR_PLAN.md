@@ -801,9 +801,23 @@ First slice landed; engine capabilities verified headless in the app origin.
       constructor installs it into the pointer at engine startup. This was the crux: `EM_JS`
       symbols are JS imports, and busytex's ~6 **standalone applet** links (kpsewhich, bibtex8, …)
       reject a JS-import symbol pulled in via `libkpathsea`; the indirection makes every binary
-      link (applets get a no-op) while only the engine carries the fetch. Remaining: wire the
-      engine into `latexCompiler.ts` (swap binaries + set `Module.calkitTexmfEndpoint` to the
-      `latex-package-proxy`), then verify boom-paper end-to-end (single-pass on-demand fetch).
+      link (applets get a no-op) while only the engine carries the fetch.
+- [x] ~~**Engine wired + on-demand fetch verified end-to-end**~~. `latexCompiler.ts` reads
+      `VITE_TEXMF_PROXY` and passes it through `busytex_worker.js` → `busytex_pipeline.js`
+      (`Module.calkitTexmfEndpoint`); patched engine swapped into `frontend/public/tex/`. In a
+      real headless browser, a doc using a package **absent from all bundles** compiles in a
+      **single pass**, pulling the whole tree on demand (e.g. tikz-cd → ~100 pgf/tikz files;
+      revtex4-1 tree). Confirmed on the actual **boom-paper**: it fetched `revtex4-1.cls`,
+      `aps*.rtx`, `revsymb4-1.sty`, the full tikz/pgf stack, etc.
+- [x] ~~**Fonts: `mktexpk` fork() fatal — fixed via proxy generation**~~. PK/TFM lookups use
+      `kpathsea_path_search` (not `find_file`), and on a miss kpathsea forks `mktexpk`/`mktextfm`
+      — impossible in WASM (boom died on `Font tctt1000 at 600 not found`). `apply_patch.py` now
+      also patches **`tex-make.c`**: `kpathsea_make_tex()` tries `kpse_remote_fetch` for the file
+      the script would generate (`<base>.<dpi>pk`, `<base>.tfm`) before the doomed fork; the
+      proxy (`proxy-server.py`, `kpsewhich -mktex=pk -mktex=tfm`) generates it where fork works.
+      Verified: the exact `tctt1000` case that killed boom now fetches `tctt1000.600pk` and
+      compiles to a PDF. Remaining: user re-runs boom-paper in the editor for the full-document
+      confirmation; productionize the proxy (hosted, CORS-restricted, TL version pinned to 2023).
 - [ ] ⚠️ **Bibliography is an engine limitation.** busytex reuses one WASM module across the
       bibtex multi-pass, so pdftex asserts on the 2nd run (`pdfinitmapfile`); XeTeX driver
       also fails. **Worked around** by forcing a single pdflatex pass (`bibtex: false`) so a
