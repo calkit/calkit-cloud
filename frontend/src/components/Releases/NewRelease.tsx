@@ -421,8 +421,8 @@ const NewRelease = ({
             ) : (
               <Text fontSize="sm" color="gray.600" mb={4}>
                 Record a release that's already published elsewhere. Paste its
-                DOI or link (Zenodo, a journal, arXiv, OSF, …) and we'll look up
-                the details.
+                DOI or link (Zenodo, a journal, arXiv, OSF, etc.) and we'll look
+                up the details.
               </Text>
             )}
 
@@ -446,8 +446,7 @@ const NewRelease = ({
                   </Button>
                 </HStack>
                 <FormHelperText>
-                  Supported: DOIs (Zenodo, journals, …), arXiv links, and OSF
-                  pages.
+                  Supported: DOIs, arXiv links, and OSF pages.
                 </FormHelperText>
               </FormControl>
             )}
@@ -456,7 +455,7 @@ const NewRelease = ({
               <>
                 <FormControl isRequired isInvalid={!!errors.name}>
                   <FormLabel htmlFor="name">
-                    {mode === "import" ? "Name" : "Name (tag)"}
+                    {mode === "import" ? "Name" : "Name"}
                   </FormLabel>
                   <Input
                     id="name"

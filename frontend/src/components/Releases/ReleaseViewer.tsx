@@ -44,10 +44,14 @@ import {
   releaseDownloadName,
   releaseLocation,
 } from "../../lib/releases"
+import SyntaxHighlighter from "react-syntax-highlighter"
+import { atomOneDark } from "react-syntax-highlighter/dist/esm/styles/hljs"
+import { decodeBase64Utf8 } from "../../lib/strings"
 import SharedCommentsPanel, { type PanelComment } from "../Common/CommentsPanel"
 import LoadingSpinner from "../Common/LoadingSpinner"
 import Markdown from "../Common/Markdown"
 import PdfDocumentViewer from "../Common/PdfDocumentViewer"
+import { getLanguage, qmdToMarkdown } from "../Files/FileContent"
 import ProjectShowcase from "../Projects/ProjectShowcase"
 import PresentationView from "../Presentations/PresentationView"
 import ReleasePdfAnnotator from "./ReleasePdfAnnotator"
@@ -131,6 +135,32 @@ function ArtifactView({
   } else if (/\.(png|jpe?g|gif|webp|svg)$/.test(lower)) {
     const src = dataUri(item, "image/png")
     if (src) return <Image alt={path} src={src} maxH="100%" mx="auto" />
+  } else if (
+    (lower.endsWith(".md") || lower.endsWith(".qmd")) &&
+    item.content
+  ) {
+    const decoded = decodeBase64Utf8(item.content)
+    return (
+      <Box h="100%" w="100%" overflowY="auto" py={2} px={4}>
+        <Markdown>
+          {lower.endsWith(".qmd") ? qmdToMarkdown(decoded) : decoded}
+        </Markdown>
+      </Box>
+    )
+  } else if (item.content != null) {
+    // Any other text file (source, config, data, plain text): show it
+    // syntax-highlighted rather than forcing a download.
+    return (
+      <Box h="100%" w="100%" overflow="hidden" fontSize="sm">
+        <SyntaxHighlighter
+          language={getLanguage(item.name)}
+          style={atomOneDark}
+          customStyle={{ height: "100%", margin: 0, overflow: "auto" }}
+        >
+          {decodeBase64Utf8(item.content)}
+        </SyntaxHighlighter>
+      </Box>
+    )
   }
   return (
     <Flex align="center" justify="center" h="100%">

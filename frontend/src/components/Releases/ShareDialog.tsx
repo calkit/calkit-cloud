@@ -85,8 +85,8 @@ const MintedLink = ({
       </InputGroup>
       <Text mt={2} fontSize="xs" color="gray.500">
         {created.email_sent
-          ? "We emailed this link. Copy it now if you also want to share it yourself — it can't be shown again."
-          : "Copy it now — for security, the link can't be shown again."}
+          ? "We emailed this link. Copy it now if you also want to share it yourself. It won't be shown again."
+          : "Copy it now. For security, the link won't be shown again."}
       </Text>
     </Box>
   )
@@ -219,7 +219,7 @@ const ShareDialog = ({
             <Input
               id="share-email"
               type="email"
-              placeholder="reviewer@example.com (blank = anyone with the link)"
+              placeholder="Ex: reviewer@example.com (blank = anyone with the link)"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
@@ -237,7 +237,7 @@ const ShareDialog = ({
             <FormLabel htmlFor="share-note">Note (optional)</FormLabel>
             <Input
               id="share-note"
-              placeholder="e.g. Reviewer 2"
+              placeholder="Ex: Reviewer 2"
               value={note}
               onChange={(e) => setNote(e.target.value)}
             />
@@ -251,7 +251,6 @@ const ShareDialog = ({
           >
             Create share link
           </Button>
-
           <Divider my={4} />
           <Text fontSize="sm" fontWeight="semibold" mb={2}>
             Existing links
