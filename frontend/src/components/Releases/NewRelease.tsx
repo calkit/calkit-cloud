@@ -446,7 +446,7 @@ const NewRelease = ({
                   </Button>
                 </HStack>
                 <FormHelperText>
-                  Supported: DOIs, arXiv links, and OSF pages.
+                  Supported: DOIs, arXiv and OSF URLs.
                 </FormHelperText>
               </FormControl>
             )}
