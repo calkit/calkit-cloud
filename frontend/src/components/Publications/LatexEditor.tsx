@@ -389,7 +389,7 @@ const LatexEditor = ({
             </Text>
             <Box flex="1" />
             <Text fontSize="xs" color="ui.dim">
-              Draft preview — not the published PDF
+              Draft preview (run pipeline to generate official PDF)
             </Text>
             <ModalCloseButton position="static" />
           </Flex>
