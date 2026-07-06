@@ -3,6 +3,7 @@
 # (busytex_worker.js, busytex_pipeline.js) IS committed.
 *.data
 *.wasm
+*.stock
 busytex.js
 busytex.patched.js
 texlive-basic.js
