@@ -41,7 +41,7 @@ const ENGINE_BASE = (import.meta.env.VITE_TEX_ENGINE_URL || "/tex").replace(
 // is aggressively cached by the browser; without a version query, a rebuilt
 // engine (e.g. the remote-fetch/font patches) won't be picked up until a hard
 // refresh. Appended to the worker + engine URLs to bust the HTTP cache.
-const ENGINE_VERSION = "2026-07-02-remote-fetch"
+const ENGINE_VERSION = "2026-07-06-latexmk"
 const V = `?v=${ENGINE_VERSION}`
 
 // Self-hosted texmf proxy. When set, the patched busytex engine fetches any TeX
@@ -154,12 +154,14 @@ export class LatexCompiler {
       this.worker?.postMessage({
         files,
         main_tex_path: mainTexPath,
-        // Force a single pdflatex pass. The bibtex multi-pass reuses one WASM
-        // module instance, which makes pdftex assert on the 2nd run
-        // (pdfinitmapfile). Single-pass means a preview always renders;
-        // bibliography citations stay unresolved until we have a build that
-        // supports multi-pass (or per-pass module recreation). Preview-only.
-        bibtex: false,
+        // null => auto-detect a bibliography and run the full latexmk-style
+        // cycle. Docs with \bibliography run bibtex + rerun pdflatex; docs
+        // without just rerun pdflatex until cross-references stabilise. Both
+        // resolve \ref/\cite instead of leaving "??"/"[?]". (The old forced
+        // single pass avoided a multi-pass crash that turned out to be an
+        // argv-mutation bug in the worker glue, now fixed — see
+        // busytex_pipeline.js callMainWithRedirects.)
+        bibtex: null,
         verbose: "silent",
         driver: DRIVER,
         data_packages_js: DATA_PACKAGES.map((p) => `${ENGINE_BASE}/${p}`),

@@ -418,7 +418,14 @@ class BusytexPipeline
                 Module.output_stdout = '';
                 Module.output_stderr = '';
                 Module.setPrefix(args[0]);
-                const exit_code = Module.callMain(args);
+                // Emscripten's callMain unshift()s thisProgram onto the array it
+                // is given, mutating it. The pipeline reuses the same command
+                // array across passes (e.g. pdftex_not_final for reruns and the
+                // bibtex multi-pass), so pass a copy — otherwise the second use
+                // sees a corrupted argv ("/bin/busytex /bin/busytex pdflatex ...")
+                // and fails. This is the real cause of the multi-pass breakage
+                // previously attributed to a pdfinitmapfile assert.
+                const exit_code = Module.callMain(args.slice());
                 Module._flush_streams();
 
                 return { exit_code : exit_code, stdout : Module.output_stdout, stderr : Module.output_stderr };
@@ -551,8 +558,18 @@ class BusytexPipeline
                     [pdftex_not_final, this.error_messages_fatal, true],
                     [pdftex, this.error_messages_all, false]
                 ] :
+                // latexmk-style: rerun until cross-references stabilise so
+                // \ref/\pageref/\eqref/\cref/TOC don't show as "??". Each
+                // rerunnable pass (4th tuple element = true) is skipped once the
+                // log stops asking to rerun; the final pass emits the PDF. A
+                // single pass would leave refs unresolved. Reusing one module
+                // across these non-bibtex passes is safe (the bibtex multi-pass
+                // is the crashing case — see LATEX_EDITOR_PLAN.md).
                 [
-                    [pdftex, this.error_messages_all]
+                    [pdftex_not_final, this.error_messages_fatal, false, true],
+                    [pdftex_not_final, this.error_messages_fatal, false, true],
+                    [pdftex_not_final, this.error_messages_fatal, false, true],
+                    [pdftex, this.error_messages_all, false, false]
                 ];
         }
         else if(driver == 'luahbtex_bibtex8')
@@ -584,11 +601,18 @@ class BusytexPipeline
 
         let exit_code = 0, stdout = '', stderr = '', log = '', aux = '';
         let skip = false;
+        // latexmk-style rerun control: once a rerunnable pass no longer asks to
+        // rerun, cross-references are stable and further rerunnable passes are
+        // skipped (the final PDF pass still runs).
+        let xref_stable = false;
+        const needs_rerun = txt => /Rerun to get (?:cross-references|the bars) right|Rerun to get citations correct|Label\(s\) may have changed|Please \(re\)run|rerunfilecheck.*Rerun/i.test(txt);
         const mem_header = Uint8Array.from(Module.HEAPU8.slice(0, this.mem_header_size));
         const logs = [];
-        for(const [cmd, error_messages, can_skip] of cmds)
+        for(const [cmd, error_messages, can_skip, rerunnable] of cmds)
         {
             if(can_skip && skip)
+                continue;
+            if(rerunnable && xref_stable)
                 continue;
 
             const is_bibtex = cmd[0].startsWith('bibtex');
@@ -617,6 +641,12 @@ class BusytexPipeline
             aux = this.read_all_text(FS, cmd_aux_path);
             log = this.read_all_text(FS, cmd_log_path);
             exit_code = stdout.trim() ? (error_messages.some(err => stdout.includes(err)) ? exit_code : 0) : exit_code;
+
+            if(rerunnable && !needs_rerun(log))
+            {
+                xref_stable = true;
+                this.print('$ # cross-references stable, skipping extra reruns');
+            }
 
             logs.push({
                 cmd : cmd.join(' '),

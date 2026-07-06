@@ -1,4 +1,7 @@
-importScripts('busytex_pipeline.js');
+// Propagate the ?v=<version> cache-bust from the worker URL (set in
+// latexCompiler.ts) to the pipeline import, so engine-glue changes aren't
+// served stale from the browser cache.
+importScripts('busytex_pipeline.js' + self.location.search);
 
 self.pipeline = null;
 

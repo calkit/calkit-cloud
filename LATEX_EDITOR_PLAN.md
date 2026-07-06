@@ -818,12 +818,19 @@ First slice landed; engine capabilities verified headless in the app origin.
       Verified: the exact `tctt1000` case that killed boom now fetches `tctt1000.600pk` and
       compiles to a PDF. Remaining: user re-runs boom-paper in the editor for the full-document
       confirmation; productionize the proxy (hosted, CORS-restricted, TL version pinned to 2023).
-- [ ] ⚠️ **Bibliography is an engine limitation.** busytex reuses one WASM module across the
-      bibtex multi-pass, so pdftex asserts on the 2nd run (`pdfinitmapfile`); XeTeX driver
-      also fails. **Worked around** by forcing a single pdflatex pass (`bibtex: false`) so a
-      preview always renders — but **citations stay unresolved** (`[?]`). Real fix needs a
-      patched/newer build or per-pass module recreation (or running bibtex across separate
-      `compile()` calls while persisting the FS). Tracked for a follow-up.
+- [x] ~~**Multi-pass compile (cross-refs + bibliography) — FIXED**~~. The multi-pass failure
+      blamed on a `pdfinitmapfile` assert was actually an **argv-mutation bug in the worker
+      glue**: Emscripten's `callMain` `unshift`s `thisProgram` onto the args array, and the
+      pipeline reused one command array across passes, so the 2nd use ran a corrupted
+      `"/bin/busytex /bin/busytex pdflatex …"` and failed. Fixed by passing a copy
+      (`callMain(args.slice())` in `busytex_pipeline.js`). With that, a **latexmk-style rerun
+      loop** (rerun pdflatex until the log stops asking, capped, early-stop when stable)
+      resolves `\ref`/`\pageref`/`\eqref`/`\cref`/TOC, and the **bibtex multi-pass now works**
+      too — `\cite` citations resolve. `latexCompiler.ts` switched from forced `bibtex: false`
+      to `bibtex: null` (auto-detect a bibliography). Verified headless: ref-only doc (2–3
+      pdflatex passes, refs resolve) and `\cite` + `.bib` doc (pdflatex → bibtex → pdflatex ×2,
+      citations resolve, exit 0). Engine binaries need a cache-bust (`ENGINE_VERSION`) so
+      browsers pick up the glue change.
 - [x] ~~**Verified end-to-end through the UI**~~ (headless, mocked contents API): open
       editor → loader builds the file tree → main file loads → real-engine compile of a
       multi-file doc (`\input` + on-demand `booktabs` + figure) → PDF renders. Loader contract

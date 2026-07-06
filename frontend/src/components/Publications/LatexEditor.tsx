@@ -120,6 +120,7 @@ const LatexEditor = ({
   const compilingRef = useRef(false)
   const pendingCompileRef = useRef(false)
   const compileTimerRef = useRef<number | null>(null)
+  const commitInputRef = useRef<HTMLInputElement>(null)
   const showToast = useCustomToast()
   const queryClient = useQueryClient()
   const logPanel = useDisclosure()
@@ -520,6 +521,7 @@ const LatexEditor = ({
         onClose={commitModal.onClose}
         size={{ base: "sm", md: "md" }}
         isCentered
+        initialFocusRef={commitInputRef}
       >
         <ModalOverlay />
         <ModalContent
@@ -533,7 +535,7 @@ const LatexEditor = ({
           <ModalCloseButton />
           <ModalBody>
             <Input
-              autoFocus
+              ref={commitInputRef}
               value={commitMessage}
               onChange={(e) => setCommitMessage(e.target.value)}
               placeholder="Ex: Add paragraph about the boundary conditions"
