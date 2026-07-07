@@ -1368,10 +1368,14 @@ def _question_text(question: str | dict) -> str:
     """Extract the question text from a calkit.yaml question entry.
 
     A question may be a plain string or an object with a ``question`` field.
+    Coerces to a string so an unexpected type in calkit.yaml can't propagate a
+    non-string into the DB model's ``question`` field.
     """
     if isinstance(question, dict):
-        return question.get("question", "")
-    return question
+        value = question.get("question", "")
+    else:
+        value = question
+    return value if isinstance(value, str) else str(value)
 
 
 def _sync_questions_with_db(
@@ -1639,6 +1643,49 @@ def post_project_question(
     return project.questions[-1]
 
 
+def _apply_question_update(
+    existing: str | dict, req: "QuestionPut"
+) -> str | dict:
+    """Apply a QuestionPut to a calkit.yaml question entry.
+
+    Normalizes the entry to object form, sets provided fields (dropping an
+    empty hypothesis/answer/evidence so calkit.yaml stays clean), and collapses
+    back to a bare string when only the question text remains.
+    """
+    if isinstance(existing, str):
+        question: dict = {"question": existing}
+    elif isinstance(existing, dict):
+        question = dict(existing)
+    else:
+        raise HTTPException(422, "Invalid question entry")
+    if req.question:
+        question["question"] = req.question
+    if req.hypothesis:
+        question["hypothesis"] = req.hypothesis
+    else:
+        question.pop("hypothesis", None)
+    if req.answer:
+        question["answer"] = req.answer
+    else:
+        question.pop("answer", None)
+    evidence = []
+    for ev in req.evidence:
+        entry: dict = {"kind": ev.kind, "path": ev.path}
+        if ev.kind == "result" and ev.key:
+            entry["key"] = ev.key
+        if ev.explanation:
+            entry["explanation"] = ev.explanation
+        evidence.append(entry)
+    if evidence:
+        question["evidence"] = evidence
+    else:
+        question.pop("evidence", None)
+    # Collapse back to a bare string if nothing but the question text remains.
+    if set(question.keys()) == {"question"}:
+        return question["question"]
+    return question
+
+
 @router.put("/projects/{owner_name}/{project_name}/questions/{number}")
 def put_project_question(
     owner_name: str,
@@ -1666,42 +1713,7 @@ def put_project_question(
     if number < 1 or number > len(ck_questions):
         raise HTTPException(404, "Question not found")
     idx = number - 1
-    existing = ck_questions[idx]
-    # Normalize the entry to object form so we can attach the richer fields.
-    if isinstance(existing, str):
-        question = {"question": existing}
-    elif isinstance(existing, dict):
-        question = dict(existing)
-    else:
-        raise HTTPException(422, "Invalid question entry")
-    # Set provided fields, dropping empties so calkit.yaml stays clean.
-    if req.question:
-        question["question"] = req.question
-    if req.hypothesis:
-        question["hypothesis"] = req.hypothesis
-    else:
-        question.pop("hypothesis", None)
-    if req.answer:
-        question["answer"] = req.answer
-    else:
-        question.pop("answer", None)
-    evidence = []
-    for ev in req.evidence:
-        entry: dict = {"kind": ev.kind, "path": ev.path}
-        if ev.kind == "result" and ev.key:
-            entry["key"] = ev.key
-        if ev.explanation:
-            entry["explanation"] = ev.explanation
-        evidence.append(entry)
-    if evidence:
-        question["evidence"] = evidence
-    else:
-        question.pop("evidence", None)
-    # Collapse back to a bare string if nothing but the question text remains.
-    if set(question.keys()) == {"question"}:
-        ck_questions[idx] = question["question"]
-    else:
-        ck_questions[idx] = question
+    ck_questions[idx] = _apply_question_update(ck_questions[idx], req)
     ck_info["questions"] = ck_questions
     with open(os.path.join(repo.working_dir, "calkit.yaml"), "w") as f:
         ryaml.dump(ck_info, f)

@@ -149,6 +149,9 @@ const EditQuestion = ({
     },
   })
   const onSubmit: SubmitHandler<EditQuestionForm> = (data) => {
+    if (!question) {
+      return
+    }
     mutation.mutate(data)
   }
   return (

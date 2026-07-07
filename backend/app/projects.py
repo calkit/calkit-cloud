@@ -621,6 +621,7 @@ def get_contents_from_tree(
                 calkit_object=ck_objects.get(path),
                 lock=file_locks_by_path.get(path),
                 storage="dvc-zip",
+                stage=producing_stage,
             )
         )
     elif path in ck_objects:

@@ -100,6 +100,7 @@ function EvidenceItem({
       png: "image/png",
       jpg: "image/jpeg",
       jpeg: "image/jpeg",
+      gif: "image/gif",
       svg: "image/svg+xml",
     }
     const imgSrc =
@@ -514,7 +515,9 @@ function ProjectView() {
             )}
             <EditQuestion
               question={editingQuestion}
-              isOpen={editQuestionNumber !== undefined}
+              // Only open once the target question has actually resolved, so a
+              // deep-linked ?edit_question= can't render a null-question modal.
+              isOpen={editingQuestion !== null}
               onClose={() => setEditQuestion(undefined)}
               gitRef={ref}
             />

@@ -933,3 +933,68 @@ def test_build_question_evidence_resolves_figures_and_results() -> None:
     assert evidence[1].value == "3.14"
     # An unresolved figure path leaves the resolved figure as None.
     assert evidence[2].figure is None
+
+
+def test_apply_question_update_builds_object() -> None:
+    from app.api.routes.projects.core import _apply_question_update
+    from app.models.core import QuestionEvidencePost, QuestionPut
+
+    req = QuestionPut(
+        question="How does x affect y?",
+        hypothesis="linear",
+        answer="quadratic",
+        evidence=[
+            QuestionEvidencePost(
+                kind="figure", path="figures/x.png", explanation="shows x"
+            ),
+            QuestionEvidencePost(
+                kind="result", path="results/summary.json", key="mean"
+            ),
+        ],
+    )
+    # A bare-string question is promoted to an object with all fields set.
+    out = _apply_question_update("old question?", req)
+    assert out == {
+        "question": "How does x affect y?",
+        "hypothesis": "linear",
+        "answer": "quadratic",
+        "evidence": [
+            {
+                "kind": "figure",
+                "path": "figures/x.png",
+                "explanation": "shows x",
+            },
+            {"kind": "result", "path": "results/summary.json", "key": "mean"},
+        ],
+    }
+
+
+def test_apply_question_update_figure_evidence_drops_key() -> None:
+    from app.api.routes.projects.core import _apply_question_update
+    from app.models.core import QuestionEvidencePost, QuestionPut
+
+    req = QuestionPut(
+        evidence=[
+            QuestionEvidencePost(
+                kind="figure", path="figures/x.png", key="ignored"
+            )
+        ]
+    )
+    out = _apply_question_update("q?", req)
+    assert isinstance(out, dict)
+    assert out["evidence"] == [{"kind": "figure", "path": "figures/x.png"}]
+
+
+def test_apply_question_update_collapses_to_string_when_cleared() -> None:
+    from app.api.routes.projects.core import _apply_question_update
+    from app.models.core import QuestionPut
+
+    existing = {
+        "question": "q?",
+        "hypothesis": "h",
+        "answer": "a",
+        "evidence": [{"kind": "figure", "path": "x"}],
+    }
+    # Empty request clears hypothesis/answer/evidence and collapses to a string.
+    out = _apply_question_update(existing, QuestionPut())
+    assert out == "q?"
