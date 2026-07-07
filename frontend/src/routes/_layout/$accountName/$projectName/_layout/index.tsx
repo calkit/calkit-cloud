@@ -4,8 +4,13 @@ import {
   Flex,
   Heading,
   Text,
-  OrderedList,
-  ListItem,
+  Accordion,
+  AccordionItem,
+  AccordionButton,
+  AccordionPanel,
+  AccordionIcon,
+  Image,
+  Badge,
   useColorModeValue,
   Checkbox,
   FormControl,
@@ -36,7 +41,7 @@ import { MdEdit } from "react-icons/md"
 import { ExternalLinkIcon } from "@chakra-ui/icons"
 
 import Markdown from "../../../../../components/Common/Markdown"
-import { ReleasesService } from "../../../../../client"
+import { ReleasesService, type QuestionEvidence } from "../../../../../client"
 import { decodeBase64Utf8 } from "../../../../../lib/strings"
 import {
   formatReleaseDate,
@@ -45,6 +50,7 @@ import {
 } from "../../../../../lib/releases"
 import CreateIssue from "../../../../../components/Projects/CreateIssue"
 import CreateQuestion from "../../../../../components/Projects/CreateQuestion"
+import EditQuestion from "../../../../../components/Projects/EditQuestion"
 import NewPublication from "../../../../../components/Publications/NewPublication"
 import NewRelease from "../../../../../components/Releases/NewRelease"
 import useProject, {
@@ -64,9 +70,108 @@ export const Route = createFileRoute(
       .object({
         // Whole-project "New release" modal open state, so a link reopens it.
         new_release: z.boolean().optional(),
+        // Number of the question whose edit modal is open, so a link reopens it.
+        edit_question: z.number().optional(),
       })
       .parse(search),
 })
+
+const IMAGE_MIME: Record<string, string> = {
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  svg: "image/svg+xml",
+}
+
+/** Compact display of a single piece of question evidence. */
+function EvidenceItem({
+  evidence,
+  accountName,
+  projectName,
+}: {
+  evidence: QuestionEvidence
+  accountName: string
+  projectName: string
+}) {
+  const borderColor = useColorModeValue("gray.200", "gray.600")
+  const bg = useColorModeValue("white", "gray.800")
+  if (evidence.kind === "figure") {
+    const fig = evidence.figure
+    const ext = evidence.path.toLowerCase().split(".").pop() ?? ""
+    const src =
+      fig?.content && IMAGE_MIME[ext]
+        ? `data:${IMAGE_MIME[ext]};base64,${fig.content}`
+        : fig?.url ?? undefined
+    return (
+      <Link
+        as={RouterLink}
+        to={`/${accountName}/${projectName}/figures`}
+        search={{ path: evidence.path } as any}
+        _hover={{ textDecoration: "none" }}
+      >
+        <Box
+          borderWidth={1}
+          borderColor={borderColor}
+          borderRadius="md"
+          overflow="hidden"
+          bg={bg}
+          width="120px"
+          _hover={{ shadow: "md" }}
+        >
+          {src && IMAGE_MIME[ext] ? (
+            <Image
+              src={src}
+              alt={fig?.title ?? evidence.path}
+              objectFit="contain"
+              width="100%"
+              height="70px"
+            />
+          ) : (
+            <Flex
+              height="70px"
+              align="center"
+              justify="center"
+              color="gray.400"
+            >
+              <Icon as={ExternalLinkIcon} />
+            </Flex>
+          )}
+          <Text fontSize="xs" noOfLines={1} px={2} py={1}>
+            {fig?.title ?? evidence.path}
+          </Text>
+        </Box>
+      </Link>
+    )
+  }
+  const res = evidence.result
+  return (
+    <Box
+      borderWidth={1}
+      borderColor={borderColor}
+      borderRadius="md"
+      bg={bg}
+      px={3}
+      py={2}
+      maxW="100%"
+    >
+      <Flex align="center" gap={1}>
+        <Text fontSize="sm" fontWeight="semibold" noOfLines={1}>
+          {res?.title ?? evidence.path}
+        </Text>
+        {evidence.key ? (
+          <Badge colorScheme="gray" fontSize="xs">
+            {evidence.key}
+          </Badge>
+        ) : null}
+      </Flex>
+      {evidence.explanation ? (
+        <Text fontSize="xs" color="gray.500" noOfLines={2}>
+          {evidence.explanation}
+        </Text>
+      ) : null}
+    </Box>
+  )
+}
 
 function ProjectView() {
   const secBgColor = useColorModeValue("ui.secondary", "ui.darkSlate")
@@ -140,11 +245,19 @@ function ProjectView() {
   const overleafImportModal = useDisclosure()
   // New release modal open state lives in the URL so a link can reopen it.
   const navigate = Route.useNavigate()
-  const { new_release: newReleaseOpen } = Route.useSearch()
+  const { new_release: newReleaseOpen, edit_question: editQuestionNumber } =
+    Route.useSearch()
   const setNewReleaseOpen = (open: boolean) =>
     navigate({
       search: (prev) => ({ ...prev, new_release: open || undefined }),
     })
+  // Which question's edit modal is open also lives in the URL.
+  const setEditQuestion = (number?: number) =>
+    navigate({
+      search: (prev) => ({ ...prev, edit_question: number }),
+    })
+  const editingQuestion =
+    questionsRequest.data?.find((q) => q.number === editQuestionNumber) ?? null
 
   return (
     <>
@@ -247,18 +360,101 @@ function ProjectView() {
             {questionsRequest.isPending ? (
               <LoadingSpinner height="100px" />
             ) : questionsRequest.data?.length ? (
-              <OrderedList>
-                {questionsRequest.data.map((question) => (
-                  <ListItem key={question.question}>
-                    {question.question}
-                  </ListItem>
-                ))}
-              </OrderedList>
+              <Accordion allowMultiple>
+                {questionsRequest.data.map((question) => {
+                  const hasDetails =
+                    !!question.hypothesis ||
+                    !!question.answer ||
+                    (question.evidence?.length ?? 0) > 0
+                  return (
+                    <AccordionItem
+                      key={question.id}
+                      border="none"
+                      isDisabled={!hasDetails}
+                    >
+                      <Flex align="center">
+                        <AccordionButton
+                          flex="1"
+                          px={0}
+                          _hover={{ bg: "transparent" }}
+                        >
+                          <Box flex="1" textAlign="left">
+                            {question.number}. {question.question}
+                          </Box>
+                          {hasDetails ? <AccordionIcon /> : null}
+                        </AccordionButton>
+                        {userHasWriteAccess ? (
+                          <IconButton
+                            aria-label="Edit question"
+                            icon={<MdEdit />}
+                            size="xs"
+                            variant="ghost"
+                            ml={1}
+                            onClick={() => setEditQuestion(question.number)}
+                          />
+                        ) : null}
+                      </Flex>
+                      <AccordionPanel px={0} pt={0}>
+                        {question.hypothesis ? (
+                          <Box mb={2}>
+                            <Text
+                              fontSize="xs"
+                              fontWeight="bold"
+                              color="gray.500"
+                            >
+                              Hypothesis
+                            </Text>
+                            <Text fontSize="sm">{question.hypothesis}</Text>
+                          </Box>
+                        ) : null}
+                        {question.answer ? (
+                          <Box mb={2}>
+                            <Text
+                              fontSize="xs"
+                              fontWeight="bold"
+                              color="gray.500"
+                            >
+                              Answer
+                            </Text>
+                            <Text fontSize="sm">{question.answer}</Text>
+                          </Box>
+                        ) : null}
+                        {question.evidence?.length ? (
+                          <Box>
+                            <Text
+                              fontSize="xs"
+                              fontWeight="bold"
+                              color="gray.500"
+                            >
+                              Evidence
+                            </Text>
+                            <Flex wrap="wrap" gap={2} mt={1}>
+                              {question.evidence.map((evidence, i) => (
+                                <EvidenceItem
+                                  key={`${evidence.kind}:${evidence.path}:${i}`}
+                                  evidence={evidence}
+                                  accountName={accountName}
+                                  projectName={projectName}
+                                />
+                              ))}
+                            </Flex>
+                          </Box>
+                        ) : null}
+                      </AccordionPanel>
+                    </AccordionItem>
+                  )
+                })}
+              </Accordion>
             ) : (
               <Text fontSize="sm" color="gray.500">
                 No research questions defined yet.
               </Text>
             )}
+            <EditQuestion
+              question={editingQuestion}
+              isOpen={editQuestionNumber !== undefined}
+              onClose={() => setEditQuestion(undefined)}
+            />
           </Box>
           {/* To-dos (issues) */}
           <Box py={4} px={6} mb={4} borderRadius="lg" bg={secBgColor}>

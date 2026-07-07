@@ -101,6 +101,10 @@ from app.models import (
     Presentation,
     Publication,
     Question,
+    QuestionEvidence,
+    QuestionPublic,
+    QuestionPut,
+    Result,
     User,
     UserOrgMembership,
     UserProjectAccess,
@@ -137,6 +141,34 @@ FULL_HISTORY_REPO_TTL = 10 * 60  # Seconds; history changes infrequently
 
 FIGURE_EXTS = {".png", ".jpg", ".jpeg", ".svg", ".gif", ".pdf"}
 FIGURE_DIRS = {"figures", "figure", "figs", "fig", "plots", "images"}
+
+# Mirrors calkit-python's result detection (calkit/detect.py): data-like files
+# under a results-style directory that aren't already figures.
+RESULT_EXTS = {
+    ".json",
+    ".csv",
+    ".tsv",
+    ".yaml",
+    ".yml",
+    ".parquet",
+    ".h5",
+    ".hdf5",
+    ".txt",
+    ".html",
+}
+RESULT_DIRS = {"results", "result"}
+
+
+def _title_from_path(path: str) -> str:
+    """Derive a human-readable title from an artifact's file name."""
+    return (
+        path.split("/")[-1]
+        .rsplit(".", 1)[0]
+        .replace("_", " ")
+        .replace("-", " ")
+        .capitalize()
+    )
+
 
 PRESENTATION_EXTS = {".pdf", ".pptx", ".ppt", ".key", ".odp"}
 PRESENTATION_DIRS = {
@@ -1330,6 +1362,16 @@ def patch_project_contents(
     return current_object
 
 
+def _question_text(question: str | dict) -> str:
+    """Extract the question text from a calkit.yaml question entry.
+
+    A question may be a plain string or an object with a ``question`` field.
+    """
+    if isinstance(question, dict):
+        return question.get("question", "")
+    return question
+
+
 def _sync_questions_with_db(
     ck_info: dict, project: Project, session: Session
 ) -> Project:
@@ -1341,7 +1383,7 @@ def _sync_questions_with_db(
     logger.info(f"Found {len(existing_questions)} existing questions in DB")
     for n, (new, existing) in enumerate(zip(questions_ck, existing_questions)):
         logger.info(f"Updating existing question number {n + 1}")
-        existing.question = questions.pop(0)  # Just a list of strings
+        existing.question = _question_text(questions.pop(0))
         existing.number = n + 1  # Should already be done, but just in case
     start_number = len(existing_questions) + 1
     logger.info(f"Adding {len(questions)} new questions to DB")
@@ -1349,7 +1391,11 @@ def _sync_questions_with_db(
         number = start_number + n
         logger.info(f"Appending new question with number: {number}")
         project.questions.append(
-            Question(project_id=project.id, number=number, question=new)
+            Question(
+                project_id=project.id,
+                number=number,
+                question=_question_text(new),
+            )
         )
     # Delete extra questions in DB
     while len(project.questions) > len(questions_ck):
@@ -1361,6 +1407,91 @@ def _sync_questions_with_db(
     return project
 
 
+def _build_question_evidence(
+    evidence_ck: list,
+    figures_by_path: dict[str, Figure],
+    results_by_path: dict[str, Result],
+) -> list[QuestionEvidence]:
+    """Turn calkit.yaml evidence entries into resolved QuestionEvidence."""
+    evidence = []
+    for ev in evidence_ck:
+        if not isinstance(ev, dict) or ev.get("kind") not in (
+            "figure",
+            "result",
+        ):
+            continue
+        path = ev.get("path", "")
+        item = QuestionEvidence(
+            kind=ev["kind"],
+            path=path,
+            key=ev.get("key"),
+            explanation=ev.get("explanation"),
+        )
+        if item.kind == "figure":
+            item.figure = figures_by_path.get(path)
+        else:
+            item.result = results_by_path.get(path)
+        evidence.append(item)
+    return evidence
+
+
+def _build_questions_public(
+    project: Project,
+    repo: git.Repo,
+    session: Session,
+    ref: str | None,
+    ck_info: dict,
+) -> list[QuestionPublic]:
+    """Merge synced DB questions (for id/number) with the richer calkit.yaml
+    question objects, resolving any figure/result evidence.
+    """
+    questions_ck = ck_info.get("questions", [])
+
+    def _evidence_of(q: str | dict) -> list:
+        return q.get("evidence") or [] if isinstance(q, dict) else []
+
+    kinds = {
+        ev.get("kind")
+        for q in questions_ck
+        for ev in _evidence_of(q)
+        if isinstance(ev, dict)
+    }
+    figures_by_path: dict[str, Figure] = {}
+    if "figure" in kinds:
+        figures_by_path = {
+            fig.path: fig
+            for fig in _build_figures(
+                project=project, repo=repo, session=session, ref=ref
+            )
+        }
+    results_by_path: dict[str, Result] = {}
+    if "result" in kinds:
+        results_by_path = {
+            res.path: res
+            for res in _build_results(project=project, repo=repo, ref=ref)
+        }
+    db_questions = sorted(project.questions, key=lambda q: q.number)
+    questions_public = []
+    for q_ck, q_db in zip(questions_ck, db_questions):
+        hypothesis = q_ck.get("hypothesis") if isinstance(q_ck, dict) else None
+        answer = q_ck.get("answer") if isinstance(q_ck, dict) else None
+        evidence = _build_question_evidence(
+            _evidence_of(q_ck), figures_by_path, results_by_path
+        )
+        questions_public.append(
+            QuestionPublic(
+                id=q_db.id,
+                project_id=q_db.project_id,
+                number=q_db.number,
+                question=q_db.question,
+                hypothesis=hypothesis,
+                answer=answer,
+                evidence=evidence,
+            )
+        )
+    return questions_public
+
+
 @router.get("/projects/{owner_name}/{project_name}/questions")
 def get_project_questions(
     owner_name: str,
@@ -1368,7 +1499,7 @@ def get_project_questions(
     current_user: CurrentUserOptional,
     session: SessionDep,
     ref: str | None = None,
-) -> list[Question]:
+) -> list[QuestionPublic]:
     project = app.projects.get_project(
         owner_name=owner_name,
         project_name=project_name,
@@ -1393,7 +1524,13 @@ def get_project_questions(
         ck_info=ck_info, project=project, session=session
     )
     # TODO: Maybe questions don't belong in the Calkit file?
-    return project.questions
+    return _build_questions_public(
+        project=project,
+        repo=repo,
+        session=session,
+        ref=ref,
+        ck_info=ck_info,
+    )
 
 
 class QuestionPost(BaseModel):
@@ -1436,45 +1573,101 @@ def post_project_question(
     return project.questions[-1]
 
 
-@router.get("/projects/{owner_name}/{project_name}/figures")
-def get_project_figures(
+@router.put("/projects/{owner_name}/{project_name}/questions/{number}")
+def put_project_question(
     owner_name: str,
     project_name: str,
-    current_user: CurrentUserOptional,
+    number: int,
+    req: QuestionPut,
+    current_user: CurrentUser,
     session: SessionDep,
-    ref: str | None = None,
-) -> list[Figure]:
+) -> QuestionPublic:
     project = app.projects.get_project(
-        session=session,
         owner_name=owner_name,
         project_name=project_name,
+        session=session,
         current_user=current_user,
-        min_access_level="read",
+        min_access_level="write",
     )
     repo = get_repo(
-        project=project,
-        user=current_user,
-        session=session,
-        ttl=DEFAULT_REPO_TTL,
-        ref=ref,
+        project=project, user=current_user, session=session, ttl=None
     )
+    ck_info = app.projects.get_ck_info_from_repo(
+        repo=repo,
+        process_includes=True,
+    )
+    ck_questions = ck_info.get("questions", [])
+    if number < 1 or number > len(ck_questions):
+        raise HTTPException(404, "Question not found")
+    idx = number - 1
+    existing = ck_questions[idx]
+    # Normalize the entry to object form so we can attach the richer fields.
+    if isinstance(existing, str):
+        question = {"question": existing}
+    elif isinstance(existing, dict):
+        question = dict(existing)
+    else:
+        raise HTTPException(422, "Invalid question entry")
+    # Set provided fields, dropping empties so calkit.yaml stays clean.
+    if req.hypothesis:
+        question["hypothesis"] = req.hypothesis
+    else:
+        question.pop("hypothesis", None)
+    if req.answer:
+        question["answer"] = req.answer
+    else:
+        question.pop("answer", None)
+    evidence = []
+    for ev in req.evidence:
+        entry: dict = {"kind": ev.kind, "path": ev.path}
+        if ev.kind == "result" and ev.key:
+            entry["key"] = ev.key
+        if ev.explanation:
+            entry["explanation"] = ev.explanation
+        evidence.append(entry)
+    if evidence:
+        question["evidence"] = evidence
+    else:
+        question.pop("evidence", None)
+    # Collapse back to a bare string if nothing but the question text remains.
+    if set(question.keys()) == {"question"}:
+        ck_questions[idx] = question["question"]
+    else:
+        ck_questions[idx] = question
+    ck_info["questions"] = ck_questions
+    with open(os.path.join(repo.working_dir, "calkit.yaml"), "w") as f:
+        ryaml.dump(ck_info, f)
+    repo.git.add("calkit.yaml")
+    if repo.is_dirty():
+        repo.git.commit(["-m", f"Update question {number}"])
+        repo.git.push(["origin", repo.active_branch.name])
+    project = _sync_questions_with_db(
+        ck_info=ck_info, project=project, session=session
+    )
+    return _build_questions_public(
+        project=project,
+        repo=repo,
+        session=session,
+        ref=None,
+        ck_info=ck_info,
+    )[idx]
+
+
+def _build_figures(
+    project: Project,
+    repo: git.Repo,
+    session: Session,
+    ref: str | None,
+) -> list[Figure]:
+    """Build the list of project figures, declared and auto-detected, with
+    content resolved for each.
+    """
     ck_info = app.projects.get_ck_info_for_ref(
         project=project,
         repo=repo,
         ref=ref,
     )
     figures = ck_info.get("figures", [])
-
-    def _title_from_path(path: str) -> str:
-        """Derive a human-readable figure title from its file name."""
-        return (
-            path.split("/")[-1]
-            .rsplit(".", 1)[0]
-            .replace("_", " ")
-            .replace("-", " ")
-            .capitalize()
-        )
-
     # Declared figures (from calkit.yaml) may omit a title; fill one in so
     # they validate against the Figure model.
     for fig in figures:
@@ -1603,6 +1796,118 @@ def get_project_figures(
             fig["stage_status"] = stage_statuses[fig["stage"]].model_dump()
         fig["storage"] = item.storage
     return [Figure.model_validate(fig) for fig in figures]
+
+
+@router.get("/projects/{owner_name}/{project_name}/figures")
+def get_project_figures(
+    owner_name: str,
+    project_name: str,
+    current_user: CurrentUserOptional,
+    session: SessionDep,
+    ref: str | None = None,
+) -> list[Figure]:
+    project = app.projects.get_project(
+        session=session,
+        owner_name=owner_name,
+        project_name=project_name,
+        current_user=current_user,
+        min_access_level="read",
+    )
+    repo = get_repo(
+        project=project,
+        user=current_user,
+        session=session,
+        ttl=DEFAULT_REPO_TTL,
+        ref=ref,
+    )
+    return _build_figures(project=project, repo=repo, session=session, ref=ref)
+
+
+def _build_results(
+    project: Project,
+    repo: git.Repo,
+    ref: str | None,
+) -> list[Result]:
+    """Build the list of project results, declared and auto-detected.
+
+    Mirrors figure auto-detection: data-like files under a results-style
+    directory that aren't already figures. Results carry no base64 content.
+    """
+    ck_info = app.projects.get_ck_info_for_ref(
+        project=project,
+        repo=repo,
+        ref=ref,
+    )
+    results = ck_info.get("results", [])
+    for res in results:
+        if not res.get("title"):
+            res["title"] = _title_from_path(res["path"])
+    declared_paths = {res["path"] for res in results}
+
+    def _is_result_path(path: str) -> bool:
+        parts = path.split("/")
+        if any(p.startswith(".") for p in parts):
+            return False
+        ext = "." + parts[-1].rsplit(".", 1)[-1] if "." in parts[-1] else ""
+        dir_parts = [p.lower() for p in parts[:-1]]
+        is_figure = ext.lower() in FIGURE_EXTS and any(
+            d in FIGURE_DIRS for d in dir_parts
+        )
+        return (
+            ext.lower() in RESULT_EXTS
+            and any(d in RESULT_DIRS for d in dir_parts)
+            and not is_figure
+        )
+
+    def _maybe_add_result(path: str) -> None:
+        if path not in declared_paths and _is_result_path(path):
+            results.append({"path": path, "title": _title_from_path(path)})
+            declared_paths.add(path)
+
+    # Auto-detect results from the repo tree
+    try:
+        commit = repo.commit(ref) if ref else repo.head.commit
+        for blob in commit.tree.traverse():
+            if blob.type != "blob":  # type: ignore[union-attr]
+                continue
+            _maybe_add_result(blob.path)  # type: ignore[union-attr]
+    except Exception:
+        pass
+    # Also auto-detect results from DVC lock outs (files stored with DVC)
+    tree = app.projects.get_repo_tree_for_ref(repo, ref)
+    _, dvc_lock_outs, _ = app.projects.get_ck_info_and_dvc_outs_from_tree(
+        project, tree
+    )
+    for dvc_path, dvc_out in dvc_lock_outs.items():
+        if dvc_out.get("type") == "dir":
+            continue
+        _maybe_add_result(dvc_path)
+    return [Result.model_validate(res) for res in results]
+
+
+@router.get("/projects/{owner_name}/{project_name}/results")
+def get_project_results(
+    owner_name: str,
+    project_name: str,
+    current_user: CurrentUserOptional,
+    session: SessionDep,
+    ref: str | None = None,
+) -> list[Result]:
+    project = app.projects.get_project(
+        session=session,
+        owner_name=owner_name,
+        project_name=project_name,
+        current_user=current_user,
+        min_access_level="read",
+    )
+    repo = get_repo(
+        project=project,
+        user=current_user,
+        session=session,
+        ttl=DEFAULT_REPO_TTL,
+        ref=ref,
+    )
+    return _build_results(project=project, repo=repo, ref=ref)
 
 
 @router.get("/projects/{owner_name}/{project_name}/figures/{figure_path}")

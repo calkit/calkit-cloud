@@ -709,6 +709,46 @@ class Figure(SQLModel):
     # TODO: Add content, or maybe we can just get from Git contents via path?
 
 
+class Result(SQLModel):
+    path: str
+    title: str
+    description: str | None = None
+    stage: str | None = None
+
+
+class QuestionEvidence(SQLModel):
+    kind: Literal["figure", "result"]
+    path: str
+    key: str | None = None
+    explanation: str | None = None
+    # Resolved artifact the evidence points to, if it could be found
+    figure: Figure | None = None
+    result: Result | None = None
+
+
+class QuestionEvidencePost(SQLModel):
+    kind: Literal["figure", "result"]
+    path: str
+    key: str | None = None
+    explanation: str | None = None
+
+
+class QuestionPublic(SQLModel):
+    id: uuid.UUID
+    project_id: uuid.UUID
+    number: int
+    question: str
+    hypothesis: str | None = None
+    answer: str | None = None
+    evidence: list[QuestionEvidence] = []
+
+
+class QuestionPut(SQLModel):
+    hypothesis: str | None = None
+    answer: str | None = None
+    evidence: list[QuestionEvidencePost] = []
+
+
 class CommentHighlight(BaseModel):
     """Portable anchor for a highlighted region within an artifact.
 

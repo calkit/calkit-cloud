@@ -801,3 +801,103 @@ def test_get_project_presentations_reads_declared_at_ref(
     _ref_aware_endpoint_reads_declared_at_ref(
         client, "presentations", "presentations"
     )
+
+
+def test_get_project_results_autodetects_and_reads_ref(
+    client: TestClient,
+) -> None:
+    """Results under a results-style dir are auto-detected, and declared
+    results plus the tree are read at the requested ref."""
+    fake_project = SimpleNamespace(id="00000000-0000-0000-0000-000000000002")
+    detected_paths = [
+        "results/summary.json",
+        "results/data.csv",
+        "results/deep/nested/out.parquet",
+        "result/single.yaml",
+    ]
+    ignored_paths = [
+        "data/output.csv",  # parent dir not a results dir
+        "summary.json",  # no results directory at all
+        ".results/hidden.json",  # hidden directory
+        "results/plot.png",  # not a result extension
+    ]
+    blobs = [_make_fake_blob(p) for p in detected_paths + ignored_paths]
+    fake_commit = SimpleNamespace(
+        tree=SimpleNamespace(traverse=lambda: iter(blobs))
+    )
+    fake_repo = SimpleNamespace(
+        commit=lambda _ref: fake_commit,
+        head=SimpleNamespace(commit=fake_commit),
+    )
+    with (
+        patch(
+            "app.api.routes.projects.core.app.projects.get_project",
+            return_value=fake_project,
+        ),
+        patch(
+            "app.api.routes.projects.core.get_repo",
+            return_value=fake_repo,
+        ) as mock_get_repo,
+        patch(
+            "app.api.routes.projects.core.app.projects.get_ck_info_for_ref",
+            return_value={},
+        ) as mock_ck_for_ref,
+        patch(
+            "app.api.routes.projects.core.app.projects.get_repo_tree_for_ref",
+            return_value=object(),
+        ),
+        patch(
+            "app.api.routes.projects.core.app.projects"
+            ".get_ck_info_and_dvc_outs_from_tree",
+            return_value=({}, {}, {}),
+        ),
+    ):
+        response = client.get(
+            f"{settings.API_V1_STR}/projects/test-owner/test-project/results"
+            "?ref=some-branch"
+        )
+    assert response.status_code == 200, response.text
+    paths = {res["path"] for res in response.json()}
+    for path in detected_paths:
+        assert path in paths, f"Expected {path!r} to be detected"
+    for path in ignored_paths:
+        assert path not in paths, f"Expected {path!r} to be ignored"
+    assert mock_get_repo.call_args.kwargs["ref"] == "some-branch"
+    assert mock_ck_for_ref.call_args.kwargs["ref"] == "some-branch"
+
+
+def test_question_text_handles_string_and_object() -> None:
+    from app.api.routes.projects.core import _question_text
+
+    assert _question_text("Plain question?") == "Plain question?"
+    assert _question_text({"question": "Rich?", "hypothesis": "h"}) == "Rich?"
+    assert _question_text({}) == ""
+
+
+def test_build_question_evidence_resolves_figures_and_results() -> None:
+    from app.api.routes.projects.core import _build_question_evidence
+    from app.models.core import Figure, Result
+
+    fig = Figure(path="figures/x.png", title="X")
+    res = Result(path="results/summary.json", title="Summary")
+    evidence_ck = [
+        {"kind": "figure", "path": "figures/x.png", "explanation": "shows x"},
+        {"kind": "result", "path": "results/summary.json", "key": "mean"},
+        {"kind": "figure", "path": "figures/missing.png"},
+        {"kind": "bogus", "path": "whatever"},  # unknown kind, skipped
+        "not-a-dict",  # skipped
+    ]
+    evidence = _build_question_evidence(
+        evidence_ck, {fig.path: fig}, {res.path: res}
+    )
+    assert len(evidence) == 3
+    assert evidence[0].kind == "figure"
+    assert evidence[0].figure is not None
+    assert evidence[0].figure.path == "figures/x.png"
+    assert evidence[0].explanation == "shows x"
+    assert evidence[1].kind == "result"
+    assert evidence[1].result is not None
+    assert evidence[1].result.title == "Summary"
+    assert evidence[1].key == "mean"
+    # An unresolved figure path leaves the resolved figure as None.
+    assert evidence[2].figure is None
