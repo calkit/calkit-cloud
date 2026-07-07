@@ -831,6 +831,47 @@ def get_project_git_repo(
     return resp.json()
 
 
+class GitRemoteHead(BaseModel):
+    branch: str
+    sha: str | None
+
+
+@router.get("/projects/{owner_name}/{project_name}/git/remote-head")
+def get_project_git_remote_head(
+    owner_name: str,
+    project_name: str,
+    session: SessionDep,
+    current_user: CurrentUser,
+    branch: str | None = None,
+) -> GitRemoteHead:
+    """Return origin's current HEAD commit SHA for a branch.
+
+    Lets the LaTeX editor detect that someone else has pushed (concurrent
+    editing) by polling, without pulling or resetting the working tree. Uses
+    ``git ls-remote`` (a cheap live query) on the cached clone, reusing its auth.
+    """
+    project = get_project(
+        owner_name=owner_name,
+        project_name=project_name,
+        session=session,
+        current_user=current_user,
+        min_access_level="read",
+    )
+    repo = get_repo(
+        project=project,
+        user=current_user,
+        session=session,
+        ttl=FULL_HISTORY_REPO_TTL,
+    )
+    branch_name = branch or repo.active_branch.name
+    try:
+        out = repo.git.ls_remote(["origin", branch_name])
+    except GitCommandError:
+        out = ""
+    sha = out.split()[0].strip() if out.strip() else None
+    return GitRemoteHead(branch=branch_name, sha=sha)
+
+
 @router.get("/projects/{owner_name}/{project_name}/git/refs")
 def search_project_refs(
     owner_name: str,

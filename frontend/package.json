@@ -35,6 +35,7 @@
     "framer-motion": "11.3.28",
     "mermaid": "^10.9.1",
     "mixpanel-browser": "^2.55.1",
+    "node-diff3": "^3.2.1",
     "plotly.js": "^2.35.3",
     "pptx-preview": "^1.0.7",
     "react": "^18.3.1",

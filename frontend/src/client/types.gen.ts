@@ -1830,6 +1830,19 @@ export type GetProjectGitRepoResponse = {
   [key: string]: unknown
 }
 
+export type GitRemoteHead = {
+  branch: string
+  sha: string | null
+}
+
+export type GetProjectGitRemoteHeadData = {
+  ownerName: string
+  projectName: string
+  branch?: string | null
+}
+
+export type GetProjectGitRemoteHeadResponse = GitRemoteHead
+
 export type SearchProjectRefsData = {
   ownerName: string
   projectName: string

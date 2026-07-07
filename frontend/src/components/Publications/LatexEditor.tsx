@@ -25,6 +25,7 @@ import { StreamLanguage } from "@codemirror/language"
 import { stex } from "@codemirror/legacy-modes/mode/stex"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { EditorView, basicSetup } from "codemirror"
+import { merge as diff3Merge } from "node-diff3"
 import { type MutableRefObject, useEffect, useRef, useState } from "react"
 
 import { ProjectsService } from "../../client"
@@ -116,6 +117,10 @@ const LatexEditor = ({
   const viewRef = useRef<EditorView | null>(null)
   const compilerRef = useRef<LatexCompiler | null>(null)
   const buffersRef = useRef<Map<string, string>>(new Map())
+  // Base (last-reconciled) content per text file — the common ancestor for
+  // 3-way merging in others' concurrent changes without losing local edits.
+  const baseBuffersRef = useRef<Map<string, string>>(new Map())
+  const baseShaRef = useRef<string | null>(null)
   const binariesRef = useRef<Map<string, Uint8Array>>(new Map())
   const initializedRef = useRef(false)
   const compilingRef = useRef(false)
@@ -139,6 +144,13 @@ const LatexEditor = ({
   const [compiling, setCompiling] = useState(false)
   const [autoCompile, setAutoCompile] = useState(true)
   const [commitMessage, setCommitMessage] = useState("")
+  // Concurrent-editing: origin advanced past what we loaded, and files that
+  // came back with conflict markers from the last pull. mergeNonce forces the
+  // CodeMirror pane to remount with merged content.
+  const [updatesAvailable, setUpdatesAvailable] = useState(false)
+  const [pulling, setPulling] = useState(false)
+  const [conflicts, setConflicts] = useState<Set<string>>(new Set())
+  const [mergeNonce, setMergeNonce] = useState(0)
 
   const { data: projectFiles } = useQuery({
     queryKey: ["projects", ownerName, projectName, "latex-project", texPath],
@@ -156,6 +168,7 @@ const LatexEditor = ({
     for (const f of projectFiles) {
       if (f.kind === "text") {
         buffersRef.current.set(f.path, f.text ?? "")
+        baseBuffersRef.current.set(f.path, f.text ?? "")
         texts.push(f.path)
       } else if (f.bytes) {
         binariesRef.current.set(f.path, f.bytes)
@@ -267,6 +280,15 @@ const LatexEditor = ({
   const markDirty = (path: string, text: string) => {
     buffersRef.current.set(path, text)
     setDirty((d) => (d.has(path) ? d : new Set(d).add(path)))
+    // Clear the conflict flag once the user has removed the markers.
+    setConflicts((c) => {
+      if (!c.has(path) || text.includes("<<<<<<<")) {
+        return c
+      }
+      const next = new Set(c)
+      next.delete(path)
+      return next
+    })
     scheduleCompile()
   }
 
@@ -300,8 +322,155 @@ const LatexEditor = ({
     },
   })
 
+  // --- Concurrent editing: detect others' pushes, 3-way merge them in -------
+  const fetchRemoteHead = async (): Promise<string | null> => {
+    try {
+      const head = await ProjectsService.getProjectGitRemoteHead({
+        ownerName,
+        projectName,
+      })
+      return head.sha ?? null
+    } catch {
+      return null
+    }
+  }
+
+  // Record the loaded commit, then poll origin for others' pushes.
+  useEffect(() => {
+    if (!ready || !isOpen) {
+      return
+    }
+    let cancelled = false
+    fetchRemoteHead().then((sha) => {
+      if (!cancelled && sha) {
+        baseShaRef.current = sha
+      }
+    })
+    const timer = window.setInterval(async () => {
+      const sha = await fetchRemoteHead()
+      if (
+        !cancelled &&
+        sha &&
+        baseShaRef.current &&
+        sha !== baseShaRef.current
+      ) {
+        setUpdatesAvailable(true)
+      }
+    }, 20000)
+    return () => {
+      cancelled = true
+      window.clearInterval(timer)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, isOpen])
+
+  // Pull others' changes and 3-way merge them into the buffers, preserving
+  // local edits. Clean merges apply silently; overlaps get conflict markers.
+  const pullUpdates = async () => {
+    if (pulling) {
+      return
+    }
+    setPulling(true)
+    setStatus("Pulling latest changes…")
+    try {
+      const files = await loadLatexProject(
+        ownerName,
+        projectName,
+        texPath,
+        deps,
+      )
+      const nextConflicts = new Set<string>()
+      const newTexts: string[] = []
+      let merged = 0
+      for (const f of files) {
+        if (f.kind !== "text") {
+          if (f.bytes) {
+            binariesRef.current.set(f.path, f.bytes)
+          }
+          continue
+        }
+        const remote = f.text ?? ""
+        const base = baseBuffersRef.current.get(f.path)
+        const local = buffersRef.current.get(f.path)
+        if (base === undefined || local === undefined) {
+          buffersRef.current.set(f.path, remote)
+          baseBuffersRef.current.set(f.path, remote)
+          newTexts.push(f.path)
+        } else if (local === base) {
+          buffersRef.current.set(f.path, remote)
+          baseBuffersRef.current.set(f.path, remote)
+        } else if (remote !== base) {
+          const r = diff3Merge(
+            local.split("\n"),
+            base.split("\n"),
+            remote.split("\n"),
+            {
+              excludeFalseConflicts: true,
+              label: { a: "You (unsaved)", b: "Latest from others" },
+            },
+          )
+          buffersRef.current.set(f.path, r.result.join("\n"))
+          baseBuffersRef.current.set(f.path, remote)
+          setDirty((d) => new Set(d).add(f.path))
+          if (r.conflict) {
+            nextConflicts.add(f.path)
+          } else {
+            merged++
+          }
+        }
+        // else: only local changed (remote unchanged) — keep local edits.
+      }
+      if (newTexts.length > 0) {
+        setTextPaths((prev) => [...new Set([...prev, ...newTexts])].sort())
+      }
+      const sha = await fetchRemoteHead()
+      if (sha) {
+        baseShaRef.current = sha
+      }
+      setConflicts(nextConflicts)
+      setUpdatesAvailable(false)
+      setMergeNonce((n) => n + 1)
+      setStatus("")
+      if (nextConflicts.size > 0) {
+        showToast(
+          "Pulled with conflicts",
+          `${nextConflicts.size} file(s) need conflict resolution (see <<<<<<< markers).`,
+          "error",
+        )
+      } else {
+        showToast(
+          "Up to date",
+          merged > 0
+            ? `Merged others' changes into ${merged} file(s).`
+            : "Loaded the latest changes.",
+          "success",
+        )
+        if (autoCompile) {
+          compile()
+        }
+      }
+    } catch (e) {
+      showToast("Pull failed", String(e), "error")
+      setStatus("")
+    } finally {
+      setPulling(false)
+    }
+  }
+
   // Ctrl/Cmd+S (and the Save button) ask for a commit message before saving.
   const requestSave = () => {
+    // Block saving while unresolved conflict markers remain in any buffer.
+    const unresolved = [...dirtyRef.current].filter((p) =>
+      (buffersRef.current.get(p) ?? "").includes("<<<<<<<"),
+    )
+    if (unresolved.length > 0) {
+      showToast(
+        "Resolve conflicts first",
+        `Remove the conflict markers (<<<<<<<) in: ${unresolved.join(", ")}`,
+        "error",
+      )
+      return
+    }
     if (dirtyRef.current.size > 0) {
       commitModal.onOpen()
     }
@@ -353,6 +522,23 @@ const LatexEditor = ({
               <Badge colorScheme="orange" variant="subtle">
                 {dirty.size} unsaved
               </Badge>
+            )}
+            {conflicts.size > 0 && (
+              <Badge colorScheme="red" variant="solid">
+                {conflicts.size} conflict{conflicts.size > 1 ? "s" : ""}
+              </Badge>
+            )}
+            {updatesAvailable && (
+              <Button
+                size="sm"
+                colorScheme="blue"
+                variant="solid"
+                onClick={pullUpdates}
+                isLoading={pulling}
+                title="Someone else pushed changes. Pull and merge them in."
+              >
+                ↻ Pull updates
+              </Button>
             )}
             <Button
               size="sm"
@@ -430,9 +616,15 @@ const LatexEditor = ({
                         variant={p === activePath ? "solid" : "ghost"}
                         justifyContent="flex-start"
                         fontWeight={p === mainPath ? "bold" : "normal"}
+                        color={conflicts.has(p) ? "red.500" : undefined}
                         onClick={() => setActivePath(p)}
+                        title={
+                          conflicts.has(p)
+                            ? "Has merge conflicts to resolve"
+                            : undefined
+                        }
                       >
-                        {dirty.has(p) ? "• " : ""}
+                        {conflicts.has(p) ? "⚠ " : dirty.has(p) ? "• " : ""}
                         {displayPath(p)}
                       </Button>
                     ))}
@@ -452,7 +644,7 @@ const LatexEditor = ({
                 </Box>
                 <Box flex="1" borderRightWidth="1px" minW={0}>
                   <EditorPane
-                    key={activePath}
+                    key={`${activePath}:${mergeNonce}`}
                     initialDoc={buffersRef.current.get(activePath) ?? ""}
                     viewRef={viewRef}
                     onChange={(text) => markDirty(activePath, text)}

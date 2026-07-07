@@ -81,6 +81,8 @@ import type {
   DeleteProjectByIdResponse,
   GetProjectGitRepoData,
   GetProjectGitRepoResponse,
+  GetProjectGitRemoteHeadData,
+  GetProjectGitRemoteHeadResponse,
   SearchProjectRefsData,
   SearchProjectRefsResponse,
   GetProjectHistoryData,
@@ -1254,6 +1256,36 @@ export class ProjectsService {
       path: {
         owner_name: data.ownerName,
         project_name: data.projectName,
+      },
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Get Project Git Remote Head
+   * Return origin's current HEAD commit SHA for a branch, so the editor can
+   * detect concurrent pushes without pulling.
+   * @param data The data for the request.
+   * @param data.ownerName
+   * @param data.projectName
+   * @param data.branch
+   * @returns GitRemoteHead Successful Response
+   * @throws ApiError
+   */
+  public static getProjectGitRemoteHead(
+    data: GetProjectGitRemoteHeadData,
+  ): CancelablePromise<GetProjectGitRemoteHeadResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/projects/{owner_name}/{project_name}/git/remote-head",
+      path: {
+        owner_name: data.ownerName,
+        project_name: data.projectName,
+      },
+      query: {
+        branch: data.branch,
       },
       errors: {
         422: "Validation Error",
