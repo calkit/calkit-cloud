@@ -709,6 +709,13 @@ class Figure(SQLModel):
     # TODO: Add content, or maybe we can just get from Git contents via path?
 
 
+class Result(SQLModel):
+    path: str
+    title: str
+    description: str | None = None
+    stage: str | None = None
+
+
 class CommentHighlight(BaseModel):
     """Portable anchor for a highlighted region within an artifact.
 
@@ -947,6 +954,8 @@ class _ContentsItemBase(BaseModel):
     calkit_object: dict | None = None
     lock: ItemLock | None = None
     storage: Literal["git", "dvc", "dvc-zip"] | None = None
+    # Pipeline stage that produces this path, if any (from dvc.lock)
+    stage: str | None = None
 
 
 class ContentsItem(_ContentsItemBase):
@@ -984,6 +993,46 @@ class Publication(BaseModel):
     url: str | None = None
     overleaf: PublicationOverleaf | None = None
     storage: Literal["git", "dvc", "dvc-zip"] | None = None
+
+
+# Question evidence models live here (after Figure, Result, and Publication) so
+# their resolved-artifact fields reference already-defined types.
+class QuestionEvidence(SQLModel):
+    kind: Literal["figure", "result", "publication"]
+    path: str
+    key: str | None = None
+    explanation: str | None = None
+    # Resolved artifact the evidence points to, if it could be found
+    figure: Figure | None = None
+    result: Result | None = None
+    publication: Publication | None = None
+    # For result evidence with a key, the value read from the result file so it
+    # can be shown dashboard-style
+    value: str | None = None
+
+
+class QuestionEvidencePost(SQLModel):
+    kind: Literal["figure", "result", "publication"]
+    path: str
+    key: str | None = None
+    explanation: str | None = None
+
+
+class QuestionPublic(SQLModel):
+    id: uuid.UUID
+    project_id: uuid.UUID
+    number: int
+    question: str
+    hypothesis: str | None = None
+    answer: str | None = None
+    evidence: list[QuestionEvidence] = []
+
+
+class QuestionPut(SQLModel):
+    question: str | None = None
+    hypothesis: str | None = None
+    answer: str | None = None
+    evidence: list[QuestionEvidencePost] = []
 
 
 class Presentation(BaseModel):

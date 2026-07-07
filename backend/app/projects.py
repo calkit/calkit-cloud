@@ -8,7 +8,7 @@ import os
 import threading
 import time
 from collections import OrderedDict
-from typing import Literal
+from typing import Literal, NamedTuple
 
 import git
 import requests
@@ -33,6 +33,7 @@ from app.git import RepoTree, get_repo_tree_for_ref
 from app.core import CATEGORIES_PLURAL_TO_SINGULAR, params_from_url, ryaml
 from app.dvc import expand_dvc_lock_outs
 from app.dvc import get_data_fpath_for_md5
+from app.pipeline import find_stage_for_path
 from app.git import (
     get_ck_info_from_repo,
     get_dvc_pipeline_from_repo,
@@ -60,7 +61,21 @@ logger = logging.getLogger(__name__)
 
 RETURN_CONTENT_SIZE_LIMIT = 1_000_000
 
-# Cache for the (ck_info, dvc_lock_outs, zip_path_map) triple returned by
+
+class CkInfoAndOuts(NamedTuple):
+    """Parsed project metadata for a tree, returned by
+    get_ck_info_and_dvc_outs_from_tree. A NamedTuple so callers can read named
+    fields (and still unpack), without paying validation cost on this hot,
+    cached path.
+    """
+
+    ck_info: dict
+    dvc_lock_outs: dict
+    zip_path_map: dict
+    dvc_lock: dict
+
+
+# Cache for the CkInfoAndOuts returned by
 # get_ck_info_and_dvc_outs_from_tree, keyed by a hash of the raw bytes of
 # calkit.yaml, dvc.lock, and .calkit/zip/paths.json plus the owner/project
 # (owner/project influence DVC object-storage paths resolved during
@@ -73,9 +88,7 @@ _CK_DVC_CACHE_MAX = 64
 # storage; cache_key is derived from dvc.lock bytes so normal edits already
 # invalidate immediately.
 _CK_DVC_CACHE_TTL_S = 600
-_ck_dvc_cache: OrderedDict[str, tuple[float, tuple[dict, dict, dict]]] = (
-    OrderedDict()
-)
+_ck_dvc_cache: OrderedDict[str, tuple[float, CkInfoAndOuts]] = OrderedDict()
 # Sync endpoints run in a threadpool, so guard the (cheap) cache read/write
 # sections; the expensive expansion between them runs unlocked.
 _ck_dvc_cache_lock = threading.Lock()
@@ -223,13 +236,15 @@ def get_contents_from_repo(
 def get_ck_info_and_dvc_outs_from_tree(
     project: Project,
     tree: RepoTree,
-) -> tuple[dict, dict, dict]:
+) -> CkInfoAndOuts:
     """Load calkit.yaml and expand dvc.lock outs once for a tree.
 
-    Returns (ck_info, dvc_lock_outs, zip_path_map). zip_path_map maps
-    workspace paths to their zip file path (e.g. {"data/mydir":
-    ".calkit/zip/files/data/mydir.zip"}). Callers that read multiple paths
-    from the same tree should call this once and pass the results to
+    Returns a CkInfoAndOuts (ck_info, dvc_lock_outs, zip_path_map, dvc_lock).
+    zip_path_map maps workspace paths to their zip file path (e.g.
+    {"data/mydir": ".calkit/zip/files/data/mydir.zip"}). dvc_lock is the raw
+    parsed dvc.lock (with its top-level ``stages`` key), useful for resolving
+    the stage that produces a path. Callers that read multiple paths from the
+    same tree should call this once and pass the results to
     get_contents_from_tree to avoid redundant I/O.
     """
     owner_name = project.owner_account_name
@@ -300,7 +315,7 @@ def get_ck_info_and_dvc_outs_from_tree(
             zip_path_map = json.loads(zip_bytes) or {}
         except Exception:
             logger.warning("Failed to parse .calkit/zip/paths.json")
-    result = (ck_info, dvc_lock_outs, zip_path_map)
+    result = CkInfoAndOuts(ck_info, dvc_lock_outs, zip_path_map, dvc_lock)
     with _ck_dvc_cache_lock:
         _ck_dvc_cache[cache_key] = (now, result)
         if len(_ck_dvc_cache) > _CK_DVC_CACHE_MAX:
@@ -315,6 +330,7 @@ def get_contents_from_tree(
     ck_info: dict | None = None,
     dvc_lock_outs: dict | None = None,
     zip_path_map: dict | None = None,
+    dvc_lock: dict | None = None,
 ) -> ContentsItem:
     owner_name = project.owner_account_name
     project_name = project.name
@@ -334,7 +350,7 @@ def get_contents_from_tree(
             raise HTTPException(404)
     # Load calkit.yaml and dvc.lock outs if not pre-computed by the caller
     if ck_info is None or dvc_lock_outs is None or zip_path_map is None:
-        ck_info, dvc_lock_outs, zip_path_map = (
+        ck_info, dvc_lock_outs, zip_path_map, dvc_lock = (
             get_ck_info_and_dvc_outs_from_tree(project, tree)
         )
     fs = get_object_fs()
@@ -548,7 +564,11 @@ def get_contents_from_tree(
             calkit_object=ck_objects.get(path),
             in_repo=tree.is_dir(dirname or None),
         )
-    # We're looking for a file
+    # We're looking for a file. Find the pipeline stage that produces it (if
+    # any) so callers can link to it. dvc_lock is the raw dvc.lock (with its
+    # per-stage outs), which resolves both exact outs and files inside a
+    # directory output.
+    producing_stage = find_stage_for_path(path, dvc_lock) if dvc_lock else None
     if tree.is_file(path):
         size = tree.size(path)
         url = None
@@ -586,6 +606,7 @@ def get_contents_from_tree(
                 lock=file_locks_by_path.get(path),
                 url=url,
                 storage="git",
+                stage=producing_stage,
             )
         )
     elif path in zip_workspace_paths:
@@ -612,6 +633,7 @@ def get_contents_from_tree(
                 calkit_object=ck_objects.get(path),
                 lock=file_locks_by_path.get(path),
                 storage="dvc-zip",
+                stage=producing_stage,
             )
         )
     elif path in ck_objects:
@@ -656,6 +678,7 @@ def get_contents_from_tree(
                 calkit_object=ck_objects[path],
                 lock=file_locks_by_path.get(path),
                 storage="dvc",
+                stage=producing_stage,
             )
         )
     else:
@@ -680,6 +703,20 @@ def get_contents_from_tree(
             )
             size = dvc_out.get("size")
             dvc_type = "dir" if md5.endswith(".dir") else "file"
+            # Read small files inline from object storage, mirroring the
+            # Calkit-object branch above, so callers can use their content
+            # without a second round trip through the presigned URL.
+            content = None
+            if (
+                size is not None
+                and size <= RETURN_CONTENT_SIZE_LIMIT
+                and fp is not None
+                and fs.exists(fp)
+                and not path.endswith(".h5")
+                and not path.endswith(".parquet")
+            ):
+                with fs.open(fp, "rb") as f:
+                    content = base64.b64encode(f.read()).decode()
             # TODO: If this is a directory, list dir_items
             return ContentsItem.model_validate(
                 dict(
@@ -688,9 +725,11 @@ def get_contents_from_tree(
                     size=size,
                     type=dvc_type,
                     in_repo=False,
+                    content=content,
                     url=url,
                     lock=file_locks_by_path.get(path),
                     storage="dvc",
+                    stage=producing_stage,
                 )
             )
         raise HTTPException(404)

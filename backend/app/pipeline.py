@@ -74,6 +74,24 @@ def _is_dir_md5(md5: str | None) -> bool:
     return bool(md5) and md5.endswith(".dir")
 
 
+def _get_uncached_out_paths(dvc_stage: dict | None) -> set[str]:
+    """Paths of a dvc.yaml stage's outs declared ``cache: false``.
+
+    DVC records these in dvc.yaml as ``{path: {cache: false, ...}}`` but not in
+    dvc.lock. They are never pushed to the DVC cache/object storage and are
+    often gitignored, so the cloud can't observe them.
+    """
+    paths: set[str] = set()
+    if not isinstance(dvc_stage, dict):
+        return paths
+    for out in dvc_stage.get("outs") or []:
+        if isinstance(out, dict):
+            for out_path, opts in out.items():
+                if isinstance(opts, dict) and opts.get("cache") is False:
+                    paths.add(out_path)
+    return paths
+
+
 def _safe_yaml_load(data: bytes) -> dict | None:
     try:
         return _yaml.load(io.BytesIO(data))
@@ -462,16 +480,23 @@ def compute_stage_statuses(
             for key, locked_val in locked_params.items():
                 if _get_nested(current_params, key) != locked_val:
                     modified_inputs.append(f"{params_file}:{key}")
+        # Outs marked ``cache: false`` in dvc.yaml are never pushed to object
+        # storage and are often gitignored, so the cloud can't observe them.
+        # Their absence isn't evidence they're missing (calkit/DVC check the
+        # workspace file, which the cloud can't see), so don't flag stale --
+        # same rationale as the unobservable-dep case above.
+        cache_false_outs = _get_uncached_out_paths(yaml_stage)
         for out in lock_stage.get("outs") or []:
             out_path = out.get("path")
             lock_md5 = out.get("md5") or out.get("hash")
             if not out_path:
                 continue
             zip_stored = out_path.rstrip("/") in zip_workspace_paths
+            cache_false = out_path in cache_false_outs
             if _is_dir_md5(lock_md5):
                 if presence.get(lock_md5, False) or zip_stored:
                     continue
-                if not tree.exists(out_path):
+                if not tree.exists(out_path) and not cache_false:
                     missing_outputs.append(out_path)
                 continue
             available_md5: str | None = None
@@ -482,7 +507,7 @@ def compute_stage_statuses(
                 if ptr is not None:
                     available_md5 = ptr
             if available_md5 is None:
-                if presence.get(lock_md5, False) or zip_stored:
+                if presence.get(lock_md5, False) or zip_stored or cache_false:
                     continue
                 missing_outputs.append(out_path)
             elif lock_md5 is not None and available_md5 != lock_md5:

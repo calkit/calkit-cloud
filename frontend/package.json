@@ -43,9 +43,11 @@
     "react-pdf-highlighter": "^8.0.0-rc.0",
     "react-plotly.js": "^2.6.0",
     "react-syntax-highlighter": "^16.1.1",
+    "rehype-katex": "^7.0.1",
     "rehype-raw": "^7.0.0",
     "rehype-sanitize": "^6.0.0",
     "remark-gfm": "^4.0.0",
+    "remark-math": "^6.0.0",
     "use-debounce": "^10.0.4"
   },
   "devDependencies": {

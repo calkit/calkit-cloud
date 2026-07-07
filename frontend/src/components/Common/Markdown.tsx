@@ -10,10 +10,25 @@ import {
 } from "@chakra-ui/react"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
+import remarkMath from "remark-math"
 import React from "react"
 import { Box } from "@chakra-ui/react"
 import rehypeRaw from "rehype-raw"
-import rehypeSanitize from "rehype-sanitize"
+import rehypeKatex from "rehype-katex"
+import rehypeSanitize, { defaultSchema } from "rehype-sanitize"
+import "katex/dist/katex.min.css"
+
+// Preserve the class names remark-math emits (`math`, `math-inline`,
+// `math-display`) through sanitization so rehype-katex, which runs afterward,
+// can find and render them. KaTeX's own output is trusted (no user scripts).
+const sanitizeSchema = {
+  ...defaultSchema,
+  attributes: {
+    ...defaultSchema.attributes,
+    span: [...(defaultSchema.attributes?.span ?? []), "className"],
+    div: [...(defaultSchema.attributes?.div ?? []), "className"],
+  },
+}
 
 interface MarkdownProps {
   children: string
@@ -164,8 +179,12 @@ const Markdown = ({ children }: MarkdownProps) => {
           th: th,
           td: td,
         }}
-        remarkPlugins={[remarkGfm]}
-        rehypePlugins={[rehypeRaw, rehypeSanitize]}
+        remarkPlugins={[remarkGfm, remarkMath]}
+        rehypePlugins={[
+          rehypeRaw,
+          [rehypeSanitize, sanitizeSchema],
+          rehypeKatex,
+        ]}
       >
         {children}
       </ReactMarkdown>
