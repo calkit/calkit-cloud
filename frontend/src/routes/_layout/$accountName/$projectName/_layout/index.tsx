@@ -465,6 +465,7 @@ function ProjectView() {
                           <AccordionButton
                             flex="1"
                             px={0}
+                            py={1}
                             _hover={{ bg: "transparent" }}
                           >
                             <Box
@@ -479,7 +480,7 @@ function ProjectView() {
                             <AccordionIcon />
                           </AccordionButton>
                         ) : (
-                          <Box flex="1" py={2} sx={{ "& p": { my: 0 } }}>
+                          <Box flex="1" py={1} sx={{ "& p": { my: 0 } }}>
                             <Markdown>
                               {`${question.number}. ${question.question}`}
                             </Markdown>
@@ -507,7 +508,9 @@ function ProjectView() {
                               >
                                 Hypothesis
                               </Text>
-                              <Markdown>{question.hypothesis}</Markdown>
+                              <Box mt={0.5} sx={{ "& p": { my: 0 } }}>
+                                <Markdown>{question.hypothesis}</Markdown>
+                              </Box>
                             </Box>
                           ) : null}
                           {question.answer ? (
@@ -519,7 +522,9 @@ function ProjectView() {
                               >
                                 Answer
                               </Text>
-                              <Markdown>{question.answer}</Markdown>
+                              <Box mt={0.5} sx={{ "& p": { my: 0 } }}>
+                                <Markdown>{question.answer}</Markdown>
+                              </Box>
                             </Box>
                           ) : null}
                           {question.evidence?.length ? (
