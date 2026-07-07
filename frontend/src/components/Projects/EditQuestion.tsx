@@ -199,6 +199,7 @@ const EditQuestion = ({
                 aria-label="Add evidence"
                 icon={<FaPlus />}
                 size="xs"
+                ml={-1.5}
                 onClick={() =>
                   append({ selection: "", key: "", explanation: "" })
                 }
