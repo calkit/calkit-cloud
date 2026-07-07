@@ -76,18 +76,26 @@ const Mermaid = ({
     }
   }, [children])
 
-  // Pan/zoom to the requested stage's node once the diagram is rendered.
+  // Pan/zoom to the requested stage's node and outline it, once the diagram
+  // is rendered.
   useEffect(() => {
-    if (!zoomToStage || !zoomBehaviorRef.current) return
     const svgEl = select<SVGSVGElement, unknown>(".mermaid svg").node()
-    const gEl = svgEl?.querySelector("g")
-    if (!svgEl || !gEl) return
+    if (!svgEl) return
+    // Clear any previous highlight so only the current stage is outlined.
+    svgEl
+      .querySelectorAll(".node")
+      .forEach((n) => n.classList.remove("ck-stage-highlight"))
+    if (!zoomToStage || !zoomBehaviorRef.current) return
+    const gEl = svgEl.querySelector("g")
+    if (!gEl) return
     const nodes = Array.from(svgEl.querySelectorAll<SVGGElement>(".node"))
     const label = (n: SVGGElement) => (n.textContent ?? "").trim()
     const match =
       nodes.find((n) => label(n) === zoomToStage) ??
       nodes.find((n) => label(n).split("@")[0] === zoomToStage)
     if (!match) return
+    // Outline the node (fill is left alone so it still shows staleness).
+    match.classList.add("ck-stage-highlight")
     const gCTM = gEl.getCTM()
     const nCTM = match.getCTM()
     if (!gCTM || !nCTM) return
@@ -160,6 +168,13 @@ const Mermaid = ({
             height: "100%",
             width: "100%",
           },
+          // Highlighted stage: a bold orange outline only, leaving the fill
+          // (which encodes staleness status) untouched.
+          "& .node.ck-stage-highlight rect, & .node.ck-stage-highlight polygon, & .node.ck-stage-highlight circle, & .node.ck-stage-highlight path":
+            {
+              stroke: "#ff8c00 !important",
+              strokeWidth: "3.5px !important",
+            },
         }}
       >
         {children}

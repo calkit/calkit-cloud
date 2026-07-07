@@ -428,6 +428,7 @@ function Files() {
                       projectName={projectName}
                       userHasWriteAccess={userHasWriteAccess}
                       onOpenCompare={openCompare}
+                      gitRef={ref}
                     />
                   ) : (
                     ""

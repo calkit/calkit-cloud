@@ -107,10 +107,14 @@ import type {
   GetProjectQuestionsResponse,
   PostProjectQuestionData,
   PostProjectQuestionResponse,
+  PutProjectQuestionData,
+  PutProjectQuestionResponse,
   GetProjectFiguresData,
   GetProjectFiguresResponse,
   PostProjectFigureData,
   PostProjectFigureResponse,
+  GetProjectResultsData,
+  GetProjectResultsResponse,
   GetProjectFigureData,
   GetProjectFigureResponse,
   GetProjectCommentsData,
@@ -1645,7 +1649,7 @@ export class ProjectsService {
    * @param data.ownerName
    * @param data.projectName
    * @param data.ref
-   * @returns Question Successful Response
+   * @returns QuestionPublic Successful Response
    * @throws ApiError
    */
   public static getProjectQuestions(
@@ -1685,6 +1689,35 @@ export class ProjectsService {
       path: {
         owner_name: data.ownerName,
         project_name: data.projectName,
+      },
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Put Project Question
+   * @param data The data for the request.
+   * @param data.ownerName
+   * @param data.projectName
+   * @param data.number
+   * @param data.requestBody
+   * @returns QuestionPublic Successful Response
+   * @throws ApiError
+   */
+  public static putProjectQuestion(
+    data: PutProjectQuestionData,
+  ): CancelablePromise<PutProjectQuestionResponse> {
+    return __request(OpenAPI, {
+      method: "PUT",
+      url: "/projects/{owner_name}/{project_name}/questions/{number}",
+      path: {
+        owner_name: data.ownerName,
+        project_name: data.projectName,
+        number: data.number,
       },
       body: data.requestBody,
       mediaType: "application/json",
@@ -1743,6 +1776,34 @@ export class ProjectsService {
       },
       formData: data.formData,
       mediaType: "application/x-www-form-urlencoded",
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Get Project Results
+   * @param data The data for the request.
+   * @param data.ownerName
+   * @param data.projectName
+   * @param data.ref
+   * @returns Result Successful Response
+   * @throws ApiError
+   */
+  public static getProjectResults(
+    data: GetProjectResultsData,
+  ): CancelablePromise<GetProjectResultsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/projects/{owner_name}/{project_name}/results",
+      path: {
+        owner_name: data.ownerName,
+        project_name: data.projectName,
+      },
+      query: {
+        ref: data.ref,
+      },
       errors: {
         422: "Validation Error",
       },

@@ -95,16 +95,38 @@ const useProjectQuestions = (
   return { questionsRequest }
 }
 
-const useProjectFigures = (accountName: string, projectName: string) => {
+const useProjectFigures = (
+  accountName: string,
+  projectName: string,
+  ref?: string,
+) => {
   const figuresRequest = useQuery({
-    queryKey: ["projects", accountName, projectName, "figures"],
+    queryKey: ["projects", accountName, projectName, "figures", ref],
     queryFn: () =>
       ProjectsService.getProjectFigures({
         ownerName: accountName,
         projectName: projectName,
+        ref,
       }),
   })
   return { figuresRequest }
+}
+
+const useProjectResults = (
+  accountName: string,
+  projectName: string,
+  ref?: string,
+) => {
+  const resultsRequest = useQuery({
+    queryKey: ["projects", accountName, projectName, "results", ref],
+    queryFn: () =>
+      ProjectsService.getProjectResults({
+        ownerName: accountName,
+        projectName: projectName,
+        ref,
+      }),
+  })
+  return { resultsRequest }
 }
 
 const useProjectFiles = (accountName: string, projectName: string) => {
@@ -347,6 +369,7 @@ const useProjectIssues = (accountName: string, projectName: string) => {
 export {
   useProjectFiles,
   useProjectFigures,
+  useProjectResults,
   useProjectPublications,
   useProjectPresentations,
   useProjectReadme,

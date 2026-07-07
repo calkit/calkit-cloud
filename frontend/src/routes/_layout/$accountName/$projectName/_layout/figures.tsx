@@ -334,7 +334,9 @@ function ProjectFigures() {
             navigate({
               search: (prev) => ({
                 ...prev,
-                base_ref: r1,
+                // base_ref defaults to the current ref, so don't write it to
+                // the URL unless the user picked a different comparison base.
+                base_ref: r1 === ref ? undefined : r1,
                 compare_ref: r2,
               }),
             })

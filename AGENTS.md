@@ -87,3 +87,8 @@ out on the system.
 - Let humans write prose.
 - Don't use many em-dashes.
 - Modal open state should be a query param.
+- Most front end state, e.g., an expanded section of a list,
+  should also be a query param, so the back button works properly.
+- Function names should typically always start with a verb.
+- Avoid extracting helper functions unless they are used in 3 or more places
+  or significantly help testing.

@@ -15,6 +15,7 @@ import {
 import { FaTimesCircle, FaUpload, FaLock, FaCodeBranch } from "react-icons/fa"
 import { MdEdit } from "react-icons/md"
 import { ExternalLinkIcon } from "@chakra-ui/icons"
+import { Link as RouterLink } from "@tanstack/react-router"
 import { type ContentsItem } from "../../client"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import EditFileInfo from "./EditFileInfo"
@@ -162,6 +163,7 @@ interface SelectedItemProps {
   projectName: string
   userHasWriteAccess: boolean
   onOpenCompare?: () => void
+  gitRef?: string
 }
 
 function SelectedItemInfo({
@@ -170,6 +172,7 @@ function SelectedItemInfo({
   projectName,
   userHasWriteAccess,
   onOpenCompare,
+  gitRef,
 }: SelectedItemProps) {
   const fileInfoModal = useDisclosure()
   const uploadNewVersionModal = useDisclosure()
@@ -186,6 +189,20 @@ function SelectedItemInfo({
       {selectedItem.type ? <Text>Type: {selectedItem.type}</Text> : ""}
       {selectedItem.size ? <Text>Size: {selectedItem.size}</Text> : ""}
       {selectedItem.storage ? <Text>Storage: {selectedItem.storage}</Text> : ""}
+      {selectedItem.stage ? (
+        <Text>
+          Pipeline stage:{" "}
+          <Link
+            as={RouterLink}
+            to={`/${ownerName}/${projectName}/pipeline`}
+            search={{ stage: selectedItem.stage, ref: gitRef } as any}
+          >
+            <Code>{selectedItem.stage}</Code>
+          </Link>
+        </Text>
+      ) : (
+        ""
+      )}
       {userHasWriteAccess ? (
         <FileLock
           item={selectedItem}
@@ -299,7 +316,7 @@ function SelectedItemInfo({
       ) : (
         ""
       )}
-      {selectedItem.calkit_object?.stage ? (
+      {!selectedItem.stage && selectedItem.calkit_object?.stage ? (
         <Text mt={1}>
           Pipeline stage:{" "}
           <Code>{String(selectedItem.calkit_object.stage)}</Code>

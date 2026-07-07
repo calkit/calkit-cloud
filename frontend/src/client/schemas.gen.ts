@@ -630,6 +630,17 @@ export const ContentsItemSchema = {
       ],
       title: "Storage",
     },
+    stage: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Stage",
+    },
     dir_items: {
       anyOf: [
         {
@@ -4900,6 +4911,125 @@ export const QuestionSchema = {
   title: "Question",
 } as const
 
+export const QuestionEvidenceSchema = {
+  properties: {
+    kind: {
+      type: "string",
+      enum: ["figure", "result", "publication"],
+      title: "Kind",
+    },
+    path: {
+      type: "string",
+      title: "Path",
+    },
+    key: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Key",
+    },
+    explanation: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Explanation",
+    },
+    figure: {
+      anyOf: [
+        {
+          $ref: "#/components/schemas/Figure",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    result: {
+      anyOf: [
+        {
+          $ref: "#/components/schemas/Result",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    publication: {
+      anyOf: [
+        {
+          $ref: "#/components/schemas/Publication",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    value: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Value",
+    },
+  },
+  type: "object",
+  required: ["kind", "path"],
+  title: "QuestionEvidence",
+} as const
+
+export const QuestionEvidencePostSchema = {
+  properties: {
+    kind: {
+      type: "string",
+      enum: ["figure", "result", "publication"],
+      title: "Kind",
+    },
+    path: {
+      type: "string",
+      title: "Path",
+    },
+    key: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Key",
+    },
+    explanation: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Explanation",
+    },
+  },
+  type: "object",
+  required: ["kind", "path"],
+  title: "QuestionEvidencePost",
+} as const
+
 export const QuestionPostSchema = {
   properties: {
     question: {
@@ -4910,6 +5040,110 @@ export const QuestionPostSchema = {
   type: "object",
   required: ["question"],
   title: "QuestionPost",
+} as const
+
+export const QuestionPublicSchema = {
+  properties: {
+    id: {
+      type: "string",
+      format: "uuid",
+      title: "Id",
+    },
+    project_id: {
+      type: "string",
+      format: "uuid",
+      title: "Project Id",
+    },
+    number: {
+      type: "integer",
+      title: "Number",
+    },
+    question: {
+      type: "string",
+      title: "Question",
+    },
+    hypothesis: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Hypothesis",
+    },
+    answer: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Answer",
+    },
+    evidence: {
+      items: {
+        $ref: "#/components/schemas/QuestionEvidence",
+      },
+      type: "array",
+      title: "Evidence",
+      default: [],
+    },
+  },
+  type: "object",
+  required: ["id", "project_id", "number", "question"],
+  title: "QuestionPublic",
+} as const
+
+export const QuestionPutSchema = {
+  properties: {
+    question: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Question",
+    },
+    hypothesis: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Hypothesis",
+    },
+    answer: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Answer",
+    },
+    evidence: {
+      items: {
+        $ref: "#/components/schemas/QuestionEvidencePost",
+      },
+      type: "array",
+      title: "Evidence",
+      default: [],
+    },
+  },
+  type: "object",
+  title: "QuestionPut",
 } as const
 
 export const ReferenceEntrySchema = {
@@ -6250,6 +6484,44 @@ export const ReproCheckSchema = {
   title: "ReproCheck",
 } as const
 
+export const ResultSchema = {
+  properties: {
+    path: {
+      type: "string",
+      title: "Path",
+    },
+    title: {
+      type: "string",
+      title: "Title",
+    },
+    description: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Description",
+    },
+    stage: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Stage",
+    },
+  },
+  type: "object",
+  required: ["path", "title"],
+  title: "Result",
+} as const
+
 export const SearchResultItemSchema = {
   properties: {
     kind: {
@@ -7518,6 +7790,17 @@ export const _ContentsItemBaseSchema = {
         },
       ],
       title: "Storage",
+    },
+    stage: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Stage",
     },
   },
   type: "object",

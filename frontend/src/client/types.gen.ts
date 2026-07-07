@@ -13,6 +13,7 @@ export type _ContentsItemBase = {
   } | null
   lock?: ItemLock | null
   storage?: "git" | "dvc" | "dvc-zip" | null
+  stage?: string | null
 }
 
 export type AccountPublic = {
@@ -171,6 +172,7 @@ export type ContentsItem = {
   } | null
   lock?: ItemLock | null
   storage?: "git" | "dvc" | "dvc-zip" | null
+  stage?: string | null
   dir_items?: Array<_ContentsItemBase> | null
 }
 
@@ -1019,8 +1021,45 @@ export type Question = {
   question: string
 }
 
+export type QuestionEvidence = {
+  kind: "figure" | "result" | "publication"
+  path: string
+  key?: string | null
+  explanation?: string | null
+  figure?: Figure | null
+  result?: Result | null
+  publication?: Publication | null
+  value?: string | null
+}
+
+export type kind5 = "figure" | "result" | "publication"
+
+export type QuestionEvidencePost = {
+  kind: "figure" | "result" | "publication"
+  path: string
+  key?: string | null
+  explanation?: string | null
+}
+
 export type QuestionPost = {
   question: string
+}
+
+export type QuestionPublic = {
+  id: string
+  project_id: string
+  number: number
+  question: string
+  hypothesis?: string | null
+  answer?: string | null
+  evidence?: Array<QuestionEvidence>
+}
+
+export type QuestionPut = {
+  question?: string | null
+  hypothesis?: string | null
+  answer?: string | null
+  evidence?: Array<QuestionEvidencePost>
 }
 
 export type ReferenceEntry = {
@@ -1290,6 +1329,13 @@ export type ReproCheck = {
   readonly n_stages_with_env: number
 }
 
+export type Result = {
+  path: string
+  title: string
+  description?: string | null
+  stage?: string | null
+}
+
 export type SearchResultItem = {
   kind: "project" | "org" | "dataset"
   name: string
@@ -1299,7 +1345,7 @@ export type SearchResultItem = {
   project_name?: string | null
 }
 
-export type kind5 = "project" | "org" | "dataset"
+export type kind6 = "project" | "org" | "dataset"
 
 export type SearchResults = {
   results: Array<SearchResultItem>
@@ -1926,7 +1972,7 @@ export type GetProjectQuestionsData = {
   ref?: string | null
 }
 
-export type GetProjectQuestionsResponse = Array<Question>
+export type GetProjectQuestionsResponse = Array<QuestionPublic>
 
 export type PostProjectQuestionData = {
   ownerName: string
@@ -1935,6 +1981,15 @@ export type PostProjectQuestionData = {
 }
 
 export type PostProjectQuestionResponse = Question
+
+export type PutProjectQuestionData = {
+  number: number
+  ownerName: string
+  projectName: string
+  requestBody: QuestionPut
+}
+
+export type PutProjectQuestionResponse = QuestionPublic
 
 export type GetProjectFiguresData = {
   ownerName: string
@@ -1951,6 +2006,14 @@ export type PostProjectFigureData = {
 }
 
 export type PostProjectFigureResponse = Figure
+
+export type GetProjectResultsData = {
+  ownerName: string
+  projectName: string
+  ref?: string | null
+}
+
+export type GetProjectResultsResponse = Array<Result>
 
 export type GetProjectFigureData = {
   figurePath: string

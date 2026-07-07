@@ -284,10 +284,12 @@ function FigureInfo({
   figure,
   ownerName,
   projectName,
+  gitRef,
 }: {
   figure: Figure
   ownerName: string
   projectName: string
+  gitRef?: string
 }) {
   const secBgColor = useColorModeValue("ui.secondary", "ui.darkSlate")
   // Typed as plain string so the router's typed `to` prop accepts them.
@@ -325,7 +327,7 @@ function FigureInfo({
         <Link
           as={RouterLink}
           to={filesTo}
-          search={{ path: figure.path } as any}
+          search={{ path: figure.path, ref: gitRef } as any}
         >
           {figure.path}
         </Link>
@@ -338,7 +340,7 @@ function FigureInfo({
           <Link
             as={RouterLink}
             to={pipelineTo}
-            search={{ stage: figure.stage } as any}
+            search={{ stage: figure.stage, ref: gitRef } as any}
           >
             <Code fontSize="xs" cursor="pointer">
               {figure.stage}
@@ -983,6 +985,7 @@ export function ArtifactCompareModal({
                     figure={figureInfo}
                     ownerName={ownerName}
                     projectName={projectName}
+                    gitRef={ref1}
                   />
                 )}
                 <FigureComments
