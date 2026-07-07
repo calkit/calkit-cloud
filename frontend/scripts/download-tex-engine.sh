@@ -1,36 +1,30 @@
 #!/usr/bin/env bash
-# Fetch the busytex WASM engine + TeX Live bundles into frontend/public/tex/.
-# These are large and git-ignored; the small MIT glue (busytex_worker.js,
-# busytex_pipeline.js) IS committed. Run in the Docker build (before
-# `npm run build`) so a fresh checkout — CI/production, where git-ignored files
-# are absent — still bundles the engine into dist/. See frontend/Dockerfile.
+# Fetch the stock TeX Live filesystem bundles into frontend/public/tex/.
 #
-# Uses curl only (no gh/auth) so it works inside the build container against
-# PUBLIC release assets. Override the engine source with TEX_ENGINE_REPO /
-# TEX_ENGINE_TAG if you host it elsewhere.
+# These are large (~190 MB) and carry the various per-package TeX Live licenses,
+# so they are git-ignored and pulled from the upstream busytex release at build
+# time (see frontend/Dockerfile) rather than vendored. Our patched engine
+# (busytex.{js,wasm}, MIT) IS committed — see public/tex/LICENSE-busytex — so it
+# is not fetched here.
+#
+# Uses curl only (no gh/auth) against PUBLIC release assets, and skips files that
+# already exist so local builds (which have the bundles on disk) are a no-op.
 set -euo pipefail
 
 DIR="$(cd "$(dirname "$0")/.." && pwd)/public/tex"
 mkdir -p "$DIR"
 
-# Patched engine (busytex.{js,wasm}): our remote-texmf-fetch + on-demand font
-# generation hooks. Hosted separately (NOT calkit-cloud, whose releases trigger
-# a production deploy). See spikes/busytex-remote-fetch.
-ENGINE_REPO="${TEX_ENGINE_REPO:-calkit/busytex-engine}"
-ENGINE_TAG="${TEX_ENGINE_TAG:-v1}"
-ENGINE_BASE="https://github.com/${ENGINE_REPO}/releases/download/${ENGINE_TAG}"
-
-# Stock TeX Live filesystem bundles (unpatched) — upstream busytex release. The
-# .data are engine-agnostic TeX Live 2023 data, compatible with our build.
+# Upstream busytex release. The .data are engine-agnostic TeX Live 2023 data,
+# compatible with our patched build.
 DATA_REPO="busytex/busytex"
 DATA_TAG="build_wasm_4499aa69fd3cf77ad86a47287d9a5193cf5ad993_7936974349_1"
 DATA_BASE="https://github.com/${DATA_REPO}/releases/download/${DATA_TAG}"
 
-fetch() { echo "  -> $2"; curl -fSL --retry 3 --retry-delay 2 -o "$DIR/$2" "$1/$2"; }
-
-echo "Patched engine  <- ${ENGINE_REPO}@${ENGINE_TAG}"
-fetch "$ENGINE_BASE" busytex.js
-fetch "$ENGINE_BASE" busytex.wasm
+fetch() {
+  if [ -s "$DIR/$1" ]; then echo "  = $1 (present)"; return 0; fi
+  echo "  -> $1"
+  curl -fSL --retry 3 --retry-delay 2 -o "$DIR/$1" "$DATA_BASE/$1"
+}
 
 echo "TeX Live bundles <- ${DATA_REPO}@${DATA_TAG}"
 for f in \
@@ -41,7 +35,7 @@ for f in \
   ubuntu-texlive-science.data ubuntu-texlive-science.js \
   ubuntu-texlive-fonts-recommended.data ubuntu-texlive-fonts-recommended.js
 do
-  fetch "$DATA_BASE" "$f"
+  fetch "$f"
 done
 
 echo "Done -> $DIR"

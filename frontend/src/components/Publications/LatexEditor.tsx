@@ -7,6 +7,7 @@ import {
   FormLabel,
   HStack,
   Input,
+  Link,
   Modal,
   ModalBody,
   ModalCloseButton,
@@ -391,6 +392,17 @@ const LatexEditor = ({
             <Text fontSize="xs" color="ui.dim">
               Draft preview (run pipeline to generate official PDF)
             </Text>
+            {/* Courtesy credit + source pointer for the in-browser engine.
+                busytex (MIT) + TeX Live; see public/tex/LICENSE-busytex. */}
+            <Link
+              href="https://github.com/busytex/busytex"
+              isExternal
+              fontSize="xs"
+              color="ui.dim"
+              mx={3}
+            >
+              LaTeX by busytex + TeX Live
+            </Link>
             <ModalCloseButton position="static" />
           </Flex>
           <ModalBody p={0} overflow="hidden">
