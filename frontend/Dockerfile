@@ -3,6 +3,16 @@ FROM node:20.19.5 AS build-stage
 
 WORKDIR /app
 
+# Fetch the git-ignored busytex WASM engine + TeX Live bundles into public/tex/
+# so Vite bundles them into dist/. First (before deps/code) so this ~220 MB
+# layer stays cached across code and dependency changes — only re-runs when the
+# download script changes. A later `COPY ./` overlays the committed glue without
+# removing these downloads. Override the source via TEX_ENGINE_REPO/TAG.
+ARG TEX_ENGINE_REPO
+ARG TEX_ENGINE_TAG
+COPY scripts/download-tex-engine.sh /app/scripts/download-tex-engine.sh
+RUN bash /app/scripts/download-tex-engine.sh
+
 COPY package*.json /app/
 
 RUN npm install

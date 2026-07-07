@@ -1,33 +1,47 @@
 #!/usr/bin/env bash
-# Fetch the large busytex WASM engine binaries into frontend/public/tex/.
-# The small MIT JS glue (busytex_worker.js, busytex_pipeline.js) is committed;
-# these big binaries are gitignored. Engine = upstream MIT busytex/busytex
-# (TeX Live 2023). See LATEX_EDITOR_PLAN.md §0/§8.1.
+# Fetch the busytex WASM engine + TeX Live bundles into frontend/public/tex/.
+# These are large and git-ignored; the small MIT glue (busytex_worker.js,
+# busytex_pipeline.js) IS committed. Run in the Docker build (before
+# `npm run build`) so a fresh checkout — CI/production, where git-ignored files
+# are absent — still bundles the engine into dist/. See frontend/Dockerfile.
 #
-# For production, host these on a CDN/object storage and set VITE_TEX_ENGINE_URL
-# instead of serving them from public/.
+# Uses curl only (no gh/auth) so it works inside the build container against
+# PUBLIC release assets. Override the engine source with TEX_ENGINE_REPO /
+# TEX_ENGINE_TAG if you host it elsewhere.
 set -euo pipefail
 
-REPO="busytex/busytex"
-REL="build_wasm_4499aa69fd3cf77ad86a47287d9a5193cf5ad993_7936974349_1"
 DIR="$(cd "$(dirname "$0")/.." && pwd)/public/tex"
 mkdir -p "$DIR"
 
-echo "Downloading busytex engine binaries -> $DIR"
-gh release download "$REL" --repo "$REPO" --dir "$DIR" --clobber \
-  --pattern busytex.wasm \
-  --pattern busytex.js \
-  --pattern texlive-basic.data \
-  --pattern texlive-basic.js \
-  --pattern "ubuntu-texlive-latex-base.data" \
-  --pattern "ubuntu-texlive-latex-base.js" \
-  --pattern "ubuntu-texlive-latex-recommended.data" \
-  --pattern "ubuntu-texlive-latex-recommended.js" \
-  --pattern "ubuntu-texlive-latex-extra.data" \
-  --pattern "ubuntu-texlive-latex-extra.js" \
-  --pattern "ubuntu-texlive-science.data" \
-  --pattern "ubuntu-texlive-science.js" \
-  --pattern "ubuntu-texlive-fonts-recommended.data" \
-  --pattern "ubuntu-texlive-fonts-recommended.js"
+# Patched engine (busytex.{js,wasm}): our remote-texmf-fetch + on-demand font
+# generation hooks. Hosted separately (NOT calkit-cloud, whose releases trigger
+# a production deploy). See spikes/busytex-remote-fetch.
+ENGINE_REPO="${TEX_ENGINE_REPO:-calkit/busytex-engine}"
+ENGINE_TAG="${TEX_ENGINE_TAG:-v1}"
+ENGINE_BASE="https://github.com/${ENGINE_REPO}/releases/download/${ENGINE_TAG}"
 
-echo "Done."
+# Stock TeX Live filesystem bundles (unpatched) — upstream busytex release. The
+# .data are engine-agnostic TeX Live 2023 data, compatible with our build.
+DATA_REPO="busytex/busytex"
+DATA_TAG="build_wasm_4499aa69fd3cf77ad86a47287d9a5193cf5ad993_7936974349_1"
+DATA_BASE="https://github.com/${DATA_REPO}/releases/download/${DATA_TAG}"
+
+fetch() { echo "  -> $2"; curl -fSL --retry 3 --retry-delay 2 -o "$DIR/$2" "$1/$2"; }
+
+echo "Patched engine  <- ${ENGINE_REPO}@${ENGINE_TAG}"
+fetch "$ENGINE_BASE" busytex.js
+fetch "$ENGINE_BASE" busytex.wasm
+
+echo "TeX Live bundles <- ${DATA_REPO}@${DATA_TAG}"
+for f in \
+  texlive-basic.data texlive-basic.js \
+  ubuntu-texlive-latex-base.data ubuntu-texlive-latex-base.js \
+  ubuntu-texlive-latex-recommended.data ubuntu-texlive-latex-recommended.js \
+  ubuntu-texlive-latex-extra.data ubuntu-texlive-latex-extra.js \
+  ubuntu-texlive-science.data ubuntu-texlive-science.js \
+  ubuntu-texlive-fonts-recommended.data ubuntu-texlive-fonts-recommended.js
+do
+  fetch "$DATA_BASE" "$f"
+done
+
+echo "Done -> $DIR"
