@@ -35,7 +35,7 @@ import {
 import { useQuery } from "@tanstack/react-query"
 import { useState } from "react"
 import { z } from "zod"
-import { FaPlus } from "react-icons/fa"
+import { FaPlus, FaRegFileAlt } from "react-icons/fa"
 import { MdEdit } from "react-icons/md"
 import { ExternalLinkIcon } from "@chakra-ui/icons"
 
@@ -156,6 +156,44 @@ function EvidenceItem({
           <Text fontSize="xs" noOfLines={1} px={2} py={1}>
             {fig?.title ?? evidence.path}
           </Text>
+        </Box>
+      </Link>
+    )
+  }
+  if (evidence.kind === "publication") {
+    const pub = evidence.publication
+    return (
+      <Link
+        as={RouterLink}
+        to={`/${accountName}/${projectName}/publications`}
+        search={{ path: evidence.path, ref: gitRef } as any}
+        _hover={{ textDecoration: "none" }}
+      >
+        <Box
+          borderWidth={1}
+          borderColor={borderColor}
+          borderRadius="md"
+          bg={bg}
+          px={3}
+          py={2}
+          minW="130px"
+          maxW="100%"
+          _hover={{ shadow: "md" }}
+        >
+          <Flex align="center" gap={1.5}>
+            <Icon as={FaRegFileAlt} color="gray.500" flexShrink={0} />
+            <Text fontSize="sm" fontWeight="semibold" noOfLines={1}>
+              {pub?.title ?? evidence.path}
+            </Text>
+          </Flex>
+          <Text fontSize="xs" color="gray.500" noOfLines={1}>
+            {evidence.path}
+          </Text>
+          {evidence.explanation ? (
+            <Text fontSize="xs" color="gray.500" noOfLines={2} mt={0.5}>
+              {evidence.explanation}
+            </Text>
+          ) : null}
         </Box>
       </Link>
     )

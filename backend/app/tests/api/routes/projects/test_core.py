@@ -879,10 +879,11 @@ def test_build_question_evidence_resolves_figures_and_results() -> None:
     import json
 
     from app.api.routes.projects.core import _build_question_evidence
-    from app.models.core import Figure, Result
+    from app.models.core import Figure, Publication, Result
 
     fig = Figure(path="figures/x.png", title="X")
     res = Result(path="results/summary.json", title="Summary")
+    pub = Publication(path="paper/paper.pdf", title="Paper")
     evidence_ck = [
         {"kind": "figure", "path": "figures/x.png", "explanation": "shows x"},
         {
@@ -890,6 +891,7 @@ def test_build_question_evidence_resolves_figures_and_results() -> None:
             "path": "results/summary.json",
             "key": "metrics.mean",
         },
+        {"kind": "publication", "path": "paper/paper.pdf"},
         {"kind": "figure", "path": "figures/missing.png"},
         {"kind": "bogus", "path": "whatever"},  # unknown kind, skipped
         "not-a-dict",  # skipped
@@ -918,9 +920,10 @@ def test_build_question_evidence_resolves_figures_and_results() -> None:
             evidence_ck=evidence_ck,
             figures_by_path={fig.path: fig},
             results_by_path={res.path: res},
+            publications_by_path={pub.path: pub},
             result_value_cache={},
         )
-    assert len(evidence) == 3
+    assert len(evidence) == 4
     assert evidence[0].kind == "figure"
     assert evidence[0].figure is not None
     assert evidence[0].figure.path == "figures/x.png"
@@ -931,8 +934,11 @@ def test_build_question_evidence_resolves_figures_and_results() -> None:
     assert evidence[1].key == "metrics.mean"
     # The nested key value is read from the result file and stringified.
     assert evidence[1].value == "3.14"
+    assert evidence[2].kind == "publication"
+    assert evidence[2].publication is not None
+    assert evidence[2].publication.title == "Paper"
     # An unresolved figure path leaves the resolved figure as None.
-    assert evidence[2].figure is None
+    assert evidence[3].figure is None
 
 
 def test_apply_question_update_builds_object() -> None:

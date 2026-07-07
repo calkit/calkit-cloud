@@ -4693,7 +4693,7 @@ export const QuestionEvidenceSchema = {
   properties: {
     kind: {
       type: "string",
-      enum: ["figure", "result"],
+      enum: ["figure", "result", "publication"],
       title: "Kind",
     },
     path: {
@@ -4742,6 +4742,16 @@ export const QuestionEvidenceSchema = {
         },
       ],
     },
+    publication: {
+      anyOf: [
+        {
+          $ref: "#/components/schemas/Publication",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
     value: {
       anyOf: [
         {
@@ -4763,7 +4773,7 @@ export const QuestionEvidencePostSchema = {
   properties: {
     kind: {
       type: "string",
-      enum: ["figure", "result"],
+      enum: ["figure", "result", "publication"],
       title: "Kind",
     },
     path: {

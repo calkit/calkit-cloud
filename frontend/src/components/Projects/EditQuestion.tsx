@@ -27,7 +27,11 @@ import { FaPlus, FaTrash } from "react-icons/fa"
 import { ProjectsService, type QuestionPublic } from "../../client"
 import type { ApiError } from "../../client/core/ApiError"
 import useCustomToast from "../../hooks/useCustomToast"
-import { useProjectFigures, useProjectResults } from "../../hooks/useProject"
+import {
+  useProjectFigures,
+  useProjectPublications,
+  useProjectResults,
+} from "../../hooks/useProject"
 import { handleError } from "../../lib/errors"
 
 interface EditQuestionProps {
@@ -61,7 +65,7 @@ const parseSelection = (selection: string) => {
     return null
   }
   return {
-    kind: selection.slice(0, idx) as "figure" | "result",
+    kind: selection.slice(0, idx) as "figure" | "result" | "publication",
     path: selection.slice(idx + 1),
   }
 }
@@ -78,6 +82,11 @@ const EditQuestion = ({
   const { accountName, projectName } = routeApi.useParams()
   const { figuresRequest } = useProjectFigures(accountName, projectName, gitRef)
   const { resultsRequest } = useProjectResults(accountName, projectName, gitRef)
+  const { publicationsRequest } = useProjectPublications(
+    accountName,
+    projectName,
+    gitRef,
+  )
   const {
     register,
     control,
@@ -215,6 +224,7 @@ const EditQuestion = ({
               const parsed = parseSelection(selection)
               const figures = figuresRequest.data ?? []
               const results = resultsRequest.data ?? []
+              const publications = publicationsRequest.data ?? []
               // Always keep the current selection as an available option, even
               // if it isn't in the fetched lists (still loading, or the file
               // was renamed/removed), so the dropdown never blanks out.
@@ -222,7 +232,9 @@ const EditQuestion = ({
                 (parsed?.kind === "figure" &&
                   figures.some((f) => f.path === parsed.path)) ||
                 (parsed?.kind === "result" &&
-                  results.some((r) => r.path === parsed.path))
+                  results.some((r) => r.path === parsed.path)) ||
+                (parsed?.kind === "publication" &&
+                  publications.some((p) => p.path === parsed.path))
               return (
                 <Box
                   key={field.id}
@@ -242,12 +254,12 @@ const EditQuestion = ({
                   </Flex>
                   <FormControl mb={2}>
                     <FormLabel fontSize="xs" mb={1}>
-                      Figure or result
+                      Figure, result, or publication
                     </FormLabel>
                     <Select
                       {...register(`evidence.${index}.selection`)}
                       value={selection}
-                      placeholder="Select a figure or result"
+                      placeholder="Select a figure, result, or publication"
                       size="sm"
                     >
                       {parsed && !selectionInList ? (
@@ -273,6 +285,18 @@ const EditQuestion = ({
                               value={rowToSelection("result", res.path)}
                             >
                               {res.path}
+                            </option>
+                          ))}
+                        </optgroup>
+                      ) : null}
+                      {publications.length > 0 ? (
+                        <optgroup label="Publications">
+                          {publications.map((pub) => (
+                            <option
+                              key={`publication:${pub.path}`}
+                              value={rowToSelection("publication", pub.path)}
+                            >
+                              {pub.path}
                             </option>
                           ))}
                         </optgroup>

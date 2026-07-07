@@ -985,19 +985,20 @@ export type Question = {
 }
 
 export type QuestionEvidence = {
-  kind: "figure" | "result"
+  kind: "figure" | "result" | "publication"
   path: string
   key?: string | null
   explanation?: string | null
   figure?: Figure | null
   result?: Result | null
+  publication?: Publication | null
   value?: string | null
 }
 
-export type kind5 = "figure" | "result"
+export type kind5 = "figure" | "result" | "publication"
 
 export type QuestionEvidencePost = {
-  kind: "figure" | "result"
+  kind: "figure" | "result" | "publication"
   path: string
   key?: string | null
   explanation?: string | null

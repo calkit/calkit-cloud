@@ -1464,6 +1464,7 @@ def _build_question_evidence(
     evidence_ck: list,
     figures_by_path: dict[str, Figure],
     results_by_path: dict[str, Result],
+    publications_by_path: dict[str, Publication],
     result_value_cache: dict[str, dict | None],
 ) -> list[QuestionEvidence]:
     """Turn calkit.yaml evidence entries into resolved QuestionEvidence."""
@@ -1472,6 +1473,7 @@ def _build_question_evidence(
         if not isinstance(ev, dict) or ev.get("kind") not in (
             "figure",
             "result",
+            "publication",
         ):
             continue
         path = ev.get("path", "")
@@ -1483,6 +1485,8 @@ def _build_question_evidence(
         )
         if item.kind == "figure":
             item.figure = figures_by_path.get(path)
+        elif item.kind == "publication":
+            item.publication = publications_by_path.get(path)
         else:
             item.result = results_by_path.get(path)
             if item.key:
@@ -1533,6 +1537,12 @@ def _build_questions_public(
             res.path: res
             for res in _build_results(project=project, repo=repo, ref=ref)
         }
+    publications_by_path: dict[str, Publication] = {}
+    if "publication" in kinds:
+        publications_by_path = {
+            pub.path: pub
+            for pub in _build_publications(project=project, repo=repo, ref=ref)
+        }
     db_questions = sorted(project.questions, key=lambda q: q.number)
     result_value_cache: dict[str, dict | None] = {}
     questions_public = []
@@ -1546,6 +1556,7 @@ def _build_questions_public(
             evidence_ck=_evidence_of(q_ck),
             figures_by_path=figures_by_path,
             results_by_path=results_by_path,
+            publications_by_path=publications_by_path,
             result_value_cache=result_value_cache,
         )
         questions_public.append(
@@ -1964,6 +1975,26 @@ def _build_results(
             continue
         _maybe_add_result(dvc_path)
     return [Result.model_validate(res) for res in results]
+
+
+def _build_publications(
+    project: Project,
+    repo: git.Repo,
+    ref: str | None,
+) -> list[Publication]:
+    """Build the list of declared project publications (path/title/type),
+    without base64 content, for resolving question evidence.
+    """
+    ck_info = app.projects.get_ck_info_for_ref(
+        project=project,
+        repo=repo,
+        ref=ref,
+    )
+    publications = ck_info.get("publications", [])
+    for pub in publications:
+        if not pub.get("title"):
+            pub["title"] = _title_from_path(pub["path"])
+    return [Publication.model_validate(pub) for pub in publications]
 
 
 @router.get("/projects/{owner_name}/{project_name}/results")
