@@ -250,6 +250,41 @@ def test_zip_stored_output_is_not_stale(tmp_path):
     assert not statuses["run"].missing_outputs
 
 
+def test_cache_false_output_not_flagged_stale(tmp_path):
+    """An out declared ``cache: false`` (e.g. calkit map-paths dir-to-dir) is
+    never pushed to object storage and is often gitignored, so the cloud can't
+    observe it. It must not be flagged missing (calkit checks the workspace
+    file and reports up to date)."""
+    repo = _init_repo(tmp_path / "repo")
+    _commit(repo, {"script.py": "x\n"}, "init")
+    tree = get_repo_tree_for_ref(repo, None)
+    dvc_yaml = {
+        "stages": {
+            "run": {
+                "cmd": "python script.py",
+                "deps": ["script.py"],
+                "outs": [{"paper/figures": {"cache": False, "persist": True}}],
+            }
+        }
+    }
+    dvc_lock = {
+        "stages": {
+            "run": {
+                "cmd": "python script.py",
+                "deps": [{"path": "script.py", "md5": _md5("x\n")}],
+                "outs": [{"path": "paper/figures", "md5": f"{_md5('c')}.dir"}],
+            }
+        }
+    }
+    # FakeFS has no objects and paper/figures isn't in the tree, so without the
+    # cache:false handling this would be wrongly flagged missing/stale.
+    statuses = compute_stage_statuses(
+        dvc_yaml, dvc_lock, tree, "o", "p", FakeFS()
+    )
+    assert statuses["run"].status == "up-to-date"
+    assert not statuses["run"].missing_outputs
+
+
 def test_orphaned_lock_stage_is_ignored(tmp_path):
     """A dvc.lock stage no longer in dvc.yaml (renamed/removed) isn't reported,
     even if its recorded outs would look missing/stale."""
