@@ -13,6 +13,7 @@ export type _ContentsItemBase = {
   } | null
   lock?: ItemLock | null
   storage?: "git" | "dvc" | "dvc-zip" | null
+  stage?: string | null
 }
 
 export type AccountPublic = {
@@ -170,6 +171,7 @@ export type ContentsItem = {
   } | null
   lock?: ItemLock | null
   storage?: "git" | "dvc" | "dvc-zip" | null
+  stage?: string | null
   dir_items?: Array<_ContentsItemBase> | null
 }
 
@@ -989,6 +991,7 @@ export type QuestionEvidence = {
   explanation?: string | null
   figure?: Figure | null
   result?: Result | null
+  value?: string | null
 }
 
 export type kind5 = "figure" | "result"
@@ -1015,6 +1018,7 @@ export type QuestionPublic = {
 }
 
 export type QuestionPut = {
+  question?: string | null
   hypothesis?: string | null
   answer?: string | null
   evidence?: Array<QuestionEvidencePost>

@@ -10,7 +10,6 @@ import {
   AccordionPanel,
   AccordionIcon,
   Image,
-  Badge,
   useColorModeValue,
   Checkbox,
   FormControl,
@@ -41,6 +40,7 @@ import { MdEdit } from "react-icons/md"
 import { ExternalLinkIcon } from "@chakra-ui/icons"
 
 import Markdown from "../../../../../components/Common/Markdown"
+import FigureView from "../../../../../components/Figures/FigureView"
 import { ReleasesService, type QuestionEvidence } from "../../../../../client"
 import { decodeBase64Utf8 } from "../../../../../lib/strings"
 import {
@@ -72,41 +72,71 @@ export const Route = createFileRoute(
         new_release: z.boolean().optional(),
         // Number of the question whose edit modal is open, so a link reopens it.
         edit_question: z.number().optional(),
+        // Number of the question whose details are expanded, so the back
+        // button and links restore the expanded state.
+        expanded_question: z.number().optional(),
       })
       .parse(search),
 })
-
-const IMAGE_MIME: Record<string, string> = {
-  png: "image/png",
-  jpg: "image/jpeg",
-  jpeg: "image/jpeg",
-  svg: "image/svg+xml",
-}
 
 /** Compact display of a single piece of question evidence. */
 function EvidenceItem({
   evidence,
   accountName,
   projectName,
+  gitRef,
 }: {
   evidence: QuestionEvidence
   accountName: string
   projectName: string
+  gitRef?: string
 }) {
   const borderColor = useColorModeValue("gray.200", "gray.600")
   const bg = useColorModeValue("white", "gray.800")
   if (evidence.kind === "figure") {
     const fig = evidence.figure
     const ext = evidence.path.toLowerCase().split(".").pop() ?? ""
-    const src =
-      fig?.content && IMAGE_MIME[ext]
-        ? `data:${IMAGE_MIME[ext]};base64,${fig.content}`
-        : fig?.url ?? undefined
+    const imgMime: Record<string, string> = {
+      png: "image/png",
+      jpg: "image/jpeg",
+      jpeg: "image/jpeg",
+      svg: "image/svg+xml",
+    }
+    const imgSrc =
+      fig && ext in imgMime
+        ? fig.content
+          ? `data:${imgMime[ext]};base64,${fig.content}`
+          : fig.url ?? undefined
+        : undefined
+    let thumb
+    if (imgSrc) {
+      // Raster/SVG images render directly for reliable, cheap thumbnails.
+      thumb = (
+        <Image
+          src={imgSrc}
+          alt={fig?.title ?? evidence.path}
+          width="100%"
+          height="100%"
+          objectFit="contain"
+        />
+      )
+    } else if (fig && (fig.content || fig.url)) {
+      // Plotly JSON, PDFs, etc. go through the shared figure renderer.
+      thumb = <FigureView figure={fig} fillHeight />
+    } else {
+      thumb = (
+        <Flex height="100%" align="center" justify="center" color="gray.400">
+          <Icon as={ExternalLinkIcon} />
+        </Flex>
+      )
+    }
     return (
       <Link
         as={RouterLink}
         to={`/${accountName}/${projectName}/figures`}
-        search={{ path: evidence.path } as any}
+        // Preserve the global ref so the figure opens at the same git ref the
+        // project is being browsed at.
+        search={{ path: evidence.path, ref: gitRef } as any}
         _hover={{ textDecoration: "none" }}
       >
         <Box
@@ -115,27 +145,13 @@ function EvidenceItem({
           borderRadius="md"
           overflow="hidden"
           bg={bg}
-          width="120px"
+          width="150px"
           _hover={{ shadow: "md" }}
         >
-          {src && IMAGE_MIME[ext] ? (
-            <Image
-              src={src}
-              alt={fig?.title ?? evidence.path}
-              objectFit="contain"
-              width="100%"
-              height="70px"
-            />
-          ) : (
-            <Flex
-              height="70px"
-              align="center"
-              justify="center"
-              color="gray.400"
-            >
-              <Icon as={ExternalLinkIcon} />
-            </Flex>
-          )}
+          {/* pointerEvents off so a click hits the link, not the Plotly plot */}
+          <Box height="90px" overflow="hidden" pointerEvents="none">
+            {thumb}
+          </Box>
           <Text fontSize="xs" noOfLines={1} px={2} py={1}>
             {fig?.title ?? evidence.path}
           </Text>
@@ -143,7 +159,6 @@ function EvidenceItem({
       </Link>
     )
   }
-  const res = evidence.result
   return (
     <Box
       borderWidth={1}
@@ -152,20 +167,35 @@ function EvidenceItem({
       bg={bg}
       px={3}
       py={2}
+      minW="130px"
       maxW="100%"
     >
-      <Flex align="center" gap={1}>
-        <Text fontSize="sm" fontWeight="semibold" noOfLines={1}>
-          {res?.title ?? evidence.path}
+      {/* `path:key` at the top links to the file and identifies the result. */}
+      <Link
+        as={RouterLink}
+        to={`/${accountName}/${projectName}/files`}
+        search={{ path: evidence.path, ref: gitRef } as any}
+        fontSize="xs"
+        fontWeight="semibold"
+        noOfLines={1}
+        display="block"
+      >
+        {evidence.path}
+        {evidence.key ? `:${evidence.key}` : ""}
+      </Link>
+      {evidence.value != null ? (
+        <Text
+          fontSize="xl"
+          fontWeight="bold"
+          lineHeight="1.1"
+          noOfLines={1}
+          my={0.5}
+        >
+          {evidence.value}
         </Text>
-        {evidence.key ? (
-          <Badge colorScheme="gray" fontSize="xs">
-            {evidence.key}
-          </Badge>
-        ) : null}
-      </Flex>
+      ) : null}
       {evidence.explanation ? (
-        <Text fontSize="xs" color="gray.500" noOfLines={2}>
+        <Text fontSize="xs" color="gray.500" noOfLines={2} mt={0.5}>
           {evidence.explanation}
         </Text>
       ) : null}
@@ -245,8 +275,11 @@ function ProjectView() {
   const overleafImportModal = useDisclosure()
   // New release modal open state lives in the URL so a link can reopen it.
   const navigate = Route.useNavigate()
-  const { new_release: newReleaseOpen, edit_question: editQuestionNumber } =
-    Route.useSearch()
+  const {
+    new_release: newReleaseOpen,
+    edit_question: editQuestionNumber,
+    expanded_question: expandedQuestion,
+  } = Route.useSearch()
   const setNewReleaseOpen = (open: boolean) =>
     navigate({
       search: (prev) => ({ ...prev, new_release: open || undefined }),
@@ -258,6 +291,20 @@ function ProjectView() {
     })
   const editingQuestion =
     questionsRequest.data?.find((q) => q.number === editQuestionNumber) ?? null
+  // Which question is expanded lives in the URL so the back button restores
+  // it. The Accordion works in list positions; translate to/from the question
+  // number, which is stable across reorders.
+  const questions = questionsRequest.data ?? []
+  const expandedIndex = questions.findIndex(
+    (q) => q.number === expandedQuestion,
+  )
+  const setExpandedIndex = (index: number) =>
+    navigate({
+      search: (prev) => ({
+        ...prev,
+        expanded_question: index >= 0 ? questions[index]?.number : undefined,
+      }),
+    })
 
   return (
     <>
@@ -360,29 +407,41 @@ function ProjectView() {
             {questionsRequest.isPending ? (
               <LoadingSpinner height="100px" />
             ) : questionsRequest.data?.length ? (
-              <Accordion allowMultiple>
+              <Accordion
+                allowToggle
+                index={expandedIndex}
+                onChange={(idx) =>
+                  setExpandedIndex(Array.isArray(idx) ? idx[0] ?? -1 : idx)
+                }
+              >
                 {questionsRequest.data.map((question) => {
                   const hasDetails =
                     !!question.hypothesis ||
                     !!question.answer ||
                     (question.evidence?.length ?? 0) > 0
                   return (
-                    <AccordionItem
-                      key={question.id}
-                      border="none"
-                      isDisabled={!hasDetails}
-                    >
+                    <AccordionItem key={question.id} border="none">
                       <Flex align="center">
-                        <AccordionButton
-                          flex="1"
-                          px={0}
-                          _hover={{ bg: "transparent" }}
-                        >
-                          <Box flex="1" textAlign="left">
-                            {question.number}. {question.question}
+                        {hasDetails ? (
+                          <AccordionButton
+                            flex="1"
+                            px={0}
+                            _hover={{ bg: "transparent" }}
+                          >
+                            <Box flex="1" textAlign="left">
+                              <Markdown>
+                                {`${question.number}. ${question.question}`}
+                              </Markdown>
+                            </Box>
+                            <AccordionIcon />
+                          </AccordionButton>
+                        ) : (
+                          <Box flex="1" py={2}>
+                            <Markdown>
+                              {`${question.number}. ${question.question}`}
+                            </Markdown>
                           </Box>
-                          {hasDetails ? <AccordionIcon /> : null}
-                        </AccordionButton>
+                        )}
                         {userHasWriteAccess ? (
                           <IconButton
                             aria-label="Edit question"
@@ -394,53 +453,56 @@ function ProjectView() {
                           />
                         ) : null}
                       </Flex>
-                      <AccordionPanel px={0} pt={0}>
-                        {question.hypothesis ? (
-                          <Box mb={2}>
-                            <Text
-                              fontSize="xs"
-                              fontWeight="bold"
-                              color="gray.500"
-                            >
-                              Hypothesis
-                            </Text>
-                            <Text fontSize="sm">{question.hypothesis}</Text>
-                          </Box>
-                        ) : null}
-                        {question.answer ? (
-                          <Box mb={2}>
-                            <Text
-                              fontSize="xs"
-                              fontWeight="bold"
-                              color="gray.500"
-                            >
-                              Answer
-                            </Text>
-                            <Text fontSize="sm">{question.answer}</Text>
-                          </Box>
-                        ) : null}
-                        {question.evidence?.length ? (
-                          <Box>
-                            <Text
-                              fontSize="xs"
-                              fontWeight="bold"
-                              color="gray.500"
-                            >
-                              Evidence
-                            </Text>
-                            <Flex wrap="wrap" gap={2} mt={1}>
-                              {question.evidence.map((evidence, i) => (
-                                <EvidenceItem
-                                  key={`${evidence.kind}:${evidence.path}:${i}`}
-                                  evidence={evidence}
-                                  accountName={accountName}
-                                  projectName={projectName}
-                                />
-                              ))}
-                            </Flex>
-                          </Box>
-                        ) : null}
-                      </AccordionPanel>
+                      {hasDetails ? (
+                        <AccordionPanel px={0} pt={0}>
+                          {question.hypothesis ? (
+                            <Box mb={2}>
+                              <Text
+                                fontSize="xs"
+                                fontWeight="bold"
+                                color="gray.500"
+                              >
+                                Hypothesis
+                              </Text>
+                              <Markdown>{question.hypothesis}</Markdown>
+                            </Box>
+                          ) : null}
+                          {question.answer ? (
+                            <Box mb={2}>
+                              <Text
+                                fontSize="xs"
+                                fontWeight="bold"
+                                color="gray.500"
+                              >
+                                Answer
+                              </Text>
+                              <Markdown>{question.answer}</Markdown>
+                            </Box>
+                          ) : null}
+                          {question.evidence?.length ? (
+                            <Box>
+                              <Text
+                                fontSize="xs"
+                                fontWeight="bold"
+                                color="gray.500"
+                              >
+                                Evidence
+                              </Text>
+                              <Flex wrap="wrap" gap={2} mt={1}>
+                                {question.evidence.map((evidence, i) => (
+                                  <EvidenceItem
+                                    key={`${evidence.kind}:${evidence.path}:${i}`}
+                                    evidence={evidence}
+                                    accountName={accountName}
+                                    projectName={projectName}
+                                    gitRef={ref}
+                                  />
+                                ))}
+                              </Flex>
+                            </Box>
+                          ) : null}
+                        </AccordionPanel>
+                      ) : null}
                     </AccordionItem>
                   )
                 })}
@@ -454,6 +516,7 @@ function ProjectView() {
               question={editingQuestion}
               isOpen={editQuestionNumber !== undefined}
               onClose={() => setEditQuestion(undefined)}
+              gitRef={ref}
             />
           </Box>
           {/* To-dos (issues) */}

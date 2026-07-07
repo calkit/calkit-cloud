@@ -724,6 +724,9 @@ class QuestionEvidence(SQLModel):
     # Resolved artifact the evidence points to, if it could be found
     figure: Figure | None = None
     result: Result | None = None
+    # For result evidence with a key, the value read from the result file so it
+    # can be shown dashboard-style
+    value: str | None = None
 
 
 class QuestionEvidencePost(SQLModel):
@@ -744,6 +747,7 @@ class QuestionPublic(SQLModel):
 
 
 class QuestionPut(SQLModel):
+    question: str | None = None
     hypothesis: str | None = None
     answer: str | None = None
     evidence: list[QuestionEvidencePost] = []
@@ -987,6 +991,8 @@ class _ContentsItemBase(BaseModel):
     calkit_object: dict | None = None
     lock: ItemLock | None = None
     storage: Literal["git", "dvc", "dvc-zip"] | None = None
+    # Pipeline stage that produces this path, if any (from dvc.lock)
+    stage: str | None = None
 
 
 class ContentsItem(_ContentsItemBase):

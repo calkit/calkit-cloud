@@ -95,25 +95,35 @@ const useProjectQuestions = (
   return { questionsRequest }
 }
 
-const useProjectFigures = (accountName: string, projectName: string) => {
+const useProjectFigures = (
+  accountName: string,
+  projectName: string,
+  ref?: string,
+) => {
   const figuresRequest = useQuery({
-    queryKey: ["projects", accountName, projectName, "figures"],
+    queryKey: ["projects", accountName, projectName, "figures", ref],
     queryFn: () =>
       ProjectsService.getProjectFigures({
         ownerName: accountName,
         projectName: projectName,
+        ref,
       }),
   })
   return { figuresRequest }
 }
 
-const useProjectResults = (accountName: string, projectName: string) => {
+const useProjectResults = (
+  accountName: string,
+  projectName: string,
+  ref?: string,
+) => {
   const resultsRequest = useQuery({
-    queryKey: ["projects", accountName, projectName, "results"],
+    queryKey: ["projects", accountName, projectName, "results", ref],
     queryFn: () =>
       ProjectsService.getProjectResults({
         ownerName: accountName,
         projectName: projectName,
+        ref,
       }),
   })
   return { resultsRequest }

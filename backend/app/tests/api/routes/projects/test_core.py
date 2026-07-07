@@ -92,7 +92,7 @@ def test_get_project_content_paths_merges_git_and_dvc(
         patch(
             "app.api.routes.projects.core.app.projects"
             ".get_ck_info_and_dvc_outs_from_tree",
-            return_value=({}, dvc_outs, {}),
+            return_value=({}, dvc_outs, {}, {}),
         ),
     ):
         response = client.get(
@@ -319,7 +319,7 @@ def test_get_project_figures_autodetects_deeply_nested(
         ),
         patch(
             "app.api.routes.projects.core.app.projects.get_ck_info_and_dvc_outs_from_tree",
-            return_value=({}, {}, {}),
+            return_value=({}, {}, {}, {}),
         ),
         patch(
             "app.api.routes.projects.core.app.projects.get_contents_from_tree",
@@ -405,7 +405,7 @@ def test_get_project_figures_autodetects_dvc_stored(
         ),
         patch(
             "app.api.routes.projects.core.app.projects.get_ck_info_and_dvc_outs_from_tree",
-            return_value=({}, dvc_lock_outs, {}),
+            return_value=({}, dvc_lock_outs, {}, {}),
         ),
         patch(
             "app.api.routes.projects.core.app.projects.get_contents_from_tree",
@@ -475,7 +475,7 @@ def test_get_project_figures_dvc_no_duplicates_with_git(
         ),
         patch(
             "app.api.routes.projects.core.app.projects.get_ck_info_and_dvc_outs_from_tree",
-            return_value=({}, dvc_lock_outs, {}),
+            return_value=({}, dvc_lock_outs, {}, {}),
         ),
         patch(
             "app.api.routes.projects.core.app.projects.get_contents_from_tree",
@@ -551,7 +551,7 @@ def test_get_project_figures_autodetects_dvc_pointer_files(
         ),
         patch(
             "app.api.routes.projects.core.app.projects.get_ck_info_and_dvc_outs_from_tree",
-            return_value=({}, {}, {}),
+            return_value=({}, {}, {}, {}),
         ),
         patch(
             "app.api.routes.projects.core.app.projects.get_contents_from_tree",
@@ -629,7 +629,7 @@ def test_get_project_figures_dvc_pointer_no_duplicates_with_dvc_lock(
         ),
         patch(
             "app.api.routes.projects.core.app.projects.get_ck_info_and_dvc_outs_from_tree",
-            return_value=({}, dvc_lock_outs, {}),
+            return_value=({}, dvc_lock_outs, {}, {}),
         ),
         patch(
             "app.api.routes.projects.core.app.projects.get_contents_from_tree",
@@ -748,7 +748,7 @@ def _ref_aware_endpoint_reads_declared_at_ref(
         patch(
             "app.api.routes.projects.core.app.projects"
             ".get_ck_info_and_dvc_outs_from_tree",
-            return_value=({}, {}, {}),
+            return_value=({}, {}, {}, {}),
         ),
         patch(
             "app.api.routes.projects.core.app.projects.get_contents_from_tree",
@@ -849,7 +849,7 @@ def test_get_project_results_autodetects_and_reads_ref(
         patch(
             "app.api.routes.projects.core.app.projects"
             ".get_ck_info_and_dvc_outs_from_tree",
-            return_value=({}, {}, {}),
+            return_value=({}, {}, {}, {}),
         ),
     ):
         response = client.get(
@@ -875,6 +875,9 @@ def test_question_text_handles_string_and_object() -> None:
 
 
 def test_build_question_evidence_resolves_figures_and_results() -> None:
+    import base64
+    import json
+
     from app.api.routes.projects.core import _build_question_evidence
     from app.models.core import Figure, Result
 
@@ -882,14 +885,41 @@ def test_build_question_evidence_resolves_figures_and_results() -> None:
     res = Result(path="results/summary.json", title="Summary")
     evidence_ck = [
         {"kind": "figure", "path": "figures/x.png", "explanation": "shows x"},
-        {"kind": "result", "path": "results/summary.json", "key": "mean"},
+        {
+            "kind": "result",
+            "path": "results/summary.json",
+            "key": "metrics.mean",
+        },
         {"kind": "figure", "path": "figures/missing.png"},
         {"kind": "bogus", "path": "whatever"},  # unknown kind, skipped
         "not-a-dict",  # skipped
     ]
-    evidence = _build_question_evidence(
-        evidence_ck, {fig.path: fig}, {res.path: res}
+    content = base64.b64encode(
+        json.dumps({"metrics": {"mean": 3.14}}).encode()
+    ).decode()
+    fake_item = ContentsItem(
+        name="summary.json",
+        path="results/summary.json",
+        type="file",
+        size=1,
+        in_repo=True,
+        content=content,
+        url=None,
+        storage="git",
     )
+    with patch(
+        "app.api.routes.projects.core.app.projects.get_contents_from_repo",
+        return_value=fake_item,
+    ):
+        evidence = _build_question_evidence(
+            project=SimpleNamespace(),
+            repo=SimpleNamespace(),
+            ref=None,
+            evidence_ck=evidence_ck,
+            figures_by_path={fig.path: fig},
+            results_by_path={res.path: res},
+            result_value_cache={},
+        )
     assert len(evidence) == 3
     assert evidence[0].kind == "figure"
     assert evidence[0].figure is not None
@@ -898,6 +928,8 @@ def test_build_question_evidence_resolves_figures_and_results() -> None:
     assert evidence[1].kind == "result"
     assert evidence[1].result is not None
     assert evidence[1].result.title == "Summary"
-    assert evidence[1].key == "mean"
+    assert evidence[1].key == "metrics.mean"
+    # The nested key value is read from the result file and stringified.
+    assert evidence[1].value == "3.14"
     # An unresolved figure path leaves the resolved figure as None.
     assert evidence[2].figure is None

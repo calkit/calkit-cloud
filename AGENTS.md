@@ -85,3 +85,5 @@ out on the system.
 - Let humans write prose.
 - Don't use many em-dashes.
 - Modal open state should be a query param.
+- Most front end state, e.g., an expanded section of a list,
+  should also be a query param, so the back button works properly.

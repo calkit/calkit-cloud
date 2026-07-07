@@ -3,6 +3,7 @@ import {
   Button,
   Flex,
   FormControl,
+  FormErrorMessage,
   FormLabel,
   IconButton,
   Input,
@@ -33,6 +34,9 @@ interface EditQuestionProps {
   question: QuestionPublic | null
   isOpen: boolean
   onClose: () => void
+  // Git ref currently being browsed, so figure/result options come from the
+  // same snapshot the question does.
+  gitRef?: string
 }
 
 interface EvidenceRow {
@@ -43,6 +47,7 @@ interface EvidenceRow {
 }
 
 interface EditQuestionForm {
+  question: string
   hypothesis: string
   answer: string
   evidence: EvidenceRow[]
@@ -61,23 +66,28 @@ const parseSelection = (selection: string) => {
   }
 }
 
-const EditQuestion = ({ question, isOpen, onClose }: EditQuestionProps) => {
+const EditQuestion = ({
+  question,
+  isOpen,
+  onClose,
+  gitRef,
+}: EditQuestionProps) => {
   const queryClient = useQueryClient()
   const showToast = useCustomToast()
   const routeApi = getRouteApi("/_layout/$accountName/$projectName")
   const { accountName, projectName } = routeApi.useParams()
-  const { figuresRequest } = useProjectFigures(accountName, projectName)
-  const { resultsRequest } = useProjectResults(accountName, projectName)
+  const { figuresRequest } = useProjectFigures(accountName, projectName, gitRef)
+  const { resultsRequest } = useProjectResults(accountName, projectName, gitRef)
   const {
     register,
     control,
     handleSubmit,
     reset,
     watch,
-    formState: { isSubmitting },
+    formState: { errors, isSubmitting },
   } = useForm<EditQuestionForm>({
     mode: "onBlur",
-    defaultValues: { hypothesis: "", answer: "", evidence: [] },
+    defaultValues: { question: "", hypothesis: "", answer: "", evidence: [] },
   })
   const { fields, append, remove } = useFieldArray({
     control,
@@ -89,6 +99,7 @@ const EditQuestion = ({ question, isOpen, onClose }: EditQuestionProps) => {
       return
     }
     reset({
+      question: question.question,
       hypothesis: question.hypothesis ?? "",
       answer: question.answer ?? "",
       evidence: (question.evidence ?? []).map((ev) => ({
@@ -105,6 +116,7 @@ const EditQuestion = ({ question, isOpen, onClose }: EditQuestionProps) => {
         projectName: projectName,
         number: Number(question?.number),
         requestBody: {
+          question: data.question,
           hypothesis: data.hypothesis,
           answer: data.answer,
           evidence: data.evidence.flatMap((row) => {
@@ -151,11 +163,16 @@ const EditQuestion = ({ question, isOpen, onClose }: EditQuestionProps) => {
         <ModalHeader>Edit question</ModalHeader>
         <ModalCloseButton />
         <ModalBody pb={6}>
-          {question ? (
-            <Text fontSize="sm" color="gray.500" mb={4}>
-              {question.question}
-            </Text>
-          ) : null}
+          <FormControl isRequired isInvalid={!!errors.question} mb={4}>
+            <FormLabel htmlFor="question">Question</FormLabel>
+            <Textarea
+              id="question"
+              {...register("question", { required: "Question is required" })}
+            />
+            {errors.question ? (
+              <FormErrorMessage>{errors.question.message}</FormErrorMessage>
+            ) : null}
+          </FormControl>
           <FormControl mb={4}>
             <FormLabel htmlFor="hypothesis">Hypothesis</FormLabel>
             <Textarea
@@ -190,8 +207,18 @@ const EditQuestion = ({ question, isOpen, onClose }: EditQuestionProps) => {
               </Text>
             ) : null}
             {fields.map((field, index) => {
-              const selection = watch(`evidence.${index}.selection`)
-              const parsed = parseSelection(selection || "")
+              const selection = watch(`evidence.${index}.selection`) || ""
+              const parsed = parseSelection(selection)
+              const figures = figuresRequest.data ?? []
+              const results = resultsRequest.data ?? []
+              // Always keep the current selection as an available option, even
+              // if it isn't in the fetched lists (still loading, or the file
+              // was renamed/removed), so the dropdown never blanks out.
+              const selectionInList =
+                (parsed?.kind === "figure" &&
+                  figures.some((f) => f.path === parsed.path)) ||
+                (parsed?.kind === "result" &&
+                  results.some((r) => r.path === parsed.path))
               return (
                 <Box
                   key={field.id}
@@ -200,58 +227,76 @@ const EditQuestion = ({ question, isOpen, onClose }: EditQuestionProps) => {
                   p={3}
                   mb={2}
                 >
-                  <Flex gap={2} mb={2}>
+                  <Flex justify="flex-end">
+                    <IconButton
+                      aria-label="Remove evidence"
+                      icon={<FaTrash />}
+                      size="xs"
+                      variant="ghost"
+                      onClick={() => remove(index)}
+                    />
+                  </Flex>
+                  <FormControl mb={2}>
+                    <FormLabel fontSize="xs" mb={1}>
+                      Figure or result
+                    </FormLabel>
                     <Select
                       {...register(`evidence.${index}.selection`)}
+                      value={selection}
                       placeholder="Select a figure or result"
                       size="sm"
                     >
-                      {(figuresRequest.data ?? []).length > 0 ? (
+                      {parsed && !selectionInList ? (
+                        <option value={selection}>{parsed.path}</option>
+                      ) : null}
+                      {figures.length > 0 ? (
                         <optgroup label="Figures">
-                          {figuresRequest.data?.map((fig) => (
+                          {figures.map((fig) => (
                             <option
                               key={`figure:${fig.path}`}
                               value={rowToSelection("figure", fig.path)}
                             >
-                              {fig.title}
+                              {fig.path}
                             </option>
                           ))}
                         </optgroup>
                       ) : null}
-                      {(resultsRequest.data ?? []).length > 0 ? (
+                      {results.length > 0 ? (
                         <optgroup label="Results">
-                          {resultsRequest.data?.map((res) => (
+                          {results.map((res) => (
                             <option
                               key={`result:${res.path}`}
                               value={rowToSelection("result", res.path)}
                             >
-                              {res.title}
+                              {res.path}
                             </option>
                           ))}
                         </optgroup>
                       ) : null}
                     </Select>
-                    <IconButton
-                      aria-label="Remove evidence"
-                      icon={<FaTrash />}
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => remove(index)}
-                    />
-                  </Flex>
+                  </FormControl>
                   {parsed?.kind === "result" ? (
-                    <Input
-                      {...register(`evidence.${index}.key`)}
-                      placeholder="Key (optional), e.g. mean"
-                      size="sm"
-                      mb={2}
-                    />
+                    <FormControl mb={2}>
+                      <FormLabel fontSize="xs" mb={1}>
+                        Key (optional)
+                      </FormLabel>
+                      <Input
+                        {...register(`evidence.${index}.key`)}
+                        placeholder="e.g. mean"
+                        size="sm"
+                      />
+                    </FormControl>
                   ) : null}
-                  <Input
-                    {...register(`evidence.${index}.explanation`)}
-                    placeholder="Explanation (optional)"
-                    size="sm"
-                  />
+                  <FormControl>
+                    <FormLabel fontSize="xs" mb={1}>
+                      Explanation (optional)
+                    </FormLabel>
+                    <Input
+                      {...register(`evidence.${index}.explanation`)}
+                      placeholder="How this supports the answer"
+                      size="sm"
+                    />
+                  </FormControl>
                 </Box>
               )
             })}

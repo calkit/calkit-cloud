@@ -612,6 +612,17 @@ export const ContentsItemSchema = {
       ],
       title: "Storage",
     },
+    stage: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Stage",
+    },
     dir_items: {
       anyOf: [
         {
@@ -4731,6 +4742,17 @@ export const QuestionEvidenceSchema = {
         },
       ],
     },
+    value: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Value",
+    },
   },
   type: "object",
   required: ["kind", "path"],
@@ -4846,6 +4868,17 @@ export const QuestionPublicSchema = {
 
 export const QuestionPutSchema = {
   properties: {
+    question: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Question",
+    },
     hypothesis: {
       anyOf: [
         {
@@ -7511,6 +7544,17 @@ export const _ContentsItemBaseSchema = {
         },
       ],
       title: "Storage",
+    },
+    stage: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Stage",
     },
   },
   type: "object",

@@ -1,6 +1,8 @@
 """Main routes for projects."""
 
+import base64
 import io
+import json
 import logging
 import os
 import shutil
@@ -1192,7 +1194,7 @@ def get_project_content_paths(
         project=project, user=current_user, session=session, ttl=ttl, ref=ref
     )
     tree = app.projects.get_repo_tree_for_ref(repo, ref)
-    _, dvc_lock_outs, _ = app.projects.get_ck_info_and_dvc_outs_from_tree(
+    _, dvc_lock_outs, _, _ = app.projects.get_ck_info_and_dvc_outs_from_tree(
         project=project, tree=tree
     )
     dvc_files = {
@@ -1407,10 +1409,58 @@ def _sync_questions_with_db(
     return project
 
 
+def _resolve_result_value(
+    project: Project,
+    repo: git.Repo,
+    ref: str | None,
+    path: str,
+    key: str,
+    cache: dict[str, dict | None],
+) -> str | None:
+    """Read a result file and return the value at ``key`` as a string.
+
+    Supports JSON and YAML result files and dot-separated nested keys (e.g.
+    ``metrics.mean``). ``cache`` memoizes parsed files across evidence items.
+    Returns None if the file or key cannot be resolved.
+    """
+    if path not in cache:
+        data: dict | None = None
+        try:
+            item = app.projects.get_contents_from_repo(
+                project=project, repo=repo, path=path, ref=ref
+            )
+            if item.content is not None:
+                text = base64.b64decode(item.content).decode("utf-8")
+                lower = path.lower()
+                if lower.endswith(".json"):
+                    data = json.loads(text)
+                elif lower.endswith((".yaml", ".yml")):
+                    data = ryaml.load(text)
+        except Exception as e:
+            logger.warning(f"Failed to read result {path}: {e}")
+        cache[path] = data if isinstance(data, dict) else None
+    data = cache[path]
+    if data is None:
+        return None
+    value: object = data
+    for part in key.split("."):
+        if isinstance(value, dict) and part in value:
+            value = value[part]
+        else:
+            return None
+    if isinstance(value, (dict, list)):
+        return None
+    return str(value)
+
+
 def _build_question_evidence(
+    project: Project,
+    repo: git.Repo,
+    ref: str | None,
     evidence_ck: list,
     figures_by_path: dict[str, Figure],
     results_by_path: dict[str, Result],
+    result_value_cache: dict[str, dict | None],
 ) -> list[QuestionEvidence]:
     """Turn calkit.yaml evidence entries into resolved QuestionEvidence."""
     evidence = []
@@ -1431,6 +1481,15 @@ def _build_question_evidence(
             item.figure = figures_by_path.get(path)
         else:
             item.result = results_by_path.get(path)
+            if item.key:
+                item.value = _resolve_result_value(
+                    project=project,
+                    repo=repo,
+                    ref=ref,
+                    path=path,
+                    key=item.key,
+                    cache=result_value_cache,
+                )
         evidence.append(item)
     return evidence
 
@@ -1471,12 +1530,19 @@ def _build_questions_public(
             for res in _build_results(project=project, repo=repo, ref=ref)
         }
     db_questions = sorted(project.questions, key=lambda q: q.number)
+    result_value_cache: dict[str, dict | None] = {}
     questions_public = []
     for q_ck, q_db in zip(questions_ck, db_questions):
         hypothesis = q_ck.get("hypothesis") if isinstance(q_ck, dict) else None
         answer = q_ck.get("answer") if isinstance(q_ck, dict) else None
         evidence = _build_question_evidence(
-            _evidence_of(q_ck), figures_by_path, results_by_path
+            project=project,
+            repo=repo,
+            ref=ref,
+            evidence_ck=_evidence_of(q_ck),
+            figures_by_path=figures_by_path,
+            results_by_path=results_by_path,
+            result_value_cache=result_value_cache,
         )
         questions_public.append(
             QuestionPublic(
@@ -1609,6 +1675,8 @@ def put_project_question(
     else:
         raise HTTPException(422, "Invalid question entry")
     # Set provided fields, dropping empties so calkit.yaml stays clean.
+    if req.question:
+        question["question"] = req.question
     if req.hypothesis:
         question["hypothesis"] = req.hypothesis
     else:
@@ -1734,6 +1802,7 @@ def _build_figures(
         ck_info_full,
         dvc_lock_outs,
         zip_path_map,
+        _,
     ) = app.projects.get_ck_info_and_dvc_outs_from_tree(project, tree)
     # Also auto-detect figures from DVC lock outs (files stored with DVC)
     for dvc_path, dvc_out in dvc_lock_outs.items():
@@ -1875,7 +1944,7 @@ def _build_results(
         pass
     # Also auto-detect results from DVC lock outs (files stored with DVC)
     tree = app.projects.get_repo_tree_for_ref(repo, ref)
-    _, dvc_lock_outs, _ = app.projects.get_ck_info_and_dvc_outs_from_tree(
+    _, dvc_lock_outs, _, _ = app.projects.get_ck_info_and_dvc_outs_from_tree(
         project, tree
     )
     for dvc_path, dvc_out in dvc_lock_outs.items():
@@ -3104,6 +3173,7 @@ def get_project_publications(
         ck_info_full,
         dvc_lock_outs,
         zip_path_map,
+        _,
     ) = app.projects.get_ck_info_and_dvc_outs_from_tree(project, tree)
     # Staleness is best-effort: never let it block the publication listing.
     dvc_lock: dict = {}
@@ -3262,6 +3332,7 @@ def get_project_presentations(
         ck_info_full,
         dvc_lock_outs,
         zip_path_map,
+        _,
     ) = app.projects.get_ck_info_and_dvc_outs_from_tree(project, tree)
     # Also auto-detect presentations from DVC lock outs
     for dvc_path, dvc_out in dvc_lock_outs.items():
@@ -4798,6 +4869,7 @@ def get_project_notebooks(
         ck_info_full,
         dvc_lock_outs,
         zip_path_map,
+        _,
     ) = app.projects.get_ck_info_and_dvc_outs_from_tree(project, tree)
     for notebook in notebooks:
         try:
