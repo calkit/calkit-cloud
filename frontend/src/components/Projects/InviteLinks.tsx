@@ -232,7 +232,7 @@ const InviteLinks = ({ ownerName, projectName }: InviteLinksProps) => {
         </Button>
       </Flex>
       <Text fontSize="sm" color="ui.dim" mb={4}>
-        Share a link to let people join this project — including collaborators
+        Share a link to let people join this project, including collaborators
         without a GitHub account.
       </Text>
       {created && (
