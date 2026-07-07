@@ -1,4 +1,5 @@
-import { Box, Code, Text } from "@chakra-ui/react"
+import { Box, Button, Code, Icon, Text } from "@chakra-ui/react"
+import { MdEdit } from "react-icons/md"
 
 import useProject from "../../hooks/useProject"
 import LoadingSpinner from "../Common/LoadingSpinner"
@@ -11,12 +12,16 @@ interface ProjectShowcaseProps {
   ownerName: string
   projectName: string
   gitRef?: string
+  // Provided (with write access, on the live view) to let members open a
+  // publication's LaTeX source in the in-browser editor.
+  onEditLatex?: (texPath: string, deps?: string[] | null) => void
 }
 
 function ProjectShowcase({
   ownerName,
   projectName,
   gitRef,
+  onEditLatex,
 }: ProjectShowcaseProps) {
   const { showcaseRequest } = useProject(ownerName, projectName, gitRef)
   return (
@@ -31,7 +36,25 @@ function ProjectShowcase({
               {"figure" in item ? (
                 <FigureView figure={item.figure} />
               ) : "publication" in item ? (
-                <Box height="600px">
+                <Box height="600px" position="relative">
+                  {onEditLatex ? (
+                    <Button
+                      size="xs"
+                      position="absolute"
+                      top={1}
+                      right={1}
+                      zIndex={1}
+                      onClick={() =>
+                        onEditLatex(
+                          item.publication.path.replace(/\.[^/.]+$/, ".tex"),
+                          item.publication.stage_info?.deps,
+                        )
+                      }
+                    >
+                      <Icon as={MdEdit} mr={1} />
+                      Edit LaTeX
+                    </Button>
+                  ) : null}
                   <PublicationView publication={item.publication} />
                 </Box>
               ) : "text" in item ? (

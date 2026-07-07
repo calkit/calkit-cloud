@@ -164,6 +164,9 @@ interface SelectedItemProps {
   userHasWriteAccess: boolean
   onOpenCompare?: () => void
   gitRef?: string
+  // Provided (by the parent) only when this file can be opened in the in-browser
+  // LaTeX editor — e.g. a .tex source or a LaTeX publication.
+  onEditLatex?: () => void
 }
 
 function SelectedItemInfo({
@@ -173,6 +176,7 @@ function SelectedItemInfo({
   userHasWriteAccess,
   onOpenCompare,
   gitRef,
+  onEditLatex,
 }: SelectedItemProps) {
   const fileInfoModal = useDisclosure()
   const uploadNewVersionModal = useDisclosure()
@@ -200,6 +204,14 @@ function SelectedItemInfo({
             <Code>{selectedItem.stage}</Code>
           </Link>
         </Text>
+      ) : (
+        ""
+      )}
+      {onEditLatex ? (
+        <Button size="sm" mt={2} variant="primary" onClick={onEditLatex}>
+          <Icon as={MdEdit} mr={1} />
+          Edit LaTeX
+        </Button>
       ) : (
         ""
       )}
