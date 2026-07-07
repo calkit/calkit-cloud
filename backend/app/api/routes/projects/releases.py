@@ -343,9 +343,9 @@ def _store_internal_release_copy(
     if not path or path == ".":
         return None
     tree = get_repo_tree_for_ref(repo, git_rev)
-    _, dvc_lock_outs, _, _ = app.projects.get_ck_info_and_dvc_outs_from_tree(
+    dvc_lock_outs = app.projects.get_ck_info_and_dvc_outs_from_tree(
         project, tree
-    )
+    ).dvc_lock_outs
     dvc_out = dvc_lock_outs.get(path)
     if dvc_out is None and tree.is_file(path + ".dvc"):
         dvc_out = ryaml.load(tree.read_text(path + ".dvc"))["outs"][0]

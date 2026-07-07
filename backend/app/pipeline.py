@@ -74,7 +74,7 @@ def _is_dir_md5(md5: str | None) -> bool:
     return bool(md5) and md5.endswith(".dir")
 
 
-def _cache_false_out_paths(yaml_stage: dict | None) -> set[str]:
+def _get_uncached_out_paths(dvc_stage: dict | None) -> set[str]:
     """Paths of a dvc.yaml stage's outs declared ``cache: false``.
 
     DVC records these in dvc.yaml as ``{path: {cache: false, ...}}`` but not in
@@ -82,9 +82,9 @@ def _cache_false_out_paths(yaml_stage: dict | None) -> set[str]:
     often gitignored, so the cloud can't observe them.
     """
     paths: set[str] = set()
-    if not isinstance(yaml_stage, dict):
+    if not isinstance(dvc_stage, dict):
         return paths
-    for out in yaml_stage.get("outs") or []:
+    for out in dvc_stage.get("outs") or []:
         if isinstance(out, dict):
             for out_path, opts in out.items():
                 if isinstance(opts, dict) and opts.get("cache") is False:
@@ -485,7 +485,7 @@ def compute_stage_statuses(
         # Their absence isn't evidence they're missing (calkit/DVC check the
         # workspace file, which the cloud can't see), so don't flag stale --
         # same rationale as the unobservable-dep case above.
-        cache_false_outs = _cache_false_out_paths(yaml_stage)
+        cache_false_outs = _get_uncached_out_paths(yaml_stage)
         for out in lock_stage.get("outs") or []:
             out_path = out.get("path")
             lock_md5 = out.get("md5") or out.get("hash")

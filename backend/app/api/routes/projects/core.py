@@ -14,7 +14,7 @@ from copy import deepcopy
 from datetime import datetime
 from fnmatch import fnmatch
 from io import StringIO
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Annotated, Literal, Optional, cast
 from urllib.parse import quote, urlparse
 
@@ -163,13 +163,9 @@ RESULT_DIRS = {"results", "result"}
 
 def _title_from_path(path: str) -> str:
     """Derive a human-readable title from an artifact's file name."""
-    return (
-        path.split("/")[-1]
-        .rsplit(".", 1)[0]
-        .replace("_", " ")
-        .replace("-", " ")
-        .capitalize()
-    )
+    # Repo paths are always Posix, so parse them as such regardless of host OS.
+    stem = PurePosixPath(path).stem
+    return stem.replace("_", " ").replace("-", " ").capitalize()
 
 
 PRESENTATION_EXTS = {".pdf", ".pptx", ".ppt", ".key", ".odp"}
@@ -1194,9 +1190,9 @@ def get_project_content_paths(
         project=project, user=current_user, session=session, ttl=ttl, ref=ref
     )
     tree = app.projects.get_repo_tree_for_ref(repo, ref)
-    _, dvc_lock_outs, _, _ = app.projects.get_ck_info_and_dvc_outs_from_tree(
+    dvc_lock_outs = app.projects.get_ck_info_and_dvc_outs_from_tree(
         project=project, tree=tree
-    )
+    ).dvc_lock_outs
     dvc_files = {
         p for p, obj in dvc_lock_outs.items() if obj.get("type") != "dir"
     }
@@ -1364,18 +1360,19 @@ def patch_project_contents(
     return current_object
 
 
-def _question_text(question: str | dict) -> str:
+def _extract_question_text(question: str | dict) -> str:
     """Extract the question text from a calkit.yaml question entry.
 
     A question may be a plain string or an object with a ``question`` field.
-    Coerces to a string so an unexpected type in calkit.yaml can't propagate a
-    non-string into the DB model's ``question`` field.
+    Any other/unexpected type (e.g. a list) yields an empty string rather than
+    a coerced repr, so a non-string never reaches the DB model's ``question``
+    field (and the empty text signals to the user that something is off).
     """
     if isinstance(question, dict):
         value = question.get("question", "")
     else:
         value = question
-    return value if isinstance(value, str) else str(value)
+    return value if isinstance(value, str) else ""
 
 
 def _sync_questions_with_db(
@@ -1389,7 +1386,7 @@ def _sync_questions_with_db(
     logger.info(f"Found {len(existing_questions)} existing questions in DB")
     for n, (new, existing) in enumerate(zip(questions_ck, existing_questions)):
         logger.info(f"Updating existing question number {n + 1}")
-        existing.question = _question_text(questions.pop(0))
+        existing.question = _extract_question_text(questions.pop(0))
         existing.number = n + 1  # Should already be done, but just in case
     start_number = len(existing_questions) + 1
     logger.info(f"Adding {len(questions)} new questions to DB")
@@ -1400,7 +1397,7 @@ def _sync_questions_with_db(
             Question(
                 project_id=project.id,
                 number=number,
-                question=_question_text(new),
+                question=_extract_question_text(new),
             )
         )
     # Delete extra questions in DB
@@ -1940,15 +1937,20 @@ def _build_results(
         parts = path.split("/")
         if any(p.startswith(".") for p in parts):
             return False
-        ext = "." + parts[-1].rsplit(".", 1)[-1] if "." in parts[-1] else ""
+        name = PurePosixPath(path)
+        ext = name.suffix.lower()
         dir_parts = [p.lower() for p in parts[:-1]]
-        is_figure = ext.lower() in FIGURE_EXTS and any(
+        if ext not in RESULT_EXTS:
+            return False
+        is_figure = ext in FIGURE_EXTS and any(
             d in FIGURE_DIRS for d in dir_parts
         )
+        if is_figure:
+            return False
+        # A data-like file under a results-style directory, or one named
+        # ``results.<ext>`` anywhere (e.g. a top-level ``results.json``).
         return (
-            ext.lower() in RESULT_EXTS
-            and any(d in RESULT_DIRS for d in dir_parts)
-            and not is_figure
+            any(d in RESULT_DIRS for d in dir_parts) or name.stem == "results"
         )
 
     def _maybe_add_result(path: str) -> None:
@@ -1967,9 +1969,9 @@ def _build_results(
         pass
     # Also auto-detect results from DVC lock outs (files stored with DVC)
     tree = app.projects.get_repo_tree_for_ref(repo, ref)
-    _, dvc_lock_outs, _, _ = app.projects.get_ck_info_and_dvc_outs_from_tree(
+    dvc_lock_outs = app.projects.get_ck_info_and_dvc_outs_from_tree(
         project, tree
-    )
+    ).dvc_lock_outs
     for dvc_path, dvc_out in dvc_lock_outs.items():
         if dvc_out.get("type") == "dir":
             continue

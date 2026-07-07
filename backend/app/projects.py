@@ -8,7 +8,7 @@ import os
 import threading
 import time
 from collections import OrderedDict
-from typing import Literal
+from typing import Literal, NamedTuple
 
 import git
 import requests
@@ -61,8 +61,22 @@ logger = logging.getLogger(__name__)
 
 RETURN_CONTENT_SIZE_LIMIT = 1_000_000
 
-# Cache for the (ck_info, dvc_lock_outs, zip_path_map, dvc_lock) tuple returned
-# by get_ck_info_and_dvc_outs_from_tree, keyed by a hash of the raw bytes of
+
+class CkInfoAndOuts(NamedTuple):
+    """Parsed project metadata for a tree, returned by
+    get_ck_info_and_dvc_outs_from_tree. A NamedTuple so callers can read named
+    fields (and still unpack), without paying validation cost on this hot,
+    cached path.
+    """
+
+    ck_info: dict
+    dvc_lock_outs: dict
+    zip_path_map: dict
+    dvc_lock: dict
+
+
+# Cache for the CkInfoAndOuts returned by
+# get_ck_info_and_dvc_outs_from_tree, keyed by a hash of the raw bytes of
 # calkit.yaml, dvc.lock, and .calkit/zip/paths.json plus the owner/project
 # (owner/project influence DVC object-storage paths resolved during
 # expansion). Invalidates automatically whenever any of those source files
@@ -74,9 +88,7 @@ _CK_DVC_CACHE_MAX = 64
 # storage; cache_key is derived from dvc.lock bytes so normal edits already
 # invalidate immediately.
 _CK_DVC_CACHE_TTL_S = 600
-_ck_dvc_cache: OrderedDict[
-    str, tuple[float, tuple[dict, dict, dict, dict]]
-] = OrderedDict()
+_ck_dvc_cache: OrderedDict[str, tuple[float, CkInfoAndOuts]] = OrderedDict()
 # Sync endpoints run in a threadpool, so guard the (cheap) cache read/write
 # sections; the expensive expansion between them runs unlocked.
 _ck_dvc_cache_lock = threading.Lock()
@@ -224,16 +236,16 @@ def get_contents_from_repo(
 def get_ck_info_and_dvc_outs_from_tree(
     project: Project,
     tree: RepoTree,
-) -> tuple[dict, dict, dict, dict]:
+) -> CkInfoAndOuts:
     """Load calkit.yaml and expand dvc.lock outs once for a tree.
 
-    Returns (ck_info, dvc_lock_outs, zip_path_map, dvc_lock). zip_path_map
-    maps workspace paths to their zip file path (e.g. {"data/mydir":
-    ".calkit/zip/files/data/mydir.zip"}). dvc_lock is the raw parsed dvc.lock
-    (with its top-level ``stages`` key), useful for resolving the stage that
-    produces a path. Callers that read multiple paths from the same tree
-    should call this once and pass the results to get_contents_from_tree to
-    avoid redundant I/O.
+    Returns a CkInfoAndOuts (ck_info, dvc_lock_outs, zip_path_map, dvc_lock).
+    zip_path_map maps workspace paths to their zip file path (e.g.
+    {"data/mydir": ".calkit/zip/files/data/mydir.zip"}). dvc_lock is the raw
+    parsed dvc.lock (with its top-level ``stages`` key), useful for resolving
+    the stage that produces a path. Callers that read multiple paths from the
+    same tree should call this once and pass the results to
+    get_contents_from_tree to avoid redundant I/O.
     """
     owner_name = project.owner_account_name
     project_name = project.name
@@ -303,7 +315,7 @@ def get_ck_info_and_dvc_outs_from_tree(
             zip_path_map = json.loads(zip_bytes) or {}
         except Exception:
             logger.warning("Failed to parse .calkit/zip/paths.json")
-    result = (ck_info, dvc_lock_outs, zip_path_map, dvc_lock)
+    result = CkInfoAndOuts(ck_info, dvc_lock_outs, zip_path_map, dvc_lock)
     with _ck_dvc_cache_lock:
         _ck_dvc_cache[cache_key] = (now, result)
         if len(_ck_dvc_cache) > _CK_DVC_CACHE_MAX:

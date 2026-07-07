@@ -6,6 +6,7 @@ from unittest.mock import ANY, patch
 from app.api.routes.projects.core import get_project_comments
 from app.config import settings
 from app.models.core import ContentsItem
+from app.projects import CkInfoAndOuts
 from fastapi.testclient import TestClient
 
 
@@ -92,7 +93,7 @@ def test_get_project_content_paths_merges_git_and_dvc(
         patch(
             "app.api.routes.projects.core.app.projects"
             ".get_ck_info_and_dvc_outs_from_tree",
-            return_value=({}, dvc_outs, {}, {}),
+            return_value=CkInfoAndOuts({}, dvc_outs, {}, {}),
         ),
     ):
         response = client.get(
@@ -319,7 +320,7 @@ def test_get_project_figures_autodetects_deeply_nested(
         ),
         patch(
             "app.api.routes.projects.core.app.projects.get_ck_info_and_dvc_outs_from_tree",
-            return_value=({}, {}, {}, {}),
+            return_value=CkInfoAndOuts({}, {}, {}, {}),
         ),
         patch(
             "app.api.routes.projects.core.app.projects.get_contents_from_tree",
@@ -405,7 +406,7 @@ def test_get_project_figures_autodetects_dvc_stored(
         ),
         patch(
             "app.api.routes.projects.core.app.projects.get_ck_info_and_dvc_outs_from_tree",
-            return_value=({}, dvc_lock_outs, {}, {}),
+            return_value=CkInfoAndOuts({}, dvc_lock_outs, {}, {}),
         ),
         patch(
             "app.api.routes.projects.core.app.projects.get_contents_from_tree",
@@ -475,7 +476,7 @@ def test_get_project_figures_dvc_no_duplicates_with_git(
         ),
         patch(
             "app.api.routes.projects.core.app.projects.get_ck_info_and_dvc_outs_from_tree",
-            return_value=({}, dvc_lock_outs, {}, {}),
+            return_value=CkInfoAndOuts({}, dvc_lock_outs, {}, {}),
         ),
         patch(
             "app.api.routes.projects.core.app.projects.get_contents_from_tree",
@@ -551,7 +552,7 @@ def test_get_project_figures_autodetects_dvc_pointer_files(
         ),
         patch(
             "app.api.routes.projects.core.app.projects.get_ck_info_and_dvc_outs_from_tree",
-            return_value=({}, {}, {}, {}),
+            return_value=CkInfoAndOuts({}, {}, {}, {}),
         ),
         patch(
             "app.api.routes.projects.core.app.projects.get_contents_from_tree",
@@ -629,7 +630,7 @@ def test_get_project_figures_dvc_pointer_no_duplicates_with_dvc_lock(
         ),
         patch(
             "app.api.routes.projects.core.app.projects.get_ck_info_and_dvc_outs_from_tree",
-            return_value=({}, dvc_lock_outs, {}, {}),
+            return_value=CkInfoAndOuts({}, dvc_lock_outs, {}, {}),
         ),
         patch(
             "app.api.routes.projects.core.app.projects.get_contents_from_tree",
@@ -748,7 +749,7 @@ def _ref_aware_endpoint_reads_declared_at_ref(
         patch(
             "app.api.routes.projects.core.app.projects"
             ".get_ck_info_and_dvc_outs_from_tree",
-            return_value=({}, {}, {}, {}),
+            return_value=CkInfoAndOuts({}, {}, {}, {}),
         ),
         patch(
             "app.api.routes.projects.core.app.projects.get_contents_from_tree",
@@ -814,10 +815,11 @@ def test_get_project_results_autodetects_and_reads_ref(
         "results/data.csv",
         "results/deep/nested/out.parquet",
         "result/single.yaml",
+        "results.json",  # top-level file named results.<ext>
     ]
     ignored_paths = [
         "data/output.csv",  # parent dir not a results dir
-        "summary.json",  # no results directory at all
+        "summary.json",  # no results directory and not named results.*
         ".results/hidden.json",  # hidden directory
         "results/plot.png",  # not a result extension
     ]
@@ -849,7 +851,7 @@ def test_get_project_results_autodetects_and_reads_ref(
         patch(
             "app.api.routes.projects.core.app.projects"
             ".get_ck_info_and_dvc_outs_from_tree",
-            return_value=({}, {}, {}, {}),
+            return_value=CkInfoAndOuts({}, {}, {}, {}),
         ),
     ):
         response = client.get(
@@ -867,11 +869,16 @@ def test_get_project_results_autodetects_and_reads_ref(
 
 
 def test_question_text_handles_string_and_object() -> None:
-    from app.api.routes.projects.core import _question_text
+    from app.api.routes.projects.core import _extract_question_text
 
-    assert _question_text("Plain question?") == "Plain question?"
-    assert _question_text({"question": "Rich?", "hypothesis": "h"}) == "Rich?"
-    assert _question_text({}) == ""
+    assert _extract_question_text("Plain question?") == "Plain question?"
+    assert (
+        _extract_question_text({"question": "Rich?", "hypothesis": "h"})
+        == "Rich?"
+    )
+    assert _extract_question_text({}) == ""
+    # A non-string/non-dict value (e.g. a list) yields empty text, not a repr.
+    assert _extract_question_text(["a", "b"]) == ""
 
 
 def test_build_question_evidence_resolves_figures_and_results() -> None:

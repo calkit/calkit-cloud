@@ -467,7 +467,11 @@ function ProjectView() {
                             px={0}
                             _hover={{ bg: "transparent" }}
                           >
-                            <Box flex="1" textAlign="left">
+                            <Box
+                              flex="1"
+                              textAlign="left"
+                              sx={{ "& p": { my: 0 } }}
+                            >
                               <Markdown>
                                 {`${question.number}. ${question.question}`}
                               </Markdown>
@@ -475,7 +479,7 @@ function ProjectView() {
                             <AccordionIcon />
                           </AccordionButton>
                         ) : (
-                          <Box flex="1" py={2}>
+                          <Box flex="1" py={2} sx={{ "& p": { my: 0 } }}>
                             <Markdown>
                               {`${question.number}. ${question.question}`}
                             </Markdown>
