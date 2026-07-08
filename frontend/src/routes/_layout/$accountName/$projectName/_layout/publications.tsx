@@ -27,7 +27,7 @@ import {
   useNavigate,
   useSearch,
 } from "@tanstack/react-router"
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { FaCodeBranch, FaPlus, FaSync } from "react-icons/fa"
 import { FiFile } from "react-icons/fi"
 import { MdEdit } from "react-icons/md"
@@ -295,6 +295,28 @@ function Publications() {
     publicationsRequest.data?.find((p) => p.path === selectedPath) ??
     publicationsRequest.data?.[0]
 
+  // Arriving from a question's evidence (or right after committing an edit)
+  // can transiently return an empty list; if we expected a specific
+  // publication (path in the URL) but got none, refetch once so it appears
+  // without a manual page refresh.
+  const emptyRetriedRef = useRef(false)
+  useEffect(() => {
+    if (
+      publicationsRequest.isSuccess &&
+      (publicationsRequest.data?.length ?? 0) === 0 &&
+      selectedPath &&
+      !emptyRetriedRef.current
+    ) {
+      emptyRetriedRef.current = true
+      publicationsRequest.refetch()
+    }
+  }, [
+    publicationsRequest.isSuccess,
+    publicationsRequest.data,
+    publicationsRequest.refetch,
+    selectedPath,
+  ])
+
   const isPdf = selectedPub?.path?.endsWith(".pdf") ?? false
   // Derive the LaTeX source path from the output path (e.g. paper.pdf ->
   // paper.tex), matching the heuristic used by the editor in the info panel.
@@ -515,6 +537,12 @@ function Publications() {
                   </Box>
                 )}
               </>
+            ) : publicationsRequest.isFetching ? (
+              // A background refetch (e.g. after arriving from a question's
+              // evidence, or a just-committed edit) can briefly leave the list
+              // empty; show loading rather than a false "not found" that sticks
+              // until a manual refresh.
+              <LoadingSpinner height="300px" />
             ) : (
               <Flex
                 align="center"

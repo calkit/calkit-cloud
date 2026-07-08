@@ -70,6 +70,9 @@ function ConnectedAccounts() {
   const ghInstallQuery = useQuery({
     queryFn: () => UsersService.getUserGithubAppInstallations(),
     queryKey: ["user", "github-app-installations"],
+    // Only meaningful once GitHub is connected; otherwise it 401s ("needs to
+    // authenticate with GitHub"), which is noise for GitHub-less users.
+    enabled: Boolean(connectedAccountsQuery.data?.github),
   })
   const overleafTokenModal = useDisclosure()
 

@@ -127,21 +127,25 @@ const TOKEN_AUTH_DETAILS = new Set([
 ])
 
 /**
- * Checks if an error means the session itself is invalid (so the user should be
- * logged out), as opposed to an ordinary authorization denial.
+ * Checks if an error means the Calkit session itself is invalid (so the user
+ * should be logged out), as opposed to an ordinary authorization denial or a
+ * missing third-party token.
  *
- * The backend returns 403 for BOTH real token failures and plain
- * permission-denied responses (common for GitHub-less collaborators hitting a
- * resource they can't access). Logging out on every 403 caused spurious
- * logouts, so we only treat 401, or a 403 carrying a token-specific detail, as
- * an authentication failure. A bare 403 (forbidden) is left to the caller.
+ * The backend signals an invalid/expired session ONLY with a 403 carrying one
+ * of the details above (see backend/app/api/deps.py). It does NOT use status
+ * codes as the signal:
+ * - 403 is also returned for plain permission denials (e.g. a GitHub-less
+ *   collaborator hitting a resource they can't access).
+ * - 401 is returned for MISSING third-party provider tokens (GitHub, Google,
+ *   Zenodo, Overleaf) and login/refresh flows -- e.g. viewing the profile page
+ *   as a GitHub-less user hits /user/github-app-installations, which 401s with
+ *   "User needs to authenticate with GitHub". Those must NOT log the user out.
+ * So we key strictly off the session-token detail, never the status code. A
+ * genuinely dead session (expired refresh token) is handled separately by the
+ * token-refresh flow, which clears tokens on failure.
  */
 export const isAuthenticationError = (error: any): boolean => {
-  const status = error?.status ?? error?.response?.status
   const detail = error?.body?.detail ?? error?.response?.data?.detail
 
-  return (
-    status === 401 ||
-    (typeof detail === "string" && TOKEN_AUTH_DETAILS.has(detail))
-  )
+  return typeof detail === "string" && TOKEN_AUTH_DETAILS.has(detail)
 }

@@ -99,8 +99,26 @@ describe("getValidAccessToken", () => {
 })
 
 describe("isAuthenticationError", () => {
-  it("treats a 401 as an authentication failure", () => {
-    expect(isAuthenticationError({ status: 401 })).toBe(true)
+  it("does NOT log out on a bare 401 (not how sessions fail here)", () => {
+    expect(isAuthenticationError({ status: 401 })).toBe(false)
+  })
+
+  it("does NOT log out on a missing-third-party-token 401", () => {
+    // e.g. a GitHub-less user viewing the profile page hits
+    // /user/github-app-installations, which 401s with this detail. Logging out
+    // on it caused spurious logouts.
+    expect(
+      isAuthenticationError({
+        status: 401,
+        body: { detail: "User needs to authenticate with GitHub" },
+      }),
+    ).toBe(false)
+    expect(
+      isAuthenticationError({
+        status: 401,
+        body: { detail: "User needs to authenticate with Google" },
+      }),
+    ).toBe(false)
   })
 
   it("treats a 403 with a token-auth detail as an authentication failure", () => {
