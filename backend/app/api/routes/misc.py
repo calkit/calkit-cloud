@@ -24,6 +24,7 @@ from app.models import (
     Project,
     User,
     UserOrgMembership,
+    UserProjectAccess,
 )
 from sqlmodel import and_, or_, select
 from app.stripe import stripe
@@ -271,6 +272,17 @@ def global_search(
         proj_where = or_(
             Project.is_public,
             Project.owner_account_id == current_user.account.id,
+            # Native Calkit grant (invite) or GitHub-derived access; a row with
+            # both null is a cached "no access" result.
+            Project.user_access_records.any(  # type: ignore
+                and_(
+                    UserProjectAccess.user_id == current_user.id,
+                    or_(
+                        UserProjectAccess.role_id.is_not(None),
+                        UserProjectAccess.github_access.is_not(None),
+                    ),
+                )
+            ),
             Project.owner_account.has(  # type: ignore
                 and_(
                     Account.org_id.is_not(None),  # type: ignore
