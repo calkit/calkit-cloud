@@ -5,6 +5,7 @@ import {
   Code,
   Flex,
   FormControl,
+  FormErrorMessage,
   FormLabel,
   HStack,
   Heading,
@@ -49,7 +50,9 @@ interface InviteLinksProps {
 }
 
 interface CreateInviteForm {
-  role: "read" | "write" | "admin"
+  name: string
+  email: string
+  role: "read" | "write"
   expires_days: string
   max_uses: string
 }
@@ -92,7 +95,13 @@ const CreateInviteModal = ({
     formState: { errors, isSubmitting },
   } = useForm<CreateInviteForm>({
     mode: "onBlur",
-    defaultValues: { role: "write", expires_days: "", max_uses: "" },
+    defaultValues: {
+      name: "",
+      email: "",
+      role: "write",
+      expires_days: "",
+      max_uses: "",
+    },
   })
 
   const mutation = useMutation({
@@ -101,6 +110,8 @@ const CreateInviteModal = ({
         role: data.role,
         expires_days: data.expires_days ? Number(data.expires_days) : null,
         max_uses: data.max_uses ? Number(data.max_uses) : null,
+        name: data.name || null,
+        email: data.email || null,
       }
       return ProjectsService.postProjectInvitation({
         ownerName,
@@ -109,7 +120,13 @@ const CreateInviteModal = ({
       })
     },
     onSuccess: (invite) => {
-      showToast("Success!", "Invite link created.", "success")
+      showToast(
+        "Success!",
+        invite.emailed
+          ? `Invite link created and emailed to ${invite.email}.`
+          : "Invite link created.",
+        "success",
+      )
       reset()
       onClose()
       onCreated(invite)
@@ -141,11 +158,35 @@ const CreateInviteModal = ({
         <ModalCloseButton />
         <ModalBody pb={6}>
           <FormControl>
+            <FormLabel htmlFor="name">Label (optional)</FormLabel>
+            <Input
+              id="name"
+              placeholder="e.g. Jane's review"
+              {...register("name")}
+            />
+          </FormControl>
+          <FormControl mt={4} isInvalid={!!errors.email}>
+            <FormLabel htmlFor="email">Email invite to (optional)</FormLabel>
+            <Input
+              id="email"
+              type="email"
+              placeholder="collaborator@example.com"
+              {...register("email", {
+                pattern: {
+                  value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+                  message: "Enter a valid email address",
+                },
+              })}
+            />
+            {errors.email && (
+              <FormErrorMessage>{errors.email.message}</FormErrorMessage>
+            )}
+          </FormControl>
+          <FormControl mt={4}>
             <FormLabel htmlFor="role">Access level</FormLabel>
             <Select id="role" {...register("role")}>
               <option value="read">Read</option>
               <option value="write">Write</option>
-              <option value="admin">Admin</option>
             </Select>
           </FormControl>
           <FormControl mt={4} isInvalid={!!errors.expires_days}>
@@ -244,7 +285,7 @@ const InviteLinks = ({ ownerName, projectName }: InviteLinksProps) => {
           mb={4}
         >
           <Text fontSize="sm" mb={1}>
-            New invite link (copy it now — it won't be shown again):
+            New invite link (copy it now; it won't be shown again):
           </Text>
           <HStack>
             <Code flex="1" isTruncated p={2}>
@@ -262,17 +303,18 @@ const InviteLinks = ({ ownerName, projectName }: InviteLinksProps) => {
         <Table size={{ base: "sm", md: "md" }}>
           <Thead>
             <Tr>
-              <Th width="20%">Access</Th>
-              <Th width="20%">Status</Th>
-              <Th width="20%">Uses</Th>
-              <Th width="30%">Expires</Th>
+              <Th width="26%">Label</Th>
+              <Th width="14%">Access</Th>
+              <Th width="14%">Status</Th>
+              <Th width="14%">Uses</Th>
+              <Th width="22%">Expires</Th>
               <Th width="10%">Actions</Th>
             </Tr>
           </Thead>
           {isPending ? (
             <Tbody>
               <Tr>
-                {new Array(5).fill(null).map((_, index) => (
+                {new Array(6).fill(null).map((_, index) => (
                   <Td key={index}>
                     <SkeletonText noOfLines={1} paddingBlock="16px" />
                   </Td>
@@ -286,6 +328,20 @@ const InviteLinks = ({ ownerName, projectName }: InviteLinksProps) => {
                   const status = invitationStatus(invite)
                   return (
                     <Tr key={invite.id}>
+                      <Td>
+                        {invite.name ? (
+                          <Text fontSize="sm">{invite.name}</Text>
+                        ) : (
+                          <Text fontSize="sm" color="ui.dim">
+                            Link
+                          </Text>
+                        )}
+                        {invite.email ? (
+                          <Text fontSize="xs" color="ui.dim">
+                            emailed to {invite.email}
+                          </Text>
+                        ) : null}
+                      </Td>
                       <Td>{invite.role_name}</Td>
                       <Td>
                         <Badge colorScheme={status.color}>{status.label}</Badge>
@@ -320,7 +376,7 @@ const InviteLinks = ({ ownerName, projectName }: InviteLinksProps) => {
                 })
               ) : (
                 <Tr>
-                  <Td colSpan={5}>
+                  <Td colSpan={6}>
                     <Text color="ui.dim">No invite links yet.</Text>
                   </Td>
                 </Tr>

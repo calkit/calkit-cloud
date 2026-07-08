@@ -709,6 +709,9 @@ class ProjectInvitation(SQLModel, table=True):
     # invite URL and is shown to the creator once.
     token_hash: str = Field(unique=True, index=True)
     role_id: int = Field(ge=min(ROLE_IDS.values()), le=max(ROLE_IDS.values()))
+    # Optional label for the link, and the address it was emailed to (if any).
+    name: str | None = Field(default=None, max_length=255)
+    email: str | None = Field(default=None, max_length=255)
     created_by_user_id: uuid.UUID | None = Field(
         default=None, foreign_key="user.id"
     )
@@ -737,13 +740,20 @@ class ProjectInvitation(SQLModel, table=True):
 
 
 class ProjectInvitationPost(SQLModel):
-    role: Literal["read", "write", "admin"] = "write"
+    # Invite links grant collaborator access only — never admin or owner.
+    # Admins are added deliberately (not via a shareable link).
+    role: Literal["read", "write"] = "write"
     expires_days: int | None = Field(default=None, ge=1, le=365)
     max_uses: int | None = Field(default=None, ge=1)
+    # Optional label; and an address to email the invite link to.
+    name: str | None = Field(default=None, max_length=255)
+    email: EmailStr | None = None
 
 
 class ProjectInvitationPublic(SQLModel):
     id: uuid.UUID
+    name: str | None = None
+    email: str | None = None
     role_name: str
     created: datetime
     expires: datetime | None
@@ -756,6 +766,9 @@ class ProjectInvitationCreated(ProjectInvitationPublic):
     # Raw token + ready-to-share URL, returned only at creation time.
     token: str
     url: str
+    # Whether the invite email was actually sent (best-effort; false if no
+    # recipient, SMTP is unconfigured, or sending failed).
+    emailed: bool = False
 
 
 class ProjectInvitationRedeemed(SQLModel):

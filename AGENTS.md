@@ -85,7 +85,8 @@ out on the system.
 - Tooltips should always have the same hover delay site-wide.
 - Always put a comma after "i.e." and "e.g.".
 - Let humans write prose.
-- Don't use many em-dashes.
+- Don't use em dashes in user-facing copy (labels, helper text, toasts, emails).
+  They read as AI-written. Use a comma, period, or rewrite. Prose is for humans.
 - Modal open state should be a query param.
 - Most front end state, e.g., an expanded section of a list,
   should also be a query param, so the back button works properly.

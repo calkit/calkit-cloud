@@ -178,10 +178,28 @@ def get_repo(
             logger.info(
                 f"Getting GitHub App installation token for {user.email}"
             )
-            with _timed("get-app-installation-token", user=user.email):
-                access_token = github.get_app_installation_token(
-                    owner_name, project_name
-                )
+            try:
+                with _timed("get-app-installation-token", user=user.email):
+                    access_token = github.get_app_installation_token(
+                        owner_name, project_name
+                    )
+            except (github.GitHubAppNotConfigured, HTTPException) as e:
+                # No App key (e.g. local dev) or the install lookup failed. A
+                # public repo can still be read/cloned unauthenticated; a
+                # private one genuinely can't, so surface a clear error.
+                if project.is_public:
+                    logger.warning(
+                        "GitHub App token unavailable; using unauthenticated "
+                        f"access to public repo {owner_name}/{project_name}: {e}"
+                    )
+                    access_token = None
+                else:
+                    raise HTTPException(
+                        502,
+                        "The Calkit GitHub App is not configured, so this "
+                        "private project can't be accessed for a user without "
+                        "a linked GitHub account.",
+                    )
     # Plain URL with no embedded token -- credentials handled in helper
     git_plain_url = project.git_repo_url
     if not git_plain_url.endswith(".git"):

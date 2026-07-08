@@ -7,13 +7,30 @@ import jwt
 import requests
 from fastapi import HTTPException
 
+from app.config import settings
+
+
+class GitHubAppNotConfigured(Exception):
+    """Raised when the GitHub App private key isn't available."""
+
+
+def _load_app_signing_key() -> bytes:
+    """Return the GitHub App private key (PEM) from settings.
+
+    Raises GitHubAppNotConfigured if GH_APP_PRIVATE_KEY isn't set.
+    """
+    if not settings.GH_APP_PRIVATE_KEY:
+        raise GitHubAppNotConfigured(
+            "GitHub App private key not configured (set GH_APP_PRIVATE_KEY)"
+        )
+    # Env vars commonly carry the PEM with escaped newlines; restore them so
+    # the key parses whether it was provided escaped or as a real multi-line.
+    return settings.GH_APP_PRIVATE_KEY.replace("\\n", "\n").encode()
+
 
 def create_app_token() -> str:
-    pem_fpath = "../../calkit.2024-08-08.private-key.pem"
     client_id = os.environ["GH_CLIENT_ID"]
-    # Open PEM
-    with open(pem_fpath, "rb") as pem_file:
-        signing_key = pem_file.read()
+    signing_key = _load_app_signing_key()
     payload = {
         # Issued at time
         "iat": int(time.time()),

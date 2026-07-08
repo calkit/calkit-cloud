@@ -868,6 +868,8 @@ export type ProjectCommentPost = {
 
 export type ProjectInvitationCreated = {
   id: string
+  name?: string | null
+  email?: string | null
   role_name: string
   created: string
   expires: string | null
@@ -876,18 +878,23 @@ export type ProjectInvitationCreated = {
   revoked: boolean
   token: string
   url: string
+  emailed?: boolean
 }
 
 export type ProjectInvitationPost = {
-  role?: "read" | "write" | "admin"
+  role?: "read" | "write"
   expires_days?: number | null
   max_uses?: number | null
+  name?: string | null
+  email?: string | null
 }
 
 export type role2 = "read" | "write" | "admin"
 
 export type ProjectInvitationPublic = {
   id: string
+  name?: string | null
+  email?: string | null
   role_name: string
   created: string
   expires: string | null

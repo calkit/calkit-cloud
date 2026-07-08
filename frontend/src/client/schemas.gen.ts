@@ -3988,7 +3988,7 @@ export const ProjectInvitationPostSchema = {
   properties: {
     role: {
       type: "string",
-      enum: ["read", "write", "admin"],
+      enum: ["read", "write"],
       title: "Role",
       default: "write",
     },

@@ -42,7 +42,7 @@ from sqlmodel import Session, and_, func, not_, or_, select
 from TexSoup import TexSoup
 
 import app.projects
-from app import mixpanel, orgs, users
+from app import messaging, mixpanel, orgs, users
 from app.api.deps import (
     CurrentUser,
     CurrentUserOptional,
@@ -4419,8 +4419,9 @@ def post_project_invitation(
 ) -> ProjectInvitationCreated:
     """Create a shareable invite link granting native project membership.
 
-    The raw token is returned only here; the DB stores its hash. Invites can
-    grant up to admin, never ownership.
+    The raw token is returned only here; the DB stores its hash. Invite links
+    grant collaborator access only (read or write) — never admin or ownership;
+    admins must be added deliberately, not via a shareable link.
     """
     project = app.projects.get_project(
         owner_name=owner_name,
@@ -4439,6 +4440,8 @@ def post_project_invitation(
         project_id=project.id,
         token_hash=hash_refresh_token(token),
         role_id=ROLE_IDS[req.role],
+        name=req.name,
+        email=req.email,
         created_by_user_id=current_user.id,
         expires=expires,
         max_uses=req.max_uses,
@@ -4447,8 +4450,31 @@ def post_project_invitation(
     session.commit()
     session.refresh(invitation)
     url = f"{settings.frontend_host.rstrip('/')}/join/{token}"
+    # Best-effort: email the link if a recipient was given and SMTP is set up.
+    # Never fail the request over email; the creator still gets the copyable URL.
+    emailed = False
+    if req.email and settings.emails_enabled:
+        inviter = current_user.full_name or current_user.email
+        email_data = messaging.generate_project_invitation_email(
+            email_to=req.email,
+            project_name=project.name,
+            link=url,
+            inviter=inviter,
+            role=req.role,
+        )
+        try:
+            messaging.send_email(
+                email_to=req.email,
+                subject=email_data.subject,
+                html_content=email_data.html_content,
+            )
+            emailed = True
+        except Exception:
+            logger.exception(f"Failed to send invite email to {req.email}")
     return ProjectInvitationCreated(
         id=invitation.id,
+        name=invitation.name,
+        email=invitation.email,
         role_name=invitation.role_name,
         created=invitation.created,
         expires=invitation.expires,
@@ -4457,6 +4483,7 @@ def post_project_invitation(
         revoked=invitation.revoked,
         token=token,
         url=url,
+        emailed=emailed,
     )
 
 
@@ -4534,6 +4561,9 @@ def post_project_invitation_redemption(
             project_name=project.name,
             role_name="owner",
         )
+    # Invite links never confer more than collaborator (write) access, even if
+    # a legacy link was created with a higher role. Admins are added directly.
+    granted_role_id = min(invitation.role_id, ROLE_IDS["write"])
     existing = session.exec(
         select(ProjectMembership)
         .where(ProjectMembership.project_id == project.id)
@@ -4544,13 +4574,13 @@ def post_project_invitation_redemption(
             ProjectMembership(
                 user_id=current_user.id,
                 project_id=project.id,
-                role_id=invitation.role_id,
+                role_id=granted_role_id,
                 invited_by_user_id=invitation.created_by_user_id,
             )
         )
-    elif invitation.role_id > existing.role_id:
+    elif granted_role_id > existing.role_id:
         # Upgrade if the invite grants more than they already have.
-        existing.role_id = invitation.role_id
+        existing.role_id = granted_role_id
         session.add(existing)
     invitation.use_count += 1
     session.add(invitation)

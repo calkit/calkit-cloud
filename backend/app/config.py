@@ -125,6 +125,11 @@ class Settings(BaseSettings):
     # GitHub
     GH_CLIENT_ID: str
     GH_CLIENT_SECRET: str
+    # GitHub App private key (PEM contents), used to mint installation tokens
+    # so GitHub-less members (email/Google signups) can push. Set it in .env or
+    # as a GitHub Actions secret. Optional: without it, GitHub-less users can
+    # only read public projects.
+    GH_APP_PRIVATE_KEY: str | None = None
     # Stripe
     STRIPE_SECRET_KEY: str
     STRIPE_PUBLISHABLE_KEY: str
