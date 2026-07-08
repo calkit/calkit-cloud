@@ -296,6 +296,12 @@ const LatexEditor = ({
     mutationFn: async (message: string) => {
       for (const repoPath of dirtyRef.current) {
         const text = buffersRef.current.get(repoPath) ?? ""
+        // Skip files already identical to origin (nothing to commit), so one
+        // unchanged file doesn't fail the whole save with a "not different"
+        // error from the backend.
+        if (text === baseBuffersRef.current.get(repoPath)) {
+          continue
+        }
         const file = new File([text], repoPath.split("/").pop() || repoPath, {
           type: "text/plain",
         })
@@ -409,12 +415,28 @@ const LatexEditor = ({
               label: { a: "You (unsaved)", b: "Latest from others" },
             },
           )
-          buffersRef.current.set(f.path, r.result.join("\n"))
+          const mergedText = r.result.join("\n")
+          buffersRef.current.set(f.path, mergedText)
           baseBuffersRef.current.set(f.path, remote)
-          setDirty((d) => new Set(d).add(f.path))
           if (r.conflict) {
             nextConflicts.add(f.path)
+            setDirty((d) => new Set(d).add(f.path))
+          } else if (mergedText === remote) {
+            // The merge resolved to exactly origin's content, so there's
+            // nothing left to save. Drop any stale dirty flag, otherwise Save
+            // would try to commit an unchanged file and the backend rejects it.
+            setDirty((d) => {
+              if (!d.has(f.path)) {
+                return d
+              }
+              const next = new Set(d)
+              next.delete(f.path)
+              return next
+            })
+            merged++
           } else {
+            // Local edits survived on top of others' changes: still unsaved.
+            setDirty((d) => new Set(d).add(f.path))
             merged++
           }
         }
