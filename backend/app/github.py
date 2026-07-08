@@ -62,9 +62,15 @@ def get_app_installation_token(owner_name: str, repo_name: str) -> str:
         timeout=15,
     )
     if resp.status_code != 200:
+        # Include GitHub's status and message so real causes are visible: a
+        # 401 ("could not be decoded") means GH_APP_PRIVATE_KEY doesn't match
+        # the App for GH_CLIENT_ID; a 404 means the App isn't installed on the
+        # repo. Reporting a bare "installation not found" hides the difference.
         raise HTTPException(
             502,
-            "Could not find the Calkit GitHub App installation for this repo",
+            "Could not look up the Calkit GitHub App installation for "
+            f"{owner_name}/{repo_name}: GitHub returned {resp.status_code} "
+            f"({resp.text[:200]})",
         )
     installation_id = resp.json()["id"]
     resp = requests.post(
@@ -76,7 +82,10 @@ def get_app_installation_token(owner_name: str, repo_name: str) -> str:
     )
     if resp.status_code not in (200, 201):
         raise HTTPException(
-            502, "Could not mint a GitHub App installation token"
+            502,
+            "Could not mint a Calkit GitHub App installation token for "
+            f"{owner_name}/{repo_name}: GitHub returned {resp.status_code} "
+            f"({resp.text[:200]})",
         )
     return resp.json()["token"]
 
