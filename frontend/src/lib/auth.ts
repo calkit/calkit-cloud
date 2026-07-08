@@ -114,8 +114,27 @@ export const popPostLoginRedirect = (): string | null => {
   return null
 }
 
+// The exact detail strings the backend returns for a bad/expired/deactivated
+// token (all as 403s; see backend/app/api/deps.py). A logged-in user seeing one
+// of these has an invalid session and should be logged out.
+const TOKEN_AUTH_DETAILS = new Set([
+  "Could not validate credentials",
+  "Invalid token",
+  "Invalid token scope",
+  "Token has been deactivated",
+  "Token has expired",
+  "Token invalid",
+])
+
 /**
- * Checks if an error indicates an authentication/authorization failure.
+ * Checks if an error means the session itself is invalid (so the user should be
+ * logged out), as opposed to an ordinary authorization denial.
+ *
+ * The backend returns 403 for BOTH real token failures and plain
+ * permission-denied responses (common for GitHub-less collaborators hitting a
+ * resource they can't access). Logging out on every 403 caused spurious
+ * logouts, so we only treat 401, or a 403 carrying a token-specific detail, as
+ * an authentication failure. A bare 403 (forbidden) is left to the caller.
  */
 export const isAuthenticationError = (error: any): boolean => {
   const status = error?.status ?? error?.response?.status
@@ -123,9 +142,6 @@ export const isAuthenticationError = (error: any): boolean => {
 
   return (
     status === 401 ||
-    status === 403 ||
-    detail === "Token has expired" ||
-    detail === "Invalid token" ||
-    detail === "Could not validate credentials"
+    (typeof detail === "string" && TOKEN_AUTH_DETAILS.has(detail))
   )
 }

@@ -11,6 +11,7 @@ import {
   clearTokens,
   getAccessToken,
   getValidAccessToken,
+  isAuthenticationError,
   storeTokens,
 } from "./auth"
 
@@ -94,5 +95,59 @@ describe("getValidAccessToken", () => {
     expect(token).toBe("new-access")
     expect(refreshAccessTokenMock).toHaveBeenCalledTimes(1)
     expect(getAccessToken()).toBe("new-access")
+  })
+})
+
+describe("isAuthenticationError", () => {
+  it("treats a 401 as an authentication failure", () => {
+    expect(isAuthenticationError({ status: 401 })).toBe(true)
+  })
+
+  it("treats a 403 with a token-auth detail as an authentication failure", () => {
+    for (const detail of [
+      "Could not validate credentials",
+      "Invalid token",
+      "Invalid token scope",
+      "Token has been deactivated",
+      "Token has expired",
+      "Token invalid",
+    ]) {
+      expect(isAuthenticationError({ status: 403, body: { detail } })).toBe(
+        true,
+      )
+    }
+  })
+
+  it("does NOT log out on a plain 403 permission denial", () => {
+    // The key fix: GitHub-less users hit ordinary 403s (forbidden) that must
+    // not end the session.
+    expect(
+      isAuthenticationError({ status: 403, body: { detail: "Forbidden" } }),
+    ).toBe(false)
+    expect(
+      isAuthenticationError({
+        status: 403,
+        body: { detail: "User is not authenticated" },
+      }),
+    ).toBe(false)
+    expect(isAuthenticationError({ status: 403 })).toBe(false)
+  })
+
+  it("reads detail from an axios-shaped error too", () => {
+    expect(
+      isAuthenticationError({
+        response: { status: 403, data: { detail: "Token has expired" } },
+      }),
+    ).toBe(true)
+    expect(
+      isAuthenticationError({
+        response: { status: 403, data: { detail: "Forbidden" } },
+      }),
+    ).toBe(false)
+  })
+
+  it("ignores non-auth statuses", () => {
+    expect(isAuthenticationError({ status: 404 })).toBe(false)
+    expect(isAuthenticationError({ status: 502 })).toBe(false)
   })
 })
