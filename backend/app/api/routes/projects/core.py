@@ -42,7 +42,7 @@ from sqlmodel import Session, and_, func, not_, or_, select
 from TexSoup import TexSoup
 
 import app.projects
-from app import messaging, mixpanel, orgs, users
+from app import github, messaging, mixpanel, orgs, users
 from app.api.deps import (
     CurrentUser,
     CurrentUserOptional,
@@ -208,6 +208,11 @@ def get_projects(
                 UserProjectAccess.user_id == current_user.id,
                 UserProjectAccess.access.is_not(None),  # type: ignore
             ),
+            # Native Calkit membership, e.g. an invite link redemption, the
+            # only access path for GitHub-less collaborators.
+            Project.memberships.any(  # type: ignore
+                ProjectMembership.user_id == current_user.id
+            ),
             Project.owner_account.has(  # type: ignore
                 and_(
                     Account.org_id.is_not(None),  # type: ignore
@@ -268,6 +273,11 @@ def get_owned_projects(
 ) -> ProjectsPublic:
     where_clause = or_(
         Project.owner_account_id == current_user.account.id,
+        # Native Calkit membership, e.g. an invite link redemption, the only
+        # access path for GitHub-less collaborators.
+        Project.memberships.any(  # type: ignore
+            ProjectMembership.user_id == current_user.id
+        ),
         Project.owner_account.has(  # type: ignore
             and_(
                 Account.org_id.is_not(None),  # type: ignore
@@ -2542,6 +2552,32 @@ def post_project_comment_reply(
     return reply_comment
 
 
+def _github_token_for_repo(
+    session: Session,
+    current_user: User,
+    owner_repo: str,
+) -> str | None:
+    """Return a token for GitHub API calls on ``owner/repo``.
+
+    Prefers the user's personal token; for GitHub-less collaborators (e.g.
+    invite-link members) falls back to the Calkit GitHub App installation
+    token so they can still open, close, and comment on issues. Returns None
+    if neither is available.
+    """
+    try:
+        return users.get_github_token(session, current_user)
+    except HTTPException:
+        pass
+    try:
+        owner_name, repo_name = owner_repo.split("/", 1)
+        return github.get_app_installation_token(owner_name, repo_name)
+    except (github.GitHubAppNotConfigured, HTTPException) as e:
+        logger.info(
+            f"No GitHub token for {current_user.email} on {owner_repo}: {e}"
+        )
+        return None
+
+
 def _sync_github_issue_resolutions(
     session: Session,
     comments: list[ProjectComment],
@@ -2558,17 +2594,11 @@ def _sync_github_issue_resolutions(
     ]
     if not unresolved_with_url:
         return
-    # Try to get a GitHub token; fall back to unauthenticated (60 req/hr)
-    token: str | None = None
-    if current_user is not None:
-        try:
-            token = users.get_github_token(session, current_user)
-        except Exception:
-            pass
-    headers = {"Accept": "application/vnd.github+json"}
-    if token:
-        headers["Authorization"] = f"Bearer {token}"
     changed = False
+    # Resolve a token per repo (personal token, else App install token for
+    # GitHub-less users), cached so we don't re-mint per comment. Falls back to
+    # unauthenticated (60 req/hr) for public repos when neither is available.
+    token_by_repo: dict[str, str | None] = {}
     for comment in unresolved_with_url:
         url = str(comment.external_url)
         # Parse owner/repo/number from
@@ -2579,6 +2609,16 @@ def _sync_github_issue_resolutions(
             repo = f"{parts[-4]}/{parts[-3]}"
         except Exception:
             continue
+        if repo not in token_by_repo:
+            token_by_repo[repo] = (
+                _github_token_for_repo(session, current_user, repo)
+                if current_user is not None
+                else None
+            )
+        headers = {"Accept": "application/vnd.github+json"}
+        token = token_by_repo[repo]
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
         try:
             resp = requests.get(
                 f"https://api.github.com/repos/{repo}/issues/{issue_number}",
@@ -2633,9 +2673,8 @@ def _try_create_github_issue(
     github_repo = project.github_repo
     if not github_repo:
         return None
-    try:
-        token = users.get_github_token(session, current_user)
-    except HTTPException:
+    token = _github_token_for_repo(session, current_user, github_repo)
+    if token is None:
         logger.info(
             f"Skipping GitHub issue creation for {current_user.email}: "
             "no GitHub token"
@@ -2672,9 +2711,8 @@ def _try_post_github_issue_comment(
         repo = f"{parts[-4]}/{parts[-3]}"
     except Exception:
         return None
-    try:
-        token = users.get_github_token(session, current_user)
-    except Exception:
+    token = _github_token_for_repo(session, current_user, repo)
+    if token is None:
         logger.debug("Skipping GitHub issue comment: no token")
         return None
     try:
@@ -2717,9 +2755,8 @@ def _try_reopen_github_issue(
         repo = f"{parts[-4]}/{parts[-3]}"
     except Exception:
         return
-    try:
-        token = users.get_github_token(session, current_user)
-    except Exception:
+    token = _github_token_for_repo(session, current_user, repo)
+    if token is None:
         logger.debug("Skipping GitHub issue reopen: no token")
         return
     try:
@@ -2759,9 +2796,8 @@ def _try_close_github_issue(
         repo = f"{parts[-4]}/{parts[-3]}"
     except Exception:
         return
-    try:
-        token = users.get_github_token(session, current_user)
-    except Exception:
+    token = _github_token_for_repo(session, current_user, repo)
+    if token is None:
         logger.debug("Skipping GitHub issue close: no token")
         return
     try:
@@ -4626,8 +4662,9 @@ def get_project_issues(
     if github_repo is None:
         raise HTTPException(501)
     if current_user is not None:
-        token = users.get_github_token(session=session, user=current_user)
-        headers = {"Authorization": f"Bearer {token}"}
+        token = _github_token_for_repo(session, current_user, github_repo)
+        if token is not None:
+            headers = {"Authorization": f"Bearer {token}"}
     url = f"https://api.github.com/repos/{github_repo}/issues"
     resp = requests.get(
         url,
@@ -4687,7 +4724,13 @@ def post_project_issue(
         current_user=current_user,
         min_access_level="write",
     )
-    token = users.get_github_token(session=session, user=current_user)
+    if project.github_repo is None:
+        raise HTTPException(501)
+    token = _github_token_for_repo(session, current_user, project.github_repo)
+    if token is None:
+        raise HTTPException(
+            502, "Could not authenticate with GitHub to create the issue"
+        )
     url = f"https://api.github.com/repos/{project.github_repo}/issues"
     resp = requests.post(
         url,
