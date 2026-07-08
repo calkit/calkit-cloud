@@ -41,7 +41,7 @@ class Account(SQLModel, table=True):
     )
     # Null for accounts created without GitHub (email/Google signup). Project
     # owners must still have a github_name until git hosting is decoupled from
-    # GitHub (see LATEX_EDITOR_PLAN.md I4); collaborators need not.
+    # GitHub; collaborators need not.
     github_name: str | None = Field(default=None)
     # Relationships
     owned_projects: list["Project"] = Relationship(

@@ -272,9 +272,17 @@ const InviteLinks = ({
     },
   })
 
-  const copyLink = (url: string) => {
-    navigator.clipboard.writeText(url)
-    showToast("Copied", "Invite link copied to clipboard.", "success")
+  const copyLink = async (url: string) => {
+    try {
+      await navigator.clipboard.writeText(url)
+      showToast("Copied", "Invite link copied to clipboard.", "success")
+    } catch {
+      showToast(
+        "Copy failed",
+        "Could not copy the link. Copy it manually.",
+        "error",
+      )
+    }
   }
 
   return (

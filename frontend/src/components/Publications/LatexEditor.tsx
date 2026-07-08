@@ -126,6 +126,10 @@ const LatexEditor = ({
   const compilingRef = useRef(false)
   const pendingCompileRef = useRef(false)
   const compileTimerRef = useRef<number | null>(null)
+  // Mirror of the latest pdfUrl so the unmount cleanup can revoke the current
+  // object URL (an effect with an empty dep array would capture the initial
+  // null and leak the blob).
+  const pdfUrlRef = useRef<string | null>(null)
   const commitInputRef = useRef<HTMLInputElement>(null)
   const showToast = useCustomToast()
   const queryClient = useQueryClient()
@@ -193,14 +197,18 @@ const LatexEditor = ({
   }, [projectFiles, texPath])
 
   useEffect(() => {
+    pdfUrlRef.current = pdfUrl
+  }, [pdfUrl])
+
+  useEffect(() => {
     return () => {
       if (compileTimerRef.current) {
         window.clearTimeout(compileTimerRef.current)
       }
       compilerRef.current?.terminate()
       compilerRef.current = null
-      if (pdfUrl) {
-        URL.revokeObjectURL(pdfUrl)
+      if (pdfUrlRef.current) {
+        URL.revokeObjectURL(pdfUrlRef.current)
       }
     }
   }, [])
@@ -343,7 +351,7 @@ const LatexEditor = ({
     },
   })
 
-  // --- Concurrent editing: detect others' pushes, 3-way merge them in -------
+  // Concurrent editing: detect others' pushes and 3-way merge them in.
   const fetchRemoteHead = async (): Promise<string | null> => {
     try {
       const head = await ProjectsService.getProjectGitRemoteHead({

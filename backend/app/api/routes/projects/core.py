@@ -4588,10 +4588,13 @@ def post_project_invitation_redemption(
     session: SessionDep,
 ) -> ProjectInvitationRedeemed:
     """Redeem an invite link, granting the current user native membership."""
+    # Lock the invitation row for the transaction so concurrent redemptions
+    # serialize: without this, two redeems can both read the same use_count,
+    # both pass is_valid, and both increment past max_uses.
     invitation = session.exec(
-        select(ProjectInvitation).where(
-            ProjectInvitation.token_hash == hash_refresh_token(token)
-        )
+        select(ProjectInvitation)
+        .where(ProjectInvitation.token_hash == hash_refresh_token(token))
+        .with_for_update()
     ).first()
     if invitation is None:
         raise HTTPException(404, "Invitation not found")

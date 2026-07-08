@@ -1,7 +1,6 @@
 // Thin client-side wrapper around the (MIT) busytex WASM worker for in-browser
-// LaTeX compilation. This is our own loader (Path 1) — no TeXlyre code. The
-// engine binaries are served from VITE_TEX_ENGINE_URL (default same-origin
-// /tex). Compilation is preview-only; see LATEX_EDITOR_PLAN.md §3.1.
+// LaTeX compilation. The engine binaries are served from VITE_TEX_ENGINE_URL
+// (default same-origin /tex). Compilation is preview-only.
 
 export interface LatexFile {
   path: string
@@ -22,7 +21,7 @@ const PRELOAD_PACKAGES = ["texlive-basic.js"]
 // and loads the needed .data on demand. Bundles are a subset of full TeX Live;
 // anything absent (e.g. sectsty, revtex) is fetched on demand from the texmf
 // proxy by the patched engine when VITE_TEXMF_PROXY is set. See
-// spikes/busytex-remote-fetch and LATEX_EDITOR_PLAN.md.
+// spikes/busytex-remote-fetch.
 const DATA_PACKAGES = [
   "texlive-basic.js",
   "ubuntu-texlive-latex-base.js",
