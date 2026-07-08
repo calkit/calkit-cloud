@@ -28,7 +28,6 @@ import {
   Th,
   Thead,
   Tr,
-  useDisclosure,
 } from "@chakra-ui/react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useState } from "react"
@@ -44,9 +43,15 @@ import type { ApiError } from "../../client/core/ApiError"
 import useCustomToast from "../../hooks/useCustomToast"
 import { handleError } from "../../lib/errors"
 
-interface InviteLinksProps {
+interface ProjectRef {
   ownerName: string
   projectName: string
+}
+
+interface InviteLinksProps extends ProjectRef {
+  isCreateOpen: boolean
+  onCreateOpen: () => void
+  onCreateClose: () => void
 }
 
 interface CreateInviteForm {
@@ -81,7 +86,7 @@ const CreateInviteModal = ({
   isOpen,
   onClose,
   onCreated,
-}: InviteLinksProps & {
+}: ProjectRef & {
   isOpen: boolean
   onClose: () => void
   onCreated: (invite: ProjectInvitationCreated) => void
@@ -161,7 +166,7 @@ const CreateInviteModal = ({
             <FormLabel htmlFor="name">Label (optional)</FormLabel>
             <Input
               id="name"
-              placeholder="e.g. Jane's review"
+              placeholder="Ex: Jane Johnson"
               {...register("name")}
             />
           </FormControl>
@@ -170,6 +175,9 @@ const CreateInviteModal = ({
             <Input
               id="email"
               type="email"
+              autoComplete="off"
+              data-form-type="other"
+              data-lpignore="true"
               placeholder="collaborator@example.com"
               {...register("email", {
                 pattern: {
@@ -228,10 +236,15 @@ const CreateInviteModal = ({
   )
 }
 
-const InviteLinks = ({ ownerName, projectName }: InviteLinksProps) => {
+const InviteLinks = ({
+  ownerName,
+  projectName,
+  isCreateOpen,
+  onCreateOpen,
+  onCreateClose,
+}: InviteLinksProps) => {
   const queryClient = useQueryClient()
   const showToast = useCustomToast()
-  const createModal = useDisclosure()
   const [created, setCreated] = useState<ProjectInvitationCreated | null>(null)
   const { isPending, data: invitations } = useQuery({
     queryKey: ["projects", ownerName, projectName, "invitations"],
@@ -268,7 +281,7 @@ const InviteLinks = ({ ownerName, projectName }: InviteLinksProps) => {
     <Box mt={10}>
       <Flex align="center" justify="space-between" mb={2}>
         <Heading size="md">Invite links</Heading>
-        <Button variant="primary" onClick={createModal.onOpen}>
+        <Button variant="primary" onClick={onCreateOpen}>
           Create invite link
         </Button>
       </Flex>
@@ -388,8 +401,8 @@ const InviteLinks = ({ ownerName, projectName }: InviteLinksProps) => {
       <CreateInviteModal
         ownerName={ownerName}
         projectName={projectName}
-        isOpen={createModal.isOpen}
-        onClose={createModal.onClose}
+        isOpen={isCreateOpen}
+        onClose={onCreateClose}
         onCreated={setCreated}
       />
     </Box>

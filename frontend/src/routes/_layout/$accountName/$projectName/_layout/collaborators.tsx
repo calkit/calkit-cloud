@@ -19,8 +19,9 @@ import {
 } from "@chakra-ui/react"
 import { BsThreeDotsVertical } from "react-icons/bs"
 import { FiTrash } from "react-icons/fi"
-import { createFileRoute } from "@tanstack/react-router"
+import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
+import { z } from "zod"
 
 import Navbar from "../../../../../components/Common/Navbar"
 import AddCollaborator from "../../../../../components/Projects/AddCollaborator"
@@ -29,10 +30,16 @@ import { ProjectsService } from "../../../../../client"
 import useAuth from "../../../../../hooks/useAuth"
 import Delete from "../../../../../components/Common/DeleteAlert"
 
+const collaboratorsSearchSchema = z.object({
+  add_collaborator: z.boolean().optional(),
+  create_invite: z.boolean().optional(),
+})
+
 export const Route = createFileRoute(
   "/_layout/$accountName/$projectName/_layout/collaborators",
 )({
   component: Collaborators,
+  validateSearch: (search) => collaboratorsSearchSchema.parse(search),
 })
 
 interface ActionsMenuProps {
@@ -83,6 +90,8 @@ const ActionsMenu = ({
 
 function Collaborators() {
   const { accountName, projectName } = Route.useParams()
+  const { add_collaborator, create_invite } = Route.useSearch()
+  const navigate = useNavigate({ from: Route.fullPath })
   const { user: currentUser } = useAuth()
   const { isPending, data: collaborators } = useQuery({
     queryKey: ["projects", accountName, projectName, "collaborators"],
@@ -96,7 +105,19 @@ function Collaborators() {
   return (
     <Box>
       <Heading size={"md"}>Collaborators</Heading>
-      <Navbar type="collaborator" addModalAs={AddCollaborator} />
+      <Navbar
+        type="collaborator"
+        addModalAs={AddCollaborator}
+        isOpen={!!add_collaborator}
+        onOpen={() =>
+          navigate({ search: (prev) => ({ ...prev, add_collaborator: true }) })
+        }
+        onClose={() =>
+          navigate({
+            search: (prev) => ({ ...prev, add_collaborator: undefined }),
+          })
+        }
+      />
       <TableContainer>
         <Table size={{ base: "sm", md: "md" }}>
           <Thead>
@@ -155,7 +176,19 @@ function Collaborators() {
           )}
         </Table>
       </TableContainer>
-      <InviteLinks ownerName={accountName} projectName={projectName} />
+      <InviteLinks
+        ownerName={accountName}
+        projectName={projectName}
+        isCreateOpen={!!create_invite}
+        onCreateOpen={() =>
+          navigate({ search: (prev) => ({ ...prev, create_invite: true }) })
+        }
+        onCreateClose={() =>
+          navigate({
+            search: (prev) => ({ ...prev, create_invite: undefined }),
+          })
+        }
+      />
     </Box>
   )
 }

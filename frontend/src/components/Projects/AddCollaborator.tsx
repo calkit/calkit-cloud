@@ -96,6 +96,9 @@ const AddCollaborator = ({ isOpen, onClose }: AddCollabProps) => {
                 })}
                 placeholder="GitHub username"
                 type="string"
+                autoComplete="off"
+                data-form-type="other"
+                data-lpignore="true"
               />
               {errors.github_username && (
                 <FormErrorMessage>

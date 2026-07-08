@@ -850,10 +850,10 @@ def get_project_git_remote_head(
     editing) by polling, without pulling or resetting the working tree. Uses
     ``git ls-remote`` (a cheap live query) on the cached clone, reusing its auth.
     """
-    project = get_project(
+    project = app.projects.get_project(
+        session=session,
         owner_name=owner_name,
         project_name=project_name,
-        session=session,
         current_user=current_user,
         min_access_level="read",
     )

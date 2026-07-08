@@ -80,6 +80,10 @@ out on the system.
 - API endpoint functions should start with their REST verbs,
   e.g., `post_something` or `get_something`.
 - Search inputs should always be clearable.
+- Disable browser and password manager autocomplete on most form fields,
+  e.g., with `autoComplete="off"`, `data-form-type="other"`, and
+  `data-lpignore="true"`, since they usually don't hold personal information.
+  Leave it on for genuine personal fields, e.g., login email and password.
 - Changes to the UI state, e.g., a selected tab or a modal open,
   should typically be part of query params so a link will show a similar state.
 - Tooltips should always have the same hover delay site-wide.

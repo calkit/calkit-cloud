@@ -5,12 +5,16 @@ help: ## Show this help.
 
 DOCKER_COMPOSE_DEV=docker compose -f docker-compose.yml -f docker-compose.override.yml
 
+.PHONY: tex-engine
+tex-engine: ## Download the TeX Live bundles for the LaTeX editor (idempotent).
+	@bash frontend/scripts/download-tex-engine.sh
+
 .PHONY: dev
-dev: ## Start up all containers for development.
+dev: tex-engine ## Start up all containers for development.
 	${DOCKER_COMPOSE_DEV} up
 
 .PHONY: frontend-dev
-frontend-dev: ## Start the frontend dev server.
+frontend-dev: tex-engine ## Start the frontend dev server.
 	cd frontend && npm run dev
 
 .PHONY: api-dev
