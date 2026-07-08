@@ -5378,6 +5378,32 @@ def get_project_showcase(
         ttl = 3600
     else:
         ttl = 30 * ttl
+    # Compute pipeline staleness once so publication elements can surface a
+    # "stale" badge. Best-effort: never let it break the showcase.
+    showcase_stage_statuses: dict = {}
+    showcase_dvc_lock: dict = {}
+    try:
+        showcase_tree = app.projects.get_repo_tree_for_ref(repo, ref)
+        if showcase_tree.is_file("dvc.lock"):
+            showcase_dvc_lock = (
+                ryaml.load(showcase_tree.read_bytes("dvc.lock").decode()) or {}
+            )
+        showcase_dvc_yaml: dict = {}
+        if showcase_tree.is_file("dvc.yaml"):
+            showcase_dvc_yaml = (
+                ryaml.load(showcase_tree.read_bytes("dvc.yaml").decode()) or {}
+            )
+        showcase_stage_statuses = compute_stage_statuses(
+            dvc_yaml=showcase_dvc_yaml,
+            dvc_lock=showcase_dvc_lock,
+            tree=showcase_tree,
+            owner_name=project.owner_account_name,
+            project_name=project.name,
+            fs=get_object_fs(),
+            cache_token=resolve_commit_sha(repo, ref),
+        )
+    except Exception as e:
+        logger.warning(f"Failed to compute pipeline status for showcase: {e}")
     elements_out = []
     for element_in in inputs.elements:
         if isinstance(element_in, ShowcaseFigureInput):
@@ -5407,6 +5433,15 @@ def get_project_showcase(
                         ref=ref,
                     )
                 )
+                pub = element_out.publication
+                if not pub.stage and pub.path:
+                    auto_stage = find_stage_for_path(
+                        pub.path, showcase_dvc_lock
+                    )
+                    if auto_stage is not None:
+                        pub.stage = auto_stage
+                if pub.stage and pub.stage in showcase_stage_statuses:
+                    pub.stage_status = showcase_stage_statuses[pub.stage]
             except Exception as e:
                 logger.warning(
                     "Failed to get showcase publication from "

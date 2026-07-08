@@ -384,6 +384,7 @@ const LatexEditor = ({
         projectName,
         texPath,
         deps,
+        { fresh: true },
       )
       const nextConflicts = new Set<string>()
       const newTexts: string[] = []

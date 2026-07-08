@@ -1,8 +1,9 @@
-import { Box, Button, Code, Icon, Text } from "@chakra-ui/react"
+import { Badge, Box, Button, Code, HStack, Icon, Text } from "@chakra-ui/react"
 import { MdEdit } from "react-icons/md"
 
 import useProject from "../../hooks/useProject"
 import LoadingSpinner from "../Common/LoadingSpinner"
+import Tooltip from "../Common/Tooltip"
 import Markdown from "../Common/Markdown"
 import FigureView from "../Figures/FigureView"
 import NotebookView from "../Notebooks/NotebookView"
@@ -40,23 +41,34 @@ function ProjectShowcase({
                   <PublicationView
                     publication={item.publication}
                     toolbarAction={
+                      item.publication.stage_status?.status === "stale" ||
                       onEditLatex ? (
-                        <Button
-                          size="xs"
-                          variant="ghost"
-                          onClick={() =>
-                            onEditLatex(
-                              item.publication.path.replace(
-                                /\.[^/.]+$/,
-                                ".tex",
-                              ),
-                              item.publication.stage_info?.deps,
-                            )
-                          }
-                        >
-                          <Icon as={MdEdit} mr={1} />
-                          Edit LaTeX
-                        </Button>
+                        <HStack spacing={2}>
+                          {item.publication.stage_status?.status ===
+                            "stale" && (
+                            <Tooltip label="This publication is out of date. Re-run the pipeline to rebuild it.">
+                              <Badge colorScheme="orange">Stale</Badge>
+                            </Tooltip>
+                          )}
+                          {onEditLatex && (
+                            <Button
+                              size="xs"
+                              variant="ghost"
+                              onClick={() =>
+                                onEditLatex(
+                                  item.publication.path.replace(
+                                    /\.[^/.]+$/,
+                                    ".tex",
+                                  ),
+                                  item.publication.stage_info?.deps,
+                                )
+                              }
+                            >
+                              <Icon as={MdEdit} mr={1} />
+                              Edit LaTeX
+                            </Button>
+                          )}
+                        </HStack>
                       ) : null
                     }
                   />

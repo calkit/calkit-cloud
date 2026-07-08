@@ -68,6 +68,25 @@ export function findMissingPackages(log: string): string[] {
   return [...out]
 }
 
+// The in-browser engine can't generate bitmap (PK) fonts: mktexpk shells out
+// via fork(), which the WASM runtime doesn't implement, so a document that
+// pulls in the TS1 text-companion CM fonts (tcrm*, e.g. via textcomp symbols)
+// dies with "Font tcrm1095 not found". Latin Modern ships scalable Type1 T1+TS1
+// fonts, so loading lmodern sidesteps bitmap generation. This is a preview-only
+// transform (LM renders ~identically to Computer Modern); the real pipeline PDF
+// is built server-side and unaffected.
+function ensureScalableFonts(tex: string): string {
+  if (/\\usepackage(\[[^\]]*\])?\{[^}]*\blmodern\b[^}]*\}/.test(tex)) {
+    return tex
+  }
+  const m = tex.match(/\\documentclass(\[[^\]]*\])?\{[^}]*\}/)
+  if (!m || m.index === undefined) {
+    return tex
+  }
+  const insertAt = m.index + m[0].length
+  return `${tex.slice(0, insertAt)}\n\\usepackage{lmodern}${tex.slice(insertAt)}`
+}
+
 export class LatexCompiler {
   private worker: Worker | null = null
   private ready: Promise<void> | null = null
@@ -149,10 +168,17 @@ export class LatexCompiler {
     if (this.pending) {
       throw new Error("A compilation is already in progress")
     }
+    // Inject lmodern into the main file so TS1/text-companion glyphs resolve to
+    // scalable fonts instead of triggering (unsupported) bitmap generation.
+    const patchedFiles = files.map((f) =>
+      f.path === mainTexPath && typeof f.contents === "string"
+        ? { ...f, contents: ensureScalableFonts(f.contents) }
+        : f,
+    )
     return new Promise<CompileResult>((resolve, reject) => {
       this.pending = { resolve, reject }
       this.worker?.postMessage({
-        files,
+        files: patchedFiles,
         main_tex_path: mainTexPath,
         // null => auto-detect a bibliography and run the full latexmk-style
         // cycle. Docs with \bibliography run bibtex + rerun pdflatex; docs

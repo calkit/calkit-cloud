@@ -413,12 +413,14 @@ def get_ck_info_from_repo(repo: git.Repo, process_includes=False) -> dict:
         ck_info = calkit.load_calkit_info(
             wdir=repo.working_dir, process_includes=process_includes
         )
-    except YAMLError as e:
+    except (YAMLError, IndexError) as e:
         # A user's calkit.yaml can be malformed (e.g., multiple YAML documents
-        # in a single file). That's bad data in their repo, not a server
-        # error, so treat it as empty rather than letting it 500 the project.
+        # in a single file), or empty/whitespace-only, which makes ruamel raise
+        # a bare IndexError from its scanner. That's bad data in their repo, not
+        # a server error, so treat it as empty rather than 500-ing the project.
         logger.warning(
-            f"Failed to parse calkit.yaml in {repo.working_dir}: {e}"
+            f"Failed to parse calkit.yaml in {repo.working_dir}: "
+            f"{type(e).__name__}: {e}"
         )
         return {}
     if ck_info is None:

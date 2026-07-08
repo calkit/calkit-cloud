@@ -301,18 +301,29 @@ function Publications() {
   const texPath = selectedPub?.path
     ? selectedPub.path.replace(/\.[^/.]+$/, ".tex")
     : null
-  const editLatexAction =
-    userHasWriteAccess && texPath ? (
-      <Button
-        size="xs"
-        variant="ghost"
-        onClick={() =>
-          navigate({ search: (prev) => ({ ...prev, editor_open: true }) })
-        }
-      >
-        <Icon as={MdEdit} mr={1} />
-        Edit LaTeX
-      </Button>
+  const canEditLatex = userHasWriteAccess && !!texPath
+  const isStale = selectedPub?.stage_status?.status === "stale"
+  const toolbarAction =
+    isStale || canEditLatex ? (
+      <HStack spacing={2}>
+        {isStale && (
+          <Tooltip label="This publication is out of date. Re-run the pipeline to rebuild it.">
+            <Badge colorScheme="orange">Stale</Badge>
+          </Tooltip>
+        )}
+        {canEditLatex && (
+          <Button
+            size="xs"
+            variant="ghost"
+            onClick={() =>
+              navigate({ search: (prev) => ({ ...prev, editor_open: true }) })
+            }
+          >
+            <Icon as={MdEdit} mr={1} />
+            Edit LaTeX
+          </Button>
+        )}
+      </HStack>
     ) : undefined
 
   const commentsQuery = useQuery({
@@ -492,14 +503,14 @@ function Publications() {
                       gitRef={ref}
                       showResolved={showResolved}
                       externalScrollRef={pdfScrollRef}
-                      toolbarAction={editLatexAction}
+                      toolbarAction={toolbarAction}
                     />
                   </Box>
                 ) : (
                   <Box height="82vh" borderRadius="lg" overflow="hidden">
                     <PublicationView
                       publication={selectedPub}
-                      toolbarAction={editLatexAction}
+                      toolbarAction={toolbarAction}
                     />
                   </Box>
                 )}

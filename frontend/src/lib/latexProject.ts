@@ -151,7 +151,24 @@ export async function loadLatexProject(
   projectName: string,
   texPath: string,
   deps?: string[] | null,
+  opts?: { fresh?: boolean },
 ): Promise<ProjectFile[]> {
+  // The content endpoint serves a cached server-side clone (default TTL), so a
+  // plain load can miss others' just-pushed commits. When refreshing (the
+  // editor's "Pull updates"), force one ttl=0 read first to make the server
+  // re-pull from origin; that warms the cache so the reads below see the latest
+  // without each re-pulling.
+  if (opts?.fresh) {
+    try {
+      await ProjectsService.getProjectContents({
+        ownerName,
+        projectName,
+        ttl: 0,
+      })
+    } catch {
+      // Best effort: if the refresh call fails, fall through to normal reads.
+    }
+  }
   const paths = new Set<string>([texPath])
   if (deps && deps.length > 0) {
     for (const dep of deps) {

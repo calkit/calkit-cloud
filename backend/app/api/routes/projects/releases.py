@@ -1271,7 +1271,7 @@ def get_release_staleness(
     path: str | None = None,
     git_ref: str | None = None,
 ) -> ReleaseStaleness:
-    """Report whether the artifact at *path* is up-to-date with its pipeline
+    """Report whether the artifact at *path* is up-to-date from the pipeline
     stage, so the New Release form can warn before releasing something that may
     not be reproducible.
     """

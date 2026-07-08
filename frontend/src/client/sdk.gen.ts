@@ -3304,7 +3304,7 @@ export class ReleasesService {
 
   /**
    * Get Release Staleness
-   * Report whether the artifact at *path* is up-to-date with its pipeline
+   * Report whether the artifact at *path* is up-to-date from the pipeline
    * stage, so the New Release form can warn before releasing something that may
    * not be reproducible.
    * @param data The data for the request.
