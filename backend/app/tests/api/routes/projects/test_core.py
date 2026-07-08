@@ -8,7 +8,7 @@ from app import users
 from app.api.routes.projects.core import get_project_comments
 from app.config import settings
 from app.models import Project, UserCreate
-from app.models.core import ContentsItem, ProjectMembership
+from app.models.core import ContentsItem, UserProjectAccess
 from app.projects import CkInfoAndOuts
 from app.tests import authentication_token_from_email, create_random_user
 from fastapi.testclient import TestClient
@@ -809,9 +809,6 @@ def test_get_project_presentations_reads_declared_at_ref(
     )
 
 
-# --- Project membership & invitation links (I2) ---------------------------
-
-
 def _make_owner_with_project(
     db: Session, client: TestClient
 ) -> tuple[Project, dict[str, str]]:
@@ -850,7 +847,6 @@ def test_invitation_create_and_redeem_grants_access(
     project, owner_headers = _make_owner_with_project(db, client)
     owner_name = project.owner_account.name
     base = f"{settings.API_V1_STR}/projects/{owner_name}/{project.name}"
-
     # A GitHub-less user has no access to the private project yet.
     ghless = create_random_user(db)
     assert ghless.account.github_name is None
@@ -859,7 +855,6 @@ def test_invitation_create_and_redeem_grants_access(
     )
     r = client.get(base, headers=ghless_headers)
     assert r.status_code == 403
-
     # Owner creates an invite link.
     r = client.post(
         f"{base}/invitations",
@@ -872,7 +867,6 @@ def test_invitation_create_and_redeem_grants_access(
     assert invite["token"]
     assert f"/join/{invite['token']}" in invite["url"]
     token = invite["token"]
-
     # The GitHub-less user redeems it and gains write membership.
     r = client.post(
         f"{settings.API_V1_STR}/project-invitations/{token}",
@@ -883,14 +877,14 @@ def test_invitation_create_and_redeem_grants_access(
     assert redeemed["owner_name"] == owner_name
     assert redeemed["project_name"] == project.name
     assert redeemed["role_name"] == "write"
-
-    # Membership row exists and the user can now read the project.
-    membership = db.exec(
-        select(ProjectMembership)
-        .where(ProjectMembership.project_id == project.id)
-        .where(ProjectMembership.user_id == ghless.id)
+    # Access row exists with a native role and the user can now read the
+    # project.
+    access = db.exec(
+        select(UserProjectAccess)
+        .where(UserProjectAccess.project_id == project.id)
+        .where(UserProjectAccess.user_id == ghless.id)
     ).first()
-    assert membership is not None and membership.role_name == "write"
+    assert access is not None and access.role_name == "write"
     r = client.get(base, headers=ghless_headers)
     assert r.status_code == 200
 

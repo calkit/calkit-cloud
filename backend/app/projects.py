@@ -45,7 +45,6 @@ from app.models import (
     Notebook,
     Org,
     Project,
-    ProjectMembership,
     Publication,
     User,
     UserProjectAccess,
@@ -112,7 +111,7 @@ def _resolve_github_collaborator_access(
     )
     access = session.exec(access_query).first()
     if access is not None:
-        project.current_user_access = access.access
+        project.current_user_access = access.github_access
         return
     # Query GitHub for permissions
     try:
@@ -147,7 +146,7 @@ def _resolve_github_collaborator_access(
         UserProjectAccess(
             project_id=project.id,
             user_id=current_user.id,
-            access=permissions,
+            github_access=permissions,
         )
     )
     session.commit()
@@ -203,16 +202,16 @@ def get_project(
             if project.current_user_access is None and project.is_public:
                 project.current_user_access = "read"
         else:
-            # Non-owner: native Calkit membership takes precedence over
-            # GitHub-derived access, and is the only access path for
-            # GitHub-less collaborators.
-            membership = session.exec(
-                select(ProjectMembership)
-                .where(ProjectMembership.project_id == project.id)
-                .where(ProjectMembership.user_id == current_user.id)
+            # Non-owner: a native Calkit grant (role_id, e.g. from an invite)
+            # takes precedence over GitHub-derived access, and is the only
+            # access path for GitHub-less collaborators.
+            access_row = session.exec(
+                select(UserProjectAccess)
+                .where(UserProjectAccess.project_id == project.id)
+                .where(UserProjectAccess.user_id == current_user.id)
             ).first()
-            if membership is not None:
-                project.current_user_access = membership.role_name
+            if access_row is not None and access_row.role_id is not None:
+                project.current_user_access = access_row.role_name
             else:
                 _resolve_github_collaborator_access(
                     session, project, current_user

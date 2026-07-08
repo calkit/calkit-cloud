@@ -328,6 +328,99 @@ def login_with_github(req: OAuthCodeExchange, session: SessionDep) -> Token:
     )
 
 
+@router.post("/login/google")
+def login_with_google(req: OAuthCodeExchange, session: SessionDep) -> Token:
+    """Log in (or sign up) a user via Google.
+
+    New users created this way are GitHub-less (no linked GitHub account); they
+    can connect GitHub later. Mirrors ``login_with_github`` but resolves the
+    account by verified Google email.
+    """
+    logger.info("Requesting Google access token")
+    resp = requests.post(
+        "https://oauth2.googleapis.com/token",
+        data=dict(
+            client_id=settings.GOOGLE_CLIENT_ID,
+            client_secret=settings.GOOGLE_CLIENT_SECRET,
+            grant_type="authorization_code",
+            code=req.code,
+            redirect_uri=req.redirect_uri,
+        ),
+    )
+    if resp.status_code != 200:
+        try:
+            msg = resp.json().get(
+                "error_description", "Google authentication failed"
+            )
+        except Exception:
+            msg = "Google authentication failed"
+        logger.error(f"Google auth failed: {msg}")
+        raise HTTPException(400, msg)
+    google_resp = resp.json()
+    userinfo = requests.get(
+        "https://www.googleapis.com/oauth2/v3/userinfo",
+        headers={"Authorization": f"Bearer {google_resp['access_token']}"},
+    )
+    if userinfo.status_code != 200:
+        raise HTTPException(400, "Could not fetch your Google profile")
+    profile = userinfo.json()
+    email = profile.get("email")
+    if not email or not profile.get("email_verified"):
+        raise HTTPException(400, "A verified Google email is required")
+    full_name = profile.get("name")
+    user = users.get_user_by_email(session=session, email=email)
+    if user is None:
+        if settings.ENVIRONMENT == "staging":
+            logger.warning(
+                f"Google user {email} attempting to sign up on staging"
+            )
+            raise HTTPException(403, "Please log in at calkit.io")
+        logger.info("Creating new GitHub-less user via Google")
+        try:
+            user = users.create_user(
+                session=session,
+                user_create=UserCreate(
+                    email=email,
+                    full_name=full_name,
+                    password=secrets.token_urlsafe(16),
+                ),
+            )
+        except HTTPException as e:
+            # The email-derived account name may be taken or reserved; retry
+            # once with a random suffix so signup still succeeds.
+            if e.status_code != 422:
+                raise
+            user = users.create_user(
+                session=session,
+                user_create=UserCreate(
+                    email=email,
+                    full_name=full_name,
+                    password=secrets.token_urlsafe(16),
+                    account_name=f"{email.split('@')[0]}-{secrets.token_hex(3)}",
+                ),
+            )
+        mixpanel.user_signed_up(user)
+    else:
+        logger.info(f"Found existing user with email: {user.email}")
+    if not user.is_active:
+        raise HTTPException(401, "User is not active")
+    # Persist the Google credential so the account shows as connected.
+    users.save_google_token(
+        session=session, user=user, google_resp=google_resp
+    )
+    mixpanel.user_logged_in(user)
+    access_token, raw_refresh, refresh_db = _make_tokens(
+        user.id, description="Google login"
+    )
+    session.add(refresh_db)
+    session.commit()
+    return Token(
+        access_token=access_token,
+        expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        refresh_token=raw_refresh,
+    )
+
+
 @router.post("/login/github-oidc")
 def login_with_github_oidc(
     session: SessionDep,

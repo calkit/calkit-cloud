@@ -123,6 +123,35 @@ const useAuth = () => {
     },
   })
 
+  const loginGoogle = async (data: { code: string; redirectUri: string }) => {
+    const response = await LoginService.withGoogle({
+      requestBody: {
+        code: data.code,
+        redirect_uri: data.redirectUri,
+      },
+    })
+    storeTokens(response.access_token, response.refresh_token)
+  }
+
+  const loginGoogleMutation = useMutation({
+    mutationFn: loginGoogle,
+    onSuccess: () => {
+      const redirectTo = popPostLoginRedirect()
+      navigate({ to: redirectTo || "/" })
+    },
+    onError: (err: ApiError) => {
+      let errDetail = (err.body as any)?.detail
+      if (err instanceof AxiosError) {
+        errDetail = err.message
+      }
+      if (Array.isArray(errDetail)) {
+        errDetail = "Something went wrong"
+      }
+      showToast("Something went wrong.", errDetail, "error")
+      setError(errDetail)
+    },
+  })
+
   const logout = () => {
     clearTokens()
     mixpanel.reset()
@@ -144,6 +173,7 @@ const useAuth = () => {
     signUpMutation,
     loginMutation,
     loginGitHubMutation,
+    loginGoogleMutation,
     logout,
     user,
     isLoading,

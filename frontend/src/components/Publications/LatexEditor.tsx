@@ -314,7 +314,22 @@ const LatexEditor = ({
         })
       }
     },
-    onSuccess: () => {
+    onSuccess: async () => {
+      // Our just-saved content is now the committed baseline. Advance the base
+      // buffers and the remote-head marker to it so the poll doesn't flag our
+      // own push as an update to pull. Do this before clearing dirty so we
+      // still know which files we saved.
+      for (const repoPath of dirtyRef.current) {
+        baseBuffersRef.current.set(
+          repoPath,
+          buffersRef.current.get(repoPath) ?? "",
+        )
+      }
+      const sha = await fetchRemoteHead()
+      if (sha) {
+        baseShaRef.current = sha
+      }
+      setUpdatesAvailable(false)
       setDirty(new Set())
       setCommitMessage("")
       commitModal.onClose()

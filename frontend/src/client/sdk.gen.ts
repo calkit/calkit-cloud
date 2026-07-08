@@ -28,6 +28,8 @@ import type {
   RecoverPasswordHtmlContentResponse,
   LoginWithGithubData,
   LoginWithGithubResponse,
+  LoginWithGoogleData,
+  LoginWithGoogleResponse,
   LoginWithGithubOidcData,
   LoginWithGithubOidcResponse,
   LoginWithGithubTokenData,
@@ -583,6 +585,32 @@ export class LoginService {
     return __request(OpenAPI, {
       method: "POST",
       url: "/login/github",
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Login With Google
+   * Log in (or sign up) a user via Google.
+   *
+   * New users created this way are GitHub-less (no linked GitHub account); they
+   * can connect GitHub later. Mirrors ``login_with_github`` but resolves the
+   * account by verified Google email.
+   * @param data The data for the request.
+   * @param data.requestBody
+   * @returns Token Successful Response
+   * @throws ApiError
+   */
+  public static withGoogle(
+    data: LoginWithGoogleData,
+  ): CancelablePromise<LoginWithGoogleResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/login/google",
       body: data.requestBody,
       mediaType: "application/json",
       errors: {
@@ -1265,8 +1293,11 @@ export class ProjectsService {
 
   /**
    * Get Project Git Remote Head
-   * Return origin's current HEAD commit SHA for a branch, so the editor can
-   * detect concurrent pushes without pulling.
+   * Return origin's current HEAD commit SHA for a branch.
+   *
+   * Lets the LaTeX editor detect that someone else has pushed (concurrent
+   * editing) by polling, without pulling or resetting the working tree. Uses
+   * ``git ls-remote`` (a cheap live query) on the cached clone, reusing its auth.
    * @param data The data for the request.
    * @param data.ownerName
    * @param data.projectName
@@ -2420,8 +2451,9 @@ export class ProjectsService {
    * Post Project Invitation
    * Create a shareable invite link granting native project membership.
    *
-   * The raw token is returned only here; the DB stores its hash. Invites can
-   * grant up to admin, never ownership.
+   * The raw token is returned only here; the DB stores its hash. Invite links
+   * grant collaborator access only (read or write) — never admin or ownership;
+   * admins must be added deliberately, not via a shareable link.
    * @param data The data for the request.
    * @param data.ownerName
    * @param data.projectName

@@ -1,3 +1,4 @@
+import uuid
 from datetime import timedelta
 from unittest.mock import patch
 
@@ -350,3 +351,69 @@ def test_reset_password_invalid_token(
     assert "detail" in response
     assert r.status_code == 400
     assert response["detail"] == "Invalid token"
+
+
+class _FakeGoogleResp:
+    def __init__(self, status_code: int, payload: dict) -> None:
+        self.status_code = status_code
+        self._payload = payload
+
+    def json(self) -> dict:
+        return self._payload
+
+
+def test_login_with_google_creates_github_less_user(
+    client: TestClient, db: Session
+) -> None:
+    email = f"g-{uuid.uuid4().hex[:8]}@example.com"
+    with (
+        patch(
+            "app.api.routes.login.requests.post",
+            return_value=_FakeGoogleResp(
+                200, {"access_token": "ya29.fake", "refresh_token": "r"}
+            ),
+        ),
+        patch(
+            "app.api.routes.login.requests.get",
+            return_value=_FakeGoogleResp(
+                200,
+                {"email": email, "email_verified": True, "name": "G User"},
+            ),
+        ),
+        patch("app.api.routes.login.users.save_google_token"),
+    ):
+        r = client.post(
+            f"{settings.API_V1_STR}/login/google",
+            json={
+                "code": "auth-code",
+                "redirect_uri": "http://localhost:5173/google-auth",
+            },
+        )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["access_token"]
+    assert body["refresh_token"]
+    user = users.get_user_by_email(session=db, email=email)
+    assert user is not None
+    # Signed up via Google -> no linked GitHub account.
+    assert user.account.github_name is None
+
+
+def test_login_with_google_requires_verified_email(client: TestClient) -> None:
+    with (
+        patch(
+            "app.api.routes.login.requests.post",
+            return_value=_FakeGoogleResp(200, {"access_token": "ya29.fake"}),
+        ),
+        patch(
+            "app.api.routes.login.requests.get",
+            return_value=_FakeGoogleResp(
+                200, {"email": "x@example.com", "email_verified": False}
+            ),
+        ),
+    ):
+        r = client.post(
+            f"{settings.API_V1_STR}/login/google",
+            json={"code": "c", "redirect_uri": "http://localhost:5173/x"},
+        )
+    assert r.status_code == 400

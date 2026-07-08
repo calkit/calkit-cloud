@@ -538,6 +538,11 @@ export type GitRef = {
 
 export type kind4 = "branch" | "tag" | "commit"
 
+export type GitRemoteHead = {
+  branch: string
+  sha: string | null
+}
+
 export type HttpRequestAccess = {
   kind?: "http-request"
   url: string
@@ -889,7 +894,7 @@ export type ProjectInvitationPost = {
   email?: string | null
 }
 
-export type role2 = "read" | "write" | "admin"
+export type role2 = "read" | "write"
 
 export type ProjectInvitationPublic = {
   id: string
@@ -1659,6 +1664,12 @@ export type LoginWithGithubData = {
 
 export type LoginWithGithubResponse = Token
 
+export type LoginWithGoogleData = {
+  requestBody: OAuthCodeExchange
+}
+
+export type LoginWithGoogleResponse = Token
+
 export type LoginWithGithubOidcData = {
   authorization?: string | null
 }
@@ -1837,15 +1848,10 @@ export type GetProjectGitRepoResponse = {
   [key: string]: unknown
 }
 
-export type GitRemoteHead = {
-  branch: string
-  sha: string | null
-}
-
 export type GetProjectGitRemoteHeadData = {
+  branch?: string | null
   ownerName: string
   projectName: string
-  branch?: string | null
 }
 
 export type GetProjectGitRemoteHeadResponse = GitRemoteHead

@@ -103,7 +103,6 @@ from app.models import (
     ProjectInvitationPost,
     ProjectInvitationPublic,
     ProjectInvitationRedeemed,
-    ProjectMembership,
     ProjectPost,
     ProjectPublic,
     ProjectsPublic,
@@ -204,14 +203,15 @@ def get_projects(
         where_clause = or_(
             Project.is_public,
             Project.owner_account_id == current_user.account.id,
+            # A row in the unified access table with either a native Calkit
+            # grant (role_id, e.g. an invite redemption) or GitHub-derived
+            # access. A row with both null is a cached "no access" result.
             and_(
                 UserProjectAccess.user_id == current_user.id,
-                UserProjectAccess.access.is_not(None),  # type: ignore
-            ),
-            # Native Calkit membership, e.g. an invite link redemption, the
-            # only access path for GitHub-less collaborators.
-            Project.memberships.any(  # type: ignore
-                ProjectMembership.user_id == current_user.id
+                or_(
+                    UserProjectAccess.role_id.is_not(None),  # type: ignore
+                    UserProjectAccess.github_access.is_not(None),  # type: ignore
+                ),
             ),
             Project.owner_account.has(  # type: ignore
                 and_(
@@ -273,10 +273,13 @@ def get_owned_projects(
 ) -> ProjectsPublic:
     where_clause = or_(
         Project.owner_account_id == current_user.account.id,
-        # Native Calkit membership, e.g. an invite link redemption, the only
+        # A native Calkit grant (role_id), e.g. an invite redemption, the only
         # access path for GitHub-less collaborators.
-        Project.memberships.any(  # type: ignore
-            ProjectMembership.user_id == current_user.id
+        Project.user_access_records.any(  # type: ignore
+            and_(
+                UserProjectAccess.user_id == current_user.id,
+                UserProjectAccess.role_id.is_not(None),
+            )
         ),
         Project.owner_account.has(  # type: ignore
             and_(
@@ -2834,7 +2837,11 @@ def _fan_out_notifications(
         recipient_ids.add(owner_account.user_id)
     access_rows = session.exec(
         select(UserProjectAccess).where(
-            UserProjectAccess.project_id == project.id
+            UserProjectAccess.project_id == project.id,
+            or_(
+                UserProjectAccess.role_id.is_not(None),
+                UserProjectAccess.github_access.is_not(None),
+            ),
         )
     ).fetchall()
     for row in access_rows:
@@ -4378,11 +4385,11 @@ def put_project_collaborator(
         .where(UserProjectAccess.project_id == project.id)
     ).first()
     if access is not None:
-        access.access = "write"
+        access.github_access = "write"
     else:
         session.add(
             UserProjectAccess(
-                user_id=user.id, project_id=project.id, access="write"
+                user_id=user.id, project_id=project.id, github_access="write"
             )
         )
     session.commit()
@@ -4434,11 +4441,11 @@ def delete_project_collaborator(
         .where(UserProjectAccess.project_id == project.id)
     ).first()
     if access is not None:
-        access.access = None
+        access.github_access = None
     else:
         session.add(
             UserProjectAccess(
-                user_id=user.id, project_id=project.id, access=None
+                user_id=user.id, project_id=project.id, github_access=None
             )
         )
     session.commit()
@@ -4601,22 +4608,25 @@ def post_project_invitation_redemption(
     # a legacy link was created with a higher role. Admins are added directly.
     granted_role_id = min(invitation.role_id, ROLE_IDS["write"])
     existing = session.exec(
-        select(ProjectMembership)
-        .where(ProjectMembership.project_id == project.id)
-        .where(ProjectMembership.user_id == current_user.id)
+        select(UserProjectAccess)
+        .where(UserProjectAccess.project_id == project.id)
+        .where(UserProjectAccess.user_id == current_user.id)
     ).first()
     if existing is None:
         session.add(
-            ProjectMembership(
+            UserProjectAccess(
                 user_id=current_user.id,
                 project_id=project.id,
                 role_id=granted_role_id,
                 invited_by_user_id=invitation.created_by_user_id,
             )
         )
-    elif granted_role_id > existing.role_id:
-        # Upgrade if the invite grants more than they already have.
+    elif existing.role_id is None or granted_role_id > existing.role_id:
+        # Grant, or upgrade if the invite confers more than they already have
+        # (the row may have existed as GitHub-derived access with no role_id).
         existing.role_id = granted_role_id
+        if existing.invited_by_user_id is None:
+            existing.invited_by_user_id = invitation.created_by_user_id
         session.add(existing)
     invitation.use_count += 1
     session.add(invitation)

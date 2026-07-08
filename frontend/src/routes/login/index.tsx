@@ -19,12 +19,17 @@ import {
 import mixpanel from "mixpanel-browser"
 import { useEffect, useRef } from "react"
 import { type SubmitHandler, useForm } from "react-hook-form"
-import { FaGithub } from "react-icons/fa"
+import { FaGithub, FaGoogle } from "react-icons/fa"
 import { z } from "zod"
 
 import Logo from "/assets/images/calkit-no-bg.svg"
 import useAuth, { isLoggedIn } from "../../hooks/useAuth"
 import { popPostLoginRedirect } from "../../lib/auth"
+import {
+  getGoogleAuthUrl,
+  getGoogleRedirectUri,
+  googleAuthStateParam,
+} from "../../lib/google"
 
 const githubAuthParamsSchema = z.object({
   code: z.string().optional(),
@@ -56,7 +61,13 @@ interface EmailLoginForm {
 }
 
 function Login() {
-  const { loginGitHubMutation, loginMutation, error, resetError } = useAuth()
+  const {
+    loginGitHubMutation,
+    loginGoogleMutation,
+    loginMutation,
+    error,
+    resetError,
+  } = useAuth()
   const { code: ghAuthCode, state: ghAuthStateRecv } = Route.useSearch()
   const isMounted = useRef(false)
   const {
@@ -106,6 +117,20 @@ function Login() {
     location.href = `https://github.com/login/oauth/authorize?client_id=${clientId}&state=${state}`
   }
 
+  const handleGoogleLoginClicked = () => {
+    mixpanel.track("Clicked Google login")
+    const params = new URLSearchParams({
+      client_id: String(import.meta.env.VITE_GOOGLE_CLIENT_ID),
+      redirect_uri: getGoogleRedirectUri(),
+      response_type: "code",
+      scope: "openid email profile",
+      state: googleAuthStateParam,
+      access_type: "offline",
+      prompt: "consent",
+    })
+    location.href = `${getGoogleAuthUrl()}?${params.toString()}`
+  }
+
   return (
     <>
       <Container
@@ -123,12 +148,21 @@ function Login() {
           mb={-9}
         />
         <Button
+          width="full"
           variant="primary"
           isLoading={loginGitHubMutation.isPending}
           onClick={handleLoginClicked}
           rightIcon={<FaGithub />}
         >
           Sign in with GitHub
+        </Button>
+        <Button
+          width="full"
+          isLoading={loginGoogleMutation.isPending}
+          onClick={handleGoogleLoginClicked}
+          rightIcon={<FaGoogle />}
+        >
+          Sign in with Google
         </Button>
         <HStack width="full">
           <Divider />

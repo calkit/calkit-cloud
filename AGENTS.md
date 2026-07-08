@@ -97,3 +97,5 @@ out on the system.
 - Function names should typically always start with a verb.
 - Avoid extracting helper functions unless they are used in 3 or more places
   or significantly help testing.
+- Don't use comment separators like `# ---- Section ----` to divide up modules.
+  Group related code with real structure (functions, classes) instead.

@@ -2340,6 +2340,29 @@ export const GitRefSchema = {
   description: "Represents a Git reference (commit, tag, or branch).",
 } as const
 
+export const GitRemoteHeadSchema = {
+  properties: {
+    branch: {
+      type: "string",
+      title: "Branch",
+    },
+    sha: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Sha",
+    },
+  },
+  type: "object",
+  required: ["branch", "sha"],
+  title: "GitRemoteHead",
+} as const
+
 export const HTTPValidationErrorSchema = {
   properties: {
     detail: {
@@ -3920,6 +3943,28 @@ export const ProjectInvitationCreatedSchema = {
       format: "uuid",
       title: "Id",
     },
+    name: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Name",
+    },
+    email: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Email",
+    },
     role_name: {
       type: "string",
       title: "Role Name",
@@ -3967,6 +4012,11 @@ export const ProjectInvitationCreatedSchema = {
     url: {
       type: "string",
       title: "Url",
+    },
+    emailed: {
+      type: "boolean",
+      title: "Emailed",
+      default: false,
     },
   },
   type: "object",
@@ -4017,6 +4067,30 @@ export const ProjectInvitationPostSchema = {
       ],
       title: "Max Uses",
     },
+    name: {
+      anyOf: [
+        {
+          type: "string",
+          maxLength: 255,
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Name",
+    },
+    email: {
+      anyOf: [
+        {
+          type: "string",
+          format: "email",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Email",
+    },
   },
   type: "object",
   title: "ProjectInvitationPost",
@@ -4028,6 +4102,28 @@ export const ProjectInvitationPublicSchema = {
       type: "string",
       format: "uuid",
       title: "Id",
+    },
+    name: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Name",
+    },
+    email: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Email",
     },
     role_name: {
       type: "string",

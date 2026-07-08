@@ -159,7 +159,6 @@ def test_get_app_installation_token(monkeypatch) -> None:
 
     monkeypatch.setattr(app.github.requests, "get", fake_get)
     monkeypatch.setattr(app.github.requests, "post", fake_post)
-
     token = app.github.get_app_installation_token("owner-acct", "my-repo")
     assert token == "ghs_installationtoken"
     assert calls["get_url"].endswith("/repos/owner-acct/my-repo/installation")

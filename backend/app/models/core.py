@@ -214,6 +214,8 @@ class User(UserBase, table=True):
     project_access: list["UserProjectAccess"] = Relationship(
         back_populates="user",
         cascade_delete=True,
+        # Disambiguate from the invited_by_user_id FK on UserProjectAccess.
+        sa_relationship_kwargs={"foreign_keys": "[UserProjectAccess.user_id]"},
     )
     project_comments: list["ProjectComment"] = Relationship(
         back_populates="user",
@@ -544,10 +546,7 @@ class Project(ProjectBase, table=True):
     user_access_records: list["UserProjectAccess"] = Relationship(
         back_populates="project", cascade_delete=True
     )
-    # Native (non-GitHub) project membership and shareable invite links.
-    memberships: list["ProjectMembership"] = Relationship(
-        back_populates="project", cascade_delete=True
-    )
+    # Shareable invite links that grant access when redeemed.
     invitations: list["ProjectInvitation"] = Relationship(
         back_populates="project", cascade_delete=True
     )
@@ -653,33 +652,29 @@ class ProjectPost(ProjectBase):
 
 
 class UserProjectAccess(SQLModel, table=True):
-    user_id: uuid.UUID = Field(foreign_key="user.id", primary_key=True)
-    project_id: uuid.UUID = Field(foreign_key="project.id", primary_key=True)
-    access: str | None = Field(max_length=32)
-    created: datetime = Field(default_factory=utcnow)
-    updated: datetime = Field(
-        default_factory=utcnow,
-        sa_column_kwargs=dict(
-            server_onupdate=sqlalchemy.func.now(),
-            server_default=sqlalchemy.func.now(),
-        ),
-    )
-    # Relationships
-    user: User = Relationship()
-    project: Project = Relationship(back_populates="user_access_records")
+    """A user's access to a project.
 
-
-class ProjectMembership(SQLModel, table=True):
-    """Native (non-GitHub) membership of a user in a project.
-
-    Resolved before GitHub-derived access in ``get_project``, and the only
-    access path for GitHub-less collaborators.
+    Unifies native Calkit membership (granted via invite links; ``role_id``
+    set) and access derived from the project's GitHub repo (``github_access``,
+    the permission GitHub reports, cached here). A row may carry either or both:
+    ``role_id`` is the effective Calkit level and takes precedence, while
+    ``github_access`` is retained to surface drift between GitHub and Calkit. A
+    row with both null is a cached "GitHub grants no access" result.
     """
 
     user_id: uuid.UUID = Field(foreign_key="user.id", primary_key=True)
     project_id: uuid.UUID = Field(foreign_key="project.id", primary_key=True)
-    # Membership cannot grant ownership; capped at admin by the API.
-    role_id: int = Field(ge=min(ROLE_IDS.values()), le=max(ROLE_IDS.values()))
+    # Calkit-native granted level (e.g. from an invite). None when access is
+    # only GitHub-derived. Capped at admin by the API (never owner).
+    role_id: int | None = Field(
+        default=None, ge=min(ROLE_IDS.values()), le=max(ROLE_IDS.values())
+    )
+    # The permission GitHub reports for this user on the repo ("read"/"write"/
+    # "admin"), or None if GitHub grants none. Cache and drift signal.
+    github_access: str | None = Field(default=None, max_length=32)
+    invited_by_user_id: uuid.UUID | None = Field(
+        default=None, foreign_key="user.id"
+    )
     created: datetime = Field(default_factory=utcnow)
     updated: datetime = Field(
         default_factory=utcnow,
@@ -688,16 +683,17 @@ class ProjectMembership(SQLModel, table=True):
             server_default=sqlalchemy.func.now(),
         ),
     )
-    invited_by_user_id: uuid.UUID | None = Field(
-        default=None, foreign_key="user.id"
+    # Relationships (user_id disambiguated from the invited_by_user_id FK)
+    user: User = Relationship(
+        back_populates="project_access",
+        sa_relationship_kwargs={"foreign_keys": "[UserProjectAccess.user_id]"},
     )
-    # Relationships (no User relationship: two user FKs would be ambiguous)
-    project: Project = Relationship(back_populates="memberships")
+    project: Project = Relationship(back_populates="user_access_records")
 
     @computed_field
     @property
-    def role_name(self) -> str:
-        return ROLE_NAMES[self.role_id]
+    def role_name(self) -> str | None:
+        return ROLE_NAMES[self.role_id] if self.role_id is not None else None
 
 
 class ProjectInvitation(SQLModel, table=True):
