@@ -1,5 +1,6 @@
 """Tests for app.git."""
 
+import json
 from pathlib import Path
 
 import git
@@ -18,6 +19,10 @@ class _FakeResp:
 
     def json(self) -> dict:
         return self._payload
+
+    @property
+    def text(self) -> str:
+        return json.dumps(self._payload)
 
 
 def _init_repo(repo_dir: Path) -> tuple[git.Repo, str]:

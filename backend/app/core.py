@@ -84,7 +84,7 @@ INVALID_ACCOUNT_NAMES = [
 ]
 
 
-def utcnow():
+def utcnow() -> datetime:
     """Return a timezone-naive timestamp for now in UTC."""
     return datetime.now(UTC).replace(tzinfo=None)
 
