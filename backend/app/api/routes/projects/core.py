@@ -2515,12 +2515,15 @@ def post_project_comment_reply(
     current_user: CurrentUser,
     session: SessionDep,
 ) -> ProjectComment:
+    # Requires write (like posting a top-level comment): a reply can be
+    # mirrored to the project's GitHub issue via the App installation token, so
+    # a read-only collaborator must not be able to trigger it.
     project = app.projects.get_project(
         session=session,
         owner_name=owner_name,
         project_name=project_name,
         current_user=current_user,
-        min_access_level="read",
+        min_access_level="write",
     )
     comment = session.get(ProjectComment, comment_id)
     if comment is None or comment.project_id != project.id:

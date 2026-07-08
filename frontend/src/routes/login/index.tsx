@@ -26,9 +26,9 @@ import Logo from "/assets/images/calkit-no-bg.svg"
 import useAuth, { isLoggedIn } from "../../hooks/useAuth"
 import { popPostLoginRedirect } from "../../lib/auth"
 import {
+  createGoogleOAuthState,
   getGoogleAuthUrl,
   getGoogleRedirectUri,
-  googleAuthStateParam,
 } from "../../lib/google"
 
 const githubAuthParamsSchema = z.object({
@@ -124,7 +124,7 @@ function Login() {
       redirect_uri: getGoogleRedirectUri(),
       response_type: "code",
       scope: "openid email profile",
-      state: googleAuthStateParam,
+      state: createGoogleOAuthState(),
       access_type: "offline",
       prompt: "consent",
     })

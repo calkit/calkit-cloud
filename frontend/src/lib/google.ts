@@ -1,6 +1,26 @@
 // Functionality for working with Google OAuth
 
-export const googleAuthStateParam = "google-oauth-state" // TODO: Should be random
+const GOOGLE_OAUTH_STATE_KEY = "google_oauth_state"
+
+// Generate a fresh, unguessable OAuth `state`, persisting it in sessionStorage
+// so the /google-auth callback can confirm the response belongs to a flow this
+// browser started (CSRF protection). Returns the value to send to Google.
+export const createGoogleOAuthState = (): string => {
+  const bytes = new Uint8Array(16)
+  crypto.getRandomValues(bytes)
+  const state = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join(
+    "",
+  )
+  sessionStorage.setItem(GOOGLE_OAUTH_STATE_KEY, state)
+  return state
+}
+
+// Read and clear the state stored by createGoogleOAuthState. Single-use.
+export const consumeGoogleOAuthState = (): string | null => {
+  const state = sessionStorage.getItem(GOOGLE_OAUTH_STATE_KEY)
+  sessionStorage.removeItem(GOOGLE_OAUTH_STATE_KEY)
+  return state
+}
 
 // Google OAuth authorization endpoint
 export const getGoogleAuthUrl = () => {

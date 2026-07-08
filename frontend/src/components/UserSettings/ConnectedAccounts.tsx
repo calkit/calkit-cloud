@@ -22,7 +22,7 @@ import {
   getZenodoAuthUrl,
 } from "../../lib/zenodo"
 import {
-  googleAuthStateParam,
+  createGoogleOAuthState,
   getGoogleRedirectUri,
   getGoogleAuthUrl,
 } from "../../lib/google"
@@ -56,7 +56,7 @@ function ConnectedAccounts() {
     const scope = "https://www.googleapis.com/auth/drive.file"
     location.href =
       `${getGoogleAuthUrl()}?client_id=${googleClientId}` +
-      `&state=${googleAuthStateParam}` +
+      `&state=${createGoogleOAuthState()}` +
       `&scope=${encodeURIComponent(scope)}` +
       "&access_type=offline" +
       "&prompt=consent" +

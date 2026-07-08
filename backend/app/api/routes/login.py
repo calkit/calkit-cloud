@@ -516,8 +516,8 @@ def login_with_github_oidc(
             logger.info(f"Codespace name: {codespace_name}")
         if not repository:
             raise HTTPException(400, "Repository claim not found in token")
-        # Use actor as the GitHub username (person who triggered the workflow)
-        # This works for both user-owned and org-owned repositories
+        # The person who triggered the workflow run. Works for both user-owned
+        # and org-owned repositories.
         github_username = claims.get("actor")
         if not github_username:
             raise HTTPException(400, "No actor in token")
@@ -536,6 +536,29 @@ def login_with_github_oidc(
             raise HTTPException(
                 404,
                 f"No user associated with GitHub account: {github_username}",
+            )
+        # Bind the actor to the repo the token was minted in. ``actor`` is
+        # merely whoever triggered the run, so a workflow in *someone else's*
+        # repo (e.g. an issue_comment or watch trigger, which run with
+        # actor=whoever-interacted) could otherwise mint a token carrying a
+        # victim's actor and be replayed here to log in as them. Require the
+        # repository owner to be the actor's own namespace or a Calkit org they
+        # belong to, so the run had to occur in a repo the user controls.
+        owner = (repository_owner or "").lower()
+        allowed_owners = {github_username.lower()}
+        for membership in user.org_memberships:
+            org_github_name = membership.org.account.github_name
+            if org_github_name:
+                allowed_owners.add(org_github_name.lower())
+        if owner not in allowed_owners:
+            logger.warning(
+                f"OIDC actor {github_username} is not authorized for "
+                f"repository owner {repository_owner}"
+            )
+            raise HTTPException(
+                403,
+                "The OIDC token's repository owner does not match the "
+                "authenticated GitHub user or an organization they belong to.",
             )
         if not user.is_active:
             logger.info(f"User {user.email} is not active")

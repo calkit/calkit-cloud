@@ -5,7 +5,7 @@ import { useEffect, useRef } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 
 import { UsersService, type ApiError } from "../client"
-import { getGoogleRedirectUri, googleAuthStateParam } from "../lib/google"
+import { consumeGoogleOAuthState, getGoogleRedirectUri } from "../lib/google"
 import useAuth, { isLoggedIn } from "../hooks/useAuth"
 import useCustomToast from "../hooks/useCustomToast"
 import { handleError } from "../lib/errors"
@@ -60,7 +60,15 @@ function GoogleAuth() {
   useEffect(() => {
     if (!isMounted.current) {
       isMounted.current = true
-      if (googleAuthCode && googleAuthStateRecv === googleAuthStateParam) {
+      // Confirm this response belongs to a flow this browser started: the
+      // returned state must match the single-use value we stored (CSRF
+      // protection). A missing/mismatched state is rejected.
+      const expectedState = consumeGoogleOAuthState()
+      if (
+        googleAuthCode &&
+        expectedState &&
+        googleAuthStateRecv === expectedState
+      ) {
         try {
           if (loggedIn) {
             googleAuthMutation.mutate(googleAuthCode)
@@ -73,13 +81,14 @@ function GoogleAuth() {
         } catch {
           // Error should be handled in the mutation
         }
-      } else if (
-        googleAuthCode &&
-        googleAuthStateRecv !== googleAuthStateParam
-      ) {
-        console.error(
-          `Received state parameter does not match sent (${googleAuthStateParam})`,
+      } else if (googleAuthCode) {
+        console.error("Google OAuth state mismatch — possible CSRF attempt")
+        showToast(
+          "Sign-in failed",
+          "Could not verify the Google sign-in request. Please try again.",
+          "error",
         )
+        navigate({ to: "/login" })
       }
     }
   }, [])
