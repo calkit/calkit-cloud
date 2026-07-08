@@ -30,6 +30,7 @@ import {
 import { useRef, useState } from "react"
 import { FaCodeBranch, FaPlus, FaSync } from "react-icons/fa"
 import { FiFile } from "react-icons/fi"
+import { MdEdit } from "react-icons/md"
 import { SiOverleaf } from "react-icons/si"
 import { z } from "zod"
 
@@ -95,14 +96,6 @@ function PubInfo({
   // and restorable by link, like the compare modal.
   const { editor_open: editorOpen } = Route.useSearch()
   const navigate = useNavigate({ from: Route.fullPath })
-  const openEditor = () =>
-    navigate({
-      search: (prev) => ({
-        ...prev,
-        path: publication.path,
-        editor_open: true,
-      }),
-    })
   const closeEditor = () =>
     navigate({ search: (prev) => ({ ...prev, editor_open: undefined }) })
   // Derive the LaTeX source path from the publication output path
@@ -146,28 +139,15 @@ function PubInfo({
       <Heading size="sm" mb={2}>
         Info
       </Heading>
-      {userHasWriteAccess && texPath && (
-        <>
-          <Button
-            size="sm"
-            variant="primary"
-            mb={3}
-            width="full"
-            onClick={openEditor}
-          >
-            Edit LaTeX
-          </Button>
-          {editorOpen && (
-            <LatexEditor
-              isOpen={Boolean(editorOpen)}
-              onClose={closeEditor}
-              ownerName={ownerName}
-              projectName={projectName}
-              texPath={texPath}
-              deps={publication.stage_info?.deps ?? undefined}
-            />
-          )}
-        </>
+      {userHasWriteAccess && texPath && editorOpen && (
+        <LatexEditor
+          isOpen={Boolean(editorOpen)}
+          onClose={closeEditor}
+          ownerName={ownerName}
+          projectName={projectName}
+          texPath={texPath}
+          deps={publication.stage_info?.deps ?? undefined}
+        />
       )}
       <Text fontSize="sm" mb={1}>
         <Text as="span" fontWeight="semibold">
@@ -316,6 +296,24 @@ function Publications() {
     publicationsRequest.data?.[0]
 
   const isPdf = selectedPub?.path?.endsWith(".pdf") ?? false
+  // Derive the LaTeX source path from the output path (e.g. paper.pdf ->
+  // paper.tex), matching the heuristic used by the editor in the info panel.
+  const texPath = selectedPub?.path
+    ? selectedPub.path.replace(/\.[^/.]+$/, ".tex")
+    : null
+  const editLatexAction =
+    userHasWriteAccess && texPath ? (
+      <Button
+        size="xs"
+        variant="ghost"
+        onClick={() =>
+          navigate({ search: (prev) => ({ ...prev, editor_open: true }) })
+        }
+      >
+        <Icon as={MdEdit} mr={1} />
+        Edit LaTeX
+      </Button>
+    ) : undefined
 
   const commentsQuery = useQuery({
     queryKey: [
@@ -494,11 +492,15 @@ function Publications() {
                       gitRef={ref}
                       showResolved={showResolved}
                       externalScrollRef={pdfScrollRef}
+                      toolbarAction={editLatexAction}
                     />
                   </Box>
                 ) : (
                   <Box height="82vh" borderRadius="lg" overflow="hidden">
-                    <PublicationView publication={selectedPub} />
+                    <PublicationView
+                      publication={selectedPub}
+                      toolbarAction={editLatexAction}
+                    />
                   </Box>
                 )}
               </>

@@ -26,6 +26,7 @@ import mixpanel from "mixpanel-browser"
 import type { PDFDocumentProxy } from "pdfjs-dist"
 import {
   type MutableRefObject,
+  type ReactNode,
   type RefObject,
   useCallback,
   useEffect,
@@ -209,6 +210,9 @@ interface PdfDocumentViewerProps {
   // Initial zoom (a pdf.js scale value, e.g. "auto", "page-width",
   // "page-fit", or a number). Defaults to "auto".
   defaultScale?: string
+  // Optional element rendered at the start of the toolbar's right-aligned
+  // action group, e.g. an "Edit LaTeX" button for publications.
+  toolbarAction?: ReactNode
 }
 
 const highlightSx = {
@@ -231,6 +235,7 @@ export default function PdfDocumentViewer({
   pagedNav = false,
   source = "pdf",
   defaultScale = "auto",
+  toolbarAction,
 }: PdfDocumentViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   // Gate rendering until the next animation frame. In React StrictMode dev,
@@ -290,6 +295,7 @@ export default function PdfDocumentViewer({
               pagedNav={pagedNav}
               source={source}
               defaultScale={defaultScale}
+              toolbarAction={toolbarAction}
             />
           )}
         </PdfLoader>
@@ -318,6 +324,7 @@ function PdfViewerInner({
   pagedNav = false,
   source = "pdf",
   defaultScale = "auto",
+  toolbarAction,
 }: PdfViewerInnerProps) {
   const toolbarBg = useColorModeValue("ui.secondary", "ui.darkSlate")
   const borderColor = useColorModeValue("gray.200", "gray.600")
@@ -1047,6 +1054,7 @@ function PdfViewerInner({
         )}
 
         <Flex align="center" gap={0.5} ml="auto">
+          {toolbarAction}
           <Tooltip label="Search">
             <IconButton
               aria-label="Search"

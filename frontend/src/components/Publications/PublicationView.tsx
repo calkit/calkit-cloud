@@ -1,13 +1,17 @@
 import { Alert, AlertIcon, Image } from "@chakra-ui/react"
+import type { ReactNode } from "react"
 
 import type { Publication } from "../../client"
 import PdfDocumentViewer from "../Common/PdfDocumentViewer"
 
 interface PubViewProps {
   publication: Publication
+  // Optional element rendered in the PDF viewer toolbar, e.g. an "Edit LaTeX"
+  // button. Only shown for PDF publications (the only type with a toolbar).
+  toolbarAction?: ReactNode
 }
 
-function PublicationView({ publication }: PubViewProps) {
+function PublicationView({ publication, toolbarAction }: PubViewProps) {
   let contentView = <>Not set</>
   if (
     publication.path.endsWith(".pdf") &&
@@ -22,6 +26,7 @@ function PublicationView({ publication }: PubViewProps) {
         }
         source="showcase"
         defaultScale="page-width"
+        toolbarAction={toolbarAction}
       />
     )
   } else if (

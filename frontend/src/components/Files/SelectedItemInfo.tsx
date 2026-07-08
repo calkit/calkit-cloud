@@ -208,7 +208,7 @@ function SelectedItemInfo({
         ""
       )}
       {onEditLatex ? (
-        <Button size="sm" mt={2} variant="primary" onClick={onEditLatex}>
+        <Button size="sm" mt={2} onClick={onEditLatex}>
           <Icon as={MdEdit} mr={1} />
           Edit LaTeX
         </Button>

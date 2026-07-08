@@ -36,26 +36,30 @@ function ProjectShowcase({
               {"figure" in item ? (
                 <FigureView figure={item.figure} />
               ) : "publication" in item ? (
-                <Box height="600px" position="relative">
-                  {onEditLatex ? (
-                    <Button
-                      size="xs"
-                      position="absolute"
-                      top={1}
-                      right={1}
-                      zIndex={1}
-                      onClick={() =>
-                        onEditLatex(
-                          item.publication.path.replace(/\.[^/.]+$/, ".tex"),
-                          item.publication.stage_info?.deps,
-                        )
-                      }
-                    >
-                      <Icon as={MdEdit} mr={1} />
-                      Edit LaTeX
-                    </Button>
-                  ) : null}
-                  <PublicationView publication={item.publication} />
+                <Box height="600px">
+                  <PublicationView
+                    publication={item.publication}
+                    toolbarAction={
+                      onEditLatex ? (
+                        <Button
+                          size="xs"
+                          variant="ghost"
+                          onClick={() =>
+                            onEditLatex(
+                              item.publication.path.replace(
+                                /\.[^/.]+$/,
+                                ".tex",
+                              ),
+                              item.publication.stage_info?.deps,
+                            )
+                          }
+                        >
+                          <Icon as={MdEdit} mr={1} />
+                          Edit LaTeX
+                        </Button>
+                      ) : null
+                    }
+                  />
                 </Box>
               ) : "text" in item ? (
                 <Text>{item.text}</Text>
