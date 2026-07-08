@@ -1,11 +1,17 @@
-"""Add project membership and invitations
+"""GitHub-less membership and invitations
 
-Native (non-GitHub) project membership plus shareable invite links, so users
-without GitHub accounts can be granted collaborator access.
+Native (non-GitHub) project membership plus shareable, optionally labeled and
+emailed invite links, so users without GitHub accounts can be granted
+collaborator access. Also makes ``account.github_name`` nullable for
+email/Google signups (project owners still need one, enforced in the app layer).
 
-Revision ID: b7e2f4a1c9d8
-Revises: f3a9c1d2b4e6
-Create Date: 2026-06-17 00:00:00.000000
+Squashes the editor branch's migrations (make github_name nullable, add
+membership + invitations, add invitation name/email, and the releases/membership
+merge) into one, chained after the releases feature.
+
+Revision ID: d4e5f6a7b8c9
+Revises: f3a9c1b7e240
+Create Date: 2026-07-08 00:00:00.000000
 
 """
 
@@ -15,13 +21,16 @@ import sqlmodel.sql.sqltypes
 
 
 # revision identifiers, used by Alembic.
-revision = "b7e2f4a1c9d8"
-down_revision = "f3a9c1d2b4e6"
+revision = "d4e5f6a7b8c9"
+down_revision = "f3a9c1b7e240"
 branch_labels = None
 depends_on = None
 
 
 def upgrade():
+    op.alter_column(
+        "account", "github_name", existing_type=sa.VARCHAR(), nullable=True
+    )
     op.create_table(
         "projectmembership",
         sa.Column("user_id", sa.Uuid(), nullable=False),
@@ -62,6 +71,16 @@ def upgrade():
         sa.Column("max_uses", sa.Integer(), nullable=True),
         sa.Column("use_count", sa.Integer(), nullable=False),
         sa.Column("revoked", sa.Boolean(), nullable=False),
+        sa.Column(
+            "name",
+            sqlmodel.sql.sqltypes.AutoString(length=255),
+            nullable=True,
+        ),
+        sa.Column(
+            "email",
+            sqlmodel.sql.sqltypes.AutoString(length=255),
+            nullable=True,
+        ),
         sa.ForeignKeyConstraint(
             ["project_id"], ["project.id"], ondelete="CASCADE"
         ),
@@ -85,3 +104,6 @@ def downgrade():
     )
     op.drop_table("projectinvitation")
     op.drop_table("projectmembership")
+    op.alter_column(
+        "account", "github_name", existing_type=sa.VARCHAR(), nullable=False
+    )
