@@ -172,55 +172,61 @@ def get_repo(
                     session=session, user=user
                 )
         else:
-            # GitHub-less member: access was authorized natively upstream
-            # (e.g. via an invite). Operate via the GitHub App installation
-            # token for the repo; commits are still authored as this user.
-            #
-            # Defense in depth: the App token is repo-scoped and write-capable,
-            # so mint it ONLY for a user who actually has native access to this
-            # project. Callers already gate on get_project, but this fails
-            # closed if one ever reaches get_repo without authorizing first.
+            # GitHub-less member. Native access (role_id, e.g. from an invite)
+            # is what lets us mint the repo-scoped, write-capable App
+            # installation token; a public repo is still readable
+            # unauthenticated without it. Requiring native access to mint is
+            # defense in depth: callers already gate on get_project, but this
+            # fails closed if one ever reaches get_repo without authorizing.
             has_native_access = session.exec(
                 select(UserProjectAccess.role_id)
                 .where(UserProjectAccess.project_id == project.id)
                 .where(UserProjectAccess.user_id == user.id)
                 .where(UserProjectAccess.role_id.is_not(None))  # type: ignore
             ).first()
-            if has_native_access is None:
+            if has_native_access is not None:
+                # Native collaborator: use the App token (needed for private
+                # repos and pushes). Commits are still authored as this user.
+                logger.info(
+                    f"Getting GitHub App installation token for {user.email}"
+                )
+                try:
+                    with _timed("get-app-installation-token", user=user.email):
+                        access_token = github.get_app_installation_token(
+                            owner_name, project_name
+                        )
+                except (github.GitHubAppNotConfigured, HTTPException) as e:
+                    # A public repo can still be read/cloned unauthenticated,
+                    # so fall back regardless of why the token was unavailable.
+                    if project.is_public:
+                        logger.warning(
+                            "GitHub App token unavailable; using "
+                            "unauthenticated access to public repo "
+                            f"{owner_name}/{project_name}: {e}"
+                        )
+                        access_token = None
+                    elif isinstance(e, github.GitHubAppNotConfigured):
+                        # No App key at all (e.g. local dev without it set up).
+                        raise HTTPException(
+                            502,
+                            "The Calkit GitHub App is not configured, so this "
+                            "private project can't be accessed for a user "
+                            "without a linked GitHub account.",
+                        )
+                    else:
+                        # App configured but minting failed (bad/rotated key,
+                        # App not installed on the repo, GitHub outage, ...).
+                        # Surface the real error rather than masking it.
+                        raise
+            elif project.is_public:
+                # No native access, but a public repo is readable
+                # unauthenticated -- no App token needed.
+                access_token = None
+            else:
+                # No access to a private project.
                 raise HTTPException(
                     403, "You do not have access to this project."
                 )
-            logger.info(
-                f"Getting GitHub App installation token for {user.email}"
-            )
-            try:
-                with _timed("get-app-installation-token", user=user.email):
-                    access_token = github.get_app_installation_token(
-                        owner_name, project_name
-                    )
-            except (github.GitHubAppNotConfigured, HTTPException) as e:
-                # A public repo can still be read/cloned unauthenticated, so
-                # fall back regardless of why the App token was unavailable.
-                if project.is_public:
-                    logger.warning(
-                        "GitHub App token unavailable; using unauthenticated "
-                        f"access to public repo {owner_name}/{project_name}: {e}"
-                    )
-                    access_token = None
-                elif isinstance(e, github.GitHubAppNotConfigured):
-                    # No App key at all (e.g. local dev without the App set up).
-                    raise HTTPException(
-                        502,
-                        "The Calkit GitHub App is not configured, so this "
-                        "private project can't be accessed for a user without "
-                        "a linked GitHub account.",
-                    )
-                else:
-                    # The App is configured but minting the installation token
-                    # failed (bad/rotated key, App not installed on the repo,
-                    # GitHub outage, ...). Surface the real error rather than
-                    # masking it as a config problem.
-                    raise
     # Plain URL with no embedded token -- credentials handled in helper
     git_plain_url = project.git_repo_url
     if not git_plain_url.endswith(".git"):

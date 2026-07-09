@@ -190,14 +190,16 @@ def get_project(
         if project.owner == current_user:
             project.current_user_access = "owner"
         elif isinstance(project.owner, Org):
-            # Only give access to org owners and admins for now
-            # TODO: Allow more fine-grained access
+            # Org admins/owners get full access; plain members get read. This
+            # matches the org condition in the project search/listing queries,
+            # so a member never sees a project they then can't open.
             for org_membership in current_user.org_memberships:
-                if (
-                    org_membership.org_id == project.owner.account.org_id
-                    and org_membership.role_name in ["admin", "owner"]
-                ):
-                    project.current_user_access = "owner"
+                if org_membership.org_id == project.owner.account.org_id:
+                    project.current_user_access = (
+                        "owner"
+                        if org_membership.role_name in ["admin", "owner"]
+                        else "read"
+                    )
                     break
             if project.current_user_access is None and project.is_public:
                 project.current_user_access = "read"
