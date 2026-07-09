@@ -112,7 +112,8 @@ export type Body_projects_put_project_contents = {
 
 export type Collaborator = {
   user_id?: string | null
-  github_username: string
+  github_username?: string | null
+  account_name?: string | null
   full_name?: string | null
   email?: string | null
   access_level: string
@@ -617,6 +618,10 @@ export type LabelDatasetPost = {
 
 export type Message = {
   message: string
+}
+
+export type NativeCollaboratorPost = {
+  email: string
 }
 
 export type NewPassword = {
@@ -2206,6 +2211,22 @@ export type DeleteProjectCollaboratorData = {
 }
 
 export type DeleteProjectCollaboratorResponse = Message
+
+export type PostProjectCollaboratorByEmailData = {
+  ownerName: string
+  projectName: string
+  requestBody: NativeCollaboratorPost
+}
+
+export type PostProjectCollaboratorByEmailResponse = Message
+
+export type DeleteProjectNativeCollaboratorData = {
+  ownerName: string
+  projectName: string
+  userId: string
+}
+
+export type DeleteProjectNativeCollaboratorResponse = Message
 
 export type PostProjectInvitationData = {
   ownerName: string

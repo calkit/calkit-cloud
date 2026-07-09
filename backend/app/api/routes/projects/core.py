@@ -117,7 +117,7 @@ from app.models import (
     UserOrgMembership,
     UserProjectAccess,
 )
-from app.models.core import ROLE_IDS
+from app.models.core import ROLE_IDS, ROLE_NAMES
 from app.models.projects import (
     Showcase,
     ShowcaseFigure,
@@ -4311,7 +4311,10 @@ def get_project_pipeline(
 
 class Collaborator(BaseModel):
     user_id: uuid.UUID | None = None
-    github_username: str
+    # None for native (GitHub-less) collaborators added by email.
+    github_username: str | None = None
+    # The Calkit account name, shown when there's no GitHub username.
+    account_name: str | None = None
     full_name: str | None = None
     email: str | None = None
     access_level: str
@@ -4333,32 +4336,68 @@ def get_project_collaborators(
     )
     # TODO: GitHub requires higher permissions to get collaborators
     # Maybe for read-only people we should return contributors?
-    token = users.get_github_token(session=session, user=current_user)
-    github_repo = project.github_repo
-    if github_repo is None:
-        raise HTTPException(501)
-    url = f"https://api.github.com/repos/{github_repo}/collaborators"
-    resp = requests.get(url, headers={"Authorization": f"Bearer {token}"})
-    if not resp.status_code == 200:
-        raise HTTPException(resp.status_code, resp.json()["message"])
-    resp_json = resp.json()
     collabs = []
-    for gh_user in resp_json:
-        # TODO: Organization handling
-        if gh_user["type"] != "User":
+    listed_user_ids: set[uuid.UUID] = set()
+    github_repo = project.github_repo
+    # GitHub repo collaborators (best-effort: a GitHub-less viewer uses the App
+    # token; if listing fails we still return native members below rather than
+    # erroring the whole page).
+    token = (
+        _github_token_for_repo(session, current_user, github_repo)
+        if github_repo
+        else None
+    )
+    if github_repo and token:
+        url = f"https://api.github.com/repos/{github_repo}/collaborators"
+        resp = requests.get(url, headers={"Authorization": f"Bearer {token}"})
+        if resp.status_code == 200:
+            for gh_user in resp.json():
+                # TODO: Organization handling
+                if gh_user["type"] != "User":
+                    continue
+                user = session.exec(
+                    select(User).where(
+                        User.github_username == gh_user["login"]
+                    )
+                ).first()
+                obj = dict(
+                    github_username=gh_user["login"],
+                    access_level=gh_user["role_name"],
+                )
+                if user is not None:
+                    obj["email"] = user.email
+                    obj["full_name"] = user.full_name
+                    obj["account_name"] = user.account.name
+                    obj["user_id"] = user.id
+                    listed_user_ids.add(user.id)
+                collabs.append(Collaborator.model_validate(obj))
+        else:
+            logger.warning(
+                f"Could not list GitHub collaborators for {github_repo}: "
+                f"{resp.status_code}"
+            )
+    # Native (GitHub-less) members granted via an invite or a direct add.
+    native = session.exec(
+        select(User, UserProjectAccess.role_id)
+        .join(UserProjectAccess, UserProjectAccess.user_id == User.id)  # type: ignore[arg-type]
+        .where(UserProjectAccess.project_id == project.id)
+        .where(UserProjectAccess.role_id.is_not(None))  # type: ignore
+    ).all()
+    for user, role_id in native:
+        if user.id in listed_user_ids:
             continue
-        user = session.exec(
-            select(User).where(User.github_username == gh_user["login"])
-        ).first()
-        obj = dict(
-            github_username=gh_user["login"],
-            access_level=gh_user["role_name"],
+        collabs.append(
+            Collaborator.model_validate(
+                dict(
+                    user_id=user.id,
+                    github_username=user.github_username,
+                    account_name=user.account.name,
+                    full_name=user.full_name,
+                    email=user.email,
+                    access_level=ROLE_NAMES[role_id],
+                )
+            )
         )
-        if user is not None:
-            obj["email"] = user.email
-            obj["full_name"] = user.full_name
-            obj["user_id"] = user.id
-        collabs.append(Collaborator.model_validate(obj))
     return collabs
 
 
@@ -4470,6 +4509,96 @@ def delete_project_collaborator(
                 user_id=user.id, project_id=project.id, github_access=None
             )
         )
+    session.commit()
+    return Message(message="Success")
+
+
+class NativeCollaboratorPost(BaseModel):
+    email: str
+
+
+@router.post("/projects/{owner_name}/{project_name}/collaborators/by-email")
+def post_project_collaborator_by_email(
+    owner_name: str,
+    project_name: str,
+    req: NativeCollaboratorPost,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> Message:
+    """Grant native (non-GitHub) write access to an existing Calkit user by
+    email -- how a GitHub-less collaborator is added. For people who don't have
+    a Calkit account yet, use an invite link instead.
+    """
+    project = app.projects.get_project(
+        owner_name=owner_name,
+        project_name=project_name,
+        session=session,
+        current_user=current_user,
+        min_access_level="admin",
+    )
+    user = users.get_user_by_email(session=session, email=req.email)
+    if user is None:
+        raise HTTPException(
+            404,
+            "No Calkit user has that email. Send them an invite link to join.",
+        )
+    if user.id == project.owner_account.user_id:
+        raise HTTPException(400, "That user already owns this project.")
+    write_role = ROLE_IDS["write"]
+    existing = session.exec(
+        select(UserProjectAccess)
+        .where(UserProjectAccess.project_id == project.id)
+        .where(UserProjectAccess.user_id == user.id)
+    ).first()
+    if existing is None:
+        session.add(
+            UserProjectAccess(
+                user_id=user.id,
+                project_id=project.id,
+                role_id=write_role,
+                invited_by_user_id=current_user.id,
+            )
+        )
+    elif existing.role_id is None or existing.role_id < write_role:
+        existing.role_id = write_role
+        if existing.invited_by_user_id is None:
+            existing.invited_by_user_id = current_user.id
+        session.add(existing)
+    session.commit()
+    return Message(message="Success")
+
+
+@router.delete(
+    "/projects/{owner_name}/{project_name}/collaborators/by-user/{user_id}"
+)
+def delete_project_native_collaborator(
+    owner_name: str,
+    project_name: str,
+    user_id: uuid.UUID,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> Message:
+    """Revoke a native (non-GitHub) collaborator's access. GitHub collaborators
+    are removed via the github-username endpoint instead.
+    """
+    project = app.projects.get_project(
+        owner_name=owner_name,
+        project_name=project_name,
+        session=session,
+        current_user=current_user,
+        min_access_level="admin",
+    )
+    row = session.exec(
+        select(UserProjectAccess)
+        .where(UserProjectAccess.project_id == project.id)
+        .where(UserProjectAccess.user_id == user_id)
+    ).first()
+    if row is None or row.role_id is None:
+        raise HTTPException(404, "Collaborator not found")
+    # Drop the native grant; any cached GitHub-derived access is left as-is.
+    row.role_id = None
+    row.invited_by_user_id = None
+    session.add(row)
     session.commit()
     return Message(message="Success")
 

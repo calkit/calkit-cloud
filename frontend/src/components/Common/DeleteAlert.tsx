@@ -21,6 +21,9 @@ interface DeleteProps {
   onClose: () => void
   projectOwner?: string
   projectName?: string
+  // For a GitHub-less (native) collaborator, whose removal is keyed by user id
+  // rather than a GitHub username.
+  userId?: string | null
 }
 
 const Delete = ({
@@ -30,6 +33,7 @@ const Delete = ({
   onClose,
   projectOwner,
   projectName,
+  userId,
 }: DeleteProps) => {
   const queryClient = useQueryClient()
   const showToast = useCustomToast()
@@ -47,11 +51,23 @@ const Delete = ({
     } else if (type === "User") {
       await UsersService.deleteUser({ userId: id })
     } else if (type === "Collaborator" && projectOwner && projectName) {
-      await ProjectsService.deleteProjectCollaborator({
-        githubUsername: id,
-        ownerName: projectOwner,
-        projectName: projectName,
-      })
+      // GitHub collaborators are keyed by username; GitHub-less (native)
+      // members by user id.
+      if (id) {
+        await ProjectsService.deleteProjectCollaborator({
+          githubUsername: id,
+          ownerName: projectOwner,
+          projectName: projectName,
+        })
+      } else if (userId) {
+        await ProjectsService.deleteProjectNativeCollaborator({
+          userId: userId,
+          ownerName: projectOwner,
+          projectName: projectName,
+        })
+      } else {
+        throw new Error("No collaborator identifier")
+      }
     } else {
       throw new Error(`Unexpected type: ${type}`)
     }

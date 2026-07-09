@@ -2,6 +2,7 @@ import {
   Button,
   FormControl,
   FormErrorMessage,
+  FormHelperText,
   FormLabel,
   Input,
   Modal,
@@ -27,7 +28,8 @@ interface AddCollabProps {
 }
 
 interface AddCollabForm {
-  github_username: string
+  // A GitHub username, or an email to add a GitHub-less collaborator.
+  identifier: string
 }
 
 const AddCollaborator = ({ isOpen, onClose }: AddCollabProps) => {
@@ -44,17 +46,28 @@ const AddCollaborator = ({ isOpen, onClose }: AddCollabProps) => {
     mode: "onBlur",
     criteriaMode: "all",
     defaultValues: {
-      github_username: "",
+      identifier: "",
     },
   })
 
   const mutation = useMutation({
-    mutationFn: (data: AddCollabForm) =>
-      ProjectsService.putProjectCollaborator({
-        githubUsername: data.github_username,
+    mutationFn: (data: AddCollabForm) => {
+      const value = data.identifier.trim()
+      // An email adds a GitHub-less collaborator (native access); anything
+      // else is treated as a GitHub username (repo collaborator).
+      if (value.includes("@")) {
+        return ProjectsService.postProjectCollaboratorByEmail({
+          ownerName: accountName,
+          projectName: projectName,
+          requestBody: { email: value },
+        })
+      }
+      return ProjectsService.putProjectCollaborator({
+        githubUsername: value,
         ownerName: accountName,
         projectName: projectName,
-      }),
+      })
+    },
     onSuccess: () => {
       showToast("Success!", "Collaborator added successfully.", "success")
       reset()
@@ -87,23 +100,28 @@ const AddCollaborator = ({ isOpen, onClose }: AddCollabProps) => {
           <ModalHeader>Add collaborator</ModalHeader>
           <ModalCloseButton />
           <ModalBody pb={6}>
-            <FormControl isRequired isInvalid={!!errors.github_username}>
-              <FormLabel htmlFor="github_username">GitHub username</FormLabel>
+            <FormControl isRequired isInvalid={!!errors.identifier}>
+              <FormLabel htmlFor="identifier">
+                GitHub username or email
+              </FormLabel>
               <Input
-                id="github_username"
-                {...register("github_username", {
-                  required: "GitHub username is required",
+                id="identifier"
+                {...register("identifier", {
+                  required: "A GitHub username or email is required",
                 })}
-                placeholder="GitHub username"
+                placeholder="octocat or user@example.com"
                 type="string"
                 autoComplete="off"
                 data-form-type="other"
                 data-lpignore="true"
               />
-              {errors.github_username && (
-                <FormErrorMessage>
-                  {errors.github_username.message}
-                </FormErrorMessage>
+              <FormHelperText>
+                Enter an email to add a collaborator without a GitHub account.
+                They must already have a Calkit account; otherwise send them an
+                invite link.
+              </FormHelperText>
+              {errors.identifier && (
+                <FormErrorMessage>{errors.identifier.message}</FormErrorMessage>
               )}
             </FormControl>
           </ModalBody>

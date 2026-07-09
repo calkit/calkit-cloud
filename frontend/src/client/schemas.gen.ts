@@ -411,8 +411,26 @@ export const CollaboratorSchema = {
       title: "User Id",
     },
     github_username: {
-      type: "string",
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "Github Username",
+    },
+    account_name: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Account Name",
     },
     full_name: {
       anyOf: [
@@ -442,7 +460,7 @@ export const CollaboratorSchema = {
     },
   },
   type: "object",
-  required: ["github_username", "access_level"],
+  required: ["access_level"],
   title: "Collaborator",
 } as const
 
@@ -2711,6 +2729,18 @@ export const MessageSchema = {
   type: "object",
   required: ["message"],
   title: "Message",
+} as const
+
+export const NativeCollaboratorPostSchema = {
+  properties: {
+    email: {
+      type: "string",
+      title: "Email",
+    },
+  },
+  type: "object",
+  required: ["email"],
+  title: "NativeCollaboratorPost",
 } as const
 
 export const NewPasswordSchema = {

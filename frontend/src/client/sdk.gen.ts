@@ -159,6 +159,10 @@ import type {
   PutProjectCollaboratorResponse,
   DeleteProjectCollaboratorData,
   DeleteProjectCollaboratorResponse,
+  PostProjectCollaboratorByEmailData,
+  PostProjectCollaboratorByEmailResponse,
+  DeleteProjectNativeCollaboratorData,
+  DeleteProjectNativeCollaboratorResponse,
   PostProjectInvitationData,
   PostProjectInvitationResponse,
   GetProjectInvitationsData,
@@ -2440,6 +2444,64 @@ export class ProjectsService {
         owner_name: data.ownerName,
         project_name: data.projectName,
         github_username: data.githubUsername,
+      },
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Post Project Collaborator By Email
+   * Grant native (non-GitHub) write access to an existing Calkit user by
+   * email -- how a GitHub-less collaborator is added. For people who don't have
+   * a Calkit account yet, use an invite link instead.
+   * @param data The data for the request.
+   * @param data.ownerName
+   * @param data.projectName
+   * @param data.requestBody
+   * @returns Message Successful Response
+   * @throws ApiError
+   */
+  public static postProjectCollaboratorByEmail(
+    data: PostProjectCollaboratorByEmailData,
+  ): CancelablePromise<PostProjectCollaboratorByEmailResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/projects/{owner_name}/{project_name}/collaborators/by-email",
+      path: {
+        owner_name: data.ownerName,
+        project_name: data.projectName,
+      },
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Delete Project Native Collaborator
+   * Revoke a native (non-GitHub) collaborator's access. GitHub collaborators
+   * are removed via the github-username endpoint instead.
+   * @param data The data for the request.
+   * @param data.ownerName
+   * @param data.projectName
+   * @param data.userId
+   * @returns Message Successful Response
+   * @throws ApiError
+   */
+  public static deleteProjectNativeCollaborator(
+    data: DeleteProjectNativeCollaboratorData,
+  ): CancelablePromise<DeleteProjectNativeCollaboratorResponse> {
+    return __request(OpenAPI, {
+      method: "DELETE",
+      url: "/projects/{owner_name}/{project_name}/collaborators/by-user/{user_id}",
+      path: {
+        owner_name: data.ownerName,
+        project_name: data.projectName,
+        user_id: data.userId,
       },
       errors: {
         422: "Validation Error",

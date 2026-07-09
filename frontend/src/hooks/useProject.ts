@@ -27,6 +27,10 @@ const useProject = (accountName: string, projectName: string, ref?: string) => {
   const userHasWriteAccess = ["owner", "admin", "write"].includes(
     String(projectRequest.data?.current_user_access),
   )
+  // Managing collaborators and invite links requires admin (or owner).
+  const userHasAdminAccess = ["owner", "admin"].includes(
+    String(projectRequest.data?.current_user_access),
+  )
 
   const showcaseRequest = useQuery({
     queryKey: ["projects", accountName, projectName, "showcase", ref],
@@ -55,6 +59,7 @@ const useProject = (accountName: string, projectName: string, ref?: string) => {
   return {
     projectRequest,
     userHasWriteAccess,
+    userHasAdminAccess,
     showcaseRequest,
     putDevcontainerMutation,
   }
