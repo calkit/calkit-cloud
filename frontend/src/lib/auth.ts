@@ -87,6 +87,19 @@ export const getValidAccessToken = async (
         storeTokens(response.access_token, response.refresh_token)
         return response.access_token
       } catch {
+        // Refresh tokens are single-use (rotated server-side). A failure is
+        // often a race: another tab (or an earlier reload) already redeemed
+        // this refresh token and stored a fresh access token. Before treating
+        // the session as dead, adopt any newer, still-valid token that landed
+        // in storage instead of logging the user out.
+        const current = getAccessToken()
+        if (
+          current &&
+          current !== accessToken &&
+          !isTokenExpiredOrExpiringSoon(current)
+        ) {
+          return current
+        }
         clearTokens()
         return null
       } finally {

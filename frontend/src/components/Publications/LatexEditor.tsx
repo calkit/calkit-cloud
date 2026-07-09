@@ -25,6 +25,7 @@ import { StreamLanguage } from "@codemirror/language"
 import { stex } from "@codemirror/legacy-modes/mode/stex"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { EditorView, basicSetup } from "codemirror"
+import mixpanel from "mixpanel-browser"
 import { merge as diff3Merge } from "node-diff3"
 import { type MutableRefObject, useEffect, useRef, useState } from "react"
 
@@ -200,6 +201,16 @@ const LatexEditor = ({
     pdfUrlRef.current = pdfUrl
   }, [pdfUrl])
 
+  // Usage analytics: one event per time the editor is opened.
+  useEffect(() => {
+    if (isOpen) {
+      mixpanel.track("Opened LaTeX editor", {
+        project: `${ownerName}/${projectName}`,
+        tex_path: texPath,
+      })
+    }
+  }, [isOpen, ownerName, projectName, texPath])
+
   useEffect(() => {
     return () => {
       if (compileTimerRef.current) {
@@ -213,7 +224,7 @@ const LatexEditor = ({
     }
   }, [])
 
-  const compile = async () => {
+  const compile = async (trigger: "manual" | "auto" = "manual") => {
     // Serialize compiles; if one is requested while another runs, recompile
     // once it finishes (so the preview reflects the latest edits).
     if (compilingRef.current) {
@@ -224,6 +235,8 @@ const LatexEditor = ({
     setCompiling(true)
     setLog("")
     setStatus("Loading engine & compiling…")
+    const startedAt = performance.now()
+    let succeeded = false
     try {
       if (!compilerRef.current) {
         compilerRef.current = new LatexCompiler({
@@ -249,6 +262,7 @@ const LatexEditor = ({
           return URL.createObjectURL(blob)
         })
         setStatus("Compiled ✓")
+        succeeded = true
       } else {
         const missing = findMissingPackages(result.log)
         setStatus(
@@ -268,9 +282,15 @@ const LatexEditor = ({
     } finally {
       compilingRef.current = false
       setCompiling(false)
+      mixpanel.track("Compiled LaTeX preview", {
+        project: `${ownerName}/${projectName}`,
+        trigger,
+        succeeded,
+        seconds: Math.round((performance.now() - startedAt) / 1000),
+      })
       if (pendingCompileRef.current) {
         pendingCompileRef.current = false
-        compile()
+        compile(trigger)
       }
     }
   }
@@ -282,7 +302,7 @@ const LatexEditor = ({
     if (compileTimerRef.current) {
       window.clearTimeout(compileTimerRef.current)
     }
-    compileTimerRef.current = window.setTimeout(() => compile(), 1500)
+    compileTimerRef.current = window.setTimeout(() => compile("auto"), 1500)
   }
 
   const markDirty = (path: string, text: string) => {
@@ -342,6 +362,10 @@ const LatexEditor = ({
       setCommitMessage("")
       commitModal.onClose()
       showToast("Saved", "Your changes were committed.", "success")
+      mixpanel.track("Saved LaTeX changes", {
+        project: `${ownerName}/${projectName}`,
+        file_count: dirtyRef.current.size,
+      })
       queryClient.invalidateQueries({
         queryKey: ["projects", ownerName, projectName],
       })
@@ -492,7 +516,7 @@ const LatexEditor = ({
           "success",
         )
         if (autoCompile) {
-          compile()
+          compile("auto")
         }
       }
     } catch (e) {
@@ -524,7 +548,7 @@ const LatexEditor = ({
 
   useEffect(() => {
     if (ready && autoCompile) {
-      compile()
+      compile("auto")
     }
     // Compile once on launch when auto-compile is on.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -589,7 +613,7 @@ const LatexEditor = ({
             <Button
               size="sm"
               variant="primary"
-              onClick={compile}
+              onClick={() => compile("manual")}
               isLoading={compiling}
               isDisabled={!ready}
             >
@@ -714,19 +738,25 @@ const LatexEditor = ({
                       </Text>
                     </Flex>
                   )}
-                  <Collapse in={logPanel.isOpen}>
+                  <Collapse
+                    in={logPanel.isOpen}
+                    style={{
+                      position: "absolute",
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      zIndex: 20,
+                    }}
+                  >
                     <Box
-                      position="absolute"
-                      bottom={0}
-                      left={0}
-                      right={0}
-                      maxH="40%"
+                      maxH="40vh"
                       overflowY="auto"
                       bg="gray.900"
                       color="gray.100"
                       fontFamily="mono"
                       fontSize="xs"
                       whiteSpace="pre-wrap"
+                      boxShadow="dark-lg"
                       p={2}
                     >
                       <Button

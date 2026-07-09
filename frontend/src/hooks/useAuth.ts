@@ -165,6 +165,12 @@ const useAuth = () => {
 
   if (getUserError && isLoggedIn()) {
     if (isAuthenticationError(getUserError)) {
+      // Log the trigger so a spurious logout can be diagnosed from the console.
+      const err = getUserError as any
+      console.warn("Session invalid, logging out", {
+        status: err?.status ?? err?.response?.status,
+        detail: err?.body?.detail ?? err?.response?.data?.detail,
+      })
       logout()
     }
   }
