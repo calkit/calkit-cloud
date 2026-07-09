@@ -19,11 +19,11 @@ from fastapi import HTTPException
 from filelock import FileLock, Timeout
 from git.exc import GitCommandError
 from ruamel.yaml import YAMLError
-from sqlmodel import Session
+from sqlmodel import Session, select
 
 from app import github, users
 from app.core import logger, ryaml
-from app.models import GitRef, Project, User
+from app.models import GitRef, Project, User, UserProjectAccess
 
 _SYMLINK_MODE = 0o120000
 
@@ -175,6 +175,21 @@ def get_repo(
             # GitHub-less member: access was authorized natively upstream
             # (e.g. via an invite). Operate via the GitHub App installation
             # token for the repo; commits are still authored as this user.
+            #
+            # Defense in depth: the App token is repo-scoped and write-capable,
+            # so mint it ONLY for a user who actually has native access to this
+            # project. Callers already gate on get_project, but this fails
+            # closed if one ever reaches get_repo without authorizing first.
+            has_native_access = session.exec(
+                select(UserProjectAccess.role_id)
+                .where(UserProjectAccess.project_id == project.id)
+                .where(UserProjectAccess.user_id == user.id)
+                .where(UserProjectAccess.role_id.is_not(None))  # type: ignore
+            ).first()
+            if has_native_access is None:
+                raise HTTPException(
+                    403, "You do not have access to this project."
+                )
             logger.info(
                 f"Getting GitHub App installation token for {user.email}"
             )

@@ -20,6 +20,7 @@ import { ProjectsService } from "../../client"
 import type { ApiError } from "../../client/core/ApiError"
 import useCustomToast from "../../hooks/useCustomToast"
 import { handleError } from "../../lib/errors"
+import { submitOnCmdEnter } from "../../lib/keyboard"
 
 interface CreateQuestionProps {
   isOpen: boolean
@@ -83,7 +84,11 @@ const CreateQuestion = ({ isOpen, onClose }: CreateQuestionProps) => {
         isCentered
       >
         <ModalOverlay />
-        <ModalContent as="form" onSubmit={handleSubmit(onSubmit)}>
+        <ModalContent
+          as="form"
+          onSubmit={handleSubmit(onSubmit)}
+          onKeyDown={submitOnCmdEnter(handleSubmit(onSubmit))}
+        >
           <ModalHeader>Add new question</ModalHeader>
           <ModalCloseButton />
           <ModalBody pb={6}>

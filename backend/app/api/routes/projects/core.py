@@ -2584,6 +2584,20 @@ def _github_token_for_repo(
         return None
 
 
+def _make_github_authorship_prefix(user: User) -> str:
+    """A one-line attribution to prepend to issues/comments a GitHub-less user
+    posts through the Calkit App.
+
+    GitHub users author under their own GitHub account, so the content already
+    shows who wrote it; GitHub-less users post via the App (authored as the
+    bot), so name them in the body. Returns "" for GitHub users.
+    """
+    if user.account.github_name is not None:
+        return ""
+    name = user.full_name or user.account.name
+    return f"_Posted by {name} ({user.email}) via Calkit._\n\n"
+
+
 def _sync_github_issue_resolutions(
     session: Session,
     comments: list[ProjectComment],
@@ -2688,7 +2702,10 @@ def _try_create_github_issue(
         return None
     resp = requests.post(
         f"https://api.github.com/repos/{github_repo}/issues",
-        json={"title": title, "body": body},
+        json={
+            "title": title,
+            "body": f"{_make_github_authorship_prefix(current_user)}{body}",
+        },
         headers={
             "Authorization": f"Bearer {token}",
             "Accept": "application/vnd.github+json",
@@ -2724,7 +2741,9 @@ def _try_post_github_issue_comment(
     try:
         resp = requests.post(
             f"https://api.github.com/repos/{repo}/issues/{issue_number}/comments",
-            json={"body": body},
+            json={
+                "body": f"{_make_github_authorship_prefix(current_user)}{body}"
+            },
             headers={
                 "Authorization": f"Bearer {token}",
                 "Accept": "application/vnd.github+json",
@@ -4747,11 +4766,12 @@ def post_project_issue(
         raise HTTPException(
             502, "Could not authenticate with GitHub to create the issue"
         )
+    body = f"{_make_github_authorship_prefix(current_user)}{req.body or ''}"
     url = f"https://api.github.com/repos/{project.github_repo}/issues"
     resp = requests.post(
         url,
         headers={"Authorization": f"Bearer {token}"},
-        json=req.model_dump(),
+        json={"title": req.title, "body": body},
     )
     if resp.status_code != 201:
         logger.error(f"Call to post issue failed ({resp.status_code})")
@@ -4784,10 +4804,17 @@ def patch_project_issue(
         project_name=project_name,
         session=session,
         current_user=current_user,
-        min_access_level="admin",
+        min_access_level="write",
     )
-    # TODO: A user who created the issue can edit?
-    token = users.get_github_token(session=session, user=current_user)
+    if project.github_repo is None:
+        raise HTTPException(501)
+    # Use the App-token fallback so GitHub-less collaborators can close/reopen
+    # issues too (consistent with creating and commenting on them).
+    token = _github_token_for_repo(session, current_user, project.github_repo)
+    if token is None:
+        raise HTTPException(
+            502, "Could not authenticate with GitHub to update the issue"
+        )
     url = (
         f"https://api.github.com/repos/{project.github_repo}/"
         f"issues/{issue_number}"
