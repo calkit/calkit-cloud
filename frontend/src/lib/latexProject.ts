@@ -185,5 +185,9 @@ export async function loadLatexProject(
       fetchOne(ownerName, projectName, p).catch(() => null),
     ),
   )
+  // Only the project's own files go here. Anything missing from the in-browser
+  // TeX bundle (e.g. revtex4-1.cls for AASTeX) is fetched on demand by the
+  // engine's kpathsea hook into an in-memory dir, so it never appears in the
+  // editor's working folder. See texmf-proxy/ and VITE_TEXMF_PROXY.
   return files.filter((f): f is ProjectFile => f !== null)
 }

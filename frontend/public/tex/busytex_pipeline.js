@@ -533,6 +533,20 @@ class BusytexPipeline
         const source_dir = PATH.join(this.project_dir, dirname);
         FS.chdir(source_dir);
 
+        // latexmk-style incrementality: keep this document's .aux/.bbl from the
+        // previous compile so a rerun with stable references/citations converges
+        // in fewer passes instead of regenerating everything from scratch. The
+        // project dir was just remounted fresh (above), which wipes them, so we
+        // restore from a JS-side cache keyed by the main file.
+        const cache_key = main_tex_path;
+        this.persist = this.persist || {};
+        const persisted = this.persist[cache_key];
+        if(persisted)
+        {
+            try { if(persisted.aux && persisted.aux.length) FS.writeFile(PATH.join(source_dir, aux_path), persisted.aux); } catch(e) {}
+            try { if(persisted.bbl && persisted.bbl.length) FS.writeFile(PATH.join(source_dir, bbl_path), persisted.bbl); } catch(e) {}
+        }
+
         let cmds = [];
         if(driver == 'xetex_bibtex8_dvipdfmx')
         {
@@ -552,11 +566,16 @@ class BusytexPipeline
         else if(driver == 'pdftex_bibtex8')
         {
             cmds = bibtex ?
+                // latexmk-style: pdflatex, then bibtex only if citations changed
+                // (see the skip below), then rerun pdflatex only while the log
+                // asks to (rerunnable passes skip once cross-references are
+                // stable). The final pass emits the PDF and full error messages.
                 [
-                    [pdftex_not_final, this.error_messages_fatal, false],
-                    [bibtex8, this.error_messages_fatal, true],
-                    [pdftex_not_final, this.error_messages_fatal, true],
-                    [pdftex, this.error_messages_all, false]
+                    [pdftex_not_final, this.error_messages_fatal, false, false],
+                    [bibtex8, this.error_messages_fatal, true, false],
+                    [pdftex_not_final, this.error_messages_fatal, false, true],
+                    [pdftex_not_final, this.error_messages_fatal, false, true],
+                    [pdftex, this.error_messages_all, false, false]
                 ] :
                 // latexmk-style: rerun until cross-references stabilise so
                 // \ref/\pageref/\eqref/\cref/TOC don't show as "??". Each
@@ -606,6 +625,9 @@ class BusytexPipeline
         // skipped (the final PDF pass still runs).
         let xref_stable = false;
         const needs_rerun = txt => /Rerun to get (?:cross-references|the bars) right|Rerun to get citations correct|Label\(s\) may have changed|Please \(re\)run|rerunfilecheck.*Rerun/i.test(txt);
+        // The bibliography-relevant commands in the .aux; bibtex only needs to
+        // rerun when these change (or the .bbl is missing).
+        const cite_sig = txt => (txt.match(/\\(?:citation|bibdata|bibstyle)\{[^}]*\}/g) || []).join('\n');
         const mem_header = Uint8Array.from(Module.HEAPU8.slice(0, this.mem_header_size));
         const logs = [];
         for(const [cmd, error_messages, can_skip, rerunnable] of cmds)
@@ -618,6 +640,19 @@ class BusytexPipeline
             const is_bibtex = cmd[0].startsWith('bibtex');
             const cmd_log_path = is_bibtex ? blg_path : log_path;
             const cmd_aux_path = is_bibtex ? bbl_path : aux_path;
+
+            // latexmk-style: only run bibtex when the .aux's citation/bibdata
+            // commands changed since the .bbl was last built (or it's missing).
+            // Unchanged citations reuse the persisted .bbl and save a full cycle.
+            if(is_bibtex)
+            {
+                const bbl_ready = this.read_all_text(FS, bbl_path).trim() != '';
+                if(bbl_ready && persisted && cite_sig(this.read_all_text(FS, aux_path)) == persisted.cite_sig)
+                {
+                    this.print('$ # citations unchanged, skipping bibtex');
+                    continue;
+                }
+            }
 
             this.remove(FS, this.texmflog);
             this.remove(FS, this.missfontlog);
@@ -642,10 +677,22 @@ class BusytexPipeline
             log = this.read_all_text(FS, cmd_log_path);
             exit_code = stdout.trim() ? (error_messages.some(err => stdout.includes(err)) ? exit_code : 0) : exit_code;
 
-            if(rerunnable && !needs_rerun(log))
+            // Running bibtex changes the .bbl, so force at least one more
+            // pdflatex. Otherwise a pdflatex pass whose log no longer asks to
+            // rerun means cross-references are stable and later rerunnable
+            // passes can be skipped.
+            if(is_bibtex)
+            {
+                xref_stable = false;
+            }
+            else if(!needs_rerun(log))
             {
                 xref_stable = true;
                 this.print('$ # cross-references stable, skipping extra reruns');
+            }
+            else
+            {
+                xref_stable = false;
             }
 
             logs.push({
@@ -664,6 +711,15 @@ class BusytexPipeline
         }
 
         console.log('LOGS', logs);
+
+        // Cache this compile's generated aux/bbl (and citation signature) so the
+        // next compile of the same document can converge in fewer passes.
+        if(exit_code == 0)
+            this.persist[cache_key] = {
+                aux : this.read_all_bytes(FS, aux_path),
+                bbl : this.read_all_bytes(FS, bbl_path),
+                cite_sig : cite_sig(this.read_all_text(FS, aux_path))
+            };
 
         const pdf = exit_code == 0 ? this.read_all_bytes(FS, pdf_path) : null;
         const logcat = logs.map(({cmd, texmflog, missfontlog, log, exit_code, stdout, stderr}) => ([`$ ${cmd}`, `EXITCODE: ${exit_code}`, '', 'TEXMFLOG:', texmflog, '==', 'MISSFONTLOG:', missfontlog, '==', 'LOG:', log, '==', 'STDOUT:', stdout, '==', 'STDERR:', stderr, '======'].join('\n'))).join('\n\n');
