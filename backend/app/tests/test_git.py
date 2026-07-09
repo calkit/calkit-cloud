@@ -25,6 +25,15 @@ class _FakeResp:
         return json.dumps(self._payload)
 
 
+@pytest.fixture(autouse=True)
+def _clear_installation_token_cache():
+    """Keep the in-process App installation-token cache from leaking between
+    tests (a cached token would skip the mocked GitHub calls)."""
+    app.github._installation_token_cache.clear()
+    yield
+    app.github._installation_token_cache.clear()
+
+
 def _init_repo(repo_dir: Path) -> tuple[git.Repo, str]:
     repo = git.Repo.init(repo_dir)
     repo.git.config(["user.name", "CI Test"])
@@ -165,6 +174,30 @@ def test_get_app_installation_token(monkeypatch) -> None:
     assert calls["get_auth"] == "Bearer fake-jwt"
     assert "/app/installations/12345/access_tokens" in calls["post_url"]
     assert calls["post_json"] == {"repositories": ["my-repo"]}
+
+
+def test_get_app_installation_token_caches(monkeypatch) -> None:
+    """A second call reuses the cached token instead of minting again."""
+    mint_count = {"n": 0}
+
+    def fake_get(url, headers=None, timeout=None):
+        mint_count["n"] += 1
+        return _FakeResp(200, {"id": 12345})
+
+    def fake_post(url, headers=None, json=None, timeout=None):
+        return _FakeResp(
+            201,
+            {"token": "ghs_tok", "expires_at": "2999-01-01T00:00:00Z"},
+        )
+
+    monkeypatch.setattr(app.github, "create_app_token", lambda: "fake-jwt")
+    monkeypatch.setattr(app.github.requests, "get", fake_get)
+    monkeypatch.setattr(app.github.requests, "post", fake_post)
+    first = app.github.get_app_installation_token("acme", "widget")
+    second = app.github.get_app_installation_token("acme", "widget")
+    assert first == second == "ghs_tok"
+    # Minted only once; the second call was served from the cache.
+    assert mint_count["n"] == 1
 
 
 def test_get_app_installation_token_no_installation(monkeypatch) -> None:

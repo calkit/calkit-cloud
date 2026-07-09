@@ -202,7 +202,7 @@ def get_project(
             if project.current_user_access is None and project.is_public:
                 project.current_user_access = "read"
         else:
-            # Non-owner: a native Calkit grant (role_id, e.g. from an invite)
+            # Non-owner: a native Calkit grant (role_id, e.g., from an invite)
             # takes precedence over GitHub-derived access, and is the only
             # access path for GitHub-less collaborators.
             access_row = session.exec(

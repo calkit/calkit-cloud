@@ -1,7 +1,9 @@
 """GitHub related functionality."""
 
 import os
+import threading
 import time
+from datetime import datetime
 
 import jwt
 import requests
@@ -44,13 +46,53 @@ def create_app_token() -> str:
     return encoded_jwt
 
 
+# Cache of GitHub App installation tokens, keyed by (owner, repo) -> (token,
+# expiry_epoch). Installation tokens are valid ~1 hour; reusing them until just
+# before expiry means a GitHub-less user's request doesn't mint a fresh token
+# (two GitHub API calls) on every repo operation. This is a per-worker
+# in-process cache, so each worker mints at most once per repo per ~hour.
+_installation_token_cache: dict[tuple[str, str], tuple[str, float]] = {}
+_installation_token_cache_lock = threading.Lock()
+# Refresh this long before GitHub's stated expiry so a cached token can't lapse
+# mid-request.
+_INSTALLATION_TOKEN_SAFETY_SECONDS = 300
+
+
 def get_app_installation_token(owner_name: str, repo_name: str) -> str:
-    """Mint a GitHub App installation access token scoped to one repo.
+    """Return a GitHub App installation access token scoped to one repo.
 
     Used to perform git operations on behalf of users who have native Calkit
     access to a project but no personal GitHub token (e.g. email/Google
-    signups). The caller must have authorized the user's access first.
+    signups). Tokens are cached in-process and reused until shortly before they
+    expire. The caller must have authorized the user's access first.
     """
+    cache_key = (owner_name.lower(), repo_name.lower())
+    now = time.time()
+    with _installation_token_cache_lock:
+        cached = _installation_token_cache.get(cache_key)
+        if cached is not None and cached[1] > now:
+            return cached[0]
+    # Miss or expired: mint a fresh token. Done outside the lock so requests
+    # for different repos don't serialize; a rare concurrent double-mint just
+    # yields two valid tokens.
+    token, expires_at = _mint_app_installation_token(owner_name, repo_name)
+    # ~50 min fallback if GitHub omits expires_at for some reason.
+    expiry = now + 3000.0
+    if expires_at:
+        try:
+            parsed = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
+            expiry = parsed.timestamp() - _INSTALLATION_TOKEN_SAFETY_SECONDS
+        except ValueError:
+            pass
+    with _installation_token_cache_lock:
+        _installation_token_cache[cache_key] = (token, expiry)
+    return token
+
+
+def _mint_app_installation_token(
+    owner_name: str, repo_name: str
+) -> tuple[str, str | None]:
+    """Mint a fresh installation token, returning (token, expires_at)."""
     app_jwt = create_app_token()
     headers = {
         "Authorization": f"Bearer {app_jwt}",
@@ -87,7 +129,8 @@ def get_app_installation_token(owner_name: str, repo_name: str) -> str:
             f"{owner_name}/{repo_name}: GitHub returned {resp.status_code} "
             f"({resp.text[:200]})",
         )
-    return resp.json()["token"]
+    data = resp.json()
+    return data["token"], data.get("expires_at")
 
 
 def token_resp_text_to_dict(resp_text: str) -> dict:
