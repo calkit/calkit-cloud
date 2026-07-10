@@ -190,10 +190,18 @@ def get_repo(
                 logger.info(
                     f"Getting GitHub App installation token for {user.email}"
                 )
+                # Mint against the actual GitHub repo parsed from git_repo_url,
+                # not the Calkit slug, in case the project name/owner differs
+                # from the repo (the installation is looked up by repo).
+                gh_owner, gh_repo = (
+                    project.github_repo.split("/", 1)
+                    if project.github_repo
+                    else (owner_name, project_name)
+                )
                 try:
                     with _timed("get-app-installation-token", user=user.email):
                         access_token = github.get_app_installation_token(
-                            owner_name, project_name
+                            gh_owner, gh_repo
                         )
                 except (github.GitHubAppNotConfigured, HTTPException) as e:
                     # A public repo can still be read/cloned unauthenticated,

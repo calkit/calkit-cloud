@@ -167,6 +167,9 @@ const CreateInviteModal = ({
             <Input
               id="name"
               placeholder="Ex: Jane Johnson"
+              autoComplete="off"
+              data-form-type="other"
+              data-lpignore="true"
               {...register("name")}
             />
           </FormControl>
