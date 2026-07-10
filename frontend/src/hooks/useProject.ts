@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useRef } from "react"
 
 import { type Issue, ProjectsService } from "../client"
+import { isAuthenticationError } from "../lib/auth"
 
 const useProject = (accountName: string, projectName: string, ref?: string) => {
   const queryClient = useQueryClient()
@@ -15,6 +16,13 @@ const useProject = (accountName: string, projectName: string, ref?: string) => {
         getExtendedInfo: true,
       }),
     retry: (failureCount, error) => {
+      // A session/token error clears once the token layer refreshes (see the
+      // rotation grace window server-side), so retry it a couple of times
+      // rather than surfacing it as a missing project. Genuine not-found or
+      // permission denials shouldn't retry.
+      if (isAuthenticationError(error)) {
+        return failureCount < 2
+      }
       if (error.message === "Not Found" || error.message === "Forbidden") {
         return false
       }

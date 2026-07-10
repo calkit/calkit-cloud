@@ -54,6 +54,7 @@ import Sidebar from "../../../../components/Common/Sidebar"
 import { ProjectPublic, ProjectsService, type GitRef } from "../../../../client"
 import EditProject from "../../../../components/Projects/EditProject"
 import useProject from "../../../../hooks/useProject"
+import { isAuthenticationError } from "../../../../lib/auth"
 import NewProject from "../../../../components/Projects/NewProject"
 import useAuth from "../../../../hooks/useAuth"
 import HelpContent from "../../../../components/Projects/HelpContent"
@@ -358,7 +359,13 @@ function ProjectLayout() {
   const isPending = projectRequest.isPending
   const error = projectRequest.error
   const project = projectRequest.data
-  if (error?.message === "Not Found" || error?.message === "Forbidden") {
+  // A session/token 403 (an expired token that briefly slipped through) is not
+  // a missing project — don't render NotFound for it; the auth layer refreshes
+  // or logs out. Only a real 404 or a genuine permission denial is NotFound.
+  if (
+    error?.message === "Not Found" ||
+    (error?.message === "Forbidden" && !isAuthenticationError(error))
+  ) {
     throw notFound()
   }
   // Redirect to canonical casing if URL doesn't match the stored names

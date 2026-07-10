@@ -234,7 +234,7 @@ const LatexEditor = ({
     compilingRef.current = true
     setCompiling(true)
     setLog("")
-    setStatus("Loading engine & compiling…")
+    setStatus("Compiling…")
     const startedAt = performance.now()
     let succeeded = false
     try {

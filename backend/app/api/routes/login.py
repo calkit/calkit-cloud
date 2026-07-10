@@ -53,6 +53,11 @@ router = APIRouter()
 # Access token TTL from settings; refresh token lasts 90 days
 ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
 REFRESH_TOKEN_EXPIRE_DAYS = 90
+# On rotation, the old refresh token isn't killed instantly; it keeps working
+# for this grace window so an interrupted rotation (the browser reloaded before
+# storing the new token, or a second tab raced the refresh) can retry with it
+# and get a fresh pair instead of the session dying.
+REFRESH_ROTATION_GRACE_SECONDS = 60
 
 
 def _make_tokens(
@@ -112,10 +117,12 @@ def refresh_access_token(
     session: SessionDep,
     body: RefreshTokenRequest,
 ) -> Token:
-    """Exchange a refresh token for a new access token and rotated refresh
+    """Exchange a refresh token for a new access token and a rotated refresh
     token.
 
-    The old refresh token is invalidated on use (refresh token rotation).
+    The old token is rotated out but still honored for a short grace window
+    (REFRESH_ROTATION_GRACE_SECONDS) so an interrupted rotation, e.g. the client
+    reloaded before storing the new token, doesn't strand the session.
     """
     token_hash = hash_refresh_token(body.refresh_token)
     refresh_db = session.exec(
@@ -136,8 +143,16 @@ def refresh_access_token(
         session.commit()
         raise HTTPException(401, "User is not active")
 
-    # Rotate: deactivate old token
-    refresh_db.is_active = False
+    # Rotate, but with a short grace window instead of deactivating instantly:
+    # shorten the old token's expiry to now + grace (only the first time, so it
+    # can't be kept alive forever by repeated use). A retry with it during the
+    # window still succeeds and mints a fresh pair, so an interrupted rotation
+    # doesn't strand the client with a dead token.
+    grace_deadline = utcnow() + timedelta(
+        seconds=REFRESH_ROTATION_GRACE_SECONDS
+    )
+    if refresh_db.expires > grace_deadline:
+        refresh_db.expires = grace_deadline
     session.add(refresh_db)
     # Issue new pair
     access_token, raw_refresh, new_refresh_db = _make_tokens(

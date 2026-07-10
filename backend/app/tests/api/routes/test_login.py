@@ -65,19 +65,34 @@ def test_refresh_access_token_rotates(
         headers=headers,
     )
     assert r.status_code == 200
-    # Old refresh token can no longer be used.
+    # Within the rotation grace window the old token still works, so an
+    # interrupted rotation (the client reloaded before storing the new token)
+    # can retry with it and get a fresh pair instead of being stranded.
     r = client.post(
         f"{settings.API_V1_STR}/login/refresh",
         json={"refresh_token": initial_refresh},
     )
-    assert r.status_code == 401
-    assert r.json()["detail"] == "Invalid refresh token"
+    assert r.status_code == 200
+    assert r.json()["refresh_token"] != initial_refresh
     old_hash = hash_refresh_token(initial_refresh)
     old_token = db.exec(
         select(RefreshToken).where(RefreshToken.token_hash == old_hash)
     ).first()
     assert old_token is not None
-    assert old_token.is_active is False
+    # It isn't hard-deactivated; its expiry is shortened to the brief grace
+    # window (far below the 90-day default), so it lapses shortly after.
+    assert old_token.is_active is True
+    assert old_token.expires < utcnow() + timedelta(minutes=5)
+    # Once that window passes, the old token is rejected.
+    old_token.expires = utcnow() - timedelta(seconds=1)
+    db.add(old_token)
+    db.commit()
+    r = client.post(
+        f"{settings.API_V1_STR}/login/refresh",
+        json={"refresh_token": initial_refresh},
+    )
+    assert r.status_code == 401
+    assert r.json()["detail"] == "Refresh token has expired"
 
 
 def test_refresh_access_token_invalid(client: TestClient) -> None:
