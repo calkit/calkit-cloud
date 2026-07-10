@@ -31,11 +31,13 @@ export default defineConfig({
             return "vendor-plotly"
           }
 
-          // Mermaid and its rendering graph (d3, dagre, khroma, cytoscape,
-          // elkjs) must stay in ONE chunk. Splitting this tightly-coupled,
-          // circular dependency graph across chunks reorders module init and
-          // triggers a "Cannot access 'x' before initialization" TDZ error in
-          // mermaid's theme code on load.
+          // Let mermaid and its rendering graph (d3, dagre, khroma, cytoscape,
+          // elkjs, lodash-es) auto-chunk. Mermaid lazy-loads each diagram type
+          // via internal dynamic import(); forcing the graph into one manual
+          // chunk collapses those async boundaries into synchronous circular
+          // references, which throw "Cannot access 'x' before initialization"
+          // TDZ errors during theme setup and rendering. Returning undefined
+          // lets Rollup preserve mermaid's internal async chunk boundaries.
           if (
             id.includes("mermaid") ||
             id.includes("/d3-") ||
@@ -44,17 +46,24 @@ export default defineConfig({
             id.includes("khroma") ||
             id.includes("cytoscape") ||
             id.includes("elkjs") ||
-            id.includes("non-layered-tidy-tree-layout")
+            id.includes("non-layered-tidy-tree-layout") ||
+            id.includes("lodash-es")
           ) {
-            return "vendor-mermaid"
+            return undefined
           }
 
+          // react-ipynb-renderer, mathjax and katex form an interdependent
+          // graph that also cross-imports the markdown/syntax chunks (and katex
+          // is pulled in by mermaid). Force-merging them into one chunk creates
+          // circular chunk dependencies whose const/class bindings evaluate out
+          // of order, throwing "Cannot access 'x' before initialization" TDZ
+          // errors on load. Let Rollup auto-chunk this graph instead.
           if (
             id.includes("react-ipynb-renderer") ||
             id.includes("mathjax") ||
             id.includes("katex")
           ) {
-            return "vendor-notebooks"
+            return undefined
           }
 
           if (
