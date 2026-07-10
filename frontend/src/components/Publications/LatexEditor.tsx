@@ -254,7 +254,8 @@ const LatexEditor = ({
       // exit_code can be 0 with an empty PDF (busytex returns an empty array
       // when no PDF was written) — treat that as a failure, not a blank preview.
       if (result.exitCode === 0 && result.pdf && result.pdf.byteLength > 0) {
-        const blob = new Blob([result.pdf], { type: "application/pdf" })
+        const pdfBytes = new Uint8Array(result.pdf)
+        const blob = new Blob([pdfBytes], { type: "application/pdf" })
         setPdfUrl((prev) => {
           if (prev) {
             URL.revokeObjectURL(prev)
