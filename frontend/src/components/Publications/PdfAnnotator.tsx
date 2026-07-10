@@ -22,7 +22,13 @@ import {
   useColorModeValue,
 } from "@chakra-ui/react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { type MutableRefObject, useCallback, useMemo, useState } from "react"
+import {
+  type MutableRefObject,
+  type ReactNode,
+  useCallback,
+  useMemo,
+  useState,
+} from "react"
 import {
   AreaHighlight,
   Highlight,
@@ -254,6 +260,9 @@ interface PdfAnnotatorProps {
   pagedNav?: boolean
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   externalScrollRef?: MutableRefObject<(h: any) => void>
+  // Optional element rendered in the viewer toolbar, e.g. an "Edit LaTeX"
+  // button.
+  toolbarAction?: ReactNode
 }
 
 export default function PdfAnnotator({
@@ -266,6 +275,7 @@ export default function PdfAnnotator({
   showResolved = false,
   pagedNav = false,
   externalScrollRef,
+  toolbarAction,
 }: PdfAnnotatorProps) {
   const { user } = useAuth()
   const queryClient = useQueryClient()
@@ -461,6 +471,7 @@ export default function PdfAnnotator({
       externalScrollRef={externalScrollRef}
       pagedNav={pagedNav}
       source={artifactType}
+      toolbarAction={toolbarAction}
     />
   )
 }

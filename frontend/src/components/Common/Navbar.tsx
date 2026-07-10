@@ -7,11 +7,23 @@ interface NavbarProps {
   type: string
   addModalAs: ComponentType | ElementType
   verb?: string
+  isOpen?: boolean
+  onOpen?: () => void
+  onClose?: () => void
 }
 
-const Navbar = ({ type, addModalAs, verb }: NavbarProps) => {
+const Navbar = ({
+  type,
+  addModalAs,
+  verb,
+  isOpen,
+  onOpen,
+  onClose,
+}: NavbarProps) => {
   const addModal = useDisclosure()
-
+  const open = isOpen ?? addModal.isOpen
+  const handleOpen = onOpen ?? addModal.onOpen
+  const handleClose = onClose ?? addModal.onClose
   const AddModal = addModalAs
   return (
     <>
@@ -20,11 +32,11 @@ const Navbar = ({ type, addModalAs, verb }: NavbarProps) => {
           variant="primary"
           gap={1}
           fontSize={{ base: "sm", md: "inherit" }}
-          onClick={addModal.onOpen}
+          onClick={handleOpen}
         >
           <Icon as={FaPlus} /> {verb ? verb : "Add"} {type}
         </Button>
-        <AddModal isOpen={addModal.isOpen} onClose={addModal.onClose} />
+        <AddModal isOpen={open} onClose={handleClose} />
       </Flex>
     </>
   )

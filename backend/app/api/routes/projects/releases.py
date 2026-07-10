@@ -21,11 +21,13 @@ import secrets
 import uuid
 import xml.etree.ElementTree as ET
 from datetime import date, datetime
+from typing import Any, Literal, cast
 from urllib.parse import quote
 
-import requests
+import git
+import requests  # type: ignore[import-untyped]
 import sqlalchemy
-from calkit.models import Release as CkRelease
+from calkit.models import Release as CkRelease  # type: ignore[import-untyped]
 from fastapi import APIRouter, HTTPException
 from git.exc import GitCommandError
 from sqlalchemy.orm import selectinload
@@ -72,6 +74,18 @@ SECRET_TOKEN_BYTES = 32
 # Short cache so the releases page reflects recent calkit.yaml changes.
 RELEASES_REPO_TTL = 60
 
+# calkit's Release.kind literal. ReleasePost.kind is a free-form str (validated
+# by CkRelease at construction), so we cast when handing it to CkRelease.
+ReleaseKind = Literal[
+    "project",
+    "publication",
+    "dataset",
+    "figure",
+    "presentation",
+    "software",
+    "model",
+]
+
 
 def _abbreviate_git_rev(git_rev: str | None) -> str | None:
     """Shorten a commit SHA to its 7-character abbreviation, or None."""
@@ -80,7 +94,7 @@ def _abbreviate_git_rev(git_rev: str | None) -> str | None:
     return git_rev[:7] if len(git_rev) > 7 else git_rev
 
 
-def _get_commit_date(repo, rev: str | None) -> str | None:
+def _get_commit_date(repo: git.Repo, rev: str | None) -> str | None:
     """Return the ISO date of a commit or tag, or None if it can't resolve.
 
     Used to give calkit.yaml releases a date when one isn't declared. ``rev``
@@ -95,7 +109,7 @@ def _get_commit_date(repo, rev: str | None) -> str | None:
 
 
 def _get_pipeline_output_staleness(
-    repo,
+    repo: git.Repo,
     git_rev: str | None,
     path: str | None,
     owner_name: str,
@@ -112,13 +126,13 @@ def _get_pipeline_output_staleness(
         return result
     try:
         tree = get_repo_tree_for_ref(repo, git_rev)
-        dvc_lock: dict = {}
+        dvc_lock: dict[str, Any] = {}
         if tree.is_file("dvc.lock"):
             dvc_lock = ryaml.load(tree.read_bytes("dvc.lock").decode()) or {}
         stage = find_stage_for_path(path, dvc_lock)
         if stage is None:
             return result
-        dvc_yaml: dict = {}
+        dvc_yaml: dict[str, Any] = {}
         if tree.is_file("dvc.yaml"):
             dvc_yaml = ryaml.load(tree.read_bytes("dvc.yaml").decode()) or {}
         statuses = compute_stage_statuses(
@@ -253,7 +267,7 @@ def _authorize_release(
     # private project).
     project = session.exec(
         select(Project)
-        .where(Project.owner_account.has(name=owner_name.lower()))
+        .where(Project.owner_account.has(name=owner_name.lower()))  # type: ignore[attr-defined]
         .where(sqlalchemy.func.lower(Project.name) == project_name.lower())
     ).first()
     if project is None:
@@ -303,7 +317,7 @@ def _build_release_view(
         owner_account_display_name=project.owner_account_display_name,
         project_name=project.name,
         project_title=project.title,
-        permission=permission,
+        permission=cast(Literal["view", "comment", "manage"], permission),
         viewer_email=share_token.email if share_token is not None else None,
     )
 
@@ -321,7 +335,7 @@ def _build_stored_release_filename(
 
 
 def _store_internal_release_copy(
-    repo, project: Project, release_in: ReleasePost, git_rev: str
+    repo: git.Repo, project: Project, release_in: ReleasePost, git_rev: str
 ) -> str | None:
     """Save a frozen copy of a single-file artifact under ``.calkit/releases``.
 
@@ -393,7 +407,11 @@ def _store_internal_release_copy(
 
 
 def _commit_calkit_change(
-    repo, message: str, *, error_detail: str, rm: list[str] | None = None
+    repo: git.Repo,
+    message: str,
+    *,
+    error_detail: str,
+    rm: list[str] | None = None,
 ) -> None:
     """Stage calkit.yaml, commit, and push; reset the clone and 502 on failure.
 
@@ -419,7 +437,7 @@ def _commit_calkit_change(
 
 
 def _record_internal_release_in_calkit_yaml(
-    repo, project: Project, release_in: ReleasePost, git_rev: str
+    repo: git.Repo, project: Project, release_in: ReleasePost, git_rev: str
 ) -> None:
     """Write an ``internal: true`` entry to ``calkit.yaml`` and push it.
 
@@ -429,7 +447,7 @@ def _record_internal_release_in_calkit_yaml(
     the working clone is reset so the next request starts clean.
     """
     ck_path = os.path.join(repo.working_dir, "calkit.yaml")
-    ck_info = {}
+    ck_info: dict[str, Any] = {}
     if os.path.exists(ck_path):
         with open(ck_path) as f:
             ck_info = ryaml.load(f) or {}
@@ -450,7 +468,7 @@ def _record_internal_release_in_calkit_yaml(
     # than published, so it carries no publisher or DOI. Serialize through
     # calkit's Release model so the entry always matches the canonical schema.
     entry = CkRelease(
-        kind=release_in.kind,
+        kind=cast(ReleaseKind, release_in.kind),
         path=release_in.path or ".",
         internal=True,
         git_rev=git_rev,
@@ -518,7 +536,9 @@ def post_project_release(
     # how the release content is later served.
     if release_in.path and release_in.path != ".":
         try:
-            repo.commit(git_rev).tree / release_in.path
+            # Evaluated for its side effect: the `/` raises if the path isn't
+            # in the tree at that commit.
+            _ = repo.commit(git_rev).tree / release_in.path
         except Exception:
             try:
                 tree = get_repo_tree_for_ref(repo, git_rev)
@@ -556,7 +576,7 @@ def post_project_release(
     )
     if new_path == ".":
         dup_query = dup_query.where(
-            sqlalchemy.or_(Release.path.is_(None), Release.path == ".")
+            sqlalchemy.or_(Release.path.is_(None), Release.path == ".")  # type: ignore[union-attr, arg-type]
         )
     else:
         dup_query = dup_query.where(Release.path == new_path)
@@ -648,7 +668,7 @@ def post_project_release(
             "public": release.public,
         },
     )
-    return release
+    return release  # type: ignore[return-value]
 
 
 @router.post("/projects/{owner_name}/{project_name}/releases/external")
@@ -675,7 +695,7 @@ def post_external_release(
         project=project, user=current_user, session=session, ttl=None
     )
     ck_path = os.path.join(repo.working_dir, "calkit.yaml")
-    ck_info = {}
+    ck_info: dict[str, Any] = {}
     if os.path.exists(ck_path):
         with open(ck_path) as f:
             ck_info = ryaml.load(f) or {}
@@ -689,7 +709,7 @@ def post_external_release(
     # Serialize through calkit's Release model so the entry matches the
     # canonical schema; exclude_none/defaults keeps calkit.yaml tidy.
     entry = CkRelease(
-        kind=release_in.kind,
+        kind=cast(ReleaseKind, release_in.kind),
         path=release_in.path or ".",
         publisher=release_in.publisher or None,
         url=release_in.url or None,
@@ -1073,7 +1093,7 @@ def import_github_releases(
     # Page through all releases (the default page size is 30, so a repo with
     # more would silently lose the older ones), with a timeout so a slow GitHub
     # can't hang the worker. The page cap bounds the loop at 5000 releases.
-    gh_releases: list[dict] = []
+    gh_releases: list[dict[str, Any]] = []
     for page in range(1, 51):
         resp = requests.get(
             gh_url,
@@ -1093,7 +1113,7 @@ def import_github_releases(
         project=project, user=current_user, session=session, ttl=None
     )
     ck_path = os.path.join(repo.working_dir, "calkit.yaml")
-    ck_info = {}
+    ck_info: dict[str, Any] = {}
     if os.path.exists(ck_path):
         with open(ck_path) as f:
             ck_info = ryaml.load(f) or {}
@@ -1173,10 +1193,10 @@ def get_project_releases(
             # Eager-load the relationships the loop reads per row (active share
             # count and comment_count) to avoid an N+1 query per release.
             .options(
-                selectinload(Release.share_tokens),
-                selectinload(Release.comments),
+                selectinload(Release.share_tokens),  # type: ignore[arg-type]
+                selectinload(Release.comments),  # type: ignore[arg-type]
             )
-            .order_by(Release.created.desc())
+            .order_by(Release.created.desc())  # type: ignore[attr-defined]
         ).all()
         for r in cloud:
             cloud_names.add(r.name)
@@ -1203,6 +1223,7 @@ def get_project_releases(
                 )
             )
     # Releases declared in calkit.yaml at the requested ref.
+    repo: git.Repo | None = None
     try:
         repo = get_repo(
             project=project,
@@ -1219,7 +1240,9 @@ def get_project_releases(
         ck_info = {}
     ck_releases = ck_info.get("releases", {}) or {}
     for name, rel in ck_releases.items():
-        if not isinstance(rel, dict) or name in cloud_names:
+        # repo is None only if get_repo raised, in which case ck_releases is
+        # empty and we never get here; the guard also narrows the type.
+        if not isinstance(rel, dict) or name in cloud_names or repo is None:
             continue
         git_rev = rel.get("git_rev")
         git_ref = rel.get("git_ref")
@@ -1271,7 +1294,7 @@ def get_release_staleness(
     path: str | None = None,
     git_ref: str | None = None,
 ) -> ReleaseStaleness:
-    """Report whether the artifact at *path* is up-to-date with its pipeline
+    """Report whether the artifact at *path* is up-to-date from the pipeline
     stage, so the New Release form can warn before releasing something that may
     not be reproducible.
     """
@@ -1325,7 +1348,7 @@ def delete_project_release(
         project=project, user=current_user, session=session, ttl=None
     )
     ck_path = os.path.join(repo.working_dir, "calkit.yaml")
-    ck_info = {}
+    ck_info: dict[str, Any] = {}
     if os.path.exists(ck_path):
         with open(ck_path) as f:
             ck_info = ryaml.load(f) or {}
@@ -1575,10 +1598,10 @@ def list_release_shares(
     tokens = session.exec(
         select(ReleaseShareToken)
         .where(ReleaseShareToken.release_id == release.id)
-        .where(ReleaseShareToken.revoked.is_(False))
-        .order_by(ReleaseShareToken.created.desc())
+        .where(ReleaseShareToken.revoked.is_(False))  # type: ignore[attr-defined]
+        .order_by(ReleaseShareToken.created.desc())  # type: ignore[attr-defined]
     ).all()
-    return list(tokens)
+    return list(tokens)  # type: ignore[arg-type]
 
 
 @router.delete(
@@ -1778,7 +1801,7 @@ def get_release_comments(
         session.exec(
             select(ReleaseComment)
             .where(ReleaseComment.release_id == release.id)
-            .order_by(ReleaseComment.created.asc())
+            .order_by(ReleaseComment.created.asc())  # type: ignore[attr-defined]
         ).all()
     )
     _sync_release_comment_resolutions(session, release, comments)
@@ -1958,7 +1981,7 @@ def _mirror_release_comment_to_github(
                 f"{resp.status_code} {resp.text}"
             )
             return None
-        return resp.json().get("html_url")
+        return resp.json().get("html_url")  # type: ignore[no-any-return]
     # A top-level comment: open a new issue for the thread.
     app_base = settings.frontend_host.rstrip("/")
     link = (
@@ -1991,7 +2014,7 @@ def _mirror_release_comment_to_github(
             f"{resp.status_code} {resp.text}"
         )
         return None
-    return resp.json().get("html_url")
+    return resp.json().get("html_url")  # type: ignore[no-any-return]
 
 
 def _parse_release_issue_ref(url: str) -> tuple[str, int] | None:

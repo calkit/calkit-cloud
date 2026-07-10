@@ -1,13 +1,18 @@
 """Tests for app.api.routes.projects.core endpoints."""
 
+import uuid
 from types import SimpleNamespace
 from unittest.mock import ANY, patch
 
+from app import users
 from app.api.routes.projects.core import get_project_comments
 from app.config import settings
-from app.models.core import ContentsItem
+from app.models import Project, UserCreate
+from app.models.core import ContentsItem, UserProjectAccess
 from app.projects import CkInfoAndOuts
+from app.tests import authentication_token_from_email, create_random_user
 from fastapi.testclient import TestClient
+from sqlmodel import Session, select
 
 
 def test_get_project_contents_forwards_ref(client: TestClient) -> None:
@@ -802,6 +807,133 @@ def test_get_project_presentations_reads_declared_at_ref(
     _ref_aware_endpoint_reads_declared_at_ref(
         client, "presentations", "presentations"
     )
+
+
+def _make_owner_with_project(
+    db: Session, client: TestClient
+) -> tuple[Project, dict[str, str]]:
+    """Create a project owner (with GitHub) + a private project, return the
+    project and the owner's auth headers.
+    """
+    suffix = uuid.uuid4().hex[:8]
+    owner = users.create_user(
+        session=db,
+        user_create=UserCreate(
+            email=f"owner-{suffix}@example.com",
+            password="ownerpassword123",
+            account_name=f"owner{suffix}",
+            github_username=f"owner{suffix}",
+        ),
+    )
+    project = Project(
+        name=f"proj-{suffix}",
+        title="Invite Test Project",
+        git_repo_url=f"https://github.com/owner{suffix}/proj-{suffix}",
+        owner_account_id=owner.account.id,
+        owner_account=owner.account,
+    )
+    db.add(project)
+    db.commit()
+    db.refresh(project)
+    headers = authentication_token_from_email(
+        client=client, email=owner.email, db=db
+    )
+    return project, headers
+
+
+def test_invitation_create_and_redeem_grants_access(
+    client: TestClient, db: Session
+) -> None:
+    project, owner_headers = _make_owner_with_project(db, client)
+    owner_name = project.owner_account.name
+    base = f"{settings.API_V1_STR}/projects/{owner_name}/{project.name}"
+    # A GitHub-less user has no access to the private project yet.
+    ghless = create_random_user(db)
+    assert ghless.account.github_name is None
+    ghless_headers = authentication_token_from_email(
+        client=client, email=ghless.email, db=db
+    )
+    r = client.get(base, headers=ghless_headers)
+    assert r.status_code == 403
+    # Owner creates an invite link.
+    r = client.post(
+        f"{base}/invitations",
+        headers=owner_headers,
+        json={"role": "write", "max_uses": 5},
+    )
+    assert r.status_code == 200, r.text
+    invite = r.json()
+    assert invite["role_name"] == "write"
+    assert invite["token"]
+    assert f"/join/{invite['token']}" in invite["url"]
+    token = invite["token"]
+    # The GitHub-less user redeems it and gains write membership.
+    r = client.post(
+        f"{settings.API_V1_STR}/project-invitations/{token}",
+        headers=ghless_headers,
+    )
+    assert r.status_code == 200, r.text
+    redeemed = r.json()
+    assert redeemed["owner_name"] == owner_name
+    assert redeemed["project_name"] == project.name
+    assert redeemed["role_name"] == "write"
+    # Access row exists with a native role and the user can now read the
+    # project.
+    access = db.exec(
+        select(UserProjectAccess)
+        .where(UserProjectAccess.project_id == project.id)
+        .where(UserProjectAccess.user_id == ghless.id)
+    ).first()
+    assert access is not None and access.role_name == "write"
+    r = client.get(base, headers=ghless_headers)
+    assert r.status_code == 200
+
+
+def test_invitation_create_requires_admin(
+    client: TestClient, db: Session
+) -> None:
+    project, _ = _make_owner_with_project(db, client)
+    owner_name = project.owner_account.name
+    # A random non-member cannot create invitations.
+    other = create_random_user(db)
+    other_headers = authentication_token_from_email(
+        client=client, email=other.email, db=db
+    )
+    r = client.post(
+        f"{settings.API_V1_STR}/projects/{owner_name}/{project.name}"
+        "/invitations",
+        headers=other_headers,
+        json={"role": "write"},
+    )
+    assert r.status_code == 403
+
+
+def test_redeem_revoked_invitation_fails(
+    client: TestClient, db: Session
+) -> None:
+    project, owner_headers = _make_owner_with_project(db, client)
+    owner_name = project.owner_account.name
+    base = f"{settings.API_V1_STR}/projects/{owner_name}/{project.name}"
+    r = client.post(
+        f"{base}/invitations", headers=owner_headers, json={"role": "read"}
+    )
+    assert r.status_code == 200
+    invite = r.json()
+    # Revoke it.
+    r = client.delete(
+        f"{base}/invitations/{invite['id']}", headers=owner_headers
+    )
+    assert r.status_code == 200
+    # Redeeming a revoked invite is rejected.
+    redeemer = create_random_user(db)
+    redeemer_headers = authentication_token_from_email(
+        client=client, email=redeemer.email, db=db
+    )
+    r = client.post(
+        f"{settings.API_V1_STR}/project-invitations/{invite['token']}",
+        headers=redeemer_headers,
+    )
+    assert r.status_code == 410
 
 
 def test_get_project_results_autodetects_and_reads_ref(

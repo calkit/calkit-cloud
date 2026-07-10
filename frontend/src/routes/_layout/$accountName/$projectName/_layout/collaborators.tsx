@@ -19,25 +19,35 @@ import {
 } from "@chakra-ui/react"
 import { BsThreeDotsVertical } from "react-icons/bs"
 import { FiTrash } from "react-icons/fi"
-import { createFileRoute } from "@tanstack/react-router"
+import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
+import { z } from "zod"
 
 import Navbar from "../../../../../components/Common/Navbar"
 import AddCollaborator from "../../../../../components/Projects/AddCollaborator"
+import InviteLinks from "../../../../../components/Projects/InviteLinks"
 import { ProjectsService } from "../../../../../client"
 import useAuth from "../../../../../hooks/useAuth"
+import useProject from "../../../../../hooks/useProject"
 import Delete from "../../../../../components/Common/DeleteAlert"
+
+const collaboratorsSearchSchema = z.object({
+  add_collaborator: z.boolean().optional(),
+  create_invite: z.boolean().optional(),
+})
 
 export const Route = createFileRoute(
   "/_layout/$accountName/$projectName/_layout/collaborators",
 )({
   component: Collaborators,
+  validateSearch: (search) => collaboratorsSearchSchema.parse(search),
 })
 
 interface ActionsMenuProps {
   ownerName: string
   projectName: string
-  githubUsername: string
+  githubUsername?: string | null
+  userId?: string | null
   disabled?: boolean
 }
 
@@ -45,6 +55,7 @@ const ActionsMenu = ({
   ownerName,
   projectName,
   githubUsername,
+  userId,
   disabled,
 }: ActionsMenuProps) => {
   const deleteModal = useDisclosure()
@@ -69,7 +80,8 @@ const ActionsMenu = ({
         </MenuList>
         <Delete
           type={"Collaborator"}
-          id={githubUsername}
+          id={githubUsername ?? ""}
+          userId={userId}
           projectOwner={ownerName}
           projectName={projectName}
           isOpen={deleteModal.isOpen}
@@ -82,7 +94,11 @@ const ActionsMenu = ({
 
 function Collaborators() {
   const { accountName, projectName } = Route.useParams()
+  const { add_collaborator, create_invite } = Route.useSearch()
+  const navigate = useNavigate({ from: Route.fullPath })
   const { user: currentUser } = useAuth()
+  // Managing collaborators/invites is admin-only (the API enforces this too).
+  const { userHasAdminAccess } = useProject(accountName, projectName)
   const { isPending, data: collaborators } = useQuery({
     queryKey: ["projects", accountName, projectName, "collaborators"],
     queryFn: () =>
@@ -95,7 +111,23 @@ function Collaborators() {
   return (
     <Box>
       <Heading size={"md"}>Collaborators</Heading>
-      <Navbar type="collaborator" addModalAs={AddCollaborator} />
+      {userHasAdminAccess && (
+        <Navbar
+          type="collaborator"
+          addModalAs={AddCollaborator}
+          isOpen={!!add_collaborator}
+          onOpen={() =>
+            navigate({
+              search: (prev) => ({ ...prev, add_collaborator: true }),
+            })
+          }
+          onClose={() =>
+            navigate({
+              search: (prev) => ({ ...prev, add_collaborator: undefined }),
+            })
+          }
+        />
+      )}
       <TableContainer>
         <Table size={{ base: "sm", md: "md" }}>
           <Thead>
@@ -120,9 +152,9 @@ function Collaborators() {
           ) : (
             <Tbody>
               {collaborators?.map((collaborator) => (
-                <Tr key={collaborator.github_username}>
+                <Tr key={collaborator.user_id ?? collaborator.github_username}>
                   <Td isTruncated maxWidth="150px">
-                    {collaborator.github_username}
+                    {collaborator.github_username || collaborator.account_name}
                   </Td>
                   <Td
                     color={!collaborator.full_name ? "ui.dim" : "inherit"}
@@ -141,12 +173,15 @@ function Collaborators() {
                   </Td>
                   <Td>{collaborator.access_level}</Td>
                   <Td>
-                    <ActionsMenu
-                      ownerName={accountName}
-                      projectName={projectName}
-                      githubUsername={collaborator.github_username}
-                      disabled={currentUser?.id === collaborator.user_id}
-                    />
+                    {userHasAdminAccess && (
+                      <ActionsMenu
+                        ownerName={accountName}
+                        projectName={projectName}
+                        githubUsername={collaborator.github_username}
+                        userId={collaborator.user_id}
+                        disabled={currentUser?.id === collaborator.user_id}
+                      />
+                    )}
                   </Td>
                 </Tr>
               ))}
@@ -154,6 +189,23 @@ function Collaborators() {
           )}
         </Table>
       </TableContainer>
+      {/* Invite links are an admin-only management feature; the list endpoint
+          requires admin, so don't render (or fire its query) for others. */}
+      {userHasAdminAccess && (
+        <InviteLinks
+          ownerName={accountName}
+          projectName={projectName}
+          isCreateOpen={!!create_invite}
+          onCreateOpen={() =>
+            navigate({ search: (prev) => ({ ...prev, create_invite: true }) })
+          }
+          onCreateClose={() =>
+            navigate({
+              search: (prev) => ({ ...prev, create_invite: undefined }),
+            })
+          }
+        />
+      )}
     </Box>
   )
 }

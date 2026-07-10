@@ -1,15 +1,15 @@
-import { Flex, Box, Container, Link, Button } from "@chakra-ui/react"
-import LoadingSpinner from "../components/Common/LoadingSpinner"
-import { Outlet, createFileRoute } from "@tanstack/react-router"
+import { Box, Button, Container, Flex, Link } from "@chakra-ui/react"
 import { useQuery } from "@tanstack/react-query"
+import { Outlet, createFileRoute } from "@tanstack/react-router"
 import mixpanel from "mixpanel-browser"
+import LoadingSpinner from "../components/Common/LoadingSpinner"
 
-import useAuth from "../hooks/useAuth"
+import { UsersService } from "../client"
 import Topbar from "../components/Common/Topbar"
 import PickSubscription from "../components/UserSettings/PickSubscription"
-import { UsersService } from "../client"
-import { appName } from "../lib/core"
+import useAuth from "../hooks/useAuth"
 import { isAuthenticationError } from "../lib/auth"
+import { appName } from "../lib/core"
 
 export const Route = createFileRoute("/_layout")({
   component: Layout,
@@ -38,12 +38,15 @@ function Layout() {
       $plan_name: user.subscription?.plan_name,
     })
   }
+  // GitHub-less users (email/Google signups) don't have — and can't install —
+  // the GitHub App, so the install gate only applies to GitHub users.
+  const isGithubUser = Boolean(user?.github_username)
   const ghAppInstalledQuery = useQuery({
     queryKey: ["user", "github-app-installations"],
     queryFn: () => UsersService.getUserGithubAppInstallations(),
     refetchOnWindowFocus: false,
     refetchOnMount: false,
-    enabled: Boolean(user),
+    enabled: Boolean(user) && isGithubUser,
     retry: (failureCount, error: any) => {
       if (isAuthenticationError(error)) return false
       return failureCount < 1
@@ -54,16 +57,18 @@ function Layout() {
       logout()
     }
   }
-  // Check that the user has at least one installation
+  // Check that GitHub users have at least one installation
   const ghAppNotInstalled =
-    user && ghAppInstalledQuery.data && !ghAppInstalledQuery.data.total_count
+    isGithubUser &&
+    ghAppInstalledQuery.data &&
+    !ghAppInstalledQuery.data.total_count
   if (ghAppNotInstalled) {
     location.href = `https://github.com/apps/${appName}/installations/new`
   }
 
   return (
     <Box>
-      {isLoading || (user && ghAppInstalledQuery.isPending) ? (
+      {isLoading || (isGithubUser && ghAppInstalledQuery.isPending) ? (
         <LoadingSpinner height="100vh" />
       ) : (
         <>

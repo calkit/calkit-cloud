@@ -1,11 +1,37 @@
 """Tests for app.git."""
 
+import json
 from pathlib import Path
 
 import git
+import pytest
+from fastapi import HTTPException
 
 import app.git
+import app.github
 import app.projects
+
+
+class _FakeResp:
+    def __init__(self, status_code: int, payload: dict) -> None:
+        self.status_code = status_code
+        self._payload = payload
+
+    def json(self) -> dict:
+        return self._payload
+
+    @property
+    def text(self) -> str:
+        return json.dumps(self._payload)
+
+
+@pytest.fixture(autouse=True)
+def _clear_installation_token_cache():
+    """Keep the in-process App installation-token cache from leaking between
+    tests (a cached token would skip the mocked GitHub calls)."""
+    app.github._installation_token_cache.clear()
+    yield
+    app.github._installation_token_cache.clear()
 
 
 def _init_repo(repo_dir: Path) -> tuple[git.Repo, str]:
@@ -123,6 +149,68 @@ def test_get_file_history_dvc_lock(tmp_path, monkeypatch):
     assert len(history) == 2
     # Newest first
     assert history[0]["committed_date"] >= history[-1]["committed_date"]
+
+
+def test_get_app_installation_token(monkeypatch) -> None:
+    """The App JWT is exchanged for a repo-scoped installation token."""
+    calls: dict = {}
+    monkeypatch.setattr(app.github, "create_app_token", lambda: "fake-jwt")
+
+    def fake_get(url, headers=None, timeout=None):
+        calls["get_url"] = url
+        calls["get_auth"] = headers["Authorization"]
+        return _FakeResp(200, {"id": 12345})
+
+    def fake_post(url, headers=None, json=None, timeout=None):
+        calls["post_url"] = url
+        calls["post_json"] = json
+        return _FakeResp(201, {"token": "ghs_installationtoken"})
+
+    monkeypatch.setattr(app.github.requests, "get", fake_get)
+    monkeypatch.setattr(app.github.requests, "post", fake_post)
+    token = app.github.get_app_installation_token("owner-acct", "my-repo")
+    assert token == "ghs_installationtoken"
+    assert calls["get_url"].endswith("/repos/owner-acct/my-repo/installation")
+    assert calls["get_auth"] == "Bearer fake-jwt"
+    assert "/app/installations/12345/access_tokens" in calls["post_url"]
+    assert calls["post_json"] == {"repositories": ["my-repo"]}
+
+
+def test_get_app_installation_token_caches(monkeypatch) -> None:
+    """A second call reuses the cached token instead of minting again."""
+    mint_count = {"n": 0}
+
+    def fake_get(url, headers=None, timeout=None):
+        mint_count["n"] += 1
+        return _FakeResp(200, {"id": 12345})
+
+    def fake_post(url, headers=None, json=None, timeout=None):
+        return _FakeResp(
+            201,
+            {"token": "ghs_tok", "expires_at": "2999-01-01T00:00:00Z"},
+        )
+
+    monkeypatch.setattr(app.github, "create_app_token", lambda: "fake-jwt")
+    monkeypatch.setattr(app.github.requests, "get", fake_get)
+    monkeypatch.setattr(app.github.requests, "post", fake_post)
+    first = app.github.get_app_installation_token("acme", "widget")
+    second = app.github.get_app_installation_token("acme", "widget")
+    assert first == second == "ghs_tok"
+    # Minted only once; the second call was served from the cache.
+    assert mint_count["n"] == 1
+
+
+def test_get_app_installation_token_no_installation(monkeypatch) -> None:
+    """A missing installation surfaces as a 502, not a crash."""
+    monkeypatch.setattr(app.github, "create_app_token", lambda: "fake-jwt")
+    monkeypatch.setattr(
+        app.github.requests,
+        "get",
+        lambda *a, **k: _FakeResp(404, {}),
+    )
+    with pytest.raises(HTTPException) as exc:
+        app.github.get_app_installation_token("owner", "repo")
+    assert exc.value.status_code == 502
 
 
 def test_get_ck_info_from_repo_valid(tmp_path):

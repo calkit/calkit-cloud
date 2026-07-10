@@ -104,12 +104,26 @@ services:
       - "1080:1080"
       - "1025:1025"
 
+  texmf-proxy:
+    restart: "no"
+    build:
+      context: ./texmf-proxy
+    ports:
+      - "8771:8771"
+    # Override the base compose's production CORS origin (https://${DOMAIN}); in
+    # dev the frontend is served over http from a different port, so allow any.
+    environment:
+      - TEXMF_PROXY_ALLOW_ORIGIN=*
+
   frontend:
     restart: "no"
     env_file:
       - .env
     environment:
       - VITE_API_URL=http://api.localhost
+      # The in-browser LaTeX engine fetches missing TeX files from here on a
+      # kpathsea miss (full TeX Live coverage + on-demand fonts). See texmf-proxy.
+      - VITE_TEXMF_PROXY=http://localhost:8771
     build:
       context: ./frontend
       args:

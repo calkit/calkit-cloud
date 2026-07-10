@@ -33,7 +33,7 @@ import {
   useSearch,
 } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { z } from "zod"
 import { FaPlus, FaRegFileAlt } from "react-icons/fa"
 import { MdEdit } from "react-icons/md"
@@ -60,6 +60,7 @@ import useProject, {
 } from "../../../../../hooks/useProject"
 import ProjectShowcase from "../../../../../components/Projects/ProjectShowcase"
 import ImportOverleaf from "../../../../../components/Publications/ImportOverleaf"
+import LatexEditor from "../../../../../components/Publications/LatexEditor"
 
 export const Route = createFileRoute(
   "/_layout/$accountName/$projectName/_layout/",
@@ -75,6 +76,10 @@ export const Route = createFileRoute(
         // Number of the question whose details are expanded, so the back
         // button and links restore the expanded state.
         expanded_question: z.number().optional(),
+        // LaTeX editor open state (from a showcase publication), so a link
+        // reopens it. editor_tex is the .tex source path.
+        editor_open: z.boolean().optional(),
+        editor_tex: z.string().optional(),
       })
       .parse(search),
 })
@@ -318,7 +323,26 @@ function ProjectView() {
     new_release: newReleaseOpen,
     edit_question: editQuestionNumber,
     expanded_question: expandedQuestion,
+    editor_open: editorOpen,
+    editor_tex: editorTexPath,
   } = Route.useSearch()
+  // The editor open state (which .tex) lives in the URL; deps are a best-effort
+  // optimization captured when the button is clicked (absent on a cold link).
+  const latexDepsRef = useRef<string[] | null | undefined>(undefined)
+  const openLatexEditor = (texPath: string, deps?: string[] | null) => {
+    latexDepsRef.current = deps
+    navigate({
+      search: (prev) => ({ ...prev, editor_open: true, editor_tex: texPath }),
+    })
+  }
+  const closeLatexEditor = () =>
+    navigate({
+      search: (prev) => ({
+        ...prev,
+        editor_open: undefined,
+        editor_tex: undefined,
+      }),
+    })
   const setNewReleaseOpen = (open: boolean) =>
     navigate({
       search: (prev) => ({ ...prev, new_release: open || undefined }),
@@ -377,6 +401,9 @@ function ProjectView() {
               ownerName={accountName}
               projectName={projectName}
               gitRef={ref}
+              onEditLatex={
+                userHasWriteAccess && !ref ? openLatexEditor : undefined
+              }
             />
           </Box>
           {/* README */}
@@ -851,6 +878,16 @@ function ProjectView() {
           )}
         </Box>
       </Flex>
+      {editorOpen && editorTexPath && (
+        <LatexEditor
+          isOpen={Boolean(editorOpen)}
+          onClose={closeLatexEditor}
+          ownerName={accountName}
+          projectName={projectName}
+          texPath={editorTexPath}
+          deps={latexDepsRef.current}
+        />
+      )}
     </>
   )
 }

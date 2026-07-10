@@ -19,11 +19,11 @@ from fastapi import HTTPException
 from filelock import FileLock, Timeout
 from git.exc import GitCommandError
 from ruamel.yaml import YAMLError
-from sqlmodel import Session
+from sqlmodel import Session, select
 
-from app import users
+from app import github, users
 from app.core import logger, ryaml
-from app.models import GitRef, Project, User
+from app.models import GitRef, Project, User, UserProjectAccess
 
 _SYMLINK_MODE = 0o120000
 
@@ -147,7 +147,10 @@ def get_repo(
     # Add the file to the repo(s) -- we may need to clone it.
     # Ref-based reads should not mutate this working tree checkout.
     if user is not None:
-        base_dir = f"/tmp/{user.github_username}/{owner_name}/{project_name}"
+        # github_username is None for GitHub-less users; fall back to the
+        # (always-present, unique) account name for a stable temp path.
+        user_dir = user.github_username or user.account.name
+        base_dir = f"/tmp/{user_dir}/{owner_name}/{project_name}"
     else:
         base_dir = f"/tmp/anonymous/{owner_name}/{project_name}"
     repo_dir = os.path.join(base_dir, "repo")
@@ -161,9 +164,77 @@ def get_repo(
     # Clone the repo if it doesn't exist -- it will be in a "repo" dir
     access_token: str | None = None
     if user is not None:
-        logger.info(f"Getting {user.email}'s access token for Git operations")
-        with _timed("get-github-token", user=user.github_username):
-            access_token = users.get_github_token(session=session, user=user)
+        if user.account.github_name is not None:
+            # GitHub user: operate with their personal token.
+            logger.info(f"Getting {user.email}'s token for Git operations")
+            with _timed("get-github-token", user=user.github_username):
+                access_token = users.get_github_token(
+                    session=session, user=user
+                )
+        else:
+            # GitHub-less member. Native access (role_id, e.g. from an invite)
+            # is what lets us mint the repo-scoped, write-capable App
+            # installation token; a public repo is still readable
+            # unauthenticated without it. Requiring native access to mint is
+            # defense in depth: callers already gate on get_project, but this
+            # fails closed if one ever reaches get_repo without authorizing.
+            has_native_access = session.exec(
+                select(UserProjectAccess.role_id)
+                .where(UserProjectAccess.project_id == project.id)
+                .where(UserProjectAccess.user_id == user.id)
+                .where(UserProjectAccess.role_id.is_not(None))  # type: ignore
+            ).first()
+            if has_native_access is not None:
+                # Native collaborator: use the App token (needed for private
+                # repos and pushes). Commits are still authored as this user.
+                logger.info(
+                    f"Getting GitHub App installation token for {user.email}"
+                )
+                # Mint against the actual GitHub repo parsed from git_repo_url,
+                # not the Calkit slug, in case the project name/owner differs
+                # from the repo (the installation is looked up by repo).
+                gh_owner, gh_repo = (
+                    project.github_repo.split("/", 1)
+                    if project.github_repo
+                    else (owner_name, project_name)
+                )
+                try:
+                    with _timed("get-app-installation-token", user=user.email):
+                        access_token = github.get_app_installation_token(
+                            gh_owner, gh_repo
+                        )
+                except (github.GitHubAppNotConfigured, HTTPException) as e:
+                    # A public repo can still be read/cloned unauthenticated,
+                    # so fall back regardless of why the token was unavailable.
+                    if project.is_public:
+                        logger.warning(
+                            "GitHub App token unavailable; using "
+                            "unauthenticated access to public repo "
+                            f"{owner_name}/{project_name}: {e}"
+                        )
+                        access_token = None
+                    elif isinstance(e, github.GitHubAppNotConfigured):
+                        # No App key at all (e.g. local dev without it set up).
+                        raise HTTPException(
+                            502,
+                            "The Calkit GitHub App is not configured, so this "
+                            "private project can't be accessed for a user "
+                            "without a linked GitHub account.",
+                        )
+                    else:
+                        # App configured but minting failed (bad/rotated key,
+                        # App not installed on the repo, GitHub outage, ...).
+                        # Surface the real error rather than masking it.
+                        raise
+            elif project.is_public:
+                # No native access, but a public repo is readable
+                # unauthenticated -- no App token needed.
+                access_token = None
+            else:
+                # No access to a private project.
+                raise HTTPException(
+                    403, "You do not have access to this project."
+                )
     # Plain URL with no embedded token -- credentials handled in helper
     git_plain_url = project.git_repo_url
     if not git_plain_url.endswith(".git"):
@@ -371,12 +442,14 @@ def get_ck_info_from_repo(repo: git.Repo, process_includes=False) -> dict:
         ck_info = calkit.load_calkit_info(
             wdir=repo.working_dir, process_includes=process_includes
         )
-    except YAMLError as e:
+    except (YAMLError, IndexError) as e:
         # A user's calkit.yaml can be malformed (e.g., multiple YAML documents
-        # in a single file). That's bad data in their repo, not a server
-        # error, so treat it as empty rather than letting it 500 the project.
+        # in a single file), or empty/whitespace-only, which makes ruamel raise
+        # a bare IndexError from its scanner. That's bad data in their repo, not
+        # a server error, so treat it as empty rather than 500-ing the project.
         logger.warning(
-            f"Failed to parse calkit.yaml in {repo.working_dir}: {e}"
+            f"Failed to parse calkit.yaml in {repo.working_dir}: "
+            f"{type(e).__name__}: {e}"
         )
         return {}
     if ck_info is None:

@@ -172,6 +172,28 @@ docker compose -f docker-compose.yml up -d
 
 For production you wouldn't want to have the overrides in `docker-compose.override.yml`, that's why we explicitly specify `docker-compose.yml` as the file to use.
 
+### LaTeX preview texmf proxy
+
+The stack includes a `texmf-proxy` service that backs the in-browser LaTeX
+preview. The browser compiler ships only a subset of TeX Live and can't generate
+bitmap fonts, so on a missing file it fetches it from this service, which
+resolves it against a full TeX Live install (see `texmf-proxy/`). It's served at
+`texmf.$DOMAIN`, challenge-free (like the API, since the engine's synchronous XHR
+can't clear the bot wall), with CORS restricted to the site origin.
+
+A few deployment notes:
+
+- No extra DNS: `texmf.$DOMAIN` is covered by the wildcard subdomain configured
+  in Preparation above. Traefik issues its certificate automatically.
+- The image is a full TeX Live (`texlive/texlive:latest-full`, ~8 GB), so the
+  first deploy that builds it is slow and needs the disk headroom. It's rebuilt
+  only when the base image or `texmf-proxy/` changes.
+- The frontend points at it via the `VITE_TEXMF_PROXY` build arg
+  (`https://texmf.$DOMAIN`), baked in at build time like the other `VITE_*` args.
+- Without this service (or with `VITE_TEXMF_PROXY` unset) the preview still works
+  for common documents via a fallback, but classes/packages outside the bundled
+  subset (e.g. `revtex`/AASTeX) won't compile.
+
 ## Continuous Deployment (CD)
 
 You can use GitHub Actions to deploy your project automatically. 😎
@@ -289,6 +311,8 @@ Backend API base URL: `https://api.calkit.io`
 
 Adminer: `https://adminer.calkit.io`
 
+LaTeX preview texmf proxy: `https://texmf.calkit.io`
+
 ### Staging
 
 Frontend: `https://staging.calkit.io`
@@ -298,3 +322,5 @@ Backend API docs: `https://api.staging.calkit.io/docs`
 Backend API base URL: `https://api.staging.calkit.io`
 
 Adminer: `https://adminer.staging.calkit.io`
+
+LaTeX preview texmf proxy: `https://texmf.staging.calkit.io`

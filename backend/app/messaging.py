@@ -115,6 +115,27 @@ def generate_release_share_email(
     return EmailData(html_content=html_content, subject=subject)
 
 
+def generate_project_invitation_email(
+    email_to: str,
+    project_name: str,
+    link: str,
+    inviter: str,
+    role: str,
+) -> EmailData:
+    subject = f"{inviter} invited you to collaborate on {project_name}"
+    html_content = render_email_template(
+        template_name="project_invitation.html",
+        context={
+            "project_name": settings.PROJECT_NAME,
+            "shared_project": project_name,
+            "inviter": inviter,
+            "role": role,
+            "link": link,
+        },
+    )
+    return EmailData(html_content=html_content, subject=subject)
+
+
 def generate_new_account_email(
     email_to: str, username: str, password: str
 ) -> EmailData:

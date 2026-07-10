@@ -7,7 +7,14 @@ export const AccountPublicSchema = {
       title: "Name",
     },
     github_name: {
-      type: "string",
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "Github Name",
     },
     display_name: {
@@ -372,6 +379,17 @@ export const Body_projects_put_project_contentsSchema = {
       format: "binary",
       title: "File",
     },
+    message: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Message",
+    },
   },
   type: "object",
   required: ["file"],
@@ -393,8 +411,26 @@ export const CollaboratorSchema = {
       title: "User Id",
     },
     github_username: {
-      type: "string",
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "Github Username",
+    },
+    account_name: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Account Name",
     },
     full_name: {
       anyOf: [
@@ -424,7 +460,7 @@ export const CollaboratorSchema = {
     },
   },
   type: "object",
-  required: ["github_username", "access_level"],
+  required: ["access_level"],
   title: "Collaborator",
 } as const
 
@@ -1715,7 +1751,14 @@ export const FileLockSchema = {
       title: "User Id",
     },
     user_github_username: {
-      type: "string",
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "User Github Username",
       readOnly: true,
     },
@@ -2315,6 +2358,29 @@ export const GitRefSchema = {
   description: "Represents a Git reference (commit, tag, or branch).",
 } as const
 
+export const GitRemoteHeadSchema = {
+  properties: {
+    branch: {
+      type: "string",
+      title: "Branch",
+    },
+    sha: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Sha",
+    },
+  },
+  type: "object",
+  required: ["branch", "sha"],
+  title: "GitRemoteHead",
+} as const
+
 export const HTTPValidationErrorSchema = {
   properties: {
     detail: {
@@ -2663,6 +2729,18 @@ export const MessageSchema = {
   type: "object",
   required: ["message"],
   title: "Message",
+} as const
+
+export const NativeCollaboratorPostSchema = {
+  properties: {
+    email: {
+      type: "string",
+      title: "Email",
+    },
+  },
+  type: "object",
+  required: ["email"],
+  title: "NativeCollaboratorPost",
 } as const
 
 export const NewPasswordSchema = {
@@ -3750,7 +3828,14 @@ export const ProjectCommentSchema = {
       title: "Git Rev",
     },
     user_github_username: {
-      type: "string",
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "User Github Username",
       readOnly: true,
     },
@@ -3879,6 +3964,269 @@ export const ProjectCommentPostSchema = {
   type: "object",
   required: ["comment"],
   title: "ProjectCommentPost",
+} as const
+
+export const ProjectInvitationCreatedSchema = {
+  properties: {
+    id: {
+      type: "string",
+      format: "uuid",
+      title: "Id",
+    },
+    name: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Name",
+    },
+    email: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Email",
+    },
+    role_name: {
+      type: "string",
+      title: "Role Name",
+    },
+    created: {
+      type: "string",
+      format: "date-time",
+      title: "Created",
+    },
+    expires: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Expires",
+    },
+    max_uses: {
+      anyOf: [
+        {
+          type: "integer",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Max Uses",
+    },
+    use_count: {
+      type: "integer",
+      title: "Use Count",
+    },
+    revoked: {
+      type: "boolean",
+      title: "Revoked",
+    },
+    token: {
+      type: "string",
+      title: "Token",
+    },
+    url: {
+      type: "string",
+      title: "Url",
+    },
+    emailed: {
+      type: "boolean",
+      title: "Emailed",
+      default: false,
+    },
+  },
+  type: "object",
+  required: [
+    "id",
+    "role_name",
+    "created",
+    "expires",
+    "max_uses",
+    "use_count",
+    "revoked",
+    "token",
+    "url",
+  ],
+  title: "ProjectInvitationCreated",
+} as const
+
+export const ProjectInvitationPostSchema = {
+  properties: {
+    role: {
+      type: "string",
+      enum: ["read", "write"],
+      title: "Role",
+      default: "write",
+    },
+    expires_days: {
+      anyOf: [
+        {
+          type: "integer",
+          maximum: 365,
+          minimum: 1,
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Expires Days",
+    },
+    max_uses: {
+      anyOf: [
+        {
+          type: "integer",
+          minimum: 1,
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Max Uses",
+    },
+    name: {
+      anyOf: [
+        {
+          type: "string",
+          maxLength: 255,
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Name",
+    },
+    email: {
+      anyOf: [
+        {
+          type: "string",
+          format: "email",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Email",
+    },
+  },
+  type: "object",
+  title: "ProjectInvitationPost",
+} as const
+
+export const ProjectInvitationPublicSchema = {
+  properties: {
+    id: {
+      type: "string",
+      format: "uuid",
+      title: "Id",
+    },
+    name: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Name",
+    },
+    email: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Email",
+    },
+    role_name: {
+      type: "string",
+      title: "Role Name",
+    },
+    created: {
+      type: "string",
+      format: "date-time",
+      title: "Created",
+    },
+    expires: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Expires",
+    },
+    max_uses: {
+      anyOf: [
+        {
+          type: "integer",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Max Uses",
+    },
+    use_count: {
+      type: "integer",
+      title: "Use Count",
+    },
+    revoked: {
+      type: "boolean",
+      title: "Revoked",
+    },
+  },
+  type: "object",
+  required: [
+    "id",
+    "role_name",
+    "created",
+    "expires",
+    "max_uses",
+    "use_count",
+    "revoked",
+  ],
+  title: "ProjectInvitationPublic",
+} as const
+
+export const ProjectInvitationRedeemedSchema = {
+  properties: {
+    owner_name: {
+      type: "string",
+      title: "Owner Name",
+    },
+    project_name: {
+      type: "string",
+      title: "Project Name",
+    },
+    role_name: {
+      type: "string",
+      title: "Role Name",
+    },
+  },
+  type: "object",
+  required: ["owner_name", "project_name", "role_name"],
+  title: "ProjectInvitationRedeemed",
 } as const
 
 export const ProjectOptionalExtendedSchema = {
@@ -7031,8 +7379,15 @@ export const UserCreateSchema = {
       title: "Account Name",
     },
     github_username: {
-      type: "string",
-      maxLength: 64,
+      anyOf: [
+        {
+          type: "string",
+          maxLength: 64,
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "Github Username",
     },
   },
@@ -7077,7 +7432,14 @@ export const UserPublicSchema = {
       title: "Id",
     },
     github_username: {
-      type: "string",
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "Github Username",
     },
     subscription: {

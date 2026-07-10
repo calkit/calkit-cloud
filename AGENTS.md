@@ -75,18 +75,27 @@ out on the system.
 
 ## Misc rules
 
-- Git committing and pushing is for humans, not agents.
+- Git commits and pushes are for humans, not agents.
 - No blank lines in functions.
+- API endpoint functions should start with their REST verbs,
+  e.g., `post_something` or `get_something`.
 - Search inputs should always be clearable.
+- Disable browser and password manager autocomplete on most form fields,
+  e.g., with `autoComplete="off"`, `data-form-type="other"`, and
+  `data-lpignore="true"`, since they usually don't hold personal information.
+  Leave it on for genuine personal fields, e.g., login email and password.
 - Changes to the UI state, e.g., a selected tab or a modal open,
   should typically be part of query params so a link will show a similar state.
 - Tooltips should always have the same hover delay site-wide.
 - Always put a comma after "i.e." and "e.g.".
 - Let humans write prose.
-- Don't use many em-dashes.
+- Don't use em dashes in user-facing copy (labels, helper text, toasts, emails).
+  They read as AI-written. Use a comma, period, or rewrite. Prose is for humans.
 - Modal open state should be a query param.
 - Most front end state, e.g., an expanded section of a list,
   should also be a query param, so the back button works properly.
 - Function names should typically always start with a verb.
 - Avoid extracting helper functions unless they are used in 3 or more places
   or significantly help testing.
+- Don't use comment separators like `# ---- Section ----` to divide up modules.
+  Group related code with real structure (functions, classes) instead.

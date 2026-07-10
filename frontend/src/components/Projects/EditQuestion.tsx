@@ -33,6 +33,7 @@ import {
   useProjectResults,
 } from "../../hooks/useProject"
 import { handleError } from "../../lib/errors"
+import { submitOnCmdEnter } from "../../lib/keyboard"
 
 interface EditQuestionProps {
   question: QuestionPublic | null
@@ -171,7 +172,11 @@ const EditQuestion = ({
       isCentered
     >
       <ModalOverlay />
-      <ModalContent as="form" onSubmit={handleSubmit(onSubmit)}>
+      <ModalContent
+        as="form"
+        onSubmit={handleSubmit(onSubmit)}
+        onKeyDown={submitOnCmdEnter(handleSubmit(onSubmit))}
+      >
         <ModalHeader>Edit question</ModalHeader>
         <ModalCloseButton />
         <ModalBody pb={6}>

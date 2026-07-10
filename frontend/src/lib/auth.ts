@@ -87,6 +87,19 @@ export const getValidAccessToken = async (
         storeTokens(response.access_token, response.refresh_token)
         return response.access_token
       } catch {
+        // Refresh tokens are single-use (rotated server-side). A failure is
+        // often a race: another tab (or an earlier reload) already redeemed
+        // this refresh token and stored a fresh access token. Before treating
+        // the session as dead, adopt any newer, still-valid token that landed
+        // in storage instead of logging the user out.
+        const current = getAccessToken()
+        if (
+          current &&
+          current !== accessToken &&
+          !isTokenExpiredOrExpiringSoon(current)
+        ) {
+          return current
+        }
         clearTokens()
         return null
       } finally {
@@ -95,6 +108,44 @@ export const getValidAccessToken = async (
     })()
   }
   return refreshPromise
+}
+
+/**
+ * Refresh the access token unconditionally (ignoring the client-side expiry
+ * estimate) and return the new token, or null if the session is genuinely dead.
+ * Used to recover when the server rejects a token the client believed was
+ * valid, e.g. from clock skew or a rotation race, before logging the user out.
+ */
+export const forceRefreshAccessToken = async (): Promise<string | null> => {
+  // Drop any cached in-flight refresh so this genuinely re-attempts.
+  refreshPromise = null
+  const refreshToken = getRefreshToken()
+  if (!refreshToken) return null
+  const priorAccess = getAccessToken()
+  try {
+    const response = await LoginService.refreshAccessToken({
+      requestBody: { refresh_token: refreshToken },
+    })
+    storeTokens(response.access_token, response.refresh_token)
+    return response.access_token
+  } catch (e: any) {
+    // Another tab may have already rotated + stored a fresh token.
+    const current = getAccessToken()
+    if (
+      current &&
+      current !== priorAccess &&
+      !isTokenExpiredOrExpiringSoon(current)
+    ) {
+      return current
+    }
+    // Only a definitive rejection of the refresh token ends the session; a
+    // transient network/5xx failure should not clear it.
+    const status = e?.status ?? e?.response?.status
+    if (status === 400 || status === 401 || status === 403) {
+      clearTokens()
+    }
+    return null
+  }
 }
 
 /**
@@ -114,18 +165,38 @@ export const popPostLoginRedirect = (): string | null => {
   return null
 }
 
+// The exact detail strings the backend returns for a bad/expired/deactivated
+// token (all as 403s; see backend/app/api/deps.py). A logged-in user seeing one
+// of these has an invalid session and should be logged out.
+const TOKEN_AUTH_DETAILS = new Set([
+  "Could not validate credentials",
+  "Invalid token",
+  "Invalid token scope",
+  "Token has been deactivated",
+  "Token has expired",
+  "Token invalid",
+])
+
 /**
- * Checks if an error indicates an authentication/authorization failure.
+ * Checks if an error means the Calkit session itself is invalid (so the user
+ * should be logged out), as opposed to an ordinary authorization denial or a
+ * missing third-party token.
+ *
+ * The backend signals an invalid/expired session ONLY with a 403 carrying one
+ * of the details above (see backend/app/api/deps.py). It does NOT use status
+ * codes as the signal:
+ * - 403 is also returned for plain permission denials (e.g. a GitHub-less
+ *   collaborator hitting a resource they can't access).
+ * - 401 is returned for MISSING third-party provider tokens (GitHub, Google,
+ *   Zenodo, Overleaf) and login/refresh flows -- e.g. viewing the profile page
+ *   as a GitHub-less user hits /user/github-app-installations, which 401s with
+ *   "User needs to authenticate with GitHub". Those must NOT log the user out.
+ * So we key strictly off the session-token detail, never the status code. A
+ * genuinely dead session (expired refresh token) is handled separately by the
+ * token-refresh flow, which clears tokens on failure.
  */
 export const isAuthenticationError = (error: any): boolean => {
-  const status = error?.status ?? error?.response?.status
   const detail = error?.body?.detail ?? error?.response?.data?.detail
 
-  return (
-    status === 401 ||
-    status === 403 ||
-    detail === "Token has expired" ||
-    detail === "Invalid token" ||
-    detail === "Could not validate credentials"
-  )
+  return typeof detail === "string" && TOKEN_AUTH_DETAILS.has(detail)
 }

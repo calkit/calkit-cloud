@@ -28,6 +28,8 @@ import type {
   RecoverPasswordHtmlContentResponse,
   LoginWithGithubData,
   LoginWithGithubResponse,
+  LoginWithGoogleData,
+  LoginWithGoogleResponse,
   LoginWithGithubOidcData,
   LoginWithGithubOidcResponse,
   LoginWithGithubTokenData,
@@ -81,6 +83,8 @@ import type {
   DeleteProjectByIdResponse,
   GetProjectGitRepoData,
   GetProjectGitRepoResponse,
+  GetProjectGitRemoteHeadData,
+  GetProjectGitRemoteHeadResponse,
   SearchProjectRefsData,
   SearchProjectRefsResponse,
   GetProjectHistoryData,
@@ -155,6 +159,18 @@ import type {
   PutProjectCollaboratorResponse,
   DeleteProjectCollaboratorData,
   DeleteProjectCollaboratorResponse,
+  PostProjectCollaboratorByEmailData,
+  PostProjectCollaboratorByEmailResponse,
+  DeleteProjectNativeCollaboratorData,
+  DeleteProjectNativeCollaboratorResponse,
+  PostProjectInvitationData,
+  PostProjectInvitationResponse,
+  GetProjectInvitationsData,
+  GetProjectInvitationsResponse,
+  DeleteProjectInvitationData,
+  DeleteProjectInvitationResponse,
+  PostProjectInvitationRedemptionData,
+  PostProjectInvitationRedemptionResponse,
   GetProjectIssuesData,
   GetProjectIssuesResponse,
   PostProjectIssueData,
@@ -573,6 +589,32 @@ export class LoginService {
     return __request(OpenAPI, {
       method: "POST",
       url: "/login/github",
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Login With Google
+   * Log in (or sign up) a user via Google.
+   *
+   * New users created this way are GitHub-less (no linked GitHub account); they
+   * can connect GitHub later. Mirrors ``login_with_github`` but resolves the
+   * account by verified Google email.
+   * @param data The data for the request.
+   * @param data.requestBody
+   * @returns Token Successful Response
+   * @throws ApiError
+   */
+  public static withGoogle(
+    data: LoginWithGoogleData,
+  ): CancelablePromise<LoginWithGoogleResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/login/google",
       body: data.requestBody,
       mediaType: "application/json",
       errors: {
@@ -1246,6 +1288,39 @@ export class ProjectsService {
       path: {
         owner_name: data.ownerName,
         project_name: data.projectName,
+      },
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Get Project Git Remote Head
+   * Return origin's current HEAD commit SHA for a branch.
+   *
+   * Lets the LaTeX editor detect that someone else has pushed (concurrent
+   * editing) by polling, without pulling or resetting the working tree. Uses
+   * ``git ls-remote`` (a cheap live query) on the cached clone, reusing its auth.
+   * @param data The data for the request.
+   * @param data.ownerName
+   * @param data.projectName
+   * @param data.branch
+   * @returns GitRemoteHead Successful Response
+   * @throws ApiError
+   */
+  public static getProjectGitRemoteHead(
+    data: GetProjectGitRemoteHeadData,
+  ): CancelablePromise<GetProjectGitRemoteHeadResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/projects/{owner_name}/{project_name}/git/remote-head",
+      path: {
+        owner_name: data.ownerName,
+        project_name: data.projectName,
+      },
+      query: {
+        branch: data.branch,
       },
       errors: {
         422: "Validation Error",
@@ -2377,6 +2452,169 @@ export class ProjectsService {
   }
 
   /**
+   * Post Project Collaborator By Email
+   * Grant native (non-GitHub) write access to an existing Calkit user by
+   * email -- how a GitHub-less collaborator is added. For people who don't have
+   * a Calkit account yet, use an invite link instead.
+   * @param data The data for the request.
+   * @param data.ownerName
+   * @param data.projectName
+   * @param data.requestBody
+   * @returns Message Successful Response
+   * @throws ApiError
+   */
+  public static postProjectCollaboratorByEmail(
+    data: PostProjectCollaboratorByEmailData,
+  ): CancelablePromise<PostProjectCollaboratorByEmailResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/projects/{owner_name}/{project_name}/collaborators/by-email",
+      path: {
+        owner_name: data.ownerName,
+        project_name: data.projectName,
+      },
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Delete Project Native Collaborator
+   * Revoke a native (non-GitHub) collaborator's access. GitHub collaborators
+   * are removed via the github-username endpoint instead.
+   * @param data The data for the request.
+   * @param data.ownerName
+   * @param data.projectName
+   * @param data.userId
+   * @returns Message Successful Response
+   * @throws ApiError
+   */
+  public static deleteProjectNativeCollaborator(
+    data: DeleteProjectNativeCollaboratorData,
+  ): CancelablePromise<DeleteProjectNativeCollaboratorResponse> {
+    return __request(OpenAPI, {
+      method: "DELETE",
+      url: "/projects/{owner_name}/{project_name}/collaborators/by-user/{user_id}",
+      path: {
+        owner_name: data.ownerName,
+        project_name: data.projectName,
+        user_id: data.userId,
+      },
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Post Project Invitation
+   * Create a shareable invite link granting native project membership.
+   *
+   * The raw token is returned only here; the DB stores its hash. Invite links
+   * grant collaborator access only (read or write) — never admin or ownership;
+   * admins must be added deliberately, not via a shareable link.
+   * @param data The data for the request.
+   * @param data.ownerName
+   * @param data.projectName
+   * @param data.requestBody
+   * @returns ProjectInvitationCreated Successful Response
+   * @throws ApiError
+   */
+  public static postProjectInvitation(
+    data: PostProjectInvitationData,
+  ): CancelablePromise<PostProjectInvitationResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/projects/{owner_name}/{project_name}/invitations",
+      path: {
+        owner_name: data.ownerName,
+        project_name: data.projectName,
+      },
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Get Project Invitations
+   * @param data The data for the request.
+   * @param data.ownerName
+   * @param data.projectName
+   * @returns ProjectInvitationPublic Successful Response
+   * @throws ApiError
+   */
+  public static getProjectInvitations(
+    data: GetProjectInvitationsData,
+  ): CancelablePromise<GetProjectInvitationsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/projects/{owner_name}/{project_name}/invitations",
+      path: {
+        owner_name: data.ownerName,
+        project_name: data.projectName,
+      },
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Delete Project Invitation
+   * @param data The data for the request.
+   * @param data.ownerName
+   * @param data.projectName
+   * @param data.invitationId
+   * @returns Message Successful Response
+   * @throws ApiError
+   */
+  public static deleteProjectInvitation(
+    data: DeleteProjectInvitationData,
+  ): CancelablePromise<DeleteProjectInvitationResponse> {
+    return __request(OpenAPI, {
+      method: "DELETE",
+      url: "/projects/{owner_name}/{project_name}/invitations/{invitation_id}",
+      path: {
+        owner_name: data.ownerName,
+        project_name: data.projectName,
+        invitation_id: data.invitationId,
+      },
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Post Project Invitation Redemption
+   * Redeem an invite link, granting the current user native membership.
+   * @param data The data for the request.
+   * @param data.token
+   * @returns ProjectInvitationRedeemed Successful Response
+   * @throws ApiError
+   */
+  public static postProjectInvitationRedemption(
+    data: PostProjectInvitationRedemptionData,
+  ): CancelablePromise<PostProjectInvitationRedemptionResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/project-invitations/{token}",
+      path: {
+        token: data.token,
+      },
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
    * Get Project Issues
    * @param data The data for the request.
    * @param data.ownerName
@@ -3160,7 +3398,7 @@ export class ReleasesService {
 
   /**
    * Get Release Staleness
-   * Report whether the artifact at *path* is up-to-date with its pipeline
+   * Report whether the artifact at *path* is up-to-date from the pipeline
    * stage, so the New Release form can warn before releasing something that may
    * not be reproducible.
    * @param data The data for the request.
@@ -3655,7 +3893,10 @@ export class UsersService {
 
   /**
    * Register User
-   * Create new user without the need to be logged in.
+   * Create a new user with email + password, without a GitHub account.
+   *
+   * Such users can collaborate on projects (e.g. via invite links) but cannot
+   * own projects until git hosting is decoupled from GitHub.
    * @param data The data for the request.
    * @param data.requestBody
    * @returns UserPublic Successful Response

@@ -18,7 +18,7 @@ export type _ContentsItemBase = {
 
 export type AccountPublic = {
   name: string
-  github_name: string
+  github_name: string | null
   display_name: string
   kind: "user" | "org"
   role?: "self" | "read" | "write" | "admin" | "owner" | null
@@ -107,11 +107,13 @@ export type kind3 =
 
 export type Body_projects_put_project_contents = {
   file: Blob | File
+  message?: string | null
 }
 
 export type Collaborator = {
   user_id?: string | null
-  github_username: string
+  github_username?: string | null
+  account_name?: string | null
   full_name?: string | null
   email?: string | null
   access_level: string
@@ -393,7 +395,7 @@ export type FileLock = {
   path: string
   created?: string
   user_id: string
-  readonly user_github_username: string
+  readonly user_github_username: string | null
   readonly user_email: string
 }
 
@@ -537,6 +539,11 @@ export type GitRef = {
 
 export type kind4 = "branch" | "tag" | "commit"
 
+export type GitRemoteHead = {
+  branch: string
+  sha: string | null
+}
+
 export type HttpRequestAccess = {
   kind?: "http-request"
   url: string
@@ -611,6 +618,10 @@ export type LabelDatasetPost = {
 
 export type Message = {
   message: string
+}
+
+export type NativeCollaboratorPost = {
+  email: string
 }
 
 export type NewPassword = {
@@ -846,7 +857,7 @@ export type ProjectComment = {
   resolved?: string | null
   git_ref?: string | null
   git_rev?: string | null
-  readonly user_github_username: string
+  readonly user_github_username: string | null
   readonly user_full_name: string | null
   readonly user_email: string
 }
@@ -863,6 +874,49 @@ export type ProjectCommentPost = {
   create_github_issue?: boolean
   parent_id?: string | null
   git_ref?: string | null
+}
+
+export type ProjectInvitationCreated = {
+  id: string
+  name?: string | null
+  email?: string | null
+  role_name: string
+  created: string
+  expires: string | null
+  max_uses: number | null
+  use_count: number
+  revoked: boolean
+  token: string
+  url: string
+  emailed?: boolean
+}
+
+export type ProjectInvitationPost = {
+  role?: "read" | "write"
+  expires_days?: number | null
+  max_uses?: number | null
+  name?: string | null
+  email?: string | null
+}
+
+export type role2 = "read" | "write"
+
+export type ProjectInvitationPublic = {
+  id: string
+  name?: string | null
+  email?: string | null
+  role_name: string
+  created: string
+  expires: string | null
+  max_uses: number | null
+  use_count: number
+  revoked: boolean
+}
+
+export type ProjectInvitationRedeemed = {
+  owner_name: string
+  project_name: string
+  role_name: string
 }
 
 export type ProjectOptionalExtended = {
@@ -1469,7 +1523,7 @@ export type UserCreate = {
   full_name?: string | null
   password: string
   account_name?: string | null
-  github_username?: string
+  github_username?: string | null
 }
 
 export type UserPublic = {
@@ -1478,7 +1532,7 @@ export type UserPublic = {
   is_superuser?: boolean
   full_name?: string | null
   id: string
-  github_username: string
+  github_username: string | null
   subscription: UserSubscription | null
 }
 
@@ -1614,6 +1668,12 @@ export type LoginWithGithubData = {
 }
 
 export type LoginWithGithubResponse = Token
+
+export type LoginWithGoogleData = {
+  requestBody: OAuthCodeExchange
+}
+
+export type LoginWithGoogleResponse = Token
 
 export type LoginWithGithubOidcData = {
   authorization?: string | null
@@ -1792,6 +1852,14 @@ export type GetProjectGitRepoData = {
 export type GetProjectGitRepoResponse = {
   [key: string]: unknown
 }
+
+export type GetProjectGitRemoteHeadData = {
+  branch?: string | null
+  ownerName: string
+  projectName: string
+}
+
+export type GetProjectGitRemoteHeadResponse = GitRemoteHead
 
 export type SearchProjectRefsData = {
   ownerName: string
@@ -2143,6 +2211,51 @@ export type DeleteProjectCollaboratorData = {
 }
 
 export type DeleteProjectCollaboratorResponse = Message
+
+export type PostProjectCollaboratorByEmailData = {
+  ownerName: string
+  projectName: string
+  requestBody: NativeCollaboratorPost
+}
+
+export type PostProjectCollaboratorByEmailResponse = Message
+
+export type DeleteProjectNativeCollaboratorData = {
+  ownerName: string
+  projectName: string
+  userId: string
+}
+
+export type DeleteProjectNativeCollaboratorResponse = Message
+
+export type PostProjectInvitationData = {
+  ownerName: string
+  projectName: string
+  requestBody: ProjectInvitationPost
+}
+
+export type PostProjectInvitationResponse = ProjectInvitationCreated
+
+export type GetProjectInvitationsData = {
+  ownerName: string
+  projectName: string
+}
+
+export type GetProjectInvitationsResponse = Array<ProjectInvitationPublic>
+
+export type DeleteProjectInvitationData = {
+  invitationId: string
+  ownerName: string
+  projectName: string
+}
+
+export type DeleteProjectInvitationResponse = Message
+
+export type PostProjectInvitationRedemptionData = {
+  token: string
+}
+
+export type PostProjectInvitationRedemptionResponse = ProjectInvitationRedeemed
 
 export type GetProjectIssuesData = {
   ownerName: string

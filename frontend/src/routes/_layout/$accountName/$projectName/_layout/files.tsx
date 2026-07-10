@@ -38,6 +38,7 @@ import FileContent from "../../../../../components/Files/FileContent"
 import SelectedItemInfo, {
   inferKindFromPath,
 } from "../../../../../components/Files/SelectedItemInfo"
+import LatexEditor from "../../../../../components/Publications/LatexEditor"
 import useProject from "../../../../../hooks/useProject"
 import {
   ArtifactCompareModal,
@@ -50,6 +51,7 @@ const fileSearchSchema = z.object({
   compare_open: z.boolean().optional(),
   base_ref: z.string().optional(),
   compare_ref: z.string().optional(),
+  editor_open: z.boolean().optional(),
 })
 
 export const Route = createFileRoute(
@@ -238,7 +240,8 @@ function Item({ item, level, selectedPath, setSelectedPath }: ItemProps) {
 
 function Files() {
   const { accountName, projectName } = Route.useParams()
-  const { path, ref, compare_open, base_ref, compare_ref } = Route.useSearch()
+  const { path, ref, compare_open, base_ref, compare_ref, editor_open } =
+    Route.useSearch()
   const navigate = useNavigate({ from: Route.fullPath })
   const { userHasWriteAccess } = useProject(accountName, projectName)
   const {
@@ -340,6 +343,23 @@ function Files() {
       ? (selectedItem.calkit_object?.kind as ArtifactKind | undefined) ??
         inferKindFromPath(selectedItem.path)
       : undefined
+  // The in-browser LaTeX editor can open a .tex source directly, or a LaTeX
+  // publication (whose source we derive as <name>.tex, matching the
+  // publications page). deps help load figures from outside the paper dir.
+  const latexTexPath: string | undefined =
+    selectedItem?.type === "file"
+      ? selectedItem.path.endsWith(".tex")
+        ? selectedItem.path
+        : artifactKind === "publication"
+          ? selectedItem.path.replace(/\.[^/.]+$/, ".tex")
+          : undefined
+      : undefined
+  // No pipeline deps here (that lives on the Publication object, not a file
+  // listing) — the editor falls back to loading the .tex's own directory.
+  const openEditor = () =>
+    navigate({ search: (prev) => ({ ...prev, editor_open: true }) })
+  const closeEditor = () =>
+    navigate({ search: (prev) => ({ ...prev, editor_open: undefined }) })
 
   return (
     <>
@@ -429,6 +449,11 @@ function Files() {
                       userHasWriteAccess={userHasWriteAccess}
                       onOpenCompare={openCompare}
                       gitRef={ref}
+                      onEditLatex={
+                        latexTexPath && userHasWriteAccess && !ref
+                          ? openEditor
+                          : undefined
+                      }
                     />
                   ) : (
                     ""
@@ -459,6 +484,16 @@ function Files() {
               }),
             })
           }
+        />
+      )}
+
+      {editor_open && latexTexPath && (
+        <LatexEditor
+          isOpen={Boolean(editor_open)}
+          onClose={closeEditor}
+          ownerName={accountName}
+          projectName={projectName}
+          texPath={latexTexPath}
         />
       )}
     </>

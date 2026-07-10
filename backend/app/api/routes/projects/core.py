@@ -11,7 +11,7 @@ import sys
 import uuid
 import zipfile
 from copy import deepcopy
-from datetime import datetime
+from datetime import datetime, timedelta
 from fnmatch import fnmatch
 from io import StringIO
 from pathlib import Path, PurePosixPath
@@ -42,7 +42,7 @@ from sqlmodel import Session, and_, func, not_, or_, select
 from TexSoup import TexSoup
 
 import app.projects
-from app import mixpanel, orgs, users
+from app import github, messaging, mixpanel, orgs, users
 from app.api.deps import (
     CurrentUser,
     CurrentUserOptional,
@@ -50,6 +50,7 @@ from app.api.deps import (
 )
 from app.api.routes.orgs import OrgPost, post_org
 from app.config import settings
+from app.security import generate_refresh_token, hash_refresh_token
 from app.core import (
     CATEGORIES_PLURAL_TO_SINGULAR,
     CATEGORIES_SINGULAR_TO_PLURAL,
@@ -97,6 +98,11 @@ from app.models import (
     ProjectComment,
     ProjectCommentPatch,
     ProjectCommentPost,
+    ProjectInvitation,
+    ProjectInvitationCreated,
+    ProjectInvitationPost,
+    ProjectInvitationPublic,
+    ProjectInvitationRedeemed,
     ProjectPost,
     ProjectPublic,
     ProjectsPublic,
@@ -111,6 +117,7 @@ from app.models import (
     UserOrgMembership,
     UserProjectAccess,
 )
+from app.models.core import ROLE_IDS, ROLE_NAMES
 from app.models.projects import (
     Showcase,
     ShowcaseFigure,
@@ -196,9 +203,15 @@ def get_projects(
         where_clause = or_(
             Project.is_public,
             Project.owner_account_id == current_user.account.id,
+            # A row in the unified access table with either a native Calkit
+            # grant (role_id, e.g. an invite redemption) or GitHub-derived
+            # access. A row with both null is a cached "no access" result.
             and_(
                 UserProjectAccess.user_id == current_user.id,
-                UserProjectAccess.access.is_not(None),  # type: ignore
+                or_(
+                    UserProjectAccess.role_id.is_not(None),  # type: ignore
+                    UserProjectAccess.github_access.is_not(None),  # type: ignore
+                ),
             ),
             Project.owner_account.has(  # type: ignore
                 and_(
@@ -260,6 +273,14 @@ def get_owned_projects(
 ) -> ProjectsPublic:
     where_clause = or_(
         Project.owner_account_id == current_user.account.id,
+        # A native Calkit grant (role_id), e.g. an invite redemption, the only
+        # access path for GitHub-less collaborators.
+        Project.user_access_records.any(  # type: ignore
+            and_(
+                UserProjectAccess.user_id == current_user.id,
+                UserProjectAccess.role_id.is_not(None),
+            )
+        ),
         Project.owner_account.has(  # type: ignore
             and_(
                 Account.org_id.is_not(None),  # type: ignore
@@ -306,6 +327,13 @@ def post_project(
     project_in: ProjectPost,
 ) -> ProjectPublic:
     """Create new project."""
+    # Project owners must have a linked GitHub account until git hosting is
+    # decoupled from GitHub. GitHub-less users can still collaborate.
+    if current_user.account.github_name is None:
+        raise HTTPException(
+            403,
+            "A linked GitHub account is required to create or own projects.",
+        )
     project_in.name = project_in.name.lower()
     if project_in.git_repo_exists and project_in.git_repo_url is None:
         raise HTTPException(
@@ -816,6 +844,47 @@ def get_project_git_repo(
     return resp.json()
 
 
+class GitRemoteHead(BaseModel):
+    branch: str
+    sha: str | None
+
+
+@router.get("/projects/{owner_name}/{project_name}/git/remote-head")
+def get_project_git_remote_head(
+    owner_name: str,
+    project_name: str,
+    session: SessionDep,
+    current_user: CurrentUser,
+    branch: str | None = None,
+) -> GitRemoteHead:
+    """Return origin's current HEAD commit SHA for a branch.
+
+    Lets the LaTeX editor detect that someone else has pushed (concurrent
+    editing) by polling, without pulling or resetting the working tree. Uses
+    ``git ls-remote`` (a cheap live query) on the cached clone, reusing its auth.
+    """
+    project = app.projects.get_project(
+        session=session,
+        owner_name=owner_name,
+        project_name=project_name,
+        current_user=current_user,
+        min_access_level="read",
+    )
+    repo = get_repo(
+        project=project,
+        user=current_user,
+        session=session,
+        ttl=FULL_HISTORY_REPO_TTL,
+    )
+    branch_name = branch or repo.active_branch.name
+    try:
+        out = repo.git.ls_remote(["origin", branch_name])
+    except GitCommandError:
+        out = ""
+    sha = out.split()[0].strip() if out.strip() else None
+    return GitRemoteHead(branch=branch_name, sha=sha)
+
+
 @router.get("/projects/{owner_name}/{project_name}/git/refs")
 def search_project_refs(
     owner_name: str,
@@ -1226,6 +1295,7 @@ def put_project_contents(
     file: Annotated[UploadFile, File()],
     session: SessionDep,
     current_user: CurrentUser,
+    message: Annotated[str | None, Form()] = None,
 ) -> ContentsItem:
     project = app.projects.get_project(
         owner_name=owner_name,
@@ -1246,7 +1316,8 @@ def put_project_contents(
         f.write(file.file.read())
     repo.git.add(path)
     if repo.git.diff(["--staged", path]):
-        repo.git.commit(["-m", f"Upload {path} from web"])
+        commit_message = message or f"Upload {path} from web"
+        repo.git.commit(["-m", commit_message])
         repo.git.push(["origin", repo.active_branch.name])
     else:
         raise HTTPException(
@@ -2444,12 +2515,15 @@ def post_project_comment_reply(
     current_user: CurrentUser,
     session: SessionDep,
 ) -> ProjectComment:
+    # Requires write (like posting a top-level comment): a reply can be
+    # mirrored to the project's GitHub issue via the App installation token, so
+    # a read-only collaborator must not be able to trigger it.
     project = app.projects.get_project(
         session=session,
         owner_name=owner_name,
         project_name=project_name,
         current_user=current_user,
-        min_access_level="read",
+        min_access_level="write",
     )
     comment = session.get(ProjectComment, comment_id)
     if comment is None or comment.project_id != project.id:
@@ -2484,6 +2558,46 @@ def post_project_comment_reply(
     return reply_comment
 
 
+def _github_token_for_repo(
+    session: Session,
+    current_user: User,
+    owner_repo: str,
+) -> str | None:
+    """Return a token for GitHub API calls on ``owner/repo``.
+
+    Prefers the user's personal token; for GitHub-less collaborators (e.g.
+    invite-link members) falls back to the Calkit GitHub App installation
+    token so they can still open, close, and comment on issues. Returns None
+    if neither is available.
+    """
+    try:
+        return users.get_github_token(session, current_user)
+    except HTTPException:
+        pass
+    try:
+        owner_name, repo_name = owner_repo.split("/", 1)
+        return github.get_app_installation_token(owner_name, repo_name)
+    except (github.GitHubAppNotConfigured, HTTPException) as e:
+        logger.info(
+            f"No GitHub token for {current_user.email} on {owner_repo}: {e}"
+        )
+        return None
+
+
+def _make_github_authorship_prefix(user: User) -> str:
+    """A one-line attribution to prepend to issues/comments a GitHub-less user
+    posts through the Calkit App.
+
+    GitHub users author under their own GitHub account, so the content already
+    shows who wrote it; GitHub-less users post via the App (authored as the
+    bot), so name them in the body. Returns "" for GitHub users.
+    """
+    if user.account.github_name is not None:
+        return ""
+    name = user.full_name or user.account.name
+    return f"_Posted by {name} ({user.email}) via Calkit._\n\n"
+
+
 def _sync_github_issue_resolutions(
     session: Session,
     comments: list[ProjectComment],
@@ -2500,17 +2614,11 @@ def _sync_github_issue_resolutions(
     ]
     if not unresolved_with_url:
         return
-    # Try to get a GitHub token; fall back to unauthenticated (60 req/hr)
-    token: str | None = None
-    if current_user is not None:
-        try:
-            token = users.get_github_token(session, current_user)
-        except Exception:
-            pass
-    headers = {"Accept": "application/vnd.github+json"}
-    if token:
-        headers["Authorization"] = f"Bearer {token}"
     changed = False
+    # Resolve a token per repo (personal token, else App install token for
+    # GitHub-less users), cached so we don't re-mint per comment. Falls back to
+    # unauthenticated (60 req/hr) for public repos when neither is available.
+    token_by_repo: dict[str, str | None] = {}
     for comment in unresolved_with_url:
         url = str(comment.external_url)
         # Parse owner/repo/number from
@@ -2521,6 +2629,16 @@ def _sync_github_issue_resolutions(
             repo = f"{parts[-4]}/{parts[-3]}"
         except Exception:
             continue
+        if repo not in token_by_repo:
+            token_by_repo[repo] = (
+                _github_token_for_repo(session, current_user, repo)
+                if current_user is not None
+                else None
+            )
+        headers = {"Accept": "application/vnd.github+json"}
+        token = token_by_repo[repo]
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
         try:
             resp = requests.get(
                 f"https://api.github.com/repos/{repo}/issues/{issue_number}",
@@ -2575,9 +2693,8 @@ def _try_create_github_issue(
     github_repo = project.github_repo
     if not github_repo:
         return None
-    try:
-        token = users.get_github_token(session, current_user)
-    except HTTPException:
+    token = _github_token_for_repo(session, current_user, github_repo)
+    if token is None:
         logger.info(
             f"Skipping GitHub issue creation for {current_user.email}: "
             "no GitHub token"
@@ -2585,7 +2702,10 @@ def _try_create_github_issue(
         return None
     resp = requests.post(
         f"https://api.github.com/repos/{github_repo}/issues",
-        json={"title": title, "body": body},
+        json={
+            "title": title,
+            "body": f"{_make_github_authorship_prefix(current_user)}{body}",
+        },
         headers={
             "Authorization": f"Bearer {token}",
             "Accept": "application/vnd.github+json",
@@ -2614,15 +2734,16 @@ def _try_post_github_issue_comment(
         repo = f"{parts[-4]}/{parts[-3]}"
     except Exception:
         return None
-    try:
-        token = users.get_github_token(session, current_user)
-    except Exception:
+    token = _github_token_for_repo(session, current_user, repo)
+    if token is None:
         logger.debug("Skipping GitHub issue comment: no token")
         return None
     try:
         resp = requests.post(
             f"https://api.github.com/repos/{repo}/issues/{issue_number}/comments",
-            json={"body": body},
+            json={
+                "body": f"{_make_github_authorship_prefix(current_user)}{body}"
+            },
             headers={
                 "Authorization": f"Bearer {token}",
                 "Accept": "application/vnd.github+json",
@@ -2659,9 +2780,8 @@ def _try_reopen_github_issue(
         repo = f"{parts[-4]}/{parts[-3]}"
     except Exception:
         return
-    try:
-        token = users.get_github_token(session, current_user)
-    except Exception:
+    token = _github_token_for_repo(session, current_user, repo)
+    if token is None:
         logger.debug("Skipping GitHub issue reopen: no token")
         return
     try:
@@ -2701,9 +2821,8 @@ def _try_close_github_issue(
         repo = f"{parts[-4]}/{parts[-3]}"
     except Exception:
         return
-    try:
-        token = users.get_github_token(session, current_user)
-    except Exception:
+    token = _github_token_for_repo(session, current_user, repo)
+    if token is None:
         logger.debug("Skipping GitHub issue close: no token")
         return
     try:
@@ -2740,7 +2859,11 @@ def _fan_out_notifications(
         recipient_ids.add(owner_account.user_id)
     access_rows = session.exec(
         select(UserProjectAccess).where(
-            UserProjectAccess.project_id == project.id
+            UserProjectAccess.project_id == project.id,
+            or_(
+                UserProjectAccess.role_id.is_not(None),
+                UserProjectAccess.github_access.is_not(None),
+            ),
         )
     ).fetchall()
     for row in access_rows:
@@ -4188,7 +4311,10 @@ def get_project_pipeline(
 
 class Collaborator(BaseModel):
     user_id: uuid.UUID | None = None
-    github_username: str
+    # None for native (GitHub-less) collaborators added by email.
+    github_username: str | None = None
+    # The Calkit account name, shown when there's no GitHub username.
+    account_name: str | None = None
     full_name: str | None = None
     email: str | None = None
     access_level: str
@@ -4210,32 +4336,68 @@ def get_project_collaborators(
     )
     # TODO: GitHub requires higher permissions to get collaborators
     # Maybe for read-only people we should return contributors?
-    token = users.get_github_token(session=session, user=current_user)
-    github_repo = project.github_repo
-    if github_repo is None:
-        raise HTTPException(501)
-    url = f"https://api.github.com/repos/{github_repo}/collaborators"
-    resp = requests.get(url, headers={"Authorization": f"Bearer {token}"})
-    if not resp.status_code == 200:
-        raise HTTPException(resp.status_code, resp.json()["message"])
-    resp_json = resp.json()
     collabs = []
-    for gh_user in resp_json:
-        # TODO: Organization handling
-        if gh_user["type"] != "User":
+    listed_user_ids: set[uuid.UUID] = set()
+    github_repo = project.github_repo
+    # GitHub repo collaborators (best-effort: a GitHub-less viewer uses the App
+    # token; if listing fails we still return native members below rather than
+    # erroring the whole page).
+    token = (
+        _github_token_for_repo(session, current_user, github_repo)
+        if github_repo
+        else None
+    )
+    if github_repo and token:
+        url = f"https://api.github.com/repos/{github_repo}/collaborators"
+        resp = requests.get(url, headers={"Authorization": f"Bearer {token}"})
+        if resp.status_code == 200:
+            for gh_user in resp.json():
+                # TODO: Organization handling
+                if gh_user["type"] != "User":
+                    continue
+                user = session.exec(
+                    select(User).where(
+                        User.github_username == gh_user["login"]
+                    )
+                ).first()
+                obj = dict(
+                    github_username=gh_user["login"],
+                    access_level=gh_user["role_name"],
+                )
+                if user is not None:
+                    obj["email"] = user.email
+                    obj["full_name"] = user.full_name
+                    obj["account_name"] = user.account.name
+                    obj["user_id"] = user.id
+                    listed_user_ids.add(user.id)
+                collabs.append(Collaborator.model_validate(obj))
+        else:
+            logger.warning(
+                f"Could not list GitHub collaborators for {github_repo}: "
+                f"{resp.status_code}"
+            )
+    # Native (GitHub-less) members granted via an invite or a direct add.
+    native = session.exec(
+        select(User, UserProjectAccess.role_id)
+        .join(UserProjectAccess, UserProjectAccess.user_id == User.id)  # type: ignore[arg-type]
+        .where(UserProjectAccess.project_id == project.id)
+        .where(UserProjectAccess.role_id.is_not(None))  # type: ignore
+    ).all()
+    for user, role_id in native:
+        if user.id in listed_user_ids:
             continue
-        user = session.exec(
-            select(User).where(User.github_username == gh_user["login"])
-        ).first()
-        obj = dict(
-            github_username=gh_user["login"],
-            access_level=gh_user["role_name"],
+        collabs.append(
+            Collaborator.model_validate(
+                dict(
+                    user_id=user.id,
+                    github_username=user.github_username,
+                    account_name=user.account.name,
+                    full_name=user.full_name,
+                    email=user.email,
+                    access_level=ROLE_NAMES[role_id],
+                )
+            )
         )
-        if user is not None:
-            obj["email"] = user.email
-            obj["full_name"] = user.full_name
-            obj["user_id"] = user.id
-        collabs.append(Collaborator.model_validate(obj))
     return collabs
 
 
@@ -4284,11 +4446,11 @@ def put_project_collaborator(
         .where(UserProjectAccess.project_id == project.id)
     ).first()
     if access is not None:
-        access.access = "write"
+        access.github_access = "write"
     else:
         session.add(
             UserProjectAccess(
-                user_id=user.id, project_id=project.id, access="write"
+                user_id=user.id, project_id=project.id, github_access="write"
             )
         )
     session.commit()
@@ -4340,15 +4502,294 @@ def delete_project_collaborator(
         .where(UserProjectAccess.project_id == project.id)
     ).first()
     if access is not None:
-        access.access = None
+        access.github_access = None
     else:
         session.add(
             UserProjectAccess(
-                user_id=user.id, project_id=project.id, access=None
+                user_id=user.id, project_id=project.id, github_access=None
             )
         )
     session.commit()
     return Message(message="Success")
+
+
+class NativeCollaboratorPost(BaseModel):
+    email: str
+
+
+@router.post("/projects/{owner_name}/{project_name}/collaborators/by-email")
+def post_project_collaborator_by_email(
+    owner_name: str,
+    project_name: str,
+    req: NativeCollaboratorPost,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> Message:
+    """Grant native (non-GitHub) write access to an existing Calkit user by
+    email -- how a GitHub-less collaborator is added. For people who don't have
+    a Calkit account yet, use an invite link instead.
+    """
+    project = app.projects.get_project(
+        owner_name=owner_name,
+        project_name=project_name,
+        session=session,
+        current_user=current_user,
+        min_access_level="admin",
+    )
+    user = users.get_user_by_email(session=session, email=req.email)
+    if user is None:
+        raise HTTPException(
+            404,
+            "No Calkit user has that email. Send them an invite link to join.",
+        )
+    if user.id == project.owner_account.user_id:
+        raise HTTPException(400, "That user already owns this project.")
+    write_role = ROLE_IDS["write"]
+    existing = session.exec(
+        select(UserProjectAccess)
+        .where(UserProjectAccess.project_id == project.id)
+        .where(UserProjectAccess.user_id == user.id)
+    ).first()
+    if existing is None:
+        session.add(
+            UserProjectAccess(
+                user_id=user.id,
+                project_id=project.id,
+                role_id=write_role,
+                invited_by_user_id=current_user.id,
+            )
+        )
+    elif existing.role_id is None or existing.role_id < write_role:
+        existing.role_id = write_role
+        if existing.invited_by_user_id is None:
+            existing.invited_by_user_id = current_user.id
+        session.add(existing)
+    session.commit()
+    return Message(message="Success")
+
+
+@router.delete(
+    "/projects/{owner_name}/{project_name}/collaborators/by-user/{user_id}"
+)
+def delete_project_native_collaborator(
+    owner_name: str,
+    project_name: str,
+    user_id: uuid.UUID,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> Message:
+    """Revoke a native (non-GitHub) collaborator's access. GitHub collaborators
+    are removed via the github-username endpoint instead.
+    """
+    project = app.projects.get_project(
+        owner_name=owner_name,
+        project_name=project_name,
+        session=session,
+        current_user=current_user,
+        min_access_level="admin",
+    )
+    row = session.exec(
+        select(UserProjectAccess)
+        .where(UserProjectAccess.project_id == project.id)
+        .where(UserProjectAccess.user_id == user_id)
+    ).first()
+    if row is None or row.role_id is None:
+        raise HTTPException(404, "Collaborator not found")
+    # Drop the native grant; any cached GitHub-derived access is left as-is.
+    row.role_id = None
+    row.invited_by_user_id = None
+    session.add(row)
+    session.commit()
+    return Message(message="Success")
+
+
+@router.post("/projects/{owner_name}/{project_name}/invitations")
+def post_project_invitation(
+    owner_name: str,
+    project_name: str,
+    req: ProjectInvitationPost,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> ProjectInvitationCreated:
+    """Create a shareable invite link granting native project membership.
+
+    The raw token is returned only here; the DB stores its hash. Invite links
+    grant collaborator access only (read or write) — never admin or ownership;
+    admins must be added deliberately, not via a shareable link.
+    """
+    project = app.projects.get_project(
+        owner_name=owner_name,
+        project_name=project_name,
+        session=session,
+        current_user=current_user,
+        min_access_level="admin",
+    )
+    token = generate_refresh_token()
+    expires = (
+        utcnow() + timedelta(days=req.expires_days)
+        if req.expires_days is not None
+        else None
+    )
+    invitation = ProjectInvitation(
+        project_id=project.id,
+        token_hash=hash_refresh_token(token),
+        role_id=ROLE_IDS[req.role],
+        name=req.name,
+        email=req.email,
+        created_by_user_id=current_user.id,
+        expires=expires,
+        max_uses=req.max_uses,
+    )
+    session.add(invitation)
+    session.commit()
+    session.refresh(invitation)
+    url = f"{settings.frontend_host.rstrip('/')}/join/{token}"
+    # Best-effort: email the link if a recipient was given and SMTP is set up.
+    # Never fail the request over email; the creator still gets the copyable URL.
+    emailed = False
+    if req.email and settings.emails_enabled:
+        inviter = current_user.full_name or current_user.email
+        email_data = messaging.generate_project_invitation_email(
+            email_to=req.email,
+            project_name=project.name,
+            link=url,
+            inviter=inviter,
+            role=req.role,
+        )
+        try:
+            messaging.send_email(
+                email_to=req.email,
+                subject=email_data.subject,
+                html_content=email_data.html_content,
+            )
+            emailed = True
+        except Exception:
+            logger.exception(f"Failed to send invite email to {req.email}")
+    return ProjectInvitationCreated(
+        id=invitation.id,
+        name=invitation.name,
+        email=invitation.email,
+        role_name=invitation.role_name,
+        created=invitation.created,
+        expires=invitation.expires,
+        max_uses=invitation.max_uses,
+        use_count=invitation.use_count,
+        revoked=invitation.revoked,
+        token=token,
+        url=url,
+        emailed=emailed,
+    )
+
+
+@router.get("/projects/{owner_name}/{project_name}/invitations")
+def get_project_invitations(
+    owner_name: str,
+    project_name: str,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> list[ProjectInvitationPublic]:
+    project = app.projects.get_project(
+        owner_name=owner_name,
+        project_name=project_name,
+        session=session,
+        current_user=current_user,
+        min_access_level="admin",
+    )
+    invitations = session.exec(
+        select(ProjectInvitation)
+        .where(ProjectInvitation.project_id == project.id)
+        .order_by(sqlalchemy.desc(ProjectInvitation.created))  # type: ignore
+    ).all()
+    return list(invitations)  # type: ignore[return-value]
+
+
+@router.delete(
+    "/projects/{owner_name}/{project_name}/invitations/{invitation_id}"
+)
+def delete_project_invitation(
+    owner_name: str,
+    project_name: str,
+    invitation_id: uuid.UUID,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> Message:
+    project = app.projects.get_project(
+        owner_name=owner_name,
+        project_name=project_name,
+        session=session,
+        current_user=current_user,
+        min_access_level="admin",
+    )
+    invitation = session.get(ProjectInvitation, invitation_id)
+    if invitation is None or invitation.project_id != project.id:
+        raise HTTPException(404, "Invitation not found")
+    invitation.revoked = True
+    session.add(invitation)
+    session.commit()
+    return Message(message="Invitation revoked")
+
+
+@router.post("/project-invitations/{token}")
+def post_project_invitation_redemption(
+    token: str,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> ProjectInvitationRedeemed:
+    """Redeem an invite link, granting the current user native membership."""
+    # Lock the invitation row for the transaction so concurrent redemptions
+    # serialize: without this, two redeems can both read the same use_count,
+    # both pass is_valid, and both increment past max_uses.
+    invitation = session.exec(
+        select(ProjectInvitation)
+        .where(ProjectInvitation.token_hash == hash_refresh_token(token))
+        .with_for_update()
+    ).first()
+    if invitation is None:
+        raise HTTPException(404, "Invitation not found")
+    if not invitation.is_valid:
+        raise HTTPException(410, "Invitation is no longer valid")
+    project = session.get(Project, invitation.project_id)
+    if project is None:
+        raise HTTPException(404, "Project not found")
+    # Project owners already have full access; don't create a lesser membership.
+    if project.owner_account.user_id == current_user.id:
+        return ProjectInvitationRedeemed(
+            owner_name=project.owner_account.name,
+            project_name=project.name,
+            role_name="owner",
+        )
+    # Invite links never confer more than collaborator (write) access, even if
+    # a legacy link was created with a higher role. Admins are added directly.
+    granted_role_id = min(invitation.role_id, ROLE_IDS["write"])
+    existing = session.exec(
+        select(UserProjectAccess)
+        .where(UserProjectAccess.project_id == project.id)
+        .where(UserProjectAccess.user_id == current_user.id)
+    ).first()
+    if existing is None:
+        session.add(
+            UserProjectAccess(
+                user_id=current_user.id,
+                project_id=project.id,
+                role_id=granted_role_id,
+                invited_by_user_id=invitation.created_by_user_id,
+            )
+        )
+    elif existing.role_id is None or granted_role_id > existing.role_id:
+        # Grant, or upgrade if the invite confers more than they already have
+        # (the row may have existed as GitHub-derived access with no role_id).
+        existing.role_id = granted_role_id
+        if existing.invited_by_user_id is None:
+            existing.invited_by_user_id = invitation.created_by_user_id
+        session.add(existing)
+    invitation.use_count += 1
+    session.add(invitation)
+    session.commit()
+    return ProjectInvitationRedeemed(
+        owner_name=project.owner_account.name,
+        project_name=project.name,
+        role_name=invitation.role_name,
+    )
 
 
 class Issue(BaseModel):
@@ -4385,8 +4826,9 @@ def get_project_issues(
     if github_repo is None:
         raise HTTPException(501)
     if current_user is not None:
-        token = users.get_github_token(session=session, user=current_user)
-        headers = {"Authorization": f"Bearer {token}"}
+        token = _github_token_for_repo(session, current_user, github_repo)
+        if token is not None:
+            headers = {"Authorization": f"Bearer {token}"}
     url = f"https://api.github.com/repos/{github_repo}/issues"
     resp = requests.get(
         url,
@@ -4446,12 +4888,19 @@ def post_project_issue(
         current_user=current_user,
         min_access_level="write",
     )
-    token = users.get_github_token(session=session, user=current_user)
+    if project.github_repo is None:
+        raise HTTPException(501)
+    token = _github_token_for_repo(session, current_user, project.github_repo)
+    if token is None:
+        raise HTTPException(
+            502, "Could not authenticate with GitHub to create the issue"
+        )
+    body = f"{_make_github_authorship_prefix(current_user)}{req.body or ''}"
     url = f"https://api.github.com/repos/{project.github_repo}/issues"
     resp = requests.post(
         url,
         headers={"Authorization": f"Bearer {token}"},
-        json=req.model_dump(),
+        json={"title": req.title, "body": body},
     )
     if resp.status_code != 201:
         logger.error(f"Call to post issue failed ({resp.status_code})")
@@ -4484,10 +4933,17 @@ def patch_project_issue(
         project_name=project_name,
         session=session,
         current_user=current_user,
-        min_access_level="admin",
+        min_access_level="write",
     )
-    # TODO: A user who created the issue can edit?
-    token = users.get_github_token(session=session, user=current_user)
+    if project.github_repo is None:
+        raise HTTPException(501)
+    # Use the App-token fallback so GitHub-less collaborators can close/reopen
+    # issues too (consistent with creating and commenting on them).
+    token = _github_token_for_repo(session, current_user, project.github_repo)
+    if token is None:
+        raise HTTPException(
+            502, "Could not authenticate with GitHub to update the issue"
+        )
     url = (
         f"https://api.github.com/repos/{project.github_repo}/"
         f"issues/{issue_number}"
@@ -5094,6 +5550,32 @@ def get_project_showcase(
         ttl = 3600
     else:
         ttl = 30 * ttl
+    # Compute pipeline staleness once so publication elements can surface a
+    # "stale" badge. Best-effort: never let it break the showcase.
+    showcase_stage_statuses: dict = {}
+    showcase_dvc_lock: dict = {}
+    try:
+        showcase_tree = app.projects.get_repo_tree_for_ref(repo, ref)
+        if showcase_tree.is_file("dvc.lock"):
+            showcase_dvc_lock = (
+                ryaml.load(showcase_tree.read_bytes("dvc.lock").decode()) or {}
+            )
+        showcase_dvc_yaml: dict = {}
+        if showcase_tree.is_file("dvc.yaml"):
+            showcase_dvc_yaml = (
+                ryaml.load(showcase_tree.read_bytes("dvc.yaml").decode()) or {}
+            )
+        showcase_stage_statuses = compute_stage_statuses(
+            dvc_yaml=showcase_dvc_yaml,
+            dvc_lock=showcase_dvc_lock,
+            tree=showcase_tree,
+            owner_name=project.owner_account_name,
+            project_name=project.name,
+            fs=get_object_fs(),
+            cache_token=resolve_commit_sha(repo, ref),
+        )
+    except Exception as e:
+        logger.warning(f"Failed to compute pipeline status for showcase: {e}")
     elements_out = []
     for element_in in inputs.elements:
         if isinstance(element_in, ShowcaseFigureInput):
@@ -5123,6 +5605,15 @@ def get_project_showcase(
                         ref=ref,
                     )
                 )
+                pub = element_out.publication
+                if not pub.stage and pub.path:
+                    auto_stage = find_stage_for_path(
+                        pub.path, showcase_dvc_lock
+                    )
+                    if auto_stage is not None:
+                        pub.stage = auto_stage
+                if pub.stage and pub.stage in showcase_stage_statuses:
+                    pub.stage_status = showcase_stage_statuses[pub.stage]
             except Exception as e:
                 logger.warning(
                     "Failed to get showcase publication from "

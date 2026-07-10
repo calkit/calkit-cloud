@@ -53,6 +53,11 @@ router = APIRouter()
 # Access token TTL from settings; refresh token lasts 90 days
 ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
 REFRESH_TOKEN_EXPIRE_DAYS = 90
+# On rotation, the old refresh token isn't killed instantly; it keeps working
+# for this grace window so an interrupted rotation (the browser reloaded before
+# storing the new token, or a second tab raced the refresh) can retry with it
+# and get a fresh pair instead of the session dying.
+REFRESH_ROTATION_GRACE_SECONDS = 60
 
 
 def _make_tokens(
@@ -112,10 +117,12 @@ def refresh_access_token(
     session: SessionDep,
     body: RefreshTokenRequest,
 ) -> Token:
-    """Exchange a refresh token for a new access token and rotated refresh
+    """Exchange a refresh token for a new access token and a rotated refresh
     token.
 
-    The old refresh token is invalidated on use (refresh token rotation).
+    The old token is rotated out but still honored for a short grace window
+    (REFRESH_ROTATION_GRACE_SECONDS) so an interrupted rotation, e.g. the client
+    reloaded before storing the new token, doesn't strand the session.
     """
     token_hash = hash_refresh_token(body.refresh_token)
     refresh_db = session.exec(
@@ -136,8 +143,16 @@ def refresh_access_token(
         session.commit()
         raise HTTPException(401, "User is not active")
 
-    # Rotate: deactivate old token
-    refresh_db.is_active = False
+    # Rotate, but with a short grace window instead of deactivating instantly:
+    # shorten the old token's expiry to now + grace (only the first time, so it
+    # can't be kept alive forever by repeated use). A retry with it during the
+    # window still succeeds and mints a fresh pair, so an interrupted rotation
+    # doesn't strand the client with a dead token.
+    grace_deadline = utcnow() + timedelta(
+        seconds=REFRESH_ROTATION_GRACE_SECONDS
+    )
+    if refresh_db.expires > grace_deadline:
+        refresh_db.expires = grace_deadline
     session.add(refresh_db)
     # Issue new pair
     access_token, raw_refresh, new_refresh_db = _make_tokens(
@@ -328,6 +343,99 @@ def login_with_github(req: OAuthCodeExchange, session: SessionDep) -> Token:
     )
 
 
+@router.post("/login/google")
+def login_with_google(req: OAuthCodeExchange, session: SessionDep) -> Token:
+    """Log in (or sign up) a user via Google.
+
+    New users created this way are GitHub-less (no linked GitHub account); they
+    can connect GitHub later. Mirrors ``login_with_github`` but resolves the
+    account by verified Google email.
+    """
+    logger.info("Requesting Google access token")
+    resp = requests.post(
+        "https://oauth2.googleapis.com/token",
+        data=dict(
+            client_id=settings.GOOGLE_CLIENT_ID,
+            client_secret=settings.GOOGLE_CLIENT_SECRET,
+            grant_type="authorization_code",
+            code=req.code,
+            redirect_uri=req.redirect_uri,
+        ),
+    )
+    if resp.status_code != 200:
+        try:
+            msg = resp.json().get(
+                "error_description", "Google authentication failed"
+            )
+        except Exception:
+            msg = "Google authentication failed"
+        logger.error(f"Google auth failed: {msg}")
+        raise HTTPException(400, msg)
+    google_resp = resp.json()
+    userinfo = requests.get(
+        "https://www.googleapis.com/oauth2/v3/userinfo",
+        headers={"Authorization": f"Bearer {google_resp['access_token']}"},
+    )
+    if userinfo.status_code != 200:
+        raise HTTPException(400, "Could not fetch your Google profile")
+    profile = userinfo.json()
+    email = profile.get("email")
+    if not email or not profile.get("email_verified"):
+        raise HTTPException(400, "A verified Google email is required")
+    full_name = profile.get("name")
+    user = users.get_user_by_email(session=session, email=email)
+    if user is None:
+        if settings.ENVIRONMENT == "staging":
+            logger.warning(
+                f"Google user {email} attempting to sign up on staging"
+            )
+            raise HTTPException(403, "Please log in at calkit.io")
+        logger.info("Creating new GitHub-less user via Google")
+        try:
+            user = users.create_user(
+                session=session,
+                user_create=UserCreate(
+                    email=email,
+                    full_name=full_name,
+                    password=secrets.token_urlsafe(16),
+                ),
+            )
+        except HTTPException as e:
+            # The email-derived account name may be taken or reserved; retry
+            # once with a random suffix so signup still succeeds.
+            if e.status_code != 422:
+                raise
+            user = users.create_user(
+                session=session,
+                user_create=UserCreate(
+                    email=email,
+                    full_name=full_name,
+                    password=secrets.token_urlsafe(16),
+                    account_name=f"{email.split('@')[0]}-{secrets.token_hex(3)}",
+                ),
+            )
+        mixpanel.user_signed_up(user)
+    else:
+        logger.info(f"Found existing user with email: {user.email}")
+    if not user.is_active:
+        raise HTTPException(401, "User is not active")
+    # Persist the Google credential so the account shows as connected.
+    users.save_google_token(
+        session=session, user=user, google_resp=google_resp
+    )
+    mixpanel.user_logged_in(user)
+    access_token, raw_refresh, refresh_db = _make_tokens(
+        user.id, description="Google login"
+    )
+    session.add(refresh_db)
+    session.commit()
+    return Token(
+        access_token=access_token,
+        expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        refresh_token=raw_refresh,
+    )
+
+
 @router.post("/login/github-oidc")
 def login_with_github_oidc(
     session: SessionDep,
@@ -423,8 +531,8 @@ def login_with_github_oidc(
             logger.info(f"Codespace name: {codespace_name}")
         if not repository:
             raise HTTPException(400, "Repository claim not found in token")
-        # Use actor as the GitHub username (person who triggered the workflow)
-        # This works for both user-owned and org-owned repositories
+        # The person who triggered the workflow run. Works for both user-owned
+        # and org-owned repositories.
         github_username = claims.get("actor")
         if not github_username:
             raise HTTPException(400, "No actor in token")
@@ -443,6 +551,29 @@ def login_with_github_oidc(
             raise HTTPException(
                 404,
                 f"No user associated with GitHub account: {github_username}",
+            )
+        # Bind the actor to the repo the token was minted in. ``actor`` is
+        # merely whoever triggered the run, so a workflow in *someone else's*
+        # repo (e.g. an issue_comment or watch trigger, which run with
+        # actor=whoever-interacted) could otherwise mint a token carrying a
+        # victim's actor and be replayed here to log in as them. Require the
+        # repository owner to be the actor's own namespace or a Calkit org they
+        # belong to, so the run had to occur in a repo the user controls.
+        owner = (repository_owner or "").lower()
+        allowed_owners = {github_username.lower()}
+        for membership in user.org_memberships:
+            org_github_name = membership.org.account.github_name
+            if org_github_name:
+                allowed_owners.add(org_github_name.lower())
+        if owner not in allowed_owners:
+            logger.warning(
+                f"OIDC actor {github_username} is not authorized for "
+                f"repository owner {repository_owner}"
+            )
+            raise HTTPException(
+                403,
+                "The OIDC token's repository owner does not match the "
+                "authenticated GitHub user or an organization they belong to.",
             )
         if not user.is_active:
             logger.info(f"User {user.email} is not active")

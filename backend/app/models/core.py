@@ -39,7 +39,10 @@ class Account(SQLModel, table=True):
     org_id: uuid.UUID | None = Field(
         default=None, foreign_key="org.id", nullable=True
     )
-    github_name: str
+    # Null for accounts created without GitHub (email/Google signup). Project
+    # owners must still have a github_name until git hosting is decoupled from
+    # GitHub; collaborators need not.
+    github_name: str | None = Field(default=None)
     # Relationships
     owned_projects: list["Project"] = Relationship(
         back_populates="owner_account",
@@ -71,7 +74,7 @@ class UserBase(SQLModel):
 class UserCreate(UserBase):
     password: str = Field(min_length=8, max_length=40)
     account_name: str | None = Field(default=None, max_length=64)
-    github_username: str = Field(default=None, max_length=64)
+    github_username: str | None = Field(default=None, max_length=64)
 
 
 class UserRegister(SQLModel):
@@ -211,6 +214,8 @@ class User(UserBase, table=True):
     project_access: list["UserProjectAccess"] = Relationship(
         back_populates="user",
         cascade_delete=True,
+        # Disambiguate from the invited_by_user_id FK on UserProjectAccess.
+        sa_relationship_kwargs={"foreign_keys": "[UserProjectAccess.user_id]"},
     )
     project_comments: list["ProjectComment"] = Relationship(
         back_populates="user",
@@ -223,7 +228,7 @@ class User(UserBase, table=True):
 
     @computed_field
     @property
-    def github_username(self) -> str:
+    def github_username(self) -> str | None:
         return self.account.github_name
 
     @property
@@ -242,7 +247,7 @@ class User(UserBase, table=True):
 # Properties to return via API, id is always required
 class UserPublic(UserBase):
     id: uuid.UUID
-    github_username: str
+    github_username: str | None
     subscription: Union["UserSubscription", None]
 
 
@@ -268,6 +273,9 @@ class Org(SQLModel, table=True):
     @computed_field
     @property
     def github_name(self) -> str:
+        # Orgs are always created with a GitHub name.
+        if self.account.github_name is None:
+            raise ValueError("Org account has no github_name")
         return self.account.github_name
 
     @property
@@ -538,6 +546,10 @@ class Project(ProjectBase, table=True):
     user_access_records: list["UserProjectAccess"] = Relationship(
         back_populates="project", cascade_delete=True
     )
+    # Shareable invite links that grant access when redeemed.
+    invitations: list["ProjectInvitation"] = Relationship(
+        back_populates="project", cascade_delete=True
+    )
     # TODO: Figure out how to do self-referential relationships with parent
     # and children projects
     questions: list["Question"] = Relationship(
@@ -577,6 +589,10 @@ class Project(ProjectBase, table=True):
     @computed_field
     @property
     def owner_github_name(self) -> str:
+        # Project owners must have a GitHub account (collaborators need not)
+        # until git hosting is decoupled from GitHub.
+        if self.owner_account.github_name is None:
+            raise ValueError("Project owner account has no github_name")
         return self.owner_account.github_name
 
     @property
@@ -636,9 +652,29 @@ class ProjectPost(ProjectBase):
 
 
 class UserProjectAccess(SQLModel, table=True):
+    """A user's access to a project.
+
+    Unifies native Calkit membership (granted via invite links; ``role_id``
+    set) and access derived from the project's GitHub repo (``github_access``,
+    the permission GitHub reports, cached here). A row may carry either or both:
+    ``role_id`` is the effective Calkit level and takes precedence, while
+    ``github_access`` is retained to surface drift between GitHub and Calkit. A
+    row with both null is a cached "GitHub grants no access" result.
+    """
+
     user_id: uuid.UUID = Field(foreign_key="user.id", primary_key=True)
     project_id: uuid.UUID = Field(foreign_key="project.id", primary_key=True)
-    access: str | None = Field(max_length=32)
+    # Calkit-native granted level (e.g. from an invite). None when access is
+    # only GitHub-derived. Capped at admin by the API (never owner).
+    role_id: int | None = Field(
+        default=None, ge=min(ROLE_IDS.values()), le=max(ROLE_IDS.values())
+    )
+    # The permission GitHub reports for this user on the repo ("read"/"write"/
+    # "admin"), or None if GitHub grants none. Cache and drift signal.
+    github_access: str | None = Field(default=None, max_length=32)
+    invited_by_user_id: uuid.UUID | None = Field(
+        default=None, foreign_key="user.id"
+    )
     created: datetime = Field(default_factory=utcnow)
     updated: datetime = Field(
         default_factory=utcnow,
@@ -647,9 +683,94 @@ class UserProjectAccess(SQLModel, table=True):
             server_default=sqlalchemy.func.now(),
         ),
     )
-    # Relationships
-    user: User = Relationship()
+    # Relationships (user_id disambiguated from the invited_by_user_id FK)
+    user: User = Relationship(
+        back_populates="project_access",
+        sa_relationship_kwargs={"foreign_keys": "[UserProjectAccess.user_id]"},
+    )
     project: Project = Relationship(back_populates="user_access_records")
+
+    @computed_field
+    @property
+    def role_name(self) -> str | None:
+        return ROLE_NAMES[self.role_id] if self.role_id is not None else None
+
+
+class ProjectInvitation(SQLModel, table=True):
+    """A shareable invite link granting project membership when redeemed."""
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    project_id: uuid.UUID = Field(foreign_key="project.id")
+    # Only the SHA-256 hash of the token is stored; the raw token lives in the
+    # invite URL and is shown to the creator once.
+    token_hash: str = Field(unique=True, index=True)
+    role_id: int = Field(ge=min(ROLE_IDS.values()), le=max(ROLE_IDS.values()))
+    # Optional label for the link, and the address it was emailed to (if any).
+    name: str | None = Field(default=None, max_length=255)
+    email: str | None = Field(default=None, max_length=255)
+    created_by_user_id: uuid.UUID | None = Field(
+        default=None, foreign_key="user.id"
+    )
+    created: datetime = Field(default_factory=utcnow)
+    expires: datetime | None = Field(default=None)
+    max_uses: int | None = Field(default=None)
+    use_count: int = Field(default=0)
+    revoked: bool = Field(default=False)
+    # Relationships
+    project: Project = Relationship(back_populates="invitations")
+
+    @computed_field
+    @property
+    def role_name(self) -> str:
+        return ROLE_NAMES[self.role_id]
+
+    @property
+    def is_valid(self) -> bool:
+        if self.revoked:
+            return False
+        if self.expires is not None and self.expires < utcnow():
+            return False
+        if self.max_uses is not None and self.use_count >= self.max_uses:
+            return False
+        return True
+
+
+class ProjectInvitationPost(SQLModel):
+    # Invite links grant collaborator access only — never admin or owner.
+    # Admins are added deliberately (not via a shareable link).
+    role: Literal["read", "write"] = "write"
+    expires_days: int | None = Field(default=None, ge=1, le=365)
+    max_uses: int | None = Field(default=None, ge=1)
+    # Optional label; and an address to email the invite link to.
+    name: str | None = Field(default=None, max_length=255)
+    email: EmailStr | None = None
+
+
+class ProjectInvitationPublic(SQLModel):
+    id: uuid.UUID
+    name: str | None = None
+    email: str | None = None
+    role_name: str
+    created: datetime
+    expires: datetime | None
+    max_uses: int | None
+    use_count: int
+    revoked: bool
+
+
+class ProjectInvitationCreated(ProjectInvitationPublic):
+    # Raw token + ready-to-share URL, returned only at creation time.
+    token: str
+    url: str
+    # Whether the invite email was actually sent (best-effort; false if no
+    # recipient, SMTP is unconfigured, or sending failed).
+    emailed: bool = False
+
+
+class ProjectInvitationRedeemed(SQLModel):
+    owner_name: str
+    project_name: str
+    role_name: str
 
 
 class DvcPipelineStage(SQLModel):
@@ -780,7 +901,7 @@ class ProjectComment(SQLModel, table=True):
 
     @computed_field
     @property
-    def user_github_username(self) -> str:
+    def user_github_username(self) -> str | None:
         return self.user.github_username
 
     @computed_field
@@ -922,7 +1043,7 @@ class FileLock(SQLModel, table=True):
 
     @computed_field
     @property
-    def user_github_username(self) -> str:
+    def user_github_username(self) -> str | None:
         return self.user.github_username
 
     @computed_field

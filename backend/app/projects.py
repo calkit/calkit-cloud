@@ -94,6 +94,64 @@ _ck_dvc_cache: OrderedDict[str, tuple[float, CkInfoAndOuts]] = OrderedDict()
 _ck_dvc_cache_lock = threading.Lock()
 
 
+def _resolve_github_collaborator_access(
+    session: Session, project: Project, current_user: User
+) -> None:
+    """Resolve a non-member user's access from the cached GitHub permission,
+    querying GitHub and caching the result on a miss. Sets
+    ``project.current_user_access`` (left None if it can't be determined).
+    """
+    # TODO: There may be a race here with concurrent requests, though it does
+    # not appear to cause a real problem despite the failed writes.
+    access_query = (
+        select(UserProjectAccess)
+        .where(UserProjectAccess.project_id == project.id)
+        .where(UserProjectAccess.user_id == current_user.id)
+        .with_for_update()
+    )
+    access = session.exec(access_query).first()
+    if access is not None:
+        project.current_user_access = access.github_access
+        return
+    # Query GitHub for permissions
+    try:
+        github_token = app.users.get_github_token(session, current_user)
+    except HTTPException:
+        github_token = None
+        logger.info(f"User {current_user.email} has no GitHub token")
+    if github_token is None:
+        return
+    logger.info("Fetching permissions from GitHub")
+    url = (
+        f"https://api.github.com/repos/{project.github_repo}"
+        f"/collaborators/{current_user.github_username}/permission"
+    )
+    resp = requests.get(
+        url,
+        headers={"Authorization": f"Bearer {github_token}"},
+        timeout=15,
+    )
+    if resp.status_code == 200:
+        logger.info("Fetched permissions from GitHub")
+        permissions = resp.json()["permission"]
+        if permissions == "none":
+            permissions = None
+    else:
+        permissions = None
+        logger.info(
+            f"Failed to fetch permissions from GitHub ({resp.status_code})"
+        )
+    project.current_user_access = permissions
+    session.add(
+        UserProjectAccess(
+            project_id=project.id,
+            user_id=current_user.id,
+            github_access=permissions,
+        )
+    )
+    session.commit()
+
+
 def get_project(
     session: Session,
     owner_name: str,
@@ -132,76 +190,34 @@ def get_project(
         if project.owner == current_user:
             project.current_user_access = "owner"
         elif isinstance(project.owner, Org):
-            # Only give access to org owners and admins for now
-            # TODO: Allow more fine-grained access
+            # Org admins/owners get full access; plain members get read. This
+            # matches the org condition in the project search/listing queries,
+            # so a member never sees a project they then can't open.
             for org_membership in current_user.org_memberships:
-                if (
-                    org_membership.org_id == project.owner.account.org_id
-                    and org_membership.role_name in ["admin", "owner"]
-                ):
-                    project.current_user_access = "owner"
+                if org_membership.org_id == project.owner.account.org_id:
+                    project.current_user_access = (
+                        "owner"
+                        if org_membership.role_name in ["admin", "owner"]
+                        else "read"
+                    )
                     break
             if project.current_user_access is None and project.is_public:
                 project.current_user_access = "read"
         else:
-            # Query for permissions in our database, and if they aren't set,
-            # query GitHub and save
-            # TODO: We seem to have a race condition here with multiple
-            # requests causing this to run concurrently, though it doesn't
-            # seem to actually cause a problem despite the failure to write
-            # to the database in all but one
-            access_query = (
+            # Non-owner: a native Calkit grant (role_id, e.g., from an invite)
+            # takes precedence over GitHub-derived access, and is the only
+            # access path for GitHub-less collaborators.
+            access_row = session.exec(
                 select(UserProjectAccess)
                 .where(UserProjectAccess.project_id == project.id)
                 .where(UserProjectAccess.user_id == current_user.id)
-                .with_for_update()
-            )
-            access = session.exec(access_query).first()
-            if access is not None:
-                project.current_user_access = access.access
+            ).first()
+            if access_row is not None and access_row.role_id is not None:
+                project.current_user_access = access_row.role_name
             else:
-                # Query GitHub for permissions
-                try:
-                    github_token = app.users.get_github_token(
-                        session, current_user
-                    )
-                except HTTPException:
-                    github_token = None
-                    logger.info(
-                        f"User {current_user.email} has no GitHub token"
-                    )
-                if github_token is not None:
-                    logger.info("Fetching permissions from GitHub")
-                    url = (
-                        f"https://api.github.com/repos/{project.github_repo}"
-                        f"/collaborators/{current_user.github_username}/"
-                        "permission"
-                    )
-                    resp = requests.get(
-                        url,
-                        headers={"Authorization": f"Bearer {github_token}"},
-                        timeout=15,
-                    )
-                    if resp.status_code == 200:
-                        logger.info("Fetched permissions from GitHub")
-                        permissions = resp.json()["permission"]
-                        if permissions == "none":
-                            permissions = None
-                    else:
-                        permissions = None
-                        logger.info(
-                            "Failed to fetch permissions from GitHub "
-                            f"({resp.status_code})"
-                        )
-                    project.current_user_access = permissions
-                    session.add(
-                        UserProjectAccess(
-                            project_id=project.id,
-                            user_id=current_user.id,
-                            access=permissions,
-                        )
-                    )
-                    session.commit()
+                _resolve_github_collaborator_access(
+                    session, project, current_user
+                )
         if project.is_public and project.current_user_access is None:
             project.current_user_access = "read"
         if project.current_user_access is None:

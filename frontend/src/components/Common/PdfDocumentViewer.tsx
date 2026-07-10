@@ -26,6 +26,7 @@ import mixpanel from "mixpanel-browser"
 import type { PDFDocumentProxy } from "pdfjs-dist"
 import {
   type MutableRefObject,
+  type ReactNode,
   type RefObject,
   useCallback,
   useEffect,
@@ -209,6 +210,14 @@ interface PdfDocumentViewerProps {
   // Initial zoom (a pdf.js scale value, e.g. "auto", "page-width",
   // "page-fit", or a number). Defaults to "auto".
   defaultScale?: string
+  // Optional element rendered at the start of the toolbar's right-aligned
+  // action group, e.g. an "Edit LaTeX" button for publications.
+  toolbarAction?: ReactNode
+  // When false, the download action is disabled (e.g. an in-editor preview that
+  // shouldn't be mistaken for the official, pipeline-built PDF). The tooltip
+  // then shows `downloadDisabledHint`.
+  allowDownload?: boolean
+  downloadDisabledHint?: ReactNode
 }
 
 const highlightSx = {
@@ -231,6 +240,9 @@ export default function PdfDocumentViewer({
   pagedNav = false,
   source = "pdf",
   defaultScale = "auto",
+  toolbarAction,
+  allowDownload = true,
+  downloadDisabledHint,
 }: PdfDocumentViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   // Gate rendering until the next animation frame. In React StrictMode dev,
@@ -290,6 +302,9 @@ export default function PdfDocumentViewer({
               pagedNav={pagedNav}
               source={source}
               defaultScale={defaultScale}
+              toolbarAction={toolbarAction}
+              allowDownload={allowDownload}
+              downloadDisabledHint={downloadDisabledHint}
             />
           )}
         </PdfLoader>
@@ -318,6 +333,9 @@ function PdfViewerInner({
   pagedNav = false,
   source = "pdf",
   defaultScale = "auto",
+  toolbarAction,
+  allowDownload = true,
+  downloadDisabledHint,
 }: PdfViewerInnerProps) {
   const toolbarBg = useColorModeValue("ui.secondary", "ui.darkSlate")
   const borderColor = useColorModeValue("gray.200", "gray.600")
@@ -1047,6 +1065,7 @@ function PdfViewerInner({
         )}
 
         <Flex align="center" gap={0.5} ml="auto">
+          {toolbarAction}
           <Tooltip label="Search">
             <IconButton
               aria-label="Search"
@@ -1056,41 +1075,65 @@ function PdfViewerInner({
               onClick={() => (searchOpen ? closeSearch() : setSearchOpen(true))}
             />
           </Tooltip>
-          <Tooltip label="Print">
-            <IconButton
-              aria-label="Print"
-              icon={<FiPrinter />}
-              size="xs"
-              variant="ghost"
-              onClick={handlePrint}
-            />
-          </Tooltip>
-          <Tooltip label="Open in new tab">
-            <IconButton
-              as={Link}
-              href={url}
-              isExternal
-              aria-label="Open in new tab"
-              icon={<FiExternalLink />}
-              size="xs"
-              variant="ghost"
-              onClick={() =>
-                mixpanel.track("Opened PDF in new tab", { source })
+          {/* Print and open-in-new-tab are also ways to save the file, so they
+              are hidden alongside download for preview-only viewers. */}
+          {allowDownload && (
+            <>
+              <Tooltip label="Print">
+                <IconButton
+                  aria-label="Print"
+                  icon={<FiPrinter />}
+                  size="xs"
+                  variant="ghost"
+                  onClick={handlePrint}
+                />
+              </Tooltip>
+              <Tooltip label="Open in new tab">
+                <IconButton
+                  as={Link}
+                  href={url}
+                  isExternal
+                  aria-label="Open in new tab"
+                  icon={<FiExternalLink />}
+                  size="xs"
+                  variant="ghost"
+                  onClick={() =>
+                    mixpanel.track("Opened PDF in new tab", { source })
+                  }
+                />
+              </Tooltip>
+            </>
+          )}
+          {allowDownload ? (
+            <Tooltip label="Download">
+              <IconButton
+                as={Link}
+                href={url}
+                download
+                aria-label="Download"
+                icon={<FiDownload />}
+                size="xs"
+                variant="ghost"
+                onClick={() => mixpanel.track("Downloaded PDF", { source })}
+              />
+            </Tooltip>
+          ) : (
+            <Tooltip
+              label={
+                downloadDisabledHint ??
+                "Download is disabled for previews. Run the pipeline to generate the official PDF."
               }
-            />
-          </Tooltip>
-          <Tooltip label="Download">
-            <IconButton
-              as={Link}
-              href={url}
-              download
-              aria-label="Download"
-              icon={<FiDownload />}
-              size="xs"
-              variant="ghost"
-              onClick={() => mixpanel.track("Downloaded PDF", { source })}
-            />
-          </Tooltip>
+              shouldWrapChildren
+            >
+              <IconButton
+                aria-label="Download disabled"
+                icon={<FiDownload />}
+                size="xs"
+                variant="ghost"
+                isDisabled
+              />
+            </Tooltip>
+          )}
         </Flex>
       </Flex>
 

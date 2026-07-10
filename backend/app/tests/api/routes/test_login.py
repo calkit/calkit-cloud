@@ -1,3 +1,4 @@
+import uuid
 from datetime import timedelta
 from unittest.mock import patch
 
@@ -64,19 +65,34 @@ def test_refresh_access_token_rotates(
         headers=headers,
     )
     assert r.status_code == 200
-    # Old refresh token can no longer be used.
+    # Within the rotation grace window the old token still works, so an
+    # interrupted rotation (the client reloaded before storing the new token)
+    # can retry with it and get a fresh pair instead of being stranded.
     r = client.post(
         f"{settings.API_V1_STR}/login/refresh",
         json={"refresh_token": initial_refresh},
     )
-    assert r.status_code == 401
-    assert r.json()["detail"] == "Invalid refresh token"
+    assert r.status_code == 200
+    assert r.json()["refresh_token"] != initial_refresh
     old_hash = hash_refresh_token(initial_refresh)
     old_token = db.exec(
         select(RefreshToken).where(RefreshToken.token_hash == old_hash)
     ).first()
     assert old_token is not None
-    assert old_token.is_active is False
+    # It isn't hard-deactivated; its expiry is shortened to the brief grace
+    # window (far below the 90-day default), so it lapses shortly after.
+    assert old_token.is_active is True
+    assert old_token.expires < utcnow() + timedelta(minutes=5)
+    # Once that window passes, the old token is rejected.
+    old_token.expires = utcnow() - timedelta(seconds=1)
+    db.add(old_token)
+    db.commit()
+    r = client.post(
+        f"{settings.API_V1_STR}/login/refresh",
+        json={"refresh_token": initial_refresh},
+    )
+    assert r.status_code == 401
+    assert r.json()["detail"] == "Refresh token has expired"
 
 
 def test_refresh_access_token_invalid(client: TestClient) -> None:
@@ -350,3 +366,69 @@ def test_reset_password_invalid_token(
     assert "detail" in response
     assert r.status_code == 400
     assert response["detail"] == "Invalid token"
+
+
+class _FakeGoogleResp:
+    def __init__(self, status_code: int, payload: dict) -> None:
+        self.status_code = status_code
+        self._payload = payload
+
+    def json(self) -> dict:
+        return self._payload
+
+
+def test_login_with_google_creates_github_less_user(
+    client: TestClient, db: Session
+) -> None:
+    email = f"g-{uuid.uuid4().hex[:8]}@example.com"
+    with (
+        patch(
+            "app.api.routes.login.requests.post",
+            return_value=_FakeGoogleResp(
+                200, {"access_token": "ya29.fake", "refresh_token": "r"}
+            ),
+        ),
+        patch(
+            "app.api.routes.login.requests.get",
+            return_value=_FakeGoogleResp(
+                200,
+                {"email": email, "email_verified": True, "name": "G User"},
+            ),
+        ),
+        patch("app.api.routes.login.users.save_google_token"),
+    ):
+        r = client.post(
+            f"{settings.API_V1_STR}/login/google",
+            json={
+                "code": "auth-code",
+                "redirect_uri": "http://localhost:5173/google-auth",
+            },
+        )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["access_token"]
+    assert body["refresh_token"]
+    user = users.get_user_by_email(session=db, email=email)
+    assert user is not None
+    # Signed up via Google -> no linked GitHub account.
+    assert user.account.github_name is None
+
+
+def test_login_with_google_requires_verified_email(client: TestClient) -> None:
+    with (
+        patch(
+            "app.api.routes.login.requests.post",
+            return_value=_FakeGoogleResp(200, {"access_token": "ya29.fake"}),
+        ),
+        patch(
+            "app.api.routes.login.requests.get",
+            return_value=_FakeGoogleResp(
+                200, {"email": "x@example.com", "email_verified": False}
+            ),
+        ),
+    ):
+        r = client.post(
+            f"{settings.API_V1_STR}/login/google",
+            json={"code": "c", "redirect_uri": "http://localhost:5173/x"},
+        )
+    assert r.status_code == 400

@@ -161,8 +161,11 @@ def delete_current_user(
 
 @router.post("/users/signup")
 def register_user(session: SessionDep, user_in: UserRegister) -> UserPublic:
-    """Create new user without the need to be logged in."""
-    raise HTTPException(501)
+    """Create a new user with email + password, without a GitHub account.
+
+    Such users can collaborate on projects (e.g. via invite links) but cannot
+    own projects until git hosting is decoupled from GitHub.
+    """
     user = users.get_user_by_email(session=session, email=user_in.email)
     if user:
         raise HTTPException(
