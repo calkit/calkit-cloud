@@ -722,7 +722,12 @@ const LatexEditor = ({
                 </Box>
                 <Box flex="1" minW={0} position="relative" bg="blackAlpha.50">
                   {pdfUrl ? (
-                    <PdfDocumentViewer url={pdfUrl} />
+                    <PdfDocumentViewer
+                      url={pdfUrl}
+                      source="latex-editor-preview"
+                      allowDownload={false}
+                      downloadDisabledHint="This is a live preview and its figures may be stale. Run the pipeline to generate the official PDF with all figures up to date."
+                    />
                   ) : (
                     <Flex
                       height="100%"

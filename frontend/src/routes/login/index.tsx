@@ -198,7 +198,7 @@ function Login() {
         <Text fontSize="sm">
           New to Calkit?{" "}
           <Link as={RouterLink} to="/signup" variant="default">
-            Create an account
+            Create an account.
           </Link>
         </Text>
         <Text fontSize={10} mt={-1}>
