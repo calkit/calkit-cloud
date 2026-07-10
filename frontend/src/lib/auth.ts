@@ -111,6 +111,44 @@ export const getValidAccessToken = async (
 }
 
 /**
+ * Refresh the access token unconditionally (ignoring the client-side expiry
+ * estimate) and return the new token, or null if the session is genuinely dead.
+ * Used to recover when the server rejects a token the client believed was
+ * valid, e.g. from clock skew or a rotation race, before logging the user out.
+ */
+export const forceRefreshAccessToken = async (): Promise<string | null> => {
+  // Drop any cached in-flight refresh so this genuinely re-attempts.
+  refreshPromise = null
+  const refreshToken = getRefreshToken()
+  if (!refreshToken) return null
+  const priorAccess = getAccessToken()
+  try {
+    const response = await LoginService.refreshAccessToken({
+      requestBody: { refresh_token: refreshToken },
+    })
+    storeTokens(response.access_token, response.refresh_token)
+    return response.access_token
+  } catch (e: any) {
+    // Another tab may have already rotated + stored a fresh token.
+    const current = getAccessToken()
+    if (
+      current &&
+      current !== priorAccess &&
+      !isTokenExpiredOrExpiringSoon(current)
+    ) {
+      return current
+    }
+    // Only a definitive rejection of the refresh token ends the session; a
+    // transient network/5xx failure should not clear it.
+    const status = e?.status ?? e?.response?.status
+    if (status === 400 || status === 401 || status === 403) {
+      clearTokens()
+    }
+    return null
+  }
+}
+
+/**
  * Retrieves and removes the stored post-login redirect path from localStorage.
  * Only returns paths that start with "/" and don't contain ".." to prevent
  * open redirect and directory traversal attacks.

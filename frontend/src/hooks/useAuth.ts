@@ -15,6 +15,7 @@ import {
 import useCustomToast from "./useCustomToast"
 import {
   clearTokens,
+  forceRefreshAccessToken,
   getAccessToken,
   popPostLoginRedirect,
   isAuthenticationError,
@@ -36,7 +37,22 @@ const useAuth = () => {
     error: getUserError,
   } = useQuery<UserPublic | null, Error>({
     queryKey: ["currentUser"],
-    queryFn: UsersService.getCurrentUser,
+    // On a token error, force one fresh refresh and retry before concluding the
+    // session is dead. This recovers from an expired token that slipped through
+    // (clock skew, a refresh/rotation race) instead of logging the user out.
+    queryFn: async () => {
+      try {
+        return await UsersService.getCurrentUser()
+      } catch (error) {
+        if (isAuthenticationError(error)) {
+          const token = await forceRefreshAccessToken()
+          if (token) {
+            return await UsersService.getCurrentUser()
+          }
+        }
+        throw error
+      }
+    },
     enabled: isLoggedIn(),
     staleTime: Infinity,
     retry: (failureCount, error: any) => {
@@ -165,12 +181,20 @@ const useAuth = () => {
 
   if (getUserError && isLoggedIn()) {
     if (isAuthenticationError(getUserError)) {
-      // Log the trigger so a spurious logout can be diagnosed from the console.
+      // Capture the trigger durably: logout() navigates away and wipes the
+      // console, so persist to localStorage (read it back after a logout) and
+      // send it to Mixpanel so we can see these across users.
       const err = getUserError as any
-      console.warn("Session invalid, logging out", {
+      const info = {
         status: err?.status ?? err?.response?.status,
         detail: err?.body?.detail ?? err?.response?.data?.detail,
-      })
+        at: new Date().toISOString(),
+      }
+      console.warn("Session invalid, logging out", info)
+      try {
+        localStorage.setItem("last_auto_logout", JSON.stringify(info))
+      } catch {}
+      mixpanel.track("Session auto-logout", info)
       logout()
     }
   }
