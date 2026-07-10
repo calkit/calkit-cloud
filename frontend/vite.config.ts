@@ -31,7 +31,21 @@ export default defineConfig({
             return "vendor-plotly"
           }
 
-          if (id.includes("mermaid")) {
+          // Mermaid and its rendering graph (d3, dagre, khroma, cytoscape,
+          // elkjs) must stay in ONE chunk. Splitting this tightly-coupled,
+          // circular dependency graph across chunks reorders module init and
+          // triggers a "Cannot access 'x' before initialization" TDZ error in
+          // mermaid's theme code on load.
+          if (
+            id.includes("mermaid") ||
+            id.includes("/d3-") ||
+            id.includes("/d3/") ||
+            id.includes("dagre") ||
+            id.includes("khroma") ||
+            id.includes("cytoscape") ||
+            id.includes("elkjs") ||
+            id.includes("non-layered-tidy-tree-layout")
+          ) {
             return "vendor-mermaid"
           }
 
@@ -86,10 +100,6 @@ export default defineConfig({
 
           if (id.includes("react-diff-viewer")) {
             return "vendor-diff"
-          }
-
-          if (id.includes("d3-")) {
-            return "vendor-d3"
           }
 
           return "vendor"
