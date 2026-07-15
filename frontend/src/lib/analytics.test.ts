@@ -2,7 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 vi.mock("mixpanel-browser", () => ({
-  default: { track_pageview: vi.fn() },
+  default: { track_pageview: vi.fn(), register: vi.fn() },
 }))
 
 function setWebdriver(value: boolean): void {
@@ -32,53 +32,52 @@ function makeRouter() {
 async function load() {
   vi.resetModules()
   const mixpanel = (await import("mixpanel-browser")).default
-  const { initPageViewTracking } = await import("./analytics")
+  const { initAnalytics } = await import("./analytics")
   // biome-ignore lint/suspicious/noExplicitAny: test router stub
-  return { mixpanel, initPageViewTracking: initPageViewTracking as any }
+  return { mixpanel, initAnalytics: initAnalytics as any }
 }
 
-describe("initPageViewTracking", () => {
+describe("initAnalytics", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     window.history.pushState({}, "", "/")
     setWebdriver(false)
   })
 
-  it("holds the landing page view until the first interaction", async () => {
-    const { mixpanel, initPageViewTracking } = await load()
-    const router = makeRouter()
-    initPageViewTracking(router)
-    expect(mixpanel.track_pageview).not.toHaveBeenCalled()
-    window.dispatchEvent(new Event("pointermove"))
+  it("tracks the landing page view", async () => {
+    const { mixpanel, initAnalytics } = await load()
+    initAnalytics(makeRouter())
     expect(mixpanel.track_pageview).toHaveBeenCalledTimes(1)
   })
 
-  it("tracks later navigations once the visitor is confirmed human", async () => {
-    const { mixpanel, initPageViewTracking } = await load()
+  it("tracks navigations to new URLs", async () => {
+    const { mixpanel, initAnalytics } = await load()
     const router = makeRouter()
-    initPageViewTracking(router)
-    window.dispatchEvent(new Event("scroll"))
+    initAnalytics(router)
     router.navigate("/projects")
     expect(mixpanel.track_pageview).toHaveBeenCalledTimes(2)
   })
 
   it("does not retrack a navigation to the same URL", async () => {
-    const { mixpanel, initPageViewTracking } = await load()
+    const { mixpanel, initAnalytics } = await load()
     const router = makeRouter()
-    initPageViewTracking(router)
-    window.dispatchEvent(new Event("keydown"))
+    initAnalytics(router)
     router.navigate("/projects")
     router.navigate("/projects")
     expect(mixpanel.track_pageview).toHaveBeenCalledTimes(2)
   })
 
-  it("never tracks for automated browsers, even after interaction", async () => {
+  it("tags automated browsers with a bot super property but still tracks them", async () => {
     setWebdriver(true)
-    const { mixpanel, initPageViewTracking } = await load()
-    const router = makeRouter()
-    initPageViewTracking(router)
-    window.dispatchEvent(new Event("pointermove"))
-    router.navigate("/projects")
-    expect(mixpanel.track_pageview).not.toHaveBeenCalled()
+    const { mixpanel, initAnalytics } = await load()
+    initAnalytics(makeRouter())
+    expect(mixpanel.register).toHaveBeenCalledWith({ bot: true })
+    expect(mixpanel.track_pageview).toHaveBeenCalledTimes(1)
+  })
+
+  it("does not tag normal browsers", async () => {
+    const { mixpanel, initAnalytics } = await load()
+    initAnalytics(makeRouter())
+    expect(mixpanel.register).not.toHaveBeenCalled()
   })
 })

@@ -10,7 +10,7 @@ import { OpenAPI } from "./client"
 import theme from "./theme"
 import NotFound from "./components/Common/NotFound"
 import { getValidAccessToken } from "./lib/auth"
-import { initPageViewTracking } from "./lib/analytics"
+import { initAnalytics } from "./lib/analytics"
 
 OpenAPI.BASE = import.meta.env.VITE_API_URL
 OpenAPI.TOKEN = async (options) => {
@@ -23,7 +23,7 @@ mixpanel.init(mixpanelToken, {
     "http://api.localhost",
   ),
   // Page views are tracked in lib/analytics instead of automatically here, so
-  // that bot traffic can be filtered out before it reaches Mixpanel.
+  // automated sessions can be tagged before any event is sent.
   track_pageview: false,
   persistence: "localStorage",
 })
@@ -43,7 +43,7 @@ declare module "@tanstack/react-router" {
     router: typeof router
   }
 }
-initPageViewTracking(router)
+initAnalytics(router)
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <StrictMode>
