@@ -22,13 +22,14 @@ BASE_URL = "https://api.zotero.org"
 REQUEST_TOKEN_URL = "https://www.zotero.org/oauth/request"
 AUTHORIZE_URL = "https://www.zotero.org/oauth/authorize"
 ACCESS_TOKEN_URL = "https://www.zotero.org/oauth/access"
-# Preselect read-only access to the user's own library and their groups on
-# Zotero's approval page, since syncing reference collections never writes.
+# Preselect full read/write access to the user's own library, their notes, and
+# every group they belong to on Zotero's approval page. The user can still dial
+# any of these back before approving.
 AUTHORIZE_PARAMS = dict(
     library_access="1",
-    notes_access="0",
-    write_access="0",
-    all_groups="read",
+    notes_access="1",
+    write_access="1",
+    all_groups="write",
 )
 
 
