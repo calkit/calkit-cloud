@@ -518,9 +518,13 @@ export const ConnectedAccountsSchema = {
       type: "boolean",
       title: "Google",
     },
+    zotero: {
+      type: "boolean",
+      title: "Zotero",
+    },
   },
   type: "object",
-  required: ["github", "zenodo", "overleaf", "google"],
+  required: ["github", "zenodo", "overleaf", "google", "zotero"],
   title: "ConnectedAccounts",
 } as const
 
@@ -7823,6 +7827,34 @@ export const ValidationErrorSchema = {
   type: "object",
   required: ["loc", "msg", "type"],
   title: "ValidationError",
+} as const
+
+export const ZoteroAuthFinishSchema = {
+  properties: {
+    oauth_token: {
+      type: "string",
+      title: "Oauth Token",
+    },
+    oauth_verifier: {
+      type: "string",
+      title: "Oauth Verifier",
+    },
+  },
+  type: "object",
+  required: ["oauth_token", "oauth_verifier"],
+  title: "ZoteroAuthFinish",
+} as const
+
+export const ZoteroAuthStartSchema = {
+  properties: {
+    authorize_url: {
+      type: "string",
+      title: "Authorize Url",
+    },
+  },
+  type: "object",
+  required: ["authorize_url"],
+  title: "ZoteroAuthStart",
 } as const
 
 export const _ContentsItemBaseSchema = {

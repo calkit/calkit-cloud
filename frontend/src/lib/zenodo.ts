@@ -13,10 +13,10 @@ export const getZenodoAuthUrl = () => {
 export const getZenodoRedirectUri = () => {
   const apiUrl = String(import.meta.env.VITE_API_URL)
   if (apiUrl.includes("localhost")) {
-    return "http://localhost:5173/zenodo-auth"
+    return "http://localhost:5173/auth/zenodo"
   }
   if (apiUrl.includes("staging")) {
-    return "https://staging.calkit.io/zenodo-auth"
+    return "https://staging.calkit.io/auth/zenodo"
   }
-  return "https://calkit.io/zenodo-auth"
+  return "https://calkit.io/auth/zenodo"
 }

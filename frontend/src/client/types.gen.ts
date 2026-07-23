@@ -145,6 +145,7 @@ export type ConnectedAccounts = {
   zenodo: boolean
   overleaf: boolean
   google: boolean
+  zotero: boolean
 }
 
 export type ContentPatch = {
@@ -1596,6 +1597,15 @@ export type ValidationError = {
   type: string
 }
 
+export type ZoteroAuthFinish = {
+  oauth_token: string
+  oauth_verifier: string
+}
+
+export type ZoteroAuthStart = {
+  authorize_url: string
+}
+
 export type GetAccountData = {
   accountName: string
 }
@@ -2707,6 +2717,14 @@ export type PostUserGoogleAuthData = {
 }
 
 export type PostUserGoogleAuthResponse = Message
+
+export type PostUserZoteroAuthStartResponse = ZoteroAuthStart
+
+export type PostUserZoteroAuthData = {
+  requestBody: ZoteroAuthFinish
+}
+
+export type PostUserZoteroAuthResponse = Message
 
 export type DeleteUserExternalCredentialData = {
   provider: string

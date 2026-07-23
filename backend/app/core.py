@@ -36,6 +36,8 @@ INVALID_ACCOUNT_NAMES = [
     "actions",
     "admin",
     "anonymous",
+    # OAuth callbacks live under /auth/{provider} so only this name is taken
+    "auth",
     "browse",
     "calcs",
     "calculations",

@@ -86,6 +86,8 @@ services:
       - ZENODO_CLIENT_SECRET=${ZENODO_CLIENT_SECRET?Variable not set}
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID?Variable not set}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET?Variable not set}
+      - ZOTERO_CLIENT_KEY=${ZOTERO_CLIENT_KEY?Variable not set}
+      - ZOTERO_CLIENT_SECRET=${ZOTERO_CLIENT_SECRET?Variable not set}
 
   backend:
     image: '${DOCKER_IMAGE_BACKEND?Variable not set}:${TAG-latest}'
@@ -131,6 +133,8 @@ services:
       - ZENODO_CLIENT_SECRET=${ZENODO_CLIENT_SECRET?Variable not set}
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID?Variable not set}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET?Variable not set}
+      - ZOTERO_CLIENT_KEY=${ZOTERO_CLIENT_KEY?Variable not set}
+      - ZOTERO_CLIENT_SECRET=${ZOTERO_CLIENT_SECRET?Variable not set}
       - GOOGLE_CREDENTIALS=${GOOGLE_CREDENTIALS-}
       - PROMETHEUS_MULTIPROC_DIR=/tmp/prometheus_multiproc
     # Wipe stale per-worker metric files from a previous run so restarts
@@ -215,6 +219,8 @@ services:
       - ZENODO_CLIENT_SECRET=${ZENODO_CLIENT_SECRET?Variable not set}
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID?Variable not set}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET?Variable not set}
+      - ZOTERO_CLIENT_KEY=${ZOTERO_CLIENT_KEY?Variable not set}
+      - ZOTERO_CLIENT_SECRET=${ZOTERO_CLIENT_SECRET?Variable not set}
       - GOOGLE_CREDENTIALS=${GOOGLE_CREDENTIALS-}
       - PROMETHEUS_MULTIPROC_DIR=/tmp/prometheus_multiproc
     # Wipe stale per-worker metric files from a previous run so restarts

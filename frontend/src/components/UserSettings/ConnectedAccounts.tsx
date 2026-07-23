@@ -63,6 +63,18 @@ function ConnectedAccounts() {
       "&response_type=code" +
       `&redirect_uri=${encodeURIComponent(getGoogleRedirectUri())}`
   }
+  // Zotero uses OAuth 1.0a, whose requests must be signed with our client
+  // secret, so the backend has to hand us the authorization URL.
+  const connectZoteroMutation = useMutation({
+    mutationFn: () => UsersService.postUserZoteroAuthStart(),
+    onSuccess: (data) => {
+      mixpanel.track("Clicked connect Zotero")
+      location.href = data.authorize_url
+    },
+    onError: (err: ApiError) => {
+      handleError(err, showToast)
+    },
+  })
   const connectedAccountsQuery = useQuery({
     queryFn: () => UsersService.getUserConnectedAccounts(),
     queryKey: ["user", "connected-accounts"],
@@ -285,6 +297,32 @@ function ConnectedAccounts() {
               </>
             ) : (
               <Button variant="primary" size="sm" onClick={handleConnectGoogle}>
+                Connect
+              </Button>
+            )}
+          </HStack>
+          <HStack mt={4}>
+            <Text>Zotero:</Text>
+            {connectedAccountsQuery.data?.zotero ? (
+              <>
+                <Icon as={FaCheck} color="green.500" />
+                <IconButton
+                  aria-label="Disconnect Zotero"
+                  icon={<FaTrash />}
+                  size="xs"
+                  variant="ghost"
+                  colorScheme="red"
+                  onClick={() => disconnectAccountMutation.mutate("zotero")}
+                  isLoading={disconnectAccountMutation.isPending}
+                />
+              </>
+            ) : (
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => connectZoteroMutation.mutate()}
+                isLoading={connectZoteroMutation.isPending}
+              >
                 Connect
               </Button>
             )}

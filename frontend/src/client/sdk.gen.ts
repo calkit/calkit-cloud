@@ -290,6 +290,9 @@ import type {
   PutUserOverleafTokenResponse,
   PostUserGoogleAuthData,
   PostUserGoogleAuthResponse,
+  PostUserZoteroAuthStartResponse,
+  PostUserZoteroAuthData,
+  PostUserZoteroAuthResponse,
   DeleteUserExternalCredentialData,
   DeleteUserExternalCredentialResponse,
   GetUserStorageResponse,
@@ -472,10 +475,12 @@ export class LoginService {
 
   /**
    * Refresh Access Token
-   * Exchange a refresh token for a new access token and rotated refresh
+   * Exchange a refresh token for a new access token and a rotated refresh
    * token.
    *
-   * The old refresh token is invalidated on use (refresh token rotation).
+   * The old token is rotated out but still honored for a short grace window
+   * (REFRESH_ROTATION_GRACE_SECONDS) so an interrupted rotation, e.g. the client
+   * reloaded before storing the new token, doesn't strand the session.
    * @param data The data for the request.
    * @param data.requestBody
    * @returns Token Successful Response
@@ -4240,6 +4245,44 @@ export class UsersService {
     return __request(OpenAPI, {
       method: "POST",
       url: "/user/google-auth",
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Post User Zotero Auth Start
+   * Start the Zotero OAuth 1.0a flow and return where to send the user.
+   *
+   * Zotero requires signed requests, so the authorization URL can't be built in
+   * the browser like it can for our OAuth 2 providers.
+   * @returns ZoteroAuthStart Successful Response
+   * @throws ApiError
+   */
+  public static postUserZoteroAuthStart(): CancelablePromise<PostUserZoteroAuthStartResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/user/zotero-auth/start",
+    })
+  }
+
+  /**
+   * Post User Zotero Auth
+   * Finish the Zotero OAuth 1.0a flow, saving the resulting API key.
+   * @param data The data for the request.
+   * @param data.requestBody
+   * @returns Message Successful Response
+   * @throws ApiError
+   */
+  public static postUserZoteroAuth(
+    data: PostUserZoteroAuthData,
+  ): CancelablePromise<PostUserZoteroAuthResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/user/zotero-auth",
       body: data.requestBody,
       mediaType: "application/json",
       errors: {

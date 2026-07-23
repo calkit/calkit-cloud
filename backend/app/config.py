@@ -141,6 +141,9 @@ class Settings(BaseSettings):
     # Google
     GOOGLE_CLIENT_ID: str
     GOOGLE_CLIENT_SECRET: str
+    # Zotero, which uses OAuth 1.0a, hence key/secret instead of ID/secret
+    ZOTERO_CLIENT_KEY: str
+    ZOTERO_CLIENT_SECRET: str
 
     def _check_default_secret(self, var_name: str, value: str | None) -> None:
         if value == "changethis":

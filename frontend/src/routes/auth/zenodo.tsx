@@ -4,17 +4,17 @@ import { z } from "zod"
 import { useEffect, useRef } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 
-import { UsersService, type ApiError } from "../client"
-import { getZenodoRedirectUri, zenodoAuthStateParam } from "../lib/zenodo"
-import useCustomToast from "../hooks/useCustomToast"
-import { handleError } from "../lib/errors"
+import { UsersService, type ApiError } from "../../client"
+import { getZenodoRedirectUri, zenodoAuthStateParam } from "../../lib/zenodo"
+import useCustomToast from "../../hooks/useCustomToast"
+import { handleError } from "../../lib/errors"
 
 const authParamsSchema = z.object({
   code: z.string(),
   state: z.string(),
 })
 
-export const Route = createFileRoute("/zenodo-auth")({
+export const Route = createFileRoute("/auth/zenodo")({
   component: ZenodoAuth,
   validateSearch: (search) => authParamsSchema.parse(search),
 })
