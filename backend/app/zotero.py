@@ -42,12 +42,14 @@ def fetch_request_token(callback_uri: str) -> dict[str, str]:
     )
     resp = session.post(REQUEST_TOKEN_URL, timeout=15)
     logger.info(f"Zotero request token status code: {resp.status_code}")
+    # Never log response bodies from the token endpoints, since they carry
+    # secrets. Log the keys that came back instead.
     if resp.status_code != 200:
-        logger.error(f"Failed to fetch Zotero request token: {resp.text}")
+        logger.error("Failed to fetch Zotero request token")
         raise HTTPException(resp.status_code, "Failed to reach Zotero")
     token = dict(parse_qsl(resp.text))
     if "oauth_token" not in token or "oauth_token_secret" not in token:
-        logger.error(f"Unexpected Zotero request token response: {resp.text}")
+        logger.error(f"Zotero request token response keys: {sorted(token)}")
         raise HTTPException(502, "Unexpected response from Zotero")
     return token
 
@@ -76,12 +78,12 @@ def fetch_access_token(
     resp = session.post(ACCESS_TOKEN_URL, timeout=15)
     logger.info(f"Zotero access token status code: {resp.status_code}")
     if resp.status_code != 200:
-        logger.error(f"Failed to fetch Zotero access token: {resp.text}")
+        logger.error("Failed to fetch Zotero access token")
         raise HTTPException(
             resp.status_code, "Failed to authenticate with Zotero"
         )
     token = dict(parse_qsl(resp.text))
     if "oauth_token_secret" not in token or "userID" not in token:
-        logger.error(f"Unexpected Zotero access token response: {resp.text}")
+        logger.error(f"Zotero access token response keys: {sorted(token)}")
         raise HTTPException(502, "Unexpected response from Zotero")
     return token

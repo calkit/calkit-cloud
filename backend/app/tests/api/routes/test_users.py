@@ -555,6 +555,14 @@ def test_post_user_zotero_auth(
         json={"oauth_token": "other-token", "oauth_verifier": "verifier"},
     )
     assert r.status_code == 400
+    # A mismatch must not consume the token, so a flow the user still has open
+    # in another tab can finish
+    assert (
+        users.get_external_credential(
+            session=db, user=user, provider="zotero", label="pending"
+        )
+        is not None
+    )
     with patch(
         "app.zotero.fetch_access_token",
         return_value={
@@ -564,14 +572,6 @@ def test_post_user_zotero_auth(
             "username": "some-user",
         },
     ):
-        # The failed attempt consumed the request token, so start over
-        with patch(
-            "app.zotero.fetch_request_token", return_value=request_token
-        ):
-            client.post(
-                f"{settings.API_V1_STR}/user/zotero-auth/start",
-                headers=normal_user_token_headers,
-            )
         r = client.post(
             f"{settings.API_V1_STR}/user/zotero-auth",
             headers=normal_user_token_headers,

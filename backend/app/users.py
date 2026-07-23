@@ -630,8 +630,8 @@ def save_zotero_request_token(
     )
 
 
-def pop_zotero_request_token(session: Session, user: User) -> dict[str, str]:
-    """Read and delete a user's stashed Zotero request token."""
+def get_zotero_request_token(session: Session, user: User) -> dict[str, str]:
+    """Read a user's stashed Zotero request token."""
     credential = get_external_credential(
         session=session,
         user=user,
@@ -640,10 +640,7 @@ def pop_zotero_request_token(session: Session, user: User) -> dict[str, str]:
     )
     if credential is None:
         raise HTTPException(400, "No Zotero authorization is in progress")
-    request_token = json.loads(decrypt_secret(credential.secret_payload))
-    session.delete(credential)
-    session.commit()
-    return request_token
+    return json.loads(decrypt_secret(credential.secret_payload))
 
 
 def get_zotero_api_key(session: Session, user: User) -> str:
@@ -666,7 +663,20 @@ def get_zotero_api_key(session: Session, user: User) -> str:
 def save_zotero_api_key(
     session: Session, user: User, zotero_resp: dict[str, str]
 ) -> None:
-    """Save the API key Zotero returns from the access token step."""
+    """Save the API key Zotero returns from the access token step.
+
+    The request token that earned the key is spent at this point, so it's
+    cleared here too.
+    """
+    pending = get_external_credential(
+        session=session,
+        user=user,
+        provider="zotero",
+        label="pending",
+    )
+    if pending is not None:
+        session.delete(pending)
+        session.commit()
     payload = json.dumps({"api_key": zotero_resp["oauth_token_secret"]})
     save_external_credential(
         session=session,

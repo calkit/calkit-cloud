@@ -719,9 +719,11 @@ def post_user_zotero_auth(
 ) -> Message:
     """Finish the Zotero OAuth 1.0a flow, saving the resulting API key."""
     logger.info(f"Received Zotero auth request for user {current_user.email}")
-    request_token = users.pop_zotero_request_token(
+    request_token = users.get_zotero_request_token(
         session=session, user=current_user
     )
+    # Leave the stashed token in place on a mismatch, e.g. from a stale tab, so
+    # a flow the user still has open elsewhere can finish
     if request_token["oauth_token"] != req.oauth_token:
         logger.error(f"Zotero request token mismatch for {current_user.email}")
         raise HTTPException(400, "Zotero request token mismatch")
