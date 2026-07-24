@@ -401,7 +401,7 @@ def test_login_with_google_creates_github_less_user(
             f"{settings.API_V1_STR}/login/google",
             json={
                 "code": "auth-code",
-                "redirect_uri": "http://localhost:5173/google-auth",
+                "redirect_uri": "http://localhost:5173/auth/google",
             },
         )
     assert r.status_code == 200, r.text

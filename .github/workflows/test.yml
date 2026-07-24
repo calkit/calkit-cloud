@@ -15,12 +15,16 @@ env:
   ZENODO_CLIENT_SECRET: test-zenodo-client-secret-for-ci
   GOOGLE_CLIENT_ID: test-google-client-id-for-ci
   GOOGLE_CLIENT_SECRET: test-google-client-secret-for-ci
+  ZOTERO_CLIENT_KEY: test-zotero-client-key-for-ci
+  ZOTERO_CLIENT_SECRET: test-zotero-client-secret-for-ci
   FIRST_SUPERUSER: test-user-for-ci@example.com
   FIRST_SUPERUSER_GITHUB_USERNAME: test-user-for-ci
   FIRST_SUPERUSER_PASSWORD: test-password-for-ci
   SECRET_KEY: test-secret-key-for-ci
-  FERNET_KEY: test-fernet-key-for-ci
-  FERNET_KEYS: test-fernet-key-for-ci
+  # Must be 32 url-safe base64-encoded bytes, i.e. a real Fernet key, since
+  # tests encrypt credentials. This one decodes to a throwaway string.
+  FERNET_KEY: Y2Fsa2l0LXRlc3QtZmVybmV0LWtleS1mb3ItY2khISE=
+  FERNET_KEYS: Y2Fsa2l0LXRlc3QtZmVybmV0LWtleS1mb3ItY2khISE=
   GRAFANA_ADMIN_PASSWORD: test-grafana-admin-password-for-ci
 
 jobs:

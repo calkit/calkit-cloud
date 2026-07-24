@@ -4,11 +4,11 @@ import { z } from "zod"
 import { useEffect, useRef } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 
-import { UsersService, type ApiError } from "../client"
-import { consumeGoogleOAuthState, getGoogleRedirectUri } from "../lib/google"
-import useAuth, { isLoggedIn } from "../hooks/useAuth"
-import useCustomToast from "../hooks/useCustomToast"
-import { handleError } from "../lib/errors"
+import { UsersService, type ApiError } from "../../client"
+import { consumeGoogleOAuthState, getGoogleRedirectUri } from "../../lib/google"
+import useAuth, { isLoggedIn } from "../../hooks/useAuth"
+import useCustomToast from "../../hooks/useCustomToast"
+import { handleError } from "../../lib/errors"
 
 const authParamsSchema = z.object({
   code: z.string(),
@@ -17,7 +17,7 @@ const authParamsSchema = z.object({
   iss: z.string().optional(),
 })
 
-export const Route = createFileRoute("/google-auth")({
+export const Route = createFileRoute("/auth/google")({
   component: GoogleAuth,
   validateSearch: (search) => authParamsSchema.parse(search),
 })

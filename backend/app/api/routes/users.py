@@ -13,7 +13,7 @@ from sqlalchemy.exc import DataError
 from sqlmodel import Field, func, select
 
 import app.stripe
-from app import mixpanel, users
+from app import mixpanel, users, zotero
 from app.api.deps import (
     PAT_SELECTOR_LENGTH_BYTES,
     PAT_VERIFIER_LENGTH_BYTES,
@@ -517,6 +517,7 @@ class ConnectedAccounts(BaseModel):
     zenodo: bool
     overleaf: bool
     google: bool
+    zotero: bool
 
 
 @router.get("/user/connected-accounts")
@@ -548,11 +549,14 @@ def get_user_connected_accounts(
     overleaf_connected = (
         overleaf_cred is not None or current_user.overleaf_token is not None
     )
+    # Zotero API keys don't expire, so there's nothing to refresh
+    zotero_cred = current_user.get_external_credential(provider="zotero")
     return ConnectedAccounts(
         github=github_connected,
         zenodo=zenodo_connected,
         overleaf=overleaf_connected,
         google=google_connected,
+        zotero=zotero_cred is not None,
     )
 
 
@@ -675,6 +679,62 @@ def post_user_google_auth(
     logger.info("Saving Google token")
     users.save_google_token(
         session=session, user=current_user, google_resp=google_resp
+    )
+    return Message(message="success")
+
+
+class ZoteroAuthStart(BaseModel):
+    authorize_url: str
+
+
+@router.post("/user/zotero-auth/start")
+def post_user_zotero_auth_start(
+    session: SessionDep, current_user: CurrentUser
+) -> ZoteroAuthStart:
+    """Start the Zotero OAuth 1.0a flow and return where to send the user.
+
+    Zotero requires signed requests, so the authorization URL can't be built in
+    the browser like it can for our OAuth 2 providers.
+    """
+    logger.info(f"Starting Zotero auth for user {current_user.email}")
+    callback_uri = f"{settings.frontend_host.rstrip('/')}/auth/zotero"
+    request_token = zotero.fetch_request_token(callback_uri=callback_uri)
+    users.save_zotero_request_token(
+        session=session, user=current_user, request_token=request_token
+    )
+    authorize_url = zotero.create_authorize_url(
+        oauth_token=request_token["oauth_token"]
+    )
+    return ZoteroAuthStart(authorize_url=authorize_url)
+
+
+class ZoteroAuthFinish(BaseModel):
+    oauth_token: str
+    oauth_verifier: str
+
+
+@router.post("/user/zotero-auth")
+def post_user_zotero_auth(
+    session: SessionDep, current_user: CurrentUser, req: ZoteroAuthFinish
+) -> Message:
+    """Finish the Zotero OAuth 1.0a flow, saving the resulting API key."""
+    logger.info(f"Received Zotero auth request for user {current_user.email}")
+    request_token = users.get_zotero_request_token(
+        session=session, user=current_user
+    )
+    # Leave the stashed token in place on a mismatch, e.g. from a stale tab, so
+    # a flow the user still has open elsewhere can finish
+    if request_token["oauth_token"] != req.oauth_token:
+        logger.error(f"Zotero request token mismatch for {current_user.email}")
+        raise HTTPException(400, "Zotero request token mismatch")
+    zotero_resp = zotero.fetch_access_token(
+        oauth_token=req.oauth_token,
+        oauth_token_secret=request_token["oauth_token_secret"],
+        oauth_verifier=req.oauth_verifier,
+    )
+    logger.info("Saving Zotero API key")
+    users.save_zotero_api_key(
+        session=session, user=current_user, zotero_resp=zotero_resp
     )
     return Message(message="success")
 

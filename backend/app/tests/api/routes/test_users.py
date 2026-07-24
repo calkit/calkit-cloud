@@ -516,3 +516,97 @@ def test_delete_user_without_privileges(
     )
     assert r.status_code == 403
     assert r.json()["detail"] == "The user doesn't have enough privileges"
+
+
+def test_post_user_zotero_auth(
+    client: TestClient, normal_user_token_headers: dict[str, str], db: Session
+) -> None:
+    # Look the user up by ID since earlier tests change the test user's email
+    r = client.get(
+        f"{settings.API_V1_STR}/user", headers=normal_user_token_headers
+    )
+    user = db.get(User, uuid.UUID(r.json()["id"]))
+    assert user
+    request_token = {
+        "oauth_token": "request-token",
+        "oauth_token_secret": "request-token-secret",
+    }
+    with patch(
+        "app.zotero.fetch_request_token", return_value=request_token
+    ) as fetch_request_token:
+        r = client.post(
+            f"{settings.API_V1_STR}/user/zotero-auth/start",
+            headers=normal_user_token_headers,
+        )
+    assert r.status_code == 200
+    assert "oauth_token=request-token" in r.json()["authorize_url"]
+    assert fetch_request_token.call_args.kwargs["callback_uri"].endswith(
+        "/auth/zotero"
+    )
+    # The request token secret is stashed server-side until the flow finishes
+    pending = users.get_external_credential(
+        session=db, user=user, provider="zotero", label="pending"
+    )
+    assert pending is not None
+    # A verifier for a different request token must not be accepted
+    r = client.post(
+        f"{settings.API_V1_STR}/user/zotero-auth",
+        headers=normal_user_token_headers,
+        json={"oauth_token": "other-token", "oauth_verifier": "verifier"},
+    )
+    assert r.status_code == 400
+    # A mismatch must not consume the token, so a flow the user still has open
+    # in another tab can finish
+    assert (
+        users.get_external_credential(
+            session=db, user=user, provider="zotero", label="pending"
+        )
+        is not None
+    )
+    with patch(
+        "app.zotero.fetch_access_token",
+        return_value={
+            "oauth_token": "access-token",
+            "oauth_token_secret": "zotero-api-key",
+            "userID": "12345",
+            "username": "some-user",
+        },
+    ):
+        r = client.post(
+            f"{settings.API_V1_STR}/user/zotero-auth",
+            headers=normal_user_token_headers,
+            json={
+                "oauth_token": "request-token",
+                "oauth_verifier": "verifier",
+            },
+        )
+    assert r.status_code == 200
+    db.refresh(user)
+    assert users.get_zotero_api_key(session=db, user=user) == "zotero-api-key"
+    credential = users.get_external_credential(
+        session=db, user=user, provider="zotero"
+    )
+    assert credential is not None
+    assert credential.provider_account_id == "12345"
+    assert credential.metadata_json == {"username": "some-user"}
+    # The pending request token is cleaned up once it has been used
+    assert (
+        users.get_external_credential(
+            session=db, user=user, provider="zotero", label="pending"
+        )
+        is None
+    )
+    r = client.get(
+        f"{settings.API_V1_STR}/user/connected-accounts",
+        headers=normal_user_token_headers,
+    )
+    assert r.json()["zotero"]
+    r = client.delete(
+        f"{settings.API_V1_STR}/user/external-credentials/zotero",
+        headers=normal_user_token_headers,
+    )
+    assert r.status_code == 200
+    assert (
+        users.get_external_credential(session=db, user=user, provider="zotero")
+        is None
+    )

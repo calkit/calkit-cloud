@@ -605,6 +605,90 @@ def save_google_token(session: Session, user: User, google_resp: dict):
     )
 
 
+def save_zotero_request_token(
+    session: Session, user: User, request_token: dict[str, str]
+) -> None:
+    """Stash an in-progress Zotero OAuth 1.0a request token.
+
+    Its secret is needed to sign the access token request once the user comes
+    back from Zotero, and must never reach the browser, so it's kept against
+    the user under a separate label until the flow finishes.
+    """
+    payload = json.dumps(
+        {
+            "oauth_token": request_token["oauth_token"],
+            "oauth_token_secret": request_token["oauth_token_secret"],
+        }
+    )
+    save_external_credential(
+        session=session,
+        user=user,
+        provider="zotero",
+        secret_payload=payload,
+        credential_type="oauth1_request",
+        label="pending",
+    )
+
+
+def get_zotero_request_token(session: Session, user: User) -> dict[str, str]:
+    """Read a user's stashed Zotero request token."""
+    credential = get_external_credential(
+        session=session,
+        user=user,
+        provider="zotero",
+        label="pending",
+    )
+    if credential is None:
+        raise HTTPException(400, "No Zotero authorization is in progress")
+    return json.loads(decrypt_secret(credential.secret_payload))
+
+
+def get_zotero_api_key(session: Session, user: User) -> str:
+    """Get a user's decrypted Zotero API key.
+
+    Zotero's OAuth 1.0a keys don't expire, so there's nothing to refresh.
+    """
+    credential = get_external_credential(
+        session=session,
+        user=user,
+        provider="zotero",
+        label="default",
+    )
+    if credential is None:
+        raise HTTPException(401, "User needs to authenticate with Zotero")
+    payload = json.loads(decrypt_secret(credential.secret_payload))
+    return payload["api_key"]
+
+
+def save_zotero_api_key(
+    session: Session, user: User, zotero_resp: dict[str, str]
+) -> None:
+    """Save the API key Zotero returns from the access token step.
+
+    The request token that earned the key is spent at this point, so it's
+    cleared here too.
+    """
+    pending = get_external_credential(
+        session=session,
+        user=user,
+        provider="zotero",
+        label="pending",
+    )
+    if pending is not None:
+        session.delete(pending)
+        session.commit()
+    payload = json.dumps({"api_key": zotero_resp["oauth_token_secret"]})
+    save_external_credential(
+        session=session,
+        user=user,
+        provider="zotero",
+        secret_payload=payload,
+        credential_type="oauth1",
+        provider_account_id=str(zotero_resp["userID"]),
+        metadata_json={"username": zotero_resp.get("username")},
+    )
+
+
 def check_user_subscription_active(session: Session, user: User) -> bool:
     logger.info(f"Checking subscription for {user.email}")
     subscription = user.subscription
