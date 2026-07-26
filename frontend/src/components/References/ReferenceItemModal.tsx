@@ -202,12 +202,30 @@ const ReferenceItemModal = ({
   // viewer can render, and let a text selection create a new anchored note.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const scrollToRef = useRef<(h: any) => void>(() => {})
+  const pdfContainerRef = useRef<HTMLDivElement>(null)
   const noteToHighlight = (note: EditableNote, i: number): IHighlight => ({
     id: `note-${i}`,
     position: note.highlight!.position,
     content: { text: note.highlight!.quote },
     comment: { text: note.text, emoji: "" },
   })
+  const scrollToNote = (note: EditableNote, i: number) => {
+    // react-pdf-highlighter's scrollTo flashes the highlight, but its pdf.js
+    // scrollPageIntoView relies on offsetParent, which is unreliable inside a
+    // modal. Also scroll the page in via the native API, which isn't.
+    try {
+      scrollToRef.current(noteToHighlight(note, i))
+    } catch {
+      // Ignore; the native scroll below is the reliable path.
+    }
+    const pageNumber = (note.highlight?.position as { pageNumber?: number })
+      ?.pageNumber
+    if (pageNumber && pdfContainerRef.current) {
+      pdfContainerRef.current
+        .querySelector(`.page[data-page-number="${pageNumber}"]`)
+        ?.scrollIntoView({ block: "center", behavior: "smooth" })
+    }
+  }
   const highlights = useMemo(
     () =>
       notes
@@ -315,7 +333,13 @@ const ReferenceItemModal = ({
             {/* Center: PDF. Wait for notes too, so highlights are present when
                 the highlighter mounts (it doesn't reliably re-anchor an
                 async-arriving highlights prop). */}
-            <Box flex={1} minW={0} borderWidth={1} borderRadius="md">
+            <Box
+              ref={pdfContainerRef}
+              flex={1}
+              minW={0}
+              borderWidth={1}
+              borderRadius="md"
+            >
               {pdfLoading || (pdfUrl && notesQuery.isPending) ? (
                 <LoadingSpinner />
               ) : pdfUrl ? (
@@ -417,9 +441,7 @@ const ReferenceItemModal = ({
                                 icon={<FaMapMarkerAlt />}
                                 size="xs"
                                 variant="ghost"
-                                onClick={() =>
-                                  scrollToRef.current(noteToHighlight(note, i))
-                                }
+                                onClick={() => scrollToNote(note, i)}
                               />
                               <Text
                                 flex={1}
