@@ -27,8 +27,9 @@ import {
   Tr,
   useDisclosure,
 } from "@chakra-ui/react"
-import { useQuery } from "@tanstack/react-query"
+import { useMutation, useQuery } from "@tanstack/react-query"
 import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router"
+import mixpanel from "mixpanel-browser"
 import { useEffect, useMemo, useState } from "react"
 import { BsFilePdf } from "react-icons/bs"
 import { FaPlus } from "react-icons/fa"
@@ -37,6 +38,7 @@ import { MdEdit } from "react-icons/md"
 import { z } from "zod"
 
 import {
+  type ApiError,
   ProjectsService,
   type ReferenceEntry,
   UsersService,
@@ -50,8 +52,14 @@ import ImportFromZoteroModal from "../../../../../components/References/ImportFr
 import NewReferencesCollection from "../../../../../components/References/NewReferencesCollection"
 import ReferenceItemModal from "../../../../../components/References/ReferenceItemModal"
 import ReferencesInfoPanel from "../../../../../components/References/ReferencesInfoPanel"
+import useCustomToast from "../../../../../hooks/useCustomToast"
 import useProject from "../../../../../hooks/useProject"
 import { formatBibField } from "../../../../../lib/bibtex"
+import { handleError } from "../../../../../lib/errors"
+
+// Where the Zotero OAuth callback should return the user, so connecting from
+// the import flow lands back here with the import modal reopened.
+const ZOTERO_RETURN_KEY = "zoteroAuthReturnTo"
 
 const referencesSearchSchema = z.object({
   // Selected collection path, so a link restores the same collection.
@@ -140,8 +148,26 @@ function References() {
     queryKey: ["user", "connected-accounts"],
   })
   const zoteroConnected = Boolean(connectedAccountsQuery.data?.zotero)
+  const showToast = useCustomToast()
+  // Zotero uses OAuth 1.0a, whose authorize URL must be signed server-side, so
+  // the backend hands it back to us to redirect to.
+  const connectZoteroMutation = useMutation({
+    mutationFn: () => UsersService.postUserZoteroAuthStart(),
+    onSuccess: (data) => {
+      mixpanel.track("Clicked connect Zotero", { source: "references import" })
+      sessionStorage.setItem(
+        ZOTERO_RETURN_KEY,
+        window.location.pathname + window.location.search,
+      )
+      location.href = data.authorize_url
+    },
+    onError: (err: ApiError) => handleError(err, showToast),
+  })
   const openImportZotero = () =>
     navigate({ search: (prev) => ({ ...prev, import_zotero_open: true }) })
+  // Connect first when needed, then the OAuth callback reopens the modal.
+  const startImportZotero = () =>
+    zoteroConnected ? openImportZotero() : connectZoteroMutation.mutate()
   const closeImportZotero = () =>
     navigate({ search: (prev) => ({ ...prev, import_zotero_open: undefined }) })
   const openNewCollection = () =>
@@ -306,17 +332,14 @@ function References() {
                       <MenuItem onClick={openNewCollection}>
                         New references collection
                       </MenuItem>
-                      <Tooltip
-                        label="Connect your Zotero account in settings first"
-                        isDisabled={zoteroConnected}
+                      <MenuItem
+                        onClick={startImportZotero}
+                        isDisabled={connectZoteroMutation.isPending}
                       >
-                        <MenuItem
-                          onClick={openImportZotero}
-                          isDisabled={!zoteroConnected}
-                        >
-                          Import from Zotero
-                        </MenuItem>
-                      </Tooltip>
+                        {zoteroConnected
+                          ? "Import from Zotero"
+                          : "Connect Zotero to import"}
+                      </MenuItem>
                     </MenuList>
                   </Portal>
                 </Menu>
