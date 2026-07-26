@@ -1589,6 +1589,62 @@ def test_get_project_reference_notes_from_comment(
     assert [n["text"] for n in notes] == ["first note", "second note"]
 
 
+def test_reference_note_highlight_round_trip(
+    client: TestClient, db: Session, tmp_path
+) -> None:
+    project, headers = _make_owner_with_project(db, client)
+    owner_name = project.owner_account.name
+    base = f"{settings.API_V1_STR}/projects/{owner_name}/{project.name}"
+    fake_repo = _make_fake_repo(str(tmp_path))
+    (tmp_path / "references.bib").write_text(
+        "@article{a,\n  title = {A},\n}\n"
+    )
+    position = {"pageNumber": 2, "boundingRect": {"x1": 1.0, "y1": 2.0}}
+    with (
+        patch("app.api.routes.projects.core.get_repo", return_value=fake_repo),
+        patch(
+            "app.api.routes.projects.core.get_ck_info_from_repo",
+            side_effect=lambda *a, **k: {
+                "references": [{"path": "references.bib"}]
+            },
+        ),
+        patch("app.api.routes.projects.core.mixpanel.track"),
+    ):
+        r = client.put(
+            f"{base}/references/items/a/notes",
+            headers=headers,
+            json={
+                "path": "references.bib",
+                "notes": [
+                    {
+                        "text": "a note on this passage",
+                        "highlight": {
+                            "position": position,
+                            "quote": "the highlighted text",
+                        },
+                    },
+                    {"text": "a plain note"},
+                ],
+            },
+        )
+        assert r.status_code == 200, r.text
+        # The anchor is encoded in the .bib comment as an HTML comment.
+        bib_text = (tmp_path / "references.bib").read_text()
+        assert "<!-- calkit-highlight:" in bib_text
+        assert "> the highlighted text" in bib_text
+        # Reading it back reconstructs the highlight.
+        r = client.get(
+            f"{base}/references/items/a/notes?path=references.bib",
+            headers=headers,
+        )
+    assert r.status_code == 200, r.text
+    notes = r.json()["notes"]
+    assert notes[0]["highlight"]["position"] == position
+    assert notes[0]["highlight"]["quote"] == "the highlighted text"
+    assert notes[0]["text"] == "a note on this passage"
+    assert notes[1]["highlight"] is None
+
+
 def test_reference_notes_non_linked_use_comment_field(
     client: TestClient, db: Session, tmp_path
 ) -> None:

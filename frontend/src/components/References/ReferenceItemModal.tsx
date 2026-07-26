@@ -20,8 +20,9 @@ import {
   VStack,
 } from "@chakra-ui/react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { useEffect, useRef, useState } from "react"
-import { FaPlus, FaTrash } from "react-icons/fa"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { FaMapMarkerAlt, FaPlus, FaTrash } from "react-icons/fa"
+import { Highlight, type IHighlight, Popup } from "react-pdf-highlighter"
 
 import {
   type ApiError,
@@ -33,7 +34,11 @@ import { formatBibField } from "../../lib/bibtex"
 import { apiUrl } from "../../lib/core"
 import { handleError } from "../../lib/errors"
 import LoadingSpinner from "../Common/LoadingSpinner"
-import PdfDocumentViewer from "../Common/PdfDocumentViewer"
+import PdfDocumentViewer, {
+  type HighlightTransform,
+  type OnSelectionFinished,
+} from "../Common/PdfDocumentViewer"
+import { AddCommentTip } from "../Publications/PdfAnnotator"
 
 interface ReferenceItemModalProps {
   isOpen: boolean
@@ -45,9 +50,16 @@ interface ReferenceItemModalProps {
   userHasWriteAccess: boolean
 }
 
-// A note being edited (plain text; Zotero notes have no titles).
+// A note being edited: text plus an optional PDF highlight anchor.
+interface NoteHighlight {
+  // react-pdf-highlighter ScaledPosition.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  position: any
+  quote: string
+}
 interface EditableNote {
   text: string
+  highlight?: NoteHighlight | null
 }
 
 const ReferenceItemModal = ({
@@ -135,22 +147,40 @@ const ReferenceItemModal = ({
   // Reset the editable notes whenever the server copy changes.
   useEffect(() => {
     if (notesQuery.data) {
-      setNotes(notesQuery.data.notes.map((n) => ({ text: n.text })))
+      setNotes(
+        notesQuery.data.notes.map((n) => ({
+          text: n.text,
+          highlight: n.highlight
+            ? {
+                position: n.highlight.position,
+                quote: n.highlight.quote ?? "",
+              }
+            : null,
+        })),
+      )
     }
   }, [notesQuery.data])
 
   const saveNotesMutation = useMutation({
-    mutationFn: () =>
+    mutationFn: (toSave: EditableNote[]) =>
       ProjectsService.putProjectReferenceNotes({
         ownerName,
         projectName,
         bibKey: entry!.key,
         requestBody: {
           path: bibPath,
-          // Drop empty notes.
-          notes: notes
-            .filter((n) => n.text.trim())
-            .map((n) => ({ text: n.text })),
+          // Keep notes with text or an anchor; drop truly empty ones.
+          notes: toSave
+            .filter((n) => n.text.trim() || n.highlight)
+            .map((n) => ({
+              text: n.text,
+              highlight: n.highlight
+                ? {
+                    position: n.highlight.position,
+                    quote: n.highlight.quote,
+                  }
+                : null,
+            })),
         },
       }),
     onSuccess: () => {
@@ -167,6 +197,88 @@ const ReferenceItemModal = ({
     },
     onError: (err: ApiError) => handleError(err, showToast),
   })
+
+  // PDF highlight anchoring: map notes that carry an anchor to highlights the
+  // viewer can render, and let a text selection create a new anchored note.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const scrollToRef = useRef<(h: any) => void>(() => {})
+  const noteToHighlight = (note: EditableNote, i: number): IHighlight => ({
+    id: `note-${i}`,
+    position: note.highlight!.position,
+    content: { text: note.highlight!.quote },
+    comment: { text: note.text, emoji: "" },
+  })
+  const highlights = useMemo(
+    () =>
+      notes
+        .map((n, i): IHighlight | null =>
+          n.highlight
+            ? {
+                id: `note-${i}`,
+                position: n.highlight.position,
+                content: { text: n.highlight.quote },
+                comment: { text: n.text, emoji: "" },
+              }
+            : null,
+        )
+        .filter((h): h is IHighlight => h !== null),
+    [notes],
+  )
+  const addAnchoredNote = (
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    position: any,
+    quote: string,
+    text: string,
+  ) => {
+    const next = [...notes, { text, highlight: { position, quote } }]
+    setNotes(next)
+    saveNotesMutation.mutate(next)
+  }
+  const onSelectionFinished: OnSelectionFinished = (
+    position,
+    content,
+    hideTip,
+    transformSelection,
+  ) => {
+    if (!userHasWriteAccess) return null
+    transformSelection()
+    return (
+      <AddCommentTip
+        hideIssueCheckbox
+        onConfirm={(text) => {
+          addAnchoredNote(position, content.text ?? "", text)
+          hideTip()
+        }}
+        onCancel={hideTip}
+      />
+    )
+  }
+  const highlightTransform: HighlightTransform = (
+    highlight,
+    _index,
+    setTip,
+    hideTip,
+    _viewportToScaled,
+    _screenshot,
+    isScrolledTo,
+  ) => (
+    <Popup
+      key={highlight.id}
+      popupContent={
+        <Box p={2} maxW="260px" fontSize="sm" whiteSpace="pre-wrap">
+          {highlight.comment?.text || "(empty note)"}
+        </Box>
+      }
+      onMouseOver={(popupContent) => setTip(highlight, () => popupContent)}
+      onMouseOut={hideTip}
+    >
+      <Highlight
+        isScrolledTo={isScrolledTo}
+        position={highlight.position}
+        comment={highlight.comment}
+      />
+    </Popup>
+  )
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="full" isCentered>
@@ -187,6 +299,10 @@ const ReferenceItemModal = ({
                   url={pdfUrl}
                   source="reference"
                   defaultScale="page-width"
+                  highlights={highlights}
+                  highlightTransform={highlightTransform}
+                  onSelectionFinished={onSelectionFinished}
+                  externalScrollRef={scrollToRef}
                 />
               ) : (
                 <Flex h="100%" align="center" justify="center">
@@ -269,31 +385,57 @@ const ReferenceItemModal = ({
                   ) : (
                     notes.map((note, i) => (
                       <Flex key={i} gap={1} align="start">
-                        <Textarea
-                          flex={1}
-                          size="sm"
-                          rows={3}
-                          placeholder="Note"
-                          value={note.text}
-                          isReadOnly={!userHasWriteAccess}
-                          onChange={(e) =>
-                            setNotes((ns) =>
-                              ns.map((n, j) =>
-                                j === i ? { ...n, text: e.target.value } : n,
-                              ),
-                            )
-                          }
-                          onKeyDown={(e) => {
-                            if (
-                              (e.metaKey || e.ctrlKey) &&
-                              e.key === "Enter" &&
-                              userHasWriteAccess
-                            ) {
-                              e.preventDefault()
-                              saveNotesMutation.mutate()
+                        <VStack flex={1} align="stretch" spacing={1}>
+                          {note.highlight ? (
+                            <Flex align="center" gap={1}>
+                              <IconButton
+                                aria-label="Show on PDF"
+                                icon={<FaMapMarkerAlt />}
+                                size="xs"
+                                variant="ghost"
+                                onClick={() =>
+                                  scrollToRef.current(noteToHighlight(note, i))
+                                }
+                              />
+                              <Text
+                                flex={1}
+                                fontSize="xs"
+                                color="gray.500"
+                                fontStyle="italic"
+                                noOfLines={2}
+                                borderLeftWidth={2}
+                                borderColor="yellow.400"
+                                pl={2}
+                              >
+                                {note.highlight.quote}
+                              </Text>
+                            </Flex>
+                          ) : null}
+                          <Textarea
+                            size="sm"
+                            rows={3}
+                            placeholder="Note"
+                            value={note.text}
+                            isReadOnly={!userHasWriteAccess}
+                            onChange={(e) =>
+                              setNotes((ns) =>
+                                ns.map((n, j) =>
+                                  j === i ? { ...n, text: e.target.value } : n,
+                                ),
+                              )
                             }
-                          }}
-                        />
+                            onKeyDown={(e) => {
+                              if (
+                                (e.metaKey || e.ctrlKey) &&
+                                e.key === "Enter" &&
+                                userHasWriteAccess
+                              ) {
+                                e.preventDefault()
+                                saveNotesMutation.mutate(notes)
+                              }
+                            }}
+                          />
+                        </VStack>
                         {userHasWriteAccess ? (
                           <IconButton
                             aria-label="Remove note"
@@ -314,7 +456,7 @@ const ReferenceItemModal = ({
                       size="sm"
                       variant="primary"
                       alignSelf="flex-start"
-                      onClick={() => saveNotesMutation.mutate()}
+                      onClick={() => saveNotesMutation.mutate(notes)}
                       isLoading={saveNotesMutation.isPending}
                     >
                       Save notes

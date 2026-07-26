@@ -1100,6 +1100,14 @@ export type ReferenceFile = {
 
 export type ReferenceNote = {
   text: string
+  highlight?: ReferenceNoteHighlight | null
+}
+
+export type ReferenceNoteHighlight = {
+  position: {
+    [key: string]: unknown
+  }
+  quote?: string
 }
 
 export type ReferenceNotesPut = {

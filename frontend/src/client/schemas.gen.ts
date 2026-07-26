@@ -5362,10 +5362,38 @@ export const ReferenceNoteSchema = {
       type: "string",
       title: "Text",
     },
+    highlight: {
+      anyOf: [
+        {
+          $ref: "#/components/schemas/ReferenceNoteHighlight",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
   },
   type: "object",
   required: ["text"],
   title: "ReferenceNote",
+} as const
+
+export const ReferenceNoteHighlightSchema = {
+  properties: {
+    position: {
+      additionalProperties: true,
+      type: "object",
+      title: "Position",
+    },
+    quote: {
+      type: "string",
+      title: "Quote",
+      default: "",
+    },
+  },
+  type: "object",
+  required: ["position"],
+  title: "ReferenceNoteHighlight",
 } as const
 
 export const ReferenceNotesPutSchema = {

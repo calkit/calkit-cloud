@@ -428,21 +428,100 @@ def note_html_to_text(html: str) -> str:
     return html_lib.unescape(s).strip()
 
 
-# Notes are stored in the BibTeX ``comment`` field as plain text, one note per
-# section separated by a ``---`` horizontal rule (Zotero notes have no titles).
-# This keeps multiple notes self-contained in the .bib and human-readable.
+# Notes are stored in the BibTeX ``comment`` field, one note per ``---``
+# separated section (Zotero notes have no titles). A note may be anchored to a
+# PDF highlight, encoded self-contained at the top of its section as an HTML
+# comment carrying the anchor position plus a Markdown blockquote of the
+# highlighted text:
+#
+#     <!-- calkit-highlight: {"boundingRect":{...},...} -->
+#     > the highlighted quote
+#
+#     the note body
+#
+_HIGHLIGHT_RE = re.compile(
+    r"^\s*<!--\s*calkit-highlight:\s*(?P<json>.*?)\s*-->\s*\n(?P<rest>.*)$",
+    re.S,
+)
+
+
 def parse_notes_markdown(comment: str) -> list[dict]:
-    """Parse the ``comment`` field into ``[{text}]``, one per ``---`` section."""
+    """Parse the ``comment`` field into ``[{text, highlight}]`` notes."""
     if not comment or not comment.strip():
         return []
-    chunks = re.split(r"(?m)^\s*-{3,}\s*$", comment)
-    return [{"text": c.strip()} for c in chunks if c.strip()]
+    notes = []
+    for chunk in re.split(r"(?m)^\s*-{3,}\s*$", comment):
+        if not chunk.strip():
+            continue
+        notes.append(_parse_note(chunk.strip()))
+    return notes
+
+
+def _parse_note(chunk: str) -> dict:
+    match = _HIGHLIGHT_RE.match(chunk)
+    if not match:
+        return {"text": chunk.strip(), "highlight": None}
+    try:
+        position = json.loads(match.group("json"))
+    except Exception:
+        # Malformed anchor: keep the whole section as plain text.
+        return {"text": chunk.strip(), "highlight": None}
+    quote_lines = []
+    body_lines = []
+    for line in match.group("rest").split("\n"):
+        if not body_lines and line.startswith(">"):
+            quote_lines.append(line[1:].lstrip())
+        elif not body_lines and not line.strip():
+            continue
+        else:
+            body_lines.append(line)
+    return {
+        "text": "\n".join(body_lines).strip(),
+        "highlight": {
+            "position": position,
+            "quote": "\n".join(quote_lines).strip(),
+        },
+    }
 
 
 def serialize_notes_markdown(notes: list[dict]) -> str:
-    """Serialize ``[{text}]`` into ``---``-separated note sections."""
-    parts = [(note.get("text") or "").strip() for note in notes]
-    return "\n\n---\n\n".join(p for p in parts if p).strip()
+    """Serialize ``[{text, highlight}]`` into ``---``-separated sections."""
+    parts = [p for p in (_serialize_note(n) for n in notes) if p]
+    return "\n\n---\n\n".join(parts).strip()
+
+
+def note_zotero_html(note: dict) -> str:
+    """Render a note as HTML for Zotero: the highlighted quote (if any) as a
+    blockquote, then the body. The Calkit anchor is intentionally omitted, since
+    Zotero can't store it.
+    """
+    body = note_text_to_html(note.get("text", ""))
+    highlight = note.get("highlight") or {}
+    quote = (highlight.get("quote") or "").strip()
+    if quote:
+        return f"<blockquote>{note_text_to_html(quote)}</blockquote>{body}"
+    return body
+
+
+def _serialize_note(note: dict) -> str:
+    text = (note.get("text") or "").strip()
+    highlight = note.get("highlight")
+    if not highlight:
+        return text
+    position = highlight.get("position")
+    if not position:
+        return text
+    lines = [
+        "<!-- calkit-highlight: "
+        + json.dumps(position, separators=(",", ":"))
+        + " -->"
+    ]
+    quote = (highlight.get("quote") or "").strip()
+    if quote:
+        lines.extend(f"> {line}" for line in quote.split("\n"))
+    lines.append("")
+    lines.append(text)
+    return "\n".join(lines).strip()
 
 
 def get_item_children(

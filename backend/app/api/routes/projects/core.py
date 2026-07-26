@@ -5514,10 +5514,14 @@ def _pull_zotero_collection(
     os.makedirs(os.path.dirname(bib_full_path) or ".", exist_ok=True)
     with open(bib_full_path, "w") as f:
         f.write(bibtex)
-    # Keyed by .bib path, so multiple linked collections coexist.
+    # Keyed by .bib path, so multiple linked collections coexist. items.json is
+    # committed (the reference->Zotero-item map is needed for PDFs and travels
+    # with the repo); force-add in case an older clone gitignored the whole
+    # .calkit/zotero/ directory.
     all_items = zotero.read_items_info(repo.working_dir)
     all_items[bib_path] = items_map
     zotero.write_items_info(repo.working_dir, all_items)
+    repo.git.add(["-f", zotero.ITEMS_REL_PATH])
     return library_version
 
 
@@ -5528,8 +5532,10 @@ def _record_zotero_sync_info(
     user_id: str,
     library_version: int,
 ) -> str:
-    """Persist local Zotero sync state for a .bib and gitignore its store.
+    """Persist Zotero sync state for a .bib and stage it for commit.
 
+    Like Overleaf, sync state is stateful and travels with the repo, so it's
+    committed (force-added in case an older clone gitignored .calkit/zotero/).
     Returns the ISO timestamp recorded as ``last_synced``.
     """
     now_iso = utcnow().isoformat()
@@ -5543,10 +5549,7 @@ def _record_zotero_sync_info(
         "last_synced": now_iso,
     }
     zotero.write_sync_info(repo.working_dir, sync_info)
-    if not repo.ignored(zotero.SYNC_INFO_REL_PATH):
-        with open(os.path.join(repo.working_dir, ".gitignore"), "a") as f:
-            f.write("\n.calkit/zotero/\n")
-        repo.git.add(".gitignore")
+    repo.git.add(["-f", zotero.SYNC_INFO_REL_PATH])
     return now_iso
 
 
@@ -5684,11 +5687,19 @@ def get_project_zotero_item_pdf(
     return Response(content=content, media_type=content_type)
 
 
-# A reference note (plain text). Notes for every reference live in the BibTeX
-# ``comment`` field, ``---``-separated (see ``zotero.parse_notes_markdown``);
-# Zotero-linked references additionally sync them to Zotero as note child items.
+class ReferenceNoteHighlight(BaseModel):
+    # react-pdf-highlighter ScaledPosition, stored verbatim.
+    position: dict
+    quote: str = ""
+
+
+# A reference note. Notes for every reference live in the BibTeX ``comment``
+# field, ``---``-separated (see ``zotero.parse_notes_markdown``); a note may be
+# anchored to a PDF highlight. Zotero-linked references additionally sync the
+# note text to Zotero as note child items.
 class ReferenceNote(BaseModel):
     text: str
+    highlight: ReferenceNoteHighlight | None = None
 
 
 class ReferenceNotesResponse(BaseModel):
@@ -5770,7 +5781,7 @@ def _sync_notes_to_zotero(
         if child.get("data", {}).get("itemType") == "note"
     ]
     for i, note in enumerate(notes):
-        html = zotero.note_text_to_html(note["text"])
+        html = zotero.note_zotero_html(note)
         if i < len(existing):
             zotero.update_note(
                 api_key=api_key,
