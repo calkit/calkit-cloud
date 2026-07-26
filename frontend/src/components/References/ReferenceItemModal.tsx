@@ -211,16 +211,28 @@ const ReferenceItemModal = ({
   const highlights = useMemo(
     () =>
       notes
-        .map((n, i): IHighlight | null =>
-          n.highlight
-            ? {
-                id: `note-${i}`,
-                position: n.highlight.position,
-                content: { text: n.highlight.quote },
-                comment: { text: n.text, emoji: "" },
-              }
-            : null,
-        )
+        .map((n, i): IHighlight | null => {
+          const pos = n.highlight?.position as
+            | { pageNumber?: number; rects?: unknown }
+            | undefined
+          // react-pdf-highlighter's groupHighlightsByPage iterates
+          // position.rects and reads position.pageNumber with no guard, so a
+          // malformed anchor would throw and wipe the whole highlight layer.
+          // Skip anything that isn't a well-formed scaled position.
+          if (
+            !pos ||
+            typeof pos.pageNumber !== "number" ||
+            !Array.isArray(pos.rects)
+          ) {
+            return null
+          }
+          return {
+            id: `note-${i}`,
+            position: n.highlight!.position,
+            content: { text: n.highlight!.quote },
+            comment: { text: n.text, emoji: "" },
+          }
+        })
         .filter((h): h is IHighlight => h !== null),
     [notes],
   )
@@ -281,7 +293,17 @@ const ReferenceItemModal = ({
   )
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="full" isCentered>
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      size="full"
+      isCentered
+      // No enter animation: the motion transform leaves the PDF container
+      // without a layout (offsetParent null) when react-pdf-highlighter first
+      // renders its highlight layers and scrolls, which breaks highlight
+      // rendering and scroll-to-highlight.
+      motionPreset="none"
+    >
       <ModalOverlay />
       <ModalContent>
         <ModalHeader pr={10} noOfLines={1}>
