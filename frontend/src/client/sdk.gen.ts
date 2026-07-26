@@ -181,6 +181,10 @@ import type {
   GetProjectReferencesResponse,
   PostProjectReferencesData,
   PostProjectReferencesResponse,
+  PostProjectReferenceItemData,
+  PostProjectReferenceItemResponse,
+  PutProjectReferenceItemData,
+  PutProjectReferenceItemResponse,
   GetProjectZoteroLibrariesData,
   GetProjectZoteroLibrariesResponse,
   GetProjectZoteroCollectionsData,
@@ -2772,6 +2776,67 @@ export class ProjectsService {
       path: {
         owner_name: data.ownerName,
         project_name: data.projectName,
+      },
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Post Project Reference Item
+   * Add a new entry to a references (.bib) collection.
+   * @param data The data for the request.
+   * @param data.ownerName
+   * @param data.projectName
+   * @param data.requestBody
+   * @returns Message Successful Response
+   * @throws ApiError
+   */
+  public static postProjectReferenceItem(
+    data: PostProjectReferenceItemData,
+  ): CancelablePromise<PostProjectReferenceItemResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/projects/{owner_name}/{project_name}/references/items",
+      path: {
+        owner_name: data.ownerName,
+        project_name: data.projectName,
+      },
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Put Project Reference Item
+   * Edit an entry's type, key, and fields, preserving its notes.
+   *
+   * Provided fields are merged in (an empty value clears that field); fields not
+   * included are left as they are, so notes and other data survive the edit.
+   * @param data The data for the request.
+   * @param data.ownerName
+   * @param data.projectName
+   * @param data.bibKey
+   * @param data.requestBody
+   * @returns Message Successful Response
+   * @throws ApiError
+   */
+  public static putProjectReferenceItem(
+    data: PutProjectReferenceItemData,
+  ): CancelablePromise<PutProjectReferenceItemResponse> {
+    return __request(OpenAPI, {
+      method: "PUT",
+      url: "/projects/{owner_name}/{project_name}/references/items/{bib_key}",
+      path: {
+        owner_name: data.ownerName,
+        project_name: data.projectName,
+        bib_key: data.bibKey,
       },
       body: data.requestBody,
       mediaType: "application/json",

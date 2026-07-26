@@ -5356,6 +5356,63 @@ export const ReferenceFileSchema = {
   title: "ReferenceFile",
 } as const
 
+export const ReferenceItemPostSchema = {
+  properties: {
+    path: {
+      type: "string",
+      title: "Path",
+    },
+    type: {
+      type: "string",
+      title: "Type",
+      default: "article",
+    },
+    key: {
+      type: "string",
+      title: "Key",
+    },
+    fields: {
+      additionalProperties: {
+        type: "string",
+      },
+      type: "object",
+      title: "Fields",
+      default: {},
+    },
+  },
+  type: "object",
+  required: ["path", "key"],
+  title: "ReferenceItemPost",
+} as const
+
+export const ReferenceItemPutSchema = {
+  properties: {
+    path: {
+      type: "string",
+      title: "Path",
+    },
+    type: {
+      type: "string",
+      title: "Type",
+    },
+    key: {
+      type: "string",
+      title: "Key",
+    },
+    fields: {
+      additionalProperties: {
+        type: "string",
+      },
+      type: "object",
+      title: "Fields",
+      default: {},
+    },
+  },
+  type: "object",
+  required: ["path", "type", "key"],
+  title: "ReferenceItemPut",
+} as const
+
 export const ReferenceNoteSchema = {
   properties: {
     text: {

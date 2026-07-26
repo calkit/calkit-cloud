@@ -1700,6 +1700,63 @@ def test_format_bib_indents_and_wraps() -> None:
     assert all(len(line) <= 80 for line in out.splitlines())
 
 
+def test_post_and_put_reference_item(
+    client: TestClient, db: Session, tmp_path
+) -> None:
+    project, headers = _make_owner_with_project(db, client)
+    owner_name = project.owner_account.name
+    base = f"{settings.API_V1_STR}/projects/{owner_name}/{project.name}"
+    fake_repo = _make_fake_repo(str(tmp_path))
+    # An existing entry with a note in its comment field.
+    (tmp_path / "references.bib").write_text(
+        "@article{old,\n  title = {Old Title},\n  comment = {my note},\n}\n"
+    )
+    with (
+        patch("app.api.routes.projects.core.get_repo", return_value=fake_repo),
+        patch("app.api.routes.projects.core.mixpanel.track"),
+    ):
+        # Add a new entry.
+        r = client.post(
+            f"{base}/references/items",
+            headers=headers,
+            json={
+                "path": "references.bib",
+                "type": "book",
+                "key": "smith2020",
+                "fields": {"title": "A Book", "year": "2020"},
+            },
+        )
+        assert r.status_code == 200, r.text
+        text = (tmp_path / "references.bib").read_text()
+        assert "@book{smith2020," in text
+        assert "  title = {A Book}," in text
+        # Adding a duplicate key conflicts.
+        r = client.post(
+            f"{base}/references/items",
+            headers=headers,
+            json={"path": "references.bib", "key": "smith2020"},
+        )
+        assert r.status_code == 409
+        # Edit the original entry, renaming its key and a field; its note
+        # (comment) must survive.
+        r = client.put(
+            f"{base}/references/items/old",
+            headers=headers,
+            json={
+                "path": "references.bib",
+                "type": "article",
+                "key": "older",
+                "fields": {"title": "New Title"},
+            },
+        )
+    assert r.status_code == 200, r.text
+    text = (tmp_path / "references.bib").read_text()
+    assert "@article{older," in text
+    assert "  title = {New Title}," in text
+    assert "comment = {my note}" in text
+    assert "@article{old," not in text
+
+
 def test_post_project_zotero_import_rejects_both_modes(
     client: TestClient, db: Session, tmp_path
 ) -> None:

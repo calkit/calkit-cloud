@@ -1098,6 +1098,24 @@ export type ReferenceFile = {
   key: string
 }
 
+export type ReferenceItemPost = {
+  path: string
+  type?: string
+  key: string
+  fields?: {
+    [key: string]: string
+  }
+}
+
+export type ReferenceItemPut = {
+  path: string
+  type: string
+  key: string
+  fields?: {
+    [key: string]: string
+  }
+}
+
 export type ReferenceNote = {
   text: string
   highlight?: ReferenceNoteHighlight | null
@@ -2390,6 +2408,23 @@ export type PostProjectReferencesData = {
 }
 
 export type PostProjectReferencesResponse = References
+
+export type PostProjectReferenceItemData = {
+  ownerName: string
+  projectName: string
+  requestBody: ReferenceItemPost
+}
+
+export type PostProjectReferenceItemResponse = Message
+
+export type PutProjectReferenceItemData = {
+  bibKey: string
+  ownerName: string
+  projectName: string
+  requestBody: ReferenceItemPut
+}
+
+export type PutProjectReferenceItemResponse = Message
 
 export type GetProjectZoteroLibrariesData = {
   ownerName: string

@@ -5217,6 +5217,126 @@ def post_project_references(
     return References.model_validate({"path": req.path})
 
 
+class ReferenceItemPost(BaseModel):
+    path: str
+    type: str = "article"
+    key: str
+    fields: dict[str, str] = {}
+
+
+def _load_bib_db(repo, path: str):
+    full_path = os.path.join(repo.working_dir, path)
+    if not os.path.isfile(full_path):
+        raise HTTPException(404, "References file not found")
+    with open(full_path) as f:
+        return bibtexparser.loads(f.read()), full_path
+
+
+@router.post("/projects/{owner_name}/{project_name}/references/items")
+def post_project_reference_item(
+    owner_name: str,
+    project_name: str,
+    req: ReferenceItemPost,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> Message:
+    """Add a new entry to a references (.bib) collection."""
+    if not req.key.strip():
+        raise HTTPException(422, "A citation key is required")
+    project = app.projects.get_project(
+        owner_name=owner_name,
+        project_name=project_name,
+        session=session,
+        current_user=current_user,
+        min_access_level="write",
+    )
+    repo = get_repo(project=project, user=current_user, session=session)
+    db, full_path = _load_bib_db(repo, req.path)
+    if any(e.get("ID") == req.key for e in db.entries):
+        raise HTTPException(409, f"An entry '{req.key}' already exists")
+    entry = {"ENTRYTYPE": req.type, "ID": req.key}
+    for field, value in req.fields.items():
+        if value.strip():
+            entry[field] = value.strip()
+    db.entries.append(entry)
+    with open(full_path, "w") as f:
+        f.write(zotero.format_bib(bibtexparser.dumps(db)))
+    repo.git.add(req.path)
+    repo.git.commit(["-m", f"Add reference '{req.key}'"])
+    repo.git.push(["origin", repo.active_branch.name])
+    mixpanel.track(
+        user=current_user,
+        event_name="Added reference item",
+        add_event_info={"path": req.path},
+    )
+    return Message(message="Reference added")
+
+
+class ReferenceItemPut(BaseModel):
+    path: str
+    type: str
+    key: str
+    fields: dict[str, str] = {}
+
+
+@router.put("/projects/{owner_name}/{project_name}/references/items/{bib_key}")
+def put_project_reference_item(
+    owner_name: str,
+    project_name: str,
+    bib_key: str,
+    req: ReferenceItemPut,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> Message:
+    """Edit an entry's type, key, and fields, preserving its notes.
+
+    Provided fields are merged in (an empty value clears that field); fields not
+    included are left as they are, so notes and other data survive the edit.
+    """
+    if not req.key.strip():
+        raise HTTPException(422, "A citation key is required")
+    project = app.projects.get_project(
+        owner_name=owner_name,
+        project_name=project_name,
+        session=session,
+        current_user=current_user,
+        min_access_level="write",
+    )
+    repo = get_repo(project=project, user=current_user, session=session)
+    db, full_path = _load_bib_db(repo, req.path)
+    entry = next((e for e in db.entries if e.get("ID") == bib_key), None)
+    if entry is None:
+        raise HTTPException(404, "Reference entry not found")
+    if req.key != bib_key and any(e.get("ID") == req.key for e in db.entries):
+        raise HTTPException(409, f"An entry '{req.key}' already exists")
+    entry["ENTRYTYPE"] = req.type
+    entry["ID"] = req.key
+    for field, value in req.fields.items():
+        if value.strip():
+            entry[field] = value.strip()
+        else:
+            entry.pop(field, None)
+    with open(full_path, "w") as f:
+        f.write(zotero.format_bib(bibtexparser.dumps(db)))
+    # Follow a rename in the Zotero item map so PDFs/notes keep resolving.
+    if req.key != bib_key:
+        all_items = zotero.read_items_info(repo.working_dir)
+        item_map = all_items.get(req.path, {})
+        if bib_key in item_map:
+            item_map[req.key] = item_map.pop(bib_key)
+            zotero.write_items_info(repo.working_dir, all_items)
+            repo.git.add(["-f", zotero.ITEMS_REL_PATH])
+    repo.git.add(req.path)
+    repo.git.commit(["-m", f"Edit reference '{req.key}'"])
+    repo.git.push(["origin", repo.active_branch.name])
+    mixpanel.track(
+        user=current_user,
+        event_name="Edited reference item",
+        add_event_info={"path": req.path},
+    )
+    return Message(message="Reference updated")
+
+
 class ZoteroLibrary(BaseModel):
     library_type: Literal["user", "group"]
     library_id: str

@@ -33,6 +33,7 @@ import { useEffect, useMemo, useState } from "react"
 import { BsFilePdf } from "react-icons/bs"
 import { FaPlus } from "react-icons/fa"
 import { IoLibraryOutline } from "react-icons/io5"
+import { MdEdit } from "react-icons/md"
 import { z } from "zod"
 
 import {
@@ -43,6 +44,7 @@ import {
 import LoadingSpinner from "../../../../../components/Common/LoadingSpinner"
 import PageMenu from "../../../../../components/Common/PageMenu"
 import Tooltip from "../../../../../components/Common/Tooltip"
+import EditReferenceItemModal from "../../../../../components/References/EditReferenceItemModal"
 import FileViewModal from "../../../../../components/References/FileViewModal"
 import ImportFromZoteroModal from "../../../../../components/References/ImportFromZoteroModal"
 import NewReferencesCollection from "../../../../../components/References/NewReferencesCollection"
@@ -172,6 +174,8 @@ function References() {
       }),
   })
   const fileViewModal = useDisclosure()
+  const editItemModal = useDisclosure()
+  const [editEntry, setEditEntry] = useState<ReferenceEntry>()
   const [selectedEntry, setSelectedEntry] = useState<ReferenceEntry>()
   const [visibleCount, setVisibleCount] = useState(25)
   const [searchText, setSearchText] = useState("")
@@ -258,6 +262,16 @@ function References() {
                 ownerName={accountName}
                 projectName={projectName}
               />
+              {selectedCollection ? (
+                <EditReferenceItemModal
+                  isOpen={editItemModal.isOpen}
+                  onClose={editItemModal.onClose}
+                  ownerName={accountName}
+                  projectName={projectName}
+                  bibPath={selectedCollection.path}
+                  entry={editEntry}
+                />
+              ) : null}
             </>
           ) : null}
           {selectedCollection ? (
@@ -350,33 +364,49 @@ function References() {
           <Box flex={1} minW={0} mr={6} pb={8}>
             {selectedCollection ? (
               <>
-                <InputGroup mb={3} maxW="400px">
-                  <Input
-                    placeholder="Search references"
-                    size="sm"
-                    value={searchText}
-                    onChange={(e) => handleSearchChange(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Escape") {
-                        handleSearchChange("")
-                      }
-                    }}
-                    autoComplete="off"
-                    data-form-type="other"
-                    data-lpignore="true"
-                  />
-                  {searchText ? (
-                    <InputRightElement h="100%">
-                      <IconButton
-                        aria-label="Clear search"
-                        icon={<CloseIcon boxSize={2.5} />}
-                        size="xs"
-                        variant="ghost"
-                        onClick={() => handleSearchChange("")}
-                      />
-                    </InputRightElement>
+                <HStack mb={3} align="center">
+                  <InputGroup maxW="400px">
+                    <Input
+                      placeholder="Search references"
+                      size="sm"
+                      value={searchText}
+                      onChange={(e) => handleSearchChange(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Escape") {
+                          handleSearchChange("")
+                        }
+                      }}
+                      autoComplete="off"
+                      data-form-type="other"
+                      data-lpignore="true"
+                    />
+                    {searchText ? (
+                      <InputRightElement h="100%">
+                        <IconButton
+                          aria-label="Clear search"
+                          icon={<CloseIcon boxSize={2.5} />}
+                          size="xs"
+                          variant="ghost"
+                          onClick={() => handleSearchChange("")}
+                        />
+                      </InputRightElement>
+                    ) : null}
+                  </InputGroup>
+                  {userHasWriteAccess ? (
+                    <Button
+                      size="sm"
+                      variant="primary"
+                      leftIcon={<FaPlus />}
+                      flexShrink={0}
+                      onClick={() => {
+                        setEditEntry(undefined)
+                        editItemModal.onOpen()
+                      }}
+                    >
+                      Add item
+                    </Button>
                   ) : null}
-                </InputGroup>
+                </HStack>
                 {totalEntries === 0 ? (
                   <Text fontSize="sm" color="gray.500">
                     {entries.length === 0
@@ -425,6 +455,19 @@ function References() {
                           {entry.note_count} note
                           {entry.note_count > 1 ? "s" : ""}
                         </Badge>
+                      ) : null}
+                      {userHasWriteAccess ? (
+                        <IconButton
+                          aria-label="Edit reference"
+                          icon={<MdEdit />}
+                          size="xs"
+                          variant="ghost"
+                          ml="auto"
+                          onClick={() => {
+                            setEditEntry(entry)
+                            editItemModal.onOpen()
+                          }}
+                        />
                       ) : null}
                     </Flex>
                     <ReferenceEntryTable referenceEntry={entry} />

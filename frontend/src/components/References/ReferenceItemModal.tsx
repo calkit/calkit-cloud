@@ -290,9 +290,11 @@ const ReferenceItemModal = ({
         <ModalCloseButton />
         <ModalBody pb={6}>
           <Flex gap={4} h="85vh">
-            {/* Center: PDF */}
+            {/* Center: PDF. Wait for notes too, so highlights are present when
+                the highlighter mounts (it doesn't reliably re-anchor an
+                async-arriving highlights prop). */}
             <Box flex={1} minW={0} borderWidth={1} borderRadius="md">
-              {pdfLoading ? (
+              {pdfLoading || (pdfUrl && notesQuery.isPending) ? (
                 <LoadingSpinner />
               ) : pdfUrl ? (
                 <PdfDocumentViewer
