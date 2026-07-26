@@ -360,8 +360,17 @@ function References() {
               )
             })}
           </PageMenu>
-          {/* Center: selected collection's entries */}
-          <Box flex={1} minW={0} mr={6} pb={8}>
+          {/* Center: selected collection's entries. A flex column with a fixed
+              search header and an independently scrolling entries body, like
+              the left/right columns. */}
+          <Box
+            flex={1}
+            minW={0}
+            mr={6}
+            display="flex"
+            flexDirection="column"
+            minH={0}
+          >
             {selectedCollection ? (
               <>
                 <HStack mb={3} align="center">
@@ -407,88 +416,90 @@ function References() {
                     </Button>
                   ) : null}
                 </HStack>
-                {totalEntries === 0 ? (
-                  <Text fontSize="sm" color="gray.500">
-                    {entries.length === 0
-                      ? "This collection has no references."
-                      : "No references match your search."}
-                  </Text>
-                ) : null}
-                {visibleEntries.map((entry) => (
-                  <Box
-                    key={`${selectedCollection.path}-${entry.key}`}
-                    borderRadius="lg"
-                    borderWidth={1}
-                    mb={2}
-                    p={2}
-                    boxSizing="border-box"
-                  >
-                    <Flex alignItems="center">
-                      <Heading
-                        size="sm"
-                        cursor="pointer"
-                        _hover={{ color: "blue.500" }}
-                        onClick={() => openItem(entry.key)}
-                      >
-                        {entry.key}
-                      </Heading>
-                      {entry.type ? (
-                        <Badge ml={2} colorScheme="purple" fontSize="0.6em">
-                          {entry.type}
-                        </Badge>
-                      ) : null}
-                      <Text ml={1} fontSize="sm">
-                        {entry.file_path ? (
-                          <Link onClick={() => handleLinkClick(entry)}>
-                            {`(${entry.file_path})`}
-                          </Link>
-                        ) : (
-                          ""
-                        )}
-                      </Text>
-                      {entry.has_pdf || entry.url ? (
-                        <Icon
-                          as={BsFilePdf}
-                          ml={1}
-                          color="red.500"
-                          cursor="pointer"
-                          onClick={() => openItem(entry.key)}
-                        />
-                      ) : null}
-                      {entry.note_count ? (
-                        <Badge ml={1} colorScheme="blue" fontSize="0.6em">
-                          {entry.note_count} note
-                          {entry.note_count > 1 ? "s" : ""}
-                        </Badge>
-                      ) : null}
-                      {userHasWriteAccess ? (
-                        <IconButton
-                          aria-label="Edit reference"
-                          icon={<MdEdit />}
-                          size="xs"
-                          variant="ghost"
-                          ml="auto"
-                          onClick={() => {
-                            setEditEntry(entry)
-                            editItemModal.onOpen()
-                          }}
-                        />
-                      ) : null}
-                    </Flex>
-                    <ReferenceEntryTable referenceEntry={entry} />
-                  </Box>
-                ))}
-                {visibleCount < totalEntries && (
-                  <Flex justify="center" mt={2} mb={4}>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setVisibleCount((n) => n + 25)}
+                <Box flex={1} overflowY="auto" minH={0} pb={4}>
+                  {totalEntries === 0 ? (
+                    <Text fontSize="sm" color="gray.500">
+                      {entries.length === 0
+                        ? "This collection has no references."
+                        : "No references match your search."}
+                    </Text>
+                  ) : null}
+                  {visibleEntries.map((entry) => (
+                    <Box
+                      key={`${selectedCollection.path}-${entry.key}`}
+                      borderRadius="lg"
+                      borderWidth={1}
+                      mb={2}
+                      p={2}
+                      boxSizing="border-box"
                     >
-                      Show more ({totalEntries - visibleCount} remaining)
-                    </Button>
-                  </Flex>
-                )}
+                      <Flex alignItems="center">
+                        <Heading
+                          size="sm"
+                          cursor="pointer"
+                          _hover={{ color: "blue.500" }}
+                          onClick={() => openItem(entry.key)}
+                        >
+                          {entry.key}
+                        </Heading>
+                        {entry.type ? (
+                          <Badge ml={2} colorScheme="purple" fontSize="0.6em">
+                            {entry.type}
+                          </Badge>
+                        ) : null}
+                        <Text ml={1} fontSize="sm">
+                          {entry.file_path ? (
+                            <Link onClick={() => handleLinkClick(entry)}>
+                              {`(${entry.file_path})`}
+                            </Link>
+                          ) : (
+                            ""
+                          )}
+                        </Text>
+                        {entry.has_pdf || entry.url ? (
+                          <Icon
+                            as={BsFilePdf}
+                            ml={1}
+                            color="red.500"
+                            cursor="pointer"
+                            onClick={() => openItem(entry.key)}
+                          />
+                        ) : null}
+                        {entry.note_count ? (
+                          <Badge ml={1} colorScheme="blue" fontSize="0.6em">
+                            {entry.note_count} note
+                            {entry.note_count > 1 ? "s" : ""}
+                          </Badge>
+                        ) : null}
+                        {userHasWriteAccess ? (
+                          <IconButton
+                            aria-label="Edit reference"
+                            icon={<MdEdit />}
+                            size="xs"
+                            variant="ghost"
+                            ml="auto"
+                            onClick={() => {
+                              setEditEntry(entry)
+                              editItemModal.onOpen()
+                            }}
+                          />
+                        ) : null}
+                      </Flex>
+                      <ReferenceEntryTable referenceEntry={entry} />
+                    </Box>
+                  ))}
+                  {visibleCount < totalEntries && (
+                    <Flex justify="center" mt={2} mb={4}>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setVisibleCount((n) => n + 25)}
+                      >
+                        Show more ({totalEntries - visibleCount} remaining)
+                      </Button>
+                    </Flex>
+                  )}
+                </Box>
               </>
             ) : null}
           </Box>
