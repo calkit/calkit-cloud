@@ -179,6 +179,16 @@ import type {
   PatchProjectIssueResponse,
   GetProjectReferencesData,
   GetProjectReferencesResponse,
+  PostProjectReferencesData,
+  PostProjectReferencesResponse,
+  GetProjectZoteroLibrariesData,
+  GetProjectZoteroLibrariesResponse,
+  GetProjectZoteroCollectionsData,
+  GetProjectZoteroCollectionsResponse,
+  GetProjectZoteroItemsData,
+  GetProjectZoteroItemsResponse,
+  PostProjectZoteroImportData,
+  PostProjectZoteroImportResponse,
   GetProjectEnvironmentsData,
   GetProjectEnvironmentsResponse,
   PostProjectEnvironmentData,
@@ -2729,6 +2739,158 @@ export class ProjectsService {
       query: {
         ref: data.ref,
       },
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Post Project References
+   * Create a new, empty references collection (a ``.bib`` file).
+   * @param data The data for the request.
+   * @param data.ownerName
+   * @param data.projectName
+   * @param data.requestBody
+   * @returns References Successful Response
+   * @throws ApiError
+   */
+  public static postProjectReferences(
+    data: PostProjectReferencesData,
+  ): CancelablePromise<PostProjectReferencesResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/projects/{owner_name}/{project_name}/references",
+      path: {
+        owner_name: data.ownerName,
+        project_name: data.projectName,
+      },
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Get Project Zotero Libraries
+   * List the Zotero libraries the current user can import from.
+   * @param data The data for the request.
+   * @param data.ownerName
+   * @param data.projectName
+   * @returns ZoteroLibrary Successful Response
+   * @throws ApiError
+   */
+  public static getProjectZoteroLibraries(
+    data: GetProjectZoteroLibrariesData,
+  ): CancelablePromise<GetProjectZoteroLibrariesResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/projects/{owner_name}/{project_name}/zotero/libraries",
+      path: {
+        owner_name: data.ownerName,
+        project_name: data.projectName,
+      },
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Get Project Zotero Collections
+   * List a Zotero library's collections for the import picker.
+   * @param data The data for the request.
+   * @param data.ownerName
+   * @param data.projectName
+   * @param data.libraryType
+   * @param data.libraryId
+   * @returns ZoteroCollection Successful Response
+   * @throws ApiError
+   */
+  public static getProjectZoteroCollections(
+    data: GetProjectZoteroCollectionsData,
+  ): CancelablePromise<GetProjectZoteroCollectionsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/projects/{owner_name}/{project_name}/zotero/collections",
+      path: {
+        owner_name: data.ownerName,
+        project_name: data.projectName,
+      },
+      query: {
+        library_type: data.libraryType,
+        library_id: data.libraryId,
+      },
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Get Project Zotero Items
+   * Search a Zotero library's items for the subset import picker.
+   * @param data The data for the request.
+   * @param data.ownerName
+   * @param data.projectName
+   * @param data.libraryType
+   * @param data.libraryId
+   * @param data.q
+   * @param data.collectionKey
+   * @returns ZoteroItem Successful Response
+   * @throws ApiError
+   */
+  public static getProjectZoteroItems(
+    data: GetProjectZoteroItemsData,
+  ): CancelablePromise<GetProjectZoteroItemsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/projects/{owner_name}/{project_name}/zotero/items",
+      path: {
+        owner_name: data.ownerName,
+        project_name: data.projectName,
+      },
+      query: {
+        library_type: data.libraryType,
+        library_id: data.libraryId,
+        q: data.q,
+        collection_key: data.collectionKey,
+      },
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Post Project Zotero Import
+   * Import a Zotero collection into a project's references.
+   *
+   * Whole-collection mode links an existing collection; subset mode creates a
+   * dedicated "Calkit: {owner}/{project}" collection, seeds it with the chosen
+   * items, and links that. Either way the collection is pulled into a ``.bib``
+   * file and recorded in ``calkit.yaml`` for later sync.
+   * @param data The data for the request.
+   * @param data.ownerName
+   * @param data.projectName
+   * @param data.requestBody
+   * @returns References Successful Response
+   * @throws ApiError
+   */
+  public static postProjectZoteroImport(
+    data: PostProjectZoteroImportData,
+  ): CancelablePromise<PostProjectZoteroImportResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/projects/{owner_name}/{project_name}/zotero/imports",
+      path: {
+        owner_name: data.ownerName,
+        project_name: data.projectName,
+      },
+      body: data.requestBody,
+      mediaType: "application/json",
       errors: {
         422: "Validation Error",
       },

@@ -1101,7 +1101,22 @@ export type References = {
   entries?: Array<ReferenceEntry> | null
   imported_from?: ImportInfo | null
   raw_text?: string | null
+  zotero?: ReferenceZoteroLink | null
 }
+
+export type ReferencesPost = {
+  path: string
+}
+
+export type ReferenceZoteroLink = {
+  library_type: "user" | "group"
+  library_id: string
+  collection_key: string
+  collection_name?: string | null
+  last_sync_version?: number | null
+}
+
+export type library_type = "user" | "group"
 
 export type RefreshTokenRequest = {
   refresh_token: string
@@ -1604,6 +1619,34 @@ export type ZoteroAuthFinish = {
 
 export type ZoteroAuthStart = {
   authorize_url: string
+}
+
+export type ZoteroCollection = {
+  collection_key: string
+  collection_name?: string | null
+  parent_collection?: string | null
+}
+
+export type ZoteroImportPost = {
+  library_type: "user" | "group"
+  library_id: string
+  collection_key?: string | null
+  item_keys?: Array<string> | null
+  bib_path?: string
+}
+
+export type ZoteroItem = {
+  item_key: string
+  title?: string | null
+  item_type?: string | null
+  year?: string | null
+  first_author?: string | null
+}
+
+export type ZoteroLibrary = {
+  library_type: "user" | "group"
+  library_id: string
+  name: string
 }
 
 export type GetAccountData = {
@@ -2301,6 +2344,49 @@ export type GetProjectReferencesData = {
 }
 
 export type GetProjectReferencesResponse = Array<References>
+
+export type PostProjectReferencesData = {
+  ownerName: string
+  projectName: string
+  requestBody: ReferencesPost
+}
+
+export type PostProjectReferencesResponse = References
+
+export type GetProjectZoteroLibrariesData = {
+  ownerName: string
+  projectName: string
+}
+
+export type GetProjectZoteroLibrariesResponse = Array<ZoteroLibrary>
+
+export type GetProjectZoteroCollectionsData = {
+  libraryId: string
+  libraryType: "user" | "group"
+  ownerName: string
+  projectName: string
+}
+
+export type GetProjectZoteroCollectionsResponse = Array<ZoteroCollection>
+
+export type GetProjectZoteroItemsData = {
+  collectionKey?: string | null
+  libraryId: string
+  libraryType: "user" | "group"
+  ownerName: string
+  projectName: string
+  q?: string | null
+}
+
+export type GetProjectZoteroItemsResponse = Array<ZoteroItem>
+
+export type PostProjectZoteroImportData = {
+  ownerName: string
+  projectName: string
+  requestBody: ZoteroImportPost
+}
+
+export type PostProjectZoteroImportResponse = References
 
 export type GetProjectEnvironmentsData = {
   ownerName: string

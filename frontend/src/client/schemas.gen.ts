@@ -5335,6 +5335,49 @@ export const ReferenceFileSchema = {
   title: "ReferenceFile",
 } as const
 
+export const ReferenceZoteroLinkSchema = {
+  properties: {
+    library_type: {
+      type: "string",
+      enum: ["user", "group"],
+      title: "Library Type",
+    },
+    library_id: {
+      type: "string",
+      title: "Library Id",
+    },
+    collection_key: {
+      type: "string",
+      title: "Collection Key",
+    },
+    collection_name: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Collection Name",
+    },
+    last_sync_version: {
+      anyOf: [
+        {
+          type: "integer",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Last Sync Version",
+    },
+  },
+  type: "object",
+  required: ["library_type", "library_id", "collection_key"],
+  title: "ReferenceZoteroLink",
+} as const
+
 export const ReferencesSchema = {
   properties: {
     path: {
@@ -5390,10 +5433,32 @@ export const ReferencesSchema = {
       ],
       title: "Raw Text",
     },
+    zotero: {
+      anyOf: [
+        {
+          $ref: "#/components/schemas/ReferenceZoteroLink",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
   },
   type: "object",
   required: ["path"],
   title: "References",
+} as const
+
+export const ReferencesPostSchema = {
+  properties: {
+    path: {
+      type: "string",
+      title: "Path",
+    },
+  },
+  type: "object",
+  required: ["path"],
+  title: "ReferencesPost",
 } as const
 
 export const RefreshTokenRequestSchema = {
@@ -7855,6 +7920,164 @@ export const ZoteroAuthStartSchema = {
   type: "object",
   required: ["authorize_url"],
   title: "ZoteroAuthStart",
+} as const
+
+export const ZoteroCollectionSchema = {
+  properties: {
+    collection_key: {
+      type: "string",
+      title: "Collection Key",
+    },
+    collection_name: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Collection Name",
+    },
+    parent_collection: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Parent Collection",
+    },
+  },
+  type: "object",
+  required: ["collection_key"],
+  title: "ZoteroCollection",
+} as const
+
+export const ZoteroImportPostSchema = {
+  properties: {
+    library_type: {
+      type: "string",
+      enum: ["user", "group"],
+      title: "Library Type",
+    },
+    library_id: {
+      type: "string",
+      title: "Library Id",
+    },
+    collection_key: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Collection Key",
+    },
+    item_keys: {
+      anyOf: [
+        {
+          items: {
+            type: "string",
+          },
+          type: "array",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Item Keys",
+    },
+    bib_path: {
+      type: "string",
+      title: "Bib Path",
+      default: "references.bib",
+    },
+  },
+  type: "object",
+  required: ["library_type", "library_id"],
+  title: "ZoteroImportPost",
+} as const
+
+export const ZoteroItemSchema = {
+  properties: {
+    item_key: {
+      type: "string",
+      title: "Item Key",
+    },
+    title: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Title",
+    },
+    item_type: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Item Type",
+    },
+    year: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Year",
+    },
+    first_author: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "First Author",
+    },
+  },
+  type: "object",
+  required: ["item_key"],
+  title: "ZoteroItem",
+} as const
+
+export const ZoteroLibrarySchema = {
+  properties: {
+    library_type: {
+      type: "string",
+      enum: ["user", "group"],
+      title: "Library Type",
+    },
+    library_id: {
+      type: "string",
+      title: "Library Id",
+    },
+    name: {
+      type: "string",
+      title: "Name",
+    },
+  },
+  type: "object",
+  required: ["library_type", "library_id", "name"],
+  title: "ZoteroLibrary",
 } as const
 
 export const _ContentsItemBaseSchema = {

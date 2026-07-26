@@ -42,7 +42,7 @@ from sqlmodel import Session, and_, func, not_, or_, select
 from TexSoup import TexSoup
 
 import app.projects
-from app import github, messaging, mixpanel, orgs, users
+from app import github, messaging, mixpanel, orgs, users, zotero
 from app.api.deps import (
     CurrentUser,
     CurrentUserOptional,
@@ -4978,12 +4978,21 @@ class ReferenceFile(BaseModel):
     key: str
 
 
+class ReferenceZoteroLink(BaseModel):
+    library_type: Literal["user", "group"]
+    library_id: str
+    collection_key: str
+    collection_name: str | None = None
+    last_sync_version: int | None = None
+
+
 class References(BaseModel):
     path: str
     files: list[ReferenceFile] | None = None
     entries: list[ReferenceEntry] | None = None
     imported_from: ImportInfo | None = None
     raw_text: str | None = None
+    zotero: ReferenceZoteroLink | None = None
 
 
 @router.get("/projects/{owner_name}/{project_name}/references")
@@ -5080,6 +5089,273 @@ def get_project_references(
             ref_collection["entries"] = final_entries
         resp.append(References.model_validate(ref_collection))
     return resp
+
+
+class ReferencesPost(BaseModel):
+    path: str
+
+
+@router.post("/projects/{owner_name}/{project_name}/references")
+def post_project_references(
+    owner_name: str,
+    project_name: str,
+    req: ReferencesPost,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> References:
+    """Create a new, empty references collection (a ``.bib`` file)."""
+    if not req.path.lower().endswith(".bib"):
+        raise HTTPException(422, "Path must end with '.bib'")
+    project = app.projects.get_project(
+        owner_name=owner_name,
+        project_name=project_name,
+        session=session,
+        current_user=current_user,
+        min_access_level="write",
+    )
+    repo = get_repo(project=project, user=current_user, session=session)
+    ck_info = get_ck_info_from_repo(repo)
+    references = ck_info.get("references", [])
+    if any(rc.get("path") == req.path for rc in references):
+        raise HTTPException(
+            409, "A references collection with that path exists"
+        )
+    bib_full_path = os.path.join(repo.working_dir, req.path)
+    if os.path.exists(bib_full_path):
+        raise HTTPException(409, f"'{req.path}' already exists in the repo")
+    os.makedirs(os.path.dirname(bib_full_path) or ".", exist_ok=True)
+    with open(bib_full_path, "w") as f:
+        f.write("")
+    references.append({"path": req.path})
+    ck_info["references"] = references
+    with open(os.path.join(repo.working_dir, "calkit.yaml"), "w") as f:
+        ryaml.dump(ck_info, f)
+    repo.git.add(req.path)
+    repo.git.add("calkit.yaml")
+    repo.git.commit(["-m", f"Add references collection '{req.path}'"])
+    repo.git.push(["origin", repo.active_branch.name])
+    mixpanel.track(
+        user=current_user,
+        event_name="Created references collection",
+        add_event_info={"path": req.path},
+    )
+    return References.model_validate({"path": req.path})
+
+
+class ZoteroLibrary(BaseModel):
+    library_type: Literal["user", "group"]
+    library_id: str
+    name: str
+
+
+@router.get("/projects/{owner_name}/{project_name}/zotero/libraries")
+def get_project_zotero_libraries(
+    owner_name: str,
+    project_name: str,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> list[ZoteroLibrary]:
+    """List the Zotero libraries the current user can import from."""
+    app.projects.get_project(
+        owner_name=owner_name,
+        project_name=project_name,
+        session=session,
+        current_user=current_user,
+        min_access_level="write",
+    )
+    api_key, user_id = users.get_zotero_api_key_and_user_id(
+        session=session, user=current_user
+    )
+    libraries = [
+        ZoteroLibrary(
+            library_type="user", library_id=user_id, name="My Library"
+        )
+    ]
+    for group in zotero.get_groups(api_key=api_key, user_id=user_id):
+        libraries.append(ZoteroLibrary.model_validate(group))
+    return libraries
+
+
+class ZoteroCollection(BaseModel):
+    collection_key: str
+    collection_name: str | None = None
+    parent_collection: str | None = None
+
+
+@router.get("/projects/{owner_name}/{project_name}/zotero/collections")
+def get_project_zotero_collections(
+    owner_name: str,
+    project_name: str,
+    library_type: Literal["user", "group"],
+    library_id: str,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> list[ZoteroCollection]:
+    """List a Zotero library's collections for the import picker."""
+    app.projects.get_project(
+        owner_name=owner_name,
+        project_name=project_name,
+        session=session,
+        current_user=current_user,
+        min_access_level="write",
+    )
+    api_key, _ = users.get_zotero_api_key_and_user_id(
+        session=session, user=current_user
+    )
+    collections = zotero.get_collections(
+        api_key=api_key, library_type=library_type, library_id=library_id
+    )
+    return [ZoteroCollection.model_validate(c) for c in collections]
+
+
+class ZoteroItem(BaseModel):
+    item_key: str
+    title: str | None = None
+    item_type: str | None = None
+    year: str | None = None
+    first_author: str | None = None
+
+
+@router.get("/projects/{owner_name}/{project_name}/zotero/items")
+def get_project_zotero_items(
+    owner_name: str,
+    project_name: str,
+    library_type: Literal["user", "group"],
+    library_id: str,
+    current_user: CurrentUser,
+    session: SessionDep,
+    q: str | None = None,
+    collection_key: str | None = None,
+) -> list[ZoteroItem]:
+    """Search a Zotero library's items for the subset import picker."""
+    app.projects.get_project(
+        owner_name=owner_name,
+        project_name=project_name,
+        session=session,
+        current_user=current_user,
+        min_access_level="write",
+    )
+    api_key, _ = users.get_zotero_api_key_and_user_id(
+        session=session, user=current_user
+    )
+    items = zotero.search_items(
+        api_key=api_key,
+        library_type=library_type,
+        library_id=library_id,
+        q=q,
+        collection_key=collection_key,
+    )
+    return [ZoteroItem.model_validate(i) for i in items]
+
+
+class ZoteroImportPost(BaseModel):
+    library_type: Literal["user", "group"]
+    library_id: str
+    # Whole-collection mode: link this existing collection directly.
+    collection_key: str | None = None
+    # Subset mode: create a dedicated collection seeded with these items.
+    item_keys: list[str] | None = None
+    bib_path: str = "references.bib"
+
+
+@router.post("/projects/{owner_name}/{project_name}/zotero/imports")
+def post_project_zotero_import(
+    owner_name: str,
+    project_name: str,
+    req: ZoteroImportPost,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> References:
+    """Import a Zotero collection into a project's references.
+
+    Whole-collection mode links an existing collection; subset mode creates a
+    dedicated "Calkit: {owner}/{project}" collection, seeds it with the chosen
+    items, and links that. Either way the collection is pulled into a ``.bib``
+    file and recorded in ``calkit.yaml`` for later sync.
+    """
+    if not req.bib_path.lower().endswith(".bib"):
+        raise HTTPException(422, "bib_path must end with '.bib'")
+    if bool(req.collection_key) == bool(req.item_keys):
+        raise HTTPException(
+            422, "Provide either collection_key or item_keys, not both"
+        )
+    project = app.projects.get_project(
+        owner_name=owner_name,
+        project_name=project_name,
+        session=session,
+        current_user=current_user,
+        min_access_level="write",
+    )
+    api_key, _ = users.get_zotero_api_key_and_user_id(
+        session=session, user=current_user
+    )
+    if req.collection_key is not None:
+        collection_key = req.collection_key
+        collection_name = zotero.get_collection_name(
+            api_key=api_key,
+            library_type=req.library_type,
+            library_id=req.library_id,
+            collection_key=collection_key,
+        )
+    else:
+        collection_name = f"Calkit: {owner_name}/{project_name}"
+        collection_key = zotero.create_collection(
+            api_key=api_key,
+            library_type=req.library_type,
+            library_id=req.library_id,
+            name=collection_name,
+        )
+        zotero.add_items_to_collection(
+            api_key=api_key,
+            library_type=req.library_type,
+            library_id=req.library_id,
+            collection_key=collection_key,
+            item_keys=req.item_keys or [],
+        )
+    bibtex, library_version = zotero.get_collection_items_bibtex(
+        api_key=api_key,
+        library_type=req.library_type,
+        library_id=req.library_id,
+        collection_key=collection_key,
+    )
+    repo = get_repo(project=project, user=current_user, session=session)
+    ck_info = get_ck_info_from_repo(repo)
+    bib_full_path = os.path.join(repo.working_dir, req.bib_path)
+    os.makedirs(os.path.dirname(bib_full_path) or ".", exist_ok=True)
+    with open(bib_full_path, "w") as f:
+        f.write(bibtex)
+    zotero_link = {
+        "library_type": req.library_type,
+        "library_id": req.library_id,
+        "collection_key": collection_key,
+        "collection_name": collection_name,
+        "last_sync_version": library_version,
+    }
+    references = ck_info.get("references", [])
+    for ref_collection in references:
+        if ref_collection.get("path") == req.bib_path:
+            ref_collection["zotero"] = zotero_link
+            break
+    else:
+        references.append({"path": req.bib_path, "zotero": zotero_link})
+    ck_info["references"] = references
+    with open(os.path.join(repo.working_dir, "calkit.yaml"), "w") as f:
+        ryaml.dump(ck_info, f)
+    repo.git.add(req.bib_path)
+    repo.git.add("calkit.yaml")
+    repo.git.commit(["-m", f"Import Zotero collection into '{req.bib_path}'"])
+    repo.git.push(["origin", repo.active_branch.name])
+    mixpanel.track(
+        user=current_user,
+        event_name="Imported Zotero collection",
+        add_event_info={
+            "path": req.bib_path,
+            "mode": "collection" if req.collection_key else "items",
+        },
+    )
+    return References.model_validate(
+        {"path": req.bib_path, "zotero": zotero_link}
+    )
 
 
 class Environment(BaseModel):

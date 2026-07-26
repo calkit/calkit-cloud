@@ -7,6 +7,7 @@ from unittest.mock import ANY, patch
 from app import users
 from app.api.routes.projects.core import get_project_comments
 from app.config import settings
+from app.core import ryaml
 from app.models import Project, UserCreate
 from app.models.core import ContentsItem, UserProjectAccess
 from app.projects import CkInfoAndOuts
@@ -1143,3 +1144,184 @@ def test_apply_question_update_collapses_to_string_when_cleared() -> None:
     # Empty request clears hypothesis/answer/evidence and collapses to a string.
     out = _apply_question_update(existing, QuestionPut())
     assert out == "q?"
+
+
+def _make_fake_repo(working_dir: str) -> SimpleNamespace:
+    """A repo stand-in whose git calls are no-ops but whose working_dir is a
+    real temp dir, so route file writes land somewhere we can read back.
+    """
+    return SimpleNamespace(
+        working_dir=working_dir,
+        active_branch=SimpleNamespace(name="main"),
+        git=SimpleNamespace(
+            add=lambda *a, **k: None,
+            commit=lambda *a, **k: None,
+            push=lambda *a, **k: None,
+        ),
+    )
+
+
+def test_post_project_zotero_import_whole_collection(
+    client: TestClient, db: Session, tmp_path
+) -> None:
+    project, headers = _make_owner_with_project(db, client)
+    owner_name = project.owner_account.name
+    base = f"{settings.API_V1_STR}/projects/{owner_name}/{project.name}"
+    fake_repo = _make_fake_repo(str(tmp_path))
+    with (
+        patch("app.api.routes.projects.core.get_repo", return_value=fake_repo),
+        patch(
+            "app.api.routes.projects.core.get_ck_info_from_repo",
+            side_effect=lambda *a, **k: {},
+        ),
+        patch(
+            "app.api.routes.projects.core.users"
+            ".get_zotero_api_key_and_user_id",
+            return_value=("KEY", "999"),
+        ),
+        patch(
+            "app.api.routes.projects.core.zotero.get_collection_name",
+            return_value="My Collection",
+        ),
+        patch(
+            "app.api.routes.projects.core.zotero.get_collection_items_bibtex",
+            return_value=("@article{a, title={A}}\n", 4021),
+        ) as mock_bibtex,
+        patch("app.api.routes.projects.core.mixpanel.track"),
+    ):
+        r = client.post(
+            f"{base}/zotero/imports",
+            headers=headers,
+            json={
+                "library_type": "user",
+                "library_id": "999",
+                "collection_key": "ABCD1234",
+            },
+        )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["path"] == "references.bib"
+    assert body["zotero"]["collection_key"] == "ABCD1234"
+    assert body["zotero"]["collection_name"] == "My Collection"
+    assert body["zotero"]["last_sync_version"] == 4021
+    # Whole-collection mode pulls the existing collection directly.
+    assert mock_bibtex.call_args.kwargs["collection_key"] == "ABCD1234"
+    # The .bib file was written with the exported content.
+    with open(tmp_path / "references.bib") as f:
+        assert f.read() == "@article{a, title={A}}\n"
+    # The calkit.yaml zotero block records all five schema fields.
+    ck_info = ryaml.load((tmp_path / "calkit.yaml").read_text())
+    zotero_block = ck_info["references"][0]["zotero"]
+    assert zotero_block == {
+        "library_type": "user",
+        "library_id": "999",
+        "collection_key": "ABCD1234",
+        "collection_name": "My Collection",
+        "last_sync_version": 4021,
+    }
+
+
+def test_post_project_zotero_import_subset_creates_collection(
+    client: TestClient, db: Session, tmp_path
+) -> None:
+    project, headers = _make_owner_with_project(db, client)
+    owner_name = project.owner_account.name
+    base = f"{settings.API_V1_STR}/projects/{owner_name}/{project.name}"
+    fake_repo = _make_fake_repo(str(tmp_path))
+    with (
+        patch("app.api.routes.projects.core.get_repo", return_value=fake_repo),
+        patch(
+            "app.api.routes.projects.core.get_ck_info_from_repo",
+            side_effect=lambda *a, **k: {},
+        ),
+        patch(
+            "app.api.routes.projects.core.users"
+            ".get_zotero_api_key_and_user_id",
+            return_value=("KEY", "999"),
+        ),
+        patch(
+            "app.api.routes.projects.core.zotero.create_collection",
+            return_value="NEWKEY01",
+        ) as mock_create,
+        patch(
+            "app.api.routes.projects.core.zotero.add_items_to_collection",
+        ) as mock_add,
+        patch(
+            "app.api.routes.projects.core.zotero.get_collection_items_bibtex",
+            return_value=("@book{b, title={B}}\n", 5000),
+        ),
+        patch("app.api.routes.projects.core.mixpanel.track"),
+    ):
+        r = client.post(
+            f"{base}/zotero/imports",
+            headers=headers,
+            json={
+                "library_type": "user",
+                "library_id": "999",
+                "item_keys": ["K1", "K2"],
+            },
+        )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    # Subset mode creates a dedicated collection named for the project.
+    expected_name = f"Calkit: {owner_name}/{project.name}"
+    assert mock_create.call_args.kwargs["name"] == expected_name
+    assert mock_add.call_args.kwargs["item_keys"] == ["K1", "K2"]
+    assert mock_add.call_args.kwargs["collection_key"] == "NEWKEY01"
+    assert body["zotero"]["collection_key"] == "NEWKEY01"
+    assert body["zotero"]["collection_name"] == expected_name
+
+
+def test_post_project_zotero_import_rejects_both_modes(
+    client: TestClient, db: Session, tmp_path
+) -> None:
+    project, headers = _make_owner_with_project(db, client)
+    owner_name = project.owner_account.name
+    base = f"{settings.API_V1_STR}/projects/{owner_name}/{project.name}"
+    fake_repo = _make_fake_repo(str(tmp_path))
+    with (
+        patch("app.api.routes.projects.core.get_repo", return_value=fake_repo),
+        patch(
+            "app.api.routes.projects.core.users"
+            ".get_zotero_api_key_and_user_id",
+            return_value=("KEY", "999"),
+        ),
+    ):
+        r = client.post(
+            f"{base}/zotero/imports",
+            headers=headers,
+            json={
+                "library_type": "user",
+                "library_id": "999",
+                "collection_key": "ABCD1234",
+                "item_keys": ["K1"],
+            },
+        )
+    assert r.status_code == 422
+
+
+def test_post_project_references_creates_collection(
+    client: TestClient, db: Session, tmp_path
+) -> None:
+    project, headers = _make_owner_with_project(db, client)
+    owner_name = project.owner_account.name
+    base = f"{settings.API_V1_STR}/projects/{owner_name}/{project.name}"
+    fake_repo = _make_fake_repo(str(tmp_path))
+    with (
+        patch("app.api.routes.projects.core.get_repo", return_value=fake_repo),
+        patch(
+            "app.api.routes.projects.core.get_ck_info_from_repo",
+            side_effect=lambda *a, **k: {},
+        ),
+        patch("app.api.routes.projects.core.mixpanel.track"),
+    ):
+        r = client.post(
+            f"{base}/references",
+            headers=headers,
+            json={"path": "refs/lit.bib"},
+        )
+    assert r.status_code == 200, r.text
+    assert r.json()["path"] == "refs/lit.bib"
+    assert (tmp_path / "refs" / "lit.bib").is_file()
+    ck_info = ryaml.load((tmp_path / "calkit.yaml").read_text())
+    assert ck_info["references"] == [{"path": "refs/lit.bib"}]
