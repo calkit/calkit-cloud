@@ -2972,10 +2972,11 @@ export class ProjectsService {
 
   /**
    * Get Project Reference Notes
-   * Get a reference item's notes.
+   * Get a reference item's notes from its BibTeX ``comment`` field.
    *
-   * A Zotero-linked reference returns its Zotero notes (refreshed); any other
-   * reference returns the single note stored in its BibTeX ``comment`` field.
+   * The .bib is the source of truth for note content (Zotero-linked references
+   * have their Zotero notes written into it on sync), so reading is the same for
+   * every reference.
    * @param data The data for the request.
    * @param data.ownerName
    * @param data.projectName
@@ -3006,12 +3007,11 @@ export class ProjectsService {
 
   /**
    * Put Project Reference Notes
-   * Set a reference item's notes.
+   * Set a reference item's notes in the BibTeX ``comment`` field.
    *
-   * For a Zotero-linked reference, the body is the full desired set of notes:
-   * notes with a ``key`` are updated, notes without one created, and any
-   * existing note absent from the request deleted, all pushed to Zotero. For any
-   * other reference, the notes are joined into the BibTeX ``comment`` field.
+   * Notes are serialized to Markdown (one ``# heading`` section per titled note)
+   * and committed. For a Zotero-linked reference, the notes are also pushed to
+   * Zotero.
    * @param data The data for the request.
    * @param data.ownerName
    * @param data.projectName

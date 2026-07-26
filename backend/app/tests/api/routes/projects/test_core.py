@@ -1497,6 +1497,9 @@ def test_put_project_zotero_item_notes(
     owner_name = project.owner_account.name
     base = f"{settings.API_V1_STR}/projects/{owner_name}/{project.name}"
     fake_repo = _make_fake_repo(str(tmp_path))
+    (tmp_path / "references.bib").write_text(
+        "@article{a,\n  title = {A},\n}\n"
+    )
     zotero.write_items_info(
         str(tmp_path),
         {
@@ -1509,27 +1512,14 @@ def test_put_project_zotero_item_notes(
             }
         },
     )
-    # One existing note (to update) is on record locally.
-    zotero.write_notes(
-        str(tmp_path),
-        {
-            "references.bib": {
-                "a": [{"key": "N1", "version": 3, "html": "<p>old</p>"}]
-            }
-        },
-    )
-    # After the writes, Zotero reports the refreshed children.
-    refreshed_children = [
+    # Zotero currently has one note child; positional sync updates it and
+    # creates a second for the extra note.
+    existing_children = [
         {
             "key": "N1",
-            "version": 4,
-            "data": {"itemType": "note", "note": "<p>updated</p>"},
-        },
-        {
-            "key": "N2",
-            "version": 1,
-            "data": {"itemType": "note", "note": "<p>brand new</p>"},
-        },
+            "version": 3,
+            "data": {"itemType": "note", "note": "<p>old</p>"},
+        }
     ]
     with (
         patch("app.api.routes.projects.core.get_repo", return_value=fake_repo),
@@ -1550,7 +1540,7 @@ def test_put_project_zotero_item_notes(
         ) as mock_create,
         patch(
             "app.api.routes.projects.core.zotero.get_item_children",
-            return_value=refreshed_children,
+            return_value=existing_children,
         ),
         patch("app.api.routes.projects.core.mixpanel.track"),
     ):
@@ -1560,25 +1550,45 @@ def test_put_project_zotero_item_notes(
             json={
                 "path": "references.bib",
                 "notes": [
-                    {"key": "N1", "version": 3, "text": "updated"},
-                    {"text": "brand new"},
+                    {"title": "Intro", "text": "updated"},
+                    {"title": "Method", "text": "brand new"},
                 ],
             },
         )
     assert r.status_code == 200, r.text
-    # The existing note is updated and the new one created; text is converted
-    # to Zotero's HTML on the way out.
+    # The notes are written to the .bib comment field as Markdown headings.
+    bib_text = (tmp_path / "references.bib").read_text()
+    assert "comment = {# Intro" in bib_text
+    assert "# Method" in bib_text
+    # Positional sync: the existing note is updated, the extra one created.
     assert mock_update.call_args.kwargs["note_key"] == "N1"
-    assert mock_create.call_args.kwargs["html"] == "<p>brand new</p>"
-    # The response reflects the refreshed notes, back as plain text.
-    assert {n["key"] for n in r.json()["notes"]} == {"N1", "N2"}
-    assert any(n["text"] == "brand new" for n in r.json()["notes"])
-    import json as _json
-
-    notes_info = _json.loads(
-        (tmp_path / ".calkit" / "zotero" / "notes.json").read_text()
+    assert "<h1>Intro</h1>" in mock_update.call_args.kwargs["html"]
+    assert mock_create.call_args.kwargs["html"] == (
+        "<h1>Method</h1><p>brand new</p>"
     )
-    assert len(notes_info["references.bib"]["a"]) == 2
+
+
+def test_get_project_reference_notes_from_comment(
+    client: TestClient, db: Session, tmp_path
+) -> None:
+    project, headers = _make_owner_with_project(db, client)
+    owner_name = project.owner_account.name
+    base = f"{settings.API_V1_STR}/projects/{owner_name}/{project.name}"
+    fake_repo = _make_fake_repo(str(tmp_path))
+    (tmp_path / "references.bib").write_text(
+        "@article{a,\n  comment = {# Intro\nfirst\n\n# Method\nsecond},\n}\n"
+    )
+    with (
+        patch("app.api.routes.projects.core.get_repo", return_value=fake_repo),
+    ):
+        r = client.get(
+            f"{base}/references/items/a/notes?path=references.bib",
+            headers=headers,
+        )
+    assert r.status_code == 200, r.text
+    notes = r.json()["notes"]
+    assert [n["title"] for n in notes] == ["Intro", "Method"]
+    assert [n["text"] for n in notes] == ["first", "second"]
 
 
 def test_reference_notes_non_linked_use_comment_field(

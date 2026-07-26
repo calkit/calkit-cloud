@@ -4,6 +4,7 @@ import {
   Flex,
   Heading,
   IconButton,
+  Input,
   Link,
   Modal,
   ModalBody,
@@ -11,7 +12,6 @@ import {
   ModalContent,
   ModalHeader,
   ModalOverlay,
-  Spinner,
   Table,
   Tbody,
   Td,
@@ -33,6 +33,7 @@ import useCustomToast from "../../hooks/useCustomToast"
 import { formatBibField } from "../../lib/bibtex"
 import { apiUrl } from "../../lib/core"
 import { handleError } from "../../lib/errors"
+import LoadingSpinner from "../Common/LoadingSpinner"
 import PdfDocumentViewer from "../Common/PdfDocumentViewer"
 
 interface ReferenceItemModalProps {
@@ -45,10 +46,10 @@ interface ReferenceItemModalProps {
   userHasWriteAccess: boolean
 }
 
-// A note being edited. key/version are set only for Zotero-backed notes.
+// A note being edited: an optional title (a Markdown heading in the .bib
+// comment) and its body text.
 interface EditableNote {
-  key?: string
-  version?: number
+  title: string
   text: string
 }
 
@@ -139,8 +140,7 @@ const ReferenceItemModal = ({
     if (notesQuery.data) {
       setNotes(
         notesQuery.data.notes.map((n) => ({
-          key: n.key ?? undefined,
-          version: n.version ?? undefined,
+          title: n.title ?? "",
           text: n.text,
         })),
       )
@@ -155,12 +155,11 @@ const ReferenceItemModal = ({
         bibKey: entry!.key,
         requestBody: {
           path: bibPath,
-          // Drop empties: an existing note left empty is deleted (omitted).
+          // Drop notes with neither a title nor body.
           notes: notes
-            .filter((n) => n.text.trim())
+            .filter((n) => n.title.trim() || n.text.trim())
             .map((n) => ({
-              key: n.key ?? null,
-              version: n.version ?? null,
+              title: n.title.trim() || null,
               text: n.text,
             })),
         },
@@ -193,9 +192,7 @@ const ReferenceItemModal = ({
             {/* Center: PDF */}
             <Box flex={1} minW={0} borderWidth={1} borderRadius="md">
               {pdfLoading ? (
-                <Flex h="100%" align="center" justify="center">
-                  <Spinner />
-                </Flex>
+                <LoadingSpinner />
               ) : pdfUrl ? (
                 <PdfDocumentViewer
                   url={pdfUrl}
@@ -261,43 +258,59 @@ const ReferenceItemModal = ({
               </Table>
               <Flex align="center" mb={2}>
                 <Heading size="sm">Notes</Heading>
-                {/* Zotero-linked items allow multiple notes; a non-linked item
-                    has a single note in its BibTeX comment field. */}
-                {userHasWriteAccess && (hasZotero || notes.length === 0) ? (
+                {userHasWriteAccess ? (
                   <IconButton
                     aria-label="Add note"
                     icon={<FaPlus />}
                     size="xs"
                     variant="ghost"
                     ml={2}
-                    onClick={() => setNotes((ns) => [...ns, { text: "" }])}
+                    onClick={() =>
+                      setNotes((ns) => [...ns, { title: "", text: "" }])
+                    }
                   />
                 ) : null}
               </Flex>
               {notesQuery.isPending ? (
-                <Spinner size="sm" />
+                <LoadingSpinner height="80px" />
               ) : (
-                <VStack align="stretch" spacing={2}>
+                <VStack align="stretch" spacing={3}>
                   {notes.length === 0 ? (
                     <Text fontSize="sm" color="gray.500">
                       No notes yet.
                     </Text>
                   ) : (
                     notes.map((note, i) => (
-                      <Flex key={note.key ?? `new-${i}`} gap={1}>
-                        <Textarea
-                          size="sm"
-                          rows={3}
-                          value={note.text}
-                          isReadOnly={!userHasWriteAccess}
-                          onChange={(e) =>
-                            setNotes((ns) =>
-                              ns.map((n, j) =>
-                                j === i ? { ...n, text: e.target.value } : n,
-                              ),
-                            )
-                          }
-                        />
+                      <Flex key={i} gap={1} align="start">
+                        <VStack flex={1} align="stretch" spacing={1}>
+                          <Input
+                            size="sm"
+                            placeholder="Title (optional)"
+                            value={note.title}
+                            isReadOnly={!userHasWriteAccess}
+                            onChange={(e) =>
+                              setNotes((ns) =>
+                                ns.map((n, j) =>
+                                  j === i ? { ...n, title: e.target.value } : n,
+                                ),
+                              )
+                            }
+                          />
+                          <Textarea
+                            size="sm"
+                            rows={3}
+                            placeholder="Note"
+                            value={note.text}
+                            isReadOnly={!userHasWriteAccess}
+                            onChange={(e) =>
+                              setNotes((ns) =>
+                                ns.map((n, j) =>
+                                  j === i ? { ...n, text: e.target.value } : n,
+                                ),
+                              )
+                            }
+                          />
+                        </VStack>
                         {userHasWriteAccess ? (
                           <IconButton
                             aria-label="Remove note"

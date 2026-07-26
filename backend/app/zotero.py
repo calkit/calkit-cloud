@@ -399,7 +399,13 @@ def format_bib(bibtex_text: str) -> str:
         for field, value in entry.items():
             if field in ("ENTRYTYPE", "ID"):
                 continue
-            lines.extend(_wrap_field(field, str(value)))
+            text = str(value)
+            if "\n" in text:
+                # Preserve intentional newlines verbatim (e.g. the Markdown in
+                # the comment field); wrapping would corrupt them.
+                lines.append(f"  {field} = {{{text}}},")
+            else:
+                lines.extend(_wrap_field(field, text))
         lines.append("}")
         blocks.append("\n".join(lines))
     return "\n\n".join(blocks) + "\n"
@@ -420,6 +426,73 @@ def note_html_to_text(html: str) -> str:
     s = re.sub(r"</\s*p\s*>", "\n\n", s, flags=re.IGNORECASE)
     s = re.sub(r"<[^>]+>", "", s)
     return html_lib.unescape(s).strip()
+
+
+# Notes are stored in the BibTeX ``comment`` field as Markdown, one note per
+# ``# heading`` section (the heading is the note title); text before the first
+# heading, or with no headings at all, is a single untitled note. This keeps
+# multiple notes self-contained in the .bib while staying human-readable.
+def parse_notes_markdown(comment: str) -> list[dict]:
+    """Parse the ``comment`` field's Markdown into ``[{title, text}]``."""
+    if not comment or not comment.strip():
+        return []
+    notes: list[dict] = []
+    title: str | None = None
+    body: list[str] = []
+
+    def flush() -> None:
+        nonlocal title, body
+        text = "\n".join(body).strip()
+        if title is not None or text:
+            notes.append({"title": title, "text": text})
+        title, body = None, []
+
+    for line in comment.split("\n"):
+        heading = re.match(r"^#{1,6}\s+(.*)$", line)
+        if heading:
+            flush()
+            title = heading.group(1).strip()
+        else:
+            body.append(line)
+    flush()
+    return notes
+
+
+def serialize_notes_markdown(notes: list[dict]) -> str:
+    """Serialize ``[{title, text}]`` back into the ``comment`` field Markdown."""
+    parts = []
+    for note in notes:
+        note_title = (note.get("title") or "").strip()
+        note_text = (note.get("text") or "").strip()
+        if note_title:
+            parts.append(f"# {note_title}\n{note_text}".strip())
+        elif note_text:
+            parts.append(note_text)
+    return "\n\n".join(parts).strip()
+
+
+def zotero_html_to_note(html: str) -> dict:
+    """Convert a Zotero note's HTML into a ``{title, text}`` note.
+
+    A leading ``<h1>`` is treated as the note title, matching how we render a
+    titled note when pushing back.
+    """
+    match = re.match(r"\s*<h1[^>]*>(.*?)</h1>(.*)", html, re.IGNORECASE | re.S)
+    if match:
+        return {
+            "title": note_html_to_text(match.group(1)),
+            "text": note_html_to_text(match.group(2)),
+        }
+    return {"title": None, "text": note_html_to_text(html)}
+
+
+def note_to_zotero_html(title: str | None, text: str) -> str:
+    """Render a ``{title, text}`` note as the HTML Zotero stores."""
+    parts = []
+    if title and title.strip():
+        parts.append(f"<h1>{html_lib.escape(title.strip())}</h1>")
+    parts.append(note_text_to_html(text))
+    return "".join(parts)
 
 
 def get_item_children(
@@ -582,7 +655,6 @@ def delete_note(
 ZOTERO_DIR = os.path.join(".calkit", "zotero")
 SYNC_INFO_REL_PATH = os.path.join(ZOTERO_DIR, "sync.json")
 ITEMS_REL_PATH = os.path.join(ZOTERO_DIR, "items.json")
-NOTES_REL_PATH = os.path.join(ZOTERO_DIR, "notes.json")
 
 
 def _read_json(working_dir: str, rel_path: str) -> dict:
@@ -618,11 +690,3 @@ def read_items_info(working_dir: str) -> dict:
 
 def write_items_info(working_dir: str, items_info: dict) -> None:
     _write_json(working_dir, ITEMS_REL_PATH, items_info)
-
-
-def read_notes(working_dir: str) -> dict:
-    return _read_json(working_dir, NOTES_REL_PATH)
-
-
-def write_notes(working_dir: str, notes: dict) -> None:
-    _write_json(working_dir, NOTES_REL_PATH, notes)

@@ -5358,7 +5358,7 @@ export const ReferenceFileSchema = {
 
 export const ReferenceNoteSchema = {
   properties: {
-    key: {
+    title: {
       anyOf: [
         {
           type: "string",
@@ -5367,18 +5367,7 @@ export const ReferenceNoteSchema = {
           type: "null",
         },
       ],
-      title: "Key",
-    },
-    version: {
-      anyOf: [
-        {
-          type: "integer",
-        },
-        {
-          type: "null",
-        },
-      ],
-      title: "Version",
+      title: "Title",
     },
     text: {
       type: "string",
