@@ -1550,22 +1550,21 @@ def test_put_project_zotero_item_notes(
             json={
                 "path": "references.bib",
                 "notes": [
-                    {"title": "Intro", "text": "updated"},
-                    {"title": "Method", "text": "brand new"},
+                    {"text": "updated"},
+                    {"text": "brand new"},
                 ],
             },
         )
     assert r.status_code == 200, r.text
-    # The notes are written to the .bib comment field as Markdown headings.
+    # Both notes land in the .bib comment field, separated by a rule.
     bib_text = (tmp_path / "references.bib").read_text()
-    assert "comment = {# Intro" in bib_text
-    assert "# Method" in bib_text
+    assert "updated" in bib_text
+    assert "---" in bib_text
+    assert "brand new" in bib_text
     # Positional sync: the existing note is updated, the extra one created.
     assert mock_update.call_args.kwargs["note_key"] == "N1"
-    assert "<h1>Intro</h1>" in mock_update.call_args.kwargs["html"]
-    assert mock_create.call_args.kwargs["html"] == (
-        "<h1>Method</h1><p>brand new</p>"
-    )
+    assert mock_update.call_args.kwargs["html"] == "<p>updated</p>"
+    assert mock_create.call_args.kwargs["html"] == "<p>brand new</p>"
 
 
 def test_get_project_reference_notes_from_comment(
@@ -1576,7 +1575,7 @@ def test_get_project_reference_notes_from_comment(
     base = f"{settings.API_V1_STR}/projects/{owner_name}/{project.name}"
     fake_repo = _make_fake_repo(str(tmp_path))
     (tmp_path / "references.bib").write_text(
-        "@article{a,\n  comment = {# Intro\nfirst\n\n# Method\nsecond},\n}\n"
+        "@article{a,\n  comment = {first note\n\n---\n\nsecond note},\n}\n"
     )
     with (
         patch("app.api.routes.projects.core.get_repo", return_value=fake_repo),
@@ -1587,8 +1586,7 @@ def test_get_project_reference_notes_from_comment(
         )
     assert r.status_code == 200, r.text
     notes = r.json()["notes"]
-    assert [n["title"] for n in notes] == ["Intro", "Method"]
-    assert [n["text"] for n in notes] == ["first", "second"]
+    assert [n["text"] for n in notes] == ["first note", "second note"]
 
 
 def test_reference_notes_non_linked_use_comment_field(

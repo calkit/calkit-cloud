@@ -5503,7 +5503,10 @@ def _pull_zotero_collection(
         item_notes = notes_map.get(entry.get("ID"))
         if item_notes:
             markdown = zotero.serialize_notes_markdown(
-                [zotero.zotero_html_to_note(n["html"]) for n in item_notes]
+                [
+                    {"text": zotero.note_html_to_text(n["html"])}
+                    for n in item_notes
+                ]
             )
             if markdown:
                 entry[BIB_NOTE_FIELD] = markdown
@@ -5681,12 +5684,10 @@ def get_project_zotero_item_pdf(
     return Response(content=content, media_type=content_type)
 
 
-# A reference note: a title (from a Markdown heading) and body text. Notes for
-# every reference live in the BibTeX ``comment`` field (see
-# ``zotero.parse_notes_markdown``); Zotero-linked references additionally sync
-# them to Zotero as note child items.
+# A reference note (plain text). Notes for every reference live in the BibTeX
+# ``comment`` field, ``---``-separated (see ``zotero.parse_notes_markdown``);
+# Zotero-linked references additionally sync them to Zotero as note child items.
 class ReferenceNote(BaseModel):
-    title: str | None = None
     text: str
 
 
@@ -5769,7 +5770,7 @@ def _sync_notes_to_zotero(
         if child.get("data", {}).get("itemType") == "note"
     ]
     for i, note in enumerate(notes):
-        html = zotero.note_to_zotero_html(note.get("title"), note["text"])
+        html = zotero.note_text_to_html(note["text"])
         if i < len(existing):
             zotero.update_note(
                 api_key=api_key,

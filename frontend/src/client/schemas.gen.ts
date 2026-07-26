@@ -5358,17 +5358,6 @@ export const ReferenceFileSchema = {
 
 export const ReferenceNoteSchema = {
   properties: {
-    title: {
-      anyOf: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
-      title: "Title",
-    },
     text: {
       type: "string",
       title: "Text",

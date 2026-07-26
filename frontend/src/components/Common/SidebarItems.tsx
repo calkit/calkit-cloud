@@ -22,7 +22,8 @@ import { SiJupyter } from "react-icons/si"
 import { TiFlowMerge } from "react-icons/ti"
 import useAuth from "../../hooks/useAuth"
 
-const items = [
+// The project's navigable sections, shared with the Cmd+K command palette.
+export const projectNavItems = [
   { icon: FiHome, title: "Project home", path: "" },
   { icon: MdOutlineDashboard, title: "App", path: "/app" },
   { icon: TiFlowMerge, title: "Pipeline", path: "/pipeline" },
@@ -49,7 +50,7 @@ interface SidebarItemsProps {
 const SidebarItems = ({ onClose, basePath }: SidebarItemsProps) => {
   const textColor = useColorModeValue("ui.main", "ui.light")
   const bgActive = useColorModeValue("#E2E8F0", "#4A5568")
-  const finalItems = items
+  const finalItems = projectNavItems
   const itemsRequireLogin = ["Collaborators", "Local machine"]
   const { user } = useAuth()
   const routeApi = getRouteApi("/_layout/$accountName/$projectName")

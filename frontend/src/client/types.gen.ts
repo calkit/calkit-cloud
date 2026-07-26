@@ -1099,7 +1099,6 @@ export type ReferenceFile = {
 }
 
 export type ReferenceNote = {
-  title?: string | null
   text: string
 }
 

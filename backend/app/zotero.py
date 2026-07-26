@@ -428,71 +428,21 @@ def note_html_to_text(html: str) -> str:
     return html_lib.unescape(s).strip()
 
 
-# Notes are stored in the BibTeX ``comment`` field as Markdown, one note per
-# ``# heading`` section (the heading is the note title); text before the first
-# heading, or with no headings at all, is a single untitled note. This keeps
-# multiple notes self-contained in the .bib while staying human-readable.
+# Notes are stored in the BibTeX ``comment`` field as plain text, one note per
+# section separated by a ``---`` horizontal rule (Zotero notes have no titles).
+# This keeps multiple notes self-contained in the .bib and human-readable.
 def parse_notes_markdown(comment: str) -> list[dict]:
-    """Parse the ``comment`` field's Markdown into ``[{title, text}]``."""
+    """Parse the ``comment`` field into ``[{text}]``, one per ``---`` section."""
     if not comment or not comment.strip():
         return []
-    notes: list[dict] = []
-    title: str | None = None
-    body: list[str] = []
-
-    def flush() -> None:
-        nonlocal title, body
-        text = "\n".join(body).strip()
-        if title is not None or text:
-            notes.append({"title": title, "text": text})
-        title, body = None, []
-
-    for line in comment.split("\n"):
-        heading = re.match(r"^#{1,6}\s+(.*)$", line)
-        if heading:
-            flush()
-            title = heading.group(1).strip()
-        else:
-            body.append(line)
-    flush()
-    return notes
+    chunks = re.split(r"(?m)^\s*-{3,}\s*$", comment)
+    return [{"text": c.strip()} for c in chunks if c.strip()]
 
 
 def serialize_notes_markdown(notes: list[dict]) -> str:
-    """Serialize ``[{title, text}]`` back into the ``comment`` field Markdown."""
-    parts = []
-    for note in notes:
-        note_title = (note.get("title") or "").strip()
-        note_text = (note.get("text") or "").strip()
-        if note_title:
-            parts.append(f"# {note_title}\n{note_text}".strip())
-        elif note_text:
-            parts.append(note_text)
-    return "\n\n".join(parts).strip()
-
-
-def zotero_html_to_note(html: str) -> dict:
-    """Convert a Zotero note's HTML into a ``{title, text}`` note.
-
-    A leading ``<h1>`` is treated as the note title, matching how we render a
-    titled note when pushing back.
-    """
-    match = re.match(r"\s*<h1[^>]*>(.*?)</h1>(.*)", html, re.IGNORECASE | re.S)
-    if match:
-        return {
-            "title": note_html_to_text(match.group(1)),
-            "text": note_html_to_text(match.group(2)),
-        }
-    return {"title": None, "text": note_html_to_text(html)}
-
-
-def note_to_zotero_html(title: str | None, text: str) -> str:
-    """Render a ``{title, text}`` note as the HTML Zotero stores."""
-    parts = []
-    if title and title.strip():
-        parts.append(f"<h1>{html_lib.escape(title.strip())}</h1>")
-    parts.append(note_text_to_html(text))
-    return "".join(parts)
+    """Serialize ``[{text}]`` into ``---``-separated note sections."""
+    parts = [(note.get("text") or "").strip() for note in notes]
+    return "\n\n---\n\n".join(p for p in parts if p).strip()
 
 
 def get_item_children(

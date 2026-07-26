@@ -4,7 +4,6 @@ import {
   Flex,
   Heading,
   IconButton,
-  Input,
   Link,
   Modal,
   ModalBody,
@@ -46,10 +45,8 @@ interface ReferenceItemModalProps {
   userHasWriteAccess: boolean
 }
 
-// A note being edited: an optional title (a Markdown heading in the .bib
-// comment) and its body text.
+// A note being edited (plain text; Zotero notes have no titles).
 interface EditableNote {
-  title: string
   text: string
 }
 
@@ -138,12 +135,7 @@ const ReferenceItemModal = ({
   // Reset the editable notes whenever the server copy changes.
   useEffect(() => {
     if (notesQuery.data) {
-      setNotes(
-        notesQuery.data.notes.map((n) => ({
-          title: n.title ?? "",
-          text: n.text,
-        })),
-      )
+      setNotes(notesQuery.data.notes.map((n) => ({ text: n.text })))
     }
   }, [notesQuery.data])
 
@@ -155,13 +147,10 @@ const ReferenceItemModal = ({
         bibKey: entry!.key,
         requestBody: {
           path: bibPath,
-          // Drop notes with neither a title nor body.
+          // Drop empty notes.
           notes: notes
-            .filter((n) => n.title.trim() || n.text.trim())
-            .map((n) => ({
-              title: n.title.trim() || null,
-              text: n.text,
-            })),
+            .filter((n) => n.text.trim())
+            .map((n) => ({ text: n.text })),
         },
       }),
     onSuccess: () => {
@@ -265,9 +254,7 @@ const ReferenceItemModal = ({
                     size="xs"
                     variant="ghost"
                     ml={2}
-                    onClick={() =>
-                      setNotes((ns) => [...ns, { title: "", text: "" }])
-                    }
+                    onClick={() => setNotes((ns) => [...ns, { text: "" }])}
                   />
                 ) : null}
               </Flex>
@@ -282,35 +269,21 @@ const ReferenceItemModal = ({
                   ) : (
                     notes.map((note, i) => (
                       <Flex key={i} gap={1} align="start">
-                        <VStack flex={1} align="stretch" spacing={1}>
-                          <Input
-                            size="sm"
-                            placeholder="Title (optional)"
-                            value={note.title}
-                            isReadOnly={!userHasWriteAccess}
-                            onChange={(e) =>
-                              setNotes((ns) =>
-                                ns.map((n, j) =>
-                                  j === i ? { ...n, title: e.target.value } : n,
-                                ),
-                              )
-                            }
-                          />
-                          <Textarea
-                            size="sm"
-                            rows={3}
-                            placeholder="Note"
-                            value={note.text}
-                            isReadOnly={!userHasWriteAccess}
-                            onChange={(e) =>
-                              setNotes((ns) =>
-                                ns.map((n, j) =>
-                                  j === i ? { ...n, text: e.target.value } : n,
-                                ),
-                              )
-                            }
-                          />
-                        </VStack>
+                        <Textarea
+                          flex={1}
+                          size="sm"
+                          rows={3}
+                          placeholder="Note"
+                          value={note.text}
+                          isReadOnly={!userHasWriteAccess}
+                          onChange={(e) =>
+                            setNotes((ns) =>
+                              ns.map((n, j) =>
+                                j === i ? { ...n, text: e.target.value } : n,
+                              ),
+                            )
+                          }
+                        />
                         {userHasWriteAccess ? (
                           <IconButton
                             aria-label="Remove note"
