@@ -432,6 +432,11 @@ function References() {
                       >
                         {entry.key}
                       </Heading>
+                      {entry.type ? (
+                        <Badge ml={2} colorScheme="purple" fontSize="0.6em">
+                          {entry.type}
+                        </Badge>
+                      ) : null}
                       <Text ml={1} fontSize="sm">
                         {entry.file_path ? (
                           <Link onClick={() => handleLinkClick(entry)}>
