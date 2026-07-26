@@ -1390,6 +1390,57 @@ def test_post_project_zotero_import_rejects_both_modes(
     assert r.status_code == 422
 
 
+def test_post_project_zotero_import_conflict_then_overwrite(
+    client: TestClient, db: Session, tmp_path
+) -> None:
+    project, headers = _make_owner_with_project(db, client)
+    owner_name = project.owner_account.name
+    base = f"{settings.API_V1_STR}/projects/{owner_name}/{project.name}"
+    fake_repo = _make_fake_repo(str(tmp_path))
+    # A .bib already present on disk.
+    (tmp_path / "references.bib").write_text("@article{old}\n")
+    body = {
+        "library_type": "user",
+        "library_id": "999",
+        "collection_key": "ABCD1234",
+    }
+    with (
+        patch("app.api.routes.projects.core.get_repo", return_value=fake_repo),
+        patch(
+            "app.api.routes.projects.core.get_ck_info_from_repo",
+            side_effect=lambda *a, **k: {},
+        ),
+        patch(
+            "app.api.routes.projects.core.users"
+            ".get_zotero_api_key_and_user_id",
+            return_value=("KEY", "999"),
+        ),
+        patch(
+            "app.api.routes.projects.core.zotero.get_collection_name",
+            return_value="My Collection",
+        ),
+        patch(
+            "app.api.routes.projects.core.zotero.get_collection_items_bibtex",
+            return_value=("@article{new}\n", 7),
+        ) as mock_bibtex,
+        patch("app.api.routes.projects.core.mixpanel.track"),
+    ):
+        # Without overwrite, the existing file blocks the import, and we never
+        # reach Zotero.
+        r = client.post(f"{base}/zotero/imports", headers=headers, json=body)
+        assert r.status_code == 409, r.text
+        assert mock_bibtex.call_count == 0
+        # With overwrite, it replaces the file.
+        r = client.post(
+            f"{base}/zotero/imports",
+            headers=headers,
+            json={**body, "overwrite": True},
+        )
+    assert r.status_code == 200, r.text
+    with open(tmp_path / "references.bib") as f:
+        assert f.read() == "@article{new}\n"
+
+
 def test_post_project_references_creates_collection(
     client: TestClient, db: Session, tmp_path
 ) -> None:

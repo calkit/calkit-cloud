@@ -5315,6 +5315,8 @@ class ZoteroImportPost(BaseModel):
     # Subset mode: create a dedicated collection seeded with these items.
     item_keys: list[str] | None = None
     bib_path: str = "references.bib"
+    # Replace an existing .bib at bib_path instead of failing with 409.
+    overwrite: bool = False
 
 
 @router.post("/projects/{owner_name}/{project_name}/zotero/imports")
@@ -5348,6 +5350,24 @@ def post_project_zotero_import(
     api_key, zotero_user_id = users.get_zotero_api_key_and_user_id(
         session=session, user=current_user
     )
+    repo = get_repo(project=project, user=current_user, session=session)
+    ck_info = get_ck_info_from_repo(repo)
+    # Guard before any writes to Zotero, so a rejected import never leaves an
+    # orphan collection behind. A .bib already on disk or declared in
+    # calkit.yaml is only replaced when overwrite is set.
+    references = ck_info.get("references") or []
+    already_declared = any(
+        isinstance(rc, dict) and rc.get("path") == req.bib_path
+        for rc in references
+    )
+    bib_full_path = os.path.join(repo.working_dir, req.bib_path)
+    if not req.overwrite and (
+        already_declared or os.path.exists(bib_full_path)
+    ):
+        raise HTTPException(
+            409,
+            f"'{req.bib_path}' already exists; enable overwrite to replace",
+        )
     if req.collection_key is not None:
         collection_key = req.collection_key
         collection_name = zotero.get_collection_name(
@@ -5377,9 +5397,6 @@ def post_project_zotero_import(
         library_id=req.library_id,
         collection_key=collection_key,
     )
-    repo = get_repo(project=project, user=current_user, session=session)
-    ck_info = get_ck_info_from_repo(repo)
-    bib_full_path = os.path.join(repo.working_dir, req.bib_path)
     os.makedirs(os.path.dirname(bib_full_path) or ".", exist_ok=True)
     with open(bib_full_path, "w") as f:
         f.write(bibtex)
@@ -5391,9 +5408,6 @@ def post_project_zotero_import(
         "collection_key": collection_key,
         "collection_name": collection_name,
     }
-    # An empty "references:" key in calkit.yaml parses to None, so coerce to a
-    # list before iterating.
-    references = ck_info.get("references") or []
     for ref_collection in references:
         if (
             isinstance(ref_collection, dict)

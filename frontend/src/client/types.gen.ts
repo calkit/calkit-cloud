@@ -1635,6 +1635,7 @@ export type ZoteroImportPost = {
   collection_key?: string | null
   item_keys?: Array<string> | null
   bib_path?: string
+  overwrite?: boolean
 }
 
 export type ZoteroItem = {

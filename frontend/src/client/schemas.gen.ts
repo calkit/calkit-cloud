@@ -8022,6 +8022,11 @@ export const ZoteroImportPostSchema = {
       title: "Bib Path",
       default: "references.bib",
     },
+    overwrite: {
+      type: "boolean",
+      title: "Overwrite",
+      default: false,
+    },
   },
   type: "object",
   required: ["library_type", "library_id"],

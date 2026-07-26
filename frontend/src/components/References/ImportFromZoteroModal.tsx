@@ -4,6 +4,7 @@ import {
   Button,
   Checkbox,
   FormControl,
+  FormErrorMessage,
   FormLabel,
   IconButton,
   Input,
@@ -55,6 +56,7 @@ const ImportFromZoteroModal = ({
   const [collectionKey, setCollectionKey] = useState<string>("")
   const [mode, setMode] = useState<Mode>("collection")
   const [search, setSearch] = useState<string>("")
+  const [bibPath, setBibPath] = useState<string>("references.bib")
   const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({})
   const librariesQuery = useQuery({
     queryFn: () =>
@@ -103,13 +105,18 @@ const ImportFromZoteroModal = ({
     ],
     enabled: isOpen && mode === "items" && Boolean(library),
   })
+  // Surfaced only after the backend reports the target .bib already exists, so
+  // the user can choose to replace it.
+  const [conflict, setConflict] = useState(false)
   const resetAndClose = () => {
     setCheckedItems({})
     setSearch("")
+    setBibPath("references.bib")
+    setConflict(false)
     onClose()
   }
   const importMutation = useMutation({
-    mutationFn: () => {
+    mutationFn: (overwrite: boolean) => {
       const selectedItemKeys = Object.entries(checkedItems)
         .filter(([, checked]) => checked)
         .map(([key]) => key)
@@ -121,6 +128,8 @@ const ImportFromZoteroModal = ({
           library_id: libraryId,
           collection_key: mode === "collection" ? collectionKey : null,
           item_keys: mode === "items" ? selectedItemKeys : null,
+          bib_path: bibPath.trim(),
+          overwrite,
         },
       })
     },
@@ -132,12 +141,18 @@ const ImportFromZoteroModal = ({
       resetAndClose()
     },
     onError: (err: ApiError) => {
+      if (err.status === 409) {
+        setConflict(true)
+        return
+      }
       handleError(err, showToast)
     },
   })
   const selectedCount = Object.values(checkedItems).filter(Boolean).length
+  const bibPathValid = bibPath.trim().toLowerCase().endsWith(".bib")
   const canImport =
     Boolean(library) &&
+    bibPathValid &&
     ((mode === "collection" && Boolean(collectionKey)) ||
       (mode === "items" && selectedCount > 0))
 
@@ -208,6 +223,22 @@ const ImportFromZoteroModal = ({
                   </Stack>
                 </RadioGroup>
               </FormControl>
+              <FormControl mb={4} isInvalid={Boolean(bibPath) && !bibPathValid}>
+                <FormLabel>Save to file</FormLabel>
+                <Input
+                  size="sm"
+                  placeholder="references.bib"
+                  value={bibPath}
+                  onChange={(e) => {
+                    setBibPath(e.target.value)
+                    setConflict(false)
+                  }}
+                  autoComplete="off"
+                  data-form-type="other"
+                  data-lpignore="true"
+                />
+                <FormErrorMessage>Path must end with '.bib'</FormErrorMessage>
+              </FormControl>
               {mode === "items" && collectionKey ? (
                 <Box>
                   <InputGroup size="sm" mb={2}>
@@ -277,17 +308,34 @@ const ImportFromZoteroModal = ({
               ) : null}
             </>
           )}
+          {conflict ? (
+            <Text fontSize="sm" color="red.500" mt={2}>
+              {`'${bibPath.trim()}' already exists. Overwrite it?`}
+            </Text>
+          ) : null}
         </ModalBody>
         <ModalFooter gap={3}>
-          <Button
-            variant="primary"
-            onClick={() => importMutation.mutate()}
-            isDisabled={!canImport}
-            isLoading={importMutation.isPending}
-          >
-            Import
-            {mode === "items" && selectedCount > 0 ? ` (${selectedCount})` : ""}
-          </Button>
+          {conflict ? (
+            <Button
+              colorScheme="red"
+              onClick={() => importMutation.mutate(true)}
+              isLoading={importMutation.isPending}
+            >
+              Overwrite
+            </Button>
+          ) : (
+            <Button
+              variant="primary"
+              onClick={() => importMutation.mutate(false)}
+              isDisabled={!canImport}
+              isLoading={importMutation.isPending}
+            >
+              Import
+              {mode === "items" && selectedCount > 0
+                ? ` (${selectedCount})`
+                : ""}
+            </Button>
+          )}
           <Button onClick={resetAndClose}>Cancel</Button>
         </ModalFooter>
       </ModalContent>
