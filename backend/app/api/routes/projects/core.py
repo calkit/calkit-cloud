@@ -5115,8 +5115,13 @@ def post_project_references(
     )
     repo = get_repo(project=project, user=current_user, session=session)
     ck_info = get_ck_info_from_repo(repo)
-    references = ck_info.get("references", [])
-    if any(rc.get("path") == req.path for rc in references):
+    # An empty "references:" key in calkit.yaml parses to None, so coerce to a
+    # list before iterating.
+    references = ck_info.get("references") or []
+    if any(
+        isinstance(rc, dict) and rc.get("path") == req.path
+        for rc in references
+    ):
         raise HTTPException(
             409, "A references collection with that path exists"
         )
@@ -5331,9 +5336,14 @@ def post_project_zotero_import(
         "collection_name": collection_name,
         "last_sync_version": library_version,
     }
-    references = ck_info.get("references", [])
+    # An empty "references:" key in calkit.yaml parses to None, so coerce to a
+    # list before iterating.
+    references = ck_info.get("references") or []
     for ref_collection in references:
-        if ref_collection.get("path") == req.bib_path:
+        if (
+            isinstance(ref_collection, dict)
+            and ref_collection.get("path") == req.bib_path
+        ):
             ref_collection["zotero"] = zotero_link
             break
     else:

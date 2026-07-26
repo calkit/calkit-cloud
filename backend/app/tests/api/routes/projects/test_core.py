@@ -1325,3 +1325,30 @@ def test_post_project_references_creates_collection(
     assert (tmp_path / "refs" / "lit.bib").is_file()
     ck_info = ryaml.load((tmp_path / "calkit.yaml").read_text())
     assert ck_info["references"] == [{"path": "refs/lit.bib"}]
+
+
+def test_post_project_references_existing_path_conflicts(
+    client: TestClient, db: Session, tmp_path
+) -> None:
+    project, headers = _make_owner_with_project(db, client)
+    owner_name = project.owner_account.name
+    base = f"{settings.API_V1_STR}/projects/{owner_name}/{project.name}"
+    fake_repo = _make_fake_repo(str(tmp_path))
+    # A file on disk that isn't declared in calkit.yaml, alongside an empty
+    # "references:" key, which parses to None. Creating over it must 409, not
+    # 500 on the None.
+    (tmp_path / "references.bib").write_text("@article{x}\n")
+    with (
+        patch("app.api.routes.projects.core.get_repo", return_value=fake_repo),
+        patch(
+            "app.api.routes.projects.core.get_ck_info_from_repo",
+            side_effect=lambda *a, **k: {"references": None},
+        ),
+        patch("app.api.routes.projects.core.mixpanel.track"),
+    ):
+        r = client.post(
+            f"{base}/references",
+            headers=headers,
+            json={"path": "references.bib"},
+        )
+    assert r.status_code == 409, r.text
