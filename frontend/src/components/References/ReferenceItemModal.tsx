@@ -283,6 +283,16 @@ const ReferenceItemModal = ({
                               ),
                             )
                           }
+                          onKeyDown={(e) => {
+                            if (
+                              (e.metaKey || e.ctrlKey) &&
+                              e.key === "Enter" &&
+                              userHasWriteAccess
+                            ) {
+                              e.preventDefault()
+                              saveNotesMutation.mutate()
+                            }
+                          }}
                         />
                         {userHasWriteAccess ? (
                           <IconButton
