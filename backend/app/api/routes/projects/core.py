@@ -5084,6 +5084,12 @@ def get_project_references(
     zotero_items_info = zotero.read_items_info(repo.working_dir)
     resp = []
     for ref_collection in ref_collections:
+        # Skip malformed YAML entries rather than 500ing on them.
+        if (
+            not isinstance(ref_collection, dict)
+            or "path" not in ref_collection
+        ):
+            continue
         # Read entries
         path = ref_collection["path"]
         link = ref_collection.get("zotero")
@@ -5978,9 +5984,9 @@ def put_project_reference_notes(
 ) -> ReferenceNotesResponse:
     """Set a reference item's notes in the BibTeX ``comment`` field.
 
-    Notes are serialized to Markdown (one ``# heading`` section per titled note)
-    and committed. For a Zotero-linked reference, the notes are also pushed to
-    Zotero.
+    Notes are serialized to Markdown (untitled sections separated by ``---``,
+    each optionally carrying a highlight anchor) and committed. For a
+    Zotero-linked reference, the notes are also pushed to Zotero.
     """
     project = app.projects.get_project(
         owner_name=owner_name,

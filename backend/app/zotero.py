@@ -678,9 +678,10 @@ def delete_note(
         raise HTTPException(resp.status_code, "Failed to delete Zotero note")
 
 
-# Local, gitignored Zotero state under .calkit/zotero/ (like Overleaf's
-# .calkit/overleaf/). The durable link is committed in calkit.yaml; these files
-# hold only local sync bookkeeping and cached item/note metadata.
+# Committed Zotero state under .calkit/zotero/ (like Overleaf's
+# .calkit/overleaf/). The durable link lives in calkit.yaml; these files hold
+# sync bookkeeping and cached item/note metadata and are force-added and
+# committed by the import/sync routes so the state stays with the repo.
 ZOTERO_DIR = os.path.join(".calkit", "zotero")
 SYNC_INFO_REL_PATH = os.path.join(ZOTERO_DIR, "sync.json")
 ITEMS_REL_PATH = os.path.join(ZOTERO_DIR, "items.json")

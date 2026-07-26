@@ -93,14 +93,15 @@ const ReferenceItemModal = ({
     }
     setPdfUrl(undefined)
     setPdfError(false)
-    if (entry.has_pdf) {
+    const token = localStorage.getItem("access_token")
+    if (entry.has_pdf && token) {
       setPdfLoading(true)
       const url =
         `${apiUrl}/projects/${ownerName}/${projectName}/zotero/items/` +
         `${encodeURIComponent(entry.key)}/pdf?path=${encodeURIComponent(bibPath)}`
       fetch(url, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+          Authorization: `Bearer ${token}`,
         },
       })
         .then((r) => {
@@ -388,7 +389,7 @@ const ReferenceItemModal = ({
                             ? value.startsWith("http")
                               ? value
                               : `https://doi.org/${value}`
-                            : key === "url"
+                            : key === "url" && /^https?:\/\//i.test(value)
                               ? value
                               : undefined
                         return (

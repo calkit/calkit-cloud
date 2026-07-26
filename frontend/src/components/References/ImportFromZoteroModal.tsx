@@ -103,7 +103,8 @@ const ImportFromZoteroModal = ({
       collectionKey,
       search,
     ],
-    enabled: isOpen && mode === "items" && Boolean(library),
+    enabled:
+      isOpen && mode === "items" && Boolean(library) && Boolean(collectionKey),
   })
   // Surfaced only after the backend reports the target .bib already exists, so
   // the user can choose to replace it.

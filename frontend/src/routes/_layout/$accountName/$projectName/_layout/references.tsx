@@ -94,7 +94,7 @@ function ReferenceEntryTable({ referenceEntry }: ReferenceEntryTableProps) {
                   href = value.startsWith("http")
                     ? value
                     : `https://doi.org/${value}`
-                } else if (key === "url") {
+                } else if (key === "url" && /^https?:\/\//i.test(value)) {
                   href = value
                 }
                 return (
@@ -151,7 +151,7 @@ function References() {
       search: (prev) => ({ ...prev, new_collection_open: undefined }),
     })
   const selectCollection = (path: string) =>
-    navigate({ search: (prev) => ({ ...prev, path }) })
+    navigate({ search: (prev) => ({ ...prev, path, item: undefined }) })
   const openItem = (key: string) =>
     navigate({ search: (prev) => ({ ...prev, item: key }) })
   const closeItem = () =>
