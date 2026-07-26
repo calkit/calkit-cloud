@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { cleanLatex } from "./bibtex"
+import { cleanLatex, formatJabrefFile } from "./bibtex"
 
 describe("cleanLatex", () => {
   it("removes protective braces", () => {
@@ -39,5 +39,46 @@ describe("cleanLatex", () => {
 
   it("leaves plain text untouched", () => {
     expect(cleanLatex("Reynolds number")).toBe("Reynolds number")
+  })
+
+  it("expands journal abbreviation macros", () => {
+    expect(cleanLatex("\\apjl")).toBe("Astrophysical Journal Letters")
+    expect(cleanLatex("\\mnras")).toBe(
+      "Monthly Notices of the Royal Astronomical Society",
+    )
+  })
+
+  it("handles \\url and \\href", () => {
+    expect(cleanLatex("\\url{http://dx.doi.org/10.6084/m9.figshare.1}")).toBe(
+      "http://dx.doi.org/10.6084/m9.figshare.1",
+    )
+    expect(cleanLatex("see \\href{http://x.com}{the site}")).toBe(
+      "see the site",
+    )
+  })
+
+  it("drops unknown control words but keeps surrounding text", () => {
+    expect(cleanLatex("published in \\somejournal 2013")).toBe(
+      "published in 2013",
+    )
+  })
+})
+
+describe("formatJabrefFile", () => {
+  it("extracts the file name from JabRef metadata", () => {
+    expect(
+      formatJabrefFile(
+        ":Turbines, Modeling\\\\Neary et al, 2013, USDOE Reference Model" +
+          " Turbine Testing, EWTEC.pdf:PDF",
+      ),
+    ).toBe(
+      "Neary et al, 2013, USDOE Reference Model Turbine Testing, EWTEC.pdf",
+    )
+  })
+
+  it("handles multiple files", () => {
+    expect(formatJabrefFile(":a/one.pdf:PDF;:b/two.pdf:PDF")).toBe(
+      "one.pdf, two.pdf",
+    )
   })
 })

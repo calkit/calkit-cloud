@@ -4,7 +4,7 @@ import uuid
 from types import SimpleNamespace
 from unittest.mock import ANY, patch
 
-from app import users
+from app import users, zotero
 from app.api.routes.projects.core import get_project_comments
 from app.config import settings
 from app.core import ryaml
@@ -1187,9 +1187,32 @@ def test_post_project_zotero_import_whole_collection(
             return_value="My Collection",
         ),
         patch(
-            "app.api.routes.projects.core.zotero.get_collection_items_bibtex",
-            return_value=("@article{a, title={A}}\n", 4021),
-        ) as mock_bibtex,
+            "app.api.routes.projects.core.zotero.get_collection_items",
+            return_value=(
+                [
+                    {
+                        "item_key": "IT1",
+                        "bibtex": "@article{a, title={A}}",
+                        "data": {},
+                        "num_children": 0,
+                    }
+                ],
+                4021,
+            ),
+        ) as mock_items,
+        patch(
+            "app.api.routes.projects.core.zotero.build_item_maps",
+            return_value=(
+                {
+                    "a": {
+                        "item_key": "IT1",
+                        "pdf_attachment_keys": [],
+                        "note_keys": [],
+                    }
+                },
+                {},
+            ),
+        ),
         patch("app.api.routes.projects.core.mixpanel.track"),
     ):
         r = client.post(
@@ -1208,11 +1231,19 @@ def test_post_project_zotero_import_whole_collection(
     assert body["zotero"]["collection_name"] == "My Collection"
     assert body["zotero"]["last_sync_version"] == 4021
     # Whole-collection mode pulls the existing collection directly.
-    assert mock_bibtex.call_args.kwargs["collection_key"] == "ABCD1234"
+    assert mock_items.call_args.kwargs["collection_key"] == "ABCD1234"
     assert body["zotero"]["last_synced"]
-    # The .bib file was written with the exported content.
-    with open(tmp_path / "references.bib") as f:
-        assert f.read() == "@article{a, title={A}}\n"
+    # The .bib file was written, reformatted with indentation.
+    bib_text = (tmp_path / "references.bib").read_text()
+    assert "@article{a," in bib_text
+    assert "  title = {A}," in bib_text
+    # The item map lands in the gitignored .calkit/zotero/items.json.
+    import json as _json
+
+    items_info = _json.loads(
+        (tmp_path / ".calkit" / "zotero" / "items.json").read_text()
+    )
+    assert items_info["references.bib"]["a"]["item_key"] == "IT1"
     # calkit.yaml carries only the durable link identity, no sync bookkeeping.
     ck_info = ryaml.load((tmp_path / "calkit.yaml").read_text())
     zotero_block = ck_info["references"][0]["zotero"]
@@ -1259,8 +1290,22 @@ def test_post_project_zotero_import_subset_creates_collection(
             "app.api.routes.projects.core.zotero.add_items_to_collection",
         ) as mock_add,
         patch(
-            "app.api.routes.projects.core.zotero.get_collection_items_bibtex",
-            return_value=("@book{b, title={B}}\n", 5000),
+            "app.api.routes.projects.core.zotero.get_collection_items",
+            return_value=(
+                [
+                    {
+                        "item_key": "IT2",
+                        "bibtex": "@book{b, title={B}}",
+                        "data": {},
+                        "num_children": 0,
+                    }
+                ],
+                5000,
+            ),
+        ),
+        patch(
+            "app.api.routes.projects.core.zotero.build_item_maps",
+            return_value=({}, {}),
         ),
         patch("app.api.routes.projects.core.mixpanel.track"),
     ):
@@ -1316,9 +1361,23 @@ def test_post_project_zotero_sync_pulls_collection(
             return_value=("KEY", "999"),
         ),
         patch(
-            "app.api.routes.projects.core.zotero.get_collection_items_bibtex",
-            return_value=("@article{a, title={A2}}\n", 4099),
-        ) as mock_bibtex,
+            "app.api.routes.projects.core.zotero.get_collection_items",
+            return_value=(
+                [
+                    {
+                        "item_key": "IT1",
+                        "bibtex": "@article{a, title={A2}}",
+                        "data": {},
+                        "num_children": 0,
+                    }
+                ],
+                4099,
+            ),
+        ) as mock_items,
+        patch(
+            "app.api.routes.projects.core.zotero.build_item_maps",
+            return_value=({}, {}),
+        ),
         patch("app.api.routes.projects.core.mixpanel.track"),
     ):
         r = client.post(
@@ -1330,9 +1389,10 @@ def test_post_project_zotero_sync_pulls_collection(
     body = r.json()
     assert body["last_sync_version"] == 4099
     assert body["committed"] is True
-    assert mock_bibtex.call_args.kwargs["collection_key"] == "ABCD1234"
-    with open(tmp_path / "references.bib") as f:
-        assert f.read() == "@article{a, title={A2}}\n"
+    assert mock_items.call_args.kwargs["collection_key"] == "ABCD1234"
+    bib_text = (tmp_path / "references.bib").read_text()
+    assert "@article{a," in bib_text
+    assert "  title = {A2}," in bib_text
 
 
 def test_post_project_zotero_sync_requires_link(
@@ -1360,6 +1420,220 @@ def test_post_project_zotero_sync_requires_link(
             json={"path": "x.bib"},
         )
     assert r.status_code == 404
+
+
+def _zotero_linked_ck_info() -> dict:
+    return {
+        "references": [
+            {
+                "path": "references.bib",
+                "zotero": {
+                    "library_type": "user",
+                    "library_id": "999",
+                    "collection_key": "ABCD1234",
+                    "collection_name": "My Collection",
+                },
+            }
+        ]
+    }
+
+
+def test_get_project_zotero_item_pdf(
+    client: TestClient, db: Session, tmp_path
+) -> None:
+    project, headers = _make_owner_with_project(db, client)
+    owner_name = project.owner_account.name
+    base = f"{settings.API_V1_STR}/projects/{owner_name}/{project.name}"
+    fake_repo = _make_fake_repo(str(tmp_path))
+    # An items map with a PDF attachment for citekey "a".
+    zotero.write_items_info(
+        str(tmp_path),
+        {
+            "references.bib": {
+                "a": {
+                    "item_key": "IT1",
+                    "pdf_attachment_keys": ["ATT1"],
+                    "note_keys": [],
+                }
+            }
+        },
+    )
+    with (
+        patch("app.api.routes.projects.core.get_repo", return_value=fake_repo),
+        patch(
+            "app.api.routes.projects.core.get_ck_info_from_repo",
+            side_effect=lambda *a, **k: _zotero_linked_ck_info(),
+        ),
+        patch(
+            "app.api.routes.projects.core.users"
+            ".get_zotero_api_key_and_user_id",
+            return_value=("KEY", "999"),
+        ),
+        patch(
+            "app.api.routes.projects.core.zotero.download_attachment",
+            return_value=(b"%PDF-1.4 fake", "application/pdf"),
+        ) as mock_dl,
+    ):
+        r = client.get(
+            f"{base}/zotero/items/a/pdf?path=references.bib",
+            headers=headers,
+        )
+        # A citekey with no PDF attachment 404s.
+        r2 = client.get(
+            f"{base}/zotero/items/missing/pdf?path=references.bib",
+            headers=headers,
+        )
+    assert r.status_code == 200, r.text
+    assert r.content == b"%PDF-1.4 fake"
+    assert r.headers["content-type"] == "application/pdf"
+    assert mock_dl.call_args.kwargs["attachment_key"] == "ATT1"
+    assert r2.status_code == 404
+
+
+def test_put_project_zotero_item_notes(
+    client: TestClient, db: Session, tmp_path
+) -> None:
+    project, headers = _make_owner_with_project(db, client)
+    owner_name = project.owner_account.name
+    base = f"{settings.API_V1_STR}/projects/{owner_name}/{project.name}"
+    fake_repo = _make_fake_repo(str(tmp_path))
+    zotero.write_items_info(
+        str(tmp_path),
+        {
+            "references.bib": {
+                "a": {
+                    "item_key": "IT1",
+                    "pdf_attachment_keys": [],
+                    "note_keys": ["N1"],
+                }
+            }
+        },
+    )
+    # One existing note (to update) is on record locally.
+    zotero.write_notes(
+        str(tmp_path),
+        {
+            "references.bib": {
+                "a": [{"key": "N1", "version": 3, "html": "<p>old</p>"}]
+            }
+        },
+    )
+    # After the writes, Zotero reports the refreshed children.
+    refreshed_children = [
+        {
+            "key": "N1",
+            "version": 4,
+            "data": {"itemType": "note", "note": "<p>updated</p>"},
+        },
+        {
+            "key": "N2",
+            "version": 1,
+            "data": {"itemType": "note", "note": "<p>brand new</p>"},
+        },
+    ]
+    with (
+        patch("app.api.routes.projects.core.get_repo", return_value=fake_repo),
+        patch(
+            "app.api.routes.projects.core.get_ck_info_from_repo",
+            side_effect=lambda *a, **k: _zotero_linked_ck_info(),
+        ),
+        patch(
+            "app.api.routes.projects.core.users"
+            ".get_zotero_api_key_and_user_id",
+            return_value=("KEY", "999"),
+        ),
+        patch(
+            "app.api.routes.projects.core.zotero.update_note"
+        ) as mock_update,
+        patch(
+            "app.api.routes.projects.core.zotero.create_note"
+        ) as mock_create,
+        patch(
+            "app.api.routes.projects.core.zotero.get_item_children",
+            return_value=refreshed_children,
+        ),
+        patch("app.api.routes.projects.core.mixpanel.track"),
+    ):
+        r = client.put(
+            f"{base}/references/items/a/notes",
+            headers=headers,
+            json={
+                "path": "references.bib",
+                "notes": [
+                    {"key": "N1", "version": 3, "text": "updated"},
+                    {"text": "brand new"},
+                ],
+            },
+        )
+    assert r.status_code == 200, r.text
+    # The existing note is updated and the new one created; text is converted
+    # to Zotero's HTML on the way out.
+    assert mock_update.call_args.kwargs["note_key"] == "N1"
+    assert mock_create.call_args.kwargs["html"] == "<p>brand new</p>"
+    # The response reflects the refreshed notes, back as plain text.
+    assert {n["key"] for n in r.json()["notes"]} == {"N1", "N2"}
+    assert any(n["text"] == "brand new" for n in r.json()["notes"])
+    import json as _json
+
+    notes_info = _json.loads(
+        (tmp_path / ".calkit" / "zotero" / "notes.json").read_text()
+    )
+    assert len(notes_info["references.bib"]["a"]) == 2
+
+
+def test_reference_notes_non_linked_use_comment_field(
+    client: TestClient, db: Session, tmp_path
+) -> None:
+    project, headers = _make_owner_with_project(db, client)
+    owner_name = project.owner_account.name
+    base = f"{settings.API_V1_STR}/projects/{owner_name}/{project.name}"
+    fake_repo = _make_fake_repo(str(tmp_path))
+    # A plain .bib with no Zotero link.
+    (tmp_path / "references.bib").write_text(
+        "@article{smith2020,\n  title = {A Title},\n}\n"
+    )
+    with (
+        patch("app.api.routes.projects.core.get_repo", return_value=fake_repo),
+        patch(
+            "app.api.routes.projects.core.get_ck_info_from_repo",
+            side_effect=lambda *a, **k: {
+                "references": [{"path": "references.bib"}]
+            },
+        ),
+        patch("app.api.routes.projects.core.mixpanel.track"),
+    ):
+        # Initially no note.
+        r = client.get(
+            f"{base}/references/items/smith2020/notes?path=references.bib",
+            headers=headers,
+        )
+        assert r.status_code == 200, r.text
+        assert r.json()["notes"] == []
+        # Save a note -> written to the BibTeX comment field.
+        r = client.put(
+            f"{base}/references/items/smith2020/notes",
+            headers=headers,
+            json={
+                "path": "references.bib",
+                "notes": [{"text": "My private note"}],
+            },
+        )
+        assert r.status_code == 200, r.text
+        assert r.json()["notes"][0]["text"] == "My private note"
+    bib_text = (tmp_path / "references.bib").read_text()
+    assert "comment = {My private note}," in bib_text
+
+
+def test_format_bib_indents_and_wraps() -> None:
+    raw = (
+        "@article{k, title={"
+        + "word " * 40
+        + "}, journal={Nature}, year=2020}"
+    )
+    out = zotero.format_bib(raw)
+    assert "@article{k," in out
+    assert "  journal = {Nature}," in out
+    assert all(len(line) <= 80 for line in out.splitlines())
 
 
 def test_post_project_zotero_import_rejects_both_modes(
@@ -1420,16 +1694,30 @@ def test_post_project_zotero_import_conflict_then_overwrite(
             return_value="My Collection",
         ),
         patch(
-            "app.api.routes.projects.core.zotero.get_collection_items_bibtex",
-            return_value=("@article{new}\n", 7),
-        ) as mock_bibtex,
+            "app.api.routes.projects.core.zotero.get_collection_items",
+            return_value=(
+                [
+                    {
+                        "item_key": "IT1",
+                        "bibtex": "@article{new, title={New}}",
+                        "data": {},
+                        "num_children": 0,
+                    }
+                ],
+                7,
+            ),
+        ) as mock_items,
+        patch(
+            "app.api.routes.projects.core.zotero.build_item_maps",
+            return_value=({}, {}),
+        ),
         patch("app.api.routes.projects.core.mixpanel.track"),
     ):
         # Without overwrite, the existing file blocks the import, and we never
         # reach Zotero.
         r = client.post(f"{base}/zotero/imports", headers=headers, json=body)
         assert r.status_code == 409, r.text
-        assert mock_bibtex.call_count == 0
+        assert mock_items.call_count == 0
         # With overwrite, it replaces the file.
         r = client.post(
             f"{base}/zotero/imports",
@@ -1437,8 +1725,7 @@ def test_post_project_zotero_import_conflict_then_overwrite(
             json={**body, "overwrite": True},
         )
     assert r.status_code == 200, r.text
-    with open(tmp_path / "references.bib") as f:
-        assert f.read() == "@article{new}\n"
+    assert "@article{new," in (tmp_path / "references.bib").read_text()
 
 
 def test_post_project_references_creates_collection(

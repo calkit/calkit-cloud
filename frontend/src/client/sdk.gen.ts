@@ -191,6 +191,12 @@ import type {
   PostProjectZoteroImportResponse,
   PostProjectZoteroSyncData,
   PostProjectZoteroSyncResponse,
+  GetProjectZoteroItemPdfData,
+  GetProjectZoteroItemPdfResponse,
+  GetProjectReferenceNotesData,
+  GetProjectReferenceNotesResponse,
+  PutProjectReferenceNotesData,
+  PutProjectReferenceNotesResponse,
   GetProjectEnvironmentsData,
   GetProjectEnvironmentsResponse,
   PostProjectEnvironmentData,
@@ -2922,6 +2928,108 @@ export class ProjectsService {
       path: {
         owner_name: data.ownerName,
         project_name: data.projectName,
+      },
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Get Project Zotero Item Pdf
+   * Stream a reference item's Zotero PDF attachment.
+   * @param data The data for the request.
+   * @param data.ownerName
+   * @param data.projectName
+   * @param data.bibKey
+   * @param data.path
+   * @param data.index
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static getProjectZoteroItemPdf(
+    data: GetProjectZoteroItemPdfData,
+  ): CancelablePromise<GetProjectZoteroItemPdfResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/projects/{owner_name}/{project_name}/zotero/items/{bib_key}/pdf",
+      path: {
+        owner_name: data.ownerName,
+        project_name: data.projectName,
+        bib_key: data.bibKey,
+      },
+      query: {
+        path: data.path,
+        index: data.index,
+      },
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Get Project Reference Notes
+   * Get a reference item's notes.
+   *
+   * A Zotero-linked reference returns its Zotero notes (refreshed); any other
+   * reference returns the single note stored in its BibTeX ``comment`` field.
+   * @param data The data for the request.
+   * @param data.ownerName
+   * @param data.projectName
+   * @param data.bibKey
+   * @param data.path
+   * @returns ReferenceNotesResponse Successful Response
+   * @throws ApiError
+   */
+  public static getProjectReferenceNotes(
+    data: GetProjectReferenceNotesData,
+  ): CancelablePromise<GetProjectReferenceNotesResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/projects/{owner_name}/{project_name}/references/items/{bib_key}/notes",
+      path: {
+        owner_name: data.ownerName,
+        project_name: data.projectName,
+        bib_key: data.bibKey,
+      },
+      query: {
+        path: data.path,
+      },
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Put Project Reference Notes
+   * Set a reference item's notes.
+   *
+   * For a Zotero-linked reference, the body is the full desired set of notes:
+   * notes with a ``key`` are updated, notes without one created, and any
+   * existing note absent from the request deleted, all pushed to Zotero. For any
+   * other reference, the notes are joined into the BibTeX ``comment`` field.
+   * @param data The data for the request.
+   * @param data.ownerName
+   * @param data.projectName
+   * @param data.bibKey
+   * @param data.requestBody
+   * @returns ReferenceNotesResponse Successful Response
+   * @throws ApiError
+   */
+  public static putProjectReferenceNotes(
+    data: PutProjectReferenceNotesData,
+  ): CancelablePromise<PutProjectReferenceNotesResponse> {
+    return __request(OpenAPI, {
+      method: "PUT",
+      url: "/projects/{owner_name}/{project_name}/references/items/{bib_key}/notes",
+      path: {
+        owner_name: data.ownerName,
+        project_name: data.projectName,
+        bib_key: data.bibKey,
       },
       body: data.requestBody,
       mediaType: "application/json",

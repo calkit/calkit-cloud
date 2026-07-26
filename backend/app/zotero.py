@@ -7,11 +7,14 @@ for a permanent API key. The signing means the browser can't drive this the way
 it does for our OAuth 2 providers.
 """
 
+import html as html_lib
 import json
 import logging
 import os
+import re
 from urllib.parse import parse_qsl, urlencode
 
+import bibtexparser
 import requests
 from fastapi import HTTPException
 from requests_oauthlib import OAuth1Session
@@ -302,18 +305,20 @@ def get_collection_name(
     return resp.json()["data"]["name"]
 
 
-def get_collection_items_bibtex(
+def get_collection_items(
     api_key: str, library_type: str, library_id: str, collection_key: str
-) -> tuple[str, int]:
-    """Export a collection's items as BibTeX.
+) -> tuple[list[dict], int]:
+    """Fetch a collection's top-level items with their BibTeX and data.
 
-    Returns the concatenated BibTeX text and the library version from the
-    ``Last-Modified-Version`` header, which is stored as ``last_sync_version``
-    so a later sync can request only what changed.
+    Requesting ``format=json&include=bibtex,data`` returns, per item, its Zotero
+    key alongside its rendered BibTeX entry, which is how a BibTeX citekey is
+    tied back to its Zotero item (attachments, notes). Returns
+    ``(items, library_version)`` where each item is
+    ``{item_key, bibtex, data, num_children}``.
     """
     prefix = _library_prefix(library_type, library_id)
-    url = f"{BASE_URL}/{prefix}/collections/{collection_key}/items"
-    chunks: list[str] = []
+    url = f"{BASE_URL}/{prefix}/collections/{collection_key}/items/top"
+    items: list[dict] = []
     library_version = 0
     start = 0
     while True:
@@ -321,53 +326,303 @@ def get_collection_items_bibtex(
             url,
             headers=_headers(api_key),
             params={
-                "format": "bibtex",
+                "format": "json",
+                "include": "bibtex,data",
                 "limit": PAGE_LIMIT,
                 "start": start,
-                "itemType": "-attachment || note",
             },
             timeout=60,
         )
         if resp.status_code != 200:
-            logger.error(f"Zotero bibtex export status {resp.status_code}")
-            raise HTTPException(
-                resp.status_code, "Failed to export from Zotero"
-            )
+            logger.error(f"Zotero items fetch status {resp.status_code}")
+            raise HTTPException(resp.status_code, "Failed to read from Zotero")
         version_header = resp.headers.get("Last-Modified-Version")
         if version_header is not None:
             library_version = int(version_header)
-        text = resp.text.strip()
-        if text:
-            chunks.append(text)
+        for row in resp.json():
+            items.append(
+                {
+                    "item_key": row.get("key"),
+                    "bibtex": (row.get("bibtex") or "").strip(),
+                    "data": row.get("data") or {},
+                    "num_children": (row.get("meta") or {}).get(
+                        "numChildren", 0
+                    ),
+                }
+            )
         total = int(resp.headers.get("Total-Results", 0))
         start += PAGE_LIMIT
         if start >= total:
             break
-    return "\n\n".join(chunks) + "\n", library_version
+    return items, library_version
 
 
-# Per-collection sync state lives here, gitignored like Overleaf's
-# .calkit/overleaf/. The durable link (library, collection) is committed in
-# calkit.yaml; this file holds only local sync bookkeeping.
-SYNC_INFO_REL_PATH = os.path.join(".calkit", "zotero", "sync.json")
+def bib_key_of(bibtex_entry: str) -> str | None:
+    """Parse the citekey from a single BibTeX entry string."""
+    try:
+        entries = bibtexparser.loads(bibtex_entry).entries
+    except Exception:
+        return None
+    return entries[0]["ID"] if entries else None
 
 
-def read_sync_info(working_dir: str) -> dict:
-    """Read the local Zotero sync state, keyed by ``.bib`` path."""
-    fpath = os.path.join(working_dir, SYNC_INFO_REL_PATH)
+def _wrap_field(key: str, value: str, width: int = 80) -> list[str]:
+    """Render one BibTeX field, hard-wrapping the value at ``width`` columns."""
+    opening = f"  {key} = {{"
+    indent = " " * len(opening)
+    lines: list[str] = []
+    cur = opening
+    for word in value.split():
+        add = word if cur.endswith("{") else " " + word
+        # Don't break a single long token (e.g. a URL); only wrap between words.
+        if len(cur) + len(add) > width and cur not in (opening, indent):
+            lines.append(cur)
+            cur = indent + word
+        else:
+            cur += add
+    lines.append(cur + "},")
+    return lines
+
+
+def format_bib(bibtex_text: str) -> str:
+    """Reformat BibTeX with 2-space indentation and 80-column wrapping."""
+    try:
+        db = bibtexparser.loads(bibtex_text)
+    except Exception as e:
+        logger.warning(f"Failed to parse BibTeX for formatting: {e}")
+        return bibtex_text
+    blocks: list[str] = []
+    for entry in db.entries:
+        entry_type = entry.get("ENTRYTYPE", "misc")
+        key = entry.get("ID", "")
+        lines = [f"@{entry_type}{{{key},"]
+        for field, value in entry.items():
+            if field in ("ENTRYTYPE", "ID"):
+                continue
+            lines.extend(_wrap_field(field, str(value)))
+        lines.append("}")
+        blocks.append("\n".join(lines))
+    return "\n\n".join(blocks) + "\n"
+
+
+def note_text_to_html(text: str) -> str:
+    """Convert plain text into the simple HTML Zotero stores for notes."""
+    paragraphs = [p.strip() for p in re.split(r"\n{2,}", text) if p.strip()]
+    return "".join(
+        f"<p>{html_lib.escape(p).replace(chr(10), '<br/>')}</p>"
+        for p in paragraphs
+    )
+
+
+def note_html_to_text(html: str) -> str:
+    """Convert Zotero note HTML into plain text for editing and display."""
+    s = re.sub(r"<\s*br\s*/?>", "\n", html, flags=re.IGNORECASE)
+    s = re.sub(r"</\s*p\s*>", "\n\n", s, flags=re.IGNORECASE)
+    s = re.sub(r"<[^>]+>", "", s)
+    return html_lib.unescape(s).strip()
+
+
+def get_item_children(
+    api_key: str, library_type: str, library_id: str, item_key: str
+) -> list[dict]:
+    """Fetch an item's child items (attachments and notes)."""
+    prefix = _library_prefix(library_type, library_id)
+    resp = requests.get(
+        f"{BASE_URL}/{prefix}/items/{item_key}/children",
+        headers=_headers(api_key),
+        params={"format": "json"},
+        timeout=30,
+    )
+    if resp.status_code != 200:
+        logger.error(f"Zotero children fetch status {resp.status_code}")
+        raise HTTPException(resp.status_code, "Failed to read Zotero item")
+    return resp.json()
+
+
+def build_item_maps(
+    api_key: str, library_type: str, library_id: str, items: list[dict]
+) -> tuple[dict, dict]:
+    """Build the citekey->item map and citekey->notes map for a collection.
+
+    Only items reporting children are queried, so most items cost no extra
+    request. ``items_map`` records the Zotero item key plus its PDF attachment
+    and note keys; ``notes_map`` carries each note's HTML for editing.
+    """
+    items_map: dict = {}
+    notes_map: dict = {}
+    for it in items:
+        bib_key = bib_key_of(it["bibtex"])
+        if not bib_key:
+            continue
+        entry = {
+            "item_key": it["item_key"],
+            "pdf_attachment_keys": [],
+            "note_keys": [],
+        }
+        if it["num_children"]:
+            notes = []
+            for child in get_item_children(
+                api_key, library_type, library_id, it["item_key"]
+            ):
+                data = child.get("data", {})
+                if (
+                    data.get("itemType") == "attachment"
+                    and data.get("contentType") == "application/pdf"
+                ):
+                    entry["pdf_attachment_keys"].append(child["key"])
+                elif data.get("itemType") == "note":
+                    entry["note_keys"].append(child["key"])
+                    notes.append(
+                        {
+                            "key": child["key"],
+                            "version": child.get("version"),
+                            "html": data.get("note", ""),
+                        }
+                    )
+            if notes:
+                notes_map[bib_key] = notes
+        items_map[bib_key] = entry
+    return items_map, notes_map
+
+
+def download_attachment(
+    api_key: str, library_type: str, library_id: str, attachment_key: str
+) -> tuple[bytes, str]:
+    """Download an attachment's file, returning ``(bytes, content_type)``."""
+    prefix = _library_prefix(library_type, library_id)
+    resp = requests.get(
+        f"{BASE_URL}/{prefix}/items/{attachment_key}/file",
+        headers=_headers(api_key),
+        timeout=120,
+        allow_redirects=True,
+    )
+    if resp.status_code != 200:
+        logger.error(f"Zotero attachment download status {resp.status_code}")
+        raise HTTPException(resp.status_code, "Failed to download attachment")
+    content_type = resp.headers.get("Content-Type", "application/octet-stream")
+    return resp.content, content_type
+
+
+def create_note(
+    api_key: str,
+    library_type: str,
+    library_id: str,
+    parent_item_key: str,
+    html: str,
+) -> dict:
+    """Create a note child item under ``parent_item_key``."""
+    prefix = _library_prefix(library_type, library_id)
+    resp = requests.post(
+        f"{BASE_URL}/{prefix}/items",
+        headers=_headers(api_key),
+        json=[
+            {"itemType": "note", "parentItem": parent_item_key, "note": html}
+        ],
+        timeout=30,
+    )
+    if resp.status_code not in (200, 201):
+        logger.error(f"Zotero create note status {resp.status_code}")
+        raise HTTPException(resp.status_code, "Failed to create Zotero note")
+    successful = resp.json().get("successful", {})
+    if not successful:
+        raise HTTPException(502, "Zotero did not create the note")
+    created = successful["0"]
+    return {"key": created["key"], "version": created["version"]}
+
+
+def update_note(
+    api_key: str,
+    library_type: str,
+    library_id: str,
+    note_key: str,
+    version: int,
+    html: str,
+) -> None:
+    """Update a note's HTML, guarding against a stale version."""
+    prefix = _library_prefix(library_type, library_id)
+    resp = requests.patch(
+        f"{BASE_URL}/{prefix}/items/{note_key}",
+        headers={
+            **_headers(api_key),
+            "If-Unmodified-Since-Version": str(version),
+        },
+        json={"note": html},
+        timeout=30,
+    )
+    if resp.status_code not in (200, 204):
+        logger.error(f"Zotero update note status {resp.status_code}")
+        raise HTTPException(resp.status_code, "Failed to update Zotero note")
+
+
+def delete_note(
+    api_key: str,
+    library_type: str,
+    library_id: str,
+    note_key: str,
+    version: int,
+) -> None:
+    """Delete a note child item."""
+    prefix = _library_prefix(library_type, library_id)
+    resp = requests.delete(
+        f"{BASE_URL}/{prefix}/items/{note_key}",
+        headers={
+            **_headers(api_key),
+            "If-Unmodified-Since-Version": str(version),
+        },
+        timeout=30,
+    )
+    if resp.status_code not in (200, 204):
+        logger.error(f"Zotero delete note status {resp.status_code}")
+        raise HTTPException(resp.status_code, "Failed to delete Zotero note")
+
+
+# Local, gitignored Zotero state under .calkit/zotero/ (like Overleaf's
+# .calkit/overleaf/). The durable link is committed in calkit.yaml; these files
+# hold only local sync bookkeeping and cached item/note metadata.
+ZOTERO_DIR = os.path.join(".calkit", "zotero")
+SYNC_INFO_REL_PATH = os.path.join(ZOTERO_DIR, "sync.json")
+ITEMS_REL_PATH = os.path.join(ZOTERO_DIR, "items.json")
+NOTES_REL_PATH = os.path.join(ZOTERO_DIR, "notes.json")
+
+
+def _read_json(working_dir: str, rel_path: str) -> dict:
+    fpath = os.path.join(working_dir, rel_path)
     if not os.path.isfile(fpath):
         return {}
     try:
         with open(fpath) as f:
             return json.load(f)
     except Exception as e:
-        logger.warning(f"Failed to read Zotero sync info: {e}")
+        logger.warning(f"Failed to read {rel_path}: {e}")
         return {}
 
 
-def write_sync_info(working_dir: str, sync_info: dict) -> None:
-    """Write the local Zotero sync state."""
-    fpath = os.path.join(working_dir, SYNC_INFO_REL_PATH)
+def _write_json(working_dir: str, rel_path: str, data: dict) -> None:
+    fpath = os.path.join(working_dir, rel_path)
     os.makedirs(os.path.dirname(fpath), exist_ok=True)
     with open(fpath, "w") as f:
-        json.dump(sync_info, f, indent=2)
+        json.dump(data, f, indent=2)
+
+
+def read_sync_info(working_dir: str) -> dict:
+    return _read_json(working_dir, SYNC_INFO_REL_PATH)
+
+
+def write_sync_info(working_dir: str, sync_info: dict) -> None:
+    _write_json(working_dir, SYNC_INFO_REL_PATH, sync_info)
+
+
+def read_items_info(working_dir: str) -> dict:
+    return _read_json(working_dir, ITEMS_REL_PATH)
+
+
+def write_items_info(working_dir: str, items_info: dict) -> None:
+    _write_json(working_dir, ITEMS_REL_PATH, items_info)
+
+
+def read_notes(working_dir: str) -> dict:
+    return _read_json(working_dir, NOTES_REL_PATH)
+
+
+def write_notes(working_dir: str, notes: dict) -> None:
+    _write_json(working_dir, NOTES_REL_PATH, notes)

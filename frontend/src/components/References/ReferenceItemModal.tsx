@@ -1,0 +1,337 @@
+import {
+  Box,
+  Button,
+  Flex,
+  Heading,
+  IconButton,
+  Link,
+  Modal,
+  ModalBody,
+  ModalCloseButton,
+  ModalContent,
+  ModalHeader,
+  ModalOverlay,
+  Spinner,
+  Table,
+  Tbody,
+  Td,
+  Text,
+  Textarea,
+  Tr,
+  VStack,
+} from "@chakra-ui/react"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useEffect, useRef, useState } from "react"
+import { FaPlus, FaTrash } from "react-icons/fa"
+
+import {
+  type ApiError,
+  ProjectsService,
+  type ReferenceEntry,
+} from "../../client"
+import useCustomToast from "../../hooks/useCustomToast"
+import { formatBibField } from "../../lib/bibtex"
+import { apiUrl } from "../../lib/core"
+import { handleError } from "../../lib/errors"
+import PdfDocumentViewer from "../Common/PdfDocumentViewer"
+
+interface ReferenceItemModalProps {
+  isOpen: boolean
+  onClose: () => void
+  ownerName: string
+  projectName: string
+  bibPath: string
+  entry?: ReferenceEntry
+  userHasWriteAccess: boolean
+}
+
+// A note being edited. key/version are set only for Zotero-backed notes.
+interface EditableNote {
+  key?: string
+  version?: number
+  text: string
+}
+
+const ReferenceItemModal = ({
+  isOpen,
+  onClose,
+  ownerName,
+  projectName,
+  bibPath,
+  entry,
+  userHasWriteAccess,
+}: ReferenceItemModalProps) => {
+  const showToast = useCustomToast()
+  const queryClient = useQueryClient()
+  const [pdfUrl, setPdfUrl] = useState<string>()
+  const [pdfLoading, setPdfLoading] = useState(false)
+  const [pdfError, setPdfError] = useState(false)
+  const [notes, setNotes] = useState<EditableNote[]>([])
+  const objectUrlRef = useRef<string>()
+  const title = entry?.attrs?.title
+    ? formatBibField("title", String(entry.attrs.title))
+    : entry?.key
+  const hasZotero = Boolean(entry?.zotero_item_key)
+
+  // Load the PDF: prefer the Zotero attachment (proxied, needs auth), else the
+  // repo-stored file's presigned URL.
+  useEffect(() => {
+    if (!isOpen || !entry) return
+    if (objectUrlRef.current) {
+      URL.revokeObjectURL(objectUrlRef.current)
+      objectUrlRef.current = undefined
+    }
+    setPdfUrl(undefined)
+    setPdfError(false)
+    if (entry.has_pdf) {
+      setPdfLoading(true)
+      const url =
+        `${apiUrl}/projects/${ownerName}/${projectName}/zotero/items/` +
+        `${encodeURIComponent(entry.key)}/pdf?path=${encodeURIComponent(bibPath)}`
+      fetch(url, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+        },
+      })
+        .then((r) => {
+          if (!r.ok) throw new Error("Failed to load PDF")
+          return r.blob()
+        })
+        .then((blob) => {
+          const objectUrl = URL.createObjectURL(blob)
+          objectUrlRef.current = objectUrl
+          setPdfUrl(objectUrl)
+        })
+        .catch(() => setPdfError(true))
+        .finally(() => setPdfLoading(false))
+    } else if (entry.url) {
+      setPdfUrl(entry.url)
+    }
+    return () => {
+      if (objectUrlRef.current) {
+        URL.revokeObjectURL(objectUrlRef.current)
+        objectUrlRef.current = undefined
+      }
+    }
+  }, [isOpen, entry, ownerName, projectName, bibPath])
+
+  const notesKey = [
+    "projects",
+    ownerName,
+    projectName,
+    "reference-notes",
+    bibPath,
+    entry?.key,
+  ]
+  const notesQuery = useQuery({
+    queryKey: notesKey,
+    queryFn: () =>
+      ProjectsService.getProjectReferenceNotes({
+        ownerName,
+        projectName,
+        bibKey: entry!.key,
+        path: bibPath,
+      }),
+    enabled: isOpen && Boolean(entry),
+  })
+  // Reset the editable notes whenever the server copy changes.
+  useEffect(() => {
+    if (notesQuery.data) {
+      setNotes(
+        notesQuery.data.notes.map((n) => ({
+          key: n.key ?? undefined,
+          version: n.version ?? undefined,
+          text: n.text,
+        })),
+      )
+    }
+  }, [notesQuery.data])
+
+  const saveNotesMutation = useMutation({
+    mutationFn: () =>
+      ProjectsService.putProjectReferenceNotes({
+        ownerName,
+        projectName,
+        bibKey: entry!.key,
+        requestBody: {
+          path: bibPath,
+          // Drop empties: an existing note left empty is deleted (omitted).
+          notes: notes
+            .filter((n) => n.text.trim())
+            .map((n) => ({
+              key: n.key ?? null,
+              version: n.version ?? null,
+              text: n.text,
+            })),
+        },
+      }),
+    onSuccess: () => {
+      showToast(
+        "Success!",
+        hasZotero ? "Notes saved to Zotero." : "Note saved.",
+        "success",
+      )
+      queryClient.invalidateQueries({ queryKey: notesKey })
+      // The note count on the list comes from the references query.
+      queryClient.invalidateQueries({
+        queryKey: ["projects", ownerName, projectName, "references"],
+      })
+    },
+    onError: (err: ApiError) => handleError(err, showToast),
+  })
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} size="full" isCentered>
+      <ModalOverlay />
+      <ModalContent>
+        <ModalHeader pr={10} noOfLines={1}>
+          {title}
+        </ModalHeader>
+        <ModalCloseButton />
+        <ModalBody pb={6}>
+          <Flex gap={4} h="85vh">
+            {/* Center: PDF */}
+            <Box flex={1} minW={0} borderWidth={1} borderRadius="md">
+              {pdfLoading ? (
+                <Flex h="100%" align="center" justify="center">
+                  <Spinner />
+                </Flex>
+              ) : pdfUrl ? (
+                <PdfDocumentViewer
+                  url={pdfUrl}
+                  source="reference"
+                  defaultScale="page-width"
+                />
+              ) : (
+                <Flex h="100%" align="center" justify="center">
+                  <Text color="gray.500" fontSize="sm">
+                    {pdfError
+                      ? "Could not load the PDF."
+                      : "No PDF attached to this reference."}
+                  </Text>
+                </Flex>
+              )}
+            </Box>
+            {/* Right: metadata + notes */}
+            <Box w="360px" flexShrink={0} overflowY="auto">
+              <Heading size="sm" mb={2}>
+                Details
+              </Heading>
+              <Table variant="simple" size="sm" mb={4}>
+                <Tbody>
+                  <Tr>
+                    <Td fontWeight="semibold" w="90px">
+                      key
+                    </Td>
+                    <Td>{entry?.key}</Td>
+                  </Tr>
+                  <Tr>
+                    <Td fontWeight="semibold">type</Td>
+                    <Td>{entry?.type}</Td>
+                  </Tr>
+                  {entry?.attrs
+                    ? Object.entries(entry.attrs).map(([k, v]) => {
+                        const value = formatBibField(k, String(v))
+                        const key = k.toLowerCase()
+                        const href =
+                          key === "doi"
+                            ? value.startsWith("http")
+                              ? value
+                              : `https://doi.org/${value}`
+                            : key === "url"
+                              ? value
+                              : undefined
+                        return (
+                          <Tr key={k}>
+                            <Td fontWeight="semibold">{k}</Td>
+                            <Td>
+                              {href ? (
+                                <Link href={href} isExternal variant="blue">
+                                  {value}
+                                </Link>
+                              ) : (
+                                value
+                              )}
+                            </Td>
+                          </Tr>
+                        )
+                      })
+                    : null}
+                </Tbody>
+              </Table>
+              <Flex align="center" mb={2}>
+                <Heading size="sm">Notes</Heading>
+                {/* Zotero-linked items allow multiple notes; a non-linked item
+                    has a single note in its BibTeX comment field. */}
+                {userHasWriteAccess && (hasZotero || notes.length === 0) ? (
+                  <IconButton
+                    aria-label="Add note"
+                    icon={<FaPlus />}
+                    size="xs"
+                    variant="ghost"
+                    ml={2}
+                    onClick={() => setNotes((ns) => [...ns, { text: "" }])}
+                  />
+                ) : null}
+              </Flex>
+              {notesQuery.isPending ? (
+                <Spinner size="sm" />
+              ) : (
+                <VStack align="stretch" spacing={2}>
+                  {notes.length === 0 ? (
+                    <Text fontSize="sm" color="gray.500">
+                      No notes yet.
+                    </Text>
+                  ) : (
+                    notes.map((note, i) => (
+                      <Flex key={note.key ?? `new-${i}`} gap={1}>
+                        <Textarea
+                          size="sm"
+                          rows={3}
+                          value={note.text}
+                          isReadOnly={!userHasWriteAccess}
+                          onChange={(e) =>
+                            setNotes((ns) =>
+                              ns.map((n, j) =>
+                                j === i ? { ...n, text: e.target.value } : n,
+                              ),
+                            )
+                          }
+                        />
+                        {userHasWriteAccess ? (
+                          <IconButton
+                            aria-label="Remove note"
+                            icon={<FaTrash />}
+                            size="xs"
+                            variant="ghost"
+                            colorScheme="red"
+                            onClick={() =>
+                              setNotes((ns) => ns.filter((_, j) => j !== i))
+                            }
+                          />
+                        ) : null}
+                      </Flex>
+                    ))
+                  )}
+                  {userHasWriteAccess ? (
+                    <Button
+                      size="sm"
+                      variant="primary"
+                      alignSelf="flex-start"
+                      onClick={() => saveNotesMutation.mutate()}
+                      isLoading={saveNotesMutation.isPending}
+                    >
+                      Save notes
+                    </Button>
+                  ) : null}
+                </VStack>
+              )}
+            </Box>
+          </Flex>
+        </ModalBody>
+      </ModalContent>
+    </Modal>
+  )
+}
+
+export default ReferenceItemModal

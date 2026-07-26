@@ -29,7 +29,7 @@ import {
 } from "@chakra-ui/react"
 import { useQuery } from "@tanstack/react-query"
 import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router"
-import { useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { BsFilePdf } from "react-icons/bs"
 import { FaPlus } from "react-icons/fa"
 import { IoLibraryOutline } from "react-icons/io5"
@@ -46,13 +46,16 @@ import Tooltip from "../../../../../components/Common/Tooltip"
 import FileViewModal from "../../../../../components/References/FileViewModal"
 import ImportFromZoteroModal from "../../../../../components/References/ImportFromZoteroModal"
 import NewReferencesCollection from "../../../../../components/References/NewReferencesCollection"
+import ReferenceItemModal from "../../../../../components/References/ReferenceItemModal"
 import ReferencesInfoPanel from "../../../../../components/References/ReferencesInfoPanel"
 import useProject from "../../../../../hooks/useProject"
-import { cleanLatex } from "../../../../../lib/bibtex"
+import { formatBibField } from "../../../../../lib/bibtex"
 
 const referencesSearchSchema = z.object({
   // Selected collection path, so a link restores the same collection.
   path: z.string().optional(),
+  // Open reference item (its bib key), for the item detail modal.
+  item: z.string().optional(),
   import_zotero_open: z.boolean().optional(),
   new_collection_open: z.boolean().optional(),
   resolved: z.boolean().optional(),
@@ -82,7 +85,7 @@ function ReferenceEntryTable({ referenceEntry }: ReferenceEntryTableProps) {
         <Tbody>
           {referenceEntry.attrs
             ? Object.entries(referenceEntry.attrs).map(([k, v]) => {
-                const value = cleanLatex(String(v))
+                const value = formatBibField(k, String(v))
                 const key = k.toLowerCase()
                 let href: string | undefined
                 if (key === "doi") {
@@ -124,6 +127,7 @@ function References() {
   const navigate = useNavigate({ from: Route.fullPath })
   const {
     path: selectedPath,
+    item: openItemKey,
     import_zotero_open: importZoteroOpen,
     new_collection_open: newCollectionOpen,
     resolved: showResolved,
@@ -146,6 +150,10 @@ function References() {
     })
   const selectCollection = (path: string) =>
     navigate({ search: (prev) => ({ ...prev, path }) })
+  const openItem = (key: string) =>
+    navigate({ search: (prev) => ({ ...prev, item: key }) })
+  const closeItem = () =>
+    navigate({ search: (prev) => ({ ...prev, item: undefined }) })
   const setShowResolved = (resolved: boolean) =>
     navigate({
       search: (prev) => ({ ...prev, resolved: resolved || undefined }),
@@ -167,6 +175,16 @@ function References() {
   const [selectedEntry, setSelectedEntry] = useState<ReferenceEntry>()
   const [visibleCount, setVisibleCount] = useState(25)
   const [searchText, setSearchText] = useState("")
+  // The filter runs off a debounced copy of the input so typing stays smooth on
+  // large collections; the input value itself updates immediately.
+  const [debouncedQuery, setDebouncedQuery] = useState("")
+  useEffect(() => {
+    const t = setTimeout(
+      () => setDebouncedQuery(searchText.trim().toLowerCase()),
+      200,
+    )
+    return () => clearTimeout(t)
+  }, [searchText])
   const handleLinkClick = (entry: ReferenceEntry) => {
     if (!entry.url) {
       return
@@ -177,20 +195,32 @@ function References() {
   // Default to the first collection when none is selected in the URL.
   const selectedCollection =
     allReferences?.find((r) => r.path === selectedPath) ?? allReferences?.[0]
-  // Only show the selected collection's entries; match the search against the
-  // key and cleaned attribute values so braces and LaTeX macros don't block it.
-  const query = searchText.trim().toLowerCase()
   const entries = selectedCollection?.entries ?? []
-  const filteredEntries = query
-    ? entries.filter((e) => {
-        const haystack = [
+  const selectedItem = openItemKey
+    ? entries.find((e) => e.key === openItemKey)
+    : undefined
+  // Precompute a search haystack per entry (key + formatted attribute values)
+  // once per collection, so filtering on each keystroke doesn't re-format every
+  // value.
+  const entryHaystacks = useMemo(
+    () =>
+      entries.map((e) => ({
+        entry: e,
+        haystack: [
           e.key,
-          ...Object.values(e.attrs ?? {}).map((v) => cleanLatex(String(v))),
+          ...Object.entries(e.attrs ?? {}).map(([k, v]) =>
+            formatBibField(k, String(v)),
+          ),
         ]
           .join(" ")
-          .toLowerCase()
-        return haystack.includes(query)
-      })
+          .toLowerCase(),
+      })),
+    [entries],
+  )
+  const filteredEntries = debouncedQuery
+    ? entryHaystacks
+        .filter((x) => x.haystack.includes(debouncedQuery))
+        .map((x) => x.entry)
     : entries
   const totalEntries = filteredEntries.length
   const visibleEntries = filteredEntries.slice(0, visibleCount)
@@ -229,6 +259,17 @@ function References() {
                 projectName={projectName}
               />
             </>
+          ) : null}
+          {selectedCollection ? (
+            <ReferenceItemModal
+              isOpen={Boolean(openItemKey && selectedItem)}
+              onClose={closeItem}
+              ownerName={accountName}
+              projectName={projectName}
+              bibPath={selectedCollection.path}
+              entry={selectedItem}
+              userHasWriteAccess={userHasWriteAccess}
+            />
           ) : null}
           {/* Left: collection index (selectable) */}
           <PageMenu>
@@ -306,7 +347,7 @@ function References() {
             })}
           </PageMenu>
           {/* Center: selected collection's entries */}
-          <Box flex={1} minW={0} mr={6}>
+          <Box flex={1} minW={0} mr={6} pb={8}>
             {selectedCollection ? (
               <>
                 <InputGroup mb={3} maxW="400px">
@@ -353,7 +394,14 @@ function References() {
                     boxSizing="border-box"
                   >
                     <Flex alignItems="center">
-                      <Heading size="sm">{entry.key}</Heading>
+                      <Heading
+                        size="sm"
+                        cursor="pointer"
+                        _hover={{ color: "blue.500" }}
+                        onClick={() => openItem(entry.key)}
+                      >
+                        {entry.key}
+                      </Heading>
                       <Text ml={1} fontSize="sm">
                         {entry.file_path ? (
                           <Link onClick={() => handleLinkClick(entry)}>
@@ -363,13 +411,20 @@ function References() {
                           ""
                         )}
                       </Text>
-                      {entry.url ? (
+                      {entry.has_pdf || entry.url ? (
                         <Icon
                           as={BsFilePdf}
                           ml={1}
+                          color="red.500"
                           cursor="pointer"
-                          onClick={() => handleLinkClick(entry)}
+                          onClick={() => openItem(entry.key)}
                         />
+                      ) : null}
+                      {entry.note_count ? (
+                        <Badge ml={1} colorScheme="blue" fontSize="0.6em">
+                          {entry.note_count} note
+                          {entry.note_count > 1 ? "s" : ""}
+                        </Badge>
                       ) : null}
                     </Flex>
                     <ReferenceEntryTable referenceEntry={entry} />

@@ -1088,11 +1088,29 @@ export type ReferenceEntry = {
   attrs: {
     [key: string]: unknown
   }
+  zotero_item_key?: string | null
+  has_pdf?: boolean
+  note_count?: number
 }
 
 export type ReferenceFile = {
   path: string
   key: string
+}
+
+export type ReferenceNote = {
+  key?: string | null
+  version?: number | null
+  text: string
+}
+
+export type ReferenceNotesPut = {
+  path: string
+  notes: Array<ReferenceNote>
+}
+
+export type ReferenceNotesResponse = {
+  notes: Array<ReferenceNote>
 }
 
 export type References = {
@@ -2409,6 +2427,34 @@ export type PostProjectZoteroSyncData = {
 }
 
 export type PostProjectZoteroSyncResponse = ZoteroSyncResponse
+
+export type GetProjectZoteroItemPdfData = {
+  bibKey: string
+  index?: number
+  ownerName: string
+  path: string
+  projectName: string
+}
+
+export type GetProjectZoteroItemPdfResponse = unknown
+
+export type GetProjectReferenceNotesData = {
+  bibKey: string
+  ownerName: string
+  path: string
+  projectName: string
+}
+
+export type GetProjectReferenceNotesResponse = ReferenceNotesResponse
+
+export type PutProjectReferenceNotesData = {
+  bibKey: string
+  ownerName: string
+  projectName: string
+  requestBody: ReferenceNotesPut
+}
+
+export type PutProjectReferenceNotesResponse = ReferenceNotesResponse
 
 export type GetProjectEnvironmentsData = {
   ownerName: string

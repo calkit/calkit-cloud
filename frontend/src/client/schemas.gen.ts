@@ -5313,6 +5313,27 @@ export const ReferenceEntrySchema = {
       type: "object",
       title: "Attrs",
     },
+    zotero_item_key: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Zotero Item Key",
+    },
+    has_pdf: {
+      type: "boolean",
+      title: "Has Pdf",
+      default: false,
+    },
+    note_count: {
+      type: "integer",
+      title: "Note Count",
+      default: 0,
+    },
   },
   type: "object",
   required: ["type", "key", "attrs"],
@@ -5333,6 +5354,74 @@ export const ReferenceFileSchema = {
   type: "object",
   required: ["path", "key"],
   title: "ReferenceFile",
+} as const
+
+export const ReferenceNoteSchema = {
+  properties: {
+    key: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Key",
+    },
+    version: {
+      anyOf: [
+        {
+          type: "integer",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Version",
+    },
+    text: {
+      type: "string",
+      title: "Text",
+    },
+  },
+  type: "object",
+  required: ["text"],
+  title: "ReferenceNote",
+} as const
+
+export const ReferenceNotesPutSchema = {
+  properties: {
+    path: {
+      type: "string",
+      title: "Path",
+    },
+    notes: {
+      items: {
+        $ref: "#/components/schemas/ReferenceNote",
+      },
+      type: "array",
+      title: "Notes",
+    },
+  },
+  type: "object",
+  required: ["path", "notes"],
+  title: "ReferenceNotesPut",
+} as const
+
+export const ReferenceNotesResponseSchema = {
+  properties: {
+    notes: {
+      items: {
+        $ref: "#/components/schemas/ReferenceNote",
+      },
+      type: "array",
+      title: "Notes",
+    },
+  },
+  type: "object",
+  required: ["notes"],
+  title: "ReferenceNotesResponse",
 } as const
 
 export const ReferenceZoteroLinkSchema = {
