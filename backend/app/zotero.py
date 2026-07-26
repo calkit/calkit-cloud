@@ -7,7 +7,9 @@ for a permanent API key. The signing means the browser can't drive this the way
 it does for our OAuth 2 providers.
 """
 
+import json
 import logging
+import os
 from urllib.parse import parse_qsl, urlencode
 
 import requests
@@ -342,3 +344,30 @@ def get_collection_items_bibtex(
         if start >= total:
             break
     return "\n\n".join(chunks) + "\n", library_version
+
+
+# Per-collection sync state lives here, gitignored like Overleaf's
+# .calkit/overleaf/. The durable link (library, collection) is committed in
+# calkit.yaml; this file holds only local sync bookkeeping.
+SYNC_INFO_REL_PATH = os.path.join(".calkit", "zotero", "sync.json")
+
+
+def read_sync_info(working_dir: str) -> dict:
+    """Read the local Zotero sync state, keyed by ``.bib`` path."""
+    fpath = os.path.join(working_dir, SYNC_INFO_REL_PATH)
+    if not os.path.isfile(fpath):
+        return {}
+    try:
+        with open(fpath) as f:
+            return json.load(f)
+    except Exception as e:
+        logger.warning(f"Failed to read Zotero sync info: {e}")
+        return {}
+
+
+def write_sync_info(working_dir: str, sync_info: dict) -> None:
+    """Write the local Zotero sync state."""
+    fpath = os.path.join(working_dir, SYNC_INFO_REL_PATH)
+    os.makedirs(os.path.dirname(fpath), exist_ok=True)
+    with open(fpath, "w") as f:
+        json.dump(sync_info, f, indent=2)

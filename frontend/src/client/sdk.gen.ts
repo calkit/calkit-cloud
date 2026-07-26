@@ -189,6 +189,8 @@ import type {
   GetProjectZoteroItemsResponse,
   PostProjectZoteroImportData,
   PostProjectZoteroImportResponse,
+  PostProjectZoteroSyncData,
+  PostProjectZoteroSyncResponse,
   GetProjectEnvironmentsData,
   GetProjectEnvironmentsResponse,
   PostProjectEnvironmentData,
@@ -2885,6 +2887,38 @@ export class ProjectsService {
     return __request(OpenAPI, {
       method: "POST",
       url: "/projects/{owner_name}/{project_name}/zotero/imports",
+      path: {
+        owner_name: data.ownerName,
+        project_name: data.projectName,
+      },
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Post Project Zotero Sync
+   * Re-pull a Zotero-linked collection into its ``.bib`` file.
+   *
+   * This is a pull sync: it refreshes the ``.bib`` from Zotero and updates the
+   * local sync state. Pushing local ``.bib`` edits back to Zotero is not yet
+   * implemented.
+   * @param data The data for the request.
+   * @param data.ownerName
+   * @param data.projectName
+   * @param data.requestBody
+   * @returns ZoteroSyncResponse Successful Response
+   * @throws ApiError
+   */
+  public static postProjectZoteroSync(
+    data: PostProjectZoteroSyncData,
+  ): CancelablePromise<PostProjectZoteroSyncResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/projects/{owner_name}/{project_name}/zotero/syncs",
       path: {
         owner_name: data.ownerName,
         project_name: data.projectName,

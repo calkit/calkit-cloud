@@ -2312,6 +2312,7 @@ def _make_comment_artifact_link(
         "publication": "publications",
         "presentation": "presentations",
         "notebook": "notebooks",
+        "references": "references",
         "file": "files",
     }
     route = route_map.get(artifact_type or "", "files")
@@ -4983,7 +4984,9 @@ class ReferenceZoteroLink(BaseModel):
     library_id: str
     collection_key: str
     collection_name: str | None = None
+    # Populated from .calkit/zotero/sync.json at read time, not calkit.yaml.
     last_sync_version: int | None = None
+    last_synced: str | None = None
 
 
 class References(BaseModel):
@@ -4993,6 +4996,8 @@ class References(BaseModel):
     imported_from: ImportInfo | None = None
     raw_text: str | None = None
     zotero: ReferenceZoteroLink | None = None
+    # Names of pipeline stages that consume this .bib as a dependency/input.
+    stages: list[str] | None = None
 
 
 @router.get("/projects/{owner_name}/{project_name}/references")
@@ -5018,8 +5023,11 @@ def get_project_references(
         ref=ref,
     )
     ck_info = get_ck_info_from_repo(repo)
-    ref_collections = ck_info.get("references", [])
-    declared_paths = {rc["path"] for rc in ref_collections}
+    # An empty "references:" key in calkit.yaml parses to None.
+    ref_collections = ck_info.get("references") or []
+    declared_paths = {
+        rc.get("path") for rc in ref_collections if isinstance(rc, dict)
+    }
     # Auto-detect undeclared .bib files in the repo tree
     try:
         commit = repo.commit(ref) if ref else repo.head.commit
@@ -5037,10 +5045,56 @@ def get_project_references(
             ref_collections.append({"path": path})
     except Exception as e:
         logger.warning(f"Failed to scan for undeclared references: {e}")
+    # Map each pipeline dependency path to the stages that consume it, so we can
+    # tell whether a .bib is actually used by the pipeline. Reads both
+    # calkit.yaml's ``pipeline.stages`` (uses ``inputs``) and the generated
+    # dvc.yaml (uses ``deps``), since either may be absent or stale.
+    dep_path_to_stages: dict[str, list[str]] = {}
+
+    def _register_deps(stages: dict, key: str) -> None:
+        for stage_name, stage_def in (stages or {}).items():
+            if not isinstance(stage_def, dict):
+                continue
+            for dep in stage_def.get(key, []) or []:
+                dep_path = dep.get("path") if isinstance(dep, dict) else dep
+                if not isinstance(dep_path, str) or "{" in dep_path:
+                    continue
+                norm = os.path.normpath(dep_path)
+                dep_path_to_stages.setdefault(norm, [])
+                if stage_name not in dep_path_to_stages[norm]:
+                    dep_path_to_stages[norm].append(stage_name)
+
+    try:
+        dvc_pipeline = app.projects.get_dvc_pipeline_for_ref(repo, ref)
+        _register_deps(
+            (ck_info.get("pipeline") or {}).get("stages") or {}, "inputs"
+        )
+        _register_deps(dvc_pipeline.get("stages") or {}, "deps")
+    except Exception as e:
+        logger.warning(f"Failed to read pipeline deps for references: {e}")
+    # Local Zotero sync state (version + timestamp), merged into the durable
+    # link read from calkit.yaml.
+    zotero_sync_info = zotero.read_sync_info(repo.working_dir)
     resp = []
     for ref_collection in ref_collections:
         # Read entries
         path = ref_collection["path"]
+        link = ref_collection.get("zotero")
+        if isinstance(link, dict):
+            state = zotero_sync_info.get(path, {})
+            link["last_sync_version"] = state.get("last_sync_version")
+            link["last_synced"] = state.get("last_synced")
+        # Which pipeline stages use this .bib, matching the path itself or any
+        # ancestor directory a stage may depend on.
+        norm_path = os.path.normpath(path)
+        stage_names: list[str] = []
+        candidate = norm_path
+        while candidate not in (".", "/", ""):
+            for stage_name in dep_path_to_stages.get(candidate, []):
+                if stage_name not in stage_names:
+                    stage_names.append(stage_name)
+            candidate = os.path.dirname(candidate)
+        ref_collection["stages"] = sorted(stage_names)
         if os.path.isfile(os.path.join(repo.working_dir, path)):
             with open(os.path.join(repo.working_dir, path)) as f:
                 raw_text = f.read()
@@ -5291,7 +5345,7 @@ def post_project_zotero_import(
         current_user=current_user,
         min_access_level="write",
     )
-    api_key, _ = users.get_zotero_api_key_and_user_id(
+    api_key, zotero_user_id = users.get_zotero_api_key_and_user_id(
         session=session, user=current_user
     )
     if req.collection_key is not None:
@@ -5329,12 +5383,13 @@ def post_project_zotero_import(
     os.makedirs(os.path.dirname(bib_full_path) or ".", exist_ok=True)
     with open(bib_full_path, "w") as f:
         f.write(bibtex)
+    # The durable link committed in calkit.yaml carries only the collection's
+    # identity; sync bookkeeping lives in .calkit/zotero/sync.json.
     zotero_link = {
         "library_type": req.library_type,
         "library_id": req.library_id,
         "collection_key": collection_key,
         "collection_name": collection_name,
-        "last_sync_version": library_version,
     }
     # An empty "references:" key in calkit.yaml parses to None, so coerce to a
     # list before iterating.
@@ -5351,6 +5406,13 @@ def post_project_zotero_import(
     ck_info["references"] = references
     with open(os.path.join(repo.working_dir, "calkit.yaml"), "w") as f:
         ryaml.dump(ck_info, f)
+    last_synced = _record_zotero_sync_info(
+        repo=repo,
+        bib_path=req.bib_path,
+        zotero_link=zotero_link,
+        user_id=zotero_user_id,
+        library_version=library_version,
+    )
     repo.git.add(req.bib_path)
     repo.git.add("calkit.yaml")
     repo.git.commit(["-m", f"Import Zotero collection into '{req.bib_path}'"])
@@ -5364,7 +5426,123 @@ def post_project_zotero_import(
         },
     )
     return References.model_validate(
-        {"path": req.bib_path, "zotero": zotero_link}
+        {
+            "path": req.bib_path,
+            "zotero": {
+                **zotero_link,
+                "last_sync_version": library_version,
+                "last_synced": last_synced,
+            },
+        }
+    )
+
+
+def _record_zotero_sync_info(
+    repo,
+    bib_path: str,
+    zotero_link: dict,
+    user_id: str,
+    library_version: int,
+) -> str:
+    """Persist local Zotero sync state for a .bib and gitignore its store.
+
+    Returns the ISO timestamp recorded as ``last_synced``.
+    """
+    now_iso = utcnow().isoformat()
+    sync_info = zotero.read_sync_info(repo.working_dir)
+    sync_info[bib_path] = {
+        "library_type": zotero_link["library_type"],
+        "library_id": zotero_link["library_id"],
+        "collection_key": zotero_link["collection_key"],
+        "user_id": user_id,
+        "last_sync_version": library_version,
+        "last_synced": now_iso,
+    }
+    zotero.write_sync_info(repo.working_dir, sync_info)
+    if not repo.ignored(zotero.SYNC_INFO_REL_PATH):
+        with open(os.path.join(repo.working_dir, ".gitignore"), "a") as f:
+            f.write("\n.calkit/zotero/\n")
+        repo.git.add(".gitignore")
+    return now_iso
+
+
+class ZoteroSyncPost(BaseModel):
+    path: str
+
+
+class ZoteroSyncResponse(BaseModel):
+    path: str
+    last_sync_version: int
+    last_synced: str
+    committed: bool
+
+
+@router.post("/projects/{owner_name}/{project_name}/zotero/syncs")
+def post_project_zotero_sync(
+    owner_name: str,
+    project_name: str,
+    req: ZoteroSyncPost,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> ZoteroSyncResponse:
+    """Re-pull a Zotero-linked collection into its ``.bib`` file.
+
+    This is a pull sync: it refreshes the ``.bib`` from Zotero and updates the
+    local sync state. Pushing local ``.bib`` edits back to Zotero is not yet
+    implemented.
+    """
+    project = app.projects.get_project(
+        owner_name=owner_name,
+        project_name=project_name,
+        session=session,
+        current_user=current_user,
+        min_access_level="write",
+    )
+    api_key, zotero_user_id = users.get_zotero_api_key_and_user_id(
+        session=session, user=current_user
+    )
+    repo = get_repo(project=project, user=current_user, session=session)
+    ck_info = get_ck_info_from_repo(repo)
+    references = ck_info.get("references") or []
+    link = None
+    for rc in references:
+        if isinstance(rc, dict) and rc.get("path") == req.path:
+            link = rc.get("zotero")
+            break
+    if not link:
+        raise HTTPException(404, "No Zotero-linked collection at that path")
+    bibtex, library_version = zotero.get_collection_items_bibtex(
+        api_key=api_key,
+        library_type=link["library_type"],
+        library_id=link["library_id"],
+        collection_key=link["collection_key"],
+    )
+    bib_full_path = os.path.join(repo.working_dir, req.path)
+    os.makedirs(os.path.dirname(bib_full_path) or ".", exist_ok=True)
+    with open(bib_full_path, "w") as f:
+        f.write(bibtex)
+    last_synced = _record_zotero_sync_info(
+        repo=repo,
+        bib_path=req.path,
+        zotero_link=link,
+        user_id=zotero_user_id,
+        library_version=library_version,
+    )
+    repo.git.add(req.path)
+    committed = bool(repo.git.diff("--cached", "--name-only").strip())
+    if committed:
+        repo.git.commit(["-m", f"Sync Zotero collection into '{req.path}'"])
+        repo.git.push(["origin", repo.active_branch.name])
+    mixpanel.track(
+        user=current_user,
+        event_name="Synced Zotero collection",
+        add_event_info={"path": req.path, "committed": committed},
+    )
+    return ZoteroSyncResponse(
+        path=req.path,
+        last_sync_version=library_version,
+        last_synced=last_synced,
+        committed=committed,
     )
 
 

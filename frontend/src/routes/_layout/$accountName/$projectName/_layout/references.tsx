@@ -4,6 +4,7 @@ import {
   Box,
   Button,
   Flex,
+  HStack,
   Heading,
   Icon,
   IconButton,
@@ -29,26 +30,32 @@ import {
 import { useQuery } from "@tanstack/react-query"
 import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router"
 import { useState } from "react"
+import { BsFilePdf } from "react-icons/bs"
 import { FaPlus } from "react-icons/fa"
-import { FiFile } from "react-icons/fi"
 import { IoLibraryOutline } from "react-icons/io5"
 import { z } from "zod"
 
-import { BsFilePdf } from "react-icons/bs"
-import { ProjectsService, type ReferenceEntry } from "../../../../../client"
-import { UsersService } from "../../../../../client"
+import {
+  ProjectsService,
+  type ReferenceEntry,
+  UsersService,
+} from "../../../../../client"
 import LoadingSpinner from "../../../../../components/Common/LoadingSpinner"
 import PageMenu from "../../../../../components/Common/PageMenu"
 import Tooltip from "../../../../../components/Common/Tooltip"
 import FileViewModal from "../../../../../components/References/FileViewModal"
 import ImportFromZoteroModal from "../../../../../components/References/ImportFromZoteroModal"
 import NewReferencesCollection from "../../../../../components/References/NewReferencesCollection"
+import ReferencesInfoPanel from "../../../../../components/References/ReferencesInfoPanel"
 import useProject from "../../../../../hooks/useProject"
 import { cleanLatex } from "../../../../../lib/bibtex"
 
 const referencesSearchSchema = z.object({
+  // Selected collection path, so a link restores the same collection.
+  path: z.string().optional(),
   import_zotero_open: z.boolean().optional(),
   new_collection_open: z.boolean().optional(),
+  resolved: z.boolean().optional(),
 })
 
 export const Route = createFileRoute(
@@ -116,8 +123,10 @@ function References() {
   const ref: string | undefined = layoutSearch?.ref
   const navigate = useNavigate({ from: Route.fullPath })
   const {
+    path: selectedPath,
     import_zotero_open: importZoteroOpen,
     new_collection_open: newCollectionOpen,
+    resolved: showResolved,
   } = Route.useSearch()
   const { userHasWriteAccess } = useProject(accountName, projectName)
   const connectedAccountsQuery = useQuery({
@@ -134,6 +143,12 @@ function References() {
   const closeNewCollection = () =>
     navigate({
       search: (prev) => ({ ...prev, new_collection_open: undefined }),
+    })
+  const selectCollection = (path: string) =>
+    navigate({ search: (prev) => ({ ...prev, path }) })
+  const setShowResolved = (resolved: boolean) =>
+    navigate({
+      search: (prev) => ({ ...prev, resolved: resolved || undefined }),
     })
   const {
     isPending,
@@ -159,17 +174,15 @@ function References() {
     setSelectedEntry(entry)
     fileViewModal.onOpen()
   }
-
-  // Flatten all entries for searching and pagination
-  const allEntries =
-    allReferences?.flatMap((refs) =>
-      (refs.entries ?? []).map((e) => ({ ...e, _refPath: refs.path })),
-    ) ?? []
-  // Match the search against the key and all cleaned attribute values, e.g.
-  // title and author, so braces and LaTeX macros don't block a match.
+  // Default to the first collection when none is selected in the URL.
+  const selectedCollection =
+    allReferences?.find((r) => r.path === selectedPath) ?? allReferences?.[0]
+  // Only show the selected collection's entries; match the search against the
+  // key and cleaned attribute values so braces and LaTeX macros don't block it.
   const query = searchText.trim().toLowerCase()
+  const entries = selectedCollection?.entries ?? []
   const filteredEntries = query
-    ? allEntries.filter((e) => {
+    ? entries.filter((e) => {
         const haystack = [
           e.key,
           ...Object.values(e.attrs ?? {}).map((v) => cleanLatex(String(v))),
@@ -178,7 +191,7 @@ function References() {
           .toLowerCase()
         return haystack.includes(query)
       })
-    : allEntries
+    : entries
   const totalEntries = filteredEntries.length
   const visibleEntries = filteredEntries.slice(0, visibleCount)
   const handleSearchChange = (value: string) => {
@@ -190,131 +203,112 @@ function References() {
     <>
       {isPending ? (
         <LoadingSpinner />
+      ) : error ? (
+        <Box>
+          <Text>Could not read references</Text>
+        </Box>
       ) : (
-        <>
-          {error ? (
-            <Box>
-              <Text>Could not read references</Text>
-            </Box>
-          ) : (
-            <Flex width={"full"}>
-              <FileViewModal
-                isOpen={fileViewModal.isOpen}
-                onClose={fileViewModal.onClose}
-                entry={selectedEntry}
+        <Flex width="full" height="100%" gap={0}>
+          <FileViewModal
+            isOpen={fileViewModal.isOpen}
+            onClose={fileViewModal.onClose}
+            entry={selectedEntry}
+          />
+          {userHasWriteAccess ? (
+            <>
+              <ImportFromZoteroModal
+                isOpen={Boolean(importZoteroOpen)}
+                onClose={closeImportZotero}
+                ownerName={accountName}
+                projectName={projectName}
               />
+              <NewReferencesCollection
+                isOpen={Boolean(newCollectionOpen)}
+                onClose={closeNewCollection}
+                ownerName={accountName}
+                projectName={projectName}
+              />
+            </>
+          ) : null}
+          {/* Left: collection index (selectable) */}
+          <PageMenu>
+            <Flex align="center" mb={2}>
+              <Heading size="md">References</Heading>
               {userHasWriteAccess ? (
-                <>
-                  <ImportFromZoteroModal
-                    isOpen={Boolean(importZoteroOpen)}
-                    onClose={closeImportZotero}
-                    ownerName={accountName}
-                    projectName={projectName}
-                  />
-                  <NewReferencesCollection
-                    isOpen={Boolean(newCollectionOpen)}
-                    onClose={closeNewCollection}
-                    ownerName={accountName}
-                    projectName={projectName}
-                  />
-                </>
-              ) : null}
-              {/* References table of contents */}
-              <PageMenu>
-                <Flex align="center" mb={1}>
-                  <Heading size="md">References</Heading>
-                  {userHasWriteAccess ? (
-                    <Menu>
-                      <MenuButton
-                        as={Button}
-                        variant="primary"
-                        height="25px"
-                        width="9px"
-                        px={1}
-                        ml={2}
+                <Menu>
+                  <MenuButton
+                    as={Button}
+                    variant="primary"
+                    height="25px"
+                    width="9px"
+                    px={1}
+                    ml={2}
+                  >
+                    <Icon as={FaPlus} fontSize="xs" />
+                  </MenuButton>
+                  <Portal>
+                    <MenuList zIndex="popover">
+                      <MenuItem onClick={openNewCollection}>
+                        New references collection
+                      </MenuItem>
+                      <Tooltip
+                        label="Connect your Zotero account in settings first"
+                        isDisabled={zoteroConnected}
                       >
-                        <Icon as={FaPlus} fontSize="xs" />
-                      </MenuButton>
-                      <Portal>
-                        <MenuList zIndex="popover">
-                          <MenuItem onClick={openNewCollection}>
-                            New references collection
-                          </MenuItem>
-                          <Tooltip
-                            label="Connect your Zotero account in settings first"
-                            isDisabled={zoteroConnected}
-                          >
-                            <MenuItem
-                              onClick={openImportZotero}
-                              isDisabled={!zoteroConnected}
-                            >
-                              Import from Zotero
-                            </MenuItem>
-                          </Tooltip>
-                        </MenuList>
-                      </Portal>
-                    </Menu>
-                  ) : null}
-                </Flex>
-                {allReferences?.map((references) => (
-                  <Box key={references.path}>
-                    <Link href={`#${references.path}`}>
-                      <Flex alignItems="center">
-                        <Icon mr={1} as={IoLibraryOutline} />
-                        <Text
-                          isTruncated
-                          noOfLines={1}
-                          whiteSpace="nowrap"
-                          overflow="hidden"
-                          textOverflow="ellipsis"
-                          display="inline-block"
-                          maxW="100%"
+                        <MenuItem
+                          onClick={openImportZotero}
+                          isDisabled={!zoteroConnected}
                         >
-                          {references.path}
-                        </Text>
-                        {references.zotero ? (
-                          <Badge ml={1} colorScheme="red" fontSize="0.6em">
-                            Zotero
-                          </Badge>
-                        ) : null}
-                      </Flex>
-                    </Link>
-                    {references ? (
-                      <>
-                        {references.entries?.map((entry) => (
-                          <Link
-                            key={entry.key}
-                            href={`#${references.path}${entry.key}`}
-                          >
-                            <Flex ml={3} alignItems="center">
-                              <Icon
-                                as={entry.url ? BsFilePdf : FiFile}
-                                mr={1}
-                                onClick={() => handleLinkClick(entry)}
-                              />
-                              <Text
-                                isTruncated
-                                noOfLines={1}
-                                whiteSpace="nowrap"
-                                overflow="hidden"
-                                textOverflow="ellipsis"
-                                display="inline-block"
-                                maxW="100%"
-                              >
-                                {entry.key}
-                              </Text>
-                            </Flex>
-                          </Link>
-                        ))}
-                      </>
-                    ) : (
-                      ""
-                    )}
-                  </Box>
-                ))}
-              </PageMenu>
-              {/* A view for all the reference items' content */}
-              <Box pr={4} flex={1}>
+                          Import from Zotero
+                        </MenuItem>
+                      </Tooltip>
+                    </MenuList>
+                  </Portal>
+                </Menu>
+              ) : null}
+            </Flex>
+            {allReferences?.length === 0 ? (
+              <Text fontSize="sm" color="gray.500">
+                No references yet.
+              </Text>
+            ) : null}
+            {allReferences?.map((references) => {
+              const isSelected = references.path === selectedCollection?.path
+              return (
+                <Tooltip
+                  key={references.path}
+                  label={references.path}
+                  placement="right"
+                >
+                  <HStack
+                    px={1}
+                    py={0.5}
+                    borderRadius="md"
+                    cursor="pointer"
+                    fontWeight={isSelected ? "semibold" : "normal"}
+                    color={isSelected ? "blue.500" : undefined}
+                    _hover={{ color: "blue.500" }}
+                    onClick={() => selectCollection(references.path)}
+                    spacing={1}
+                  >
+                    <Icon as={IoLibraryOutline} flexShrink={0} />
+                    <Text fontSize="sm" noOfLines={1}>
+                      {references.path}
+                    </Text>
+                    {references.zotero ? (
+                      <Badge colorScheme="red" fontSize="0.6em">
+                        Zotero
+                      </Badge>
+                    ) : null}
+                  </HStack>
+                </Tooltip>
+              )
+            })}
+          </PageMenu>
+          {/* Center: selected collection's entries */}
+          <Box flex={1} minW={0} mr={6}>
+            {selectedCollection ? (
+              <>
                 <InputGroup mb={3} maxW="400px">
                   <Input
                     placeholder="Search references"
@@ -344,12 +338,14 @@ function References() {
                 </InputGroup>
                 {totalEntries === 0 ? (
                   <Text fontSize="sm" color="gray.500">
-                    No references match your search.
+                    {entries.length === 0
+                      ? "This collection has no references."
+                      : "No references match your search."}
                   </Text>
                 ) : null}
                 {visibleEntries.map((entry) => (
                   <Box
-                    key={`${entry._refPath}-${entry.key}`}
+                    key={`${selectedCollection.path}-${entry.key}`}
                     borderRadius="lg"
                     borderWidth={1}
                     mb={2}
@@ -357,9 +353,7 @@ function References() {
                     boxSizing="border-box"
                   >
                     <Flex alignItems="center">
-                      <Heading size="sm" id={entry._refPath + entry.key}>
-                        {entry.key}
-                      </Heading>
+                      <Heading size="sm">{entry.key}</Heading>
                       <Text ml={1} fontSize="sm">
                         {entry.file_path ? (
                           <Link onClick={() => handleLinkClick(entry)}>
@@ -369,6 +363,14 @@ function References() {
                           ""
                         )}
                       </Text>
+                      {entry.url ? (
+                        <Icon
+                          as={BsFilePdf}
+                          ml={1}
+                          cursor="pointer"
+                          onClick={() => handleLinkClick(entry)}
+                        />
+                      ) : null}
                     </Flex>
                     <ReferenceEntryTable referenceEntry={entry} />
                   </Box>
@@ -384,10 +386,24 @@ function References() {
                     </Button>
                   </Flex>
                 )}
-              </Box>
-            </Flex>
-          )}
-        </>
+              </>
+            ) : null}
+          </Box>
+          {/* Right: info + comments for the selected collection */}
+          {selectedCollection ? (
+            <Box w="280px" flexShrink={0} overflowY="auto">
+              <ReferencesInfoPanel
+                references={selectedCollection}
+                ownerName={accountName}
+                projectName={projectName}
+                gitRef={ref}
+                userHasWriteAccess={userHasWriteAccess}
+                showResolved={Boolean(showResolved)}
+                onShowResolvedChange={setShowResolved}
+              />
+            </Box>
+          ) : null}
+        </Flex>
       )}
     </>
   )

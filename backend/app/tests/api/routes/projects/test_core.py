@@ -1153,10 +1153,13 @@ def _make_fake_repo(working_dir: str) -> SimpleNamespace:
     return SimpleNamespace(
         working_dir=working_dir,
         active_branch=SimpleNamespace(name="main"),
+        ignored=lambda *a, **k: [],
         git=SimpleNamespace(
             add=lambda *a, **k: None,
             commit=lambda *a, **k: None,
             push=lambda *a, **k: None,
+            # Pretend the staged .bib changed, so sync commits.
+            diff=lambda *a, **k: "references.bib",
         ),
     )
 
@@ -1206,10 +1209,11 @@ def test_post_project_zotero_import_whole_collection(
     assert body["zotero"]["last_sync_version"] == 4021
     # Whole-collection mode pulls the existing collection directly.
     assert mock_bibtex.call_args.kwargs["collection_key"] == "ABCD1234"
+    assert body["zotero"]["last_synced"]
     # The .bib file was written with the exported content.
     with open(tmp_path / "references.bib") as f:
         assert f.read() == "@article{a, title={A}}\n"
-    # The calkit.yaml zotero block records all five schema fields.
+    # calkit.yaml carries only the durable link identity, no sync bookkeeping.
     ck_info = ryaml.load((tmp_path / "calkit.yaml").read_text())
     zotero_block = ck_info["references"][0]["zotero"]
     assert zotero_block == {
@@ -1217,8 +1221,16 @@ def test_post_project_zotero_import_whole_collection(
         "library_id": "999",
         "collection_key": "ABCD1234",
         "collection_name": "My Collection",
-        "last_sync_version": 4021,
     }
+    # Sync bookkeeping lands in the gitignored .calkit/zotero/sync.json.
+    import json as _json
+
+    sync_info = _json.loads(
+        (tmp_path / ".calkit" / "zotero" / "sync.json").read_text()
+    )
+    assert sync_info["references.bib"]["last_sync_version"] == 4021
+    assert sync_info["references.bib"]["user_id"] == "999"
+    assert sync_info["references.bib"]["last_synced"]
 
 
 def test_post_project_zotero_import_subset_creates_collection(
@@ -1270,6 +1282,84 @@ def test_post_project_zotero_import_subset_creates_collection(
     assert mock_add.call_args.kwargs["collection_key"] == "NEWKEY01"
     assert body["zotero"]["collection_key"] == "NEWKEY01"
     assert body["zotero"]["collection_name"] == expected_name
+
+
+def test_post_project_zotero_sync_pulls_collection(
+    client: TestClient, db: Session, tmp_path
+) -> None:
+    project, headers = _make_owner_with_project(db, client)
+    owner_name = project.owner_account.name
+    base = f"{settings.API_V1_STR}/projects/{owner_name}/{project.name}"
+    fake_repo = _make_fake_repo(str(tmp_path))
+    ck_info = {
+        "references": [
+            {
+                "path": "references.bib",
+                "zotero": {
+                    "library_type": "user",
+                    "library_id": "999",
+                    "collection_key": "ABCD1234",
+                    "collection_name": "My Collection",
+                },
+            }
+        ]
+    }
+    with (
+        patch("app.api.routes.projects.core.get_repo", return_value=fake_repo),
+        patch(
+            "app.api.routes.projects.core.get_ck_info_from_repo",
+            side_effect=lambda *a, **k: ck_info,
+        ),
+        patch(
+            "app.api.routes.projects.core.users"
+            ".get_zotero_api_key_and_user_id",
+            return_value=("KEY", "999"),
+        ),
+        patch(
+            "app.api.routes.projects.core.zotero.get_collection_items_bibtex",
+            return_value=("@article{a, title={A2}}\n", 4099),
+        ) as mock_bibtex,
+        patch("app.api.routes.projects.core.mixpanel.track"),
+    ):
+        r = client.post(
+            f"{base}/zotero/syncs",
+            headers=headers,
+            json={"path": "references.bib"},
+        )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["last_sync_version"] == 4099
+    assert body["committed"] is True
+    assert mock_bibtex.call_args.kwargs["collection_key"] == "ABCD1234"
+    with open(tmp_path / "references.bib") as f:
+        assert f.read() == "@article{a, title={A2}}\n"
+
+
+def test_post_project_zotero_sync_requires_link(
+    client: TestClient, db: Session, tmp_path
+) -> None:
+    project, headers = _make_owner_with_project(db, client)
+    owner_name = project.owner_account.name
+    base = f"{settings.API_V1_STR}/projects/{owner_name}/{project.name}"
+    fake_repo = _make_fake_repo(str(tmp_path))
+    with (
+        patch("app.api.routes.projects.core.get_repo", return_value=fake_repo),
+        patch(
+            "app.api.routes.projects.core.get_ck_info_from_repo",
+            side_effect=lambda *a, **k: {"references": [{"path": "x.bib"}]},
+        ),
+        patch(
+            "app.api.routes.projects.core.users"
+            ".get_zotero_api_key_and_user_id",
+            return_value=("KEY", "999"),
+        ),
+    ):
+        r = client.post(
+            f"{base}/zotero/syncs",
+            headers=headers,
+            json={"path": "x.bib"},
+        )
+    assert r.status_code == 404
 
 
 def test_post_project_zotero_import_rejects_both_modes(

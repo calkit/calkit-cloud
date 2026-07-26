@@ -5372,6 +5372,17 @@ export const ReferenceZoteroLinkSchema = {
       ],
       title: "Last Sync Version",
     },
+    last_synced: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Last Synced",
+    },
   },
   type: "object",
   required: ["library_type", "library_id", "collection_key"],
@@ -5442,6 +5453,20 @@ export const ReferencesSchema = {
           type: "null",
         },
       ],
+    },
+    stages: {
+      anyOf: [
+        {
+          items: {
+            type: "string",
+          },
+          type: "array",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Stages",
     },
   },
   type: "object",
@@ -8078,6 +8103,42 @@ export const ZoteroLibrarySchema = {
   type: "object",
   required: ["library_type", "library_id", "name"],
   title: "ZoteroLibrary",
+} as const
+
+export const ZoteroSyncPostSchema = {
+  properties: {
+    path: {
+      type: "string",
+      title: "Path",
+    },
+  },
+  type: "object",
+  required: ["path"],
+  title: "ZoteroSyncPost",
+} as const
+
+export const ZoteroSyncResponseSchema = {
+  properties: {
+    path: {
+      type: "string",
+      title: "Path",
+    },
+    last_sync_version: {
+      type: "integer",
+      title: "Last Sync Version",
+    },
+    last_synced: {
+      type: "string",
+      title: "Last Synced",
+    },
+    committed: {
+      type: "boolean",
+      title: "Committed",
+    },
+  },
+  type: "object",
+  required: ["path", "last_sync_version", "last_synced", "committed"],
+  title: "ZoteroSyncResponse",
 } as const
 
 export const _ContentsItemBaseSchema = {

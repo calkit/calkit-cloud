@@ -1102,6 +1102,7 @@ export type References = {
   imported_from?: ImportInfo | null
   raw_text?: string | null
   zotero?: ReferenceZoteroLink | null
+  stages?: Array<string> | null
 }
 
 export type ReferencesPost = {
@@ -1114,6 +1115,7 @@ export type ReferenceZoteroLink = {
   collection_key: string
   collection_name?: string | null
   last_sync_version?: number | null
+  last_synced?: string | null
 }
 
 export type library_type = "user" | "group"
@@ -1647,6 +1649,17 @@ export type ZoteroLibrary = {
   library_type: "user" | "group"
   library_id: string
   name: string
+}
+
+export type ZoteroSyncPost = {
+  path: string
+}
+
+export type ZoteroSyncResponse = {
+  path: string
+  last_sync_version: number
+  last_synced: string
+  committed: boolean
 }
 
 export type GetAccountData = {
@@ -2387,6 +2400,14 @@ export type PostProjectZoteroImportData = {
 }
 
 export type PostProjectZoteroImportResponse = References
+
+export type PostProjectZoteroSyncData = {
+  ownerName: string
+  projectName: string
+  requestBody: ZoteroSyncPost
+}
+
+export type PostProjectZoteroSyncResponse = ZoteroSyncResponse
 
 export type GetProjectEnvironmentsData = {
   ownerName: string
