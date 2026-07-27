@@ -5803,7 +5803,7 @@ def get_project_zotero_item_pdf(
     path: str,
     current_user: CurrentUser,
     session: SessionDep,
-    index: int = 0,
+    index: int = Query(0, ge=0),
 ) -> Response:
     """Stream a reference item's Zotero PDF attachment."""
     project = app.projects.get_project(

@@ -180,6 +180,8 @@ const CollectionTree = memo(function CollectionTree({
         return (
           <Box key={references.path}>
             <HStack
+              role="button"
+              tabIndex={0}
               px={1}
               py={0.5}
               borderRadius="md"
@@ -187,7 +189,14 @@ const CollectionTree = memo(function CollectionTree({
               fontWeight={isSelected ? "semibold" : "normal"}
               color={isSelected ? "blue.500" : undefined}
               _hover={{ color: "blue.500" }}
+              _focusVisible={{ boxShadow: "outline" }}
               onClick={() => onSelectCollection(references.path)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault()
+                  onSelectCollection(references.path)
+                }
+              }}
               spacing={1}
             >
               <IconButton
@@ -233,6 +242,8 @@ const CollectionTree = memo(function CollectionTree({
                       return (
                         <Text
                           key={item.key}
+                          role="button"
+                          tabIndex={0}
                           fontSize="xs"
                           noOfLines={1}
                           py={0.5}
@@ -240,7 +251,14 @@ const CollectionTree = memo(function CollectionTree({
                           fontWeight={isActive ? "semibold" : "normal"}
                           color={isActive ? "blue.500" : undefined}
                           _hover={{ color: "blue.500" }}
+                          _focusVisible={{ boxShadow: "outline" }}
                           onClick={() => onSelectItem(item.key)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault()
+                              onSelectItem(item.key)
+                            }
+                          }}
                         >
                           {item.key}
                         </Text>
@@ -248,12 +266,21 @@ const CollectionTree = memo(function CollectionTree({
                     })}
                     {remaining > 0 ? (
                       <Text
+                        role="button"
+                        tabIndex={0}
                         fontSize="xs"
                         color="blue.500"
                         py={0.5}
                         cursor="pointer"
                         _hover={{ textDecoration: "underline" }}
+                        _focusVisible={{ boxShadow: "outline" }}
                         onClick={() => setLimit((l) => l + SIDEBAR_ITEM_PAGE)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault()
+                            setLimit((l) => l + SIDEBAR_ITEM_PAGE)
+                          }
+                        }}
                       >
                         Show {Math.min(remaining, SIDEBAR_ITEM_PAGE)} more (
                         {remaining} remaining)

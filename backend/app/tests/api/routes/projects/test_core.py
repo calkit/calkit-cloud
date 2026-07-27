@@ -1483,11 +1483,17 @@ def test_get_project_zotero_item_pdf(
             f"{base}/zotero/items/missing/pdf?path=references.bib",
             headers=headers,
         )
+        # A negative index is rejected rather than wrapping to the last one.
+        r3 = client.get(
+            f"{base}/zotero/items/a/pdf?path=references.bib&index=-1",
+            headers=headers,
+        )
     assert r.status_code == 200, r.text
     assert r.content == b"%PDF-1.4 fake"
     assert r.headers["content-type"] == "application/pdf"
     assert mock_dl.call_args.kwargs["attachment_key"] == "ATT1"
     assert r2.status_code == 404
+    assert r3.status_code == 422
 
 
 def test_put_project_zotero_item_notes(
