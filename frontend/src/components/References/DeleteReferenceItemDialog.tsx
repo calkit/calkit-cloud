@@ -67,8 +67,9 @@ const DeleteReferenceItemDialog = ({
         <AlertDialogContent>
           <AlertDialogHeader>Delete reference</AlertDialogHeader>
           <AlertDialogBody>
-            Delete <strong>{entry?.key}</strong> from this collection? You will
-            not be able to undo this action.
+            Delete <strong>{entry?.key}</strong> from this collection? It's
+            committed to Git, so you can restore it from the project history if
+            needed.
           </AlertDialogBody>
           <AlertDialogFooter gap={3}>
             <Button

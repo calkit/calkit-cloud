@@ -66,7 +66,8 @@ const DeleteReferencesCollectionDialog = ({
           <AlertDialogBody>
             Delete <strong>{path}</strong>? This removes the .bib file and
             unlinks it from Zotero (the Zotero collection itself is left
-            untouched). You will not be able to undo this action.
+            untouched). It's committed to Git, so you can restore it from the
+            project history if needed.
           </AlertDialogBody>
           <AlertDialogFooter gap={3}>
             <Button
