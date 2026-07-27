@@ -92,7 +92,7 @@ const ReferencesInfoPanel = ({
   const invalidateComments = () =>
     queryClient.invalidateQueries({ queryKey: commentsKey })
   const postCommentMutation = useMutation({
-    mutationFn: (vars: { body: string }) =>
+    mutationFn: (vars: { body: string; createIssue: boolean }) =>
       ProjectsService.postProjectComment({
         ownerName,
         projectName,
@@ -100,6 +100,7 @@ const ReferencesInfoPanel = ({
           artifact_path: path,
           artifact_type: "references",
           comment: vars.body,
+          create_github_issue: vars.createIssue,
           git_ref: gitRef ?? null,
         },
       }),
@@ -206,7 +207,13 @@ const ReferencesInfoPanel = ({
         canResolve={!!user}
         showResolved={showResolved}
         onShowResolvedChange={onShowResolvedChange}
-        onPostComment={(body) => postCommentMutation.mutateAsync({ body })}
+        showCreateIssueCheckbox
+        onPostComment={(body, opts) =>
+          postCommentMutation.mutateAsync({
+            body,
+            createIssue: opts.createIssue,
+          })
+        }
         postingComment={postCommentMutation.isPending}
         onPostReply={(parentId, body) =>
           replyCommentMutation.mutateAsync({ commentId: parentId, body })
