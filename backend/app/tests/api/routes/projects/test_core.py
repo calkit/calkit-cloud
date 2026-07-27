@@ -1244,24 +1244,22 @@ def test_post_project_zotero_import_whole_collection(
         (tmp_path / ".calkit" / "zotero" / "items.json").read_text()
     )
     assert items_info["references.bib"]["a"]["item_key"] == "IT1"
-    # calkit.yaml carries only the durable link identity, no sync bookkeeping.
+    # calkit.yaml just lists the path; no Zotero details leak into it.
     ck_info = ryaml.load((tmp_path / "calkit.yaml").read_text())
-    zotero_block = ck_info["references"][0]["zotero"]
-    assert zotero_block == {
-        "library_type": "user",
-        "library_id": "999",
-        "collection_key": "ABCD1234",
-        "collection_name": "My Collection",
-    }
-    # Sync bookkeeping lands in the gitignored .calkit/zotero/sync.json.
+    assert ck_info["references"][0] == {"path": "references.bib"}
+    # The entire private link + sync bookkeeping lands in sync.json.
     import json as _json
 
     sync_info = _json.loads(
         (tmp_path / ".calkit" / "zotero" / "sync.json").read_text()
-    )
-    assert sync_info["references.bib"]["last_sync_version"] == 4021
-    assert sync_info["references.bib"]["user_id"] == "999"
-    assert sync_info["references.bib"]["last_synced"]
+    )["references.bib"]
+    assert sync_info["library_type"] == "user"
+    assert sync_info["library_id"] == "999"
+    assert sync_info["collection_key"] == "ABCD1234"
+    assert sync_info["collection_name"] == "My Collection"
+    assert sync_info["last_sync_version"] == 4021
+    assert sync_info["user_id"] == "999"
+    assert sync_info["last_synced"]
 
 
 def test_post_project_zotero_import_subset_creates_collection(
@@ -1336,24 +1334,12 @@ def test_post_project_zotero_sync_pulls_collection(
     owner_name = project.owner_account.name
     base = f"{settings.API_V1_STR}/projects/{owner_name}/{project.name}"
     fake_repo = _make_fake_repo(str(tmp_path))
-    ck_info = {
-        "references": [
-            {
-                "path": "references.bib",
-                "zotero": {
-                    "library_type": "user",
-                    "library_id": "999",
-                    "collection_key": "ABCD1234",
-                    "collection_name": "My Collection",
-                },
-            }
-        ]
-    }
+    _write_zotero_link(tmp_path)
     with (
         patch("app.api.routes.projects.core.get_repo", return_value=fake_repo),
         patch(
             "app.api.routes.projects.core.get_ck_info_from_repo",
-            side_effect=lambda *a, **k: ck_info,
+            side_effect=lambda *a, **k: _zotero_linked_ck_info(),
         ),
         patch(
             "app.api.routes.projects.core.users"
@@ -1377,6 +1363,10 @@ def test_post_project_zotero_sync_pulls_collection(
         patch(
             "app.api.routes.projects.core.zotero.get_deleted_item_keys",
             return_value=[],
+        ),
+        patch(
+            "app.api.routes.projects.core.zotero.get_collection_name",
+            return_value="My Collection",
         ),
         patch("app.api.routes.projects.core.mixpanel.track"),
     ):
@@ -1423,19 +1413,27 @@ def test_post_project_zotero_sync_requires_link(
 
 
 def _zotero_linked_ck_info() -> dict:
-    return {
-        "references": [
-            {
-                "path": "references.bib",
-                "zotero": {
-                    "library_type": "user",
-                    "library_id": "999",
-                    "collection_key": "ABCD1234",
-                    "collection_name": "My Collection",
-                },
+    return {"references": [{"path": "references.bib"}]}
+
+
+def _write_zotero_link(
+    tmp_path, path: str = "references.bib", last_sync_version: int = 5
+) -> None:
+    """Seed the private Zotero link in .calkit/zotero/sync.json for a test."""
+    zotero.write_sync_info(
+        str(tmp_path),
+        {
+            path: {
+                "library_type": "user",
+                "library_id": "999",
+                "collection_key": "ABCD1234",
+                "collection_name": "My Collection",
+                "user_id": "999",
+                "last_sync_version": last_sync_version,
+                "last_synced": "2020-01-01T00:00:00",
             }
-        ]
-    }
+        },
+    )
 
 
 def test_get_project_zotero_item_pdf(
@@ -1458,6 +1456,7 @@ def test_get_project_zotero_item_pdf(
             }
         },
     )
+    _write_zotero_link(tmp_path)
     with (
         patch("app.api.routes.projects.core.get_repo", return_value=fake_repo),
         patch(
@@ -1518,6 +1517,7 @@ def test_put_project_zotero_item_notes(
             }
         },
     )
+    _write_zotero_link(tmp_path)
     # Zotero currently has one note child; positional sync updates it and
     # creates a second for the extra note.
     existing_children = [
@@ -1910,6 +1910,7 @@ def test_add_reference_creates_zotero_item_when_linked(
     base = f"{settings.API_V1_STR}/projects/{owner_name}/{project.name}"
     fake_repo = _make_fake_repo(str(tmp_path))
     (tmp_path / "references.bib").write_text("")
+    _write_zotero_link(tmp_path)
     with (
         patch("app.api.routes.projects.core.get_repo", return_value=fake_repo),
         patch(
@@ -1960,6 +1961,7 @@ def test_delete_reference_deletes_zotero_item_when_linked(
     zotero.write_items_info(
         str(tmp_path), {"references.bib": {"gone": {"item_key": "IT_GONE"}}}
     )
+    _write_zotero_link(tmp_path)
     with (
         patch("app.api.routes.projects.core.get_repo", return_value=fake_repo),
         patch(
@@ -2007,9 +2009,7 @@ def test_zotero_sync_merges_changes_per_item(
             }
         },
     )
-    zotero.write_sync_info(
-        str(tmp_path), {"references.bib": {"last_sync_version": 5}}
-    )
+    _write_zotero_link(tmp_path)
     changed = [
         {
             "item_key": "IT1",
@@ -2036,6 +2036,10 @@ def test_zotero_sync_merges_changes_per_item(
         patch(
             "app.api.routes.projects.core.zotero.get_deleted_item_keys",
             return_value=["IT2"],
+        ),
+        patch(
+            "app.api.routes.projects.core.zotero.get_collection_name",
+            return_value="My Collection",
         ),
         patch(
             "app.api.routes.projects.core.zotero.build_item_info",
@@ -2085,9 +2089,7 @@ def test_zotero_sync_pulls_note_edits(
             }
         },
     )
-    zotero.write_sync_info(
-        str(tmp_path), {"references.bib": {"last_sync_version": 5}}
-    )
+    _write_zotero_link(tmp_path)
     # The note carries a highlight anchor Zotero can't store, kept by note key.
     zotero.write_note_anchors(
         str(tmp_path),
@@ -2120,6 +2122,10 @@ def test_zotero_sync_pulls_note_edits(
         patch(
             "app.api.routes.projects.core.zotero.get_deleted_item_keys",
             return_value=[],
+        ),
+        patch(
+            "app.api.routes.projects.core.zotero.get_collection_name",
+            return_value="My Collection",
         ),
         patch(
             "app.api.routes.projects.core.zotero.build_item_info",

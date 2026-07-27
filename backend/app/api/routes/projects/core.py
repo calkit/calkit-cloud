@@ -5083,6 +5083,11 @@ def get_project_references(
     # field, not here.
     zotero_sync_info = zotero.read_sync_info(repo.working_dir)
     zotero_items_info = zotero.read_items_info(repo.working_dir)
+    # For older links whose name wasn't cached, resolve it from Zotero once for
+    # the signed-in owner so the panel shows a name, not the raw key. Best-effort
+    # and not persisted here (a sync caches it for everyone).
+    zotero_api_key: str | None = None
+    zotero_key_tried = False
     resp = []
     for ref_collection in ref_collections:
         # Skip malformed YAML entries rather than 500ing on them.
@@ -5093,11 +5098,42 @@ def get_project_references(
             continue
         # Read entries
         path = ref_collection["path"]
-        link = ref_collection.get("zotero")
-        if isinstance(link, dict):
-            state = zotero_sync_info.get(path, {})
-            link["last_sync_version"] = state.get("last_sync_version")
-            link["last_synced"] = state.get("last_synced")
+        # The Zotero link is private (.calkit/zotero/sync.json), not in
+        # calkit.yaml, which just lists the collection paths.
+        state = zotero_sync_info.get(path)
+        if isinstance(state, dict) and state.get("collection_key"):
+            collection_name = state.get("collection_name")
+            if not collection_name and current_user is not None:
+                if not zotero_key_tried:
+                    zotero_key_tried = True
+                    try:
+                        zotero_api_key, _ = (
+                            users.get_zotero_api_key_and_user_id(
+                                session=session, user=current_user
+                            )
+                        )
+                    except HTTPException:
+                        zotero_api_key = None
+                if zotero_api_key:
+                    try:
+                        collection_name = zotero.get_collection_name(
+                            api_key=zotero_api_key,
+                            library_type=state["library_type"],
+                            library_id=state["library_id"],
+                            collection_key=state["collection_key"],
+                        )
+                    except HTTPException:
+                        collection_name = None
+            ref_collection["zotero"] = {
+                "library_type": state.get("library_type"),
+                "library_id": state.get("library_id"),
+                "collection_key": state.get("collection_key"),
+                "collection_name": collection_name,
+                "last_sync_version": state.get("last_sync_version"),
+                "last_synced": state.get("last_synced"),
+            }
+        else:
+            ref_collection.pop("zotero", None)
         # Which pipeline stages use this .bib, matching the path itself or any
         # ancestor directory a stage may depend on.
         norm_path = os.path.normpath(path)
@@ -5631,23 +5667,23 @@ def post_project_zotero_import(
         library_id=req.library_id,
         collection_key=collection_key,
     )
-    # The durable link committed in calkit.yaml carries only the collection's
-    # identity; sync bookkeeping lives in .calkit/zotero/sync.json.
+    # calkit.yaml just lists the collection path; the entire Zotero link is
+    # private, kept in .calkit/zotero/sync.json.
     zotero_link = {
         "library_type": req.library_type,
         "library_id": req.library_id,
         "collection_key": collection_key,
-        "collection_name": collection_name,
     }
     for ref_collection in references:
         if (
             isinstance(ref_collection, dict)
             and ref_collection.get("path") == req.bib_path
         ):
-            ref_collection["zotero"] = zotero_link
+            # Drop any link left in calkit.yaml by an older version.
+            ref_collection.pop("zotero", None)
             break
     else:
-        references.append({"path": req.bib_path, "zotero": zotero_link})
+        references.append({"path": req.bib_path})
     ck_info["references"] = references
     with open(os.path.join(repo.working_dir, "calkit.yaml"), "w") as f:
         ryaml.dump(ck_info, f)
@@ -5657,6 +5693,7 @@ def post_project_zotero_import(
         zotero_link=zotero_link,
         user_id=zotero_user_id,
         library_version=library_version,
+        collection_name=collection_name,
     )
     repo.git.add(req.bib_path)
     repo.git.add("calkit.yaml")
@@ -5675,6 +5712,7 @@ def post_project_zotero_import(
             "path": req.bib_path,
             "zotero": {
                 **zotero_link,
+                "collection_name": collection_name,
                 "last_sync_version": library_version,
                 "last_synced": last_synced,
             },
@@ -5746,12 +5784,14 @@ def _record_zotero_sync_info(
     zotero_link: dict,
     user_id: str,
     library_version: int,
+    collection_name: str | None = None,
 ) -> str:
     """Persist Zotero sync state for a .bib and stage it for commit.
 
     Like Overleaf, sync state is stateful and travels with the repo, so it's
     committed (force-added in case an older clone gitignored .calkit/zotero/).
-    Returns the ISO timestamp recorded as ``last_synced``.
+    The collection name is cached here (fetched from Zotero), not in
+    calkit.yaml, since it's derived data. Returns the ISO ``last_synced``.
     """
     now_iso = utcnow().isoformat()
     sync_info = zotero.read_sync_info(repo.working_dir)
@@ -5759,6 +5799,7 @@ def _record_zotero_sync_info(
         "library_type": zotero_link["library_type"],
         "library_id": zotero_link["library_id"],
         "collection_key": zotero_link["collection_key"],
+        "collection_name": collection_name,
         "user_id": user_id,
         "last_sync_version": library_version,
         "last_synced": now_iso,
@@ -6047,12 +6088,20 @@ def post_project_zotero_sync(
         path=req.path,
         since_version=since,
     )
+    # Refresh the cached collection name from Zotero (it may have been renamed).
+    collection_name = zotero.get_collection_name(
+        api_key=api_key,
+        library_type=link["library_type"],
+        library_id=link["library_id"],
+        collection_key=link["collection_key"],
+    )
     last_synced = _record_zotero_sync_info(
         repo=repo,
         bib_path=req.path,
         zotero_link=link,
         user_id=zotero_user_id,
         library_version=library_version,
+        collection_name=collection_name,
     )
     repo.git.add(req.path)
     committed = bool(repo.git.diff("--cached", "--name-only").strip())
@@ -6075,15 +6124,10 @@ def post_project_zotero_sync(
 def _resolve_zotero_item(repo, path: str, bib_key: str) -> tuple[dict, dict]:
     """Return ``(link, item)`` for a reference entry, or raise 404.
 
-    ``link`` is the collection's Zotero link from calkit.yaml; ``item`` is the
-    entry's record from .calkit/zotero/items.json.
+    ``link`` is the collection's Zotero link from .calkit/zotero/sync.json;
+    ``item`` is the entry's record from .calkit/zotero/items.json.
     """
-    ck_info = get_ck_info_from_repo(repo)
-    link = None
-    for rc in ck_info.get("references") or []:
-        if isinstance(rc, dict) and rc.get("path") == path:
-            link = rc.get("zotero")
-            break
+    link = _find_reference_link(repo, path)
     if not link:
         raise HTTPException(404, "No Zotero-linked collection at that path")
     item = zotero.read_items_info(repo.working_dir).get(path, {}).get(bib_key)
@@ -6151,11 +6195,14 @@ BIB_NOTE_FIELD = zotero.NOTE_FIELD
 
 
 def _find_reference_link(repo, path: str) -> dict | None:
-    """Return the Zotero link for the collection at ``path``, if any."""
-    ck_info = get_ck_info_from_repo(repo)
-    for rc in ck_info.get("references") or []:
-        if isinstance(rc, dict) and rc.get("path") == path:
-            return rc.get("zotero")
+    """Return the Zotero link for the collection at ``path``, if any.
+
+    The link is private, kept in .calkit/zotero/sync.json rather than
+    calkit.yaml (which just lists collection paths).
+    """
+    info = zotero.read_sync_info(repo.working_dir).get(path)
+    if isinstance(info, dict) and info.get("collection_key"):
+        return info
     return None
 
 

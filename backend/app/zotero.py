@@ -1081,7 +1081,7 @@ ITEMS_REL_PATH = os.path.join(ZOTERO_DIR, "items.json")
 # Highlight anchors keyed by Zotero note key. Zotero can't store a Calkit PDF
 # highlight anchor, so it's kept here and re-attached when a note is pulled
 # back, instead of being lost each sync.
-ANCHORS_REL_PATH = os.path.join(ZOTERO_DIR, "note_anchors.json")
+ANCHORS_REL_PATH = os.path.join(ZOTERO_DIR, "note-anchors.json")
 
 
 def _read_json(working_dir: str, rel_path: str) -> dict:
