@@ -2031,6 +2031,81 @@ def test_zotero_sync_merges_changes_per_item(
     assert "@article{stale," not in text
 
 
+def test_zotero_sync_pulls_note_edits(
+    client: TestClient, db: Session, tmp_path
+) -> None:
+    # A note edited on Zotero changes only the note child item (the parent's
+    # version is untouched), so sync must still refresh the parent's notes.
+    project, headers = _make_owner_with_project(db, client)
+    owner_name = project.owner_account.name
+    base = f"{settings.API_V1_STR}/projects/{owner_name}/{project.name}"
+    fake_repo = _make_fake_repo(str(tmp_path))
+    (tmp_path / "references.bib").write_text(
+        "@article{localkey,\n  title = {T},\n  comment = {Old note},\n}\n"
+    )
+    zotero.write_items_info(
+        str(tmp_path),
+        {
+            "references.bib": {
+                "localkey": {"item_key": "IT1", "note_keys": ["NOTE1"]}
+            }
+        },
+    )
+    zotero.write_sync_info(
+        str(tmp_path), {"references.bib": {"last_sync_version": 5}}
+    )
+    # Only the note child comes back changed (no top-level bibtex).
+    changed = [
+        {
+            "item_key": "NOTE1",
+            "bibtex": "",
+            "data": {"parentItem": "IT1", "itemType": "note"},
+            "num_children": 0,
+        }
+    ]
+    with (
+        patch("app.api.routes.projects.core.get_repo", return_value=fake_repo),
+        patch(
+            "app.api.routes.projects.core.get_ck_info_from_repo",
+            side_effect=lambda *a, **k: _zotero_linked_ck_info(),
+        ),
+        patch(
+            "app.api.routes.projects.core.users"
+            ".get_zotero_api_key_and_user_id",
+            return_value=("KEY", "999"),
+        ),
+        patch(
+            "app.api.routes.projects.core.zotero.get_collection_items",
+            return_value=(changed, 9),
+        ),
+        patch(
+            "app.api.routes.projects.core.zotero.get_deleted_item_keys",
+            return_value=[],
+        ),
+        patch(
+            "app.api.routes.projects.core.zotero.build_item_info",
+            return_value=(
+                {
+                    "item_key": "IT1",
+                    "pdf_attachment_keys": [],
+                    "note_keys": ["NOTE1"],
+                },
+                [{"key": "NOTE1", "html": "<p>Updated note</p>"}],
+            ),
+        ),
+        patch("app.api.routes.projects.core.mixpanel.track"),
+    ):
+        r = client.post(
+            f"{base}/zotero/syncs",
+            headers=headers,
+            json={"path": "references.bib"},
+        )
+    assert r.status_code == 200, r.text
+    text = (tmp_path / "references.bib").read_text()
+    assert "Updated note" in text
+    assert "Old note" not in text
+
+
 def test_post_project_zotero_import_rejects_both_modes(
     client: TestClient, db: Session, tmp_path
 ) -> None:

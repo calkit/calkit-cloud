@@ -5858,15 +5858,30 @@ class ZoteroSyncResponse(BaseModel):
     committed: bool
 
 
+def _apply_notes_to_entry(entry: dict, notes: list) -> None:
+    """Set (or clear) a reference entry's ``comment`` from Zotero notes."""
+    markdown = ""
+    if notes:
+        markdown = zotero.serialize_notes_markdown(
+            [{"text": zotero.note_html_to_text(n["html"])} for n in notes]
+        )
+    if markdown:
+        entry[BIB_NOTE_FIELD] = markdown
+    else:
+        entry.pop(BIB_NOTE_FIELD, None)
+
+
 def _merge_zotero_changes_into_bib(
     repo, api_key: str, link: dict, path: str, since_version: int
 ) -> int:
     """Incrementally merge Zotero changes since ``since_version`` into the .bib.
 
-    Only items changed on Zotero are updated in place (preserving the local
-    citation key) or added; items deleted on Zotero are removed. Entries not
-    touched on Zotero, including local-only ones added on Calkit, are left as
-    they are. Returns the new library version.
+    Items changed on Zotero are updated in place (preserving the local citation
+    key) or added; items deleted on Zotero are removed. Note/attachment children
+    are included too, so a note-only edit (which doesn't bump its parent item's
+    version) still refreshes its parent's notes. Entries untouched on Zotero,
+    including local-only ones added on Calkit, are left alone. Returns the new
+    library version.
     """
     lt, lid = link["library_type"], link["library_id"]
     changed_items, new_version = zotero.get_collection_items(
@@ -5875,6 +5890,7 @@ def _merge_zotero_changes_into_bib(
         library_id=lid,
         collection_key=link["collection_key"],
         since=since_version,
+        include_children=True,
     )
     deleted_keys = set(
         zotero.get_deleted_item_keys(
@@ -5897,8 +5913,21 @@ def _merge_zotero_changes_into_bib(
         for bk, info in item_map.items()
         if info.get("item_key")
     }
+    notekey_to_bibkey = {
+        nk: bk
+        for bk, info in item_map.items()
+        for nk in info.get("note_keys", [])
+    }
     entries_by_id = {e["ID"]: e for e in db.entries}
+    # Item keys of changed top-level items (whose notes are refreshed inline),
+    # and parent keys whose only change was to a child (note/attachment).
+    changed_top_keys = set()
+    parents_to_refresh = set()
     for it in changed_items:
+        if (it.get("data") or {}).get("parentItem"):
+            parents_to_refresh.add(it["data"]["parentItem"])
+            continue
+        changed_top_keys.add(it["item_key"])
         if not it["bibtex"]:
             continue
         parsed = bibtexparser.loads(it["bibtex"]).entries
@@ -5906,12 +5935,7 @@ def _merge_zotero_changes_into_bib(
             continue
         new_entry = parsed[0]
         info, notes = zotero.build_item_info(api_key, lt, lid, it)
-        if notes:
-            markdown = zotero.serialize_notes_markdown(
-                [{"text": zotero.note_html_to_text(n["html"])} for n in notes]
-            )
-            if markdown:
-                new_entry[BIB_NOTE_FIELD] = markdown
+        _apply_notes_to_entry(new_entry, notes)
         local_bibkey = itemkey_to_bibkey.get(it["item_key"])
         if local_bibkey and local_bibkey in entries_by_id:
             # Update in place, keeping the local citation key.
@@ -5932,13 +5956,33 @@ def _merge_zotero_changes_into_bib(
             db.entries.append(new_entry)
             entries_by_id[key] = new_entry
             item_map[key] = info
-    drop = {
-        itemkey_to_bibkey[k] for k in deleted_keys if k in itemkey_to_bibkey
-    }
+    # Deletions: a deleted top-level item drops its entry; a deleted note child
+    # just refreshes its parent's notes.
+    drop = set()
+    for k in deleted_keys:
+        if k in itemkey_to_bibkey:
+            drop.add(itemkey_to_bibkey[k])
+        elif k in notekey_to_bibkey:
+            info = item_map.get(notekey_to_bibkey[k]) or {}
+            if info.get("item_key"):
+                parents_to_refresh.add(info["item_key"])
     if drop:
         db.entries = [e for e in db.entries if e.get("ID") not in drop]
         for bib_key in drop:
             item_map.pop(bib_key, None)
+    # Refresh notes for parents whose only change was a child, unless the parent
+    # was already updated as a top-level change or was just deleted.
+    for parent_key in parents_to_refresh:
+        if parent_key in changed_top_keys:
+            continue
+        bibkey = itemkey_to_bibkey.get(parent_key)
+        if not bibkey or bibkey in drop or bibkey not in entries_by_id:
+            continue
+        info, notes = zotero.build_item_info(
+            api_key, lt, lid, {"item_key": parent_key, "num_children": 1}
+        )
+        _apply_notes_to_entry(entries_by_id[bibkey], notes)
+        item_map[bibkey] = info
     os.makedirs(os.path.dirname(full_path) or ".", exist_ok=True)
     with open(full_path, "w") as f:
         f.write(zotero.format_bib(bibtexparser.dumps(db)))

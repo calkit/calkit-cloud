@@ -617,6 +617,7 @@ def get_collection_items(
     library_id: str,
     collection_key: str,
     since: int | None = None,
+    include_children: bool = False,
 ) -> tuple[list[dict], int]:
     """Fetch a collection's top-level items with their BibTeX and data.
 
@@ -624,11 +625,14 @@ def get_collection_items(
     key alongside its rendered BibTeX entry, which is how a BibTeX citekey is
     tied back to its Zotero item (attachments, notes). With ``since`` set, only
     items modified after that library version are returned (an incremental
-    pull). Returns ``(items, library_version)`` where each item is
+    pull); with ``include_children`` set, note/attachment children are included
+    too (so a note-only edit, which doesn't bump its parent's version, is still
+    seen). Returns ``(items, library_version)`` where each item is
     ``{item_key, bibtex, data, num_children}``.
     """
     prefix = _library_prefix(library_type, library_id)
-    url = f"{BASE_URL}/{prefix}/collections/{collection_key}/items/top"
+    suffix = "items" if include_children else "items/top"
+    url = f"{BASE_URL}/{prefix}/collections/{collection_key}/{suffix}"
     items: list[dict] = []
     library_version = 0
     start = 0
