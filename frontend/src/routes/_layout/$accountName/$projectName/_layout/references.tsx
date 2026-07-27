@@ -942,6 +942,15 @@ function References() {
                 userHasWriteAccess={userHasWriteAccess}
                 showResolved={Boolean(showResolved)}
                 onShowResolvedChange={setShowResolved}
+                onDeleted={() =>
+                  navigate({
+                    search: (prev) => ({
+                      ...prev,
+                      path: undefined,
+                      item: undefined,
+                    }),
+                  })
+                }
               />
             </Box>
           ) : null}

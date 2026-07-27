@@ -5277,6 +5277,79 @@ def post_project_references(
     return References.model_validate({"path": req.path})
 
 
+@router.delete("/projects/{owner_name}/{project_name}/references")
+def delete_project_references(
+    owner_name: str,
+    project_name: str,
+    path: str,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> Message:
+    """Delete a references collection.
+
+    Removes its calkit.yaml entry, the ``.bib`` file, and all of its Zotero
+    state under .calkit/zotero/ (sync link, item map, note anchors). The
+    collection is only unlinked locally; the Zotero collection itself is left
+    untouched.
+    """
+    project = app.projects.get_project(
+        owner_name=owner_name,
+        project_name=project_name,
+        session=session,
+        current_user=current_user,
+        min_access_level="write",
+    )
+    repo = get_repo(project=project, user=current_user, session=session)
+    ck_info = get_ck_info_from_repo(repo)
+    references = ck_info.get("references") or []
+    kept = [
+        rc
+        for rc in references
+        if not (isinstance(rc, dict) and rc.get("path") == path)
+    ]
+    bib_full_path = os.path.join(repo.working_dir, path)
+    if len(kept) == len(references) and not os.path.isfile(bib_full_path):
+        raise HTTPException(404, "References collection not found")
+    ck_info["references"] = kept
+    with open(os.path.join(repo.working_dir, "calkit.yaml"), "w") as f:
+        ryaml.dump(ck_info, f)
+    repo.git.add("calkit.yaml")
+    if os.path.isfile(bib_full_path):
+        os.remove(bib_full_path)
+        repo.git.add(path)
+    # Scrub the collection's Zotero state.
+    all_items = zotero.read_items_info(repo.working_dir)
+    item_map = all_items.pop(path, None)
+    if item_map is not None:
+        zotero.write_items_info(repo.working_dir, all_items)
+        repo.git.add(["-f", zotero.ITEMS_REL_PATH])
+        note_keys = {
+            nk
+            for info in item_map.values()
+            for nk in (info.get("note_keys") or [])
+        }
+        if note_keys:
+            anchors = zotero.read_note_anchors(repo.working_dir)
+            if any(nk in anchors for nk in note_keys):
+                for nk in note_keys:
+                    anchors.pop(nk, None)
+                zotero.write_note_anchors(repo.working_dir, anchors)
+                repo.git.add(["-f", zotero.ANCHORS_REL_PATH])
+    sync_info = zotero.read_sync_info(repo.working_dir)
+    if sync_info.pop(path, None) is not None:
+        zotero.write_sync_info(repo.working_dir, sync_info)
+        repo.git.add(["-f", zotero.SYNC_INFO_REL_PATH])
+    if repo.git.diff("--cached", "--name-only").strip():
+        repo.git.commit(["-m", f"Delete references collection '{path}'"])
+        repo.git.push(["origin", repo.active_branch.name])
+    mixpanel.track(
+        user=current_user,
+        event_name="Deleted references collection",
+        add_event_info={"path": path},
+    )
+    return Message(message="References collection deleted")
+
+
 class ReferenceItemPost(BaseModel):
     path: str
     type: str = "article"

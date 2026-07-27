@@ -2349,3 +2349,63 @@ def test_post_project_references_label_existing_missing_file(
             json={"path": "missing.bib", "label_existing": True},
         )
     assert r.status_code == 404, r.text
+
+
+def test_delete_project_references_collection(
+    client: TestClient, db: Session, tmp_path
+) -> None:
+    project, headers = _make_owner_with_project(db, client)
+    owner_name = project.owner_account.name
+    base = f"{settings.API_V1_STR}/projects/{owner_name}/{project.name}"
+    fake_repo = _make_fake_repo(str(tmp_path))
+    (tmp_path / "references.bib").write_text(
+        "@article{a,\n  title = {A},\n}\n"
+    )
+    zotero.write_items_info(
+        str(tmp_path),
+        {"references.bib": {"a": {"item_key": "IT1", "note_keys": ["N1"]}}},
+    )
+    zotero.write_note_anchors(
+        str(tmp_path), {"N1": {"position": {"pageNumber": 1}, "quote": "q"}}
+    )
+    _write_zotero_link(tmp_path)
+    with (
+        patch("app.api.routes.projects.core.get_repo", return_value=fake_repo),
+        patch(
+            "app.api.routes.projects.core.get_ck_info_from_repo",
+            side_effect=lambda *a, **k: {
+                "references": [{"path": "references.bib"}]
+            },
+        ),
+        patch("app.api.routes.projects.core.mixpanel.track"),
+    ):
+        r = client.delete(
+            f"{base}/references?path=references.bib", headers=headers
+        )
+    assert r.status_code == 200, r.text
+    # The .bib, its calkit.yaml entry, and all Zotero state are gone.
+    assert not (tmp_path / "references.bib").exists()
+    ck_info = ryaml.load((tmp_path / "calkit.yaml").read_text())
+    assert ck_info["references"] == []
+    assert "references.bib" not in zotero.read_items_info(str(tmp_path))
+    assert "references.bib" not in zotero.read_sync_info(str(tmp_path))
+    assert "N1" not in zotero.read_note_anchors(str(tmp_path))
+
+
+def test_delete_project_references_collection_missing(
+    client: TestClient, db: Session, tmp_path
+) -> None:
+    project, headers = _make_owner_with_project(db, client)
+    owner_name = project.owner_account.name
+    base = f"{settings.API_V1_STR}/projects/{owner_name}/{project.name}"
+    fake_repo = _make_fake_repo(str(tmp_path))
+    with (
+        patch("app.api.routes.projects.core.get_repo", return_value=fake_repo),
+        patch(
+            "app.api.routes.projects.core.get_ck_info_from_repo",
+            side_effect=lambda *a, **k: {"references": []},
+        ),
+        patch("app.api.routes.projects.core.mixpanel.track"),
+    ):
+        r = client.delete(f"{base}/references?path=nope.bib", headers=headers)
+    assert r.status_code == 404, r.text

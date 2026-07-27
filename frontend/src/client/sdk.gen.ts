@@ -181,6 +181,8 @@ import type {
   GetProjectReferencesResponse,
   PostProjectReferencesData,
   PostProjectReferencesResponse,
+  DeleteProjectReferencesData,
+  DeleteProjectReferencesResponse,
   PostProjectReferenceItemData,
   PostProjectReferenceItemResponse,
   PutProjectReferenceItemData,
@@ -2791,12 +2793,46 @@ export class ProjectsService {
   }
 
   /**
+   * Delete Project References
+   * Delete a references collection.
+   *
+   * Removes its calkit.yaml entry, the ``.bib`` file, and all of its Zotero
+   * state under .calkit/zotero/ (sync link, item map, note anchors). The
+   * collection is only unlinked locally; the Zotero collection itself is left
+   * untouched.
+   * @param data The data for the request.
+   * @param data.ownerName
+   * @param data.projectName
+   * @param data.path
+   * @returns Message Successful Response
+   * @throws ApiError
+   */
+  public static deleteProjectReferences(
+    data: DeleteProjectReferencesData,
+  ): CancelablePromise<DeleteProjectReferencesResponse> {
+    return __request(OpenAPI, {
+      method: "DELETE",
+      url: "/projects/{owner_name}/{project_name}/references",
+      path: {
+        owner_name: data.ownerName,
+        project_name: data.projectName,
+      },
+      query: {
+        path: data.path,
+      },
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
    * Post Project Reference Item
    * Add a new entry to a references (.bib) collection.
    *
-   * For a Zotero-linked collection the item is created in Zotero and the
-   * collection re-pulled, so it survives a later sync (Zotero is the source of
-   * truth); otherwise the entry is written straight to the ``.bib``.
+   * The entry is written to the ``.bib`` and committed. For a Zotero-linked
+   * collection it reaches Zotero on the next sync (which pushes local changes
+   * before pulling).
    * @param data The data for the request.
    * @param data.ownerName
    * @param data.projectName
@@ -2859,8 +2895,8 @@ export class ProjectsService {
    * Delete Project Reference Item
    * Delete an entry from a references (.bib) collection.
    *
-   * For a Zotero-linked collection the item is also deleted from Zotero and the
-   * collection re-pulled, so it doesn't reappear on the next sync.
+   * The entry is removed from the ``.bib`` and committed. For a Zotero-linked
+   * collection the item is deleted from Zotero too.
    * @param data The data for the request.
    * @param data.ownerName
    * @param data.projectName
@@ -3015,11 +3051,13 @@ export class ProjectsService {
 
   /**
    * Post Project Zotero Sync
-   * Re-pull a Zotero-linked collection into its ``.bib`` file.
+   * Pull Zotero changes into a linked collection's ``.bib``, per item.
    *
-   * This is a pull sync: it refreshes the ``.bib`` from Zotero and updates the
-   * local sync state. Pushing local ``.bib`` edits back to Zotero is not yet
-   * implemented.
+   * Local edits already reach Zotero when they are made (add/edit/delete push
+   * immediately), so sync only pulls: it fetches the items changed on Zotero
+   * since the last sync and merges them into the ``.bib`` one at a time,
+   * updating changed entries in place, adding new ones, and removing deleted
+   * ones, while leaving untouched (including local-only) entries alone.
    * @param data The data for the request.
    * @param data.ownerName
    * @param data.projectName

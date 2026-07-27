@@ -2410,6 +2410,14 @@ export type PostProjectReferencesData = {
 
 export type PostProjectReferencesResponse = References
 
+export type DeleteProjectReferencesData = {
+  ownerName: string
+  path: string
+  projectName: string
+}
+
+export type DeleteProjectReferencesResponse = Message
+
 export type PostProjectReferenceItemData = {
   ownerName: string
   projectName: string

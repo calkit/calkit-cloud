@@ -9,10 +9,11 @@ import {
   Text,
   VStack,
   useColorModeValue,
+  useDisclosure,
 } from "@chakra-ui/react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link as RouterLink } from "@tanstack/react-router"
-import { FaSync } from "react-icons/fa"
+import { FaSync, FaTrash } from "react-icons/fa"
 
 import { type ApiError, ProjectsService, type References } from "../../client"
 import useAuth from "../../hooks/useAuth"
@@ -21,6 +22,7 @@ import { handleError } from "../../lib/errors"
 import CommentsPanel, {
   projectCommentToPanelComment,
 } from "../Common/CommentsPanel"
+import DeleteReferencesCollectionDialog from "./DeleteReferencesCollectionDialog"
 
 interface ReferencesInfoPanelProps {
   references: References
@@ -30,6 +32,8 @@ interface ReferencesInfoPanelProps {
   userHasWriteAccess: boolean
   showResolved: boolean
   onShowResolvedChange: (showResolved: boolean) => void
+  // Called after the collection is deleted (e.g. to clear the selection).
+  onDeleted?: () => void
 }
 
 // Info + comments panel for a selected references collection, mirroring the
@@ -42,11 +46,13 @@ const ReferencesInfoPanel = ({
   userHasWriteAccess,
   showResolved,
   onShowResolvedChange,
+  onDeleted,
 }: ReferencesInfoPanelProps) => {
   const secBgColor = useColorModeValue("ui.secondary", "ui.darkSlate")
   const queryClient = useQueryClient()
   const showToast = useCustomToast()
   const { user } = useAuth()
+  const deleteDisclosure = useDisclosure()
   const path = references.path
   const stages = references.stages ?? []
   const zoteroSyncMutation = useMutation({
@@ -199,7 +205,29 @@ const ReferencesInfoPanel = ({
             ) : null}
           </Box>
         ) : null}
+        {userHasWriteAccess ? (
+          <Button
+            size="xs"
+            mt={3}
+            variant="ghost"
+            colorScheme="red"
+            leftIcon={<FaTrash />}
+            onClick={deleteDisclosure.onOpen}
+          >
+            Delete collection
+          </Button>
+        ) : null}
       </Box>
+      {userHasWriteAccess ? (
+        <DeleteReferencesCollectionDialog
+          isOpen={deleteDisclosure.isOpen}
+          onClose={deleteDisclosure.onClose}
+          ownerName={ownerName}
+          projectName={projectName}
+          path={path}
+          onDeleted={onDeleted}
+        />
+      ) : null}
       <CommentsPanel
         comments={comments.map(projectCommentToPanelComment)}
         isLoading={commentsQuery.isPending}
