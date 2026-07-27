@@ -14,7 +14,7 @@ import {
   SimpleGrid,
 } from "@chakra-ui/react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 
 import {
   type ApiError,
@@ -22,6 +22,7 @@ import {
   type ReferenceEntry,
 } from "../../client"
 import useCustomToast from "../../hooks/useCustomToast"
+import { cleanLatex } from "../../lib/bibtex"
 import { handleError } from "../../lib/errors"
 
 interface EditReferenceItemModalProps {
@@ -46,21 +47,46 @@ const TYPES = [
   "unpublished",
   "misc",
 ]
-// Common BibTeX fields offered in the form. Fields not listed here are left
-// untouched on edit (the backend merges).
-const FIELD_NAMES = [
-  "title",
-  "author",
-  "year",
-  "journal",
-  "booktitle",
-  "publisher",
-  "volume",
-  "number",
-  "pages",
-  "doi",
-  "url",
-]
+// Fields shown for every entry type.
+const COMMON_FIELDS = ["title", "author", "year", "doi", "url"]
+// Extra BibTeX fields per entry type, so the form matches the item (like
+// Zotero) instead of a fixed set. Any other field already on the entry is still
+// shown so it can be edited, and unshown fields are left untouched by the
+// backend.
+const TYPE_FIELDS: Record<string, string[]> = {
+  article: ["journal", "volume", "number", "pages", "month"],
+  book: [
+    "editor",
+    "publisher",
+    "volume",
+    "series",
+    "edition",
+    "address",
+    "isbn",
+  ],
+  inbook: ["chapter", "pages", "publisher", "editor", "series", "address"],
+  incollection: [
+    "booktitle",
+    "publisher",
+    "editor",
+    "pages",
+    "chapter",
+    "address",
+  ],
+  inproceedings: [
+    "booktitle",
+    "editor",
+    "pages",
+    "organization",
+    "publisher",
+    "address",
+  ],
+  phdthesis: ["school", "address", "month"],
+  mastersthesis: ["school", "address", "month"],
+  techreport: ["institution", "number", "address", "month"],
+  unpublished: ["note", "month"],
+  misc: ["howpublished", "note", "month"],
+}
 
 const EditReferenceItemModal = ({
   isOpen,
@@ -81,30 +107,54 @@ const EditReferenceItemModal = ({
     if (!isOpen) return
     setType(entry?.type ?? "article")
     setKey(entry?.key ?? "")
+    // Load every field on the entry, so existing fields outside the type's
+    // standard set are still editable rather than hidden. Show cleaned text
+    // (no LaTeX braces/macros), like the reference table and Zotero do.
     const initial: Record<string, string> = {}
-    for (const name of FIELD_NAMES) {
-      const v = entry?.attrs?.[name]
-      if (v != null) initial[name] = String(v)
+    for (const [name, value] of Object.entries(entry?.attrs ?? {})) {
+      if (value != null) initial[name] = cleanLatex(String(value))
     }
     setFields(initial)
   }, [isOpen, entry])
+  // The fields to show: the type's standard set plus any other field already on
+  // the entry.
+  const shownFields = useMemo(() => {
+    const standard = [...COMMON_FIELDS, ...(TYPE_FIELDS[type] ?? [])]
+    const seen = new Set(standard)
+    const extras = Object.keys(fields).filter((name) => !seen.has(name))
+    return [...standard, ...extras]
+  }, [type, fields])
   // Whether the form differs from the entry being edited, so an unchanged edit
   // (which would be a no-op) can't be submitted. A new item is always "dirty".
   const initialFieldValue = (name: string) => {
     const v = entry?.attrs?.[name]
-    return v != null ? String(v) : ""
+    return v != null ? cleanLatex(String(v)) : ""
   }
   const isDirty =
     !isEdit ||
     type !== (entry?.type ?? "article") ||
     key.trim() !== (entry?.key ?? "") ||
-    FIELD_NAMES.some(
+    shownFields.some(
       (name) => (fields[name] ?? "").trim() !== initialFieldValue(name).trim(),
     )
 
   const mutation = useMutation({
     mutationFn: () => {
-      const body = { path: bibPath, type, key: key.trim(), fields }
+      // On edit, send only the fields that actually changed, so untouched
+      // fields keep their stored (possibly LaTeX) form instead of being
+      // rewritten as cleaned text.
+      const changed: Record<string, string> = {}
+      if (isEdit) {
+        for (const name of shownFields) {
+          const value = (fields[name] ?? "").trim()
+          if (value !== initialFieldValue(name).trim()) changed[name] = value
+        }
+      } else {
+        for (const [name, value] of Object.entries(fields)) {
+          if (value.trim()) changed[name] = value.trim()
+        }
+      }
+      const body = { path: bibPath, type, key: key.trim(), fields: changed }
       return isEdit
         ? ProjectsService.putProjectReferenceItem({
             ownerName,
@@ -179,7 +229,7 @@ const EditReferenceItemModal = ({
                 data-lpignore="true"
               />
             </FormControl>
-            {FIELD_NAMES.map((name) => (
+            {shownFields.map((name) => (
               <FormControl key={name}>
                 <FormLabel textTransform="capitalize">{name}</FormLabel>
                 <Input

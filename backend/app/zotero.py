@@ -453,15 +453,18 @@ def _apply_bibtex_fields(item: dict, template: dict, fields: dict) -> None:
     """Map BibTeX-style ``fields`` onto a Zotero ``item`` in place.
 
     Only fields valid for the item type (present in ``template``) are set;
-    creators come from author/editor and the date from year/month.
+    creators come from author/editor and the date from year/month. Creators and
+    date are only touched when their source fields are provided, so a partial
+    update (e.g. an edit that changed only the year) doesn't wipe the authors.
     """
-    valid_creator_types = {
-        c.get("creatorType") for c in template.get("creators", [])
-    } or {"author"}
-    item["creators"] = _bibtex_creators(fields, valid_creator_types)
-    year = (fields.get("year") or "").strip()
-    month = (fields.get("month") or "").strip()
-    if year and "date" in template:
+    if "author" in fields or "editor" in fields:
+        valid_creator_types = {
+            c.get("creatorType") for c in template.get("creators", [])
+        } or {"author"}
+        item["creators"] = _bibtex_creators(fields, valid_creator_types)
+    if ("year" in fields or "month" in fields) and "date" in template:
+        year = (fields.get("year") or "").strip()
+        month = (fields.get("month") or "").strip()
         item["date"] = f"{month} {year}".strip()
     for bib_field, value in fields.items():
         if bib_field.lower() in ("author", "editor", "year", "month"):
@@ -497,6 +500,10 @@ def create_item(
     template = _item_template(api_key, zotero_type)
     item = dict(template)
     _apply_bibtex_fields(item, template, fields)
+    # A new item with no author shouldn't inherit the template's placeholder
+    # creator.
+    if "author" not in fields and "editor" not in fields:
+        item["creators"] = []
     if collection_key:
         item["collections"] = [collection_key]
     prefix = _library_prefix(library_type, library_id)
@@ -1071,6 +1078,10 @@ def delete_note(
 ZOTERO_DIR = os.path.join(".calkit", "zotero")
 SYNC_INFO_REL_PATH = os.path.join(ZOTERO_DIR, "sync.json")
 ITEMS_REL_PATH = os.path.join(ZOTERO_DIR, "items.json")
+# Highlight anchors keyed by Zotero note key. Zotero can't store a Calkit PDF
+# highlight anchor, so it's kept here and re-attached when a note is pulled
+# back, instead of being lost each sync.
+ANCHORS_REL_PATH = os.path.join(ZOTERO_DIR, "note_anchors.json")
 
 
 def _read_json(working_dir: str, rel_path: str) -> dict:
@@ -1106,3 +1117,34 @@ def read_items_info(working_dir: str) -> dict:
 
 def write_items_info(working_dir: str, items_info: dict) -> None:
     _write_json(working_dir, ITEMS_REL_PATH, items_info)
+
+
+def read_note_anchors(working_dir: str) -> dict:
+    return _read_json(working_dir, ANCHORS_REL_PATH)
+
+
+def write_note_anchors(working_dir: str, anchors: dict) -> None:
+    _write_json(working_dir, ANCHORS_REL_PATH, anchors)
+
+
+def zotero_notes_to_local(notes: list[dict], anchors: dict) -> list[dict]:
+    """Convert Zotero note children into ``[{text, highlight}]`` local notes.
+
+    A stored anchor (keyed by note key) is re-attached, and the leading
+    blockquote that mirrors its quote is stripped so the quote isn't duplicated
+    when the note is re-serialized.
+    """
+    result = []
+    for n in notes:
+        html = n.get("html", "")
+        anchor = anchors.get(n.get("key"))
+        if anchor:
+            html = re.sub(
+                r"^\s*<blockquote>.*?</blockquote>",
+                "",
+                html,
+                count=1,
+                flags=re.S | re.I,
+            )
+        result.append({"text": note_html_to_text(html), "highlight": anchor})
+    return result

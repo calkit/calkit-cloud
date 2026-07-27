@@ -1375,8 +1375,8 @@ def test_post_project_zotero_sync_pulls_collection(
             ),
         ) as mock_items,
         patch(
-            "app.api.routes.projects.core.zotero.build_item_maps",
-            return_value=({}, {}),
+            "app.api.routes.projects.core.zotero.get_deleted_item_keys",
+            return_value=[],
         ),
         patch("app.api.routes.projects.core.mixpanel.track"),
     ):
@@ -1715,6 +1715,24 @@ def test_latex_to_text_strips_markup_for_zotero() -> None:
     )
 
 
+def test_zotero_notes_to_local_reattaches_anchors() -> None:
+    # A pulled Zotero note whose key has a stored anchor gets the anchor back,
+    # and the blockquote mirroring the quote is stripped to avoid duplication.
+    notes = [
+        {
+            "key": "N1",
+            "html": "<blockquote><p>the quote</p></blockquote><p>body</p>",
+        },
+        {"key": "N2", "html": "<p>plain</p>"},
+    ]
+    anchors = {"N1": {"position": {"pageNumber": 1}, "quote": "the quote"}}
+    result = zotero.zotero_notes_to_local(notes, anchors)
+    assert result[0]["highlight"] == anchors["N1"]
+    assert result[0]["text"] == "body"
+    assert result[1]["highlight"] is None
+    assert result[1]["text"] == "plain"
+
+
 def test_apply_bibtex_fields_sends_plain_text() -> None:
     template = {"title": "", "creators": [{"creatorType": "author"}]}
     item = dict(template)
@@ -1725,6 +1743,22 @@ def test_apply_bibtex_fields_sends_plain_text() -> None:
     assert item["creators"] == [
         {"creatorType": "author", "firstName": "Jane", "lastName": "Doe"}
     ]
+
+
+def test_apply_bibtex_fields_partial_update_keeps_creators() -> None:
+    # An update that doesn't include author/editor must not wipe existing
+    # creators (a partial PATCH shouldn't clobber unspecified fields).
+    template = {
+        "title": "",
+        "date": "",
+        "creators": [{"creatorType": "author"}],
+    }
+    item = {"creators": [{"creatorType": "author", "lastName": "Existing"}]}
+    zotero._apply_bibtex_fields(item, template, {"year": "2020"})
+    assert item["creators"] == [
+        {"creatorType": "author", "lastName": "Existing"}
+    ]
+    assert item["date"] == "2020"
 
 
 def test_format_bib_is_idempotent() -> None:
@@ -2054,6 +2088,11 @@ def test_zotero_sync_pulls_note_edits(
     zotero.write_sync_info(
         str(tmp_path), {"references.bib": {"last_sync_version": 5}}
     )
+    # The note carries a highlight anchor Zotero can't store, kept by note key.
+    zotero.write_note_anchors(
+        str(tmp_path),
+        {"NOTE1": {"position": {"pageNumber": 1}, "quote": "ctx"}},
+    )
     # Only the note child comes back changed (no top-level bibtex).
     changed = [
         {
@@ -2104,6 +2143,8 @@ def test_zotero_sync_pulls_note_edits(
     text = (tmp_path / "references.bib").read_text()
     assert "Updated note" in text
     assert "Old note" not in text
+    # The highlight anchor survives the sync (re-attached by note key).
+    assert "calkit-highlight" in text
 
 
 def test_post_project_zotero_import_rejects_both_modes(

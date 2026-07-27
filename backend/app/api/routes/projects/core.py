@@ -5348,6 +5348,7 @@ def put_project_reference_item(
         raise HTTPException(404, "Reference entry not found")
     if req.key != bib_key and any(e.get("ID") == req.key for e in db.entries):
         raise HTTPException(409, f"An entry '{req.key}' already exists")
+    before = dict(entry)
     entry["ENTRYTYPE"] = req.type
     entry["ID"] = req.key
     for field, value in req.fields.items():
@@ -5357,8 +5358,10 @@ def put_project_reference_item(
             entry.pop(field, None)
     # Push the edit to Zotero first for a linked collection (this also follows a
     # key rename in the item map); a failure aborts before the local write.
+    # Skip the push when nothing actually changed, so a redundant save doesn't
+    # bump the Zotero version.
     link = _find_reference_link(repo, req.path)
-    if link:
+    if link and entry != before:
         api_key, _ = users.get_zotero_api_key_and_user_id(
             session=session, user=current_user
         )
@@ -5858,13 +5861,14 @@ class ZoteroSyncResponse(BaseModel):
     committed: bool
 
 
-def _apply_notes_to_entry(entry: dict, notes: list) -> None:
-    """Set (or clear) a reference entry's ``comment`` from Zotero notes."""
-    markdown = ""
-    if notes:
-        markdown = zotero.serialize_notes_markdown(
-            [{"text": zotero.note_html_to_text(n["html"])} for n in notes]
-        )
+def _apply_notes_to_entry(entry: dict, notes: list, anchors: dict) -> None:
+    """Set (or clear) a reference entry's ``comment`` from Zotero notes,
+    re-attaching any highlight anchors stored by note key.
+    """
+    local_notes = zotero.zotero_notes_to_local(notes, anchors)
+    markdown = (
+        zotero.serialize_notes_markdown(local_notes) if local_notes else ""
+    )
     if markdown:
         entry[BIB_NOTE_FIELD] = markdown
     else:
@@ -5918,6 +5922,7 @@ def _merge_zotero_changes_into_bib(
         for bk, info in item_map.items()
         for nk in info.get("note_keys", [])
     }
+    anchors = zotero.read_note_anchors(repo.working_dir)
     entries_by_id = {e["ID"]: e for e in db.entries}
     # Item keys of changed top-level items (whose notes are refreshed inline),
     # and parent keys whose only change was to a child (note/attachment).
@@ -5935,16 +5940,20 @@ def _merge_zotero_changes_into_bib(
             continue
         new_entry = parsed[0]
         info, notes = zotero.build_item_info(api_key, lt, lid, it)
-        _apply_notes_to_entry(new_entry, notes)
+        _apply_notes_to_entry(new_entry, notes, anchors)
         local_bibkey = itemkey_to_bibkey.get(it["item_key"])
         if local_bibkey and local_bibkey in entries_by_id:
-            # Update in place, keeping the local citation key.
+            # Update in place, keeping the local citation key. Overwrite/add the
+            # fields Zotero exports but keep local-only ones (e.g. a manual
+            # ``file``) that its export doesn't include.
             target = entries_by_id[local_bibkey]
-            target.clear()
-            target["ID"] = local_bibkey
             for k, v in new_entry.items():
                 if k != "ID":
                     target[k] = v
+            # Notes are re-derived from Zotero each pull, so clear them when it
+            # has none rather than leaving stale local notes.
+            if BIB_NOTE_FIELD not in new_entry:
+                target.pop(BIB_NOTE_FIELD, None)
             item_map[local_bibkey] = info
         else:
             # A Zotero-side addition: bring it in under its Zotero citekey,
@@ -5981,7 +5990,7 @@ def _merge_zotero_changes_into_bib(
         info, notes = zotero.build_item_info(
             api_key, lt, lid, {"item_key": parent_key, "num_children": 1}
         )
-        _apply_notes_to_entry(entries_by_id[bibkey], notes)
+        _apply_notes_to_entry(entries_by_id[bibkey], notes, anchors)
         item_map[bibkey] = info
     os.makedirs(os.path.dirname(full_path) or ".", exist_ok=True)
     with open(full_path, "w") as f:
@@ -6022,30 +6031,22 @@ def post_project_zotero_sync(
     link = _find_reference_link(repo, req.path)
     if not link:
         raise HTTPException(404, "No Zotero-linked collection at that path")
+    # Merge incrementally. With no recorded version yet, since=0 pulls every
+    # item but still merges per item (preserving local-only entries and local
+    # citation keys), rather than regenerating the whole .bib.
     since = (
         zotero.read_sync_info(repo.working_dir)
         .get(req.path, {})
         .get("last_sync_version")
+        or 0
     )
-    if since is None:
-        # No recorded version yet: fall back to a full pull to establish one.
-        library_version = _pull_zotero_collection(
-            repo=repo,
-            api_key=api_key,
-            bib_path=req.path,
-            bib_full_path=os.path.join(repo.working_dir, req.path),
-            library_type=link["library_type"],
-            library_id=link["library_id"],
-            collection_key=link["collection_key"],
-        )
-    else:
-        library_version = _merge_zotero_changes_into_bib(
-            repo=repo,
-            api_key=api_key,
-            link=link,
-            path=req.path,
-            since_version=since,
-        )
+    library_version = _merge_zotero_changes_into_bib(
+        repo=repo,
+        api_key=api_key,
+        link=link,
+        path=req.path,
+        since_version=since,
+    )
     last_synced = _record_zotero_sync_info(
         repo=repo,
         bib_path=req.path,
@@ -6220,25 +6221,33 @@ def _sync_notes_to_zotero(
         )
         if child.get("data", {}).get("itemType") == "note"
     ]
+    # Zotero can't hold a highlight anchor, so track each note's anchor by its
+    # Zotero note key here, to re-attach it when the note is pulled back.
+    anchors = zotero.read_note_anchors(repo.working_dir)
     for i, note in enumerate(notes):
         html = zotero.note_zotero_html(note)
         if i < len(existing):
+            note_key = existing[i]["key"]
             zotero.update_note(
                 api_key=api_key,
                 library_type=link["library_type"],
                 library_id=link["library_id"],
-                note_key=existing[i]["key"],
+                note_key=note_key,
                 version=existing[i]["version"],
                 html=html,
             )
         else:
-            zotero.create_note(
+            note_key = zotero.create_note(
                 api_key=api_key,
                 library_type=link["library_type"],
                 library_id=link["library_id"],
                 parent_item_key=item_key,
                 html=html,
-            )
+            )["key"]
+        if note.get("highlight"):
+            anchors[note_key] = note["highlight"]
+        else:
+            anchors.pop(note_key, None)
     for child in existing[len(notes) :]:
         zotero.delete_note(
             api_key=api_key,
@@ -6247,6 +6256,9 @@ def _sync_notes_to_zotero(
             note_key=child["key"],
             version=child["version"],
         )
+        anchors.pop(child["key"], None)
+    zotero.write_note_anchors(repo.working_dir, anchors)
+    repo.git.add(["-f", zotero.ANCHORS_REL_PATH])
 
 
 @router.get(
@@ -6318,7 +6330,9 @@ def put_project_reference_notes(
     item = (
         zotero.read_items_info(repo.working_dir).get(req.path, {}).get(bib_key)
     )
-    if link and item:
+    # Only push to Zotero when the notes actually changed, so a redundant save
+    # doesn't churn Zotero note versions.
+    if changed and link and item:
         api_key, _ = users.get_zotero_api_key_and_user_id(
             session=session, user=current_user
         )
