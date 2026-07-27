@@ -37,6 +37,7 @@ from fastapi import (
     Response,
     UploadFile,
 )
+from fastapi.responses import StreamingResponse
 from git.exc import GitCommandError
 from pydantic import BaseModel, ValidationError
 from sqlmodel import Session, and_, func, not_, or_, select
@@ -5821,13 +5822,14 @@ def get_project_zotero_item_pdf(
     attachment_keys = item.get("pdf_attachment_keys") or []
     if index >= len(attachment_keys):
         raise HTTPException(404, "No PDF for this reference item")
-    content, content_type = zotero.download_attachment(
+    stream, content_type, content_length = zotero.stream_attachment(
         api_key=api_key,
         library_type=link["library_type"],
         library_id=link["library_id"],
         attachment_key=attachment_keys[index],
     )
-    return Response(content=content, media_type=content_type)
+    headers = {"Content-Length": content_length} if content_length else {}
+    return StreamingResponse(stream, media_type=content_type, headers=headers)
 
 
 class ReferenceNoteHighlight(BaseModel):

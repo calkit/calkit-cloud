@@ -20,10 +20,19 @@ import { IoLibraryOutline } from "react-icons/io5"
 import { MdOutlineDashboard } from "react-icons/md"
 import { SiJupyter } from "react-icons/si"
 import { TiFlowMerge } from "react-icons/ti"
+import type { IconType } from "react-icons"
 import useAuth from "../../hooks/useAuth"
 
+export interface ProjectNavItem {
+  icon: IconType
+  title: string
+  path: string
+  // Hidden from the sidebar and command palette when logged out.
+  requiresLogin?: boolean
+}
+
 // The project's navigable sections, shared with the Cmd+K command palette.
-export const projectNavItems = [
+export const projectNavItems: ProjectNavItem[] = [
   { icon: FiHome, title: "Project home", path: "" },
   { icon: MdOutlineDashboard, title: "App", path: "/app" },
   { icon: TiFlowMerge, title: "Pipeline", path: "/pipeline" },
@@ -36,10 +45,20 @@ export const projectNavItems = [
   { icon: FiGitBranch, title: "History", path: "/history" },
   { icon: FiTag, title: "Releases", path: "/releases" },
   { icon: FiHardDrive, title: "Software", path: "/software" },
-  { icon: FiUsers, title: "Collaborators", path: "/collaborators" },
+  {
+    icon: FiUsers,
+    title: "Collaborators",
+    path: "/collaborators",
+    requiresLogin: true,
+  },
   { icon: IoLibraryOutline, title: "References", path: "/references" },
   { icon: FiFolder, title: "All files", path: "/files" },
-  { icon: FaLaptop, title: "Local machine", path: "/local" },
+  {
+    icon: FaLaptop,
+    title: "Local machine",
+    path: "/local",
+    requiresLogin: true,
+  },
 ]
 
 interface SidebarItemsProps {
@@ -51,7 +70,6 @@ const SidebarItems = ({ onClose, basePath }: SidebarItemsProps) => {
   const textColor = useColorModeValue("ui.main", "ui.light")
   const bgActive = useColorModeValue("#E2E8F0", "#4A5568")
   const finalItems = projectNavItems
-  const itemsRequireLogin = ["Collaborators", "Local machine"]
   const { user } = useAuth()
   const routeApi = getRouteApi("/_layout/$accountName/$projectName")
   const { accountName, projectName } = routeApi.useParams()
@@ -82,8 +100,8 @@ const SidebarItems = ({ onClose, basePath }: SidebarItemsProps) => {
       ? "gray"
       : "ui.success"
 
-  const listItems = finalItems.map(({ icon, title, path }) => {
-    if (itemsRequireLogin.includes(title) && !user) {
+  const listItems = finalItems.map(({ icon, title, path, requiresLogin }) => {
+    if (requiresLogin && !user) {
       return null
     }
 

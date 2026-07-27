@@ -15,6 +15,7 @@ import {
 import { getRouteApi, useNavigate, useSearch } from "@tanstack/react-router"
 import { useEffect, useMemo, useRef, useState } from "react"
 
+import useAuth from "../../hooks/useAuth"
 import { projectNavItems } from "./SidebarItems"
 
 // A Cmd/Ctrl+K command palette for jumping between a project's sections by
@@ -23,6 +24,7 @@ const ProjectCommandPalette = () => {
   const routeApi = getRouteApi("/_layout/$accountName/$projectName")
   const { accountName, projectName } = routeApi.useParams()
   const navigate = useNavigate()
+  const { user } = useAuth()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const layoutSearch = useSearch({
     from: "/_layout/$accountName/$projectName/_layout" as any,
@@ -59,13 +61,17 @@ const ProjectCommandPalette = () => {
     }
   }, [isOpen])
 
+  // Mirror the sidebar: don't surface sections the user can't reach when logged
+  // out.
+  const availableItems = useMemo(
+    () => projectNavItems.filter((item) => user || !item.requiresLogin),
+    [user],
+  )
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    if (!q) return projectNavItems
-    return projectNavItems.filter((item) =>
-      item.title.toLowerCase().includes(q),
-    )
-  }, [query])
+    if (!q) return availableItems
+    return availableItems.filter((item) => item.title.toLowerCase().includes(q))
+  }, [query, availableItems])
 
   const listRef = useRef<HTMLDivElement>(null)
   // Keep the highlighted item in view as the selection moves.

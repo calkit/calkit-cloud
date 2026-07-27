@@ -12,6 +12,7 @@ import json
 import logging
 import os
 import re
+from collections.abc import Iterator
 from urllib.parse import parse_qsl, urlencode
 
 import bibtexparser
@@ -603,6 +604,41 @@ def download_attachment(
         raise HTTPException(resp.status_code, "Failed to download attachment")
     content_type = resp.headers.get("Content-Type", "application/octet-stream")
     return resp.content, content_type
+
+
+def stream_attachment(
+    api_key: str,
+    library_type: str,
+    library_id: str,
+    attachment_key: str,
+    chunk_size: int = 65536,
+) -> tuple[Iterator[bytes], str, str | None]:
+    """Stream an attachment's file, yielding ``(chunks, content_type, length)``.
+
+    The upstream response is streamed rather than read into memory, so a large
+    PDF isn't fully buffered on the server before reaching the client. ``length``
+    is the upstream ``Content-Length`` when known, else ``None``.
+    """
+    prefix = _library_prefix(library_type, library_id)
+    resp = requests.get(
+        f"{BASE_URL}/{prefix}/items/{attachment_key}/file",
+        headers=_headers(api_key),
+        timeout=120,
+        allow_redirects=True,
+        stream=True,
+    )
+    if resp.status_code != 200:
+        resp.close()
+        logger.error(f"Zotero attachment download status {resp.status_code}")
+        raise HTTPException(resp.status_code, "Failed to download attachment")
+    content_type = resp.headers.get("Content-Type", "application/octet-stream")
+    content_length = resp.headers.get("Content-Length")
+
+    def iterator() -> Iterator[bytes]:
+        with resp:
+            yield from resp.iter_content(chunk_size=chunk_size)
+
+    return iterator(), content_type, content_length
 
 
 def create_note(

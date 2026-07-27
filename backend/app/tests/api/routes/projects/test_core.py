@@ -1470,8 +1470,8 @@ def test_get_project_zotero_item_pdf(
             return_value=("KEY", "999"),
         ),
         patch(
-            "app.api.routes.projects.core.zotero.download_attachment",
-            return_value=(b"%PDF-1.4 fake", "application/pdf"),
+            "app.api.routes.projects.core.zotero.stream_attachment",
+            return_value=(iter([b"%PDF-1.4 fake"]), "application/pdf", "13"),
         ) as mock_dl,
     ):
         r = client.get(
