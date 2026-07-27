@@ -32,7 +32,7 @@ import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router"
 import mixpanel from "mixpanel-browser"
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { BsFilePdf } from "react-icons/bs"
-import { FaChevronDown, FaChevronRight, FaPlus } from "react-icons/fa"
+import { FaChevronDown, FaChevronRight, FaPlus, FaTrash } from "react-icons/fa"
 import { IoLibraryOutline } from "react-icons/io5"
 import { MdEdit } from "react-icons/md"
 import { z } from "zod"
@@ -47,6 +47,7 @@ import {
 import LoadingSpinner from "../../../../../components/Common/LoadingSpinner"
 import PageMenu from "../../../../../components/Common/PageMenu"
 import Tooltip from "../../../../../components/Common/Tooltip"
+import DeleteReferenceItemDialog from "../../../../../components/References/DeleteReferenceItemDialog"
 import EditReferenceItemModal from "../../../../../components/References/EditReferenceItemModal"
 import FileViewModal from "../../../../../components/References/FileViewModal"
 import ImportFromZoteroModal from "../../../../../components/References/ImportFromZoteroModal"
@@ -376,6 +377,7 @@ interface CollectionEntriesProps {
   scrollTarget: { key: string; nonce: number } | null
   onOpenItem: (key: string) => void
   onEditItem: (entry: ReferenceEntry) => void
+  onDeleteItem: (entry: ReferenceEntry) => void
   onLinkClick: (entry: ReferenceEntry) => void
 }
 
@@ -389,6 +391,7 @@ const CollectionEntries = memo(function CollectionEntries({
   scrollTarget,
   onOpenItem,
   onEditItem,
+  onDeleteItem,
   onLinkClick,
 }: CollectionEntriesProps) {
   const [visibleCount, setVisibleCount] = useState(25)
@@ -493,14 +496,24 @@ const CollectionEntries = memo(function CollectionEntries({
               </Badge>
             ) : null}
             {userHasWriteAccess ? (
-              <IconButton
-                aria-label="Edit reference"
-                icon={<MdEdit />}
-                size="xs"
-                variant="ghost"
-                ml="auto"
-                onClick={() => onEditItem(entry)}
-              />
+              <>
+                <IconButton
+                  aria-label="Edit reference"
+                  icon={<MdEdit />}
+                  size="xs"
+                  variant="ghost"
+                  ml="auto"
+                  onClick={() => onEditItem(entry)}
+                />
+                <IconButton
+                  aria-label="Delete reference"
+                  icon={<FaTrash />}
+                  size="xs"
+                  variant="ghost"
+                  colorScheme="red"
+                  onClick={() => onDeleteItem(entry)}
+                />
+              </>
             ) : null}
           </Flex>
           <ReferenceEntryTable referenceEntry={entry} />
@@ -628,6 +641,7 @@ function References() {
   const fileViewModal = useDisclosure()
   const editItemModal = useDisclosure()
   const [editEntry, setEditEntry] = useState<ReferenceEntry>()
+  const [deleteEntry, setDeleteEntry] = useState<ReferenceEntry>()
   const [selectedEntry, setSelectedEntry] = useState<ReferenceEntry>()
   // Filter for the left collection list (shown when the list gets long).
   const [collectionSearch, setCollectionSearch] = useState("")
@@ -668,6 +682,10 @@ function References() {
       editItemModal.onOpen()
     },
     [editItemModal.onOpen],
+  )
+  const openDeleteItem = useCallback(
+    (entry: ReferenceEntry) => setDeleteEntry(entry),
+    [],
   )
   // Default to the first collection when none is selected in the URL.
   const selectedCollection =
@@ -762,14 +780,24 @@ function References() {
                 existingPaths={(allReferences ?? []).map((r) => r.path)}
               />
               {selectedCollection ? (
-                <EditReferenceItemModal
-                  isOpen={editItemModal.isOpen}
-                  onClose={editItemModal.onClose}
-                  ownerName={accountName}
-                  projectName={projectName}
-                  bibPath={selectedCollection.path}
-                  entry={editEntry}
-                />
+                <>
+                  <EditReferenceItemModal
+                    isOpen={editItemModal.isOpen}
+                    onClose={editItemModal.onClose}
+                    ownerName={accountName}
+                    projectName={projectName}
+                    bibPath={selectedCollection.path}
+                    entry={editEntry}
+                  />
+                  <DeleteReferenceItemDialog
+                    isOpen={Boolean(deleteEntry)}
+                    onClose={() => setDeleteEntry(undefined)}
+                    ownerName={accountName}
+                    projectName={projectName}
+                    bibPath={selectedCollection.path}
+                    entry={deleteEntry}
+                  />
+                </>
               ) : null}
             </>
           ) : null}
@@ -897,6 +925,7 @@ function References() {
                   scrollTarget={scrollTarget}
                   onOpenItem={openItem}
                   onEditItem={openEditItem}
+                  onDeleteItem={openDeleteItem}
                   onLinkClick={handleLinkClick}
                 />
               </>

@@ -88,6 +88,19 @@ const EditReferenceItemModal = ({
     }
     setFields(initial)
   }, [isOpen, entry])
+  // Whether the form differs from the entry being edited, so an unchanged edit
+  // (which would be a no-op) can't be submitted. A new item is always "dirty".
+  const initialFieldValue = (name: string) => {
+    const v = entry?.attrs?.[name]
+    return v != null ? String(v) : ""
+  }
+  const isDirty =
+    !isEdit ||
+    type !== (entry?.type ?? "article") ||
+    key.trim() !== (entry?.key ?? "") ||
+    FIELD_NAMES.some(
+      (name) => (fields[name] ?? "").trim() !== initialFieldValue(name).trim(),
+    )
 
   const mutation = useMutation({
     mutationFn: () => {
@@ -127,7 +140,18 @@ const EditReferenceItemModal = ({
         autoComplete="off"
         onSubmit={(e) => {
           e.preventDefault()
-          if (key.trim()) mutation.mutate()
+          if (key.trim() && isDirty) mutation.mutate()
+        }}
+        onKeyDown={(e) => {
+          if (
+            (e.metaKey || e.ctrlKey) &&
+            e.key === "Enter" &&
+            key.trim() &&
+            isDirty
+          ) {
+            e.preventDefault()
+            mutation.mutate()
+          }
         }}
       >
         <ModalHeader>{isEdit ? "Edit reference" : "Add reference"}</ModalHeader>
@@ -175,12 +199,14 @@ const EditReferenceItemModal = ({
           <Button
             variant="primary"
             type="submit"
-            isDisabled={!key.trim()}
+            isDisabled={!key.trim() || !isDirty}
             isLoading={mutation.isPending}
           >
             {isEdit ? "Save" : "Add"}
           </Button>
-          <Button onClick={onClose}>Cancel</Button>
+          <Button type="button" onClick={onClose}>
+            Cancel
+          </Button>
         </ModalFooter>
       </ModalContent>
     </Modal>

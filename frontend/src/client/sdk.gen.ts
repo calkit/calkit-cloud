@@ -185,6 +185,8 @@ import type {
   PostProjectReferenceItemResponse,
   PutProjectReferenceItemData,
   PutProjectReferenceItemResponse,
+  DeleteProjectReferenceItemData,
+  DeleteProjectReferenceItemResponse,
   GetProjectZoteroLibrariesData,
   GetProjectZoteroLibrariesResponse,
   GetProjectZoteroCollectionsData,
@@ -2791,6 +2793,10 @@ export class ProjectsService {
   /**
    * Post Project Reference Item
    * Add a new entry to a references (.bib) collection.
+   *
+   * For a Zotero-linked collection the item is created in Zotero and the
+   * collection re-pulled, so it survives a later sync (Zotero is the source of
+   * truth); otherwise the entry is written straight to the ``.bib``.
    * @param data The data for the request.
    * @param data.ownerName
    * @param data.projectName
@@ -2843,6 +2849,40 @@ export class ProjectsService {
       },
       body: data.requestBody,
       mediaType: "application/json",
+      errors: {
+        422: "Validation Error",
+      },
+    })
+  }
+
+  /**
+   * Delete Project Reference Item
+   * Delete an entry from a references (.bib) collection.
+   *
+   * For a Zotero-linked collection the item is also deleted from Zotero and the
+   * collection re-pulled, so it doesn't reappear on the next sync.
+   * @param data The data for the request.
+   * @param data.ownerName
+   * @param data.projectName
+   * @param data.bibKey
+   * @param data.path
+   * @returns Message Successful Response
+   * @throws ApiError
+   */
+  public static deleteProjectReferenceItem(
+    data: DeleteProjectReferenceItemData,
+  ): CancelablePromise<DeleteProjectReferenceItemResponse> {
+    return __request(OpenAPI, {
+      method: "DELETE",
+      url: "/projects/{owner_name}/{project_name}/references/items/{bib_key}",
+      path: {
+        owner_name: data.ownerName,
+        project_name: data.projectName,
+        bib_key: data.bibKey,
+      },
+      query: {
+        path: data.path,
+      },
       errors: {
         422: "Validation Error",
       },

@@ -95,8 +95,13 @@ export const cleanLatex = (input: string): string => {
   for (const [macro, name] of Object.entries(JOURNAL_MACROS)) {
     out = out.replace(new RegExp(`\\\\${macro}(?![a-zA-Z])`, "g"), name)
   }
-  // Escaped punctuation: \&, \%, \_, \#, \$.
-  out = out.replace(/\\([&%_#$])/g, "$1")
+  // A literal backslash, however it's encoded (Zotero exports one as
+  // \textbackslash, which can round-trip into \textbackslash{} etc.).
+  out = out.replace(/\\textbackslash\s*(?:\{\})?/g, "\\")
+  // Escaped punctuation, including braces: \{ \} \& \% \_ \# \$. Unescaping
+  // braces first means an escaped protective brace (\{2D\}, from a Zotero
+  // round-trip) collapses to "2D" instead of leaving a stray backslash.
+  out = out.replace(/\\([&%_#${}])/g, "$1")
   // Spacing macros (\, \; \: \ ) become a plain space.
   out = out.replace(/\\[,;: ]/g, " ")
   // Any remaining unknown control words (\foo) are dropped, keeping the text

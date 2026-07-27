@@ -1706,6 +1706,50 @@ def test_format_bib_indents_and_wraps() -> None:
     assert all(len(line) <= 80 for line in out.splitlines())
 
 
+def test_latex_to_text_strips_markup_for_zotero() -> None:
+    # Protective braces and escaped braces (from a Zotero round-trip) must
+    # reduce to plain text, so we never push LaTeX back to Zotero.
+    assert zotero.latex_to_text("{2D} {CFD} simulation") == "2D CFD simulation"
+    assert (
+        zotero.latex_to_text("A title for \\{{Cool}\\}") == "A title for Cool"
+    )
+
+
+def test_apply_bibtex_fields_sends_plain_text() -> None:
+    template = {"title": "", "creators": [{"creatorType": "author"}]}
+    item = dict(template)
+    zotero._apply_bibtex_fields(
+        item, template, {"title": "{2D} {CFD}", "author": "Doe, Jane"}
+    )
+    assert item["title"] == "2D CFD"
+    assert item["creators"] == [
+        {"creatorType": "author", "firstName": "Jane", "lastName": "Doe"}
+    ]
+
+
+def test_format_bib_is_idempotent() -> None:
+    # Reformatting an already-formatted .bib must not change it: no de-indenting
+    # wrapped values and no flipping field order (which would churn diffs).
+    raw = (
+        "@article{k,\n"
+        "  year = {2020},\n"
+        "  title = {" + "word " * 40 + "},\n"
+        "  comment = {A note.\n\nAnother note.},\n"
+        "  author = {Doe, Jane and Roe, Richard},\n"
+        "}\n"
+    )
+    once = zotero.format_bib(raw)
+    twice = zotero.format_bib(once)
+    assert once == twice
+    # Source field order is preserved (year, title, comment, author).
+    field_lines = [
+        ln.split("=")[0].strip() for ln in once.splitlines() if " = {" in ln
+    ]
+    assert field_lines == ["year", "title", "comment", "author"]
+    # The multi-line comment/note stays verbatim.
+    assert "A note.\n\nAnother note." in once
+
+
 def test_post_and_put_reference_item(
     client: TestClient, db: Session, tmp_path
 ) -> None:
@@ -1761,6 +1805,230 @@ def test_post_and_put_reference_item(
     assert "  title = {New Title}," in text
     assert "comment = {my note}" in text
     assert "@article{old," not in text
+
+
+def test_put_reference_item_no_change_does_not_error(
+    client: TestClient, db: Session, tmp_path
+) -> None:
+    # Re-saving an entry with identical fields leaves the tree clean; the route
+    # must skip the commit rather than 500 on an empty commit.
+    project, headers = _make_owner_with_project(db, client)
+    owner_name = project.owner_account.name
+    base = f"{settings.API_V1_STR}/projects/{owner_name}/{project.name}"
+    fake_repo = _make_fake_repo(str(tmp_path))
+    fake_repo.git.diff = lambda *a, **k: ""  # nothing staged -> no commit
+    (tmp_path / "references.bib").write_text(
+        "@article{same,\n  title = {Same},\n}\n"
+    )
+    with (
+        patch("app.api.routes.projects.core.get_repo", return_value=fake_repo),
+        patch("app.api.routes.projects.core.mixpanel.track"),
+    ):
+        r = client.put(
+            f"{base}/references/items/same",
+            headers=headers,
+            json={
+                "path": "references.bib",
+                "type": "article",
+                "key": "same",
+                "fields": {"title": "Same"},
+            },
+        )
+    assert r.status_code == 200, r.text
+
+
+def test_delete_project_reference_item(
+    client: TestClient, db: Session, tmp_path
+) -> None:
+    project, headers = _make_owner_with_project(db, client)
+    owner_name = project.owner_account.name
+    base = f"{settings.API_V1_STR}/projects/{owner_name}/{project.name}"
+    fake_repo = _make_fake_repo(str(tmp_path))
+    (tmp_path / "references.bib").write_text(
+        "@article{keep,\n  title = {Keep},\n}\n\n"
+        "@article{drop,\n  title = {Drop},\n}\n"
+    )
+    with (
+        patch("app.api.routes.projects.core.get_repo", return_value=fake_repo),
+        patch("app.api.routes.projects.core.mixpanel.track"),
+    ):
+        # Deleting a missing entry 404s.
+        r_missing = client.delete(
+            f"{base}/references/items/nope?path=references.bib",
+            headers=headers,
+        )
+        r = client.delete(
+            f"{base}/references/items/drop?path=references.bib",
+            headers=headers,
+        )
+    assert r_missing.status_code == 404
+    assert r.status_code == 200, r.text
+    text = (tmp_path / "references.bib").read_text()
+    assert "@article{keep," in text
+    assert "@article{drop," not in text
+
+
+def test_add_reference_creates_zotero_item_when_linked(
+    client: TestClient, db: Session, tmp_path
+) -> None:
+    project, headers = _make_owner_with_project(db, client)
+    owner_name = project.owner_account.name
+    base = f"{settings.API_V1_STR}/projects/{owner_name}/{project.name}"
+    fake_repo = _make_fake_repo(str(tmp_path))
+    (tmp_path / "references.bib").write_text("")
+    with (
+        patch("app.api.routes.projects.core.get_repo", return_value=fake_repo),
+        patch(
+            "app.api.routes.projects.core.get_ck_info_from_repo",
+            side_effect=lambda *a, **k: _zotero_linked_ck_info(),
+        ),
+        patch(
+            "app.api.routes.projects.core.users"
+            ".get_zotero_api_key_and_user_id",
+            return_value=("KEY", "999"),
+        ),
+        patch(
+            "app.api.routes.projects.core.zotero.create_item",
+            return_value="IT_NEW",
+        ) as mock_create,
+        patch("app.api.routes.projects.core.mixpanel.track"),
+    ):
+        r = client.post(
+            f"{base}/references/items",
+            headers=headers,
+            json={
+                "path": "references.bib",
+                "type": "article",
+                "key": "supercool2020",
+                "fields": {"title": "Cool"},
+            },
+        )
+    assert r.status_code == 200, r.text
+    assert mock_create.call_args.kwargs["collection_key"] == "ABCD1234"
+    # The mapping is recorded under the user's local key, which the .bib keeps.
+    items = zotero.read_items_info(str(tmp_path))
+    assert items["references.bib"]["supercool2020"]["item_key"] == "IT_NEW"
+    assert (
+        "@article{supercool2020," in (tmp_path / "references.bib").read_text()
+    )
+
+
+def test_delete_reference_deletes_zotero_item_when_linked(
+    client: TestClient, db: Session, tmp_path
+) -> None:
+    project, headers = _make_owner_with_project(db, client)
+    owner_name = project.owner_account.name
+    base = f"{settings.API_V1_STR}/projects/{owner_name}/{project.name}"
+    fake_repo = _make_fake_repo(str(tmp_path))
+    (tmp_path / "references.bib").write_text(
+        "@article{gone,\n  title = {Gone},\n}\n"
+    )
+    zotero.write_items_info(
+        str(tmp_path), {"references.bib": {"gone": {"item_key": "IT_GONE"}}}
+    )
+    with (
+        patch("app.api.routes.projects.core.get_repo", return_value=fake_repo),
+        patch(
+            "app.api.routes.projects.core.get_ck_info_from_repo",
+            side_effect=lambda *a, **k: _zotero_linked_ck_info(),
+        ),
+        patch(
+            "app.api.routes.projects.core.users"
+            ".get_zotero_api_key_and_user_id",
+            return_value=("KEY", "999"),
+        ),
+        patch(
+            "app.api.routes.projects.core.zotero.delete_item"
+        ) as mock_delete,
+        patch("app.api.routes.projects.core.mixpanel.track"),
+    ):
+        r = client.delete(
+            f"{base}/references/items/gone?path=references.bib",
+            headers=headers,
+        )
+    assert r.status_code == 200, r.text
+    assert mock_delete.call_args.kwargs["item_key"] == "IT_GONE"
+    items = zotero.read_items_info(str(tmp_path))
+    assert "gone" not in items.get("references.bib", {})
+
+
+def test_zotero_sync_merges_changes_per_item(
+    client: TestClient, db: Session, tmp_path
+) -> None:
+    project, headers = _make_owner_with_project(db, client)
+    owner_name = project.owner_account.name
+    base = f"{settings.API_V1_STR}/projects/{owner_name}/{project.name}"
+    fake_repo = _make_fake_repo(str(tmp_path))
+    # A locally-keyed entry mapped to a Zotero item, plus one to be deleted.
+    (tmp_path / "references.bib").write_text(
+        "@article{localkey,\n  title = {Old Title},\n}\n\n"
+        "@article{stale,\n  title = {To Delete},\n}\n"
+    )
+    zotero.write_items_info(
+        str(tmp_path),
+        {
+            "references.bib": {
+                "localkey": {"item_key": "IT1"},
+                "stale": {"item_key": "IT2"},
+            }
+        },
+    )
+    zotero.write_sync_info(
+        str(tmp_path), {"references.bib": {"last_sync_version": 5}}
+    )
+    changed = [
+        {
+            "item_key": "IT1",
+            "bibtex": "@article{zkey,\n  title = {New Title}\n}",
+            "data": {},
+            "num_children": 0,
+        }
+    ]
+    with (
+        patch("app.api.routes.projects.core.get_repo", return_value=fake_repo),
+        patch(
+            "app.api.routes.projects.core.get_ck_info_from_repo",
+            side_effect=lambda *a, **k: _zotero_linked_ck_info(),
+        ),
+        patch(
+            "app.api.routes.projects.core.users"
+            ".get_zotero_api_key_and_user_id",
+            return_value=("KEY", "999"),
+        ),
+        patch(
+            "app.api.routes.projects.core.zotero.get_collection_items",
+            return_value=(changed, 9),
+        ),
+        patch(
+            "app.api.routes.projects.core.zotero.get_deleted_item_keys",
+            return_value=["IT2"],
+        ),
+        patch(
+            "app.api.routes.projects.core.zotero.build_item_info",
+            return_value=(
+                {
+                    "item_key": "IT1",
+                    "pdf_attachment_keys": [],
+                    "note_keys": [],
+                },
+                [],
+            ),
+        ),
+        patch("app.api.routes.projects.core.mixpanel.track"),
+    ):
+        r = client.post(
+            f"{base}/zotero/syncs",
+            headers=headers,
+            json={"path": "references.bib"},
+        )
+    assert r.status_code == 200, r.text
+    text = (tmp_path / "references.bib").read_text()
+    # The changed item is updated in place under the local key (not Zotero's).
+    assert "@article{localkey," in text
+    assert "New Title" in text
+    assert "zkey" not in text
+    # The item deleted on Zotero is removed locally.
+    assert "@article{stale," not in text
 
 
 def test_post_project_zotero_import_rejects_both_modes(

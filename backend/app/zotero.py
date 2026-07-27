@@ -100,6 +100,8 @@ def fetch_access_token(
 API_VERSION = "3"
 # Zotero caps a page at 100 items. We paginate to gather everything.
 PAGE_LIMIT = 100
+# The BibTeX field reference notes live in (Markdown, ``---``-separated).
+NOTE_FIELD = "comment"
 
 
 def _headers(api_key: str) -> dict[str, str]:
@@ -288,6 +290,309 @@ def add_items_to_collection(
         raise HTTPException(502, "Zotero rejected some item updates")
 
 
+# Accent/symbol macros -> Unicode, mirroring the frontend display cleaner. Keys
+# are the macro body after the backslash, e.g. `"o` for \"o (o-umlaut).
+_LATEX_ACCENTS = {
+    '"a': "ä", '"o': "ö", '"u': "ü", '"A': "Ä", '"O': "Ö", '"U': "Ü",
+    "'a": "á", "'e": "é", "'i": "í", "'o": "ó", "'u": "ú", "'n": "ń",
+    "'c": "ć", "`a": "à", "`e": "è", "`i": "ì", "`o": "ò", "`u": "ù",
+    "^a": "â", "^e": "ê", "^i": "î", "^o": "ô", "^u": "û", "~n": "ñ",
+    "~a": "ã", "~o": "õ", "c c": "ç", "c C": "Ç", "ss": "ß", "o": "ø",
+    "O": "Ø", "aa": "å", "AA": "Å", "ae": "æ", "AE": "Æ",
+}  # fmt: skip
+# AAS journal abbreviation macros (e.g. \apjl) -> the journal name.
+_JOURNAL_MACROS = {
+    "aj": "Astronomical Journal",
+    "araa": "Annual Review of Astronomy and Astrophysics",
+    "apj": "Astrophysical Journal",
+    "apjl": "Astrophysical Journal Letters",
+    "apjs": "Astrophysical Journal Supplement",
+    "aap": "Astronomy and Astrophysics",
+    "mnras": "Monthly Notices of the Royal Astronomical Society",
+    "pasp": "Publications of the Astronomical Society of the Pacific",
+    "nat": "Nature",
+    "science": "Science",
+    "prd": "Physical Review D",
+    "prl": "Physical Review Letters",
+}
+
+
+def latex_to_text(value: str) -> str:
+    """Convert a BibTeX/LaTeX field value into plain Unicode text.
+
+    Zotero stores plain text, so pushing LaTeX (protective braces like ``{2D}``,
+    accent macros) makes it store the markup literally and re-escape it on
+    export, which compounds into stray backslashes on every sync. This mirrors
+    the frontend's display cleaner so what we send matches what we show.
+    """
+    s = value
+    s = re.sub(r"\\href\{([^{}]*)\}\{([^{}]*)\}", r"\2", s)
+    s = re.sub(r"\\url\{([^{}]*)\}", r"\1", s)
+    for macro, repl in _LATEX_ACCENTS.items():
+        body = re.escape(macro)
+        boundary = r"(?![a-zA-Z])" if macro[:1].isalpha() else ""
+        s = re.sub(r"\{\\" + body + r"\}|\\" + body + boundary, repl, s)
+        s = re.sub(r"\\" + body + r"\{\}", repl, s)
+    s = re.sub(
+        r"\\(?:textbf|textit|textsc|emph|texttt|mathrm|mathit|text)"
+        r"\{([^{}]*)\}",
+        r"\1",
+        s,
+    )
+    for macro, name in _JOURNAL_MACROS.items():
+        s = re.sub(r"\\" + macro + r"(?![a-zA-Z])", name, s)
+    # A literal backslash however it's encoded (Zotero exports \textbackslash).
+    s = re.sub(r"\\textbackslash\s*(?:\{\})?", "\\\\", s)
+    # Escaped punctuation, braces first so an escaped protective brace
+    # (\{2D\}, from a Zotero round-trip) collapses cleanly.
+    s = re.sub(r"\\([&%_#${}])", r"\1", s)
+    s = re.sub(r"\\[,;: ]", " ", s)
+    s = re.sub(r"\\[a-zA-Z]+ ?", "", s)
+    s = s.replace("---", "—").replace("--", "–").replace("~", " ")
+    s = re.sub(r"[{}]", "", s)
+    return re.sub(r"\s+", " ", s).strip()
+
+
+# BibTeX entry types mapped onto Zotero item types (the Web API creates items
+# by JSON, not BibTeX). Unknown types fall back to a generic document.
+_BIBTEX_TO_ZOTERO_TYPE = {
+    "article": "journalArticle",
+    "book": "book",
+    "booklet": "book",
+    "inbook": "bookSection",
+    "incollection": "bookSection",
+    "inproceedings": "conferencePaper",
+    "conference": "conferencePaper",
+    "proceedings": "conferencePaper",
+    "phdthesis": "thesis",
+    "mastersthesis": "thesis",
+    "thesis": "thesis",
+    "techreport": "report",
+    "report": "report",
+    "manual": "report",
+    "unpublished": "manuscript",
+    "online": "webpage",
+    "electronic": "webpage",
+    "misc": "document",
+}
+# BibTeX field -> candidate Zotero field names; the first one valid for the
+# resolved item type wins. Fields absent from the type's template are dropped.
+_BIBTEX_TO_ZOTERO_FIELD = {
+    "title": ["title"],
+    "journal": ["publicationTitle"],
+    "booktitle": ["proceedingsTitle", "bookTitle", "publicationTitle"],
+    "publisher": ["publisher"],
+    "school": ["university", "publisher"],
+    "institution": ["institution", "publisher"],
+    "volume": ["volume"],
+    "number": ["issue", "number", "seriesNumber", "reportNumber"],
+    "pages": ["pages"],
+    "doi": ["DOI"],
+    "url": ["url"],
+    "urldate": ["accessDate"],
+    "abstract": ["abstractNote"],
+    "isbn": ["ISBN"],
+    "issn": ["ISSN"],
+    "edition": ["edition"],
+    "series": ["series"],
+    "address": ["place"],
+    "language": ["language"],
+}
+
+
+def _parse_creator(name: str, creator_type: str) -> dict:
+    """Parse one BibTeX author/editor name into a Zotero creator object."""
+    name = latex_to_text(name.strip())
+    if "," in name:
+        last, first = (p.strip() for p in name.split(",", 1))
+        return {
+            "creatorType": creator_type,
+            "firstName": first,
+            "lastName": last,
+        }
+    parts = name.split()
+    if len(parts) < 2:
+        # A single token (e.g. an organization) can't be split into first/last.
+        return {"creatorType": creator_type, "name": name}
+    return {
+        "creatorType": creator_type,
+        "firstName": " ".join(parts[:-1]),
+        "lastName": parts[-1],
+    }
+
+
+def _bibtex_creators(fields: dict, valid_types: set[str]) -> list[dict]:
+    """Build Zotero creators from a BibTeX entry's author/editor fields."""
+    creators: list[dict] = []
+    for role in ("author", "editor"):
+        raw = (fields.get(role) or "").strip()
+        if not raw:
+            continue
+        ctype = role if role in valid_types else next(iter(valid_types))
+        for name in re.split(r"\s+and\s+", raw):
+            if name.strip():
+                creators.append(_parse_creator(name, ctype))
+    return creators
+
+
+def _item_template(api_key: str, item_type: str) -> dict:
+    """Fetch a blank Zotero item template listing an item type's valid fields."""
+    resp = requests.get(
+        f"{BASE_URL}/items/new",
+        headers=_headers(api_key),
+        params={"itemType": item_type},
+        timeout=30,
+    )
+    if resp.status_code != 200:
+        logger.error(f"Zotero item template status {resp.status_code}")
+        raise HTTPException(resp.status_code, "Failed to reach Zotero")
+    return resp.json()
+
+
+def _apply_bibtex_fields(item: dict, template: dict, fields: dict) -> None:
+    """Map BibTeX-style ``fields`` onto a Zotero ``item`` in place.
+
+    Only fields valid for the item type (present in ``template``) are set;
+    creators come from author/editor and the date from year/month.
+    """
+    valid_creator_types = {
+        c.get("creatorType") for c in template.get("creators", [])
+    } or {"author"}
+    item["creators"] = _bibtex_creators(fields, valid_creator_types)
+    year = (fields.get("year") or "").strip()
+    month = (fields.get("month") or "").strip()
+    if year and "date" in template:
+        item["date"] = f"{month} {year}".strip()
+    for bib_field, value in fields.items():
+        if bib_field.lower() in ("author", "editor", "year", "month"):
+            continue
+        # Send plain text, never LaTeX: Zotero stores the value literally and
+        # re-escapes it on export, so pushing braces/macros compounds backslashes
+        # on every sync.
+        text = latex_to_text((value or "").strip())
+        for zotero_field in _BIBTEX_TO_ZOTERO_FIELD.get(
+            bib_field.lower(), [bib_field]
+        ):
+            if zotero_field in template:
+                # An empty value clears the field.
+                item[zotero_field] = text
+                break
+
+
+def create_item(
+    api_key: str,
+    library_type: str,
+    library_id: str,
+    item_type: str,
+    fields: dict,
+    collection_key: str | None = None,
+) -> str:
+    """Create a bibliographic item in Zotero from BibTeX-style fields.
+
+    Maps the BibTeX entry type and fields onto Zotero's schema, sending only
+    fields valid for the resolved item type (per its template), and returns the
+    new item's key.
+    """
+    zotero_type = _BIBTEX_TO_ZOTERO_TYPE.get(item_type.lower(), "document")
+    template = _item_template(api_key, zotero_type)
+    item = dict(template)
+    _apply_bibtex_fields(item, template, fields)
+    if collection_key:
+        item["collections"] = [collection_key]
+    prefix = _library_prefix(library_type, library_id)
+    resp = requests.post(
+        f"{BASE_URL}/{prefix}/items",
+        headers=_headers(api_key),
+        json=[item],
+        timeout=30,
+    )
+    if resp.status_code not in (200, 201):
+        logger.error(f"Zotero create item status {resp.status_code}")
+        raise HTTPException(resp.status_code, "Failed to create Zotero item")
+    body = resp.json()
+    successful = body.get("successful", {})
+    if not successful:
+        logger.error(f"Zotero create item failed: {body.get('failed')}")
+        raise HTTPException(502, "Zotero did not create the item")
+    return successful["0"]["key"]
+
+
+def update_item(
+    api_key: str,
+    library_type: str,
+    library_id: str,
+    item_key: str,
+    item_type: str,
+    fields: dict,
+) -> None:
+    """Update an existing Zotero item's type and fields from BibTeX fields.
+
+    Fetches the item for its current version, maps the fields onto the resolved
+    item type's template, and PATCHes it (version-guarded). Fields omitted from
+    the form are left untouched; an empty value clears its field.
+    """
+    prefix = _library_prefix(library_type, library_id)
+    resp = requests.get(
+        f"{BASE_URL}/{prefix}/items/{item_key}",
+        headers=_headers(api_key),
+        timeout=30,
+    )
+    if resp.status_code != 200:
+        logger.error(f"Zotero get item status {resp.status_code}")
+        raise HTTPException(resp.status_code, "Failed to read Zotero item")
+    data = resp.json()["data"]
+    version = data["version"]
+    zotero_type = _BIBTEX_TO_ZOTERO_TYPE.get(
+        item_type.lower(), data.get("itemType", "document")
+    )
+    template = _item_template(api_key, zotero_type)
+    patch: dict = {}
+    if zotero_type != data.get("itemType"):
+        patch["itemType"] = zotero_type
+    _apply_bibtex_fields(patch, template, fields)
+    resp = requests.patch(
+        f"{BASE_URL}/{prefix}/items/{item_key}",
+        headers={
+            **_headers(api_key),
+            "If-Unmodified-Since-Version": str(version),
+        },
+        json=patch,
+        timeout=30,
+    )
+    if resp.status_code not in (200, 204):
+        logger.error(f"Zotero update item status {resp.status_code}")
+        raise HTTPException(resp.status_code, "Failed to update Zotero item")
+
+
+def delete_item(
+    api_key: str, library_type: str, library_id: str, item_key: str
+) -> None:
+    """Delete an item from Zotero, tolerating an already-deleted item."""
+    prefix = _library_prefix(library_type, library_id)
+    resp = requests.get(
+        f"{BASE_URL}/{prefix}/items/{item_key}",
+        headers=_headers(api_key),
+        timeout=30,
+    )
+    if resp.status_code == 404:
+        return
+    if resp.status_code != 200:
+        logger.error(f"Zotero get item status {resp.status_code}")
+        raise HTTPException(resp.status_code, "Failed to read Zotero item")
+    version = resp.json()["data"]["version"]
+    resp = requests.delete(
+        f"{BASE_URL}/{prefix}/items/{item_key}",
+        headers={
+            **_headers(api_key),
+            "If-Unmodified-Since-Version": str(version),
+        },
+        timeout=30,
+    )
+    if resp.status_code not in (200, 204):
+        logger.error(f"Zotero delete item status {resp.status_code}")
+        raise HTTPException(resp.status_code, "Failed to delete Zotero item")
+
+
 def get_collection_name(
     api_key: str, library_type: str, library_id: str, collection_key: str
 ) -> str:
@@ -307,14 +612,19 @@ def get_collection_name(
 
 
 def get_collection_items(
-    api_key: str, library_type: str, library_id: str, collection_key: str
+    api_key: str,
+    library_type: str,
+    library_id: str,
+    collection_key: str,
+    since: int | None = None,
 ) -> tuple[list[dict], int]:
     """Fetch a collection's top-level items with their BibTeX and data.
 
     Requesting ``format=json&include=bibtex,data`` returns, per item, its Zotero
     key alongside its rendered BibTeX entry, which is how a BibTeX citekey is
-    tied back to its Zotero item (attachments, notes). Returns
-    ``(items, library_version)`` where each item is
+    tied back to its Zotero item (attachments, notes). With ``since`` set, only
+    items modified after that library version are returned (an incremental
+    pull). Returns ``(items, library_version)`` where each item is
     ``{item_key, bibtex, data, num_children}``.
     """
     prefix = _library_prefix(library_type, library_id)
@@ -323,16 +633,16 @@ def get_collection_items(
     library_version = 0
     start = 0
     while True:
+        params = {
+            "format": "json",
+            "include": "bibtex,data",
+            "limit": PAGE_LIMIT,
+            "start": start,
+        }
+        if since is not None:
+            params["since"] = since
         resp = requests.get(
-            url,
-            headers=_headers(api_key),
-            params={
-                "format": "json",
-                "include": "bibtex,data",
-                "limit": PAGE_LIMIT,
-                "start": start,
-            },
-            timeout=60,
+            url, headers=_headers(api_key), params=params, timeout=60
         )
         if resp.status_code != 200:
             logger.error(f"Zotero items fetch status {resp.status_code}")
@@ -356,6 +666,23 @@ def get_collection_items(
         if start >= total:
             break
     return items, library_version
+
+
+def get_deleted_item_keys(
+    api_key: str, library_type: str, library_id: str, since: int
+) -> list[str]:
+    """List keys of items deleted from the library since a library version."""
+    prefix = _library_prefix(library_type, library_id)
+    resp = requests.get(
+        f"{BASE_URL}/{prefix}/deleted",
+        headers=_headers(api_key),
+        params={"since": since},
+        timeout=30,
+    )
+    if resp.status_code != 200:
+        logger.error(f"Zotero deleted fetch status {resp.status_code}")
+        raise HTTPException(resp.status_code, "Failed to read from Zotero")
+    return resp.json().get("items", [])
 
 
 def bib_key_of(bibtex_entry: str) -> str | None:
@@ -397,15 +724,21 @@ def format_bib(bibtex_text: str) -> str:
         entry_type = entry.get("ENTRYTYPE", "misc")
         key = entry.get("ID", "")
         lines = [f"@{entry_type}{{{key},"]
-        for field, value in entry.items():
-            if field in ("ENTRYTYPE", "ID"):
-                continue
+        # bibtexparser reverses a source entry's field order on parse, so
+        # reversing here restores it, keeping formatting idempotent instead of
+        # flipping field order (and churning the diff) on every rewrite.
+        fields = [f for f in entry if f not in ("ENTRYTYPE", "ID")]
+        for field in reversed(fields):
+            value = entry[field]
             text = str(value)
-            if "\n" in text:
-                # Preserve intentional newlines verbatim (e.g. the Markdown in
-                # the comment field); wrapping would corrupt them.
+            if field == NOTE_FIELD and "\n" in text:
+                # The note/comment field holds Markdown whose newlines are
+                # meaningful; preserve it verbatim rather than wrapping it.
                 lines.append(f"  {field} = {{{text}}},")
             else:
+                # Collapse any incidental whitespace (including newlines left by
+                # a previous wrap) so re-formatting is idempotent and doesn't
+                # churn untouched entries.
                 lines.extend(_wrap_field(field, text))
         lines.append("}")
         blocks.append("\n".join(lines))
@@ -429,7 +762,7 @@ def note_html_to_text(html: str) -> str:
     return html_lib.unescape(s).strip()
 
 
-# Notes are stored in the BibTeX ``comment`` field, one note per ``---``
+# Reference notes are stored in this BibTeX field, one note per ``---``
 # separated section (Zotero notes have no titles). A note may be anchored to a
 # PDF highlight, encoded self-contained at the top of its section as an HTML
 # comment carrying the anchor position plus a Markdown blockquote of the
@@ -542,6 +875,43 @@ def get_item_children(
     return resp.json()
 
 
+def build_item_info(
+    api_key: str, library_type: str, library_id: str, it: dict
+) -> tuple[dict, list[dict]]:
+    """Build one item's ``(info, notes)``.
+
+    ``info`` records the Zotero item key plus its PDF attachment and note keys;
+    ``notes`` carries each note's HTML for editing. Children are only fetched
+    when the item reports having any.
+    """
+    info = {
+        "item_key": it["item_key"],
+        "pdf_attachment_keys": [],
+        "note_keys": [],
+    }
+    notes: list[dict] = []
+    if it["num_children"]:
+        for child in get_item_children(
+            api_key, library_type, library_id, it["item_key"]
+        ):
+            data = child.get("data", {})
+            if (
+                data.get("itemType") == "attachment"
+                and data.get("contentType") == "application/pdf"
+            ):
+                info["pdf_attachment_keys"].append(child["key"])
+            elif data.get("itemType") == "note":
+                info["note_keys"].append(child["key"])
+                notes.append(
+                    {
+                        "key": child["key"],
+                        "version": child.get("version"),
+                        "html": data.get("note", ""),
+                    }
+                )
+    return info, notes
+
+
 def build_item_maps(
     api_key: str, library_type: str, library_id: str, items: list[dict]
 ) -> tuple[dict, dict]:
@@ -557,34 +927,10 @@ def build_item_maps(
         bib_key = bib_key_of(it["bibtex"])
         if not bib_key:
             continue
-        entry = {
-            "item_key": it["item_key"],
-            "pdf_attachment_keys": [],
-            "note_keys": [],
-        }
-        if it["num_children"]:
-            notes = []
-            for child in get_item_children(
-                api_key, library_type, library_id, it["item_key"]
-            ):
-                data = child.get("data", {})
-                if (
-                    data.get("itemType") == "attachment"
-                    and data.get("contentType") == "application/pdf"
-                ):
-                    entry["pdf_attachment_keys"].append(child["key"])
-                elif data.get("itemType") == "note":
-                    entry["note_keys"].append(child["key"])
-                    notes.append(
-                        {
-                            "key": child["key"],
-                            "version": child.get("version"),
-                            "html": data.get("note", ""),
-                        }
-                    )
-            if notes:
-                notes_map[bib_key] = notes
-        items_map[bib_key] = entry
+        info, notes = build_item_info(api_key, library_type, library_id, it)
+        if notes:
+            notes_map[bib_key] = notes
+        items_map[bib_key] = info
     return items_map, notes_map
 
 

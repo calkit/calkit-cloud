@@ -2427,6 +2427,15 @@ export type PutProjectReferenceItemData = {
 
 export type PutProjectReferenceItemResponse = Message
 
+export type DeleteProjectReferenceItemData = {
+  bibKey: string
+  ownerName: string
+  path: string
+  projectName: string
+}
+
+export type DeleteProjectReferenceItemResponse = Message
+
 export type GetProjectZoteroLibrariesData = {
   ownerName: string
   projectName: string

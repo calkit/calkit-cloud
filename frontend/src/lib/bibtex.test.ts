@@ -28,6 +28,12 @@ describe("cleanLatex", () => {
     expect(cleanLatex("50\\% off")).toBe("50% off")
   })
 
+  it("collapses escaped protective braces from a Zotero round-trip", () => {
+    expect(cleanLatex("A title for \\{{Cool}\\} \\{{Guy}\\}")).toBe(
+      "A title for Cool Guy",
+    )
+  })
+
   it("converts dashes", () => {
     expect(cleanLatex("pp. 10--20")).toBe("pp. 10–20")
     expect(cleanLatex("a---b")).toBe("a—b")
