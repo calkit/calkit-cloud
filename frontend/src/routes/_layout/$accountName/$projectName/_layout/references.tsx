@@ -30,9 +30,9 @@ import {
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router"
 import mixpanel from "mixpanel-browser"
-import { useEffect, useMemo, useState } from "react"
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { BsFilePdf } from "react-icons/bs"
-import { FaPlus } from "react-icons/fa"
+import { FaChevronDown, FaChevronRight, FaPlus } from "react-icons/fa"
 import { IoLibraryOutline } from "react-icons/io5"
 import { MdEdit } from "react-icons/md"
 import { z } from "zod"
@@ -41,6 +41,7 @@ import {
   type ApiError,
   ProjectsService,
   type ReferenceEntry,
+  type References as ReferencesCollection,
   UsersService,
 } from "../../../../../client"
 import LoadingSpinner from "../../../../../components/Common/LoadingSpinner"
@@ -49,6 +50,7 @@ import Tooltip from "../../../../../components/Common/Tooltip"
 import EditReferenceItemModal from "../../../../../components/References/EditReferenceItemModal"
 import FileViewModal from "../../../../../components/References/FileViewModal"
 import ImportFromZoteroModal from "../../../../../components/References/ImportFromZoteroModal"
+import LabelExistingReferences from "../../../../../components/References/LabelExistingReferences"
 import NewReferencesCollection from "../../../../../components/References/NewReferencesCollection"
 import ReferenceItemModal from "../../../../../components/References/ReferenceItemModal"
 import ReferencesInfoPanel from "../../../../../components/References/ReferencesInfoPanel"
@@ -68,6 +70,9 @@ const referencesSearchSchema = z.object({
   item: z.string().optional(),
   import_zotero_open: z.boolean().optional(),
   new_collection_open: z.boolean().optional(),
+  label_existing_open: z.boolean().optional(),
+  // Whether the selected collection's items are collapsed in the sidebar tree.
+  items_collapsed: z.boolean().optional(),
   resolved: z.boolean().optional(),
 })
 
@@ -82,7 +87,9 @@ interface ReferenceEntryTableProps {
   referenceEntry: ReferenceEntry
 }
 
-function ReferenceEntryTable({ referenceEntry }: ReferenceEntryTableProps) {
+const ReferenceEntryTable = memo(function ReferenceEntryTable({
+  referenceEntry,
+}: ReferenceEntryTableProps) {
   return (
     <TableContainer whiteSpace="wrap">
       <Table variant="simple" size="sm">
@@ -125,7 +132,367 @@ function ReferenceEntryTable({ referenceEntry }: ReferenceEntryTableProps) {
       </Table>
     </TableContainer>
   )
+})
+
+// How many items to show under an expanded collection before "Show more".
+const SIDEBAR_ITEM_PAGE = 50
+
+interface CollectionTreeProps {
+  collections: ReferencesCollection[]
+  selectedPath?: string
+  // The selected collection's items, already filtered by the shared search.
+  selectedEntries: ReferenceEntry[]
+  searching: boolean
+  itemsCollapsed: boolean
+  activeItemKey?: string
+  onSelectCollection: (path: string) => void
+  onToggleItems: () => void
+  onSelectItem: (key: string) => void
 }
+
+// The left sidebar tree of collections. Memoized so typing in the center
+// search box, which lives in a sibling component, doesn't re-render the
+// (potentially long) item list. Only the debounced query reaches this via
+// `selectedEntries`, so it re-renders at most once per debounce interval.
+const CollectionTree = memo(function CollectionTree({
+  collections,
+  selectedPath,
+  selectedEntries,
+  searching,
+  itemsCollapsed,
+  activeItemKey,
+  onSelectCollection,
+  onToggleItems,
+  onSelectItem,
+}: CollectionTreeProps) {
+  const [limit, setLimit] = useState(SIDEBAR_ITEM_PAGE)
+  // Reset the cap when the collection or the filtered result set changes.
+  useEffect(() => {
+    setLimit(SIDEBAR_ITEM_PAGE)
+  }, [selectedPath, selectedEntries])
+  const shownEntries = selectedEntries.slice(0, limit)
+  const remaining = selectedEntries.length - shownEntries.length
+  return (
+    <>
+      {collections.map((references) => {
+        const isSelected = references.path === selectedPath
+        const expanded = isSelected && !itemsCollapsed
+        return (
+          <Box key={references.path}>
+            <HStack
+              px={1}
+              py={0.5}
+              borderRadius="md"
+              cursor="pointer"
+              fontWeight={isSelected ? "semibold" : "normal"}
+              color={isSelected ? "blue.500" : undefined}
+              _hover={{ color: "blue.500" }}
+              onClick={() => onSelectCollection(references.path)}
+              spacing={1}
+            >
+              <IconButton
+                aria-label={expanded ? "Collapse items" : "Expand items"}
+                icon={
+                  <Icon
+                    as={expanded ? FaChevronDown : FaChevronRight}
+                    fontSize="0.6em"
+                  />
+                }
+                size="xs"
+                variant="ghost"
+                minW="16px"
+                h="16px"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  if (isSelected) onToggleItems()
+                  else onSelectCollection(references.path)
+                }}
+              />
+              <Icon as={IoLibraryOutline} flexShrink={0} />
+              <Tooltip label={references.path} placement="right">
+                <Text fontSize="sm" noOfLines={1}>
+                  {references.path}
+                </Text>
+              </Tooltip>
+              {references.zotero ? (
+                <Badge colorScheme="red" fontSize="0.6em">
+                  Zotero
+                </Badge>
+              ) : null}
+            </HStack>
+            {expanded ? (
+              <Box pl={6} pb={1}>
+                {selectedEntries.length === 0 ? (
+                  <Text fontSize="xs" color="gray.500" py={0.5}>
+                    {searching ? "No matches" : "No items"}
+                  </Text>
+                ) : (
+                  <>
+                    {shownEntries.map((item) => {
+                      const isActive = item.key === activeItemKey
+                      return (
+                        <Text
+                          key={item.key}
+                          fontSize="xs"
+                          noOfLines={1}
+                          py={0.5}
+                          cursor="pointer"
+                          fontWeight={isActive ? "semibold" : "normal"}
+                          color={isActive ? "blue.500" : undefined}
+                          _hover={{ color: "blue.500" }}
+                          onClick={() => onSelectItem(item.key)}
+                        >
+                          {item.key}
+                        </Text>
+                      )
+                    })}
+                    {remaining > 0 ? (
+                      <Text
+                        fontSize="xs"
+                        color="blue.500"
+                        py={0.5}
+                        cursor="pointer"
+                        _hover={{ textDecoration: "underline" }}
+                        onClick={() => setLimit((l) => l + SIDEBAR_ITEM_PAGE)}
+                      >
+                        Show {Math.min(remaining, SIDEBAR_ITEM_PAGE)} more (
+                        {remaining} remaining)
+                      </Text>
+                    ) : null}
+                  </>
+                )}
+              </Box>
+            ) : null}
+          </Box>
+        )
+      })}
+    </>
+  )
+})
+
+interface CollectionSearchBarProps {
+  userHasWriteAccess: boolean
+  onQueryChange: (q: string) => void
+  onAddItem: () => void
+}
+
+// The single search box driving both the center list and the sidebar tree. The
+// immediate input value is local, so keystrokes don't re-render either list;
+// only the debounced query is lifted to the parent. Remounted (via a `key` on
+// the caller) when the collection changes to reset the text.
+const CollectionSearchBar = memo(function CollectionSearchBar({
+  userHasWriteAccess,
+  onQueryChange,
+  onAddItem,
+}: CollectionSearchBarProps) {
+  const [text, setText] = useState("")
+  useEffect(() => {
+    if (text === "") {
+      onQueryChange("")
+      return
+    }
+    const t = setTimeout(() => onQueryChange(text.trim().toLowerCase()), 200)
+    return () => clearTimeout(t)
+  }, [text, onQueryChange])
+  return (
+    <HStack mb={3} align="center">
+      <InputGroup maxW="400px">
+        <Input
+          placeholder="Search references"
+          size="sm"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") setText("")
+          }}
+          autoComplete="off"
+          data-form-type="other"
+          data-lpignore="true"
+        />
+        {text ? (
+          <InputRightElement h="100%">
+            <IconButton
+              aria-label="Clear search"
+              icon={<CloseIcon boxSize={2.5} />}
+              size="xs"
+              variant="ghost"
+              onClick={() => setText("")}
+            />
+          </InputRightElement>
+        ) : null}
+      </InputGroup>
+      {userHasWriteAccess ? (
+        <Button
+          size="sm"
+          variant="primary"
+          leftIcon={<FaPlus />}
+          flexShrink={0}
+          onClick={onAddItem}
+        >
+          Add item
+        </Button>
+      ) : null}
+    </HStack>
+  )
+})
+
+interface CollectionEntriesProps {
+  collectionPath: string
+  // Entries already filtered by the shared search.
+  entries: ReferenceEntry[]
+  // Whether the collection has any entries at all, to distinguish "empty" from
+  // "no matches".
+  hasEntries: boolean
+  userHasWriteAccess: boolean
+  // A key + nonce identifying the entry to scroll into view; the nonce lets the
+  // same key re-trigger a scroll.
+  scrollTarget: { key: string; nonce: number } | null
+  onOpenItem: (key: string) => void
+  onEditItem: (entry: ReferenceEntry) => void
+  onLinkClick: (entry: ReferenceEntry) => void
+}
+
+// The center column list. Memoized and fed only the debounced-filtered entries,
+// so it re-renders at most once per debounce interval, not per keystroke.
+const CollectionEntries = memo(function CollectionEntries({
+  collectionPath,
+  entries,
+  hasEntries,
+  userHasWriteAccess,
+  scrollTarget,
+  onOpenItem,
+  onEditItem,
+  onLinkClick,
+}: CollectionEntriesProps) {
+  const [visibleCount, setVisibleCount] = useState(25)
+  const [highlightKey, setHighlightKey] = useState<string | null>(null)
+  // The card DOM nodes, so a sidebar click can scroll one into view.
+  const itemRefs = useRef(new Map<string, HTMLDivElement>())
+  const [pendingScrollKey, setPendingScrollKey] = useState<string | null>(null)
+  // Reset pagination when the filtered result set changes (new search).
+  useEffect(() => {
+    setVisibleCount(25)
+  }, [entries])
+  const totalEntries = entries.length
+  const visibleEntries = entries.slice(0, visibleCount)
+  // A sidebar click sets scrollTarget: make sure the item is paginated in, then
+  // scroll to it and briefly highlight it. Keyed on the nonce so re-clicking the
+  // same item re-scrolls; entries is read via ref to avoid re-running on every
+  // result-set change.
+  const entriesRef = useRef(entries)
+  entriesRef.current = entries
+  useEffect(() => {
+    const key = scrollTarget?.key
+    if (!key) return
+    const idx = entriesRef.current.findIndex((e) => e.key === key)
+    if (idx === -1) return
+    setVisibleCount((c) => Math.max(c, idx + 1))
+    setPendingScrollKey(key)
+    setHighlightKey(key)
+  }, [scrollTarget?.key, scrollTarget?.nonce])
+  useEffect(() => {
+    if (!pendingScrollKey) return
+    const el = itemRefs.current.get(pendingScrollKey)
+    if (el) {
+      el.scrollIntoView({ block: "center", behavior: "smooth" })
+      setPendingScrollKey(null)
+    }
+  }, [pendingScrollKey, visibleEntries])
+  useEffect(() => {
+    if (!highlightKey) return
+    const t = setTimeout(() => setHighlightKey(null), 1500)
+    return () => clearTimeout(t)
+  }, [highlightKey])
+  return (
+    <Box flex={1} overflowY="auto" minH={0} pb={4}>
+      {totalEntries === 0 ? (
+        <Text fontSize="sm" color="gray.500">
+          {!hasEntries
+            ? "This collection has no references."
+            : "No references match your search."}
+        </Text>
+      ) : null}
+      {visibleEntries.map((entry) => (
+        <Box
+          key={`${collectionPath}-${entry.key}`}
+          ref={(el) => {
+            if (el) itemRefs.current.set(entry.key, el)
+            else itemRefs.current.delete(entry.key)
+          }}
+          borderRadius="lg"
+          borderWidth={1}
+          borderColor={highlightKey === entry.key ? "blue.400" : undefined}
+          transition="border-color 0.2s"
+          mb={2}
+          p={2}
+          boxSizing="border-box"
+        >
+          <Flex alignItems="center">
+            <Heading
+              size="sm"
+              cursor="pointer"
+              _hover={{ color: "blue.500" }}
+              onClick={() => onOpenItem(entry.key)}
+            >
+              {entry.key}
+            </Heading>
+            {entry.type ? (
+              <Badge ml={2} colorScheme="purple" fontSize="0.6em">
+                {entry.type}
+              </Badge>
+            ) : null}
+            <Text ml={1} fontSize="sm">
+              {entry.file_path ? (
+                <Link onClick={() => onLinkClick(entry)}>
+                  {`(${entry.file_path})`}
+                </Link>
+              ) : (
+                ""
+              )}
+            </Text>
+            {entry.has_pdf || entry.url ? (
+              <Icon
+                as={BsFilePdf}
+                ml={1}
+                color="red.500"
+                cursor="pointer"
+                onClick={() => onOpenItem(entry.key)}
+              />
+            ) : null}
+            {entry.note_count ? (
+              <Badge ml={1} colorScheme="blue" fontSize="0.6em">
+                {entry.note_count} note
+                {entry.note_count > 1 ? "s" : ""}
+              </Badge>
+            ) : null}
+            {userHasWriteAccess ? (
+              <IconButton
+                aria-label="Edit reference"
+                icon={<MdEdit />}
+                size="xs"
+                variant="ghost"
+                ml="auto"
+                onClick={() => onEditItem(entry)}
+              />
+            ) : null}
+          </Flex>
+          <ReferenceEntryTable referenceEntry={entry} />
+        </Box>
+      ))}
+      {visibleCount < totalEntries && (
+        <Flex justify="center" mt={2} mb={4}>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setVisibleCount((n) => n + 25)}
+          >
+            Show more ({totalEntries - visibleCount} remaining)
+          </Button>
+        </Flex>
+      )}
+    </Box>
+  )
+})
 
 function References() {
   const { accountName, projectName } = Route.useParams()
@@ -140,6 +507,8 @@ function References() {
     item: openItemKey,
     import_zotero_open: importZoteroOpen,
     new_collection_open: newCollectionOpen,
+    label_existing_open: labelExistingOpen,
+    items_collapsed: itemsCollapsed,
     resolved: showResolved,
   } = Route.useSearch()
   const { userHasWriteAccess } = useProject(accountName, projectName)
@@ -176,10 +545,40 @@ function References() {
     navigate({
       search: (prev) => ({ ...prev, new_collection_open: undefined }),
     })
-  const selectCollection = (path: string) =>
-    navigate({ search: (prev) => ({ ...prev, path, item: undefined }) })
-  const openItem = (key: string) =>
-    navigate({ search: (prev) => ({ ...prev, item: key }) })
+  const openLabelExisting = () =>
+    navigate({ search: (prev) => ({ ...prev, label_existing_open: true }) })
+  const closeLabelExisting = () =>
+    navigate({
+      search: (prev) => ({ ...prev, label_existing_open: undefined }),
+    })
+  // Stable callbacks so the memoized sidebar tree only re-renders when its data
+  // (not an unrelated parent state change) actually changes.
+  const selectCollection = useCallback(
+    (path: string) =>
+      navigate({
+        search: (prev) => ({
+          ...prev,
+          path,
+          item: undefined,
+          items_collapsed: undefined,
+        }),
+      }),
+    [navigate],
+  )
+  const toggleItemsCollapsed = useCallback(
+    () =>
+      navigate({
+        search: (prev) => ({
+          ...prev,
+          items_collapsed: prev.items_collapsed ? undefined : true,
+        }),
+      }),
+    [navigate],
+  )
+  const openItem = useCallback(
+    (key: string) => navigate({ search: (prev) => ({ ...prev, item: key }) }),
+    [navigate],
+  )
   const closeItem = () =>
     navigate({ search: (prev) => ({ ...prev, item: undefined }) })
   const setShowResolved = (resolved: boolean) =>
@@ -203,38 +602,79 @@ function References() {
   const editItemModal = useDisclosure()
   const [editEntry, setEditEntry] = useState<ReferenceEntry>()
   const [selectedEntry, setSelectedEntry] = useState<ReferenceEntry>()
-  const [visibleCount, setVisibleCount] = useState(25)
-  const [searchText, setSearchText] = useState("")
-  // The filter runs off a debounced copy of the input so typing stays smooth on
-  // large collections; the input value itself updates immediately.
-  const [debouncedQuery, setDebouncedQuery] = useState("")
-  useEffect(() => {
-    const t = setTimeout(
-      () => setDebouncedQuery(searchText.trim().toLowerCase()),
-      200,
-    )
-    return () => clearTimeout(t)
-  }, [searchText])
-  const handleLinkClick = (entry: ReferenceEntry) => {
-    if (!entry.url) {
-      return
-    }
-    setSelectedEntry(entry)
-    fileViewModal.onOpen()
-  }
+  // Filter for the left collection list (shown when the list gets long).
+  const [collectionSearch, setCollectionSearch] = useState("")
+  // The shared item search: a single, debounced query filtering both the center
+  // list and the sidebar tree. Only the debounced value lives here; the input
+  // (immediate value) lives in CollectionSearchBar so keystrokes don't churn the
+  // lists.
+  const [itemQuery, setItemQuery] = useState("")
+  const handleItemQuery = useCallback((q: string) => setItemQuery(q), [])
+  // Which entry the center column should scroll to, set by a sidebar click. The
+  // nonce lets clicking the same entry again re-trigger the scroll.
+  const [scrollTarget, setScrollTarget] = useState<{
+    key: string
+    nonce: number
+  } | null>(null)
+  const selectItem = useCallback(
+    (key: string) =>
+      setScrollTarget((prev) => ({ key, nonce: (prev?.nonce ?? 0) + 1 })),
+    [],
+  )
+  const handleLinkClick = useCallback(
+    (entry: ReferenceEntry) => {
+      if (!entry.url) {
+        return
+      }
+      setSelectedEntry(entry)
+      fileViewModal.onOpen()
+    },
+    [fileViewModal.onOpen],
+  )
+  const openAddItem = useCallback(() => {
+    setEditEntry(undefined)
+    editItemModal.onOpen()
+  }, [editItemModal.onOpen])
+  const openEditItem = useCallback(
+    (entry: ReferenceEntry) => {
+      setEditEntry(entry)
+      editItemModal.onOpen()
+    },
+    [editItemModal.onOpen],
+  )
   // Default to the first collection when none is selected in the URL.
   const selectedCollection =
     allReferences?.find((r) => r.path === selectedPath) ?? allReferences?.[0]
-  const entries = selectedCollection?.entries ?? []
+  // Show a search box for the collection list once it gets long enough to be
+  // worth filtering.
+  const showCollectionSearch = (allReferences?.length ?? 0) > 8
+  const collectionQuery = collectionSearch.trim().toLowerCase()
+  // Memoized so the reference stays stable across unrelated parent re-renders,
+  // keeping the memoized CollectionTree from re-rendering needlessly.
+  const filteredCollections = useMemo(
+    () =>
+      (allReferences ?? []).filter(
+        (r) =>
+          !collectionQuery || r.path.toLowerCase().includes(collectionQuery),
+      ),
+    [allReferences, collectionQuery],
+  )
   const selectedItem = openItemKey
-    ? entries.find((e) => e.key === openItemKey)
+    ? selectedCollection?.entries?.find((e) => e.key === openItemKey)
     : undefined
-  // Precompute a search haystack per entry (key + formatted attribute values)
-  // once per collection, so filtering on each keystroke doesn't re-format every
-  // value.
+  // Reset the item search when switching collections, so a query typed for one
+  // collection doesn't linger on the next.
+  useEffect(() => {
+    setItemQuery("")
+  }, [selectedCollection?.path])
+  const selectedEntries = selectedCollection?.entries ?? []
+  // Precompute a per-entry search haystack (key + formatted attribute values)
+  // once per collection, then filter both the center list and the sidebar tree
+  // off the shared debounced query. Memoized so re-renders that don't change the
+  // query or the collection keep the same filtered array reference.
   const entryHaystacks = useMemo(
     () =>
-      entries.map((e) => ({
+      selectedEntries.map((e) => ({
         entry: e,
         haystack: [
           e.key,
@@ -245,19 +685,18 @@ function References() {
           .join(" ")
           .toLowerCase(),
       })),
-    [entries],
+    [selectedEntries],
   )
-  const filteredEntries = debouncedQuery
-    ? entryHaystacks
-        .filter((x) => x.haystack.includes(debouncedQuery))
-        .map((x) => x.entry)
-    : entries
-  const totalEntries = filteredEntries.length
-  const visibleEntries = filteredEntries.slice(0, visibleCount)
-  const handleSearchChange = (value: string) => {
-    setSearchText(value)
-    setVisibleCount(25)
-  }
+  const itemQueryNorm = itemQuery.trim().toLowerCase()
+  const filteredEntries = useMemo(
+    () =>
+      itemQueryNorm
+        ? entryHaystacks
+            .filter((x) => x.haystack.includes(itemQueryNorm))
+            .map((x) => x.entry)
+        : selectedEntries,
+    [entryHaystacks, itemQueryNorm, selectedEntries],
+  )
 
   return (
     <>
@@ -287,6 +726,13 @@ function References() {
                 onClose={closeNewCollection}
                 ownerName={accountName}
                 projectName={projectName}
+              />
+              <LabelExistingReferences
+                isOpen={Boolean(labelExistingOpen)}
+                onClose={closeLabelExisting}
+                ownerName={accountName}
+                projectName={projectName}
+                existingPaths={(allReferences ?? []).map((r) => r.path)}
               />
               {selectedCollection ? (
                 <EditReferenceItemModal
@@ -332,6 +778,9 @@ function References() {
                       <MenuItem onClick={openNewCollection}>
                         New references collection
                       </MenuItem>
+                      <MenuItem onClick={openLabelExisting}>
+                        Label existing .bib file
+                      </MenuItem>
                       <MenuItem
                         onClick={startImportZotero}
                         isDisabled={connectZoteroMutation.isPending}
@@ -350,38 +799,49 @@ function References() {
                 No references yet.
               </Text>
             ) : null}
-            {allReferences?.map((references) => {
-              const isSelected = references.path === selectedCollection?.path
-              return (
-                <Tooltip
-                  key={references.path}
-                  label={references.path}
-                  placement="right"
-                >
-                  <HStack
-                    px={1}
-                    py={0.5}
-                    borderRadius="md"
-                    cursor="pointer"
-                    fontWeight={isSelected ? "semibold" : "normal"}
-                    color={isSelected ? "blue.500" : undefined}
-                    _hover={{ color: "blue.500" }}
-                    onClick={() => selectCollection(references.path)}
-                    spacing={1}
-                  >
-                    <Icon as={IoLibraryOutline} flexShrink={0} />
-                    <Text fontSize="sm" noOfLines={1}>
-                      {references.path}
-                    </Text>
-                    {references.zotero ? (
-                      <Badge colorScheme="red" fontSize="0.6em">
-                        Zotero
-                      </Badge>
-                    ) : null}
-                  </HStack>
-                </Tooltip>
-              )
-            })}
+            {showCollectionSearch ? (
+              <InputGroup size="sm" mb={2}>
+                <Input
+                  placeholder="Search collections"
+                  value={collectionSearch}
+                  onChange={(e) => setCollectionSearch(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape") setCollectionSearch("")
+                  }}
+                  autoComplete="off"
+                  data-form-type="other"
+                  data-lpignore="true"
+                />
+                {collectionSearch ? (
+                  <InputRightElement>
+                    <IconButton
+                      aria-label="Clear search"
+                      icon={<CloseIcon boxSize={2} />}
+                      size="xs"
+                      variant="ghost"
+                      onClick={() => setCollectionSearch("")}
+                    />
+                  </InputRightElement>
+                ) : null}
+              </InputGroup>
+            ) : null}
+            {(allReferences?.length ?? 0) > 0 &&
+            filteredCollections.length === 0 ? (
+              <Text fontSize="sm" color="gray.500">
+                No matching collections.
+              </Text>
+            ) : null}
+            <CollectionTree
+              collections={filteredCollections}
+              selectedPath={selectedCollection?.path}
+              selectedEntries={filteredEntries}
+              searching={Boolean(itemQueryNorm)}
+              itemsCollapsed={Boolean(itemsCollapsed)}
+              activeItemKey={scrollTarget?.key}
+              onSelectCollection={selectCollection}
+              onToggleItems={toggleItemsCollapsed}
+              onSelectItem={selectItem}
+            />
           </PageMenu>
           {/* Center: selected collection's entries. A flex column with a fixed
               search header and an independently scrolling entries body, like
@@ -396,133 +856,22 @@ function References() {
           >
             {selectedCollection ? (
               <>
-                <HStack mb={3} align="center">
-                  <InputGroup maxW="400px">
-                    <Input
-                      placeholder="Search references"
-                      size="sm"
-                      value={searchText}
-                      onChange={(e) => handleSearchChange(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Escape") {
-                          handleSearchChange("")
-                        }
-                      }}
-                      autoComplete="off"
-                      data-form-type="other"
-                      data-lpignore="true"
-                    />
-                    {searchText ? (
-                      <InputRightElement h="100%">
-                        <IconButton
-                          aria-label="Clear search"
-                          icon={<CloseIcon boxSize={2.5} />}
-                          size="xs"
-                          variant="ghost"
-                          onClick={() => handleSearchChange("")}
-                        />
-                      </InputRightElement>
-                    ) : null}
-                  </InputGroup>
-                  {userHasWriteAccess ? (
-                    <Button
-                      size="sm"
-                      variant="primary"
-                      leftIcon={<FaPlus />}
-                      flexShrink={0}
-                      onClick={() => {
-                        setEditEntry(undefined)
-                        editItemModal.onOpen()
-                      }}
-                    >
-                      Add item
-                    </Button>
-                  ) : null}
-                </HStack>
-                <Box flex={1} overflowY="auto" minH={0} pb={4}>
-                  {totalEntries === 0 ? (
-                    <Text fontSize="sm" color="gray.500">
-                      {entries.length === 0
-                        ? "This collection has no references."
-                        : "No references match your search."}
-                    </Text>
-                  ) : null}
-                  {visibleEntries.map((entry) => (
-                    <Box
-                      key={`${selectedCollection.path}-${entry.key}`}
-                      borderRadius="lg"
-                      borderWidth={1}
-                      mb={2}
-                      p={2}
-                      boxSizing="border-box"
-                    >
-                      <Flex alignItems="center">
-                        <Heading
-                          size="sm"
-                          cursor="pointer"
-                          _hover={{ color: "blue.500" }}
-                          onClick={() => openItem(entry.key)}
-                        >
-                          {entry.key}
-                        </Heading>
-                        {entry.type ? (
-                          <Badge ml={2} colorScheme="purple" fontSize="0.6em">
-                            {entry.type}
-                          </Badge>
-                        ) : null}
-                        <Text ml={1} fontSize="sm">
-                          {entry.file_path ? (
-                            <Link onClick={() => handleLinkClick(entry)}>
-                              {`(${entry.file_path})`}
-                            </Link>
-                          ) : (
-                            ""
-                          )}
-                        </Text>
-                        {entry.has_pdf || entry.url ? (
-                          <Icon
-                            as={BsFilePdf}
-                            ml={1}
-                            color="red.500"
-                            cursor="pointer"
-                            onClick={() => openItem(entry.key)}
-                          />
-                        ) : null}
-                        {entry.note_count ? (
-                          <Badge ml={1} colorScheme="blue" fontSize="0.6em">
-                            {entry.note_count} note
-                            {entry.note_count > 1 ? "s" : ""}
-                          </Badge>
-                        ) : null}
-                        {userHasWriteAccess ? (
-                          <IconButton
-                            aria-label="Edit reference"
-                            icon={<MdEdit />}
-                            size="xs"
-                            variant="ghost"
-                            ml="auto"
-                            onClick={() => {
-                              setEditEntry(entry)
-                              editItemModal.onOpen()
-                            }}
-                          />
-                        ) : null}
-                      </Flex>
-                      <ReferenceEntryTable referenceEntry={entry} />
-                    </Box>
-                  ))}
-                  {visibleCount < totalEntries && (
-                    <Flex justify="center" mt={2} mb={4}>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => setVisibleCount((n) => n + 25)}
-                      >
-                        Show more ({totalEntries - visibleCount} remaining)
-                      </Button>
-                    </Flex>
-                  )}
-                </Box>
+                <CollectionSearchBar
+                  key={selectedCollection.path}
+                  userHasWriteAccess={userHasWriteAccess}
+                  onQueryChange={handleItemQuery}
+                  onAddItem={openAddItem}
+                />
+                <CollectionEntries
+                  collectionPath={selectedCollection.path}
+                  entries={filteredEntries}
+                  hasEntries={(selectedCollection.entries?.length ?? 0) > 0}
+                  userHasWriteAccess={userHasWriteAccess}
+                  scrollTarget={scrollTarget}
+                  onOpenItem={openItem}
+                  onEditItem={openEditItem}
+                  onLinkClick={handleLinkClick}
+                />
               </>
             ) : null}
           </Box>

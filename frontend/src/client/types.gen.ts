@@ -1149,6 +1149,7 @@ export type References = {
 
 export type ReferencesPost = {
   path: string
+  label_existing?: boolean
 }
 
 export type ReferenceZoteroLink = {

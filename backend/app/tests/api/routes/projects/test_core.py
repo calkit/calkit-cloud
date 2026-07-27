@@ -1901,3 +1901,55 @@ def test_post_project_references_existing_path_conflicts(
             json={"path": "references.bib"},
         )
     assert r.status_code == 409, r.text
+
+
+def test_post_project_references_labels_existing_file(
+    client: TestClient, db: Session, tmp_path
+) -> None:
+    project, headers = _make_owner_with_project(db, client)
+    owner_name = project.owner_account.name
+    base = f"{settings.API_V1_STR}/projects/{owner_name}/{project.name}"
+    fake_repo = _make_fake_repo(str(tmp_path))
+    # An existing .bib file that isn't yet declared in calkit.yaml.
+    (tmp_path / "references.bib").write_text("@article{x}\n")
+    with (
+        patch("app.api.routes.projects.core.get_repo", return_value=fake_repo),
+        patch(
+            "app.api.routes.projects.core.get_ck_info_from_repo",
+            side_effect=lambda *a, **k: {},
+        ),
+        patch("app.api.routes.projects.core.mixpanel.track"),
+    ):
+        r = client.post(
+            f"{base}/references",
+            headers=headers,
+            json={"path": "references.bib", "label_existing": True},
+        )
+    assert r.status_code == 200, r.text
+    # The file is preserved (not blanked out) and registered.
+    assert (tmp_path / "references.bib").read_text() == "@article{x}\n"
+    ck_info = ryaml.load((tmp_path / "calkit.yaml").read_text())
+    assert ck_info["references"] == [{"path": "references.bib"}]
+
+
+def test_post_project_references_label_existing_missing_file(
+    client: TestClient, db: Session, tmp_path
+) -> None:
+    project, headers = _make_owner_with_project(db, client)
+    owner_name = project.owner_account.name
+    base = f"{settings.API_V1_STR}/projects/{owner_name}/{project.name}"
+    fake_repo = _make_fake_repo(str(tmp_path))
+    with (
+        patch("app.api.routes.projects.core.get_repo", return_value=fake_repo),
+        patch(
+            "app.api.routes.projects.core.get_ck_info_from_repo",
+            side_effect=lambda *a, **k: {},
+        ),
+        patch("app.api.routes.projects.core.mixpanel.track"),
+    ):
+        r = client.post(
+            f"{base}/references",
+            headers=headers,
+            json={"path": "missing.bib", "label_existing": True},
+        )
+    assert r.status_code == 404, r.text

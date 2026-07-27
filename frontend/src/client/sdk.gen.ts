@@ -2759,7 +2759,10 @@ export class ProjectsService {
 
   /**
    * Post Project References
-   * Create a new, empty references collection (a ``.bib`` file).
+   * Register a references collection (a ``.bib`` file) in ``calkit.yaml``.
+   *
+   * Creates a new, empty file by default, or labels an existing one when
+   * ``label_existing`` is set.
    * @param data The data for the request.
    * @param data.ownerName
    * @param data.projectName
@@ -3074,9 +3077,9 @@ export class ProjectsService {
    * Put Project Reference Notes
    * Set a reference item's notes in the BibTeX ``comment`` field.
    *
-   * Notes are serialized to Markdown (one ``# heading`` section per titled note)
-   * and committed. For a Zotero-linked reference, the notes are also pushed to
-   * Zotero.
+   * Notes are serialized to Markdown (untitled sections separated by ``---``,
+   * each optionally carrying a highlight anchor) and committed. For a
+   * Zotero-linked reference, the notes are also pushed to Zotero.
    * @param data The data for the request.
    * @param data.ownerName
    * @param data.projectName

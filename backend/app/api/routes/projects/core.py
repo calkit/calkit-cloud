@@ -5169,6 +5169,9 @@ def get_project_references(
 
 class ReferencesPost(BaseModel):
     path: str
+    # When True, register an existing ``.bib`` file rather than creating a new,
+    # empty one. The file must already exist in the repo.
+    label_existing: bool = False
 
 
 @router.post("/projects/{owner_name}/{project_name}/references")
@@ -5179,7 +5182,11 @@ def post_project_references(
     current_user: CurrentUser,
     session: SessionDep,
 ) -> References:
-    """Create a new, empty references collection (a ``.bib`` file)."""
+    """Register a references collection (a ``.bib`` file) in ``calkit.yaml``.
+
+    Creates a new, empty file by default, or labels an existing one when
+    ``label_existing`` is set.
+    """
     if not req.path.lower().endswith(".bib"):
         raise HTTPException(422, "Path must end with '.bib'")
     project = app.projects.get_project(
@@ -5202,23 +5209,33 @@ def post_project_references(
             409, "A references collection with that path exists"
         )
     bib_full_path = os.path.join(repo.working_dir, req.path)
-    if os.path.exists(bib_full_path):
-        raise HTTPException(409, f"'{req.path}' already exists in the repo")
-    os.makedirs(os.path.dirname(bib_full_path) or ".", exist_ok=True)
-    with open(bib_full_path, "w") as f:
-        f.write("")
+    if req.label_existing:
+        if not os.path.isfile(bib_full_path):
+            raise HTTPException(404, f"'{req.path}' not found in the repo")
+    else:
+        if os.path.exists(bib_full_path):
+            raise HTTPException(
+                409, f"'{req.path}' already exists in the repo"
+            )
+        os.makedirs(os.path.dirname(bib_full_path) or ".", exist_ok=True)
+        with open(bib_full_path, "w") as f:
+            f.write("")
     references.append({"path": req.path})
     ck_info["references"] = references
     with open(os.path.join(repo.working_dir, "calkit.yaml"), "w") as f:
         ryaml.dump(ck_info, f)
     repo.git.add(req.path)
     repo.git.add("calkit.yaml")
-    repo.git.commit(["-m", f"Add references collection '{req.path}'"])
+    verb = "Label" if req.label_existing else "Add"
+    repo.git.commit(["-m", f"{verb} references collection '{req.path}'"])
     repo.git.push(["origin", repo.active_branch.name])
     mixpanel.track(
         user=current_user,
         event_name="Created references collection",
-        add_event_info={"path": req.path},
+        add_event_info={
+            "path": req.path,
+            "label_existing": req.label_existing,
+        },
     )
     return References.model_validate({"path": req.path})
 

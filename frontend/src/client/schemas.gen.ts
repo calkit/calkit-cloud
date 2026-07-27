@@ -5632,6 +5632,11 @@ export const ReferencesPostSchema = {
       type: "string",
       title: "Path",
     },
+    label_existing: {
+      type: "boolean",
+      title: "Label Existing",
+      default: false,
+    },
   },
   type: "object",
   required: ["path"],
