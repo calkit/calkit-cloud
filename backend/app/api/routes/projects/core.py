@@ -463,7 +463,9 @@ def post_project(
         body = {
             "name": repo_name,
             "description": project_in.description,
-            "homepage": f"https://calkit.io/{owner_name}/{project_in.name}",
+            "homepage": (
+                f"{settings.frontend_host}/{owner_name}/{project_in.name}"
+            ),
             "private": not project_in.is_public,
             "has_discussions": True,
             "has_issues": True,
