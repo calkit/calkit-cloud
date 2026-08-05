@@ -155,7 +155,10 @@ def _resolve_github_collaborator_access(
     try:
         session.commit()
     except IntegrityError:
-        logger.info("Access record was written concurrently; ignoring")
+        logger.info(
+            f"Access record for user {current_user.id} and project "
+            f"{project.id} was written concurrently; ignoring"
+        )
         session.rollback()
 
 

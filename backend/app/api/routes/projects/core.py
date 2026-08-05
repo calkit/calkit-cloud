@@ -568,13 +568,23 @@ def post_project(
                     "https://raw.githubusercontent.com/calkit/devcontainer/"
                     "refs/heads/main/devcontainer.json"
                 )
-                dc_resp = requests.get(dc_url)
-                dc_dir = os.path.join(repo.working_dir, ".devcontainer")
-                os.makedirs(dc_dir, exist_ok=True)
-                dc_fpath = os.path.join(dc_dir, "devcontainer.json")
-                with open(dc_fpath, "w") as f:
-                    f.write(dc_resp.text)
-                repo.git.add(".devcontainer")
+                # A dev container spec is a nice-to-have, and can be added
+                # later with the dev container endpoint, so don't fail project
+                # creation if GitHub is slow or the file has moved. Writing a
+                # non-200 body would put an error page in devcontainer.json.
+                try:
+                    dc_resp = requests.get(dc_url, timeout=15)
+                    dc_resp.raise_for_status()
+                except requests.RequestException as e:
+                    logger.warning(f"Failed to fetch dev container spec: {e}")
+                    dc_resp = None
+                if dc_resp is not None:
+                    dc_dir = os.path.join(repo.working_dir, ".devcontainer")
+                    os.makedirs(dc_dir, exist_ok=True)
+                    dc_fpath = os.path.join(dc_dir, "devcontainer.json")
+                    with open(dc_fpath, "w") as f:
+                        f.write(dc_resp.text)
+                    repo.git.add(".devcontainer")
             # Create the README
             logger.info("Creating README.md")
             with open(os.path.join(repo.working_dir, "README.md"), "w") as f:
@@ -586,12 +596,15 @@ def post_project(
             # Setup the DVC remote
             logger.info("Running DVC init")
             run_dvc_command(
-                ["init", "--force", "-q"], wdir=str(repo.working_dir)
+                ["init", "--force", "-q"],
+                wdir=str(repo.working_dir),
+                check=True,
             )
             logger.info("Enabling DVC autostage")
             run_dvc_command(
                 ["config", "core.autostage", "true"],
                 wdir=str(repo.working_dir),
+                check=True,
             )
             logger.info("Setting up default DVC remote")
             calkit.dvc.configure_remote(
@@ -608,7 +621,7 @@ def post_project(
             # The project row is already committed, and it would block a retry
             # since a Git repo can only back one project, so remove it and let
             # the user try again with the repo that was created on GitHub.
-            logger.error(f"Failed to set up repo for new project: {e}")
+            logger.exception(f"Failed to set up repo for new project: {e}")
             session.rollback()
             session.delete(project)
             session.commit()
@@ -2224,7 +2237,7 @@ def post_project_figure(
         # Initialize DVC if it's never been
         if not os.path.isdir(os.path.join(repo.working_dir, ".dvc")):
             logger.info("Calling dvc init since .dvc directory is missing")
-            run_dvc_command(["init"], wdir=str(repo.working_dir))
+            run_dvc_command(["init"], wdir=str(repo.working_dir), check=True)
         logger.info(f"Running dvc add {path}")
         run_dvc_command(["add", path], wdir=str(repo.working_dir), check=True)
         files_to_stage = [path + ".dvc"]
@@ -3273,7 +3286,7 @@ def post_project_dataset_upload(
     # Initialize DVC if it's never been
     if not os.path.isdir(os.path.join(repo.working_dir, ".dvc")):
         logger.info("Calling dvc init since .dvc directory is missing")
-        run_dvc_command(["init"], wdir=str(repo.working_dir))
+        run_dvc_command(["init"], wdir=str(repo.working_dir), check=True)
     logger.info(f"Running dvc add {path}")
     run_dvc_command(["add", path], wdir=str(repo.working_dir), check=True)
     files_to_stage = [path + ".dvc"]
@@ -3696,7 +3709,7 @@ def post_project_publication(
         # Initialize DVC if it's never been
         if not os.path.isdir(os.path.join(repo.working_dir, ".dvc")):
             logger.info("Calling dvc init since .dvc directory is missing")
-            run_dvc_command(["init"], wdir=str(repo.working_dir))
+            run_dvc_command(["init"], wdir=str(repo.working_dir), check=True)
         logger.info(f"Running dvc add {path}")
         run_dvc_command(["add", path], wdir=str(repo.working_dir), check=True)
         files_to_stage = [path + ".dvc"]
